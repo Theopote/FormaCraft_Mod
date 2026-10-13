@@ -25,14 +25,30 @@ public interface BlockMutationAccess {
     }
 
     /**
-     * 写入快照：先写 BlockState，再尽力恢复 BE NBT。
-     * BE 恢复失败时记 warn，仍以 state 校验结果为准（best-effort）。
+     * 写入快照并返回分级结果。默认实现仅保证状态；完整 NBT 由生产适配器处理。
      */
+    default SnapshotWriteResult writeSnapshot(BlockPos pos, BlockSnapshot snapshot) {
+        if (snapshot == null) return SnapshotWriteResult.REJECTED;
+        try {
+            boolean accepted = setState(pos, snapshot.state());
+            if (!accepted) return SnapshotWriteResult.REJECTED;
+            BlockSnapshot after = getSnapshot(pos);
+            if (after.equals(snapshot)) return SnapshotWriteResult.FULL;
+            if (after.state().equals(snapshot.state())) {
+                return snapshot.blockEntityNbt() != null
+                        ? SnapshotWriteResult.STATE_ONLY
+                        : SnapshotWriteResult.FULL;
+            }
+            return SnapshotWriteResult.STATE_ONLY;
+        } catch (RuntimeException e) {
+            LOGGER.warn("writeSnapshot failed at {}", pos, e);
+            return SnapshotWriteResult.ERROR;
+        }
+    }
+
+    /** 兼容：仅 FULL 视为成功。 */
     default boolean setSnapshot(BlockPos pos, BlockSnapshot snapshot) {
-        if (snapshot == null) return false;
-        boolean accepted = setState(pos, snapshot.state());
-        if (!accepted) return false;
-        return getState(pos).equals(snapshot.state());
+        return writeSnapshot(pos, snapshot).isFullSuccess();
     }
 
     static BlockMutationAccess forWorld(ServerWorld world) {
@@ -69,45 +85,60 @@ public interface BlockMutationAccess {
                     NbtCompound nbt = be.createNbtWithIdentifyingData(world.getRegistryManager());
                     return BlockSnapshot.of(state, nbt);
                 } catch (RuntimeException e) {
-                    LOGGER.warn("Failed to serialize block entity at {}; keeping state-only snapshot", pos, e);
+                    LOGGER.warn("Failed to serialize block entity at {}; state-only snapshot (not FULL-guaranteed)",
+                            pos, e);
                     return BlockSnapshot.of(state);
                 }
             }
 
             @Override
-            public boolean setSnapshot(BlockPos pos, BlockSnapshot snapshot) {
-                if (snapshot == null) return false;
-                boolean accepted = world.setBlockState(pos, snapshot.state(), 3);
-                if (!accepted) return false;
+            public SnapshotWriteResult writeSnapshot(BlockPos pos, BlockSnapshot snapshot) {
+                if (snapshot == null) return SnapshotWriteResult.REJECTED;
+                try {
+                    boolean accepted = world.setBlockState(pos, snapshot.state(), 3);
+                    if (!accepted) return SnapshotWriteResult.REJECTED;
 
-                NbtCompound nbt = snapshot.blockEntityNbt();
-                if (nbt != null && !nbt.isEmpty()) {
-                    try {
-                        BlockEntity existing = world.getBlockEntity(pos);
-                        if (existing != null) {
-                            try (ErrorReporter.Logging logging =
-                                         new ErrorReporter.Logging(existing.getReporterContext(), LOGGER)) {
-                                existing.read(NbtReadView.create(logging, world.getRegistryManager(), nbt));
-                            }
-                        } else {
-                            BlockEntity created = BlockEntity.createFromNbt(
-                                    pos, snapshot.state(), nbt, world.getRegistryManager());
-                            if (created != null) {
-                                world.addBlockEntity(created);
+                    NbtCompound nbt = snapshot.blockEntityNbt();
+                    boolean nbtOk = true;
+                    if (nbt != null && !nbt.isEmpty()) {
+                        nbtOk = false;
+                        try {
+                            BlockEntity existing = world.getBlockEntity(pos);
+                            if (existing != null) {
+                                try (ErrorReporter.Logging logging =
+                                             new ErrorReporter.Logging(existing.getReporterContext(), LOGGER)) {
+                                    existing.read(NbtReadView.create(logging, world.getRegistryManager(), nbt));
+                                }
+                                nbtOk = true;
                             } else {
-                                LOGGER.warn(
-                                        "Could not recreate block entity at {} from NBT; state restored only",
-                                        pos);
+                                BlockEntity created = BlockEntity.createFromNbt(
+                                        pos, snapshot.state(), nbt, world.getRegistryManager());
+                                if (created != null) {
+                                    world.addBlockEntity(created);
+                                    nbtOk = true;
+                                } else {
+                                    LOGGER.warn(
+                                            "Could not recreate block entity at {} from NBT; STATE_ONLY",
+                                            pos);
+                                }
                             }
+                        } catch (RuntimeException e) {
+                            LOGGER.warn("Failed to restore block entity NBT at {}; STATE_ONLY", pos, e);
                         }
-                    } catch (RuntimeException e) {
-                        LOGGER.warn(
-                                "Failed to restore block entity NBT at {}; state restored only",
-                                pos, e);
                     }
-                }
 
-                return world.getBlockState(pos).equals(snapshot.state());
+                    BlockSnapshot after = getSnapshot(pos);
+                    if (after.equals(snapshot)) return SnapshotWriteResult.FULL;
+                    if (after.state().equals(snapshot.state())) {
+                        return (nbt != null && !nbt.isEmpty() && !nbtOk)
+                                ? SnapshotWriteResult.STATE_ONLY
+                                : (nbt != null && !nbt.isEmpty() ? SnapshotWriteResult.STATE_ONLY : SnapshotWriteResult.FULL);
+                    }
+                    return SnapshotWriteResult.STATE_ONLY;
+                } catch (RuntimeException e) {
+                    LOGGER.warn("writeSnapshot failed at {}", pos, e);
+                    return SnapshotWriteResult.ERROR;
+                }
             }
         };
     }

@@ -30,7 +30,23 @@ public final class PatchHistoryManager {
     private static final Map<UUID, PatchExecutor.ApplyResult> LAST_APPLY_RESULT = new ConcurrentHashMap<>();
 
     private static PatchReplayHistory stacks(UUID playerId) {
-        return PER_PLAYER.computeIfAbsent(playerId, k -> new PatchReplayHistory(MAX_HISTORY));
+        return PER_PLAYER.computeIfAbsent(playerId, k -> {
+            PatchReplayHistory history = new PatchReplayHistory(MAX_HISTORY);
+            history.setOnEvict(id -> com.formacraft.server.build.PlayerMutationLedger.get().remove(id));
+            return history;
+        });
+    }
+
+    public static UUID peekUndoTransactionId(UUID playerId) {
+        if (playerId == null) return null;
+        PatchReplayHistory h = PER_PLAYER.get(playerId);
+        return h == null ? null : h.peekUndoTransactionId();
+    }
+
+    public static UUID peekRedoTransactionId(UUID playerId) {
+        if (playerId == null) return null;
+        PatchReplayHistory h = PER_PLAYER.get(playerId);
+        return h == null ? null : h.peekRedoTransactionId();
     }
     public static boolean canUndo(UUID playerId) { return playerId != null && stacks(playerId).canUndo(); }
     public static boolean canRedo(UUID playerId) { return playerId != null && stacks(playerId).canRedo(); }
@@ -71,8 +87,8 @@ public final class PatchHistoryManager {
         PatchTransaction tx = PatchTransaction.fromSnapshots(origin, before, after);
         if (tx.before().isEmpty()) return applyResult;
 
-        stacks(playerId).record(world, tx);
-        com.formacraft.server.build.PlayerMutationLedger.get().recordPatch(playerId);
+        com.formacraft.server.build.MutationHistoryCoordinator.recordPatch(
+                playerId, stacks(playerId), world, tx);
 
         // ========== Memory → Patch → Memory 闭环 ==========
         // 分析 Patch 影响并更新 Memory

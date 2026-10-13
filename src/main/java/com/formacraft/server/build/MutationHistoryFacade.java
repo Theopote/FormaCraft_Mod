@@ -9,8 +9,6 @@ import java.util.UUID;
 
 /**
  * 统一 Undo/Redo 入口：按 {@link PlayerMutationLedger} 时间序选择 BUILD 或 PATCH 栈执行一次。
- * <p>
- * 通用命令与 Patch Undo/Redo 按钮均委托本 Facade，按账本时间序执行。
  */
 public final class MutationHistoryFacade {
     private MutationHistoryFacade() {}
@@ -26,17 +24,36 @@ public final class MutationHistoryFacade {
     public static PatchReplayHistory.ReplayResult undo(UUID playerId, ServerWorld world) {
         if (playerId == null || world == null) return PatchReplayHistory.ReplayResult.empty();
         PlayerMutationLedger ledger = PlayerMutationLedger.get();
+        // 丢弃与底层栈顶不一致的幽灵账本条目
+        while (ledger.canUndo(playerId)) {
+            PlayerMutationLedger.Entry peek = ledger.peekUndo(playerId);
+            if (peek == null) break;
+            UUID expected = peek.transactionId();
+            UUID actual = switch (peek.kind()) {
+                case BUILD -> BuildExecutionService.getInstance().getUndoService().peekUndoTransactionId(playerId);
+                case PATCH -> PatchHistoryManager.peekUndoTransactionId(playerId);
+            };
+            if (expected.equals(actual)) break;
+            com.formacraft.FormacraftMod.LOGGER.warn(
+                    "Mutation ledger ghost undo entry {} ({}); dropping", expected, peek.kind());
+            ledger.popUndo(playerId);
+            ledger.remove(expected);
+        }
         PlayerMutationLedger.Entry entry = ledger.popUndo(playerId);
         if (entry == null) return PatchReplayHistory.ReplayResult.empty();
 
         PatchReplayHistory.ReplayResult result = switch (entry.kind()) {
             case BUILD -> BuildExecutionService.getInstance().getUndoService()
-                    .undo(playerId, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world));
+                    .undo(playerId, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world),
+                            entry.transactionId());
             case PATCH -> PatchHistoryManager.undoDetailed(world, playerId);
         };
 
-        if (!result.available() || result.wrongWorld() || !result.complete()) {
-            // 未完成：保留在 undo，允许重试；从 redo 移回
+        if (!result.available()) {
+            ledger.remove(entry.transactionId());
+            return result;
+        }
+        if (result.wrongWorld() || !result.complete()) {
             ledger.restoreUndo(playerId, entry);
         }
         return result;
@@ -53,19 +70,35 @@ public final class MutationHistoryFacade {
     public static PatchReplayHistory.ReplayResult redo(UUID playerId, ServerWorld world) {
         if (playerId == null || world == null) return PatchReplayHistory.ReplayResult.empty();
         PlayerMutationLedger ledger = PlayerMutationLedger.get();
+        while (ledger.canRedo(playerId)) {
+            PlayerMutationLedger.Entry peek = ledger.peekRedo(playerId);
+            if (peek == null) break;
+            UUID expected = peek.transactionId();
+            UUID actual = switch (peek.kind()) {
+                case BUILD -> BuildExecutionService.getInstance().getUndoService().peekRedoTransactionId(playerId);
+                case PATCH -> PatchHistoryManager.peekRedoTransactionId(playerId);
+            };
+            if (expected.equals(actual)) break;
+            com.formacraft.FormacraftMod.LOGGER.warn(
+                    "Mutation ledger ghost redo entry {} ({}); dropping", expected, peek.kind());
+            ledger.popRedo(playerId);
+            ledger.remove(expected);
+        }
         PlayerMutationLedger.Entry entry = ledger.popRedo(playerId);
         if (entry == null) return PatchReplayHistory.ReplayResult.empty();
 
-        PatchReplayHistory.ReplayResult result;
-        if (entry.kind() == PlayerMutationLedger.Kind.PATCH) {
-            result = PatchHistoryManager.redoDetailed(world, playerId);
-        } else {
-            // BUILD 栈当前无独立 redo；把条目交还 redo 并报告不可用
-            ledger.restoreRedo(playerId, entry);
-            return PatchReplayHistory.ReplayResult.empty();
-        }
+        PatchReplayHistory.ReplayResult result = switch (entry.kind()) {
+            case BUILD -> BuildExecutionService.getInstance().getUndoService()
+                    .redo(playerId, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world),
+                            entry.transactionId());
+            case PATCH -> PatchHistoryManager.redoDetailed(world, playerId);
+        };
 
-        if (!result.available() || result.wrongWorld() || !result.complete()) {
+        if (!result.available()) {
+            ledger.remove(entry.transactionId());
+            return result;
+        }
+        if (result.wrongWorld() || !result.complete()) {
             ledger.restoreRedo(playerId, entry);
         }
         return result;
@@ -78,15 +111,13 @@ public final class MutationHistoryFacade {
     public static boolean canRedo(UUID playerId) {
         PlayerMutationLedger ledger = PlayerMutationLedger.get();
         if (!ledger.canRedo(playerId)) return false;
-        // BUILD 无 redo：若栈顶是 BUILD 则不可用
-        // peek via temporary — use canRedo only when patch redo exists at top
-        // Simpler: PatchHistoryManager.canRedo OR ledger has PATCH redo top
-        var kind = peekRedoKind(playerId);
-        return kind == PlayerMutationLedger.Kind.PATCH && PatchHistoryManager.canRedo(playerId);
-    }
-
-    private static PlayerMutationLedger.Kind peekRedoKind(UUID playerId) {
-        // expose via temporary pop/push is racy; add peek on ledger
-        return PlayerMutationLedger.get().peekRedoKind(playerId);
+        var kind = ledger.peekRedoKind(playerId);
+        if (kind == PlayerMutationLedger.Kind.PATCH) {
+            return PatchHistoryManager.canRedo(playerId);
+        }
+        if (kind == PlayerMutationLedger.Kind.BUILD) {
+            return BuildExecutionService.getInstance().getUndoService().canRedo(playerId);
+        }
+        return false;
     }
 }

@@ -76,6 +76,45 @@ public class FormaCraftCommands {
                     return result.complete() ? 1 : 0;
                 }));
 
+        dispatcher.register(literal("formacraft_redo")
+                .requires(source -> source.hasPermissionLevel(2))
+                .executes(ctx -> {
+                    var player = ctx.getSource().getPlayer();
+                    if (player == null) {
+                        ctx.getSource().sendError(Text.literal("Only players can use this command."));
+                        return 0;
+                    }
+                    var result = com.formacraft.server.build.MutationHistoryFacade.redo(player);
+                    String summary = result.summaryZh("重做");
+                    if (!result.available()) {
+                        summary = summary + "（会话内历史，停服后清空）";
+                    }
+                    if (!result.complete()) {
+                        ctx.getSource().sendError(Text.literal(summary));
+                    } else {
+                        String finalSummary = summary;
+                        ctx.getSource().sendFeedback(() -> Text.literal(finalSummary), true);
+                    }
+                    return result.complete() ? 1 : 0;
+                }));
+
+        dispatcher.register(literal("formacraft_cancel_build")
+                .requires(source -> source.hasPermissionLevel(2))
+                .executes(ctx -> {
+                    var player = ctx.getSource().getPlayer();
+                    if (player == null) {
+                        ctx.getSource().sendError(Text.literal("Only players can use this command."));
+                        return 0;
+                    }
+                    if (!(player.getEntityWorld() instanceof ServerWorld sw)) return 0;
+                    int n = BuildExecutionService.getInstance().cancelBuildsForPlayer(player.getUuid(), sw);
+                    ctx.getSource().sendFeedback(() -> Text.literal(
+                            n > 0
+                                    ? ("已取消 " + n + " 个建造任务；已落地方块可撤销（会话内有效，停服清空；进行中任务停服不恢复）")
+                                    : "没有进行中的建造任务"), true);
+                    return n;
+                }));
+
         // 预览命令
         dispatcher.register(literal("forma_preview")
                 .requires(source -> source.hasPermissionLevel(2))

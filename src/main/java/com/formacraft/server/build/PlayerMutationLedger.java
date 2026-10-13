@@ -2,21 +2,28 @@ package com.formacraft.server.build;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 玩家级统一变更账本：按时间序记录 BUILD / PATCH 条目，供 {@link MutationHistoryFacade} 倒序撤销。
+ * 玩家级统一变更账本：按时间序记录 BUILD / PATCH，条目与底层事务 {@code transactionId} 一一对应。
  * <p>
- * 不合并执行器栈；各栈仍各自维护细节。账本上限 50（与 Patch 历史对齐）。
- * 会话内存态：服务器停止时清空，不持久化。
+ * 会话内存态：服务器停止时清空，不持久化。淘汰以底层栈回调 {@link #remove(UUID)} 为准。
  */
 public final class PlayerMutationLedger {
     public enum Kind { BUILD, PATCH }
 
-    public record Entry(UUID playerId, Kind kind, long seq) {}
+    public record Entry(UUID transactionId, UUID playerId, Kind kind, long seq) {
+        public Entry {
+            Objects.requireNonNull(transactionId, "transactionId");
+            Objects.requireNonNull(playerId, "playerId");
+            Objects.requireNonNull(kind, "kind");
+        }
+    }
 
     private static final int LIMIT = 50;
     private static final PlayerMutationLedger INSTANCE = new PlayerMutationLedger();
@@ -29,19 +36,43 @@ public final class PlayerMutationLedger {
         return INSTANCE;
     }
 
-    public void recordBuild(UUID playerId) {
-        record(playerId, Kind.BUILD);
-    }
-
-    public void recordPatch(UUID playerId) {
-        record(playerId, Kind.PATCH);
-    }
-
-    private void record(UUID playerId, Kind kind) {
-        if (playerId == null || kind == null) return;
+    public void record(UUID transactionId, UUID playerId, Kind kind) {
+        if (transactionId == null || playerId == null || kind == null) return;
+        remove(transactionId); // 防重复
         Deque<Entry> stack = undo.computeIfAbsent(playerId, k -> new ArrayDeque<>());
-        stack.push(new Entry(playerId, kind, seq.incrementAndGet()));
-        while (stack.size() > LIMIT) stack.removeLast();
+        stack.push(new Entry(transactionId, playerId, kind, seq.incrementAndGet()));
+        while (stack.size() > LIMIT) {
+            Entry dropped = stack.removeLast();
+            // 账本软上限：仅丢掉最旧账本项；底层栈应已通过 remove 同步更严的上限
+        }
+        clearRedo(playerId);
+    }
+
+    /** @deprecated use {@link #record(UUID, UUID, Kind)} */
+    @Deprecated
+    public void recordBuild(UUID playerId) {
+        record(UUID.randomUUID(), playerId, Kind.BUILD);
+    }
+
+    /** @deprecated use {@link #record(UUID, UUID, Kind)} */
+    @Deprecated
+    public void recordPatch(UUID playerId) {
+        record(UUID.randomUUID(), playerId, Kind.PATCH);
+    }
+
+    /** 底层栈淘汰或幽灵条目清理时移除对应 ID（undo/redo 两侧）。 */
+    public void remove(UUID transactionId) {
+        if (transactionId == null) return;
+        for (Deque<Entry> stack : undo.values()) {
+            stack.removeIf(e -> e.transactionId().equals(transactionId));
+        }
+        for (Deque<Entry> stack : redo.values()) {
+            stack.removeIf(e -> e.transactionId().equals(transactionId));
+        }
+    }
+
+    public void clearRedo(UUID playerId) {
+        if (playerId == null) return;
         redo.remove(playerId);
     }
 
@@ -71,16 +102,18 @@ public final class PlayerMutationLedger {
         Deque<Entry> r = redo.get(playerId);
         if (r != null) r.remove(entry);
         Deque<Entry> u = undo.computeIfAbsent(playerId, k -> new ArrayDeque<>());
-        if (!u.contains(entry)) u.push(entry);
+        u.removeIf(e -> e.transactionId().equals(entry.transactionId()));
+        u.push(entry);
     }
 
     /** 重做未完成时把条目放回 redo 栈顶。 */
     public void restoreRedo(UUID playerId, Entry entry) {
         if (playerId == null || entry == null) return;
         Deque<Entry> u = undo.get(playerId);
-        if (u != null) u.remove(entry);
+        if (u != null) u.removeIf(e -> e.transactionId().equals(entry.transactionId()));
         Deque<Entry> r = redo.computeIfAbsent(playerId, k -> new ArrayDeque<>());
-        if (!r.contains(entry)) r.push(entry);
+        r.removeIf(e -> e.transactionId().equals(entry.transactionId()));
+        r.push(entry);
     }
 
     public boolean canUndo(UUID playerId) {
@@ -101,6 +134,31 @@ public final class PlayerMutationLedger {
     public Kind peekRedoKind(UUID playerId) {
         Deque<Entry> stack = redo.get(playerId);
         return stack == null || stack.isEmpty() ? null : stack.peek().kind();
+    }
+
+    public Entry peekUndo(UUID playerId) {
+        Deque<Entry> stack = undo.get(playerId);
+        return stack == null || stack.isEmpty() ? null : stack.peek();
+    }
+
+    public Entry peekRedo(UUID playerId) {
+        Deque<Entry> stack = redo.get(playerId);
+        return stack == null || stack.isEmpty() ? null : stack.peek();
+    }
+
+    public int undoSize(UUID playerId) {
+        Deque<Entry> stack = undo.get(playerId);
+        return stack == null ? 0 : stack.size();
+    }
+
+    public int countKind(UUID playerId, Kind kind) {
+        Deque<Entry> stack = undo.get(playerId);
+        if (stack == null || kind == null) return 0;
+        int n = 0;
+        for (Entry e : stack) {
+            if (e.kind() == kind) n++;
+        }
+        return n;
     }
 
     public void clear(UUID playerId) {

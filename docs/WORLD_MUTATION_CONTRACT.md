@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-13（第二十八批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-13（第二十九批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -32,6 +32,15 @@
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
 
+### 第二十九批（2026-10-13）
+
+- **事务 ID 账本**：`PlayerMutationLedger.Entry` 含 `transactionId`；`MutationHistoryCoordinator` 统一写入历史/登记账本/淘汰同步/清理 Redo。BUILD 上限 10、Patch 上限 50；账本与底层栈存活 ID 对齐。
+- **BUILD Redo**：`UndoService.redo` 复用 `PatchReplayHistory.redo`；`MutationHistoryFacade` 按账本栈顶委托 BUILD/Patch；幽灵账本条目丢弃。
+- **实际变化优先入账**：`BuildTask.applyPlanned` 在 `before != after` 时写入 `appliedChanges`，再计 `failedWrites`。
+- **SnapshotWriteResult**：`FULL` / `STATE_ONLY` / `REJECTED` / `ERROR`；含 NBT 目标必须以 FULL 才算完整成功。
+- **延迟分桶**：按 `ChunkPos` 分桶 + `nextRetryTick`，避免每 Tick 全量排序。
+- **终态**：`COMPLETED` / `PARTIAL` / `FAILED` / `CANCELLED`；`cancel()` + `/formacraft_cancel_build`；**进行中任务停服不恢复**（与会话 Undo 一并清空）。
+
 ### 第二十八批（2026-10-13）
 
 - **BuildTask 可靠执行**：未加载进入延迟队列（按 Chunk 分组重试；超时/次数上限后计 `failedUnloaded`）；单方块异常隔离为 `failedWrites`；写后校验。
@@ -43,7 +52,7 @@
 
 BlockMutationAccess 封装高度、区块就绪、读取、写入及快照（含 BE NBT）。生产适配器仍使用 ServerWorld.setBlockState(...,3)，测试使用可控内存世界验证拒绝写入，不伪装成真实游戏服务器。
 
-先检查高度和区块，再读取当前快照。同状态只计跳过；写入拒绝或写后状态不符时计 failedWrites，不能计 applied/placed，也不能进入 BuildTask 的 BlockChange。成功写入的撤销记录保存实际 after 快照。
+先检查高度和区块，再读取当前快照。同状态只计跳过。写入后若前后快照不同则记入 Undo（即使接口返回失败或 STATE_ONLY）；完整成功要求 SnapshotWriteResult.FULL 且 after 等于目标。读后异常无法确认时不入账并计 failedWrites。
 
 BuildTask 累计计划、放置、越界、同状态、未加载最终失败、等待延迟、非法目标与写入失败。主队列与延迟队列均排空后才 `isFinished`。部分未放置不得宣称完整成功。仅完整放置时注册 Memory；部分成功仍保留 UndoEntry。
 
@@ -61,7 +70,7 @@ Memory 的正向分析使用最终 after 状态差异，而非原始尝试列表
 
 ## 可重试恢复与世界身份
 
-PatchHistoryManager 与 UndoService 共用 PatchReplayHistory。每个事务绑定原 ServerWorld 对象身份；不同维度或另一服务器会话的同名世界不允许恢复，也不消耗历史。历史为内存状态，服务器停止时清理 Patch 历史、普通 Undo、活动建造任务及 MemoryManager 引用；不持久化跨服务器重启撤销。
+PatchHistoryManager 与 UndoService 共用 PatchReplayHistory。每个事务绑定原 ServerWorld 对象身份；不同维度或另一服务器会话的同名世界不允许恢复，也不消耗历史。历史为内存状态，服务器停止时清理 Patch 历史、普通 Undo、统一账本、活动建造任务及 MemoryManager 引用；进行中建造任务不跨重启恢复；不持久化跨服务器重启撤销。
 
 每次恢复先检查高度与区块，再读取方块。当前状态已是目标时不写；当前状态不同于事务预期源状态时记录冲突，不覆盖后续修改。成功恢复的位置从 pending 移除；写入失败、未加载、越界或冲突留在源栈，仅完整完成后移入另一栈。未完成的恢复不允许反方向重放；重试只处理剩余位置。
 

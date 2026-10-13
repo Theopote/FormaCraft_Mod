@@ -259,6 +259,24 @@ public class BuildExecutionService {
     }
 
     /**
+     * 取消该玩家在本世界的进行中建造任务。已落地的方块仍会经 completeTask 写入 Undo。
+     * @return 取消的任务数
+     */
+    public int cancelBuildsForPlayer(java.util.UUID playerId, ServerWorld world) {
+        if (playerId == null) return 0;
+        int n = 0;
+        for (BuildTask t : activeTasks) {
+            if (t == null || t.isFinished()) continue;
+            if (world != null && t.getWorld() != world) continue;
+            var structure = t.getStructure();
+            if (structure == null || !playerId.equals(structure.getOwner())) continue;
+            t.cancel();
+            n++;
+        }
+        return n;
+    }
+
+    /**
      * 每个世界 tick：全局预算公平调度本世界任务。
      */
     public void onWorldTick(ServerWorld world) {
@@ -386,12 +404,14 @@ public class BuildExecutionService {
     public static void registerTickHandler() {
         if (TICK_HANDLER_REGISTERED) return;
         TICK_HANDLER_REGISTERED = true;
+        // 会话约定：停服丢弃进行中任务与 Undo 历史，不跨重启恢复
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             BuildExecutionService service = getInstance();
             service.activeTasks.clear();
             service.undoService.clear();
             service.setMemoryManager(null);
             com.formacraft.common.patch.history.PatchHistoryManager.clearAll();
+            com.formacraft.server.build.PlayerMutationLedger.get().clearAll();
         });
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));
     }

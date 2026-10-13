@@ -2,6 +2,7 @@ package com.formacraft.test;
 
 import com.formacraft.common.world.BlockMutationAccess;
 import com.formacraft.common.world.BlockSnapshot;
+import com.formacraft.common.world.SnapshotWriteResult;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.nbt.NbtCompound;
@@ -14,7 +15,10 @@ public final class FakeBlockMutationAccess implements BlockMutationAccess {
     public final Map<BlockPos, NbtCompound> blockEntityNbt = new HashMap<>();
     public final Set<BlockPos> rejected = new HashSet<>();
     public final Set<BlockPos> throwOnWrite = new HashSet<>();
-    /** null = default x&lt;16 规则；非 null 时覆盖。 */
+    /** 写入状态成功但拒绝写入/保留 NBT（模拟 STATE_ONLY）。 */
+    public final Set<BlockPos> failNbtRestore = new HashSet<>();
+    /** 写入会改世界但 setState 返回 false（模拟漏记边界）。 */
+    public final Set<BlockPos> mutateThenReject = new HashSet<>();
     public Predicate<BlockPos> chunkReadyOverride = null;
     public int writes;
 
@@ -44,6 +48,10 @@ public final class FakeBlockMutationAccess implements BlockMutationAccess {
         if (throwOnWrite.contains(p)) {
             throw new RuntimeException("simulated write failure at " + p);
         }
+        if (mutateThenReject.contains(p)) {
+            states.put(p.toImmutable(), state);
+            return false;
+        }
         if (rejected.contains(p)) return false;
         states.put(p.toImmutable(), state);
         if (state == null || state.isAir()) {
@@ -60,16 +68,33 @@ public final class FakeBlockMutationAccess implements BlockMutationAccess {
     }
 
     @Override
-    public boolean setSnapshot(BlockPos p, BlockSnapshot snapshot) {
-        if (snapshot == null) return false;
-        boolean ok = setState(p, snapshot.state());
-        if (!ok) return false;
-        if (snapshot.blockEntityNbt() != null) {
-            blockEntityNbt.put(p.toImmutable(), snapshot.blockEntityNbt().copy());
-        } else {
-            blockEntityNbt.remove(p.toImmutable());
+    public SnapshotWriteResult writeSnapshot(BlockPos p, BlockSnapshot snapshot) {
+        if (snapshot == null) return SnapshotWriteResult.REJECTED;
+        try {
+            boolean ok = setState(p, snapshot.state());
+            if (!ok) {
+                // 可能已改世界（mutateThenReject）
+                return SnapshotWriteResult.REJECTED;
+            }
+            if (snapshot.blockEntityNbt() != null) {
+                if (failNbtRestore.contains(p)) {
+                    blockEntityNbt.remove(p.toImmutable());
+                    return SnapshotWriteResult.STATE_ONLY;
+                }
+                blockEntityNbt.put(p.toImmutable(), snapshot.blockEntityNbt().copy());
+            } else {
+                blockEntityNbt.remove(p.toImmutable());
+            }
+            BlockSnapshot after = getSnapshot(p);
+            return after.equals(snapshot) ? SnapshotWriteResult.FULL : SnapshotWriteResult.STATE_ONLY;
+        } catch (RuntimeException e) {
+            return SnapshotWriteResult.ERROR;
         }
-        return getState(p).equals(snapshot.state());
+    }
+
+    @Override
+    public boolean setSnapshot(BlockPos p, BlockSnapshot snapshot) {
+        return writeSnapshot(p, snapshot).isFullSuccess();
     }
 
     private static final class ChunkReadyMap implements Predicate<BlockPos> {

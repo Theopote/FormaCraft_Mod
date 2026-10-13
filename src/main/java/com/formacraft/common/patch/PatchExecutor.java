@@ -126,12 +126,12 @@ public final class PatchExecutor {
             } else if (access.getState(pos).equals(target)) {
                 sameState++;
             } else {
-                boolean ok = access.setSnapshot(pos, BlockSnapshot.of(target));
-                if (ok) {
+                var write = access.writeSnapshot(pos, BlockSnapshot.of(target));
+                if (write.changedWorldPossibly()) {
                     accepted++;
                 }
                 BlockState after = access.getState(pos);
-                if (ok && after.equals(target)) {
+                if (write.isFullSuccess() && after.equals(target)) {
                     verified++;
                 } else {
                     failedWrites++;

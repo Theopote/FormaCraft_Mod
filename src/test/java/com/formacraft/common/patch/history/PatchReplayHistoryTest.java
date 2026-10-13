@@ -113,6 +113,14 @@ class PatchReplayHistoryTest {
                 if (writeThenThrow) delegate.setState(p, state);
                 throw new IllegalStateException("simulated write failure");
             }
+            @Override
+            public com.formacraft.common.world.SnapshotWriteResult writeSnapshot(
+                    BlockPos p, com.formacraft.common.world.BlockSnapshot snapshot) {
+                // 故意不吞异常，保留 PatchReplayHistory 的 unconfirmed 重试语义
+                if (!p.equals(B)) return delegate.writeSnapshot(p, snapshot);
+                if (writeThenThrow) delegate.setState(p, snapshot.state());
+                throw new IllegalStateException("simulated write failure");
+            }
         };
     }
     @Test void exceptionKeepsRemainingHistoryAndReportsOtherSuccessfulWrites() {
@@ -146,6 +154,16 @@ class PatchReplayHistoryTest {
                 return access.getState(p);
             }
             public boolean setState(BlockPos p, BlockState state) { return access.setState(p, state); }
+            @Override
+            public com.formacraft.common.world.SnapshotWriteResult writeSnapshot(
+                    BlockPos p, com.formacraft.common.world.BlockSnapshot snapshot) {
+                // setState 成功后 getSnapshot 抛错 → 向上抛出，保留 unconfirmed
+                if (!setState(p, snapshot.state())) {
+                    return com.formacraft.common.world.SnapshotWriteResult.REJECTED;
+                }
+                getSnapshot(p);
+                return com.formacraft.common.world.SnapshotWriteResult.FULL;
+            }
         };
         assertFalse(history.undo(world, throwing).complete());
         var result = history.undo(world, access);

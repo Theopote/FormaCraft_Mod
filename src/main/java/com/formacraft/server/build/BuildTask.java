@@ -2,42 +2,53 @@ package com.formacraft.server.build;
 
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.world.BlockSnapshot;
+import com.formacraft.common.world.SnapshotWriteResult;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * 建造任务：分 Tick 施工，未加载区块暂缓重试，单方块异常隔离，写后校验。
+ * 建造任务：分 Tick 施工，按 Chunk 分桶延迟重试，单方块异常隔离，写后校验。
  */
 public class BuildTask {
     public enum Status {
         RUNNING,
         WAITING_CHUNKS,
+        /** 全部按预期完成（无永久失败） */
         COMPLETED,
+        /** 有落地且存在永久失败 */
+        PARTIAL,
+        /** 无有效落地且无法继续 */
         FAILED,
         CANCELLED
     }
 
     private static final int DEFAULT_MAX_DEFER_ATTEMPTS = 120;
     private static final long DEFAULT_DEFER_TIMEOUT_MS = 30_000L;
+    private static final int DEFER_RETRY_INTERVAL_TICKS = 20;
+
     /** 测试可覆盖：未加载重试上限。 */
     static int maxDeferAttempts = DEFAULT_MAX_DEFER_ATTEMPTS;
     /** 测试可覆盖：未加载超时（毫秒）。 */
     static long deferTimeoutMs = DEFAULT_DEFER_TIMEOUT_MS;
+    static int deferRetryIntervalTicks = DEFER_RETRY_INTERVAL_TICKS;
 
     private final GeneratedStructure structure;
     private final ServerWorld world;
     private final com.formacraft.common.world.BlockMutationAccess access;
     private final List<BlockChange> appliedChanges = new ArrayList<>();
-    private final ArrayDeque<DeferredBlock> deferred = new ArrayDeque<>();
+    /** ChunkPos 长键 → 该区块内待重试方块 */
+    private final LinkedHashMap<Long, ArrayDeque<DeferredBlock>> deferredByChunk = new LinkedHashMap<>();
     private final long startedAtMs = System.currentTimeMillis();
 
     private int index = 0;
+    private long tickCounter = 0;
     private Status status = Status.RUNNING;
     private int skippedOutOfBounds = 0;
     private int skippedSameState = 0;
@@ -46,7 +57,7 @@ public class BuildTask {
     private int failedUnloaded = 0;
     private int deferredUnloadedPeak = 0;
 
-    private record DeferredBlock(PlannedBlock planned, int attempts, long firstDeferredMs) {}
+    private record DeferredBlock(PlannedBlock planned, int attempts, long firstDeferredMs, long nextRetryTick) {}
 
     public BuildTask(GeneratedStructure structure, ServerWorld world) {
         this(structure, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world));
@@ -60,7 +71,8 @@ public class BuildTask {
     }
 
     public boolean isFinished() {
-        return status == Status.COMPLETED || status == Status.FAILED || status == Status.CANCELLED;
+        return status == Status.COMPLETED || status == Status.PARTIAL
+                || status == Status.FAILED || status == Status.CANCELLED;
     }
 
     public Status status() {
@@ -79,6 +91,15 @@ public class BuildTask {
         return appliedChanges;
     }
 
+    /** 取消任务：停止主队列与延迟队列；已修改方块保留供 Undo。 */
+    public void cancel() {
+        if (isFinished()) return;
+        deferredByChunk.clear();
+        index = structure.getBlocks().size();
+        status = Status.CANCELLED;
+        com.formacraft.FormacraftMod.LOGGER.info("BuildTask: cancelled. {}", result().summaryZh());
+    }
+
     public BuildApplyResult result() {
         int total = structure != null ? structure.size() : 0;
         return new BuildApplyResult(
@@ -90,7 +111,8 @@ public class BuildTask {
                 skippedIllegal,
                 failedWrites,
                 deferredUnloadedPeak,
-                deferred.size()
+                deferredCount(),
+                status
         );
     }
 
@@ -99,6 +121,7 @@ public class BuildTask {
      */
     public int tick(int maxPerTick) {
         if (isFinished() || maxPerTick <= 0) return 0;
+        tickCounter++;
 
         int count = 0;
         count += drainDeferred(maxPerTick);
@@ -118,24 +141,39 @@ public class BuildTask {
     }
 
     private int drainDeferred(int maxPerTick) {
-        if (deferred.isEmpty()) return 0;
-        // 按区块分组：同一 ChunkPos 优先连续处理
-        List<DeferredBlock> batch = new ArrayList<>(deferred);
-        deferred.clear();
-        batch.sort(Comparator.comparingLong((DeferredBlock d) -> chunkKey(d.planned().getPos())));
-
+        if (deferredByChunk.isEmpty()) return 0;
         int count = 0;
-        for (DeferredBlock item : batch) {
-            if (count >= maxPerTick) {
-                deferred.addLast(item);
+        // 轮询各 chunk 桶，避免每 Tick 全量复制排序
+        List<Long> keys = new ArrayList<>(deferredByChunk.keySet());
+        for (Long key : keys) {
+            if (count >= maxPerTick) break;
+            ArrayDeque<DeferredBlock> bucket = deferredByChunk.get(key);
+            if (bucket == null || bucket.isEmpty()) {
+                deferredByChunk.remove(key);
                 continue;
             }
-            count += processDeferred(item);
+            int budget = Math.max(1, (maxPerTick - count + keys.size() - 1) / Math.max(1, keys.size()));
+            ArrayDeque<DeferredBlock> remain = new ArrayDeque<>();
+            while (!bucket.isEmpty() && count < maxPerTick && budget > 0) {
+                DeferredBlock item = bucket.pollFirst();
+                if (item.nextRetryTick() > tickCounter) {
+                    remain.addLast(item);
+                    continue;
+                }
+                count += processDeferred(item, remain);
+                budget--;
+            }
+            while (!bucket.isEmpty()) remain.addLast(bucket.pollFirst());
+            if (remain.isEmpty()) {
+                deferredByChunk.remove(key);
+            } else {
+                deferredByChunk.put(key, remain);
+            }
         }
         return count;
     }
 
-    private int processDeferred(DeferredBlock item) {
+    private int processDeferred(DeferredBlock item, ArrayDeque<DeferredBlock> requeueInto) {
         PlannedBlock planned = item.planned();
         if (planned == null || planned.getPos() == null) {
             skippedIllegal++;
@@ -148,7 +186,7 @@ public class BuildTask {
                 return 1;
             }
             if (!access.isChunkReady(pos)) {
-                return requeueOrFail(item);
+                return requeueOrFail(item, requeueInto);
             }
             return applyPlanned(planned);
         } catch (RuntimeException e) {
@@ -171,9 +209,7 @@ public class BuildTask {
                 return 1;
             }
             if (!access.isChunkReady(pos)) {
-                long now = System.currentTimeMillis();
-                deferred.addLast(new DeferredBlock(planned, 1, now));
-                deferredUnloadedPeak = Math.max(deferredUnloadedPeak, deferred.size());
+                enqueueDeferred(new DeferredBlock(planned, 1, System.currentTimeMillis(), tickCounter + 1));
                 return 1;
             }
             return applyPlanned(planned);
@@ -185,7 +221,7 @@ public class BuildTask {
         }
     }
 
-    private int requeueOrFail(DeferredBlock item) {
+    private int requeueOrFail(DeferredBlock item, ArrayDeque<DeferredBlock> localRemain) {
         long now = System.currentTimeMillis();
         int nextAttempts = item.attempts() + 1;
         boolean timedOut = (now - item.firstDeferredMs()) > deferTimeoutMs;
@@ -194,42 +230,78 @@ public class BuildTask {
             failedUnloaded++;
             return 1;
         }
-        deferred.addLast(new DeferredBlock(item.planned(), nextAttempts, item.firstDeferredMs()));
-        deferredUnloadedPeak = Math.max(deferredUnloadedPeak, deferred.size());
+        DeferredBlock next = new DeferredBlock(
+                item.planned(), nextAttempts, item.firstDeferredMs(),
+                tickCounter + Math.max(1, deferRetryIntervalTicks));
+        if (localRemain != null) {
+            localRemain.addLast(next);
+            deferredUnloadedPeak = Math.max(deferredUnloadedPeak, deferredCount() + localRemain.size());
+        } else {
+            enqueueDeferred(next);
+        }
         return 1;
+    }
+
+    private void enqueueDeferred(DeferredBlock item) {
+        long key = chunkKey(item.planned().getPos());
+        deferredByChunk.computeIfAbsent(key, k -> new ArrayDeque<>()).addLast(item);
+        deferredUnloadedPeak = Math.max(deferredUnloadedPeak, deferredCount());
+    }
+
+    private int deferredCount() {
+        int n = 0;
+        for (ArrayDeque<DeferredBlock> q : deferredByChunk.values()) n += q.size();
+        return n;
     }
 
     private int applyPlanned(PlannedBlock planned) {
         BlockPos pos = planned.getPos();
-        var from = access.getSnapshot(pos);
+        BlockSnapshot before = access.getSnapshot(pos);
         var toState = planned.getTargetState();
-        if (from.state().equals(toState)) {
+        if (before.state().equals(toState)) {
             skippedSameState++;
             return 1;
         }
-        var target = com.formacraft.common.world.BlockSnapshot.of(toState);
-        boolean accepted = access.setSnapshot(pos, target);
-        var after = access.getSnapshot(pos);
-        if (!accepted || !after.state().equals(toState)) {
+        BlockSnapshot target = BlockSnapshot.of(toState);
+        SnapshotWriteResult writeResult = access.writeSnapshot(pos, target);
+        BlockSnapshot after;
+        try {
+            after = access.getSnapshot(pos);
+        } catch (RuntimeException e) {
             failedWrites++;
+            com.formacraft.FormacraftMod.LOGGER.warn(
+                    "BuildTask post-write read failed at {}; change not recorded for undo", pos, e);
             return 1;
         }
-        appliedChanges.add(new BlockChange(pos.toImmutable(), from, after));
+        if (!before.equals(after)) {
+            appliedChanges.add(new BlockChange(pos.toImmutable(), before, after));
+        }
+        if (!writeResult.isFullSuccess() || !after.equals(target)) {
+            failedWrites++;
+        }
         return 1;
     }
 
     private void updateStatusAfterTick() {
+        if (status == Status.CANCELLED) return;
         boolean mainDone = index >= structure.getBlocks().size();
         if (!mainDone) {
             status = Status.RUNNING;
             return;
         }
-        if (!deferred.isEmpty()) {
+        if (!deferredByChunk.isEmpty()) {
             status = Status.WAITING_CHUNKS;
             return;
         }
-        status = Status.COMPLETED;
-        com.formacraft.FormacraftMod.LOGGER.info("BuildTask: finished. {}", result().summaryZh());
+        boolean permanentFail = failedUnloaded + failedWrites + skippedIllegal + skippedOutOfBounds > 0;
+        if (!appliedChanges.isEmpty() && permanentFail) {
+            status = Status.PARTIAL;
+        } else if (appliedChanges.isEmpty() && permanentFail) {
+            status = Status.FAILED;
+        } else {
+            status = Status.COMPLETED;
+        }
+        com.formacraft.FormacraftMod.LOGGER.info("BuildTask: finished ({}). {}", status, result().summaryZh());
     }
 
     private static long chunkKey(BlockPos pos) {
@@ -250,11 +322,21 @@ public class BuildTask {
             int skippedIllegal,
             int failedWrites,
             int deferredUnloadedPeak,
-            int stillDeferred
+            int stillDeferred,
+            Status terminalStatus
     ) {
+        public BuildApplyResult(
+                int totalPlanned, int placed, int skippedOutOfBounds, int skippedSameState,
+                int failedUnloaded, int skippedIllegal, int failedWrites,
+                int deferredUnloadedPeak, int stillDeferred
+        ) {
+            this(totalPlanned, placed, skippedOutOfBounds, skippedSameState, failedUnloaded,
+                    skippedIllegal, failedWrites, deferredUnloadedPeak, stillDeferred, null);
+        }
+
         /** 兼容旧四参数构造。 */
         public BuildApplyResult(int totalPlanned, int placed, int skippedOutOfBounds, int skippedSameState) {
-            this(totalPlanned, placed, skippedOutOfBounds, skippedSameState, 0, 0, 0, 0, 0);
+            this(totalPlanned, placed, skippedOutOfBounds, skippedSameState, 0, 0, 0, 0, 0, null);
         }
 
         /** 兼容旧七参数（skippedUnloaded 映射为 failedUnloaded）。 */
@@ -263,7 +345,7 @@ public class BuildTask {
                 int skippedUnloaded, int skippedIllegal, int failedWrites
         ) {
             this(totalPlanned, placed, skippedOutOfBounds, skippedSameState,
-                    skippedUnloaded, skippedIllegal, failedWrites, 0, 0);
+                    skippedUnloaded, skippedIllegal, failedWrites, 0, 0, null);
         }
 
         public boolean isCompletePlacement() {
@@ -272,7 +354,6 @@ public class BuildTask {
                     && totalPlanned == placed + skippedSameState;
         }
 
-        /** 兼容旧测试/调用：最终未加载失败数。 */
         public int skippedUnloaded() {
             return failedUnloaded;
         }
@@ -291,8 +372,14 @@ public class BuildTask {
                 return "建造完成：无计划方块";
             }
             StringBuilder sb = new StringBuilder();
-            sb.append(isCompletePlacement() ? "建造完成：计划 " : "建造结束（部分未放置）：计划 ")
-                    .append(totalPlanned).append(" 个方块");
+            String head = switch (terminalStatus == null ? (isCompletePlacement() ? Status.COMPLETED : Status.PARTIAL) : terminalStatus) {
+                case COMPLETED -> "建造完成：计划 ";
+                case PARTIAL -> "建造部分完成：计划 ";
+                case FAILED -> "建造失败：计划 ";
+                case CANCELLED -> "建造已取消：计划 ";
+                default -> isCompletePlacement() ? "建造完成：计划 " : "建造结束（部分未放置）：计划 ";
+            };
+            sb.append(head).append(totalPlanned).append(" 个方块");
             sb.append("，实际放置 ").append(placed).append(" 个");
             if (skippedSameState > 0) {
                 sb.append("，与地形相同跳过 ").append(skippedSameState).append(" 个");

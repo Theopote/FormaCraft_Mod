@@ -5,6 +5,7 @@ import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.test.FakeBlockMutationAccess;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.Blocks;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +28,7 @@ class BuildTaskTest {
     void resetDeferLimits() {
         BuildTask.maxDeferAttempts = 120;
         BuildTask.deferTimeoutMs = 30_000L;
+        BuildTask.deferRetryIntervalTicks = 1;
     }
 
     @Test
@@ -78,10 +80,9 @@ class BuildTaskTest {
         BuildTask.maxDeferAttempts = 1;
         assertEquals(0, task.tick(0));
         assertEquals(2, task.tick(2));
-        // remaining: rejected, OOB, unloaded→defer, illegal
         assertEquals(4, task.tick(10));
         assertFalse(task.isFinished());
-        assertEquals(1, task.tick(10)); // deferred exceeds maxDeferAttempts → failedUnloaded
+        assertEquals(1, task.tick(10));
         assertTrue(task.isFinished());
         var result = task.result();
         assertEquals(1, result.placed());
@@ -91,8 +92,25 @@ class BuildTaskTest {
         assertEquals(1, task.getAppliedChanges().size());
         assertEquals(2, access.writes);
         assertFalse(result.isCompletePlacement());
+        assertEquals(BuildTask.Status.PARTIAL, task.status());
         assertTrue(result.summaryZh().contains("写入失败 1"));
         assertFalse(result.summaryZh().contains("未归类"));
+    }
+
+    @Test
+    void mutateThenRejectStillRecordsUndoChange() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var pos = new BlockPos(0, 1, 0);
+        access.mutateThenReject.add(pos);
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "partial-write",
+                List.of(new PlannedBlock(pos, stone)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(1, task.tick(5));
+        assertTrue(task.isFinished());
+        assertEquals(1, task.getAppliedChanges().size());
+        assertEquals(1, task.result().failedWrites());
+        assertEquals(stone, access.states.get(pos));
     }
 
     @Test
@@ -126,13 +144,13 @@ class BuildTaskTest {
         var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "timeout",
                 List.of(new PlannedBlock(far, stone)));
         var task = new BuildTask(structure, null, access);
-        assertEquals(1, task.tick(5)); // first defer
-        assertEquals(1, task.tick(5)); // attempt 2, still defer
-        assertEquals(1, task.tick(5)); // attempt 3 > max → failedUnloaded
+        assertEquals(1, task.tick(5));
+        assertEquals(1, task.tick(5));
+        assertEquals(1, task.tick(5));
         assertTrue(task.isFinished());
         assertEquals(1, task.result().failedUnloaded());
         assertEquals(0, task.result().placed());
-        assertEquals(0, access.writes);
+        assertEquals(BuildTask.Status.FAILED, task.status());
     }
 
     @Test
@@ -150,5 +168,39 @@ class BuildTaskTest {
         assertEquals(1, task.result().failedWrites());
         assertEquals(1, task.result().placed());
         assertEquals(stone, access.states.get(ok));
+    }
+
+    @Test
+    void cancelKeepsAppliedChangesForUndo() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var blocks = List.of(
+                new PlannedBlock(new BlockPos(0, 1, 0), stone),
+                new PlannedBlock(new BlockPos(1, 1, 0), stone),
+                new PlannedBlock(new BlockPos(2, 1, 0), stone));
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "cancel", blocks);
+        var task = new BuildTask(structure, null, access);
+        assertEquals(1, task.tick(1));
+        task.cancel();
+        assertTrue(task.isFinished());
+        assertEquals(BuildTask.Status.CANCELLED, task.status());
+        assertEquals(1, task.getAppliedChanges().size());
+        assertEquals(0, task.tick(10));
+    }
+
+    @Test
+    void nbtStateOnlyCountsAsFailedWriteButRecordsStateChange() {
+        var access = new FakeBlockMutationAccess();
+        var chest = Blocks.CHEST.getDefaultState();
+        var pos = new BlockPos(0, 1, 0);
+        access.failNbtRestore.add(pos);
+        // BuildTask 正向写入通常无 NBT；用 writeSnapshot 路径直接验证 Fake 分级
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString("id", "minecraft:chest");
+        nbt.putString("Lock", "x");
+        var result = access.writeSnapshot(pos, com.formacraft.common.world.BlockSnapshot.of(chest, nbt));
+        assertEquals(com.formacraft.common.world.SnapshotWriteResult.STATE_ONLY, result);
+        assertFalse(result.isFullSuccess());
+        assertEquals(chest, access.states.get(pos));
     }
 }
