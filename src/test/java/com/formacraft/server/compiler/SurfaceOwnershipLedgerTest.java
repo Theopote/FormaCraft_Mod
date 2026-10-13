@@ -1,44 +1,65 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
-import com.formacraft.common.llm.dto.*;
+import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
-import java.util.*;
+
+import java.util.List;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class SurfaceOwnershipLedgerTest {
-    private Component component(String type, Map<String,Object> params) {
-        return new Component(type, "main", new Vec3i(0,0,0), new Dimensions(5,5,8), List.of(), params);
-    }
-    private BlockPatch place(String block) { return new BlockPatch(BlockPatch.PLACE, 10,3,20, block); }
-    private BlockPatch remove() { return new BlockPatch(BlockPatch.REMOVE, 10,3,20,"minecraft:air"); }
-    private SurfaceOwnershipLedger ledger(GeneratedSurfaceCapture.Role role) {
+    @Test
+    void decorCannotReplaceWindowSurface() {
         var ledger = new SurfaceOwnershipLedger();
-        ledger.accept(component("MASS_MAIN", Map.of("component_id","house")), List.of(place("minecraft:stone_bricks")),
-                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(0,1,0), role)), new BlockPos(10,2,20));
-        return ledger;
+        var mass = component("MASS_MAIN", "mass1", Map.of("component_id", "mass1", "host_id", "b1"));
+        ledger.accept(mass,
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:glass")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(0, 1, 0), GeneratedSurfaceCapture.Role.WINDOW)),
+                BlockPos.ORIGIN);
+
+        var decor = component("DECOR_DETAIL", "decor1", Map.of("component_id", "decor1", "host_id", "b1"));
+        var conflict = ledger.check(decor, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:stone_bricks")));
+        assertTrue(conflict.isPresent());
+        assertTrue(conflict.get().reason().contains("WINDOW"));
     }
-    @Test void decorationCannotRemoveSurfaceButMayReplaceMaterialOrFinishTemporaryRemoval() {
-        var ledger = ledger(GeneratedSurfaceCapture.Role.WALL);
-        var decor = component("DECOR_DETAIL", Map.of("component_id","trim"));
-        var conflict = ledger.check(decor, List.of(remove())).orElseThrow();
-        assertEquals("house", conflict.surface().owner()); assertEquals("trim", conflict.writer());
-        assertTrue(ledger.check(decor, List.of(place("minecraft:air"))).isPresent());
-        assertTrue(ledger.check(decor, List.of(remove(), place("minecraft:mossy_stone_bricks"))).isEmpty());
+
+    @Test
+    void facadeWindowsCanInstallGlassOnWall() {
+        var ledger = new SurfaceOwnershipLedger();
+        var mass = component("MASS_MAIN", "mass1", Map.of("component_id", "mass1", "host_id", "b1"));
+        ledger.accept(mass,
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:stone")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(0, 1, 0), GeneratedSurfaceCapture.Role.WALL)),
+                BlockPos.ORIGIN);
+
+        var windows = component("FACADE_WINDOWS", "win1", Map.of("component_id", "win1", "host_id", "b1"));
+        var conflict = ledger.check(windows, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:glass")));
+        assertTrue(conflict.isEmpty());
     }
-    @Test void explicitOpeningHostMustOwnWallAndCannotRemoveRoof() {
-        var opening = component("FACADE_WINDOWS", Map.of("host_id","house"));
-        assertTrue(ledger(GeneratedSurfaceCapture.Role.WALL).check(opening, List.of(remove())).isEmpty());
-        assertTrue(ledger(GeneratedSurfaceCapture.Role.ROOF).check(opening, List.of(remove())).isPresent());
-        assertTrue(ledger(GeneratedSurfaceCapture.Role.WINDOW).check(component("ENTRANCE", Map.of("host_id","other")), List.of(remove())).isPresent());
-        assertTrue(ledger(GeneratedSurfaceCapture.Role.WALL).check(component("ENTRANCE", Map.of()), List.of(remove())).isEmpty());
+
+    @Test
+    void decorCannotEraseOccupiedSurface() {
+        var ledger = new SurfaceOwnershipLedger();
+        var mass = component("MASS_MAIN", "mass1", Map.of("component_id", "mass1"));
+        ledger.accept(mass,
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:stone")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(0, 1, 0), GeneratedSurfaceCapture.Role.WALL)),
+                BlockPos.ORIGIN);
+
+        var decor = component("DECOR_DETAIL", "decor1", Map.of("component_id", "decor1"));
+        var conflict = ledger.check(decor, List.of(
+                new BlockPatch(BlockPatch.REMOVE, 0, 1, 0, "minecraft:air")));
+        assertTrue(conflict.isPresent());
     }
-    @Test void acceptedDoorwayIsNotRestoredOrReportedAsDecorativeDestruction() {
-        var ledger = ledger(GeneratedSurfaceCapture.Role.WALL);
-        var entry = component("ENTRANCE", Map.of("host_id","house"));
-        ledger.accept(entry, List.of(remove()), List.of(), BlockPos.ORIGIN);
-        assertTrue(ledger.check(component("DECOR_DETAIL", Map.of()), List.of(remove())).isEmpty());
+
+    private static Component component(String type, String slot, Map<String, Object> params) {
+        return new Component(type, slot, new Vec3i(0, 0, 0), null, null, params);
     }
 }

@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-13（第三十批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-13（第三十一批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,14 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第三十一批（2026-10-13）— 构件语义门禁
+
+- **OpeningMaterialAudit**：`mismatch`/`unresolved` → `E_OPENING_MATERIAL_MISMATCH` / `E_OPENING_UNRESOLVED`，经 `AssemblyCompileDiagnostics` 硬失败，不再仅 INFO。
+- **SurfaceOwnershipLedger**：区分 ERASE / REPLACE / CARVE_OPENING / DECORATE；装饰不得替换 WINDOW/DOOR/ROOF；开口可装玻璃到同 host 墙面。
+- **PostProcessPipeline**：`FailurePolicy` SOFT/HARD；异常先回滚 previous；HARD（窗套/线脚/地形）→ `E_POSTPROCESS_FAILED`。
+- **PatchMergePolicy**：`BlockPos` 键；Skeleton 开口（空气/remove/门/玻璃）不被 Mass 实心覆盖；`protectedOpenings` 计数。
+- **compilationPriority**：MASS→FLOOR→ROOF→FACADE→开口→DECOR→楼梯。
 
 ### 第三十批（2026-10-13）— AI 生成主链路
 

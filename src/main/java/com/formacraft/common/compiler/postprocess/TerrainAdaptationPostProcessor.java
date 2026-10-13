@@ -34,6 +34,11 @@ public class TerrainAdaptationPostProcessor implements PostProcessor {
     }
 
     @Override
+    public FailurePolicy failurePolicy() {
+        return FailurePolicy.HARD;
+    }
+
+    @Override
     public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {
         if (patches == null || patches.isEmpty()) {
             return patches;

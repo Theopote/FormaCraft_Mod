@@ -110,6 +110,8 @@ flowchart TD
 
 第三十批起：BuildingMass 仅显式启用且经 `PatchMergePolicy` 合并；清地形按占地掩码而非包围盒；Program 空数据严格失败；预览管线末尾再跑一轮结构质量复检（FATAL 不交付）。
 
+第三十一批起：门窗审计与表面所有权非法覆盖阻止编译交付；后处理 HARD 失败 → `E_POSTPROCESS_FAILED`；Mass 合并保护骨架开口；构件优先级 MASS→FLOOR→ROOF→FACADE→开口→DECOR→楼梯。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

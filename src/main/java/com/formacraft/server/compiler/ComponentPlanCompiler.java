@@ -267,14 +267,31 @@ public final class ComponentPlanCompiler {
                 pipeline = PostProcessPipeline.createDefault(context);
             }
             
-            result = pipeline.process(result, context);
+            var postOutcome = pipeline.processWithOutcome(result, context);
+            if (postOutcome.hardFailure()) {
+                AssemblyCompileDiagnostics.set(new CapabilityGap(
+                        "E_POSTPROCESS_FAILED",
+                        "关键后处理失败：processor=" + postOutcome.failedProcessor()
+                                + (postOutcome.errorMessage() == null ? "" : "; " + postOutcome.errorMessage()),
+                        "components[]",
+                        List.of("检查窗套/线脚/地形适应配置", "修复后处理异常后重试")
+                ));
+                return List.of();
+            }
+            result = postOutcome.patches();
             
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
         }
 
-        if (!openingExpectations.isEmpty())
-            FormacraftMod.LOGGER.info("[OpeningMaterialAudit] stage=postprocess result={}",
-                    OpeningMaterialAudit.inspect(openingExpectations, result));
+        if (!openingExpectations.isEmpty()) {
+            var openingAudit = OpeningMaterialAudit.inspect(openingExpectations, result);
+            FormacraftMod.LOGGER.info("[OpeningMaterialAudit] stage=postprocess result={}", openingAudit);
+            var openingGap = OpeningMaterialAudit.toCapabilityGap(openingAudit);
+            if (openingGap.isPresent()) {
+                AssemblyCompileDiagnostics.set(openingGap.get());
+                return List.of();
+            }
+        }
 
         for (var roof : components) {
             if (!"ROOF".equals(normalizeType(roof.componentType()))) continue;
@@ -547,12 +564,23 @@ public final class ComponentPlanCompiler {
     }
 
     private static int compilationPriority(Component c) {
-        if (c == null) return 2;
+        if (c == null) return 5;
         if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
-                || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 3;
+                || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 6;
         String type = normalizeType(c.componentType());
         if (isMassType(type)) return 0;
-        return "ROOF".equals(type) || "ROOF_STRUCTURE".equals(type) ? 1 : 2;
+        if (isStructureFloorType(type)) return 1;
+        if ("ROOF".equals(type) || "ROOF_STRUCTURE".equals(type)) return 2;
+        if ("FACADE".equals(type)) return 3;
+        if ("ENTRANCE".equals(type) || "FACADE_WINDOWS".equals(type) || "FACADE_OPENING".equals(type)
+                || "DOOR".equals(type) || "WINDOW".equals(type)) return 4;
+        if ("DECOR_DETAIL".equals(type) || type.startsWith("DECOR")) return 5;
+        return 5;
+    }
+
+    private static boolean isStructureFloorType(String type) {
+        return "FLOOR".equals(type) || "SLAB".equals(type) || "FLOOR_SLAB".equals(type)
+                || "STRUCTURE_FLOOR".equals(type) || "INTERIOR_FLOOR".equals(type);
     }
 
     private static PreparedComponents prepareComponents(LlmPlan plan, Map<String, Slot> slotMap, boolean allowAssemblyFacade) {

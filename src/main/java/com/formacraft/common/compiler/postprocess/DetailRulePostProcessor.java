@@ -27,6 +27,11 @@ public class DetailRulePostProcessor implements PostProcessor {
     private static final int MAX_REPLACEMENTS = 2500;
 
     @Override
+    public FailurePolicy failurePolicy() {
+        return FailurePolicy.HARD;
+    }
+
+    @Override
     public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {
         if (patches == null || patches.isEmpty() || context == null || context.plan() == null) {
             return patches;
