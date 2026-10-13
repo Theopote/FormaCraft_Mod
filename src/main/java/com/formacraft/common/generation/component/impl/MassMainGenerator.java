@@ -150,6 +150,8 @@ public class MassMainGenerator implements ComponentGenerator {
         if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params)) hasDecor = false;
         boolean suppressDoors = getParamBoolean(params, "suppress_doors", "suppressDoors")
                 || com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
+        java.util.Set<String> suppressWindowFaces = parseSuppressFaces(params, "suppress_window_faces");
+        java.util.Set<String> suppressDoorFaces = parseSuppressFaces(params, "suppress_door_faces");
 
         Double voidRatio = resolveVoidRatio(params, semantic);
         Double windowRatio = resolveWindowRatio(params, semantic);
@@ -236,7 +238,7 @@ public class MassMainGenerator implements ComponentGenerator {
         for (MassConfig mass : massConfigs) {
             emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof, hasDecor,
                     windowSpacing, doorFacing, wallThickness, userFloorHeight,
-                    facadeStyle);
+                    facadeStyle, suppressWindowFaces, suppressDoorFaces);
         }
 
         return out;
@@ -270,7 +272,9 @@ public class MassMainGenerator implements ComponentGenerator {
             com.formacraft.common.llm.dto.GlobalConstraints.Facing doorFacing,
             int wallThickness,
             int userFloorHeight,
-            FacadeStyle facadeStyle
+            FacadeStyle facadeStyle,
+            java.util.Set<String> suppressWindowFaces,
+            java.util.Set<String> suppressDoorFaces
     ) {
         int width = mass.width;
         int depth = mass.depth;
@@ -393,7 +397,8 @@ public class MassMainGenerator implements ComponentGenerator {
                             && Boolean.FALSE.equals(semantic.source().params().get("gable_windows"))
                             && (depth >= width ? localZ == 0 || localZ == depth - 1 : localX == 0 || localX == width - 1);
                     if (hasWindows && !forbiddenGableWindow && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape,
-                            mass.cornerRadius, mass.pattern, windowSpacing, userFloorHeight)) {
+                            mass.cornerRadius, mass.pattern, windowSpacing, userFloorHeight)
+                            && !isFaceSuppressed(localX, localZ, width, depth, suppressWindowFaces)) {
                         SemanticPart part = SemanticPart.WINDOW;
                         GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
                                 GeneratedSurfaceCapture.Role.WINDOW);
@@ -412,7 +417,8 @@ public class MassMainGenerator implements ComponentGenerator {
                     }
 
                     if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, mass.shape,
-                            mass.cornerRadius, mass.pattern, doorFacing)) {
+                            mass.cornerRadius, mass.pattern, doorFacing)
+                            && !isFaceSuppressed(localX, localZ, width, depth, suppressDoorFaces)) {
                         SemanticPart part = SemanticPart.DOORWAY;
                         if (y > 0) GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
                                 GeneratedSurfaceCapture.Role.DOOR_OPENING);
@@ -525,6 +531,36 @@ public class MassMainGenerator implements ComponentGenerator {
                 }
             }
         }
+    }
+
+    static java.util.Set<String> parseSuppressFaces(Map<String, Object> params, String key) {
+        if (params == null || key == null) return java.util.Set.of();
+        Object raw = params.get(key);
+        if (raw == null) return java.util.Set.of();
+        var out = new java.util.LinkedHashSet<String>();
+        if (raw instanceof java.util.List<?> list) {
+            for (Object o : list) {
+                if (o != null && !o.toString().isBlank()) out.add(o.toString().trim().toUpperCase(java.util.Locale.ROOT));
+            }
+        } else {
+            for (String part : raw.toString().split("[,|;\\s]+")) {
+                if (!part.isBlank()) out.add(part.trim().toUpperCase(java.util.Locale.ROOT));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Minecraft-facing relative to mass local footprint: z=0 SOUTH, z=max NORTH, x=0 EAST, x=max WEST
+     * (matches {@link #isDoorPosition} facing switch).
+     */
+    static boolean isFaceSuppressed(int x, int z, int width, int depth, java.util.Set<String> faces) {
+        if (faces == null || faces.isEmpty()) return false;
+        if (z <= 0 && faces.contains("SOUTH")) return true;
+        if (z >= depth - 1 && faces.contains("NORTH")) return true;
+        if (x <= 0 && faces.contains("EAST")) return true;
+        if (x >= width - 1 && faces.contains("WEST")) return true;
+        return false;
     }
 
     /**

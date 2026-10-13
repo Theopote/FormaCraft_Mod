@@ -112,6 +112,8 @@ flowchart TD
 
 第三十一批起：门窗审计与表面所有权非法覆盖阻止编译交付；后处理 HARD 失败 → `E_POSTPROCESS_FAILED`；Mass 合并保护骨架开口；构件优先级 MASS→FLOOR→ROOF→FACADE→开口→DECOR→楼梯。
 
+第三十二批起：显式 ROOF 始终抑制 MASS 内建屋顶；关键构件生成异常整计划失败；门窗可按立面委托；多 MASS 无 host 等距绑定歧义失败；屋顶结构审计 mismatch 硬门禁。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

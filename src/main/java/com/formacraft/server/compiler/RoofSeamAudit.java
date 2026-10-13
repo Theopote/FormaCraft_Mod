@@ -7,10 +7,25 @@ import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 import java.util.*;
 
-/** Non-blocking final-patch audit of explicitly bound, simple rectangular roof seams. */
+/** Graded final-patch audit of explicitly bound, simple rectangular roof seams. */
 final class RoofSeamAudit {
+    private static final Set<String> STRUCTURAL_REASONS = Set.of("missing_seam_cell", "vertical_alignment");
+
     record Result(String roofId, String hostId, String status, String reason,
                   BlockPos firstMissing, int missingCells, int checkedCells) {}
+
+    static Optional<CapabilityGap> toCapabilityGap(Result result) {
+        if (result == null || !"mismatch".equals(result.status())) return Optional.empty();
+        if (!STRUCTURAL_REASONS.contains(result.reason())) return Optional.empty();
+        return Optional.of(new CapabilityGap(
+                "E_ROOF_SEAM_FAILED",
+                "屋顶接缝审计失败：roof=" + result.roofId() + " host=" + result.hostId()
+                        + " reason=" + result.reason()
+                        + (result.firstMissing() == null ? "" : " at " + result.firstMissing().toShortString()),
+                "components[]",
+                List.of("对齐屋顶与宿主体块边界", "补齐屋檐接缝实心单元")
+        ));
+    }
 
     static Optional<Result> inspect(SemanticComponent roof, List<Component> components,
             Map<String, Slot> slots, Slot fallback, List<BlockPatch> patches) {

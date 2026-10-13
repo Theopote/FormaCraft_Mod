@@ -52,6 +52,7 @@ import net.minecraft.util.math.Direction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
@@ -172,6 +173,9 @@ public final class ComponentPlanCompiler {
         Map<String, Slot> slotMap = indexSlots(plan);
         boolean allowAssemblyFacade = world != null && globalAnchor != null;
         PreparedComponents prepared = prepareComponents(plan, slotMap, allowAssemblyFacade);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         List<Component> components = prepared.components();
         Set<String> assemblyFacadeSlots = prepared.assemblyFacadeSlots();
         var designConflict = ExplicitDesignConflictValidator.check(plan, components);
@@ -300,10 +304,31 @@ public final class ComponentPlanCompiler {
             var anchor = slot.anchor();
             var offset = anchor == null ? BlockPos.ORIGIN : new BlockPos(anchor.x(), anchor.y(), anchor.z());
             var semantic = new SemanticComponent("ROOF", slot, roof, plan.styleProfile());
-            RoofShapeAudit.inspect(semantic, result, offset).ifPresent(audit ->
+            var shapeAudit = RoofShapeAudit.inspect(semantic, result, offset);
+            shapeAudit.ifPresent(audit ->
                     FormacraftMod.LOGGER.info("[RoofShapeAudit] stage=postprocess result={}", audit));
-            RoofSeamAudit.inspect(semantic, components, slotMap, defaultSlot(plan), result).ifPresent(audit ->
+            if (shapeAudit.isPresent()) {
+                if ("mismatch".equals(shapeAudit.get().status())
+                        && !Set.of("missing_slope_column", "no_ridge_rise", "non_monotonic_slope")
+                        .contains(shapeAudit.get().reason())) {
+                    FormacraftMod.LOGGER.warn("[RoofShapeAudit] visual mismatch (non-blocking): {}", shapeAudit.get());
+                }
+                var shapeGap = RoofShapeAudit.toCapabilityGap(shapeAudit.get());
+                if (shapeGap.isPresent()) {
+                    AssemblyCompileDiagnostics.set(shapeGap.get());
+                    return List.of();
+                }
+            }
+            var seamAudit = RoofSeamAudit.inspect(semantic, components, slotMap, defaultSlot(plan), result);
+            seamAudit.ifPresent(audit ->
                     FormacraftMod.LOGGER.info("[RoofSeamAudit] stage=postprocess result={}", audit));
+            if (seamAudit.isPresent()) {
+                var seamGap = RoofSeamAudit.toCapabilityGap(seamAudit.get());
+                if (seamGap.isPresent()) {
+                    AssemblyCompileDiagnostics.set(seamGap.get());
+                    return List.of();
+                }
+            }
         }
 
         try {
@@ -557,10 +582,39 @@ public final class ComponentPlanCompiler {
                             componentPatchDiagSuffix(normalizedType, c));
                 }
             } catch (Exception e) {
-                FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}",
-                        c.componentType(), e.getMessage(), e);
+                if (isSoftGenerationFailure(c)) {
+                    FormacraftMod.LOGGER.warn(
+                            "ComponentPlanCompiler: optional decor component failed (SOFT degrade): type={} id={} slot={}: {}",
+                            c.componentType(), paramIdentity(c), c.slotId(), e.getMessage(), e);
+                } else {
+                    FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}",
+                            c.componentType(), e.getMessage(), e);
+                    AssemblyCompileDiagnostics.set(new CapabilityGap(
+                            "E_COMPONENT_GENERATION_FAILED",
+                            "关键构件生成失败：type=" + c.componentType()
+                                    + " id=" + paramIdentity(c)
+                                    + " slot=" + c.slotId()
+                                    + " error=" + e.getClass().getSimpleName()
+                                    + (e.getMessage() == null ? "" : ": " + e.getMessage()),
+                            "components[]",
+                            List.of("修复该构件参数或生成器异常", "装饰类失败可降级，主体/屋顶/门窗不可")
+                    ));
+                    return;
+                }
             }
         }
+    }
+
+    static boolean isSoftGenerationFailure(Component c) {
+        if (c == null) return false;
+        String type = normalizeType(c.componentType());
+        return "DECOR_DETAIL".equals(type) || type.startsWith("DECOR");
+    }
+
+    private static String paramIdentity(Component c) {
+        if (c == null || c.params() == null) return "?";
+        Object id = c.params().get("component_id");
+        return id == null ? "?" : String.valueOf(id);
     }
 
     private static int compilationPriority(Component c) {
@@ -747,8 +801,16 @@ public final class ComponentPlanCompiler {
             GlobalConstraints.Facing facing = resolveSlotFacing(plan, slotMap, slotId);
             boolean hasFacade = hasSatelliteForMass(c, components, inferred, "FACADE_WINDOWS");
             boolean hasEntrance = hasSatelliteForMass(c, components, inferred, "ENTRANCE");
+            if (AssemblyCompileDiagnostics.hasGap()) {
+                return new PreparedComponents(List.of(), Set.of());
+            }
             boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c);
             boolean entranceDisabled = com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
+            var windowFaces = collectSatelliteFaces(c, components, inferred, "FACADE_WINDOWS");
+            var doorFaces = collectSatelliteFaces(c, components, inferred, "ENTRANCE");
+            if (AssemblyCompileDiagnostics.hasGap()) {
+                return new PreparedComponents(List.of(), Set.of());
+            }
             boolean useAssemblyFacade = allowAssemblyFacade
                     && shouldUseAssemblyFacade(plan, c)
                     && !hasFacade
@@ -764,6 +826,7 @@ public final class ComponentPlanCompiler {
                     facade = OpeningGrammarResolver.apply(plan, facade);
                     inferred.add(facade);
                     hasFacade = true;
+                    windowFaces = Set.of(); // inferred whole-mass facade → full suppress
                 }
                 if (!hasEntrance && !entranceDisabled) {
                     Component entrance = makeEntranceComponent(plan, c, slotId, facing);
@@ -771,20 +834,32 @@ public final class ComponentPlanCompiler {
                         entrance = StyleIntentResolver.apply(plan, entrance);
                         inferred.add(entrance);
                         hasEntrance = true;
+                        doorFaces = Set.of();
                     }
                 }
             }
             if (hasFacade || hasEntrance || windowsDisabled || entranceDisabled) {
-                c = suppressMassOpenings(c, hasFacade || windowsDisabled, hasEntrance || entranceDisabled);
+                boolean fullWindows = windowsDisabled || (hasFacade && windowFaces.isEmpty());
+                boolean fullDoors = entranceDisabled || (hasEntrance && doorFaces.isEmpty());
+                c = suppressMassOpenings(c, fullWindows, fullDoors,
+                        fullWindows ? Set.of() : windowFaces,
+                        fullDoors ? Set.of() : doorFaces);
             }
-            if (!hasSatelliteForMass(c, components, inferred, "ROOF")) {
+            boolean hasRoof = hasSatelliteForMass(c, components, inferred, "ROOF");
+            if (AssemblyCompileDiagnostics.hasGap()) {
+                return new PreparedComponents(List.of(), Set.of());
+            }
+            if (!hasRoof && !com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)) {
                 Component roof = makeRoofComponent(plan, c, slotId);
                 if (roof != null) {
                     roof = StyleIntentResolver.apply(plan, roof);
                     roof = RoofGrammarResolver.apply(plan, roof);
                     inferred.add(roof);
-                    c = suppressMassRoof(c);
+                    hasRoof = true;
                 }
+            }
+            if (hasRoof) {
+                c = suppressMassRoof(c);
             }
             inferNestedFlatRoofs(plan, c, components, inferred, slotId);
             if (!slotsWithCrown.contains(slotKey)
@@ -1805,41 +1880,126 @@ public final class ComponentPlanCompiler {
     }
 
     private static boolean hasSatelliteForMass(Component mass, List<Component> primary, List<Component> inferred, String wantedType) {
-        var roofs = new ArrayList<Component>(primary);
-        roofs.addAll(inferred);
+        return findBoundSatellite(mass, primary, inferred, wantedType) != null;
+    }
+
+    /**
+     * Bind satellite to mass: explicit host_id wins; unbound satellites bind only when the nearest
+     * MASS is unique (strictly closer than the next). Ambiguous unbound satellites set diagnostics.
+     */
+    private static Component findBoundSatellite(Component mass, List<Component> primary, List<Component> inferred, String wantedType) {
+        var satellites = new ArrayList<Component>(primary);
+        satellites.addAll(inferred);
         Object identity = mass.params() == null ? null : mass.params().get("component_id");
-        for (var roof : roofs) {
-            if (roof == null || !("ROOF".equals(wantedType) ? isRoofType(normalizeType(roof.componentType()))
-                    : wantedType.equals(normalizeType(roof.componentType()))) || !slotKey(roof).equals(slotKey(mass))) continue;
-            if (roof.params() != null && roof.params().get("host_part_id") != null) continue;
-            Object host = roof.params() == null ? null : roof.params().get("host_id");
+        for (var satellite : satellites) {
+            if (satellite == null || !("ROOF".equals(wantedType) ? isRoofType(normalizeType(satellite.componentType()))
+                    : wantedType.equals(normalizeType(satellite.componentType()))) || !slotKey(satellite).equals(slotKey(mass))) continue;
+            if (satellite.params() != null && satellite.params().get("host_part_id") != null) continue;
+            Object host = satellite.params() == null ? null : satellite.params().get("host_id");
             if (host != null) {
-                if (host.equals(identity)) return true;
+                if (host.equals(identity)) return satellite;
                 continue;
             }
-            // Legacy unbound roofs use the same nearest-body compatibility rule as alignment.
-            Component nearest = null;
-            double best = Double.POSITIVE_INFINITY;
-            for (var candidate : primary) {
-                if (candidate == null || !isMassType(normalizeType(candidate.componentType()))
-                        || !slotKey(candidate).equals(slotKey(mass)) || candidate.dimensions() == null) continue;
-                Vec3i origin = resolveMassOrigin(candidate);
-                if (origin == null || roof.relativePosition() == null) continue;
-                double x = roof.relativePosition().x(), z = roof.relativePosition().z();
-                if (ComponentFootprintUtil.isCornerAnchor(roof.params()) && roof.dimensions() != null) {
-                    x += (roof.dimensions().width() - 1) / 2.0;
-                    z += (roof.dimensions().depth() - 1) / 2.0;
-                }
-                double dx = x - origin.x() - (candidate.dimensions().width() - 1) / 2.0;
-                double dz = z - origin.z() - (candidate.dimensions().depth() - 1) / 2.0;
-                double distance = dx * dx + dz * dz;
-                if (distance < best) { best = distance; nearest = candidate; }
+            HostPick pick = resolveUnboundHost(mass, primary, satellite);
+            if (pick == HostPick.AMBIGUOUS) {
+                AssemblyCompileDiagnostics.set(new CapabilityGap(
+                        "E_HOST_BINDING_AMBIGUOUS",
+                        "无 host_id 的卫星构件存在多个等距 MASS 候选：satellite="
+                                + normalizeType(satellite.componentType())
+                                + " slot=" + slotKey(satellite)
+                                + "；请为卫星设置明确 host_id",
+                        "components[].params.host_id",
+                        List.of("为 ROOF/FACADE_WINDOWS/ENTRANCE 设置 host_id", "避免共享 slot 内多 MASS 无宿主绑定")
+                ));
+                return null;
             }
-            if (nearest != null && (identity != null && nearest.params() != null
-                    ? identity.equals(nearest.params().get("component_id"))
-                    : java.util.Objects.equals(mass.relativePosition(), nearest.relativePosition()))) return true;
+            if (pick == HostPick.MATCH) return satellite;
         }
-        return false;
+        return null;
+    }
+
+    enum HostPick { NONE, MATCH, AMBIGUOUS }
+
+    static HostPick resolveUnboundHost(Component mass, List<Component> primary, Component satellite) {
+        Object identity = mass.params() == null ? null : mass.params().get("component_id");
+        record Cand(Component mass, double dist2) {}
+        var cands = new ArrayList<Cand>();
+        for (var candidate : primary) {
+            if (candidate == null || !isMassType(normalizeType(candidate.componentType()))
+                    || !slotKey(candidate).equals(slotKey(mass)) || candidate.dimensions() == null
+                    || candidate.relativePosition() == null) continue;
+            if (satellite.relativePosition() == null) continue;
+            // Use declared relativePosition (not ResolvedComponentGeometry) for stable host binding.
+            Vec3i origin = candidate.relativePosition();
+            double x = satellite.relativePosition().x(), z = satellite.relativePosition().z();
+            if (ComponentFootprintUtil.isCornerAnchor(satellite.params()) && satellite.dimensions() != null) {
+                x += (satellite.dimensions().width() - 1) / 2.0;
+                z += (satellite.dimensions().depth() - 1) / 2.0;
+            }
+            double dx = x - origin.x() - (candidate.dimensions().width() - 1) / 2.0;
+            double dz = z - origin.z() - (candidate.dimensions().depth() - 1) / 2.0;
+            cands.add(new Cand(candidate, dx * dx + dz * dz));
+        }
+        if (cands.isEmpty()) return HostPick.NONE;
+        cands.sort(java.util.Comparator.comparingDouble(Cand::dist2));
+        Cand best = cands.get(0);
+        if (cands.size() >= 2) {
+            Cand second = cands.get(1);
+            double bestDist = Math.sqrt(best.dist2());
+            double secondDist = Math.sqrt(second.dist2());
+            if (!(secondDist - bestDist > 1.0)) {
+                return HostPick.AMBIGUOUS;
+            }
+        }
+        boolean match = identity != null && best.mass().params() != null
+                ? identity.equals(best.mass().params().get("component_id"))
+                : java.util.Objects.equals(mass.relativePosition(), best.mass().relativePosition());
+        return match ? HostPick.MATCH : HostPick.NONE;
+    }
+
+    /** Collect face names from bound satellites; empty means whole-mass delegation when satellite exists. */
+    static Set<String> collectSatelliteFaces(Component mass, List<Component> primary, List<Component> inferred, String wantedType) {
+        var faces = new LinkedHashSet<String>();
+        Component bound = findBoundSatellite(mass, primary, inferred, wantedType);
+        if (bound == null) return faces;
+        faces.addAll(parseFaceList(bound.params()));
+        // Merge faces from all host-matching satellites of this type
+        var all = new ArrayList<Component>(primary);
+        all.addAll(inferred);
+        Object identity = mass.params() == null ? null : mass.params().get("component_id");
+        for (var s : all) {
+            if (s == null || s == bound) continue;
+            if (!wantedType.equals(normalizeType(s.componentType())) &&
+                    !("ROOF".equals(wantedType) && isRoofType(normalizeType(s.componentType())))) continue;
+            if (!slotKey(s).equals(slotKey(mass))) continue;
+            Object host = s.params() == null ? null : s.params().get("host_id");
+            if (host != null && identity != null && host.equals(identity)) {
+                faces.addAll(parseFaceList(s.params()));
+            }
+        }
+        return faces;
+    }
+
+    static Set<String> parseFaceList(Map<String, Object> params) {
+        if (params == null) return Set.of();
+        Object raw = params.get("faces");
+        if (raw == null) raw = params.get("suppress_faces");
+        if (raw == null) raw = params.get("facing");
+        if (raw == null) return Set.of();
+        var out = new LinkedHashSet<String>();
+        if (raw instanceof List<?> list) {
+            for (Object o : list) {
+                if (o != null && !o.toString().isBlank()) out.add(o.toString().trim().toUpperCase(Locale.ROOT));
+            }
+        } else {
+            String s = raw.toString().trim();
+            if (!s.isEmpty()) {
+                for (String part : s.split("[,|;\\s]+")) {
+                    if (!part.isBlank()) out.add(part.trim().toUpperCase(Locale.ROOT));
+                }
+            }
+        }
+        return out;
     }
 
     private static Component findRoofInList(List<Component> components, String slotKey) {
@@ -1881,7 +2041,15 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component suppressMassOpenings(Component base, boolean suppressWindows, boolean suppressDoors) {
-        if (base == null || (!suppressWindows && !suppressDoors)) {
+        return suppressMassOpenings(base, suppressWindows, suppressDoors, Set.of(), Set.of());
+    }
+
+    private static Component suppressMassOpenings(Component base, boolean suppressWindows, boolean suppressDoors,
+                                                   Set<String> windowFaces, Set<String> doorFaces) {
+        if (base == null) return null;
+        boolean anyFaces = (windowFaces != null && !windowFaces.isEmpty())
+                || (doorFaces != null && !doorFaces.isEmpty());
+        if (!suppressWindows && !suppressDoors && !anyFaces) {
             return base;
         }
         Map<String, Object> params = new HashMap<>();
@@ -1890,9 +2058,15 @@ public final class ComponentPlanCompiler {
         }
         if (suppressWindows) {
             params.put("suppress_windows", true);
+            params.remove("suppress_window_faces");
+        } else if (windowFaces != null && !windowFaces.isEmpty()) {
+            params.put("suppress_window_faces", new ArrayList<>(windowFaces));
         }
         if (suppressDoors) {
             params.put("suppress_doors", true);
+            params.remove("suppress_door_faces");
+        } else if (doorFaces != null && !doorFaces.isEmpty()) {
+            params.put("suppress_door_faces", new ArrayList<>(doorFaces));
         }
         return new Component(
                 base.componentType(),

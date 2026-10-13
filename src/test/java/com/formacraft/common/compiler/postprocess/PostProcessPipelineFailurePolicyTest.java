@@ -19,7 +19,7 @@ class PostProcessPipelineFailurePolicyTest {
         var outcome = pipeline.processWithOutcome(input, context());
         assertFalse(outcome.hardFailure());
         assertEquals(1, outcome.patches().size());
-        assertEquals("after", outcome.patches().get(0).targetBlock());
+        assertEquals("after", outcome.patches().getFirst().targetBlock());
     }
 
     @Test
@@ -31,7 +31,7 @@ class PostProcessPipelineFailurePolicyTest {
         var outcome = pipeline.processWithOutcome(input, context());
         assertTrue(outcome.hardFailure());
         assertEquals("HardFailProcessor", outcome.failedProcessor());
-        assertEquals("minecraft:stone", outcome.patches().get(0).targetBlock());
+        assertEquals("minecraft:stone", outcome.patches().getFirst().targetBlock());
     }
 
     private static PostProcessContext context() {
@@ -63,16 +63,11 @@ class PostProcessPipelineFailurePolicyTest {
         }
     }
 
-    private static final class MarkProcessor implements PostProcessor {
-        private final String mark;
-
-        MarkProcessor(String mark) {
-            this.mark = mark;
-        }
+    private record MarkProcessor(String mark) implements PostProcessor {
 
         @Override
-        public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {
-            return List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, mark));
+            public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {
+                return List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, mark));
+            }
         }
-    }
 }

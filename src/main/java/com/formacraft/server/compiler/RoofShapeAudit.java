@@ -3,14 +3,30 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 import java.util.*;
 
-/** Non-blocking audit of simple rectangular gable roofs after final patch processing. */
+/** Graded audit of simple rectangular gable roofs after final patch processing. */
 final class RoofShapeAudit {
+    private static final Set<String> STRUCTURAL_REASONS = Set.of(
+            "missing_slope_column", "no_ridge_rise", "non_monotonic_slope");
+
     record Result(String componentId, String status, String reason, List<Integer> sectionHeights, int sectionIndex, int checkedSections) {}
+
+    static Optional<CapabilityGap> toCapabilityGap(Result result) {
+        if (result == null || !"mismatch".equals(result.status())) return Optional.empty();
+        if (!STRUCTURAL_REASONS.contains(result.reason())) return Optional.empty(); // visual / other → warn only
+        return Optional.of(new CapabilityGap(
+                "E_ROOF_SHAPE_FAILED",
+                "屋顶结构审计失败：id=" + result.componentId() + " reason=" + result.reason()
+                        + " section=" + result.sectionIndex(),
+                "components[]",
+                List.of("检查山墙坡面是否完整", "避免缺柱或非单调坡度")
+        ));
+    }
     static Optional<Result> inspect(SemanticComponent semantic, List<BlockPatch> patches, BlockPos offset) {
         Component c=semantic.source();
         if(c==null || !"ROOF".equalsIgnoreCase(c.componentType()) || c.params()==null

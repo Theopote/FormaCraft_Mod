@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-13（第三十一批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-13（第三十二批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,14 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第三十二批（2026-10-13）— 内建/独立构件委托
+
+- **屋顶互斥**：显式或推断 ROOF 均 `suppressMassRoof`（`roof_type=none` + `compiler_suppressed_roof`）；`host_part_id` 局部屋顶不触发整宿主抑制。
+- **构件生成失败**：主体/屋顶/门窗等 HARD → `E_COMPONENT_GENERATION_FAILED`；`DECOR*` SOFT 降级继续。
+- **门窗立面委托**：无 `faces` → 整 MASS `suppress_windows`；有朝向 → `suppress_window_faces`，`MassMainGenerator` 按面跳过。
+- **宿主绑定**：无 `host_id` 且多 MASS 等距 → `E_HOST_BINDING_AMBIGUOUS`；唯一或严格更近才自动绑定。
+- **屋顶审计门禁**：Shape/Seam 结构 mismatch → `E_ROOF_SHAPE_FAILED` / `E_ROOF_SEAM_FAILED`；视觉/`not_assessed` 不阻断。
 
 ### 第三十一批（2026-10-13）— 构件语义门禁
 
