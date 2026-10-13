@@ -120,6 +120,8 @@ flowchart TD
 
 第三十五批起：`RoofLayerFrame` 修正双重檐口上层占地偏移；`FacadeLayoutPlan` 整墙一次求解入口+窗数；檐口沿真实外/内边界；`FacadeScope.parseStrict` 拒绝空/非法方位与越层（`E_FACADE_SCOPE_INVALID`）。
 
+第三十六批起：捕获构件 `sourceOrigin=CAPTURED` 禁非授权随机变体；`SegmentScaler` 方块/Socket 共享切片映射；保存前配对方块校验；材质多 tag 优先级经 `ShapePreservingMaterialSwap`。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

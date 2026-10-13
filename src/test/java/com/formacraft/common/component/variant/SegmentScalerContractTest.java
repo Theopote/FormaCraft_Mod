@@ -41,10 +41,12 @@ class SegmentScalerContractTest {
         assertEquals(List.of("slice_0","slice_1","slice_2","slice_5","slice_6"),states(out));
     }
     @Test void negativeCoordinatesKeepAnchorStable() {
+        // World x=0 is middle local 2 → first-tile dest keeps it at 0; range is min..min+target-1 after anchor.
         var out=SegmentScaler.applyScaling(line(5,-2),rules("X","REPEAT",1),target(7,1,1));
-        assertArrayEquals(new int[]{-3,3},out.getAxisRange(Voxel.Axis.X));
-        assertEquals("slice_0",out.all().stream().filter(v->v.x()==-3).findFirst().orElseThrow().blockState());
-        assertEquals("slice_4",out.all().stream().filter(v->v.x()==3).findFirst().orElseThrow().blockState());
+        assertArrayEquals(new int[]{-2,4},out.getAxisRange(Voxel.Axis.X));
+        assertEquals("slice_0",out.all().stream().filter(v->v.x()==-2).findFirst().orElseThrow().blockState());
+        assertEquals("slice_4",out.all().stream().filter(v->v.x()==4).findFirst().orElseThrow().blockState());
+        assertEquals("slice_2",out.all().stream().filter(v->v.x()==0).findFirst().orElseThrow().blockState());
     }
     @Test void twoAxesComposeRatherThanDiscardingFirstAxis() {
         var voxels=new ArrayList<Voxel>();
@@ -87,5 +89,17 @@ class SegmentScalerContractTest {
     }
     @Test void enforcesSizeBudget() {
         assertThrows(IllegalArgumentException.class,()->SegmentScaler.applyScaling(line(5,0),rules("X","REPEAT",1),target(100000,1,1)));
+    }
+    @Test void socketPositionUsesFirstTileNotProportionalMidpoint() {
+        // original 0..5 with edges=1 → middle slices 1,2,3,4 (size 4); expand to 10 → middle 8
+        var rule = rules("X", "REPEAT", 1).axes.get("X");
+        var map = SegmentScaler.mapping(line(6, 0).all(), Voxel.Axis.X, rule, 10);
+        // Source middle index 2 (second middle slice) must land on first tile (dest local 2), not proportional ~4.3
+        assertEquals(2, map.anchoredPosition(2));
+        assertEquals(map.sourceSliceForDestination(2), 2);
+        assertEquals(map.sourceSliceForDestination(2 + 4), 2); // second period still reads slice 2
+        var out = SegmentScaler.applyScaling(line(6, 0), rules("X", "REPEAT", 1), target(10, 1, 1));
+        assertEquals("slice_2", out.all().stream().filter(v -> v.x() == 2).findFirst().orElseThrow().blockState());
+        assertEquals("slice_2", out.all().stream().filter(v -> v.x() == 6).findFirst().orElseThrow().blockState());
     }
 }

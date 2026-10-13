@@ -349,8 +349,8 @@ public final class ComponentLibraryPanel extends BasePanel {
         // 见 refreshExistingIdsIfStale：目录快照节流刷新，避免每帧磁盘 IO。
 
         // paging
-        int cols = 4; // 固定每行4个
-        int cell = (w - 12) / cols; // 计算每个单元格大小，留出12像素总间距
+        int cols = Math.max(1, Math.min(4, w / 44));
+        int cell = Math.max(1, w / cols);
         int rowsPerPage = 6;
         int pageSize = Math.max(1, cols * rowsPerPage);
         int total = filtered.size();
@@ -385,7 +385,6 @@ public final class ComponentLibraryPanel extends BasePanel {
         int pad = 2; // 减小间距
         int bw = cell - pad;
         int bh = cell - pad;
-        int thumbSz = 32; // 减小缩略图大小
         int row = 0, col = 0;
 
         for (int i = start; i < end; i++) {
@@ -406,27 +405,13 @@ public final class ComponentLibraryPanel extends BasePanel {
             ctx.fill(bx, by, bx + 1, by + bh, border);
             ctx.fill(bx + bw - 1, by, bx + bw, by + bh, border);
 
-            var t = ComponentThumbnailCache.getThumb(id, 24);
-            if (t != null && t.argb() != null) {
-                int tw = t.w();
-                int th = t.h();
-                int[] argb = t.argb();
-                int scale = Math.max(1, thumbSz / Math.max(1, Math.max(tw, th)));
-                int drawW = tw * scale;
-                int ox = bx + (bw - drawW) / 2;
-                int oy = by + 4;
-                for (int yy = 0; yy < th; yy++) {
-                    for (int xx = 0; xx < tw; xx++) {
-                        int c = argb[yy * tw + xx];
-                        int x0 = ox + xx * scale;
-                        int y0 = oy + yy * scale;
-                        ctx.fill(x0, y0, x0 + scale, y0 + scale, c);
-                    }
-                }
+            var image = ComponentThumbnailCache.getImage(id, e.updatedAtMs == null ? 0 : e.updatedAtMs);
+            if (image != null) {
+                com.formacraft.client.ui.render.ImageRenderer.renderCentered(ctx, image,
+                        bx + 3, by + 3, bw - 6, bh - 6);
             } else {
-                ctx.fill(bx + 6, by + 6, bx + bw - 6, by + 6 + thumbSz, 0x55222222);
+                ctx.drawTextWithShadow(client.textRenderer, Text.literal("…"), bx + bw / 2 - 3, by + bh / 2 - 4, 0xFFAAAAAA);
             }
-
             // 不再显示名称，改为在 tooltip 中显示
             grid.add(new GridItem(e, bx, by, bw, bh));
             col++;
@@ -448,6 +433,20 @@ public final class ComponentLibraryPanel extends BasePanel {
             String selectedName = st.librarySelectedName != null ? st.librarySelectedName : st.librarySelectedId;
             y = drawWrappedText(ctx, Text.literal("已选中: " + selectedName), x, y, w, 0xFFFFFFFF);
             y += 2;
+            for (var entry : cat.components) {
+                if (entry == null || !st.librarySelectedId.equals(entry.id)) continue;
+                var selectedImage = ComponentThumbnailCache.getImage(entry.id, entry.updatedAtMs == null ? 0 : entry.updatedAtMs);
+                int previewSize = Math.min(112, w);
+                int previewX = x + (w - previewSize) / 2;
+                ctx.fill(previewX, y, previewX + previewSize, y + previewSize, UiTheme.CHAT_MESSAGE_BG);
+                ctx.drawBorder(previewX, y, previewSize, previewSize, UiTheme.DIVIDER_SUBTLE);
+                if (selectedImage != null) com.formacraft.client.ui.render.ImageRenderer.renderCentered(
+                        ctx, selectedImage, previewX + 2, y + 2, previewSize - 4, previewSize - 4);
+                y += previewSize + 3;
+                if (entry.size != null) y = drawWrappedText(ctx, Text.literal("尺寸: " + entry.size.w + " × " + entry.size.h + " × " + entry.size.d), x, y, w, 0xFFAAAAAA);
+                y += 2;
+                break;
+            }
             deleteButton.setPosition(x, y);
             deleteButton.setWidth(w);
             deleteButton.visible = true;

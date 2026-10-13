@@ -23,6 +23,20 @@ public class ClientInitializer implements ClientModInitializer {
         // 加载设置配置
         SettingsConfig.load();
 
+        net.fabricmc.fabric.api.resource.ResourceManagerHelper.get(net.minecraft.resource.ResourceType.CLIENT_RESOURCES)
+                .registerReloadListener(new net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener() {
+                    @Override public net.minecraft.util.Identifier getFabricId() {
+                        return net.minecraft.util.Identifier.of("formacraft", "component_thumbnails");
+                    }
+                    @Override public void reload(net.minecraft.resource.ResourceManager manager) {
+                        net.minecraft.client.MinecraftClient.getInstance().execute(() -> {
+                            com.formacraft.client.component.ComponentThumbnailGenerator.resourcesReloaded();
+                            com.formacraft.client.component.ComponentThumbnailCache.clearAllCache();
+                            com.formacraft.client.ui.render.ImageRenderer.clear();
+                        });
+                    }
+                });
+
         // 尝试自动启动本地后端（异步，不阻塞渲染线程）
         BackendAutoStarter.ensureStartedAsync();
 

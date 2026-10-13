@@ -168,6 +168,7 @@ final class ComponentToolJsonBuilder {
             def.geometryArchetype = com.formacraft.common.component.semantic.ComponentSemanticInference.inferGeometryArchetype(def);
         }
         def.variantRules = draft.adaptation.toRules(def);
+        def.sourceOrigin = ComponentDefinition.ORIGIN_CAPTURED;
         return JsonUtil.toJson(def);
     }
 

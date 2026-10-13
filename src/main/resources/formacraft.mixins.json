@@ -6,6 +6,7 @@
 	"mixins": [
 	],
     "client": [
+      "SpriteContentsAccessor",
       "KeyboardMixin",
       "MouseMixin",
       "MinecraftClientMixin",

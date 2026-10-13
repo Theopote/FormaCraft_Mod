@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-14（第三十五批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-14（第三十六批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,13 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第三十六批（2026-10-14）— 捕获构件适配契约
+
+- **SegmentScaler**：方块重建与 Socket/`anchoredPosition` 共享切片平铺映射（首个平铺实例）。
+- **sourceOrigin=CAPTURED**：捕获保存写入；`VariantGenerator` 禁非授权随机缩放/裁剪/镜像。
+- **保存前配对方块**：`CapturedComponentRuleValidator` 与运行时同一扫描；门/床在可变中段则拒绝保存。
+- **材质/变换**：多 tag 按 STRUCTURE→FRAME→FILL；门等经 `ShapePreservingMaterialSwap` 不换种。
 
 ### 第三十五批（2026-10-14）— 屋顶层坐标与立面开间
 

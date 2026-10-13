@@ -34,17 +34,38 @@ public final class SegmentScaler {
     public record Mapping(int min, int originalSize, int start, int end, int targetSize, String mode) {
         int middle() { return originalSize - start - end; }
         int targetMiddle() { return targetSize - start - end; }
-        // Semantic positions are mapped proportionally; geometry repeats complete source slices.
+
+        /**
+         * Map a source-axis coordinate to the adapted axis using the same tile-repeat rule as
+         * {@link #sourceSliceForDestination(int)}. Middle points land on the first tiled instance.
+         */
         public int position(int coordinate) {
             int local = coordinate - min;
-            int destination;
-            if (local < start) destination = local;
-            else if (local >= originalSize - end) destination = local + targetSize - originalSize;
-            else destination = start + (middle() <= 1 ? 0 : Math.round(
-                    (local - start) * (targetMiddle() - 1f) / (middle() - 1f)));
-            return min + destination;
+            return min + destinationForSourceLocal(local);
         }
+
         public int anchoredPosition(int coordinate) { return position(coordinate) - position(0); }
+
+        /** Destination index (0-based within target) for a source local index. */
+        int destinationForSourceLocal(int local) {
+            if (local < start) return local;
+            if (local >= originalSize - end) return local + targetSize - originalSize;
+            int mid = middle();
+            int tMid = targetMiddle();
+            if (mid <= 0 || tMid <= 0) return start;
+            int offset = local - start;
+            if (offset >= tMid) offset = Math.floorMod(offset, tMid);
+            return start + offset;
+        }
+
+        /** Source slice index for a destination index within the target size. */
+        int sourceSliceForDestination(int destination) {
+            if (destination < start) return destination;
+            if (destination >= targetSize - end) return destination + originalSize - targetSize;
+            int mid = middle();
+            if (mid <= 0) return start;
+            return start + (destination - start) % mid;
+        }
     }
 
     /** The same coordinate map is used for geometry, attachment marks and socket origins. */
@@ -78,18 +99,30 @@ public final class SegmentScaler {
             throw new IllegalArgumentException("Not enough room for fixed ends and a middle slice");
         if (mode.equals("TRIM") && targetSize > original)
             throw new IllegalArgumentException("TRIM permits shortening only");
-        // Multi-block functional objects cannot be duplicated/cut as independent voxels.
-        for (Voxel v : source) {
-            int local = coord(v, axis) - min;
-            if (local >= start && local < original - end && pairedBlock(v.blockState()))
-                throw new IllegalArgumentException("Movable band contains a door, bed or paired block; lock this axis");
-        }
+        String paired = middlePairedBlockMessage(source, axis, min, original, start, end);
+        if (paired != null) throw new IllegalArgumentException(paired);
         return new Mapping(min, original, start, end, targetSize, mode);
     }
 
-    private static boolean pairedBlock(String state) {
+    /** Shared paired-block scan for runtime mapping and capture-time validation. */
+    public static boolean isPairedBlock(String state) {
+        if (state == null) return false;
         return state.contains("half=upper") || state.contains("half=lower")
                 || state.contains("part=head") || state.contains("part=foot");
+    }
+
+    /**
+     * @return human-readable error, or null if the middle band is clean
+     */
+    public static String middlePairedBlockMessage(List<Voxel> source, Voxel.Axis axis,
+            int min, int original, int start, int end) {
+        for (Voxel v : source) {
+            int local = coord(v, axis) - min;
+            if (local >= start && local < original - end && isPairedBlock(v.blockState())) {
+                return axis + " 方向不能重复：可变区包含双格高的门结构或床等配对方块；请锁定该方向";
+            }
+        }
+        return null;
     }
 
     private static VoxelGrid rebuild(List<Voxel> source, Voxel.Axis axis, Mapping map) {
@@ -101,11 +134,7 @@ public final class SegmentScaler {
         VoxelGrid out = new VoxelGrid();
         int anchorShift = map.position(0);
         for (int destination = 0; destination < map.targetSize(); destination++) {
-            int from;
-            if (destination < map.start()) from = destination;
-            else if (destination >= map.targetSize() - map.end())
-                from = destination + map.originalSize() - map.targetSize();
-            else from = map.start() + (destination - map.start()) % map.middle();
+            int from = map.sourceSliceForDestination(destination);
             int coordinate = map.min() + destination - anchorShift;
             for (Voxel voxel : slices.get(from)) {
                 if (out.size() >= MAX_BLOCKS) throw new IllegalArgumentException("Adapted component exceeds block budget");

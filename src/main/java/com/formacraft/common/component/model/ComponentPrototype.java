@@ -122,6 +122,8 @@ public class ComponentPrototype {
         public static class Material {
             /** group -> SemanticBlock / SemanticPart id（由后续 StyleProfile 解释） */
             public Map<String, String> semantic_map;
+            /** Optional tag priority (first match wins). When null, STRUCTURE > FRAME > FILL > sorted. */
+            public java.util.List<String> tag_priority;
         }
 
         public static class Details {

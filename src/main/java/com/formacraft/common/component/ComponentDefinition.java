@@ -67,6 +67,21 @@ public class ComponentDefinition {
     /** Explicit author permissions. Null keeps compatibility with older captures. */
     public com.formacraft.common.component.model.ComponentPrototype.VariantRules variantRules;
 
+    /**
+     * Provenance of this definition for adaptation gates.
+     * {@code CAPTURED} — from world capture; never enter unauthorized random variants.
+     * {@code LIBRARY} — curated catalog entry.
+     * {@code null} — legacy JSON without the field.
+     */
+    public String sourceOrigin;
+
+    public static final String ORIGIN_CAPTURED = "CAPTURED";
+    public static final String ORIGIN_LIBRARY = "LIBRARY";
+
+    public boolean isCapturedOrigin() {
+        return ORIGIN_CAPTURED.equalsIgnoreCase(sourceOrigin);
+    }
+
     public List<BlockEntry> blocks;
 
     /** 可选：构件插槽（用于“安装/开洞”）。 */
