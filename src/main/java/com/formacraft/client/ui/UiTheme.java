@@ -16,22 +16,21 @@ public final class UiTheme {
     public static final int SIDEBAR_COLLAPSED_WIDTH = 12;
 
     public static final int CONTENT_PADDING = 10;
-    /** 内容区半透明背景（与内层 3D 边框 inset 对齐） */
+    /** Preserve the original HUD opacity so the world remains visible. */
     public static final int CONTENT_BG = 0x80101010;
-    /** 聊天消息区略浅一层，便于与输入区区分 */
     public static final int CHAT_MESSAGE_BG = 0x90181818;
-    /** 聊天消息与多行输入框的固定行高（像素）。 */
     public static final int CHAT_LINE_HEIGHT = 10;
-
     public static final int DIVIDER_TOOLBAR = 0xFF7A7A7A;
-    public static final int DIVIDER_SECTION = 0xFF808080;
+    public static final int DIVIDER_SECTION = 0xFF7A7A7A;
     public static final int DIVIDER_SUBTLE = 0xFF444444;
-
-    // 标签颜色体系（与内容区匹配）
-    public static final int TAB_UNSELECTED_BG = 0xFF8A8A8A;      // 未选中：较暗
-    public static final int TAB_HOVER_BG      = 0xFFB0B0B0;      // 悬停
-    public static final int TAB_SELECTED_BG   = 0xFF2A2A2A;      // 选中：与内容区接近
-    public static final int CONTENT_SOLID_BG  = 0xFF1A1A1A;      // 内容区实色版本（用于选中标签底部衔接）
+    public static final int BORDER = 0xFFB0B0B0;
+    public static final int ACCENT = 0xFFFFFFFF;
+    public static final int TEXT = 0xFFFFFFFF;
+    public static final int TOOLBAR_BG = 0x80101010;
+    public static final int TAB_UNSELECTED_BG = 0xFF8A8A8A;
+    public static final int TAB_HOVER_BG = 0xFFB0B0B0;
+    public static final int TAB_SELECTED_BG = CONTENT_BG;
+    public static final int CONTENT_SOLID_BG = CONTENT_BG;
 
     public static int contentInnerLeft(int panelX) {
         return panelX + 1;
@@ -45,27 +44,13 @@ public final class UiTheme {
         ctx.fill(contentInnerLeft(panelX), contentY, contentInnerRight(panelX, panelWidth), panelBottom, CONTENT_BG);
     }
 
-    /** 与 {@link com.formacraft.client.ui.panel.BasePanel} 一致的双层 3D 边框（Minecraft 原生风格）。 */
+    /** Pixel bevel: light on top/left, shadow on bottom/right. */
     public static void drawPanelBorder(DrawContext ctx, int x0, int y0, int x1, int y1) {
-        // 外层边框：Minecraft 原生风格
-        int outerLight = 0xFFFFFFFF;
-        int outerDark = 0xFF555555;
-        ctx.fill(x0, y0, x1, y0 + 1, outerLight);
-        ctx.fill(x0, y0, x0 + 1, y1, outerLight);
-        ctx.fill(x0, y1 - 1, x1, y1, outerDark);
-        ctx.fill(x1 - 1, y0, x1, y1, outerDark);
-
-        // 内层边框：更细腻的阴影
-        int ix0 = x0 + 1;
-        int iy0 = y0 + 1;
-        int ix1 = x1 - 1;
-        int iy1 = y1 - 1;
-        int innerLight = 0xFFE0E0E0;
-        int innerDark = 0xFF808080;
-        ctx.fill(ix0, iy0, ix1, iy0 + 1, innerLight);
-        ctx.fill(ix0, iy0, ix0 + 1, iy1, innerLight);
-        ctx.fill(ix0, iy1 - 1, ix1, iy1, innerDark);
-        ctx.fill(ix1 - 1, iy0, ix1, iy1, innerDark);
+        if (x1 <= x0 || y1 <= y0) return;
+        ctx.fill(x0, y0, x1, y0 + 1, BORDER);
+        ctx.fill(x0, y1 - 1, x1, y1, 0xFF555555);
+        ctx.fill(x0, y0, x0 + 1, y1, BORDER);
+        ctx.fill(x1 - 1, y0, x1, y1, 0xFF555555);
     }
 
     /**

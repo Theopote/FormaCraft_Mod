@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.panel.settings;
 
+import com.formacraft.client.ui.UiTheme;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -27,7 +28,7 @@ public final class SettingsPanelDrawSupport {
         ctx.drawTextWithShadow(client.textRenderer, title, x, y, COLOR_GRAY);
         y += client.textRenderer.fontHeight + 2;
         int lineY = y;
-        ctx.fill(x, lineY, x + w, lineY + 1, 0x55AAAAAA);
+        ctx.fill(x, lineY, x + w, lineY + 1, UiTheme.DIVIDER_SUBTLE);
         return lineY + 1 + SECTION_DIVIDER_PAD;
     }
 

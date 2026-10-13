@@ -121,6 +121,7 @@ public abstract class BasePanel {
         // 折叠态：始终只显示窄条手柄（避免动画中间态 Tab 与按钮重叠）
         if (sidebarCollapsed) {
             drawCollapsedHandle(ctx);
+            UiTheme.drawPanelBorder(ctx, panelX, panelY, panelX + panelWidth, panelY + panelHeight);
             if (visible) {
                 drawTooltip(ctx);
             }
@@ -129,7 +130,6 @@ public abstract class BasePanel {
 
         // 展开或动画中：绘制工具栏和内容
         // 为避免刚展开时布局挤压，在 progress 很小的时候可以只显示工具栏/空背景
-        drawToolbar(ctx);
         if (progress > 0.1f) {
             drawContents(ctx);
         } else {
@@ -146,6 +146,10 @@ public abstract class BasePanel {
             int contentTop = panelY + TOOLBAR_HEIGHT;
             ctx.fill(panelX, contentTop, panelX + panelWidth, panelY + panelHeight, color);
         }
+
+        // Draw chrome after content so every panel preserves the frame and tab seam.
+        drawToolbar(ctx);
+        UiTheme.drawPanelBorder(ctx, panelX, panelY, panelX + panelWidth, panelY + panelHeight);
 
         // Tooltip 一定要最后画，避免被遮罩/内容覆盖
         // 只要面板可见就显示 tooltip（包括折叠状态，因为折叠时也有按钮）
@@ -204,7 +208,7 @@ public abstract class BasePanel {
     // 背景与边框
     // --------------------------------------------------------------------
     /**
-     * 绘制边框（仅3D边框效果，不绘制内容区背景）
+     * 绘制边框（最终边框在内容之后补绘，底色由各面板绘制一次）
      */
     protected void drawBackground(DrawContext ctx) {
         UiTheme.drawPanelBorder(ctx, panelX, panelY, panelX + panelWidth, panelY + panelHeight);
@@ -240,14 +244,14 @@ public abstract class BasePanel {
         int bh = TOOLBAR_HEIGHT;
 
         // 标签区域背景（与未选中标签匹配）
-        ctx.fill(bx, by, bx + bw, by + bh, UiTheme.TAB_UNSELECTED_BG);
+        ctx.fill(bx, by, bx + bw, by + bh, UiTheme.TOOLBAR_BG);
 
         // 顶部分隔线
-        ctx.fill(bx, by, bx + bw, by + 1, 0xFFFFFFFF);
+        ctx.fill(bx, by, bx + bw, by + 1, UiTheme.BORDER);
 
         // 注意：底部分隔线会在标签绘制时被选中标签覆盖
         // 这样选中标签能自然地"打通"工具栏底部，与内容区连成一片
-        ctx.fill(bx, by + bh - 1, bx + bw, by + bh, 0xFF555555);
+        // TabBar draws this divider with an opening beneath the active tab.
 
         ToolbarLayout layout = computeToolbarLayout();
         int tabBarWidth = Math.max(0, bw - layout.buttonAreaWidth() - TOOLBAR_PADDING * 2);

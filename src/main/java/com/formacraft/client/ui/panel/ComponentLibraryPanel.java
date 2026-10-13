@@ -397,7 +397,7 @@ public final class ComponentLibraryPanel extends BasePanel {
             int by = y + row * cell;
 
             boolean selected = id != null && id.equals(st.librarySelectedId);
-            int border = selected ? 0xFF66FF66 : 0xFF444444;
+            int border = selected ? UiTheme.ACCENT : UiTheme.DIVIDER_SUBTLE;
             int bg = selected ? 0xAA223322 : 0xAA15151A;
 
             ctx.fill(bx, by, bx + bw, by + bh, bg);
