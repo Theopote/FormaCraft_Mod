@@ -122,25 +122,31 @@ public final class ComponentModelApi {
         return runtimeVariant != null ? ComponentVariantApplier.apply(base, runtimeVariant) : base;
     }
 
-    /** Return null when the requested slot cannot accommodate the author's permitted geometry. */
+    /** Return null when no permitted geometry fits the requested dimensions and tolerance. */
     public static ComponentDefinition fitToQuery(ComponentDefinition base, ComponentQuery query,
                                                  ComponentVariant runtimeVariant) {
         try {
+            if (com.formacraft.common.component.variant.CapturedComponentRuleValidator.validate(base) != null) return null;
+            if (base != null && base.variantRules != null && matchesTarget(base, query)) return base;
             ComponentDefinition out = applyRuntimeVariant(base, query, runtimeVariant);
-            if (out == null || out.size == null) return null;
-            if (query == null || query.geometry == null) return out;
-            var g = query.geometry;
-            int tolerance = Math.max(0, g.tolerance);
-            if (g.openingWidth != null && g.openingWidth > 0
-                    && Math.abs(out.size.w - g.openingWidth) > tolerance) return null;
-            if (g.openingHeight != null && g.openingHeight > 0
-                    && Math.abs(out.size.h - g.openingHeight) > tolerance) return null;
-            if (g.targetDepth != null && g.targetDepth > 0
-                    && Math.abs(out.size.d - g.targetDepth) > tolerance) return null;
-            return out;
+            return matchesTarget(out, query) ? out : null;
         } catch (IllegalArgumentException invalidFit) {
             return null;
         }
+    }
+
+    private static boolean matchesTarget(ComponentDefinition component, ComponentQuery query) {
+        if (component == null || component.size == null || component.blocks == null || component.blocks.isEmpty()) return false;
+        if (query == null || query.geometry == null) return true;
+        var g = query.geometry;
+        int tolerance = Math.max(0, Math.min(SegmentScaler.MAX_AXIS_SIZE, g.tolerance));
+        return matchesDimension(component.size.w, g.openingWidth, tolerance)
+                && matchesDimension(component.size.h, g.openingHeight, tolerance)
+                && matchesDimension(component.size.d, g.targetDepth, tolerance);
+    }
+
+    private static boolean matchesDimension(int actual, Integer wanted, int tolerance) {
+        return wanted == null || wanted > 0 && Math.abs((long) actual - wanted) <= tolerance;
     }
 
     /**
@@ -218,6 +224,13 @@ public final class ComponentModelApi {
         if (query != null && query.geometry != null && query.geometry.targetDepth != null
                 && query.geometry.targetDepth > 0) scale.z = query.geometry.targetDepth;
 
+        if (base.variantRules != null && base.variantRules.scaling != null
+                && base.variantRules.scaling.axes != null) {
+            scale.x = permittedTarget(base, "X", scale.x, bw);
+            scale.y = permittedTarget(base, "Y", scale.y, bh);
+            scale.z = permittedTarget(base, "Z", scale.z, bd);
+        }
+
         if (base.variantRules == null && runtimeVariant != null && runtimeVariant.repeatCount > 1) {
             int repeat = runtimeVariant.repeatCount;
             ComponentVariantSpec.Axis axis = runtimeVariant.repeatAxis != null
@@ -230,6 +243,18 @@ public final class ComponentModelApi {
             }
         }
         return scale;
+    }
+
+    private static int permittedTarget(ComponentDefinition base, String axis, int desired, int original) {
+        var rule = base.variantRules.scaling.axes.get(axis);
+        if (rule == null || "FIXED".equalsIgnoreCase(rule.type)) return original;
+        int min = Math.max(1, (rule.fixedStart == null ? 1 : rule.fixedStart)
+                + (rule.fixedEnd == null ? 1 : rule.fixedEnd) + 1);
+        if (rule.min != null) min = Math.max(min, rule.min);
+        int max = "TRIM".equalsIgnoreCase(rule.type) ? original : SegmentScaler.MAX_AXIS_SIZE;
+        if (rule.max != null) max = Math.min(max, rule.max);
+        if (min > max) throw new IllegalArgumentException("Invalid permitted dimension range");
+        return Math.clamp(desired, min, max);
     }
 
     /**

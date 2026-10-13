@@ -62,6 +62,40 @@ public final class ComponentFootprintMask {
         return true;
     }
 
+    /** Occupied cell plus outward normal toward an empty neighbor. */
+    public record BoundaryEdge(int x, int z, int outwardDx, int outwardDz, boolean courtyard) {}
+
+    /**
+     * Collect 4-neighbor boundary edges. Courtyard = empty neighbor still inside AABB;
+     * exterior = empty neighbor outside AABB or outside footprint at the bbox perimeter.
+     */
+    public java.util.List<BoundaryEdge> boundaryEdges() {
+        var out = new java.util.ArrayList<BoundaryEdge>();
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (!contains(x, z)) continue;
+                for (int[] d : dirs) {
+                    int nx = x + d[0];
+                    int nz = z + d[1];
+                    boolean insideAabb = nx >= 0 && nz >= 0 && nx < width && nz < depth;
+                    if (insideAabb && contains(nx, nz)) continue;
+                    boolean courtyard = insideAabb; // void pocket inside AABB
+                    out.add(new BoundaryEdge(x, z, d[0], d[1], courtyard));
+                }
+            }
+        }
+        return out;
+    }
+
+    public java.util.List<BoundaryEdge> exteriorEdgeCells() {
+        return boundaryEdges().stream().filter(e -> !e.courtyard()).toList();
+    }
+
+    public java.util.List<BoundaryEdge> courtyardEdgeCells() {
+        return boundaryEdges().stream().filter(BoundaryEdge::courtyard).toList();
+    }
+
     /**
      * 屋顶是否应落在此 mass 局部坐标（含合法飞檐外挑）。
      */

@@ -627,6 +627,7 @@ public final class ComponentPlanCompiler {
         if (message == null) return "E_COMPONENT_GENERATION_FAILED";
         if (message.startsWith("E_ENTRANCE_DOOR_WIDTH")) return "E_ENTRANCE_DOOR_WIDTH";
         if (message.startsWith("E_WINDOW_COUNT_UNFIT")) return "E_WINDOW_COUNT_UNFIT";
+        if (message.startsWith("E_FACADE_SCOPE_INVALID")) return "E_FACADE_SCOPE_INVALID";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
@@ -2018,9 +2019,21 @@ public final class ComponentPlanCompiler {
     static OpeningDelegation collectOpeningDelegation(Component mass, List<Component> primary,
                                                        List<Component> inferred, String wantedType) {
         OpeningDelegation merged = OpeningDelegation.none();
+        Integer floorHint = null;
+        if (mass != null && mass.params() != null) {
+            Object fc = mass.params().get("floor_count");
+            if (fc == null) fc = mass.params().get("floorCount");
+            if (fc instanceof Number n && n.intValue() > 0) floorHint = n.intValue();
+            else if (fc != null) {
+                try {
+                    int v = Integer.parseInt(fc.toString().trim());
+                    if (v > 0) floorHint = v;
+                } catch (NumberFormatException ignored) { }
+            }
+        }
         Component bound = findBoundSatellite(mass, primary, inferred, wantedType);
         if (bound == null) return merged;
-        merged = merged.merge(OpeningDelegation.fromSatelliteParams(bound.params()));
+        merged = merged.merge(OpeningDelegation.fromSatelliteParams(bound.params(), floorHint));
         var all = new ArrayList<Component>(primary);
         all.addAll(inferred);
         Object identity = mass.params() == null ? null : mass.params().get("component_id");
@@ -2030,7 +2043,7 @@ public final class ComponentPlanCompiler {
             if (!slotKey(s).equals(slotKey(mass))) continue;
             Object host = s.params() == null ? null : s.params().get("host_id");
             if (host != null && identity != null && host.equals(identity)) {
-                merged = merged.merge(OpeningDelegation.fromSatelliteParams(s.params()));
+                merged = merged.merge(OpeningDelegation.fromSatelliteParams(s.params(), floorHint));
             }
         }
         return merged;

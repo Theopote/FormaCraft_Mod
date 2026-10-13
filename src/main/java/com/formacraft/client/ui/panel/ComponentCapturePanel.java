@@ -1261,7 +1261,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         if (health.hasWarnings()) {
             HudToast.show("存在警告：仍可保存，但可能影响放置效果");
         }
-        st.commitCapture();
         String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
         if (json == null || json.isBlank()) {
             HudToast.show("保存失败：请检查选区", true);
@@ -1296,6 +1295,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
             com.formacraft.FormacraftMod.LOGGER.warn("Failed to generate thumbnail", t);
         }
 
+        st.commitCapture();
         // 等待服务端 ComponentSaveAck；catalog 仅刷新目录数据
         String componentName = st.name.trim();
         ComponentTool.INSTANCE.markSavePending(componentName);

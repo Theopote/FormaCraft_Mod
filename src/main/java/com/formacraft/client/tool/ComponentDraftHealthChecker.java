@@ -59,6 +59,19 @@ public final class ComponentDraftHealthChecker {
             result.add(HealthCheckResult.CheckItem.ok("H2-1", "锚点已设置"));
         }
 
+        if (min != null && max != null) {
+            var definition = new com.formacraft.common.component.ComponentDefinition();
+            definition.size = new com.formacraft.common.component.ComponentDefinition.Size();
+            definition.size.w = max.getX() - min.getX() + 1;
+            definition.size.h = max.getY() - min.getY() + 1;
+            definition.size.d = max.getZ() - min.getZ() + 1;
+            definition.variantRules = draft.adaptation.toRules(definition);
+            String error = com.formacraft.common.component.variant.CapturedComponentRuleValidator.validate(definition);
+            if (error != null) result.add(HealthCheckResult.CheckItem.error(
+                    "H3-ADAPT", "变化规则不适用", error, "无法保存可变构件",
+                    HealthCheckResult.FixAction.NONE, "减少固定边厚度或锁定对应方向"));
+        }
+
         // 宿主面建议（墙面类）
         AttachmentType attachment = draft.host.attachment != null ? draft.host.attachment : AttachmentType.NONE;
         boolean needsHost = attachment == AttachmentType.WALL_OPENING || attachment == AttachmentType.WALL_SURFACE;

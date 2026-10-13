@@ -6,8 +6,8 @@ import com.formacraft.common.component.ComponentDefinition;
 public final class CapturedComponentRuleValidator {
     private CapturedComponentRuleValidator() {}
     public static String validate(ComponentDefinition def) {
-        if (def == null || def.size == null) return "构件缺少尺寸";
-        if (def.variantRules == null) return null;
+        if (def == null || def.variantRules == null) return null;
+        if (def.size == null) return "构件缺少尺寸";
         var rules = def.variantRules.scaling;
         if (rules == null || rules.axes == null) return null;
         int[] sizes = {def.size.w, def.size.h, def.size.d};

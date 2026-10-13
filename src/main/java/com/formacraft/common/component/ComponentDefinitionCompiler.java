@@ -71,14 +71,19 @@ public final class ComponentDefinitionCompiler {
                 if (preserved != null) picked = preserved;
 
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
-                if (capturedFacing != null) {
+                if (capturedFacing != null && def.variantRules == null) {
                     Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, t);
                     picked = BlockStatePropertyUtil.applyFacing(picked, tf);
                 }
-                block = BlockStateStringUtil.fromState(picked);
+                block = def.variantRules != null
+                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
+                                BlockStateStringUtil.fromState(picked), fromFacing, t)
+                        : BlockStateStringUtil.fromState(picked);
             } else {
                 if (be.block == null || be.block.isBlank()) continue;
-                block = BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, t);
+                block = def.variantRules != null
+                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(be.block, fromFacing, t)
+                        : BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, t);
             }
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }

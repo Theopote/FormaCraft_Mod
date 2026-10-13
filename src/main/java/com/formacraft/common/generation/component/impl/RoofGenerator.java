@@ -509,33 +509,37 @@ public class RoofGenerator implements ComponentGenerator {
         if (width < 1 || depth < 1 || outset <= 0) {
             return;
         }
+        String block = getBlockForPart(semantic, palette, SemanticPart.ROOF);
+        if (footprint != null) {
+            // Place eaves along true exterior and courtyard rims, not only the AABB box.
+            var placed = new java.util.HashSet<net.minecraft.util.math.BlockPos>();
+            for (var edge : footprint.boundaryEdges()) {
+                for (int step = 1; step <= outset; step++) {
+                    int localX = edge.x() + edge.outwardDx() * step;
+                    int localZ = edge.z() + edge.outwardDz() * step;
+                    // Courtyard eaves stay on the rim strip; do not walk deep into voids.
+                    if (edge.courtyard() && step > outset) continue;
+                    int wx = baseX + overhang + localX;
+                    int wz = baseZ + overhang + localZ;
+                    var key = new net.minecraft.util.math.BlockPos(wx, baseY, wz);
+                    if (!placed.add(key)) continue;
+                    out.add(new BlockPatch(BlockPatch.PLACE, wx, baseY, wz, block));
+                }
+            }
+            return;
+        }
+        // Rectangular fallback when no footprint mask is available.
         int startX = baseX - outset;
         int startZ = baseZ - outset;
         int endX = baseX + width - 1 + outset;
         int endZ = baseZ + depth - 1 + outset;
-        int eaveReach = overhang + outset;
-        String block = getBlockForPart(semantic, palette, SemanticPart.ROOF);
         for (int x = startX; x <= endX; x++) {
-            int localX = x - baseX - overhang;
-            int localZNorth = startZ - baseZ - overhang;
-            int localZSouth = endZ - baseZ - overhang;
-            if (allowsRoofCell(footprint, eaveReach, localX, localZNorth)) {
-                out.add(new BlockPatch(BlockPatch.PLACE, x, baseY, startZ, block));
-            }
-            if (allowsRoofCell(footprint, eaveReach, localX, localZSouth)) {
-                out.add(new BlockPatch(BlockPatch.PLACE, x, baseY, endZ, block));
-            }
+            out.add(new BlockPatch(BlockPatch.PLACE, x, baseY, startZ, block));
+            out.add(new BlockPatch(BlockPatch.PLACE, x, baseY, endZ, block));
         }
         for (int z = startZ; z <= endZ; z++) {
-            int localZ = z - baseZ - overhang;
-            int localXWest = startX - baseX - overhang;
-            int localXEast = endX - baseX - overhang;
-            if (allowsRoofCell(footprint, eaveReach, localXWest, localZ)) {
-                out.add(new BlockPatch(BlockPatch.PLACE, startX, baseY, z, block));
-            }
-            if (allowsRoofCell(footprint, eaveReach, localXEast, localZ)) {
-                out.add(new BlockPatch(BlockPatch.PLACE, endX, baseY, z, block));
-            }
+            out.add(new BlockPatch(BlockPatch.PLACE, startX, baseY, z, block));
+            out.add(new BlockPatch(BlockPatch.PLACE, endX, baseY, z, block));
         }
     }
 

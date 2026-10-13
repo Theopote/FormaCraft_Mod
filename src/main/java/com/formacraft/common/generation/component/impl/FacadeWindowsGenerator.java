@@ -98,7 +98,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             }
         }
         // boolean isFloorToCeiling = hasFeature(c, "floor_to_ceiling", "full_height"); // 保留用于未来扩展
-        FacadeScope facadeScope = FacadeScope.parse(params);
+        Integer floorHint = floorCount > 0 ? floorCount : null;
+        FacadeScope facadeScope = FacadeScope.parseStrict(params, floorHint);
         if (wrapFacade && !facadeScope.isFullMass()) {
             // Partial delegation: wrap only listed faces, never expand beyond scope.
             wrapFacade = true;

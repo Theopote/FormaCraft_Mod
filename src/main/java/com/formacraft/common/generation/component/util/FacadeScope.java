@@ -11,10 +11,12 @@ import java.util.Set;
 /**
  * Shared facade generation / delegation scope.
  * <p>
- * Empty {@code faces}/{@code suppress_faces} ⇒ {@link #fullMass()} (whole building).
- * Non-empty faces ⇒ only listed local faces (optionally floored).
+ * Absent {@code faces}/{@code suppress_faces} ⇒ {@link #fullMass()}.
+ * Explicit empty or invalid faces ⇒ {@code E_FACADE_SCOPE_INVALID} via {@link #parseStrict}.
  */
 public record FacadeScope(boolean fullMass, Set<Region> regions) {
+
+    public static final Set<String> VALID_FACES = Set.of("NORTH", "SOUTH", "EAST", "WEST");
 
     public record Region(String face, Integer minFloor, Integer maxFloor) {
         public Region {
@@ -40,17 +42,101 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
         return new FacadeScope(false, Set.of());
     }
 
-    /** Parse satellite / window component params. No faces ⇒ full mass. */
+    /**
+     * Lenient parse: missing faces ⇒ full; invalid tokens are dropped.
+     * Prefer {@link #parseStrict} for generators and delegation.
+     */
     public static FacadeScope parse(Map<String, Object> params) {
-        Set<String> faces = parseFaceNames(params);
+        try {
+            return parseStrict(params, null);
+        } catch (IllegalArgumentException e) {
+            // Lenient fallback: ignore strict failures for legacy callers.
+            if (params == null || (!params.containsKey("faces") && !params.containsKey("suppress_faces"))) {
+                return full();
+            }
+            Set<String> faces = parseFaceNames(params);
+            faces = new LinkedHashSet<>(faces);
+            faces.retainAll(VALID_FACES);
+            if (faces.isEmpty()) return full();
+            Integer minFloor = intOrNull(params, "min_floor", "minFloor");
+            Integer maxFloor = intOrNull(params, "max_floor", "maxFloor");
+            if (minFloor != null && maxFloor != null && minFloor > maxFloor) return full();
+            var regions = new LinkedHashSet<Region>();
+            for (String f : faces) regions.add(new Region(f, minFloor, maxFloor));
+            return new FacadeScope(false, regions);
+        }
+    }
+
+    /**
+     * Strict parse for generation / compile.
+     *
+     * @param floorCountHint host floor count (0-based max exclusive), or null to skip range check
+     */
+    public static FacadeScope parseStrict(Map<String, Object> params, Integer floorCountHint) {
+        FacePresence presence = facePresence(params);
         Integer minFloor = intOrNull(params, "min_floor", "minFloor");
         Integer maxFloor = intOrNull(params, "max_floor", "maxFloor");
-        if (faces.isEmpty()) return full();
+        if (minFloor != null && maxFloor != null && minFloor > maxFloor) {
+            throw new IllegalArgumentException(
+                    "E_FACADE_SCOPE_INVALID: min_floor=" + minFloor + " > max_floor=" + maxFloor);
+        }
+        if (floorCountHint != null && floorCountHint > 0) {
+            int maxIndex = floorCountHint - 1;
+            if (minFloor != null && minFloor > maxIndex) {
+                throw new IllegalArgumentException(
+                        "E_FACADE_SCOPE_INVALID: min_floor=" + minFloor
+                                + " exceeds floor_count=" + floorCountHint);
+            }
+            if (maxFloor != null && maxFloor > maxIndex) {
+                throw new IllegalArgumentException(
+                        "E_FACADE_SCOPE_INVALID: max_floor=" + maxFloor
+                                + " exceeds floor_count=" + floorCountHint);
+            }
+        }
+        if (presence == FacePresence.ABSENT) {
+            return full();
+        }
+        if (presence == FacePresence.EXPLICIT_EMPTY) {
+            throw new IllegalArgumentException(
+                    "E_FACADE_SCOPE_INVALID: faces explicitly empty (refuse fullMass fallback)");
+        }
+        Set<String> faces = parseFaceNames(params);
+        if (faces.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "E_FACADE_SCOPE_INVALID: faces explicitly empty (refuse fullMass fallback)");
+        }
+        for (String f : faces) {
+            if (!VALID_FACES.contains(f)) {
+                throw new IllegalArgumentException(
+                        "E_FACADE_SCOPE_INVALID: unknown face='" + f
+                                + "' allowed=" + VALID_FACES);
+            }
+        }
         var regions = new LinkedHashSet<Region>();
         for (String f : faces) {
             regions.add(new Region(f, minFloor, maxFloor));
         }
         return new FacadeScope(false, regions);
+    }
+
+    enum FacePresence { ABSENT, EXPLICIT_EMPTY, PRESENT }
+
+    static FacePresence facePresence(Map<String, Object> params) {
+        if (params == null) return FacePresence.ABSENT;
+        Object raw = params.get("faces");
+        if (raw == null) raw = params.get("suppress_faces");
+        if (raw == null) return FacePresence.ABSENT;
+        if (raw instanceof List<?> list) {
+            if (list.isEmpty()) return FacePresence.EXPLICIT_EMPTY;
+            boolean any = false;
+            for (Object o : list) {
+                if (o != null && !o.toString().isBlank()) any = true;
+            }
+            return any ? FacePresence.PRESENT : FacePresence.EXPLICIT_EMPTY;
+        }
+        String s = raw.toString().trim();
+        if (s.isEmpty()) return FacePresence.EXPLICIT_EMPTY;
+        return FacePresence.PRESENT;
     }
 
     public boolean isFullMass() {

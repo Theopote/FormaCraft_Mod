@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-14（第三十四批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-14（第三十五批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,13 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第三十五批（2026-10-14）— 屋顶层坐标与立面开间
+
+- **RoofLayerFrame**：双重檐口上层 `originOffset=upperInset`，占地查询与世界基准对齐；禁止上层误裁。
+- **FacadeLayoutPlan**：入口预留与显式窗数整墙一次求解；可左右再平衡；`count_per_side` 仍按侧硬约束。
+- **真实边界檐口**：`ComponentFootprintMask.boundaryEdges` 区分外缘/内院缘；`addEaveLayer` 沿线放置。
+- **FacadeScope 严格校验**：显式空 faces / 非法方位 / min 大于 max / 越层 → `E_FACADE_SCOPE_INVALID`；未指定 faces 仍 fullMass。
 
 ### 第三十四批（2026-10-14）— 门窗/入口几何契约
 

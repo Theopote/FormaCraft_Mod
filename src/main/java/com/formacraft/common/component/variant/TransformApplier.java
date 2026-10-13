@@ -41,7 +41,7 @@ public final class TransformApplier {
             int[] newCoords = transformCoords(v.x(), v.y(), v.z(), originalFacing, transform);
 
             // 2) blockState facing 修正
-            String newBlockState = BlockStateStringUtil.withTransformedFacing(v.blockState(), originalFacing, transform);
+            String newBlockState = com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(v.blockState(), originalFacing, transform);
 
             // 3) 创建新 voxel
             Voxel newV = v.transform(newCoords[0], newCoords[1], newCoords[2]);

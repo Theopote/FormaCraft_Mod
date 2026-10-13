@@ -202,14 +202,19 @@ public final class PlayerComponentExpander {
 
                 // 若原始 blockstate 带有 facing，则把 facing 迁移到“换皮后”的方块上
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
-                if (capturedFacing != null) {
+                if (capturedFacing != null && def.variantRules == null) {
                     Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, transform);
                     picked = BlockStatePropertyUtil.applyFacing(picked, tf);
                 }
-                block = BlockStateStringUtil.fromState(picked);
+                block = def.variantRules != null
+                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
+                                BlockStateStringUtil.fromState(picked), fromFacing, transform)
+                        : BlockStateStringUtil.fromState(picked);
             } else {
                 if (be.block == null || be.block.isBlank()) continue;
-                block = BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
+                block = def.variantRules != null
+                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(be.block, fromFacing, transform)
+                        : BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
             }
 
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
@@ -409,14 +414,19 @@ public final class PlayerComponentExpander {
                 if (preserved != null) picked = preserved;
 
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
-                if (capturedFacing != null) {
+                if (capturedFacing != null && def.variantRules == null) {
                     Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, transform);
                     picked = BlockStatePropertyUtil.applyFacing(picked, tf);
                 }
-                block = BlockStateStringUtil.fromState(picked);
+                block = def.variantRules != null
+                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
+                                BlockStateStringUtil.fromState(picked), fromFacing, transform)
+                        : BlockStateStringUtil.fromState(picked);
             } else {
                 if (be.block == null || be.block.isBlank()) continue;
-                block = BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
+                block = def.variantRules != null
+                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(be.block, fromFacing, transform)
+                        : BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
             }
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }

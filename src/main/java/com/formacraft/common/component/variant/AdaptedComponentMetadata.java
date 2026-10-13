@@ -52,9 +52,10 @@ public final class AdaptedComponentMetadata {
                 var widthAxis = alongZ ? Voxel.Axis.Z : Voxel.Axis.X;
                 int widthOrigin = origin == null ? 0 : alongZ ? origin.dz : origin.dx;
                 int heightOrigin = origin == null ? 0 : origin.dy;
-                // Socket constraints describe an opening in local positive width/height coordinates.
-                int[] min = resize(socket.size.min, maps, widthAxis, widthOrigin, heightOrigin);
-                int[] max = resize(socket.size.max, maps, widthAxis, widthOrigin, heightOrigin);
+                // +width follows FacingUtil's right vector (clockwise from the socket's facing).
+                int widthSign = "SOUTH".equalsIgnoreCase(facing) || "WEST".equalsIgnoreCase(facing) ? -1 : 1;
+                int[] min = resize(socket.size.min, maps, widthAxis, widthOrigin, heightOrigin, widthSign);
+                int[] max = resize(socket.size.max, maps, widthAxis, widthOrigin, heightOrigin, widthSign);
                 sockets.add(new ComponentSocket(socket.id, socket.role, socket.shape, socket.context,
                         socket.facingPolicy, new SizeConstraint(min, max), socket.tags));
             }
@@ -77,14 +78,16 @@ public final class AdaptedComponentMetadata {
     }
 
     private static int[] resize(int[] size, EnumMap<Voxel.Axis, SegmentScaler.Mapping> maps,
-            Voxel.Axis width, int x, int y) {
+            Voxel.Axis width, int x, int y, int widthSign) {
         if (size == null) return null;
         int[] result = size.clone();
         for (int i = 0; i < Math.min(2, result.length); i++) {
             if (result[i] <= 0 || result[i] > SegmentScaler.MAX_AXIS_SIZE) continue;
             Voxel.Axis axis = i == 0 ? width : Voxel.Axis.Y;
             int origin = i == 0 ? x : y;
-            result[i] = Math.max(1, map(maps, axis, origin + size[i] - 1) - map(maps, axis, origin) + 1);
+            int sign = i == 0 ? widthSign : 1;
+            result[i] = Math.max(1, Math.abs(map(maps, axis, origin + sign * (size[i] - 1))
+                    - map(maps, axis, origin)) + 1);
         }
         return result;
     }

@@ -103,7 +103,12 @@ public record OpeningDelegation(boolean fullMass, Set<FacadeRegion> regions) {
 
     /** Parse one satellite's params into a delegation slice (not yet merged). */
     public static OpeningDelegation fromSatelliteParams(Map<String, Object> params) {
-        var scope = com.formacraft.common.generation.component.util.FacadeScope.parse(params);
+        return fromSatelliteParams(params, null);
+    }
+
+    /** @param floorCountHint host storey count for FacadeScope floor-range validation, or null */
+    public static OpeningDelegation fromSatelliteParams(Map<String, Object> params, Integer floorCountHint) {
+        var scope = com.formacraft.common.generation.component.util.FacadeScope.parseStrict(params, floorCountHint);
         if (scope.isFullMass()) return full();
         var regions = new LinkedHashSet<FacadeRegion>();
         for (var r : scope.regions()) {

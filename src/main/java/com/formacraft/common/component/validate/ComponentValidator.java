@@ -61,6 +61,8 @@ public final class ComponentValidator {
         // 5) Cross-field sanity checks
         // -------------------------
         crossChecks(def, out);
+        String ruleError = com.formacraft.common.component.variant.CapturedComponentRuleValidator.validate(def);
+        if (ruleError != null) out.error("variantRules", ruleError);
 
         return out;
     }

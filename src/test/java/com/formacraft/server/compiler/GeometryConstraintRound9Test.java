@@ -64,6 +64,8 @@ class GeometryConstraintRound9Test {
                 ComponentPlanCompiler.geometryConstraintCode("E_ENTRANCE_DOOR_WIDTH: requested=3"));
         assertEquals("E_WINDOW_COUNT_UNFIT",
                 ComponentPlanCompiler.geometryConstraintCode("E_WINDOW_COUNT_UNFIT: requested=6"));
+        assertEquals("E_FACADE_SCOPE_INVALID",
+                ComponentPlanCompiler.geometryConstraintCode("E_FACADE_SCOPE_INVALID: faces"));
         assertEquals("E_COMPONENT_GENERATION_FAILED",
                 ComponentPlanCompiler.geometryConstraintCode("other"));
     }

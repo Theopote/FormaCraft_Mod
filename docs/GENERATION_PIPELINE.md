@@ -118,6 +118,8 @@ flowchart TD
 
 第三十四批起：共享 `FacadeScope` 约束窗生成范围（wrap 不越委托面）；入口默认只挖门洞+框/楣/棚；显式 `door_width`/`window_per_wall` 不足硬失败（`E_ENTRANCE_DOOR_WIDTH` / `E_WINDOW_COUNT_UNFIT`）；不规则 gable 山墙跳过 → `ROOF_GABLE_SEAL_SKIPPED` soft warning。
 
+第三十五批起：`RoofLayerFrame` 修正双重檐口上层占地偏移；`FacadeLayoutPlan` 整墙一次求解入口+窗数；檐口沿真实外/内边界；`FacadeScope.parseStrict` 拒绝空/非法方位与越层（`E_FACADE_SCOPE_INVALID`）。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

@@ -14,7 +14,10 @@ public final class SizedFacadeWindows {
         int width=dims.width(),depth=dims.depth(),height=dims.height();
         String wall=String.valueOf(params.getOrDefault("wall",""));
         String excluded=String.valueOf(params.getOrDefault("excluded_window_axis",""));
-        FacadeScope scope=FacadeScope.parse(params);
+        Integer floorHint=null;
+        int fc=ComponentParamParsers.intParam(params,0,"floor_count","floorCount");
+        if(fc>0) floorHint=fc;
+        FacadeScope scope=FacadeScope.parseStrict(params,floorHint);
         var faces=new LinkedHashSet<Facing>();
         if("front".equalsIgnoreCase(wall)) faces.add(facing);
         else if("left_right".equalsIgnoreCase(wall)) {
@@ -40,21 +43,15 @@ public final class SizedFacadeWindows {
             int span=xFace?depth:width;
             boolean entrance=face==facing && reserveEntrance;
             int reserve=Math.max(1,ComponentParamParsers.intParam(params,3,"exclude_center_width"));
-            int middleStart=(span-reserve)/2,middleEnd=middleStart+reserve;
             for(int floor=0;floor<height;floor+=Math.max(1,floorHeight)) {
                 int floorNumber=floor/Math.max(1,floorHeight)+1;
                 int floorIndex=Math.max(0,floor/Math.max(1,floorHeight));
                 if(!floorAllowed(params,floorNumber)) continue;
                 if(!scope.covers(face.name(),floorIndex)) continue;
-                var starts=new ArrayList<Integer>();
                 int perWall=floorCount(params,floorNumber,"window_per_wall","windows_per_wall","windows_per_floor");
                 int perSide=floorCount(params,floorNumber,"count_per_side");
-                if(entrance) {
-                    int left=perSide>=0?perSide:perWall>=0?perWall/2+perWall%2:-1;
-                    int right=perSide>=0?perSide:perWall>=0?perWall/2:-1;
-                    addStarts(starts,1,middleStart,windowWidth,left,explicitCount);
-                    addStarts(starts,middleEnd,span-1,windowWidth,right,explicitCount);
-                } else addStarts(starts,1,span-1,windowWidth,perWall,explicitCount);
+                var layout=FacadeLayoutPlan.solve(span,windowWidth,perWall,perSide,entrance,reserve,1,explicitCount);
+                var starts=layout.windowStarts();
                 int bottom=floor+sill;
                 if(bottom+windowHeight>Math.min(height,floor+floorHeight)) continue;
                 for(int start:starts) for(int a=start;a<start+windowWidth;a++) for(int y=bottom;y<bottom+windowHeight;y++) {
@@ -77,30 +74,6 @@ public final class SizedFacadeWindows {
         catch(IllegalArgumentException e) { return null; }
     }
 
-    static void addStarts(List<Integer> starts,int from,int to,int size,int requested,boolean explicitCount) {
-        int available=Math.max(0,to-from);
-        if(requested>=0) {
-            int capacity=(available+1)/(size+1);
-            int count=Math.min(requested,capacity);
-            if(count<requested) {
-                if(explicitCount) {
-                    throw new IllegalArgumentException(
-                            "E_WINDOW_COUNT_UNFIT: requested="+requested+" fitted="+count
-                                    +" interval=["+from+", "+to+") windowWidth="+size);
-                }
-                com.formacraft.FormacraftMod.LOGGER.warn(
-                        "[WindowCountLayout] requested={} fitted={} interval=[{}, {}) windowWidth={}",
-                        requested,count,from,to,size);
-            }
-            if(count==1) starts.add(from+(available-size)/2);
-            else if(count>1) for(int i=0;i<count;i++) starts.add(from+(int)((long)i*(available-size)/(count-1)));
-            return;
-        }
-        int count=(available+2)/(size+2);
-        if(count<1) return;
-        int occupied=count*size+(count-1)*2,first=from+(available-occupied)/2;
-        for(int i=0;i<count;i++) starts.add(first+i*(size+2));
-    }
     public static boolean hasExplicitCount(Map<String,Object> params) {
         if(requestedCount(params,"window_per_wall","windows_per_wall","windows_per_floor","count_per_side")>=0) return true;
         if(params!=null && params.get("window_counts_by_floor") instanceof Map<?,?> floors)
