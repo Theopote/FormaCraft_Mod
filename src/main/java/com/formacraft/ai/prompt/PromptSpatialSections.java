@@ -157,6 +157,10 @@ final class PromptSpatialSections {
                         ? "\nNote: component catalog sync is still in progress; listing may reflect local disk snapshot.\n"
                         : "") +
                 "\nRules:\n" +
+                "- Prefer original-size prefabs. Adapt only axes explicitly allowed by the capture's adaptation line; FIXED axes must retain their size.\n" +
+                "- Specify desired captured-coordinate dimensions in component_query.geometry: openingWidth (X), openingHeight (Y), targetDepth (Z), tolerance (blocks). The engine preserves fixed ends and changes middle slices.\n" +
+                "- TRIM permits shortening only; REPEAT can repeat or shorten the middle. Never request arbitrary voxel resampling. If no safe fit exists, choose a different prefab or layout.\n" +
+                "- materialSwap=false forbids semantic_skin. Doors, beds, lights and unsupported material shapes remain unchanged even when materialSwap=true.\n" +
                 "- IMPORTANT: Facing is a low-level detail. Prefer semantic placement via placementSpec (Attachment/Context/FacingPolicy) when deciding where/how to mount.\n" +
                 "\nCOMPONENT PLACEMENT CONTRACTS (MUST FOLLOW):\n" +
                 "- Many prefabs include a line like: `placement attachment=... context=... facingPolicy=...`.\n" +

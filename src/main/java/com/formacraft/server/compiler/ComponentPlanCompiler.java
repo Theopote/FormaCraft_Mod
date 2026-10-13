@@ -667,10 +667,17 @@ public final class ComponentPlanCompiler {
         String type = normalizeType(c.componentType());
         if (isMassType(type)) return 0;
         if (isStructureFloorType(type)) return 1;
-        if ("ROOF".equals(type) || "ROOF_STRUCTURE".equals(type)) return 2;
-        if ("FACADE".equals(type)) return 3;
-        if ("ENTRANCE".equals(type) || "FACADE_WINDOWS".equals(type) || "FACADE_OPENING".equals(type)
-                || "DOOR".equals(type) || "WINDOW".equals(type)) return 4;
+        switch (type) {
+            case "ROOF", "ROOF_STRUCTURE" -> {
+                return 2;
+            }
+            case "FACADE" -> {
+                return 3;
+            }
+            case "ENTRANCE", "FACADE_WINDOWS", "FACADE_OPENING", "DOOR", "WINDOW" -> {
+                return 4;
+            }
+        }
         if ("DECOR_DETAIL".equals(type) || type.startsWith("DECOR")) return 5;
         return 5;
     }

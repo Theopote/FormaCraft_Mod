@@ -484,6 +484,7 @@ public final class PlayerComponentExpander {
         String explicitId = getString(reqMap, px + "id", px + "component_id", px + "componentId");
         ComponentQuery query = parseComponentQuery(reqMap, px);
         if (explicitId != null) {
+            if (query == null) query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, px);
             ComponentDefinition base = ComponentStorage.loadComponent(worldDir, explicitId);
             return com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, null);
         }

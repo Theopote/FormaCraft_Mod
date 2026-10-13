@@ -202,14 +202,26 @@ public class RoofGenerator implements ComponentGenerator {
     }
 
     private static boolean allowsRoofCell(ComponentFootprintMask footprint, int overhang, int localX, int localZ) {
-        return footprint == null || footprint.shouldPlaceRoof(localX, localZ, overhang);
+        return allowsRoofCell(footprint, overhang, localX, localZ, 0, 0);
+    }
+
+    private static boolean allowsRoofCell(ComponentFootprintMask footprint, int overhang, int localX, int localZ,
+                                          int fpOffsetX, int fpOffsetZ) {
+        return footprint == null || footprint.shouldPlaceRoof(localX + fpOffsetX, localZ + fpOffsetZ, overhang);
     }
 
     private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                    int width, int depth, int height, Palette palette,
                                    ComponentFootprintMask footprint, int overhang) {
+        generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+    }
+
+    private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                   int width, int depth, int height, Palette palette,
+                                   ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                    fpOffsetX, fpOffsetZ);
             return;
         }
         boolean alongDepth = depth >= width;
@@ -217,7 +229,7 @@ public class RoofGenerator implements ComponentGenerator {
         int maxSpan = Math.max(1, (across - 1) / 2);
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
                     continue;
                 }
                 int axis = alongDepth ? x : z;
@@ -239,14 +251,21 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateHipRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                  int width, int depth, int height, Palette palette,
                                  ComponentFootprintMask footprint, int overhang) {
+        generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+    }
+
+    private void generateHipRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                 int width, int depth, int height, Palette palette,
+                                 ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                    fpOffsetX, fpOffsetZ);
             return;
         }
         int maxSpan = Math.max(1, (Math.min(width, depth) - 1) / 2);
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
                     continue;
                 }
                 int edgeDistance = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
@@ -267,8 +286,15 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateXieshanRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                      int width, int depth, int height, Palette palette,
                                      ComponentFootprintMask footprint, int overhang) {
+        generateXieshanRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+    }
+
+    private void generateXieshanRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                     int width, int depth, int height, Palette palette,
+                                     ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                    fpOffsetX, fpOffsetZ);
             return;
         }
         boolean ridgeAlongDepth = depth >= width;
@@ -279,7 +305,7 @@ public class RoofGenerator implements ComponentGenerator {
 
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
                     continue;
                 }
                 int distAcross = ridgeAlongDepth ? Math.abs(x - centerAcross) : Math.abs(z - centerAcross);
@@ -318,26 +344,38 @@ public class RoofGenerator implements ComponentGenerator {
         int upperInset = Math.max(2, Math.min(width, depth) / 4);
         int upperWidth = Math.max(2, width - (upperInset * 2));
         int upperDepth = Math.max(2, depth - (upperInset * 2));
-        int upperBaseX = baseX + upperInset;
-        int upperBaseZ = baseZ + upperInset;
+        var lower = com.formacraft.common.generation.component.util.RoofLayerFrame.of(baseX, baseZ, width, depth, overhang);
+        var upper = com.formacraft.common.generation.component.util.RoofLayerFrame.inset(lower, upperInset, upperWidth, upperDepth);
         int upperBaseY = baseY + (height - upperHeight);
 
         switch (roofType) {
             case XIESHAN -> {
-                generateXieshanRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
-                generateXieshanRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette, footprint, overhang);
+                generateXieshanRoof(out, semantic, lower.worldBaseX(), baseY, lower.worldBaseZ(),
+                        lower.width(), lower.depth(), height, palette, footprint, overhang, 0, 0);
+                generateXieshanRoof(out, semantic, upper.worldBaseX(), upperBaseY, upper.worldBaseZ(),
+                        upper.width(), upper.depth(), upperHeight, palette, footprint, overhang,
+                        upper.originOffsetX(), upper.originOffsetZ());
             }
             case XUANSHAN, GABLE, DOUBLE_GABLE -> {
-                generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
-                generateGableRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette, footprint, overhang);
+                generateGableRoof(out, semantic, lower.worldBaseX(), baseY, lower.worldBaseZ(),
+                        lower.width(), lower.depth(), height, palette, footprint, overhang, 0, 0);
+                generateGableRoof(out, semantic, upper.worldBaseX(), upperBaseY, upper.worldBaseZ(),
+                        upper.width(), upper.depth(), upperHeight, palette, footprint, overhang,
+                        upper.originOffsetX(), upper.originOffsetZ());
             }
             case HIP -> {
-                generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
-                generateHipRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette, footprint, overhang);
+                generateHipRoof(out, semantic, lower.worldBaseX(), baseY, lower.worldBaseZ(),
+                        lower.width(), lower.depth(), height, palette, footprint, overhang, 0, 0);
+                generateHipRoof(out, semantic, upper.worldBaseX(), upperBaseY, upper.worldBaseZ(),
+                        upper.width(), upper.depth(), upperHeight, palette, footprint, overhang,
+                        upper.originOffsetX(), upper.originOffsetZ());
             }
             default -> {
-                generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
-                generateFlatRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette, footprint, overhang);
+                generateFlatRoof(out, semantic, lower.worldBaseX(), baseY, lower.worldBaseZ(),
+                        lower.width(), lower.depth(), height, palette, footprint, overhang, 0, 0);
+                generateFlatRoof(out, semantic, upper.worldBaseX(), upperBaseY, upper.worldBaseZ(),
+                        upper.width(), upper.depth(), upperHeight, palette, footprint, overhang,
+                        upper.originOffsetX(), upper.originOffsetZ());
             }
         }
     }
@@ -345,15 +383,23 @@ public class RoofGenerator implements ComponentGenerator {
     private void generatePyramidRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                      int width, int depth, int height, Palette palette,
                                      ComponentFootprintMask footprint, int overhang) {
-        generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+        generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
     }
 
     private void generateConeRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                   int width, int depth, int height,
                                   Palette palette, boolean dome,
                                   ComponentFootprintMask footprint, int overhang) {
+        generateConeRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, dome, footprint, overhang, 0, 0);
+    }
+
+    private void generateConeRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                  int width, int depth, int height,
+                                  Palette palette, boolean dome,
+                                  ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                    fpOffsetX, fpOffsetZ);
             return;
         }
         double cx = (width - 1) / 2.0;
@@ -361,7 +407,7 @@ public class RoofGenerator implements ComponentGenerator {
         double radius = Math.max(1.0, Math.min(width, depth) / 2.0);
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
                     continue;
                 }
                 double dx = x - cx;
@@ -389,13 +435,20 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateMansardRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                      int width, int depth, int height, Palette palette,
                                      ComponentFootprintMask footprint, int overhang) {
+        generateMansardRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+    }
+
+    private void generateMansardRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                     int width, int depth, int height, Palette palette,
+                                     ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                    fpOffsetX, fpOffsetZ);
             return;
         }
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
                     continue;
                 }
                 int rise = ComponentRoofSpecialtyDecorator.computeMansardRise(x, z, width, depth, height);
@@ -422,12 +475,18 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateFlatRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                   int width, int depth, int height, Palette palette,
                                   ComponentFootprintMask footprint, int overhang) {
+        generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+    }
+
+    private void generateFlatRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                  int width, int depth, int height, Palette palette,
+                                  ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
         // A flat roof is a plate at its attachment plane, not a floating sheet
         // lifted by the pitched-roof height budget.
         int topY = 0;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
                     continue;
                 }
                 SemanticPart part = SemanticPart.ROOF_SURFACE;

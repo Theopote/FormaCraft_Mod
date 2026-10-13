@@ -35,6 +35,7 @@ public final class ComponentRequestConverter {
             if (req.approxH > 0) {
                 query.geometry.openingHeight = req.approxH;
             }
+            if (req.approxD > 0) query.geometry.targetDepth = req.approxD;
             if (isOpeningCategory(req.category)) {
                 query.geometry.requiresOpening = true;
             }

@@ -145,6 +145,20 @@ public final class ClientComponentCatalogState {
             if (e.size != null) sb.append(" size=").append(e.size.w).append("x").append(e.size.h).append("x").append(e.size.d);
             sb.append("\n");
 
+            if (e.variantRules != null) {
+                sb.append("  - adaptation: materialSwap=").append(e.variantRules.material != null);
+                var scaling = e.variantRules.scaling;
+                if (scaling != null && scaling.axes != null) for (String axis : new String[]{"X", "Y", "Z"}) {
+                    var rule = scaling.axes.get(axis);
+                    if (rule == null) continue;
+                    sb.append(" ").append(axis).append("=").append(rule.type);
+                    if (!"FIXED".equalsIgnoreCase(rule.type)) sb.append("[").append(rule.min)
+                            .append("..").append(rule.max).append(",fixedEnds=")
+                            .append(rule.fixedStart).append("+").append(rule.fixedEnd).append("]");
+                }
+                sb.append("\n");
+            }
+
             // placement spec（Attachment/Context/Policy）
             if (e.placementSpec != null) {
                 var ps = e.placementSpec;

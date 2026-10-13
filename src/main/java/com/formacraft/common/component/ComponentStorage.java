@@ -191,10 +191,12 @@ public final class ComponentStorage {
             if (e == null) continue;
             boolean needSockets = (e.sockets == null || e.sockets.isEmpty());
             boolean needSpec = (e.placementSpec == null);
+            boolean needRules = e.variantRules == null;
             if (e.id == null || e.id.isBlank()) continue;
-            if (!needSockets && !needSpec) continue;
+            if (!needSockets && !needSpec && !needRules) continue;
             ComponentDefinition def = loadComponent(worldDir, e.id, viewerPlayerId);
             if (def != null) {
+                if (needRules) e.variantRules = def.variantRules;
                 if (needSockets && def.sockets != null && !def.sockets.isEmpty()) {
                     e.sockets = def.sockets;
                 }
@@ -358,6 +360,7 @@ public final class ComponentStorage {
         e.category = toSave.category;
         e.tags = toSave.tags;
         e.size = toSave.size;
+        e.variantRules = toSave.variantRules;
         e.file = fileName;
         e.thumbnail = thumbName;
         e.updatedAtMs = System.currentTimeMillis();

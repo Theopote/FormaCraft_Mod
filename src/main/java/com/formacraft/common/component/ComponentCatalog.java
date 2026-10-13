@@ -18,6 +18,7 @@ public class ComponentCatalog {
         public ComponentCategory category;
         public List<String> tags;
         public ComponentDefinition.Size size;
+        public com.formacraft.common.component.model.ComponentPrototype.VariantRules variantRules;
         /** 文件名，例如 door_xxx.json */
         public String file;
         /** 可选：缩略图文件名，例如 door_xxx.png（用于 UI 预览；v1 为简易缩略图）。 */

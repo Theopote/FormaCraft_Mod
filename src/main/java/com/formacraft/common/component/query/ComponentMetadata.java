@@ -250,6 +250,21 @@ public class ComponentMetadata {
             metadata.variantCapability.segmentRepeat = archetype.variation.repeatRule != null && archetype.variation.repeatRule.enabled;
         }
 
+        if (component.variantRules != null) {
+            metadata.variantCapability = new VariantCapability();
+            metadata.variantCapability.materialSwap = component.variantRules.material != null;
+            var scaling = component.variantRules.scaling;
+            if (metadata.geometrySpec != null) {
+                var axes = new java.util.ArrayList<String>();
+                if (scaling != null && scaling.axes != null) for (String axis : new String[]{"X", "Y", "Z"}) {
+                    var rule = scaling.axes.get(axis);
+                    if (rule == null || "FIXED".equalsIgnoreCase(rule.type)) continue;
+                    axes.add(switch (axis) { case "X" -> "width"; case "Y" -> "height"; default -> "depth"; });
+                    metadata.variantCapability.segmentRepeat |= "REPEAT".equalsIgnoreCase(rule.type);
+                }
+                metadata.geometrySpec.scalableAxes = axes;
+            }
+        }
         return metadata;
     }
 
