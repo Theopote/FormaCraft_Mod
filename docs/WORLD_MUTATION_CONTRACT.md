@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-13（第三十二批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-14（第三十三批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,14 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第三十三批（2026-10-14）— 门窗委托语义
+
+- **OpeningDelegation**：显式 `fullMass` + `FacadeRegion`；整体+局部→整体；禁止空 Set 表示整体。
+- **窗/门分轨**：`FACADE_WINDOWS` 只写 window suppress；`ENTRANCE` 只写 door suppress。
+- **FacadeDirection**：AI `faces` 为世界方位，经 Slot.facing 转为 MASS 局部标签后再写入。
+- **楼层 region**：`suppress_*_regions` 按 face+min/max_floor 过滤；有 regions 时不回退整面 faces。
+- **装饰软警告**：`DECOR_COMPONENT_SKIPPED` 经 `AssemblyCompileDiagnostics.softWarnings` 并入 `BuildQualityReport` WARNING。
 
 ### 第三十二批（2026-10-13）— 内建/独立构件委托
 

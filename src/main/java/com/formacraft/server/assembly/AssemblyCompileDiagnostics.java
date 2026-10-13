@@ -2,17 +2,24 @@ package com.formacraft.server.assembly;
 
 import com.formacraft.common.llm.dto.CapabilityGap;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Thread-local holder for the latest ASSEMBLY compile failure within a plan compile pass.
+ * Thread-local holder for ASSEMBLY compile failure and soft warnings within a plan compile pass.
  */
 public final class AssemblyCompileDiagnostics {
 
+    public record SoftWarning(String code, String message, String componentType, String componentId) {}
+
     private static final ThreadLocal<CapabilityGap> LAST_GAP = new ThreadLocal<>();
+    private static final ThreadLocal<List<SoftWarning>> SOFT_WARNINGS = ThreadLocal.withInitial(ArrayList::new);
 
     private AssemblyCompileDiagnostics() {}
 
     public static void clear() {
         LAST_GAP.remove();
+        SOFT_WARNINGS.remove();
     }
 
     public static void set(CapabilityGap gap) {
@@ -29,5 +36,22 @@ public final class AssemblyCompileDiagnostics {
 
     public static boolean hasGap() {
         return LAST_GAP.get() != null;
+    }
+
+    public static void addSoftWarning(String code, String message, String componentType, String componentId) {
+        SOFT_WARNINGS.get().add(new SoftWarning(
+                code == null ? "SOFT_WARNING" : code,
+                message == null ? "" : message,
+                componentType,
+                componentId
+        ));
+    }
+
+    public static List<SoftWarning> softWarnings() {
+        return List.copyOf(SOFT_WARNINGS.get());
+    }
+
+    public static boolean hasSoftWarnings() {
+        return !SOFT_WARNINGS.get().isEmpty();
     }
 }

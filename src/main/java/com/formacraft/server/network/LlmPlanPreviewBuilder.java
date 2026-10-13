@@ -595,6 +595,21 @@ public final class LlmPlanPreviewBuilder {
                     !landingSites.isEmpty()
             );
 
+            if (pipeline.report() != null) {
+                var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
+                if (!softs.isEmpty()) {
+                    for (var warn : softs) {
+                        if (warn == null) continue;
+                        pipeline.report().add(
+                                com.formacraft.server.build.quality.BuildQualitySeverity.WARNING,
+                                warn.code() == null ? "DECOR_COMPONENT_SKIPPED" : warn.code(),
+                                warn.message()
+                        );
+                    }
+                    PreviewStorage.storeQualityReport(player, pipeline.report());
+                }
+            }
+
             if (!pipeline.delivered() || pipeline.structure() == null) {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         pipeline.report().summaryZh()

@@ -152,6 +152,8 @@ public class MassMainGenerator implements ComponentGenerator {
                 || com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
         java.util.Set<String> suppressWindowFaces = parseSuppressFaces(params, "suppress_window_faces");
         java.util.Set<String> suppressDoorFaces = parseSuppressFaces(params, "suppress_door_faces");
+        java.util.List<java.util.Map<String, Object>> suppressWindowRegions = parseSuppressRegions(params, "suppress_window_regions");
+        java.util.List<java.util.Map<String, Object>> suppressDoorRegions = parseSuppressRegions(params, "suppress_door_regions");
 
         Double voidRatio = resolveVoidRatio(params, semantic);
         Double windowRatio = resolveWindowRatio(params, semantic);
@@ -238,7 +240,8 @@ public class MassMainGenerator implements ComponentGenerator {
         for (MassConfig mass : massConfigs) {
             emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof, hasDecor,
                     windowSpacing, doorFacing, wallThickness, userFloorHeight,
-                    facadeStyle, suppressWindowFaces, suppressDoorFaces);
+                    facadeStyle, suppressWindowFaces, suppressDoorFaces,
+                    suppressWindowRegions, suppressDoorRegions);
         }
 
         return out;
@@ -274,7 +277,9 @@ public class MassMainGenerator implements ComponentGenerator {
             int userFloorHeight,
             FacadeStyle facadeStyle,
             java.util.Set<String> suppressWindowFaces,
-            java.util.Set<String> suppressDoorFaces
+            java.util.Set<String> suppressDoorFaces,
+            java.util.List<java.util.Map<String, Object>> suppressWindowRegions,
+            java.util.List<java.util.Map<String, Object>> suppressDoorRegions
     ) {
         int width = mass.width;
         int depth = mass.depth;
@@ -398,7 +403,8 @@ public class MassMainGenerator implements ComponentGenerator {
                             && (depth >= width ? localZ == 0 || localZ == depth - 1 : localX == 0 || localX == width - 1);
                     if (hasWindows && !forbiddenGableWindow && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape,
                             mass.cornerRadius, mass.pattern, windowSpacing, userFloorHeight)
-                            && !isFaceSuppressed(localX, localZ, width, depth, suppressWindowFaces)) {
+                            && !isOpeningSuppressed(localX, localZ, y, width, depth, userFloorHeight,
+                            suppressWindowFaces, suppressWindowRegions)) {
                         SemanticPart part = SemanticPart.WINDOW;
                         GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
                                 GeneratedSurfaceCapture.Role.WINDOW);
@@ -418,7 +424,8 @@ public class MassMainGenerator implements ComponentGenerator {
 
                     if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, mass.shape,
                             mass.cornerRadius, mass.pattern, doorFacing)
-                            && !isFaceSuppressed(localX, localZ, width, depth, suppressDoorFaces)) {
+                            && !isOpeningSuppressed(localX, localZ, y, width, depth, userFloorHeight,
+                            suppressDoorFaces, suppressDoorRegions)) {
                         SemanticPart part = SemanticPart.DOORWAY;
                         if (y > 0) GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
                                 GeneratedSurfaceCapture.Role.DOOR_OPENING);
@@ -551,16 +558,76 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     /**
-     * Minecraft-facing relative to mass local footprint: z=0 SOUTH, z=max NORTH, x=0 EAST, x=max WEST
-     * (matches {@link #isDoorPosition} facing switch).
+     * Local facade labels relative to MASS footprint (after FacadeDirection.worldToLocal):
+     * z=0 SOUTH, z=max NORTH, x=0 EAST, x=max WEST (matches {@link #isDoorPosition}).
      */
     static boolean isFaceSuppressed(int x, int z, int width, int depth, java.util.Set<String> faces) {
         if (faces == null || faces.isEmpty()) return false;
-        if (z <= 0 && faces.contains("SOUTH")) return true;
-        if (z >= depth - 1 && faces.contains("NORTH")) return true;
-        if (x <= 0 && faces.contains("EAST")) return true;
-        if (x >= width - 1 && faces.contains("WEST")) return true;
-        return false;
+        String face = localFaceAt(x, z, width, depth);
+        return face != null && faces.contains(face);
+    }
+
+    static String localFaceAt(int x, int z, int width, int depth) {
+        if (z <= 0) return "SOUTH";
+        if (z >= depth - 1) return "NORTH";
+        if (x <= 0) return "EAST";
+        if (x >= width - 1) return "WEST";
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    static java.util.List<java.util.Map<String, Object>> parseSuppressRegions(Map<String, Object> params, String key) {
+        if (params == null || key == null) return java.util.List.of();
+        Object raw = params.get(key);
+        if (!(raw instanceof java.util.List<?> list) || list.isEmpty()) return java.util.List.of();
+        var out = new java.util.ArrayList<java.util.Map<String, Object>>();
+        for (Object o : list) {
+            if (o instanceof java.util.Map<?, ?> m) {
+                java.util.Map<String, Object> copy = new java.util.LinkedHashMap<>();
+                for (var e : m.entrySet()) {
+                    if (e.getKey() != null) copy.put(String.valueOf(e.getKey()), e.getValue());
+                }
+                out.add(copy);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * When {@code regions} is non-empty, only region face+floor matches suppress (no fall-through).
+     * When regions empty, {@code faces} suppresses the whole local wall height.
+     */
+    static boolean isOpeningSuppressed(int x, int z, int y, int width, int depth, int floorHeight,
+                                       java.util.Set<String> faces,
+                                       java.util.List<java.util.Map<String, Object>> regions) {
+        String face = localFaceAt(x, z, width, depth);
+        if (face == null) return false;
+        if (regions != null && !regions.isEmpty()) {
+            int fh = Math.max(1, floorHeight > 0 ? floorHeight : 3);
+            int floorIndex = Math.max(0, y / fh);
+            for (var region : regions) {
+                if (region == null) continue;
+                Object rf = region.get("face");
+                if (rf == null || !face.equalsIgnoreCase(String.valueOf(rf).trim())) continue;
+                Integer min = intOrNull(region.get("min_floor"));
+                Integer max = intOrNull(region.get("max_floor"));
+                if (min != null && floorIndex < min) continue;
+                if (max != null && floorIndex > max) continue;
+                return true;
+            }
+            return false;
+        }
+        return isFaceSuppressed(x, z, width, depth, faces);
+    }
+
+    private static Integer intOrNull(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(v.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

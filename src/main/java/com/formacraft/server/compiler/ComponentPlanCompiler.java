@@ -586,6 +586,16 @@ public final class ComponentPlanCompiler {
                     FormacraftMod.LOGGER.warn(
                             "ComponentPlanCompiler: optional decor component failed (SOFT degrade): type={} id={} slot={}: {}",
                             c.componentType(), paramIdentity(c), c.slotId(), e.getMessage(), e);
+                    AssemblyCompileDiagnostics.addSoftWarning(
+                            "DECOR_COMPONENT_SKIPPED",
+                            "可选装饰缺失：type=" + c.componentType()
+                                    + " id=" + paramIdentity(c)
+                                    + " slot=" + c.slotId()
+                                    + "；主体结构完整，部分装饰未生成"
+                                    + (e.getMessage() == null ? "" : "（" + e.getMessage() + "）"),
+                            c.componentType(),
+                            paramIdentity(c)
+                    );
                 } else {
                     FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}",
                             c.componentType(), e.getMessage(), e);
@@ -806,8 +816,8 @@ public final class ComponentPlanCompiler {
             }
             boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c);
             boolean entranceDisabled = com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
-            var windowFaces = collectSatelliteFaces(c, components, inferred, "FACADE_WINDOWS");
-            var doorFaces = collectSatelliteFaces(c, components, inferred, "ENTRANCE");
+            OpeningDelegation windowDelegation = collectOpeningDelegation(c, components, inferred, "FACADE_WINDOWS");
+            OpeningDelegation doorDelegation = collectOpeningDelegation(c, components, inferred, "ENTRANCE");
             if (AssemblyCompileDiagnostics.hasGap()) {
                 return new PreparedComponents(List.of(), Set.of());
             }
@@ -826,7 +836,7 @@ public final class ComponentPlanCompiler {
                     facade = OpeningGrammarResolver.apply(plan, facade);
                     inferred.add(facade);
                     hasFacade = true;
-                    windowFaces = Set.of(); // inferred whole-mass facade → full suppress
+                    windowDelegation = OpeningDelegation.full();
                 }
                 if (!hasEntrance && !entranceDisabled) {
                     Component entrance = makeEntranceComponent(plan, c, slotId, facing);
@@ -834,16 +844,20 @@ public final class ComponentPlanCompiler {
                         entrance = StyleIntentResolver.apply(plan, entrance);
                         inferred.add(entrance);
                         hasEntrance = true;
-                        doorFaces = Set.of();
+                        doorDelegation = OpeningDelegation.full();
                     }
                 }
             }
-            if (hasFacade || hasEntrance || windowsDisabled || entranceDisabled) {
-                boolean fullWindows = windowsDisabled || (hasFacade && windowFaces.isEmpty());
-                boolean fullDoors = entranceDisabled || (hasEntrance && doorFaces.isEmpty());
-                c = suppressMassOpenings(c, fullWindows, fullDoors,
-                        fullWindows ? Set.of() : windowFaces,
-                        fullDoors ? Set.of() : doorFaces);
+            if (windowsDisabled) windowDelegation = OpeningDelegation.full();
+            if (entranceDisabled) doorDelegation = OpeningDelegation.full();
+            // World faces → local faces using slot facing before writing MASS params
+            GlobalConstraints.Facing hostFacing = facing != null ? facing : GlobalConstraints.Facing.SOUTH;
+            windowDelegation = windowDelegation.mapFaces(world ->
+                    com.formacraft.common.generation.component.util.FacadeDirection.worldToLocal(world, hostFacing));
+            doorDelegation = doorDelegation.mapFaces(world ->
+                    com.formacraft.common.generation.component.util.FacadeDirection.worldToLocal(world, hostFacing));
+            if (windowDelegation.isActive() || doorDelegation.isActive()) {
+                c = suppressMassOpenings(c, windowDelegation, doorDelegation);
             }
             boolean hasRoof = hasSatelliteForMass(c, components, inferred, "ROOF");
             if (AssemblyCompileDiagnostics.hasGap()) {
@@ -1957,49 +1971,34 @@ public final class ComponentPlanCompiler {
         return match ? HostPick.MATCH : HostPick.NONE;
     }
 
-    /** Collect face names from bound satellites; empty means whole-mass delegation when satellite exists. */
-    static Set<String> collectSatelliteFaces(Component mass, List<Component> primary, List<Component> inferred, String wantedType) {
-        var faces = new LinkedHashSet<String>();
+    /**
+     * Collect and merge opening delegation from bound satellites of {@code wantedType}.
+     * Empty faces on a satellite means {@link OpeningDelegation#full()}, not "no faces".
+     */
+    static OpeningDelegation collectOpeningDelegation(Component mass, List<Component> primary,
+                                                       List<Component> inferred, String wantedType) {
+        OpeningDelegation merged = OpeningDelegation.none();
         Component bound = findBoundSatellite(mass, primary, inferred, wantedType);
-        if (bound == null) return faces;
-        faces.addAll(parseFaceList(bound.params()));
-        // Merge faces from all host-matching satellites of this type
+        if (bound == null) return merged;
+        merged = merged.merge(OpeningDelegation.fromSatelliteParams(bound.params()));
         var all = new ArrayList<Component>(primary);
         all.addAll(inferred);
         Object identity = mass.params() == null ? null : mass.params().get("component_id");
         for (var s : all) {
             if (s == null || s == bound) continue;
-            if (!wantedType.equals(normalizeType(s.componentType())) &&
-                    !("ROOF".equals(wantedType) && isRoofType(normalizeType(s.componentType())))) continue;
+            if (!wantedType.equals(normalizeType(s.componentType()))) continue;
             if (!slotKey(s).equals(slotKey(mass))) continue;
             Object host = s.params() == null ? null : s.params().get("host_id");
             if (host != null && identity != null && host.equals(identity)) {
-                faces.addAll(parseFaceList(s.params()));
+                merged = merged.merge(OpeningDelegation.fromSatelliteParams(s.params()));
             }
         }
-        return faces;
+        return merged;
     }
 
+    /** @deprecated use {@link OpeningDelegation#parseFaceNames} */
     static Set<String> parseFaceList(Map<String, Object> params) {
-        if (params == null) return Set.of();
-        Object raw = params.get("faces");
-        if (raw == null) raw = params.get("suppress_faces");
-        if (raw == null) raw = params.get("facing");
-        if (raw == null) return Set.of();
-        var out = new LinkedHashSet<String>();
-        if (raw instanceof List<?> list) {
-            for (Object o : list) {
-                if (o != null && !o.toString().isBlank()) out.add(o.toString().trim().toUpperCase(Locale.ROOT));
-            }
-        } else {
-            String s = raw.toString().trim();
-            if (!s.isEmpty()) {
-                for (String part : s.split("[,|;\\s]+")) {
-                    if (!part.isBlank()) out.add(part.trim().toUpperCase(Locale.ROOT));
-                }
-            }
-        }
-        return out;
+        return OpeningDelegation.parseFaceNames(params);
     }
 
     private static Component findRoofInList(List<Component> components, String slotKey) {
@@ -2040,34 +2039,19 @@ public final class ComponentPlanCompiler {
         );
     }
 
-    private static Component suppressMassOpenings(Component base, boolean suppressWindows, boolean suppressDoors) {
-        return suppressMassOpenings(base, suppressWindows, suppressDoors, Set.of(), Set.of());
-    }
-
-    private static Component suppressMassOpenings(Component base, boolean suppressWindows, boolean suppressDoors,
-                                                   Set<String> windowFaces, Set<String> doorFaces) {
+    private static Component suppressMassOpenings(Component base,
+                                                   OpeningDelegation windows,
+                                                   OpeningDelegation doors) {
         if (base == null) return null;
-        boolean anyFaces = (windowFaces != null && !windowFaces.isEmpty())
-                || (doorFaces != null && !doorFaces.isEmpty());
-        if (!suppressWindows && !suppressDoors && !anyFaces) {
-            return base;
-        }
+        OpeningDelegation w = windows == null ? OpeningDelegation.none() : windows;
+        OpeningDelegation d = doors == null ? OpeningDelegation.none() : doors;
+        if (!w.isActive() && !d.isActive()) return base;
         Map<String, Object> params = new HashMap<>();
         if (base.params() != null) {
             params.putAll(base.params());
         }
-        if (suppressWindows) {
-            params.put("suppress_windows", true);
-            params.remove("suppress_window_faces");
-        } else if (windowFaces != null && !windowFaces.isEmpty()) {
-            params.put("suppress_window_faces", new ArrayList<>(windowFaces));
-        }
-        if (suppressDoors) {
-            params.put("suppress_doors", true);
-            params.remove("suppress_door_faces");
-        } else if (doorFaces != null && !doorFaces.isEmpty()) {
-            params.put("suppress_door_faces", new ArrayList<>(doorFaces));
-        }
+        applyOpeningDelegationParams(params, w, "suppress_windows", "suppress_window_faces", "suppress_window_regions");
+        applyOpeningDelegationParams(params, d, "suppress_doors", "suppress_door_faces", "suppress_door_regions");
         return new Component(
                 base.componentType(),
                 base.slotId(),
@@ -2076,6 +2060,24 @@ public final class ComponentPlanCompiler {
                 base.features(),
                 params
         );
+    }
+
+    private static void applyOpeningDelegationParams(Map<String, Object> params, OpeningDelegation delegation,
+                                                     String fullKey, String facesKey, String regionsKey) {
+        if (delegation == null || !delegation.isActive()) return;
+        if (delegation.fullMass()) {
+            params.put(fullKey, true);
+            params.remove(facesKey);
+            params.remove(regionsKey);
+            return;
+        }
+        params.remove(fullKey);
+        Set<String> faces = delegation.faceNames();
+        if (!faces.isEmpty()) params.put(facesKey, new ArrayList<>(faces));
+        else params.remove(facesKey);
+        List<Map<String, Object>> regions = delegation.regionsAsMaps();
+        if (!regions.isEmpty()) params.put(regionsKey, regions);
+        else params.remove(regionsKey);
     }
 
     private static String slotKey(Component c) {

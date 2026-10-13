@@ -114,6 +114,8 @@ flowchart TD
 
 第三十二批起：显式 ROOF 始终抑制 MASS 内建屋顶；关键构件生成异常整计划失败；门窗可按立面委托；多 MASS 无 host 等距绑定歧义失败；屋顶结构审计 mismatch 硬门禁。
 
+第三十三批起：OpeningDelegation 显式 fullMass/regions 合并；世界↔局部立面经 FacadeDirection；楼层 region 抑制；装饰软失败进入预览质量 WARNING。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |
