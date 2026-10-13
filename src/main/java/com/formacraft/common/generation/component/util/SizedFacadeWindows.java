@@ -14,15 +14,25 @@ public final class SizedFacadeWindows {
         int width=dims.width(),depth=dims.depth(),height=dims.height();
         String wall=String.valueOf(params.getOrDefault("wall",""));
         String excluded=String.valueOf(params.getOrDefault("excluded_window_axis",""));
+        FacadeScope scope=FacadeScope.parse(params);
         var faces=new LinkedHashSet<Facing>();
         if("front".equalsIgnoreCase(wall)) faces.add(facing);
         else if("left_right".equalsIgnoreCase(wall)) {
             boolean x=facing==Facing.EAST || facing==Facing.WEST;
             faces.add(x?Facing.NORTH:Facing.EAST); faces.add(x?Facing.SOUTH:Facing.WEST);
-        } else if(wrap) Collections.addAll(faces,Facing.values());
-        else faces.add(facing);
+        } else if(wrap) {
+            if(scope.isFullMass()) Collections.addAll(faces,Facing.values());
+            else for(String name:scope.faceNames()) {
+                Facing f=facingFromName(name);
+                if(f!=null) faces.add(f);
+            }
+        } else faces.add(facing);
+        if(!scope.isFullMass()) {
+            faces.removeIf(f -> !scope.faceNames().contains(f.name()));
+        }
         int sill=Math.max(1,ComponentParamParsers.intParam(params,1,"sill_offset","window_sill","sill_height"));
         int thickness=Math.max(1,ComponentParamParsers.intParam(params,1,"wall_thickness","wallThickness"));
+        boolean explicitCount=hasExplicitCount(params);
         var out=new ArrayList<BlockPatch>();
         for(var face:faces) {
             boolean xFace=face==Facing.EAST || face==Facing.WEST;
@@ -33,16 +43,18 @@ public final class SizedFacadeWindows {
             int middleStart=(span-reserve)/2,middleEnd=middleStart+reserve;
             for(int floor=0;floor<height;floor+=Math.max(1,floorHeight)) {
                 int floorNumber=floor/Math.max(1,floorHeight)+1;
+                int floorIndex=Math.max(0,floor/Math.max(1,floorHeight));
                 if(!floorAllowed(params,floorNumber)) continue;
+                if(!scope.covers(face.name(),floorIndex)) continue;
                 var starts=new ArrayList<Integer>();
                 int perWall=floorCount(params,floorNumber,"window_per_wall","windows_per_wall","windows_per_floor");
                 int perSide=floorCount(params,floorNumber,"count_per_side");
                 if(entrance) {
                     int left=perSide>=0?perSide:perWall>=0?perWall/2+perWall%2:-1;
                     int right=perSide>=0?perSide:perWall>=0?perWall/2:-1;
-                    addStarts(starts,1,middleStart,windowWidth,left);
-                    addStarts(starts,middleEnd,span-1,windowWidth,right);
-                } else addStarts(starts,1,span-1,windowWidth,perWall);
+                    addStarts(starts,1,middleStart,windowWidth,left,explicitCount);
+                    addStarts(starts,middleEnd,span-1,windowWidth,right,explicitCount);
+                } else addStarts(starts,1,span-1,windowWidth,perWall,explicitCount);
                 int bottom=floor+sill;
                 if(bottom+windowHeight>Math.min(height,floor+floorHeight)) continue;
                 for(int start:starts) for(int a=start;a<start+windowWidth;a++) for(int y=bottom;y<bottom+windowHeight;y++) {
@@ -58,14 +70,28 @@ public final class SizedFacadeWindows {
         }
         return out;
     }
-    private static void addStarts(List<Integer> starts,int from,int to,int size,int requested) {
+
+    private static Facing facingFromName(String name) {
+        if(name==null) return null;
+        try { return Facing.valueOf(name.trim().toUpperCase(Locale.ROOT)); }
+        catch(IllegalArgumentException e) { return null; }
+    }
+
+    static void addStarts(List<Integer> starts,int from,int to,int size,int requested,boolean explicitCount) {
         int available=Math.max(0,to-from);
         if(requested>=0) {
             int capacity=(available+1)/(size+1);
             int count=Math.min(requested,capacity);
-            if(count<requested) com.formacraft.FormacraftMod.LOGGER.warn(
-                    "[WindowCountLayout] requested={} fitted={} interval=[{}, {}) windowWidth={}",
-                    requested,count,from,to,size);
+            if(count<requested) {
+                if(explicitCount) {
+                    throw new IllegalArgumentException(
+                            "E_WINDOW_COUNT_UNFIT: requested="+requested+" fitted="+count
+                                    +" interval=["+from+", "+to+") windowWidth="+size);
+                }
+                com.formacraft.FormacraftMod.LOGGER.warn(
+                        "[WindowCountLayout] requested={} fitted={} interval=[{}, {}) windowWidth={}",
+                        requested,count,from,to,size);
+            }
             if(count==1) starts.add(from+(available-size)/2);
             else if(count>1) for(int i=0;i<count;i++) starts.add(from+(int)((long)i*(available-size)/(count-1)));
             return;

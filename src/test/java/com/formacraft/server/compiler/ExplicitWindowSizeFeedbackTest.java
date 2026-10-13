@@ -109,15 +109,14 @@ class ExplicitWindowSizeFeedbackTest {
         var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
         assertTrue(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",null,c,"Hui_Style")).isEmpty());
     }
-    @Test void overcrowdedCountKeepsCompleteRectanglesInsideTheWall() {
+    @Test void overcrowdedExplicitCountFailsStrictly() {
         var base=facade("left_right"); var params=new HashMap<String,Object>(base.params());
         params.put("window_per_wall",20);
         var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
         var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
-        var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
-        assertRectangles(cells);
-        assertEquals(8,cells.stream().filter(p->p.getZ()==0 && p.getY()==1).count());
-        assertTrue(cells.stream().allMatch(p->p.getX()>0 && p.getX()<14));
+        var ex=assertThrows(IllegalArgumentException.class, () ->
+                new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
+        assertTrue(ex.getMessage().startsWith("E_WINDOW_COUNT_UNFIT"));
     }
     @Test void secondFloorMaskFiltersBothSizedAndLegacyRhythmWindows() {
         for(boolean sized:List.of(true,false)) {

@@ -144,8 +144,14 @@ public class RoofGenerator implements ComponentGenerator {
     /** Close the two body-end planes, leaving overhangs and the attic interior hollow. */
     private void sealRectangularGables(List<BlockPatch> out, List<BlockPatch> roofShell, SemanticComponent semantic,
                                       ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette) {
-        for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++)
-            if (!footprint.contains(x, z)) return; // Irregular bodies need their own boundary model.
+        if (!footprint.isFullyRectangular()) {
+            com.formacraft.FormacraftMod.LOGGER.warn(
+                    "[RoofGableSeal] skipped irregular footprint width={} depth={} component={}",
+                    width, depth,
+                    semantic.source() != null && semantic.source().params() != null
+                            ? semantic.source().params().get("component_id") : "?");
+            return; // Irregular bodies need their own boundary model.
+        }
         var roofHeights = new java.util.HashMap<net.minecraft.util.math.BlockPos, Integer>();
         for (var patch : roofShell) if (GeneratedSurfaceCapture.occupied(patch)) {
             var column = new net.minecraft.util.math.BlockPos(patch.dx(), 0, patch.dz());

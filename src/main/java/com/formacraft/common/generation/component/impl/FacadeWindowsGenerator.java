@@ -2,6 +2,7 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.FacadeScope;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
@@ -97,6 +98,11 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             }
         }
         // boolean isFloorToCeiling = hasFeature(c, "floor_to_ceiling", "full_height"); // 保留用于未来扩展
+        FacadeScope facadeScope = FacadeScope.parse(params);
+        if (wrapFacade && !facadeScope.isFullMass()) {
+            // Partial delegation: wrap only listed faces, never expand beyond scope.
+            wrapFacade = true;
+        }
 
         int explicitWidth=ComponentParamParsers.intParam(params,"window_width","windowWidth");
         int explicitHeight=ComponentParamParsers.intParam(params,"window_height","windowHeight");
@@ -111,6 +117,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         // 生成窗户（通常只在立面，depth 通常为 1）
         for (int y = 0; y < height; y++) {
             if(!com.formacraft.common.generation.component.util.SizedFacadeWindows.floorAllowed(params,y/floorHeight+1)) continue;
+            int floorIndex = Math.max(0, y / Math.max(1, floorHeight));
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     boolean isFacade = isFacadePosition(x, z, width, depth, facing, wrapFacade);
@@ -120,6 +127,10 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (!wrapFacade && ("x".equals(excludedAxis) && (facing.name().equals("EAST") || facing.name().equals("WEST"))
                             || "z".equals(excludedAxis) && (facing.name().equals("NORTH") || facing.name().equals("SOUTH")))) continue;
                     if (!isFacade) {
+                        continue;
+                    }
+                    String localFace = MassMainGenerator.localFaceAt(x, z, width, depth);
+                    if (localFace == null || !facadeScope.covers(localFace, floorIndex)) {
                         continue;
                     }
                     if (!isWindowBand(y, floorCount > 0 ? height + 1 : height, floorHeight, windowAspect, floorCount > 0 ? 2 : 1)) {

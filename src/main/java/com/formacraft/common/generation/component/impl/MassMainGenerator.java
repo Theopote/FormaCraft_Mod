@@ -398,9 +398,12 @@ public class MassMainGenerator implements ComponentGenerator {
                         GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
                                 GeneratedSurfaceCapture.Role.WALL);
 
-                    boolean forbiddenGableWindow = semantic.source().params() != null
-                            && Boolean.FALSE.equals(semantic.source().params().get("gable_windows"))
-                            && (depth >= width ? localZ == 0 || localZ == depth - 1 : localX == 0 || localX == width - 1);
+                    boolean forbiddenGableWindow = false;
+                    if (semantic.source() != null) {
+                        forbiddenGableWindow = semantic.source().params() != null
+                                && Boolean.FALSE.equals(semantic.source().params().get("gable_windows"))
+                                && (depth >= width ? localZ == 0 || localZ == depth - 1 : localX == 0 || localX == width - 1);
+                    }
                     if (hasWindows && !forbiddenGableWindow && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape,
                             mass.cornerRadius, mass.pattern, windowSpacing, userFloorHeight)
                             && !isOpeningSuppressed(localX, localZ, y, width, depth, userFloorHeight,

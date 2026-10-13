@@ -116,6 +116,8 @@ flowchart TD
 
 第三十三批起：OpeningDelegation 显式 fullMass/regions 合并；世界↔局部立面经 FacadeDirection；楼层 region 抑制；装饰软失败进入预览质量 WARNING。
 
+第三十四批起：共享 `FacadeScope` 约束窗生成范围（wrap 不越委托面）；入口默认只挖门洞+框/楣/棚；显式 `door_width`/`window_per_wall` 不足硬失败（`E_ENTRANCE_DOOR_WIDTH` / `E_WINDOW_COUNT_UNFIT`）；不规则 gable 山墙跳过 → `ROOF_GABLE_SEAL_SKIPPED` soft warning。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

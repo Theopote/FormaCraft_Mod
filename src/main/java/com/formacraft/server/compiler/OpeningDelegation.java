@@ -1,7 +1,6 @@
 package com.formacraft.server.compiler;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -104,58 +103,18 @@ public record OpeningDelegation(boolean fullMass, Set<FacadeRegion> regions) {
 
     /** Parse one satellite's params into a delegation slice (not yet merged). */
     public static OpeningDelegation fromSatelliteParams(Map<String, Object> params) {
-        Set<String> faces = parseFaceNames(params);
-        Integer minFloor = intOrNull(params, "min_floor", "minFloor");
-        Integer maxFloor = intOrNull(params, "max_floor", "maxFloor");
-        if (faces.isEmpty()) {
-            // No face list ⇒ whole-mass delegation for this satellite
-            return full();
-        }
+        var scope = com.formacraft.common.generation.component.util.FacadeScope.parse(params);
+        if (scope.isFullMass()) return full();
         var regions = new LinkedHashSet<FacadeRegion>();
-        for (String f : faces) {
-            regions.add(new FacadeRegion(f, minFloor, maxFloor));
+        for (var r : scope.regions()) {
+            regions.add(new FacadeRegion(r.face(), r.minFloor(), r.maxFloor()));
         }
         return new OpeningDelegation(false, regions);
     }
 
-    /**
-     * Only {@code faces} / {@code suppress_faces} define delegation scope.
-     * Do not use {@code facing} here — entrance generators use it for door orientation, not suppress scope.
-     */
+    /** Delegates to {@link com.formacraft.common.generation.component.util.FacadeScope#parseFaceNames}. */
     static Set<String> parseFaceNames(Map<String, Object> params) {
-        if (params == null) return Set.of();
-        Object raw = params.get("faces");
-        if (raw == null) raw = params.get("suppress_faces");
-        if (raw == null) return Set.of();
-        var out = new LinkedHashSet<String>();
-        if (raw instanceof List<?> list) {
-            for (Object o : list) {
-                if (o != null && !o.toString().isBlank()) out.add(o.toString().trim().toUpperCase(Locale.ROOT));
-            }
-        } else {
-            String s = raw.toString().trim();
-            if (!s.isEmpty()) {
-                for (String part : s.split("[,|;\\s]+")) {
-                    if (!part.isBlank()) out.add(part.trim().toUpperCase(Locale.ROOT));
-                }
-            }
-        }
-        return Collections.unmodifiableSet(out);
-    }
-
-    private static Integer intOrNull(Map<String, Object> params, String... keys) {
-        if (params == null) return null;
-        for (String key : keys) {
-            Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) return n.intValue();
-            try {
-                return Integer.parseInt(v.toString().trim());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
+        return com.formacraft.common.generation.component.util.FacadeScope.parseFaceNames(params);
     }
 
     @Override

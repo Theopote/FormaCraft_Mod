@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * EntranceGenerator（入口生成器）
  * <p>
- * 生成门廊/入口结构
+ * 生成门廊/入口结构：默认仅挖门洞并放置门框/楣/棚，保留主体墙体。
  */
 public class EntranceGenerator implements ComponentGenerator {
 
@@ -44,16 +44,41 @@ public class EntranceGenerator implements ComponentGenerator {
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 检查 features
         boolean hasOverhang = hasFeature(c, "overhang", "canopy", "awning");
         boolean hasDecorativeLintel = hasFeature(c, "decorative_lintel", "lintel", "carving", "ornament", "decorative");
         boolean hasArch = hasFeature(c, "arched", "arch", "archway");
+        boolean replaceWallRegion = getParamBoolean(params, "replace_wall_region", "replaceWallRegion");
 
-        int doorWidth = ComponentParamParsers.intParam(params, Math.max(2, width - 2), "door_width", "doorWidth");
+        boolean explicitDoorWidth = params != null
+                && (params.containsKey("door_width") || params.containsKey("doorWidth"));
+        int requestedDoorWidth = ComponentParamParsers.intParam(params, Math.max(2, width - 2), "door_width", "doorWidth");
         int doorHeight = ComponentParamParsers.intParam(params, Math.max(2, height - 1), "door_height", "doorHeight");
         int openingSpan = semantic.slot() != null && (semantic.slot().facing() == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
                 || semantic.slot().facing() == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST) ? depth : width;
-        doorWidth = Math.max(1, Math.min(doorWidth, Math.max(1, openingSpan - 1)));
+
+        int doorWidth;
+        if (explicitDoorWidth) {
+            // Need door width plus at least one jamb cell of margin.
+            if (openingSpan < requestedDoorWidth + 1) {
+                throw new IllegalArgumentException(
+                        "E_ENTRANCE_DOOR_WIDTH: requested=" + requestedDoorWidth
+                                + " openingSpan=" + openingSpan
+                                + " requiredMinSpan=" + (requestedDoorWidth + 1));
+            }
+            doorWidth = requestedDoorWidth;
+            if (hasArch && doorWidth < 3) {
+                throw new IllegalArgumentException(
+                        "E_ENTRANCE_DOOR_WIDTH: arched entrance requires door_width>=3, got=" + doorWidth);
+            }
+        } else {
+            int auto = Math.max(2, Math.min(requestedDoorWidth, Math.max(1, openingSpan - 1)));
+            if (openingSpan < 3) {
+                throw new IllegalArgumentException(
+                        "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
+            }
+            if (hasArch) auto = Math.max(3, auto);
+            doorWidth = Math.min(auto, openingSpan - 1);
+        }
         doorHeight = Math.max(2, Math.min(doorHeight, height));
         int canopyDepth = ComponentParamParsers.intParam(params, 0, "canopy_depth", "canopyDepth");
         if (canopyDepth > 0) {
@@ -63,8 +88,7 @@ public class EntranceGenerator implements ComponentGenerator {
                 (semantic.slot() != null && semantic.slot().facing() != null)
                         ? semantic.slot().facing()
                         : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
-        
-        // 生成入口结构（门洞 + 门框）
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
@@ -78,19 +102,27 @@ public class EntranceGenerator implements ComponentGenerator {
                         ));
                         continue;
                     }
-                    
-                    // 门框（边缘部分）
+
+                    boolean frame = isDoorFrame(x, z, y, width, depth, doorWidth, doorHeight, facing);
+                    boolean lintelDecor = hasDecorativeLintel && y >= height - 1
+                            && isAlongDoorBay(x, z, width, depth, doorWidth, facing);
+                    boolean canopy = hasOverhang && y == height - 1
+                            && isCanopyEdge(x, z, width, depth, facing, canopyDepth);
+
+                    if (!frame && !lintelDecor && !canopy && !replaceWallRegion) {
+                        continue; // Preserve host wall material.
+                    }
+
                     SemanticPart part;
-                    // 顶部可以是门楣/过梁
-                    if (y >= height - 1 && hasDecorativeLintel) {
+                    if (lintelDecor) {
                         part = SemanticPart.DECOR;
-                    } else if (y >= height - 1 && hasOverhang) {
-                        part = SemanticPart.ROOF_SURFACE; // 门廊顶
+                    } else if (canopy || (hasOverhang && y >= height - 1 && frame)) {
+                        part = SemanticPart.ROOF_SURFACE;
                     } else {
-                        part = SemanticPart.WALL_ACCENT; // 门框
+                        part = SemanticPart.WALL_ACCENT;
                     }
                     String block = getBlockForPart(part, semantic, palette);
-                    
+
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
@@ -99,7 +131,7 @@ public class EntranceGenerator implements ComponentGenerator {
                             block
                     ));
 
-                    if (hasOverhang && y == height - 1 && isCanopyEdge(x, z, width, depth, facing, canopyDepth)) {
+                    if (canopy) {
                         SemanticPart canopyPart = SemanticPart.ROOF_SURFACE;
                         String canopyBlock = getBlockForPart(canopyPart, semantic, palette);
                         out.add(new BlockPatch(
@@ -118,13 +150,11 @@ public class EntranceGenerator implements ComponentGenerator {
     }
 
     private String getStyleProfile(SemanticComponent semantic) {
-        // 1. 优先使用 SemanticComponent 中的 styleProfile
         if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
             String profile = semantic.styleProfile().trim();
-            // 映射 LLM 返回的风格名称到系统支持的风格
             String upper = profile.toUpperCase();
             if (upper.contains("GOTHIC")) {
-                return "MEDIEVAL_CLASSIC"; // 哥特式使用中世纪风格
+                return "MEDIEVAL_CLASSIC";
             }
             if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
                     || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
@@ -136,7 +166,6 @@ public class EntranceGenerator implements ComponentGenerator {
             return profile;
         }
 
-        // 2. 尝试从 Component 的 features 推断风格
         Component c = semantic != null ? semantic.source() : null;
         if (c != null && c.features() != null) {
             for (String feature : c.features()) {
@@ -155,23 +184,17 @@ public class EntranceGenerator implements ComponentGenerator {
             }
         }
 
-        // 3. 默认
         return "MEDIEVAL_CLASSIC";
     }
-    
-    /**
-     * 获取方块（优先使用动态解析和 features，回退到传统 Palette）
-     */
+
     private String getBlockForPart(SemanticPart part, SemanticComponent semantic, Palette palette) {
-        // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
         if (semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
             if (block != null && !block.isEmpty()) {
                 return block;
             }
         }
-        
-        // 2. 尝试从 features 中提取材质信息
+
         Component c = semantic.source();
         if (c != null && c.features() != null) {
             String block = extractBlockFromFeatures(part, c.features());
@@ -179,34 +202,29 @@ public class EntranceGenerator implements ComponentGenerator {
                 return block;
             }
         }
-        
-        // 3. 回退到传统 Palette
+
         if (palette != null) {
             String block = palette.pick(part);
             if (block != null && !block.isEmpty()) {
                 return block;
             }
         }
-        
-        // 4. 默认方块
+
         return getDefaultBlock(part);
     }
-    
-    /**
-     * 从 features 中提取材质信息
-     */
+
     private String extractBlockFromFeatures(SemanticPart part, List<String> features) {
         if (features == null || features.isEmpty()) {
             return null;
         }
-        
+
         for (String feature : features) {
             if (feature == null || feature.isBlank()) {
                 continue;
             }
-            
+
             String lower = feature.toLowerCase().trim();
-            
+
             if (lower.contains("white_concrete") || lower.contains("white concrete")) {
                 if (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE || part == SemanticPart.WALL_ACCENT) {
                     return "minecraft:white_concrete";
@@ -223,13 +241,10 @@ public class EntranceGenerator implements ComponentGenerator {
                 }
             }
         }
-        
+
         return null;
     }
-    
-    /**
-     * 获取默认方块
-     */
+
     private String getDefaultBlock(SemanticPart part) {
         return switch (part) {
             case WALL, WALL_BASE, WALL_ACCENT -> "minecraft:stone_bricks";
@@ -238,10 +253,7 @@ public class EntranceGenerator implements ComponentGenerator {
             default -> "minecraft:stone";
         };
     }
-    
-    /**
-     * 检查是否有特定特征
-     */
+
     private boolean hasFeature(Component c, String... keywords) {
         if (c.features() == null) return false;
         for (String feature : c.features()) {
@@ -272,7 +284,6 @@ public class EntranceGenerator implements ComponentGenerator {
         int half = doorWidth / 2;
         boolean inWidth = axis >= center - half && axis <= center + (doorWidth - 1 - half);
 
-        // Cut the opening through every layer of the entrance envelope.
         if (!inWidth) {
             return false;
         }
@@ -289,6 +300,43 @@ public class EntranceGenerator implements ComponentGenerator {
         return dist <= half - 1;
     }
 
+    /** Jambs beside the opening and the lintel course directly above it. */
+    private boolean isDoorFrame(int x, int z, int y, int width, int depth, int doorWidth, int doorHeight,
+                                com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
+        int axis = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
+                ? z : x;
+        int axisMax = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
+                ? depth : width;
+        int center = axisMax / 2;
+        int half = doorWidth / 2;
+        int doorMin = center - half;
+        int doorMax = center + (doorWidth - 1 - half);
+        if (y == doorHeight && axis >= doorMin - 1 && axis <= doorMax + 1) {
+            return true;
+        }
+        if (y < doorHeight && (axis == doorMin - 1 || axis == doorMax + 1)) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isAlongDoorBay(int x, int z, int width, int depth, int doorWidth,
+                                   com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
+        int axis = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
+                ? z : x;
+        int axisMax = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
+                ? depth : width;
+        int center = axisMax / 2;
+        int half = doorWidth / 2;
+        int doorMin = center - half;
+        int doorMax = center + (doorWidth - 1 - half);
+        return axis >= doorMin - 1 && axis <= doorMax + 1;
+    }
+
     private boolean isCanopyEdge(int x, int z, int width, int depth,
                                  com.formacraft.common.llm.dto.GlobalConstraints.Facing facing, int canopyDepth) {
         if (canopyDepth <= 0) {
@@ -300,5 +348,17 @@ public class EntranceGenerator implements ComponentGenerator {
             case WEST -> x >= width - Math.min(canopyDepth, width);
             case SOUTH -> z < Math.min(canopyDepth, depth);
         };
+    }
+
+    private static boolean getParamBoolean(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return false;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Boolean b) return b;
+            return "true".equalsIgnoreCase(String.valueOf(v).trim());
+        }
+        return false;
     }
 }

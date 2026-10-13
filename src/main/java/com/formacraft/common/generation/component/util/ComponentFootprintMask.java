@@ -52,6 +52,16 @@ public final class ComponentFootprintMask {
         return isInsideFootprint(x, z, width, depth, shape, cornerRadius, pattern);
     }
 
+    /** True when every cell in the width×depth AABB is occupied (gable seal prerequisite). */
+    public boolean isFullyRectangular() {
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (!contains(x, z)) return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * 屋顶是否应落在此 mass 局部坐标（含合法飞檐外挑）。
      */

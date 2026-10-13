@@ -52,7 +52,6 @@ import net.minecraft.util.math.Direction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
@@ -329,6 +328,7 @@ public final class ComponentPlanCompiler {
                     return List.of();
                 }
             }
+            maybeWarnIrregularGableSeal(roof, semantic);
         }
 
         try {
@@ -599,8 +599,9 @@ public final class ComponentPlanCompiler {
                 } else {
                     FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}",
                             c.componentType(), e.getMessage(), e);
+                    String gapCode = geometryConstraintCode(e.getMessage());
                     AssemblyCompileDiagnostics.set(new CapabilityGap(
-                            "E_COMPONENT_GENERATION_FAILED",
+                            gapCode,
                             "关键构件生成失败：type=" + c.componentType()
                                     + " id=" + paramIdentity(c)
                                     + " slot=" + c.slotId()
@@ -619,6 +620,38 @@ public final class ComponentPlanCompiler {
         if (c == null) return false;
         String type = normalizeType(c.componentType());
         return "DECOR_DETAIL".equals(type) || type.startsWith("DECOR");
+    }
+
+    /** Prefer dedicated geometry codes when generators prefix IllegalArgumentException messages. */
+    static String geometryConstraintCode(String message) {
+        if (message == null) return "E_COMPONENT_GENERATION_FAILED";
+        if (message.startsWith("E_ENTRANCE_DOOR_WIDTH")) return "E_ENTRANCE_DOOR_WIDTH";
+        if (message.startsWith("E_WINDOW_COUNT_UNFIT")) return "E_WINDOW_COUNT_UNFIT";
+        return "E_COMPONENT_GENERATION_FAILED";
+    }
+
+    /** Soft-warn when gable seal cannot run on a non-rectangular footprint. */
+    static void maybeWarnIrregularGableSeal(Component roof, SemanticComponent semantic) {
+        if (roof == null || roof.dimensions() == null) return;
+        Map<String, Object> params = roof.params();
+        String type = getParamString(params, "roof_type", "roofType");
+        if (type == null) return;
+        String lower = type.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!Set.of("gable", "gabled", "double_gable", "xuanshan").contains(lower)) return;
+        if ("false".equalsIgnoreCase(getParamString(params, "gable_walls"))) return;
+        int w = Math.max(1, roof.dimensions().width());
+        int d = Math.max(1, roof.dimensions().depth());
+        var mask = com.formacraft.common.generation.component.util.ComponentFootprintMask.from(semantic, params, w, d);
+        if (mask.isFullyRectangular()) return;
+        AssemblyCompileDiagnostics.addSoftWarning(
+                "ROOF_GABLE_SEAL_SKIPPED",
+                "不规则占地跳过矩形山墙封口：id=" + paramIdentity(roof)
+                        + " footprint=" + w + "x" + d
+                        + " roof_type=" + type
+                        + " reason=irregular_footprint_gable_unsealed",
+                "ROOF",
+                paramIdentity(roof)
+        );
     }
 
     private static String paramIdentity(Component c) {
