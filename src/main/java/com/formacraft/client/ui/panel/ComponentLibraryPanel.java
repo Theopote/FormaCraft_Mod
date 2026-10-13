@@ -439,7 +439,10 @@ public final class ComponentLibraryPanel extends BasePanel {
                 int previewSize = Math.min(112, w);
                 int previewX = x + (w - previewSize) / 2;
                 ctx.fill(previewX, y, previewX + previewSize, y + previewSize, UiTheme.CHAT_MESSAGE_BG);
-                ctx.drawBorder(previewX, y, previewSize, previewSize, UiTheme.DIVIDER_SUBTLE);
+                ctx.fill(previewX, y, previewX + previewSize, y + 1, UiTheme.DIVIDER_SUBTLE);
+                ctx.fill(previewX, y + previewSize - 1, previewX + previewSize, y + previewSize, UiTheme.DIVIDER_SUBTLE);
+                ctx.fill(previewX, y, previewX + 1, y + previewSize, UiTheme.DIVIDER_SUBTLE);
+                ctx.fill(previewX + previewSize - 1, y, previewX + previewSize, y + previewSize, UiTheme.DIVIDER_SUBTLE);
                 if (selectedImage != null) com.formacraft.client.ui.render.ImageRenderer.renderCentered(
                         ctx, selectedImage, previewX + 2, y + 2, previewSize - 4, previewSize - 4);
                 y += previewSize + 3;

@@ -1,6 +1,5 @@
 package com.formacraft.client.component;
 
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.*;
 
@@ -38,9 +37,18 @@ public final class ThumbnailRasterizer {
             triangle(image, depths, vertices[0], vertices[2], vertices[3], face, pass);
         }
         BufferedImage result = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        var g = result.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        g.drawImage(image, 0, 0, size, size, null); g.dispose(); return result;
+        // Average premultiplied colors: interpolation kernels with negative lobes can
+        // create opaque halos around glass and colored fringes in transparent margins.
+        for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) {
+            int alpha = 0, red = 0, green = 0, blue = 0;
+            for (int dy = 0; dy < 2; dy++) for (int dx = 0; dx < 2; dx++) {
+                int pixel = image.getRGB(x * 2 + dx, y * 2 + dy), a = pixel >>> 24;
+                alpha += a; red += ((pixel >> 16) & 255) * a;
+                green += ((pixel >> 8) & 255) * a; blue += (pixel & 255) * a;
+            }
+            if (alpha > 0) result.setRGB(x, y, (alpha / 4) << 24 | (red / alpha) << 16 | (green / alpha) << 8 | blue / alpha);
+        }
+        return result;
     }
 
     private static double edge(Projected a, Projected b, double x, double y) {

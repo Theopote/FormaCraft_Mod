@@ -49,6 +49,7 @@ public final class ComponentThumbnailGenerator {
         Map<net.minecraft.client.texture.SpriteContents, ThumbnailRasterizer.Texture> textures = new IdentityHashMap<>();
         for (var entry : blocks.entrySet()) {
             BlockPos pos = entry.getKey(); BlockState state = entry.getValue();
+            if (state.getRenderType() != net.minecraft.block.BlockRenderType.MODEL) continue;
             var parts = client.getBlockRenderManager().getModel(state).getParts(Random.create(state.getRenderingSeed(pos)));
             for (var part : parts) for (int side = -1; side < 6; side++) {
                 Direction direction = side < 0 ? null : Direction.values()[side];
@@ -59,7 +60,7 @@ public final class ComponentThumbnailGenerator {
                     var texture = textures.computeIfAbsent(sprite.getContents(), contents -> {
                         var image = ((SpriteContentsAccessor) (Object) contents).formacraft$getImage();
                         int width = contents.getWidth(), height = contents.getHeight();
-                        int frame = contents.getDistinctFrameCount().findFirst().orElse(0);
+                        int frame = contents.isAnimated() ? contents.getDistinctFrameCount().findFirst().orElse(0) : 0;
                         int frameX = frame % (image.getWidth() / width) * width;
                         int frameY = frame / (image.getWidth() / width) * height;
                         int[] pixels = new int[width * height];
