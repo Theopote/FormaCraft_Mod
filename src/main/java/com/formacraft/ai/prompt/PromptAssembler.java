@@ -6,6 +6,10 @@ import com.formacraft.ai.context.SelectionContext;
  * Prompt 拼接器：把用户自然语言增强为“可控、可解析”的结构化 Prompt。
  */
 public final class PromptAssembler {
+
+    private static final boolean ASSEMBLY_HARD_MANDATE =
+            Boolean.getBoolean("formacraft.prompt.assemblyHardMandate");
+
     private PromptAssembler() {}
 
     public static String assembleUserPrompt(String userInput) {
@@ -78,7 +82,11 @@ public final class PromptAssembler {
         String assemblyHint = AssemblyIntentSections.promptBlockForIntent(ctx.userMessage);
         if (assemblyHint != null && !assemblyHint.isBlank()) {
             sb.append(assemblyHint);
-            ctx.rules.add("- 本请求必须使用 component_type ASSEMBLY 表达主体量，禁止把 params.assembly 嵌在 MASS_* 内");
+            if (ASSEMBLY_HARD_MANDATE) {
+                ctx.rules.add("- 本请求必须使用 component_type ASSEMBLY 表达主体量，禁止把 params.assembly 嵌在 MASS_* 内");
+            } else {
+                ctx.rules.add("- 若自由形体/组合体量更适合 ASSEMBLY，优先使用 component_type ASSEMBLY（非强制）");
+            }
         }
 
         String assemblySchema = AssemblySchemaCatalog.promptBlockForIntent(ctx.userMessage);

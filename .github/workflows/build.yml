@@ -31,6 +31,7 @@ jobs:
         run: |
           python scripts/test_check_architecture.py
           python scripts/check_architecture.py
+          python scripts/check_generation_entrypoints.py
       - name: python backend smoke
         run: |
           pip install -r python_backend/requirements.lock

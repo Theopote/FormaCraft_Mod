@@ -7,6 +7,9 @@ import com.formacraft.common.archetype.ArchetypeRegistry;
 import com.formacraft.common.generation.StructureRouteCatalog;
 import com.formacraft.common.genome.BuildingGenome;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.generation.routing.GenerationCapability;
+import com.formacraft.common.generation.routing.LegacyStructureFallbackPolicy;
+import com.formacraft.common.generation.routing.StructureRouteDecision;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.typology.StructuralTypologyRegistry;
@@ -14,6 +17,7 @@ import com.formacraft.server.generation.structure.StructureGenerator;
 import com.formacraft.server.generation.structure.blueprint.BlueprintCompilerRegistry;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * BuildingSpec → StructureGenerator 路由层。
@@ -29,40 +33,119 @@ public final class GeneratorRouter {
 
     private static final double ARCHETYPE_STRONG_THRESHOLD = 0.85;
 
-    public static StructureGenerator route(BuildingSpec spec) {
+    private static final AtomicReference<String> LAST_MATCHED_REGISTRY_KEY = new AtomicReference<>();
+
+    /** Registry key from the last successful {@link #route(BuildingSpec)} / {@link #routeDecision(BuildingSpec)}. */
+    public static String lastMatchedRegistryKey() {
+        return LAST_MATCHED_REGISTRY_KEY.get();
+    }
+
+    public static StructureRouteDecision routeDecision(BuildingSpec spec) {
+        LAST_MATCHED_REGISTRY_KEY.set(null);
         if (spec == null || spec.getType() == null) {
-            FormacraftMod.LOGGER.warn("BuildingSpec or type is null, using default TowerGenerator");
-            return StructureGeneratorRegistry.create("tower");
+            if (LegacyStructureFallbackPolicy.allow(spec)) {
+                LAST_MATCHED_REGISTRY_KEY.set("tower");
+                return new StructureRouteDecision(
+                        GenerationCapability.SUPPORTED, "tower", "legacy_null_spec", "tower");
+            }
+            FormacraftMod.LOGGER.warn("BuildingSpec or type is null — no structure route (UNSUPPORTED)");
+            return new StructureRouteDecision(
+                    GenerationCapability.UNSUPPORTED, null, "null_spec_or_type", null);
         }
 
-        StructureGenerator byStyleProfileId = routeByStyleProfileId(spec);
-        if (byStyleProfileId != null) return byStyleProfileId;
+        MatchedRoute explicit = routeExplicit(spec);
+        if (explicit != null) {
+            LAST_MATCHED_REGISTRY_KEY.set(explicit.registryKey());
+            return new StructureRouteDecision(
+                    GenerationCapability.SUPPORTED, explicit.registryKey(), explicit.reason(), null);
+        }
+
+        String typeKey = StructureRouteCatalog.matchBuildingType(spec.getType().name());
+        if (typeKey != null) {
+            LAST_MATCHED_REGISTRY_KEY.set(typeKey);
+            return new StructureRouteDecision(
+                    GenerationCapability.SUPPORTED, typeKey, "building_type_catalog", null);
+        }
+
+        if (LegacyStructureFallbackPolicy.allow(spec)) {
+            String legacy = "house";
+            LAST_MATCHED_REGISTRY_KEY.set(legacy);
+            if (spec.getType() == BuildingType.CUSTOM) {
+                FormacraftMod.LOGGER.warn("CUSTOM building type — legacy HouseGenerator (allow_legacy_fallback)");
+            }
+            return new StructureRouteDecision(
+                    GenerationCapability.SUPPORTED, legacy, "legacy_building_type_fallback", legacy);
+        }
+
+        return new StructureRouteDecision(
+                GenerationCapability.NEEDS_REPLAN, null, "unmatched_building_type", null);
+    }
+
+    public static StructureGenerator route(BuildingSpec spec) {
+        StructureRouteDecision decision = routeDecision(spec);
+        if (decision.hasGeneratorKey()) {
+            return StructureGeneratorRegistry.create(decision.generatorRegistryKey());
+        }
+        FormacraftMod.LOGGER.error(
+                "GeneratorRouter: no generator (capability={} reason={})",
+                decision.capability(),
+                decision.reasonCode());
+        return null;
+    }
+
+    /** Routes without building-type catalog / house fallback (for capability analysis). */
+    static StructureGenerator routeMatched(BuildingSpec spec) {
+        if (spec == null || spec.getType() == null) {
+            return null;
+        }
+        MatchedRoute explicit = routeExplicit(spec);
+        return explicit != null ? StructureGeneratorRegistry.create(explicit.registryKey()) : null;
+    }
+
+    private record MatchedRoute(String registryKey, String reason) {}
+
+    private static MatchedRoute routeExplicit(BuildingSpec spec) {
+        MatchedRoute byStyle = routeByStyleProfileIdKey(spec);
+        if (byStyle != null) {
+            return byStyle;
+        }
 
         StructureGenerator byAssembly = routeByAssembly(spec);
-        if (byAssembly != null) return byAssembly;
+        if (byAssembly != null) {
+            return new MatchedRoute("meta_assembly", "assembly");
+        }
 
         StructureGenerator byBlueprint = routeByBlueprint(spec);
-        if (byBlueprint != null) return byBlueprint;
+        if (byBlueprint != null) {
+            return new MatchedRoute("blueprint_structure", "blueprint");
+        }
 
-        StructureGenerator byTypology = routeByTypology(spec);
-        if (byTypology != null) return byTypology;
+        MatchedRoute byTypology = routeByTypologyKey(spec);
+        if (byTypology != null) {
+            return byTypology;
+        }
 
-        StructureGenerator byTemplate = routeByTemplate(spec);
-        if (byTemplate != null) return byTemplate;
+        MatchedRoute byTemplate = routeByTemplateKey(spec);
+        if (byTemplate != null) {
+            return byTemplate;
+        }
 
-        StructureGenerator legacy = routeLegacyLandmark(spec);
-        if (legacy != null) return legacy;
+        MatchedRoute legacy = routeLegacyLandmarkKey(spec);
+        if (legacy != null) {
+            return legacy;
+        }
 
         BuildingGenome genome = tryGetGenome(spec);
         if (genome != null && genome.archetype != null && genome.archetype.id != null) {
             double conf = genome.archetype.confidence;
             if (conf >= ARCHETYPE_STRONG_THRESHOLD) {
-                StructureGenerator g = routeByArchetypeId(genome.archetype.id);
-                if (g != null) return g;
+                MatchedRoute archetype = routeByArchetypeIdKey(genome.archetype.id);
+                if (archetype != null) {
+                    return archetype;
+                }
             }
         }
-
-        return routeByBuildingType(spec.getType());
+        return null;
     }
 
     private static StructureGenerator routeByAssembly(BuildingSpec spec) {
@@ -111,7 +194,7 @@ public final class GeneratorRouter {
         return null;
     }
 
-    private static StructureGenerator routeByTypology(BuildingSpec spec) {
+    private static MatchedRoute routeByTypologyKey(BuildingSpec spec) {
         if (spec == null) return null;
         Map<String, Object> extra = spec.getExtra();
         if (extra == null) return null;
@@ -124,9 +207,14 @@ public final class GeneratorRouter {
 
         String interpreter = StructuralTypologyRegistry.resolveInterpreterId(typologyId);
         if (interpreter != null && StructureGeneratorRegistry.has(interpreter)) {
-            return StructureGeneratorRegistry.create(interpreter);
+            return new MatchedRoute(interpreter, "typology");
         }
         return null;
+    }
+
+    private static StructureGenerator routeByTypology(BuildingSpec spec) {
+        MatchedRoute key = routeByTypologyKey(spec);
+        return key != null ? StructureGeneratorRegistry.create(key.registryKey()) : null;
     }
 
     private static String firstNonBlank(String... values) {
@@ -145,47 +233,67 @@ public final class GeneratorRouter {
         return s.isEmpty() ? null : s;
     }
 
-    private static StructureGenerator routeByTemplate(BuildingSpec spec) {
+    private static MatchedRoute routeByTemplateKey(BuildingSpec spec) {
         if (spec == null) return null;
         Map<String, Object> extra = spec.getExtra();
         if (extra == null) return null;
         Object t = extra.get("template");
         if (t == null) return null;
         String key = StructureRouteCatalog.matchTemplate(String.valueOf(t));
-        return key != null ? StructureGeneratorRegistry.create(key) : null;
+        return key != null ? new MatchedRoute(key, "template") : null;
     }
 
-    private static StructureGenerator routeByStyleProfileId(BuildingSpec spec) {
+    private static StructureGenerator routeByTemplate(BuildingSpec spec) {
+        MatchedRoute key = routeByTemplateKey(spec);
+        return key != null ? StructureGeneratorRegistry.create(key.registryKey()) : null;
+    }
+
+    private static MatchedRoute routeByStyleProfileIdKey(BuildingSpec spec) {
         if (spec == null) return null;
         Map<String, Object> extra = spec.getExtra();
         if (extra == null) return null;
         Object spid = extra.get("styleProfileId");
         if (spid == null) return null;
         String key = StructureRouteCatalog.matchStyleProfile(String.valueOf(spid));
-        return key != null ? StructureGeneratorRegistry.create(key) : null;
+        return key != null ? new MatchedRoute(key, "style_profile") : null;
     }
 
-    private static StructureGenerator routeByArchetypeId(String archetypeId) {
+    private static StructureGenerator routeByStyleProfileId(BuildingSpec spec) {
+        MatchedRoute key = routeByStyleProfileIdKey(spec);
+        return key != null ? StructureGeneratorRegistry.create(key.registryKey()) : null;
+    }
+
+    private static MatchedRoute routeByArchetypeIdKey(String archetypeId) {
         if (archetypeId == null || archetypeId.isBlank()) return null;
-        StructureGenerator migrated = routeMigratedLandmark(archetypeId);
+        MatchedRoute migrated = routeMigratedLandmarkKey(archetypeId);
         if (migrated != null) return migrated;
 
         ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(archetypeId);
         if (def == null) return null;
         if (Boolean.TRUE.equals(def.researchOnly)) return null;
-        return StructureGeneratorRegistry.create(def.generatorId);
+        return new MatchedRoute(def.generatorId, "archetype");
     }
 
-    private static StructureGenerator routeMigratedLandmark(String landmarkOrArchetypeId) {
+    private static StructureGenerator routeByArchetypeId(String archetypeId) {
+        MatchedRoute key = routeByArchetypeIdKey(archetypeId);
+        return key != null ? StructureGeneratorRegistry.create(key.registryKey()) : null;
+    }
+
+    private static MatchedRoute routeMigratedLandmarkKey(String landmarkOrArchetypeId) {
         if (landmarkOrArchetypeId == null || landmarkOrArchetypeId.isBlank()) return null;
         String typologyId = StructuralTypologyRegistry.typologyForLegacyModule(landmarkOrArchetypeId.trim());
         if (typologyId == null) return null;
         String interpreter = StructuralTypologyRegistry.resolveInterpreterId(typologyId);
         if (interpreter == null || !StructureGeneratorRegistry.has(interpreter)) return null;
-        return StructureGeneratorRegistry.create(interpreter);
+        return new MatchedRoute(interpreter, "migrated_landmark");
     }
 
-    private static StructureGenerator routeLegacyLandmark(BuildingSpec spec) {
+    private static StructureGenerator routeMigratedLandmark(String landmarkOrArchetypeId) {
+        MatchedRoute key = routeMigratedLandmarkKey(landmarkOrArchetypeId);
+        return key != null ? StructureGeneratorRegistry.create(key.registryKey()) : null;
+    }
+
+    private static MatchedRoute routeLegacyLandmarkKey(BuildingSpec spec) {
         if (spec == null) return null;
         Map<String, Object> extra = spec.getExtra();
         if (extra == null) return null;
@@ -194,29 +302,21 @@ public final class GeneratorRouter {
         String s = String.valueOf(lm).trim();
         if (s.isEmpty()) return null;
 
-        StructureGenerator migrated = routeMigratedLandmark(s);
-        if (migrated != null) return migrated;
+        MatchedRoute migrated = routeMigratedLandmarkKey(s);
+        if (migrated != null) {
+            return migrated;
+        }
 
         ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(s);
         if (def == null) def = ArchetypeRegistry.matchByKeyword(s);
         if (def == null) return null;
         if (Boolean.TRUE.equals(def.researchOnly)) return null;
-        return StructureGeneratorRegistry.create(def.generatorId);
+        return new MatchedRoute(def.generatorId, "landmark");
     }
 
-    private static StructureGenerator routeByBuildingType(BuildingType type) {
-        if (type == null) {
-            return StructureGeneratorRegistry.create("tower");
-        }
-        String key = StructureRouteCatalog.matchBuildingType(type.name());
-        StructureGenerator generator = key != null ? StructureGeneratorRegistry.create(key) : null;
-        if (generator != null) {
-            return generator;
-        }
-        if (type == BuildingType.CUSTOM) {
-            FormacraftMod.LOGGER.warn("CUSTOM building type not yet implemented, using HouseGenerator");
-        }
-        return StructureGeneratorRegistry.create("house");
+    private static StructureGenerator routeLegacyLandmark(BuildingSpec spec) {
+        MatchedRoute key = routeLegacyLandmarkKey(spec);
+        return key != null ? StructureGeneratorRegistry.create(key.registryKey()) : null;
     }
 
     private static BuildingGenome tryGetGenome(BuildingSpec spec) {

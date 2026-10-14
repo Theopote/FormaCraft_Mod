@@ -248,8 +248,25 @@ public final class BuildRequestProcessor {
             net.minecraft.server.world.ServerWorld serverWorld,
             AtomicBoolean hbAlive
     ) {
+        var routeDecision = com.formacraft.server.generation.structure.router.GeneratorRouter.routeDecision(spec);
+        if (!routeDecision.hasGeneratorKey()) {
+            hbAlive.set(false);
+            String msg = switch (routeDecision.capability()) {
+                case NEEDS_REPLAN -> "无法匹配该建筑类型，请调整描述或让 AI 重新规划（NEEDS_REPLAN）。";
+                case UNSUPPORTED -> "当前 BuildingSpec 无法路由到生成器（UNSUPPORTED）。";
+                default -> "BuildingSpec 路由失败：" + routeDecision.reasonCode();
+            };
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg));
+            return;
+        }
         com.formacraft.server.generation.structure.StructureGenerator generator =
                 com.formacraft.server.generation.GenerationHub.routeStructure(spec);
+        if (generator == null) {
+            hbAlive.set(false);
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "BuildingSpec 路由失败：" + routeDecision.reasonCode()));
+            return;
+        }
         final com.formacraft.server.build.BuildReportContext.Reported<StructureGenerationResult> reported =
                 com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
                         BuildConstraintContext.withRequest(req, () -> StructureGenerationResult.capture(() -> generator.generate(spec, origin, serverWorld)))

@@ -77,7 +77,13 @@ public record LlmPlan(
         @JsonProperty("distinguishing_features") List<String> distinguishingFeatures,
 
         /** Python enrichment guard reason, e.g. non_classical_marker:organic */
-        @JsonProperty("enrichment_guard") String enrichmentGuard
+        @JsonProperty("enrichment_guard") String enrichmentGuard,
+
+        /** Canonical plan metadata (generation_mode, allow_compiler_satellites, capability_report). */
+        @JsonProperty("plan_meta") Map<String, Object> planMeta,
+
+        /** Param name → DesignParamSource name (USER_EXPLICIT, AI_PLANNED, …). */
+        @JsonProperty("design_sources") Map<String, String> designSources
 ) {
     public enum Mode { build, patch }
 
@@ -113,5 +119,9 @@ public record LlmPlan(
      */
     public boolean usesComponentMode() {
         return components != null && !components.isEmpty();
+    }
+
+    public boolean allowCompilerSatellites() {
+        return com.formacraft.common.generation.routing.PlanMetaAccess.allowCompilerSatellites(this);
     }
 }

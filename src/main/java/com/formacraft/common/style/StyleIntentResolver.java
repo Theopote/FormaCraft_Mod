@@ -1,6 +1,7 @@
 package com.formacraft.common.style;
 
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -70,7 +71,8 @@ public final class StyleIntentResolver {
         if (roof && flavor == StyleFlavor.HUI && component.dimensions() != null
                 && Math.min(component.dimensions().width(), component.dimensions().depth()) < 14
                 && isMissingOrDefault(getParamString(params, "plan_type", "planType", "footprint_pattern",
-                        "footprintPattern", "plan_pattern", "planPattern"))) {
+                        "footprintPattern", "plan_pattern", "planPattern"))
+                && DesignProvenance.canMutateParam(plan, "plan_type")) {
             params.put("plan_type", "none");
             changed = true;
         }
@@ -111,7 +113,7 @@ public final class StyleIntentResolver {
 
         if (mass || roof) {
             String roofType = getParamString(params, "roof_type", "roofType");
-            if (isMissingOrDefault(roofType)) {
+            if (isMissingOrDefault(roofType) && DesignProvenance.canMutateParam(plan, "roof_type")) {
                 String fallback = resolveRoofType(flavor);
                 if (fallback != null) {
                     params.put("roof_type", fallback);

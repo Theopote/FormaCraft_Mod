@@ -961,12 +961,24 @@ public final class ComponentPlanCompiler {
                     && !hasFacade
                     && !hasEntrance && !windowsDisabled && !entranceDisabled;
 
+            boolean hasRoofEarly = hasSatelliteForMass(c, components, inferred, "ROOF");
+            boolean wouldInferCrown = !slotsWithCrown.contains(slotKey)
+                    && !NonClassicalEnrichmentGuard.blocksCrownInference(plan)
+                    && ComponentCrownDecorator.shouldApply(plan, c.params());
+            var designGap = CompilerSatellitePolicy.missingSatellitesGap(
+                    plan, c, hasFacade, hasEntrance, hasRoofEarly, useAssemblyFacade, wouldInferCrown);
+            if (designGap.isPresent()) {
+                AssemblyCompileDiagnostics.set(designGap.get());
+                return new PreparedComponents(List.of(), Set.of());
+            }
+            boolean allowCompilerInfer = plan.allowCompilerSatellites();
+
             if (useAssemblyFacade) {
                 assemblyFacadeSlots.add(getParamString(c.params(), "component_id"));
                 c = markAssemblyFacade(c);
-            } else {
+            } else if (allowCompilerInfer) {
                 if (!hasFacade && !windowsDisabled) {
-                    Component facade = makeFacadeComponent(c, slotId);
+                    Component facade = tagInferredSatellite(makeFacadeComponent(c, slotId));
                     facade = StyleIntentResolver.apply(plan, facade);
                     facade = OpeningGrammarResolver.apply(plan, facade);
                     inferred.add(facade);
@@ -976,6 +988,7 @@ public final class ComponentPlanCompiler {
                 if (!hasEntrance && !entranceDisabled) {
                     Component entrance = makeEntranceComponent(plan, c, slotId, facing);
                     if (entrance != null) {
+                        entrance = tagInferredSatellite(entrance);
                         entrance = StyleIntentResolver.apply(plan, entrance);
                         inferred.add(entrance);
                         hasEntrance = true;
@@ -998,8 +1011,9 @@ public final class ComponentPlanCompiler {
             if (AssemblyCompileDiagnostics.hasGap()) {
                 return new PreparedComponents(List.of(), Set.of());
             }
-            if (!hasRoof && !com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)) {
-                Component roof = makeRoofComponent(plan, c, slotId);
+            if (allowCompilerInfer
+                    && !hasRoof && !com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)) {
+                Component roof = tagInferredSatellite(makeRoofComponent(plan, c, slotId));
                 if (roof != null) {
                     roof = StyleIntentResolver.apply(plan, roof);
                     roof = RoofGrammarResolver.apply(plan, roof);
@@ -1010,15 +1024,15 @@ public final class ComponentPlanCompiler {
             if (hasRoof) {
                 c = suppressMassRoof(c);
             }
-            inferNestedFlatRoofs(plan, c, components, inferred, slotId);
-            if (!slotsWithCrown.contains(slotKey)
-                    && !NonClassicalEnrichmentGuard.blocksCrownInference(plan)
-                    && ComponentCrownDecorator.shouldApply(plan, c.params())) {
+            if (allowCompilerInfer) {
+                inferNestedFlatRoofs(plan, c, components, inferred, slotId);
+            }
+            if (allowCompilerInfer && wouldInferCrown) {
                 Component roofRef = findRoofForSlot(components, inferred, slotKey);
                 if (roofRef == null) {
                     roofRef = makeRoofComponent(plan, c, slotId);
                 }
-                Component crown = makeCrownComponent(plan, c, roofRef, slotId);
+                Component crown = tagInferredSatellite(makeCrownComponent(plan, c, roofRef, slotId));
                 if (crown != null) {
                     crown = StyleIntentResolver.apply(plan, crown);
                     crown = CrownGrammarResolver.apply(plan, crown);
@@ -1574,6 +1588,24 @@ public final class ComponentPlanCompiler {
             }
         }
         return merged;
+    }
+
+    private static Component tagInferredSatellite(Component component) {
+        if (component == null) {
+            return null;
+        }
+        Map<String, Object> params = new HashMap<>();
+        if (component.params() != null) {
+            params.putAll(component.params());
+        }
+        com.formacraft.common.generation.design.DesignProvenance.markInferredParams(params);
+        return new Component(
+                component.componentType(),
+                component.slotId(),
+                component.relativePosition(),
+                component.dimensions(),
+                component.features(),
+                params);
     }
 
     private static Component makeFacadeComponent(Component base, String slotId) {

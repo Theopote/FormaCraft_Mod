@@ -67,6 +67,43 @@ public final class UnifiedGeneratorRouter {
         return result.commitAllowed() ? new ArrayList<>(result.patches()) : new ArrayList<>();
     }
 
+    /** Non-mutating route preview for tests and authority documentation. */
+    public static ComponentRouteDecision previewRoute(SemanticComponent semantic, ServerWorld world) {
+        if (semantic == null || semantic.source() == null) {
+            return ComponentRouteDecision.of("none", "null_semantic");
+        }
+        Component c = semantic.source();
+        if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)) {
+            return ComponentRouteDecision.of("stair_component", "straight_stair");
+        }
+        if (!trySkeletonPath(semantic, world).isEmpty()) {
+            return ComponentRouteDecision.of("skeleton", "embedded_skeleton");
+        }
+        if (world != null) {
+            List<BlockPatch> assembly = com.formacraft.server.generation.component.impl.AssemblyPatchGenerator
+                    .tryGenerate(semantic, world);
+            if (!assembly.isEmpty()) {
+                return ComponentRouteDecision.of("assembly", "assembly_patch");
+            }
+        }
+        if (ComponentGeneratorRegistry.getGenerator(c.componentType()) != null) {
+            return new ComponentRouteDecision(
+                    "component_registry",
+                    "registered_generator",
+                    List.of("structure_adaptor_without_explicit_hint"));
+        }
+        if (world != null && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)) {
+            return ComponentRouteDecision.of("typology", "typology_hint");
+        }
+        if (shouldUseStructureFallback(semantic)) {
+            return new ComponentRouteDecision(
+                    "structure_adaptor",
+                    "explicit_structure_hint",
+                    List.of());
+        }
+        return ComponentRouteDecision.of("none", "no_route");
+    }
+
     /** Structured route; hard library failures do not fall through to typology/structure. */
     public static RoutedGenerationResult generateResult(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || semantic.source() == null) {

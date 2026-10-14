@@ -1,7 +1,7 @@
 # Generator Routing Map（Phase 0 对照表）
 
 > 生成器合并 Phase 0 产出。记录当前三套活跃体系的完整路由映射，以及已清理的死代码。
-> 最后更新：2026-07-06（Phase 6 typology-first 收尾；P4 六批迁移完成）
+> 最后更新：2026-10-15 — `GeneratorRouter.routeDecision()` 能力四态；构件路由见 `UnifiedGeneratorRouter.previewRoute()`。详见 [architecture/GENERATION_AUTHORITY_MAP.md](architecture/GENERATION_AUTHORITY_MAP.md)。
 
 ## 体系总览（Phase 1 后）
 

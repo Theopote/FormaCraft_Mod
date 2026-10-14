@@ -101,7 +101,9 @@ public final class NonClassicalEnrichmentGuard {
                 plan.capabilityGap(),
                 plan.playerFidelityNoticeZh(),
                 plan.distinguishingFeatures(),
-                plan.enrichmentGuard()
+                plan.enrichmentGuard(),
+                plan.planMeta(),
+                plan.designSources()
         );
     }
 

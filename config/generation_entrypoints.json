@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "description": "Authoritative generation entrypoints for CI drift checks (see docs/architecture/GENERATION_AUTHORITY_MAP.md)",
+  "java": [
+    {
+      "id": "client_build_request",
+      "class": "com.formacraft.client.network.FormaCraftClientNetworking",
+      "role": "C2S RequestBuildPayload"
+    },
+    {
+      "id": "server_build_processor",
+      "class": "com.formacraft.server.network.BuildRequestProcessor",
+      "role": "AiPlanResult dispatch"
+    },
+    {
+      "id": "llm_plan_preview",
+      "class": "com.formacraft.server.network.LlmPlanPreviewBuilder",
+      "role": "LlmPlan path A preview"
+    },
+    {
+      "id": "component_plan_compiler",
+      "class": "com.formacraft.server.compiler.ComponentPlanCompiler",
+      "role": "components[] compile"
+    },
+    {
+      "id": "plan_program_compiler",
+      "class": "com.formacraft.common.compiler.PlanProgramCompiler",
+      "role": "plan_program / plan_skeleton compile"
+    },
+    {
+      "id": "patch_preview",
+      "class": "com.formacraft.server.patch.PatchPreviewService",
+      "role": "patch mode path C"
+    },
+    {
+      "id": "generation_hub",
+      "class": "com.formacraft.server.generation.GenerationHub",
+      "role": "structure + component facade"
+    },
+    {
+      "id": "generator_router",
+      "class": "com.formacraft.server.generation.structure.router.GeneratorRouter",
+      "role": "BuildingSpec structure route"
+    },
+    {
+      "id": "unified_generator_router",
+      "class": "com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter",
+      "role": "component route chain"
+    },
+    {
+      "id": "prompt_assembler",
+      "class": "com.formacraft.ai.prompt.PromptAssembler",
+      "role": "Java-side prompt / routing hints"
+    },
+    {
+      "id": "orchestrator_client",
+      "class": "com.formacraft.server.orchestrator.OrchestratorClient",
+      "role": "Python /build client"
+    },
+    {
+      "id": "building_spec_routing_policy",
+      "class": "com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy",
+      "role": "LlmPlan vs BuildingSpec policy"
+    }
+  ],
+  "python": [
+    {
+      "id": "build_endpoint",
+      "module": "app.routes.build",
+      "symbol": "build_endpoint",
+      "role": "POST /build"
+    },
+    {
+      "id": "generate_llm_plan",
+      "module": "app.services.ai_planner",
+      "symbol": "generate_llm_plan",
+      "role": "primary BUILD planner"
+    },
+    {
+      "id": "generate_building_spec",
+      "module": "app.services.ai_planner",
+      "symbol": "generate_building_spec",
+      "role": "legacy BuildingSpec planner"
+    },
+    {
+      "id": "assembly_plan_validator",
+      "module": "app.services.assembly_plan_validator",
+      "symbol": "auto_apply_assembly_presets",
+      "role": "protocol repair"
+    }
+  ]
+}

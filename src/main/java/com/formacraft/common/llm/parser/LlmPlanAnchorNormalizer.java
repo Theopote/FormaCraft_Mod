@@ -85,7 +85,9 @@ public final class LlmPlanAnchorNormalizer {
                 plan.capabilityGap(),
                 plan.playerFidelityNoticeZh(),
                 plan.distinguishingFeatures(),
-                plan.enrichmentGuard()
+                plan.enrichmentGuard(),
+                plan.planMeta(),
+                plan.designSources()
         );
     }
 

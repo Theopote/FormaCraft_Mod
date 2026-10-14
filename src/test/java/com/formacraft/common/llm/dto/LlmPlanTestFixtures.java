@@ -1,6 +1,7 @@
 package com.formacraft.common.llm.dto;
 
 import com.formacraft.common.alignment.AlignmentAndSymmetry;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,6 +46,8 @@ public final class LlmPlanTestFixtures {
         private String playerFidelityNoticeZh;
         private List<String> distinguishingFeatures;
         private String enrichmentGuard;
+        private Map<String, Object> planMeta;
+        private Map<String, String> designSources;
 
         public Builder mode(LlmPlan.Mode value) { mode = value; return this; }
         public Builder styleProfile(String value) { styleProfile = value; return this; }
@@ -67,8 +70,15 @@ public final class LlmPlanTestFixtures {
         public Builder playerFidelityNoticeZh(String value) { playerFidelityNoticeZh = value; return this; }
         public Builder distinguishingFeatures(List<String> value) { distinguishingFeatures = value; return this; }
         public Builder enrichmentGuard(String value) { enrichmentGuard = value; return this; }
+        public Builder planMeta(Map<String, Object> value) { planMeta = value; return this; }
+        public Builder designSources(Map<String, String> value) { designSources = value; return this; }
 
         public LlmPlan build() {
+            Map<String, Object> meta = planMeta;
+            if (meta == null) {
+                meta = new HashMap<>();
+                meta.put(com.formacraft.common.generation.routing.PlanMetaAccess.ALLOW_COMPILER_SATELLITES, Boolean.TRUE);
+            }
             return new LlmPlan(
                     mode,
                     styleProfile,
@@ -90,7 +100,9 @@ public final class LlmPlanTestFixtures {
                     capabilityGap,
                     playerFidelityNoticeZh,
                     distinguishingFeatures,
-                    enrichmentGuard);
+                    enrichmentGuard,
+                    meta,
+                    designSources);
         }
     }
 }

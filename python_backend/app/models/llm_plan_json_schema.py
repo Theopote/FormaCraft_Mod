@@ -216,6 +216,16 @@ def build_llm_plan_json_schema(*, strict: bool = True) -> Dict[str, Any]:
                 },
                 "additionalProperties": True,
             },
+            "plan_meta": {
+                "type": "object",
+                "additionalProperties": True,
+                "description": "generation_mode, allow_compiler_satellites, capability_report",
+            },
+            "design_sources": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+                "description": "param -> USER_EXPLICIT|AI_PLANNED|DERIVED_GEOMETRY|TECHNICAL_DEFAULT",
+            },
         },
         "required": ["mode", "anchor"],
         "additionalProperties": True,

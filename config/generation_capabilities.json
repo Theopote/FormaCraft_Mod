@@ -1,0 +1,10 @@
+{
+  "capabilities": ["SUPPORTED", "COMPOSABLE", "NEEDS_REPLAN", "UNSUPPORTED"],
+  "design_param_sources": [
+    "USER_EXPLICIT",
+    "AI_PLANNED",
+    "DERIVED_GEOMETRY",
+    "TECHNICAL_DEFAULT",
+    "COMPILER_INFERRED"
+  ]
+}

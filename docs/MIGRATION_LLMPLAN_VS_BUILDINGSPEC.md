@@ -18,6 +18,8 @@
 
 **退役原则（第三步）**：按 **建筑类型 / template / landmark** 逐个评估，**禁止**合并 `TowerComponentGenerator` 与 `TowerGenerator` 为单一上帝类。
 
+**渐进合并（2026-10）**：外部协议收敛为 [CANONICAL_BUILDING_PLAN.md](architecture/CANONICAL_BUILDING_PLAN.md) 中的 **LlmPlan**；BuildingSpec 仅作 adapter（`outputFormat=buildingspec`、city/composite、显式 landmark/template）。`GeneratorRouter.routeDecision()` 不再对未匹配类型静默回退 `house`，除非 `extra.allow_legacy_fallback=true`。
+
 ---
 
 ## 1. 运行时双链路（BuildRequestProcessor）
