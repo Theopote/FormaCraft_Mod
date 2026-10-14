@@ -170,6 +170,11 @@ public class ComponentDefinition {
         public com.formacraft.common.semantic.SemanticPart semantic;
         /** v1：blockstate string（例如 minecraft:spruce_door[facing=south,half=lower]） */
         public String block;
+        /**
+         * Carve permission role: OPENING_FILL | WALL_FILL | FRAME | STRUCTURE | FOUNDATION | UNKNOWN.
+         * Null → inferred at carve time (UNKNOWN defaults to protected).
+         */
+        public String carveRole;
     }
 }
 

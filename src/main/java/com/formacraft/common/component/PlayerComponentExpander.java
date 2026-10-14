@@ -296,7 +296,10 @@ public final class PlayerComponentExpander {
                 return ComponentGenerationOutcome.failure(mapGeoStatus(onlyHost.status()),
                         "host_emit", onlyHost.message());
             }
-            return ComponentGenerationOutcome.success(onlyHost.patches());
+            return ComponentGenerationOutcome.partialSuccess(
+                    onlyHost.patches(),
+                    "degraded_optional_mount",
+                    "墙体已生成，但装饰构件无法安装到指定位置");
         }
 
         BlockPos socketLocal = com.formacraft.common.component.socket.SocketPlacementResolver
@@ -424,6 +427,14 @@ public final class PlayerComponentExpander {
             return ResolvedCarveVolume.failure(hostId, sid, "carve_cell_count_mismatch");
         }
 
+        int[] aabb = carveOpeningAabb(mask, maskOriginLocal, fromFacing, transform, baseX, baseY, baseZ, carveFacing);
+        for (BlockPos cell : cells) {
+            if (!insideInclusiveAabb(cell, aabb)) {
+                return ResolvedCarveVolume.failure(hostId, sid, "carve_outside_socket_aabb:"
+                        + cell.getX() + "," + cell.getY() + "," + cell.getZ());
+            }
+        }
+
         // Protected host PLACE cells must not be deleted by carve.
         if (hostPlacePatches != null && host != null) {
             Map<String, String> hostAt = new java.util.HashMap<>();
@@ -440,6 +451,42 @@ public final class PlayerComponentExpander {
             }
         }
         return ResolvedCarveVolume.success(hostId, sid, cells);
+    }
+
+    /**
+     * Inclusive AABB of the opening box corners after the same transform as PLACE/carve.
+     * Returns int[6] = {minX,minY,minZ,maxX,maxY,maxZ}.
+     */
+    static int[] carveOpeningAabb(SocketMask mask, BlockPos maskOriginLocal,
+            Direction fromFacing, ComponentTransform transform,
+            int baseX, int baseY, int baseZ, Direction carveFacing) {
+        Direction depth = carveFacing != null && carveFacing.getAxis().isHorizontal()
+                ? carveFacing : transform.facing();
+        BlockPos originOff = ComponentTransformUtil.transformOffset(maskOriginLocal, fromFacing, transform);
+        BlockPos originWorld = new BlockPos(baseX + originOff.getX(), baseY + originOff.getY(), baseZ + originOff.getZ());
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (int x : new int[]{0, Math.max(0, mask.width() - 1)}) {
+            for (int y : new int[]{0, Math.max(0, mask.height() - 1)}) {
+                for (int z : new int[]{0, Math.max(0, mask.depth() - 1)}) {
+                    BlockPos p = FacingUtil.offset(originWorld, depth, x, y, z);
+                    minX = Math.min(minX, p.getX());
+                    minY = Math.min(minY, p.getY());
+                    minZ = Math.min(minZ, p.getZ());
+                    maxX = Math.max(maxX, p.getX());
+                    maxY = Math.max(maxY, p.getY());
+                    maxZ = Math.max(maxZ, p.getZ());
+                }
+            }
+        }
+        return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
+    }
+
+    static boolean insideInclusiveAabb(BlockPos cell, int[] aabb) {
+        if (cell == null || aabb == null || aabb.length < 6) return false;
+        return cell.getX() >= aabb[0] && cell.getX() <= aabb[3]
+                && cell.getY() >= aabb[1] && cell.getY() <= aabb[4]
+                && cell.getZ() >= aabb[2] && cell.getZ() <= aabb[5];
     }
 
     /** Carve REMOVEs share ComponentTransformUtil.transformOffset with PLACE. */
@@ -477,19 +524,15 @@ public final class PlayerComponentExpander {
     }
 
     /**
-     * Protected if the matching host BlockEntry is STRUCTURE/FRAME or block id looks structural
-     * (pillar/beam/log). Opening FILL walls are not protected.
+     * Carve permission: only OPENING_FILL / WALL_FILL may be removed inside the opening.
+     * FRAME / STRUCTURE / FOUNDATION / UNKNOWN are protected (UNKNOWN = default protect).
      */
     static boolean isProtectedHostBlock(ComponentDefinition host, BlockPos worldCell,
             Direction fromFacing, ComponentTransform transform,
             int baseX, int baseY, int baseZ, String placedBlock) {
-        if (placedBlock != null) {
-            String b = placedBlock.toLowerCase(Locale.ROOT);
-            if (b.contains("pillar") || b.contains("beam") || (b.contains("log") && !b.contains("catalog"))) {
-                return true;
-            }
+        if (host == null || host.blocks == null) {
+            return resolveCarveRole(null, placedBlock).protectedFromCarve();
         }
-        if (host == null || host.blocks == null) return false;
         for (ComponentDefinition.BlockEntry be : host.blocks) {
             if (be == null) continue;
             BlockPos off = ComponentTransformUtil.transformOffset(
@@ -499,13 +542,43 @@ public final class PlayerComponentExpander {
                     || baseZ + off.getZ() != worldCell.getZ()) {
                 continue;
             }
-            if (be.semantic == com.formacraft.common.semantic.SemanticPart.FOUNDATION) return true;
-            // Heuristic tags via block id when semantic tags unavailable on BlockEntry
-            String raw = be.block != null ? be.block.toLowerCase(Locale.ROOT) : "";
-            return raw.contains("pillar") || raw.contains("beam")
-                    || (raw.contains("log") && !raw.contains("catalog"));
+            return resolveCarveRole(be, placedBlock != null ? placedBlock : be.block).protectedFromCarve();
         }
-        return false;
+        return resolveCarveRole(null, placedBlock).protectedFromCarve();
+    }
+
+    enum CarveRole {
+        OPENING_FILL, WALL_FILL, FRAME, STRUCTURE, FOUNDATION, UNKNOWN;
+
+        boolean protectedFromCarve() {
+            return this != OPENING_FILL && this != WALL_FILL;
+        }
+    }
+
+    /**
+     * Explicit carveRole → FOUNDATION semantic → name heuristic → matched entry WALL_FILL
+     * (legacy unmarked fill) → UNKNOWN when no entry (default protect).
+     */
+    static CarveRole resolveCarveRole(ComponentDefinition.BlockEntry be, String blockState) {
+        if (be != null && be.carveRole != null && !be.carveRole.isBlank()) {
+            try {
+                return CarveRole.valueOf(be.carveRole.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                return CarveRole.UNKNOWN;
+            }
+        }
+        if (be != null && be.semantic == com.formacraft.common.semantic.SemanticPart.FOUNDATION) {
+            return CarveRole.FOUNDATION;
+        }
+        String raw = blockState != null ? blockState.toLowerCase(Locale.ROOT)
+                : (be != null && be.block != null ? be.block.toLowerCase(Locale.ROOT) : "");
+        if (raw.isBlank()) return CarveRole.UNKNOWN;
+        if (raw.contains("pillar") || raw.contains("beam")
+                || (raw.contains("log") && !raw.contains("catalog"))) {
+            return CarveRole.STRUCTURE;
+        }
+        // Ordinary fill blocks (with or without a matched entry) are carveable in openings.
+        return CarveRole.WALL_FILL;
     }
 
     private static ComponentGenerationOutcome.Status mapGeoStatus(

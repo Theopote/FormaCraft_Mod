@@ -1,6 +1,8 @@
 package com.formacraft.server.generation.component.adaptor;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.component.ComponentGenerationOutcome;
+import com.formacraft.common.component.GenerationDiagnostic;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
@@ -61,23 +63,37 @@ public final class UnifiedGeneratorRouter {
     }
 
     public static List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
+        RoutedGenerationResult result = generateResult(semantic, world);
+        return result.commitAllowed() ? new ArrayList<>(result.patches()) : new ArrayList<>();
+    }
+
+    /** Structured route; hard library failures do not fall through to typology/structure. */
+    public static RoutedGenerationResult generateResult(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || semantic.source() == null) {
-            return new ArrayList<>();
+            return RoutedGenerationResult.failure(
+                    ComponentGenerationOutcome.Status.INVALID_INPUT, "null_semantic", "semantic_null");
         }
 
         Component c = semantic.source();
         String componentType = c.componentType();
-        if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c))
-            return com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.generate(semantic);
+        if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)) {
+            try {
+                List<BlockPatch> stair = com.formacraft.server.generation.component.impl.StraightStairComponentGenerator
+                        .generate(semantic);
+                return RoutedGenerationResult.success(stair == null ? List.of() : stair);
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.error("UnifiedGeneratorRouter: stair generator failed", e);
+                return RoutedGenerationResult.failure(
+                        ComponentGenerationOutcome.Status.GEOMETRY_INVALID, "stair_exception", e.getMessage());
+            }
+        }
 
-        // 1) 组件级骨架（优先于几何生成器）
         List<BlockPatch> skeletonPatches = trySkeletonPath(semantic, world);
         if (!skeletonPatches.isEmpty()) {
             FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: skeleton path for {}", componentType);
-            return skeletonPatches;
+            return RoutedGenerationResult.success(skeletonPatches);
         }
 
-        // 1.5) ASSEMBLY → MetaAssemblyEngine（需要 world）
         if (world != null) {
             List<BlockPatch> assemblyPatches = com.formacraft.server.generation.component.impl.AssemblyPatchGenerator
                     .tryGenerate(semantic, world);
@@ -85,50 +101,64 @@ public final class UnifiedGeneratorRouter {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: assembly path for {}", componentType);
                 com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordCompositionalHit(
                         "ASSEMBLY", "assembly_router");
-                return assemblyPatches;
+                return RoutedGenerationResult.success(assemblyPatches);
             }
         }
 
         boolean hasGroupRequest = hasFeaturePrefix(c, "group_request:");
         boolean hasComponentRequest = hasFeaturePrefix(c, "component_request:");
 
-        // 2) ComponentGenerator
-        List<BlockPatch> base = tryComponentGenerator(semantic, componentType);
+        ComponentGeneratorAttempt genAttempt = tryComponentGeneratorResult(semantic, componentType);
+        if (genAttempt.hardFail() != null) {
+            return genAttempt.hardFail();
+        }
+        List<BlockPatch> base = genAttempt.patches();
 
-        // 3) 玩家组件扩展
-        base = applyExpanders(semantic, world, base, hasGroupRequest, hasComponentRequest);
+        ExpanderStage expander = applyExpandersResult(semantic, world, base, hasGroupRequest, hasComponentRequest);
+        if (expander.hardFail() != null) {
+            FormacraftMod.LOGGER.error(
+                    "UnifiedGeneratorRouter: component_request hard-fail status={} diagnostics={} — blocking fallbacks",
+                    expander.hardFail().status(), expander.hardFail().diagnostics());
+            return expander.hardFail();
+        }
+        base = expander.patches();
+        List<GenerationDiagnostic> routeDiagnostics = new ArrayList<>(expander.diagnostics());
 
-        // 3.5) Structural typology interpreter (STRUCTURE + typology:*)
         if (world != null && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)) {
             List<BlockPatch> typologyPatches = com.formacraft.common.typology.TypologyComponentRouter
                     .tryGenerate(semantic, world);
             if (!typologyPatches.isEmpty()) {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: typology path for {}", componentType);
-                return typologyPatches;
+                return withDiagnostics(RoutedGenerationResult.success(typologyPatches), routeDiagnostics);
             }
         }
 
         if (!base.isEmpty()) {
-            return base;
+            ComponentGenerationOutcome.Status st = expander.degraded()
+                    ? ComponentGenerationOutcome.Status.PARTIAL_SUCCESS
+                    : ComponentGenerationOutcome.Status.SUCCESS;
+            return new RoutedGenerationResult(st, base, routeDiagnostics);
         }
 
-        // 4) StructureGenerator 回退（受控）
         if (world != null && shouldUseStructureFallback(semantic)) {
             List<BlockPatch> structurePatches = StructureGeneratorAdaptor.tryGenerate(semantic, world);
             if (!structurePatches.isEmpty()) {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: structure fallback for {}", componentType);
-                return structurePatches;
+                return withDiagnostics(RoutedGenerationResult.success(structurePatches), routeDiagnostics);
             }
         }
 
         FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: no patches for component type {}, skipping", componentType);
-        return new ArrayList<>();
+        return withDiagnostics(RoutedGenerationResult.success(List.of()), routeDiagnostics);
     }
 
-    private static List<BlockPatch> tryComponentGenerator(SemanticComponent semantic, String componentType) {
+    private record ComponentGeneratorAttempt(List<BlockPatch> patches, RoutedGenerationResult hardFail) {}
+
+    private static ComponentGeneratorAttempt tryComponentGeneratorResult(
+            SemanticComponent semantic, String componentType) {
         ComponentGenerator generator = ComponentGeneratorRegistry.getGenerator(componentType);
         if (generator == null) {
-            return new ArrayList<>();
+            return new ComponentGeneratorAttempt(new ArrayList<>(), null);
         }
         try {
             List<BlockPatch> patches = generator.generate(semantic);
@@ -136,29 +166,40 @@ public final class UnifiedGeneratorRouter {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: component generator for {}", componentType);
                 com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordCompositionalHit(
                         componentType, "component_router");
-                return new ArrayList<>(patches);
+                return new ComponentGeneratorAttempt(new ArrayList<>(patches), null);
             }
         } catch (Exception e) {
+            if (isRequiredComponentType(componentType)) {
+                FormacraftMod.LOGGER.error(
+                        "UnifiedGeneratorRouter: required component generator failed for {}", componentType, e);
+                return new ComponentGeneratorAttempt(List.of(), RoutedGenerationResult.failure(
+                        ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                        "generator_exception",
+                        e.getMessage() == null ? componentType : e.getMessage()));
+            }
             FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: component generator failed for {}, skipping",
                     componentType, e);
         }
-        return new ArrayList<>();
+        return new ComponentGeneratorAttempt(new ArrayList<>(), null);
     }
 
-    private static List<BlockPatch> applyExpanders(
+    private record ExpanderStage(
+            List<BlockPatch> patches,
+            RoutedGenerationResult hardFail,
+            List<GenerationDiagnostic> diagnostics,
+            boolean degraded
+    ) {}
+
+    private static ExpanderStage applyExpandersResult(
             SemanticComponent semantic,
             ServerWorld world,
             List<BlockPatch> base,
             boolean hasGroupRequest,
             boolean hasComponentRequest
     ) {
-        // Queries on a building envelope describe details, not a replacement for the envelope.
-        // Facade and entrance components also own complete opening layouts, not one library socket.
-        // Generate those details as separate components so their socket transforms cannot erase
-        // or relocate the mass, roof or foundation.
         if (!base.isEmpty() && (preservesBuildingEnvelope(semantic.source().componentType())
                 || semantic.source().params() != null && Boolean.TRUE.equals(semantic.source().params().get("resolved_host_attachment")))) {
-            return base;
+            return new ExpanderStage(base, null, List.of(), false);
         }
         if (hasGroupRequest) {
             try {
@@ -166,15 +207,15 @@ public final class UnifiedGeneratorRouter {
                         .tryExpand(semantic, world);
                 if (expanded != null) {
                     if (expanded.isEmpty()) {
-                        return base;
+                        return new ExpanderStage(base, null, List.of(), false);
                     }
                     if (base.isEmpty()) {
-                        return expanded;
+                        return new ExpanderStage(expanded, null, List.of(), false);
                     }
                     List<BlockPatch> merged = new ArrayList<>(base.size() + expanded.size());
                     merged.addAll(base);
                     merged.addAll(expanded);
-                    return merged;
+                    return new ExpanderStage(merged, null, List.of(), false);
                 }
             } catch (Throwable t) {
                 FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: PlayerComponentGroupExpander failed, skipping", t);
@@ -186,20 +227,59 @@ public final class UnifiedGeneratorRouter {
                 var outcome = com.formacraft.common.component.PlayerComponentExpander
                         .tryExpandResult(semantic, world);
                 if (outcome != null) {
-                    if (outcome.ok()) {
-                        return outcome.patches();
+                    if (outcome.commitAllowed()) {
+                        return new ExpanderStage(outcome.patches(), null, outcome.diagnostics(), outcome.degraded());
+                    }
+                    if (outcome.isHardFail()) {
+                        return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
+                                outcome.diagnostics(), false);
+                    }
+                    // NO_CANDIDATE without explicit id: allow base/typology fallback
+                    if (outcome.status() == ComponentGenerationOutcome.Status.NO_CANDIDATE) {
+                        FormacraftMod.LOGGER.debug(
+                                "UnifiedGeneratorRouter: NO_CANDIDATE — allowing generator/typology fallback");
+                        return new ExpanderStage(base, null, outcome.diagnostics(), false);
                     }
                     FormacraftMod.LOGGER.error(
-                            "UnifiedGeneratorRouter: component_request failed status={} diagnostics={} — not treating as success",
+                            "UnifiedGeneratorRouter: component_request failed status={} diagnostics={}",
                             outcome.status(), outcome.diagnostics());
-                    return base;
+                    return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
+                            outcome.diagnostics(), false);
                 }
             } catch (Throwable t) {
+                if (isRequiredComponentType(semantic.source().componentType())) {
+                    FormacraftMod.LOGGER.error("UnifiedGeneratorRouter: PlayerComponentExpander failed (required)", t);
+                    return new ExpanderStage(List.of(), RoutedGenerationResult.failure(
+                            ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                            "expander_exception",
+                            t.getMessage() == null ? "expander_exception" : t.getMessage()),
+                            List.of(), false);
+                }
                 FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: PlayerComponentExpander failed, skipping", t);
             }
         }
 
-        return base;
+        return new ExpanderStage(base, null, List.of(), false);
+    }
+
+    public static boolean isRequiredComponentType(String type) {
+        if (type == null) return false;
+        String n = type.trim().toUpperCase(Locale.ROOT);
+        if (n.startsWith("DECOR")) return false;
+        return switch (n) {
+            case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
+                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "ENTRANCE",
+                 "CHIMNEY", "DOOR", "WINDOW", "COLUMN", "STAIR", "STAIRS" -> true;
+            default -> false;
+        };
+    }
+
+    private static RoutedGenerationResult withDiagnostics(
+            RoutedGenerationResult base, List<GenerationDiagnostic> extra) {
+        if (extra == null || extra.isEmpty()) return base;
+        List<GenerationDiagnostic> merged = new ArrayList<>(base.diagnostics());
+        merged.addAll(extra);
+        return new RoutedGenerationResult(base.status(), base.patches(), merged);
     }
 
     static boolean preservesBuildingEnvelope(String type) {

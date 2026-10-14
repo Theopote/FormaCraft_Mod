@@ -128,6 +128,8 @@ flowchart TD
 
 第三十九批起：挂载 host+carve+mount 原子化；`mount_required`；`ResolvedCarveVolume` 结构保护；`ComponentGenerationOutcome` 贯通预览/展开。
 
+第四十批起：`RoutedGenerationResult` 硬失败禁止回退；`carveRole` + Socket AABB；`PARTIAL_SUCCESS`；`E_COMPONENT_LIBRARY_FAILED`。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

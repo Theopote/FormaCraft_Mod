@@ -472,7 +472,35 @@ public final class ComponentPlanCompiler {
                         : new BlockPos(roofSlotAnchor.x(), roofSlotAnchor.y(), roofSlotAnchor.z())).ifPresent(flatRoofs::add);
                 var surfaceCells = new ArrayList<GeneratedSurfaceCapture.Cell>();
                 try (var surfaceCapture = GeneratedSurfaceCapture.captureTo(surfaceCells::add)) {
-                    patches = GenerationHub.generateComponent(semantic, world);
+                    var routed = GenerationHub.generateComponentResult(semantic, world);
+                    if (routed != null && !routed.commitAllowed() && routed.isHardFail()
+                            && !isSoftGenerationFailure(c)) {
+                        String detail = routed.diagnostics().isEmpty()
+                                ? routed.status().name()
+                                : routed.diagnostics().getFirst().code() + ": " + routed.diagnostics().getFirst().message();
+                        AssemblyCompileDiagnostics.set(new CapabilityGap(
+                                "E_COMPONENT_LIBRARY_FAILED",
+                                "捕获/库构件硬失败：type=" + c.componentType()
+                                        + " id=" + paramIdentity(c)
+                                        + " status=" + routed.status()
+                                        + " detail=" + detail,
+                                "components[]",
+                                List.of("修复构件 ID、适配规则或清洞约束", "禁止回退为无关默认几何")));
+                        return;
+                    }
+                    if (routed != null && routed.degraded()) {
+                        for (var d : routed.diagnostics()) {
+                            AssemblyCompileDiagnostics.addSoftWarning(
+                                    d.code().isBlank() ? "COMPONENT_PARTIAL_SUCCESS" : d.code(),
+                                    d.message().isBlank()
+                                            ? "构件部分成功：安装件降级，仅保留宿主几何"
+                                            : d.message(),
+                                    c.componentType(),
+                                    paramIdentity(c)
+                            );
+                        }
+                    }
+                    patches = routed != null && routed.commitAllowed() ? routed.patches() : List.of();
                 }
                 var missingSurfaces = GeneratedSurfaceCapture.missing(surfaceCells, patches);
                 if (!missingSurfaces.isEmpty()) {

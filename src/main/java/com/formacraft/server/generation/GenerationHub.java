@@ -37,6 +37,12 @@ public final class GenerationHub {
         return UnifiedGeneratorRouter.generate(semantic, world);
     }
 
+    /** Structured route — prefer when failure must abort plan compile. */
+    public static com.formacraft.server.generation.component.adaptor.RoutedGenerationResult generateComponentResult(
+            SemanticComponent semantic, ServerWorld world) {
+        return UnifiedGeneratorRouter.generateResult(semantic, world);
+    }
+
     /** 骨架计划 → BlockPatch（PlanProgramCompiler / 内嵌 skeleton 构件）。 */
     public static List<BlockPatch> buildSkeleton(
             ServerWorld world,
