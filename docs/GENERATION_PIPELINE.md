@@ -126,6 +126,8 @@ flowchart TD
 
 第三十八批起：`ComponentResolveResult` 区分未命中与适配失败；`ResolvedComponentGeometry` 为预览/建造 PLACE 权威；carve 与 PLACE 同源变换并校验 socket 包络。
 
+第三十九批起：挂载 host+carve+mount 原子化；`mount_required`；`ResolvedCarveVolume` 结构保护；`ComponentGenerationOutcome` 贯通预览/展开。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

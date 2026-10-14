@@ -56,6 +56,13 @@ public final class PlayerComponentExpander {
     private static final String PREFIX = "component_request:";
 
     public static List<BlockPatch> tryExpand(SemanticComponent semantic, ServerWorld world) {
+        ComponentGenerationOutcome outcome = tryExpandResult(semantic, world);
+        if (outcome == null) return null;
+        return outcome.patches();
+    }
+
+    /** Structured expand; prefer this over {@link #tryExpand} when diagnostics matter. */
+    public static ComponentGenerationOutcome tryExpandResult(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || semantic.source() == null || world == null) return null;
         String featureJson = extractFeatureJson(semantic.source().features());
         if (featureJson == null) return null;
@@ -67,29 +74,42 @@ public final class PlayerComponentExpander {
             reqMap = m;
         } catch (Throwable t) {
             FormacraftMod.LOGGER.warn("PlayerComponentExpander: invalid component_request json: {}", featureJson);
-            return List.of();
+            return ComponentGenerationOutcome.failure(
+                    ComponentGenerationOutcome.Status.INVALID_INPUT, "invalid_json", "component_request_parse_failed");
         }
-        if (reqMap == null) return List.of();
+        if (reqMap == null) {
+            return ComponentGenerationOutcome.failure(
+                    ComponentGenerationOutcome.Status.INVALID_INPUT, "null_request", "reqMap_null");
+        }
 
         Path worldDir = world.getServer().getSavePath(WorldSavePath.ROOT);
 
-        // mount 模式：一次性生成 host + carve + mount
         if (isMountRequest(reqMap)) {
-            return expandMount(semantic, world, worldDir, reqMap);
+            return expandMountResult(semantic, world, worldDir, reqMap);
         }
 
-        // 1) 确定要加载的构件（单构件）
+        return expandSingleResult(semantic, world, worldDir, reqMap);
+    }
+
+    private static ComponentGenerationOutcome expandSingleResult(
+            SemanticComponent semantic, ServerWorld world, Path worldDir, Map<String, Object> reqMap) {
         com.formacraft.common.component.query.ComponentResolveResult resolved =
                 resolveComponentResult(worldDir, reqMap, null);
         if (!resolved.ok()) {
-            if (resolved.status() == com.formacraft.common.component.query.ComponentResolveResult.Status.ADAPT_FAILED
-                    || resolved.status() == com.formacraft.common.component.query.ComponentResolveResult.Status.LOAD_FAILED) {
+            if (resolved.status() == com.formacraft.common.component.query.ComponentResolveResult.Status.ADAPT_FAILED) {
                 FormacraftMod.LOGGER.error(
                         "PlayerComponentExpander: library resolve failed status={} id={} message={} (no procedural fallback)",
                         resolved.status(), resolved.sourceId(), resolved.message());
-                return List.of();
+                return ComponentGenerationOutcome.failure(
+                        ComponentGenerationOutcome.Status.ADAPT_FAILED, "adapt_failed", resolved.message());
             }
-            // NO_CANDIDATE only: optional procedural downgrade
+            if (resolved.status() == com.formacraft.common.component.query.ComponentResolveResult.Status.LOAD_FAILED) {
+                FormacraftMod.LOGGER.error(
+                        "PlayerComponentExpander: library resolve failed status={} id={} message={} (no procedural fallback)",
+                        resolved.status(), resolved.sourceId(), resolved.message());
+                return ComponentGenerationOutcome.failure(
+                        ComponentGenerationOutcome.Status.LOAD_FAILED, "load_failed", resolved.message());
+            }
             ComponentQuery query = parseComponentQuery(reqMap, null);
             if (query == null) {
                 query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, "");
@@ -98,14 +118,14 @@ public final class PlayerComponentExpander {
                 List<BlockPatch> fallback = generateFallbackPatches(semantic, query);
                 if (!fallback.isEmpty()) {
                     FormacraftMod.LOGGER.debug("PlayerComponentExpander: fallback generated for component_request");
-                    return fallback;
+                    return ComponentGenerationOutcome.success(fallback);
                 }
             }
-            return List.of();
+            return ComponentGenerationOutcome.failure(
+                    ComponentGenerationOutcome.Status.NO_CANDIDATE, "no_candidate", resolved.message());
         }
         ComponentDefinition def = resolved.definition();
 
-        // 2) 解析变换参数（facing/mirror）
         Direction fromFacing = parseDir(def.anchor != null ? def.anchor.facing : null);
         if (fromFacing == null || !fromFacing.getAxis().isHorizontal()) fromFacing = Direction.SOUTH;
 
@@ -116,21 +136,14 @@ public final class PlayerComponentExpander {
         }
         if (targetFacing == null || !targetFacing.getAxis().isHorizontal()) targetFacing = Direction.SOUTH;
 
-        // PlacementSpec v1：根据 FacingPolicy 推导（仅当未显式指定 facing）
         try {
             if (explicitFacingStr == null || explicitFacingStr.isBlank()) {
-                targetFacing = FacingDeriver.derive(
-                        def.placementSpec,
-                        targetFacing, // host-like hint：slot facing（若有）
-                        targetFacing,
-                        reqMap        // 支持 edge hint（ALONG_EDGE）
-                );
+                targetFacing = FacingDeriver.derive(def.placementSpec, targetFacing, targetFacing, reqMap);
             }
         } catch (Throwable t) {
             FormacraftMod.LOGGER.debug("[PlayerComponentExpander] FacingDeriver failed componentId={}", def.id, t);
         }
 
-        // PlacementSpec v1：当构件不需要方向（FacingPolicy.NONE）且用户未显式指定 facing 时，保持原朝向（不做旋转）
         try {
             if ((explicitFacingStr == null || explicitFacingStr.isBlank())
                     && def.placementSpec != null
@@ -144,34 +157,18 @@ public final class PlayerComponentExpander {
         Mirror mirror = parseMirror(getString(reqMap, "mirror", "mirror_mode", "mirrorMode"));
         ComponentTransform transform = new ComponentTransform(targetFacing, mirror);
 
-        // 3) 放置偏移（相对于 slot anchor）
         BlockPos baseOffset = resolveBaseOffset(semantic);
         int baseX = baseOffset.getX();
         int baseY = baseOffset.getY();
         int baseZ = baseOffset.getZ();
 
-        // 4) 是否启用语义换皮
         String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
         if (semanticStyleId == null) {
             semanticStyleId = resolveSemanticStyleId(semantic.styleProfile());
         }
         boolean semanticSkin = ComponentFeatureFlags.resolveSemanticSkin(
                 reqMap, semanticStyleId, "semantic_skin", "semanticSkin");
-
-        // 5) 展开为 patches（相对 slot anchor）— PLACE 仅经 ComponentGeometryResolver
-        List<BlockPatch> out = new ArrayList<>(def.blocks.size() + 64);
         long worldSeed = world.getSeed();
-
-        // 5.1) 可选：先 carve（开洞/清洞）；与 PLACE 共用 fromFacing/transform
-        boolean carve = shouldCarve(reqMap, def);
-        if (carve) {
-            SocketMask mask = resolveMask(reqMap, def);
-            if (mask != null && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
-                BlockPos maskOriginLocal = resolveMaskOrigin(reqMap, def);
-                out.addAll(emitCarveRemoves(mask, maskOriginLocal, fromFacing, transform,
-                        baseX, baseY, baseZ, targetFacing));
-            }
-        }
 
         ResolvedComponentGeometry geo = ComponentGeometryResolver.emit(
                 def, fromFacing, transform, baseX, baseY, baseZ, semanticSkin, semanticStyleId, worldSeed);
@@ -179,18 +176,38 @@ public final class PlayerComponentExpander {
             FormacraftMod.LOGGER.error(
                     "PlayerComponentExpander: emit failed id={} status={} message={}",
                     geo.sourceComponentId(), geo.status(), geo.message());
-            return List.of();
+            return ComponentGenerationOutcome.failure(
+                    mapGeoStatus(geo.status()), "emit_failed", geo.message());
         }
+
+        ResolvedCarveVolume carveVol = ResolvedCarveVolume.none(def.id);
+        if (shouldCarve(reqMap, def)) {
+            SocketMask mask = resolveMask(reqMap, def);
+            if (mask != null && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
+                BlockPos maskOriginLocal = resolveMaskOrigin(reqMap, def);
+                carveVol = resolveCarveVolume(def, null, mask, maskOriginLocal,
+                        fromFacing, transform, baseX, baseY, baseZ, targetFacing, geo.patches(), null);
+                if (!carveVol.ok()) {
+                    FormacraftMod.LOGGER.error(
+                            "PlayerComponentExpander: carve failed id={} message={}",
+                            def.id, carveVol.message());
+                    return ComponentGenerationOutcome.failure(
+                            ComponentGenerationOutcome.Status.CARVE_FAILED, "carve_failed", carveVol.message());
+                }
+            }
+        }
+
+        List<BlockPatch> out = new ArrayList<>(geo.patches().size() + carveVol.cells().size());
+        out.addAll(carveVol.toRemovePatches());
         out.addAll(geo.patches());
-        return out;
+        return ComponentGenerationOutcome.success(out);
     }
 
-    private static List<BlockPatch> expandMount(SemanticComponent semantic, ServerWorld world, Path worldDir, Map<String, Object> reqMap) {
-        // host / mount request maps
+    private static ComponentGenerationOutcome expandMountResult(
+            SemanticComponent semantic, ServerWorld world, Path worldDir, Map<String, Object> reqMap) {
         Object host0 = reqMap.get("host");
         Object mount0 = reqMap.get("mount");
         if (!(host0 instanceof Map<?, ?>) || !(mount0 instanceof Map<?, ?>)) {
-            // 兼容扁平字段：host_xxx / mount_xxx
             host0 = reqMap;
             mount0 = reqMap;
         }
@@ -204,17 +221,18 @@ public final class PlayerComponentExpander {
         if (!hostResolved.ok()) {
             FormacraftMod.LOGGER.error("PlayerComponentExpander: host resolve failed status={} id={} message={}",
                     hostResolved.status(), hostResolved.sourceId(), hostResolved.message());
-            return List.of();
+            return ComponentGenerationOutcome.failure(mapResolveStatus(hostResolved.status()),
+                    "host_resolve", hostResolved.message());
         }
         if (!mountResolved.ok()) {
             FormacraftMod.LOGGER.error("PlayerComponentExpander: mount resolve failed status={} id={} message={}",
                     mountResolved.status(), mountResolved.sourceId(), mountResolved.message());
-            return List.of();
+            return ComponentGenerationOutcome.failure(mapResolveStatus(mountResolved.status()),
+                    "mount_resolve", mountResolved.message());
         }
         ComponentDefinition host = hostResolved.definition();
         ComponentDefinition mount = mountResolved.definition();
 
-        // host transform（facing/mirror）
         Direction hostFromFacing = parseDir(host.anchor != null ? host.anchor.facing : null);
         if (hostFromFacing == null || !hostFromFacing.getAxis().isHorizontal()) hostFromFacing = Direction.SOUTH;
 
@@ -227,13 +245,11 @@ public final class PlayerComponentExpander {
         Mirror hostMirror = parseMirror(getString(reqMap, "mirror", "mirror_mode", "mirrorMode", "host_mirror", "hostMirror"));
         ComponentTransform hostTransform = new ComponentTransform(hostTargetFacing, hostMirror);
 
-        // base offset（相对 slot anchor）
         BlockPos baseOffset = resolveBaseOffset(semantic);
         int baseX = baseOffset.getX();
         int baseY = baseOffset.getY();
         int baseZ = baseOffset.getZ();
 
-        // style / semantic skin（可分别覆盖 host/mount）
         String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
         if (semanticStyleId == null) {
             semanticStyleId = resolveSemanticStyleId(semantic != null ? semantic.styleProfile() : null);
@@ -250,27 +266,39 @@ public final class PlayerComponentExpander {
         if (hostStyleId == null) hostStyleId = semanticStyleId;
         if (mountStyleId == null) mountStyleId = semanticStyleId;
 
-        // socket
         String socketId = getString(reqMap, "socket_id", "socketId");
         ComponentSocket socket = findSocket(host, socketId);
         if (socket == null) {
-            FormacraftMod.LOGGER.warn("PlayerComponentExpander: mount requested but socket_id not found: {}", socketId);
-            return List.of();
+            FormacraftMod.LOGGER.error("PlayerComponentExpander: mount requested but socket_id not found: {}", socketId);
+            return ComponentGenerationOutcome.failure(
+                    ComponentGenerationOutcome.Status.INVALID_INPUT, "socket_missing",
+                    "socket_id_not_found:" + socketId);
         }
 
-        // placementSpec 过滤：避免把“需要 WALL_OPENING 的门”装到非 opening 的 socket 上
         AttachmentType hostAttachment = AttachmentRecognizer.attachmentForSocketContext(socket.context);
+        boolean mountRequired = isMountRequired(reqMap);
         if (!AttachmentRecognizer.isCompatible(mount.placementSpec, hostAttachment)) {
-            FormacraftMod.LOGGER.warn("PlayerComponentExpander: mount placementSpec incompatible: mount={} need={} hostSocketContext={} hostAttachment={}",
-                    mount.id, mount.placementSpec.attachment,
-                    socket.context, hostAttachment);
-            // 仅放置 host；不 carve、不放置 mount（避免破坏结构）
-            List<BlockPatch> onlyHost = new ArrayList<>(host.blocks.size() + 16);
-            addComponentPatches(onlyHost, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
-            return onlyHost;
+            if (mountRequired) {
+                FormacraftMod.LOGGER.error(
+                        "PlayerComponentExpander: required mount incompatible mount={} need={} hostSocketContext={} hostAttachment={}",
+                        mount.id, mount.placementSpec != null ? mount.placementSpec.attachment : null,
+                        socket.context, hostAttachment);
+                return ComponentGenerationOutcome.failure(
+                        ComponentGenerationOutcome.Status.INCOMPATIBLE_MOUNT, "incompatible_mount",
+                        "mount_incompatible_with_host_socket");
+            }
+            FormacraftMod.LOGGER.warn(
+                    "PlayerComponentExpander: degraded_optional_mount mount={} need={} hostAttachment={}",
+                    mount.id, mount.placementSpec != null ? mount.placementSpec.attachment : null, hostAttachment);
+            ResolvedComponentGeometry onlyHost = ComponentGeometryResolver.emit(
+                    host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
+            if (!onlyHost.ok()) {
+                return ComponentGenerationOutcome.failure(mapGeoStatus(onlyHost.status()),
+                        "host_emit", onlyHost.message());
+            }
+            return ComponentGenerationOutcome.success(onlyHost.patches());
         }
 
-        // socket world offset and facing (in host placement space)
         BlockPos socketLocal = com.formacraft.common.component.socket.SocketPlacementResolver
                 .resolveLocalOrigin(host, socketId, socket);
         BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, hostFromFacing, hostTransform);
@@ -280,26 +308,19 @@ public final class PlayerComponentExpander {
         Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, hostFromFacing, hostTransform);
         if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = hostTargetFacing;
 
-        // mount transform：对齐到 socketWorldFacing
         Direction mountFromFacing = parseDir(mount.anchor != null ? mount.anchor.facing : null);
         if (mountFromFacing == null || !mountFromFacing.getAxis().isHorizontal()) mountFromFacing = Direction.SOUTH;
         String explicitMountFacingStr = getString(reqMap, "mount_facing", "mountFacing");
         Direction mountTargetFacing = parseDir(explicitMountFacingStr);
         if (mountTargetFacing == null || !mountTargetFacing.getAxis().isHorizontal()) mountTargetFacing = socketWorldFacing;
-        // PlacementSpec v1：根据 FacingPolicy 推导（仅当未显式指定 mount_facing）
         try {
             if (explicitMountFacingStr == null || explicitMountFacingStr.isBlank()) {
                 mountTargetFacing = FacingDeriver.derive(
-                        mount.placementSpec,
-                        socketWorldFacing,
-                        mountTargetFacing,
-                        reqMap
-                );
+                        mount.placementSpec, socketWorldFacing, mountTargetFacing, reqMap);
             }
         } catch (Throwable t) {
             FormacraftMod.LOGGER.debug("[PlayerComponentExpander] mount FacingDeriver failed mountId={}", mount.id, t);
         }
-        // PlacementSpec v1：mount 若不需要方向且未显式给 mount_facing，则保持构件自身朝向（只做平移/镜像）
         try {
             if ((explicitMountFacingStr == null || explicitMountFacingStr.isBlank())
                     && mount.placementSpec != null
@@ -312,65 +333,113 @@ public final class PlayerComponentExpander {
         Mirror mountMirror = parseMirror(getString(reqMap, "mount_mirror", "mountMirror"));
         ComponentTransform mountTransform = new ComponentTransform(mountTargetFacing, mountMirror);
 
-        // carve mask defaults from socket
-        boolean carve = shouldCarve(reqMap, host);
-        SocketMask mask = null;
-        if (carve && socket.size != null && socket.size.min != null && socket.size.min.length >= 2) {
-            int w = socket.size.min[0];
-            int h = socket.size.min[1];
-            mask = new SocketMask(w, h, 1);
-            if (!carveWithinSocketEnvelope(mask, socket)) {
-                FormacraftMod.LOGGER.error(
-                        "PlayerComponentExpander: carve mask exceeds socket envelope socket={} mask={}x{}x{} — skip carve",
-                        socketId, mask.width(), mask.height(), mask.depth());
-                mask = null;
-            }
-        }
-
-        List<BlockPatch> out = new ArrayList<>(host.blocks.size() + mount.blocks.size() + 64);
-
-        // 1) place host
-        addComponentPatches(out, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
-
-        // 2) carve — same FacingUtil.offset depth axis as PLACE mount facing
-        if (mask != null && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
-            BlockPos socketWorld = new BlockPos(baseX + socketOff.getX(), baseY + socketOff.getY(), baseZ + socketOff.getZ());
-            for (int x = 0; x < mask.width(); x++) {
-                for (int y = 0; y < mask.height(); y++) {
-                    for (int z = 0; z < mask.depth(); z++) {
-                        BlockPos p = FacingUtil.offset(socketWorld, socketWorldFacing, x, y, z);
-                        out.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
-                    }
-                }
-            }
-        }
-
-        // 3) place mount at socket anchor
         int mountBaseX = baseX + socketOff.getX();
         int mountBaseY = baseY + socketOff.getY();
         int mountBaseZ = baseZ + socketOff.getZ();
-        addComponentPatches(out, mount, mountFromFacing, mountTransform, mountBaseX, mountBaseY, mountBaseZ, mountSkin, mountStyleId, world.getSeed());
+        long seed = world.getSeed();
 
-        return out;
+        // Emit host + mount first (atomic: no patches returned until all stages ok).
+        ResolvedComponentGeometry hostGeo = ComponentGeometryResolver.emit(
+                host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, seed);
+        if (!hostGeo.ok()) {
+            FormacraftMod.LOGGER.error("PlayerComponentExpander: host emit failed id={} status={} message={}",
+                    hostGeo.sourceComponentId(), hostGeo.status(), hostGeo.message());
+            return ComponentGenerationOutcome.failure(mapGeoStatus(hostGeo.status()), "host_emit", hostGeo.message());
+        }
+        ResolvedComponentGeometry mountGeo = ComponentGeometryResolver.emit(
+                mount, mountFromFacing, mountTransform, mountBaseX, mountBaseY, mountBaseZ, mountSkin, mountStyleId, seed);
+        if (!mountGeo.ok()) {
+            FormacraftMod.LOGGER.error("PlayerComponentExpander: mount emit failed id={} status={} message={}",
+                    mountGeo.sourceComponentId(), mountGeo.status(), mountGeo.message());
+            return ComponentGenerationOutcome.failure(mapGeoStatus(mountGeo.status()), "mount_emit", mountGeo.message());
+        }
+
+        ResolvedCarveVolume carveVol = ResolvedCarveVolume.none(host.id);
+        boolean wantCarve = shouldCarve(reqMap, host);
+        if (wantCarve) {
+            if (socket.size == null || socket.size.min == null || socket.size.min.length < 2) {
+                FormacraftMod.LOGGER.error("PlayerComponentExpander: carve requested but socket size invalid socket={}", socketId);
+                return ComponentGenerationOutcome.failure(
+                        ComponentGenerationOutcome.Status.CARVE_FAILED, "socket_size_invalid",
+                        "carve_requires_socket_size");
+            }
+            SocketMask mask = new SocketMask(socket.size.min[0], socket.size.min[1], 1);
+            carveVol = resolveCarveVolume(host, socket, mask, socketLocal,
+                    hostFromFacing, hostTransform, baseX, baseY, baseZ, socketWorldFacing,
+                    hostGeo.patches(), socketId);
+            if (!carveVol.ok()) {
+                FormacraftMod.LOGGER.error("PlayerComponentExpander: carve failed host={} socket={} message={}",
+                        host.id, socketId, carveVol.message());
+                return ComponentGenerationOutcome.failure(
+                        ComponentGenerationOutcome.Status.CARVE_FAILED, "carve_failed", carveVol.message());
+            }
+        }
+
+        List<BlockPatch> out = new ArrayList<>(
+                hostGeo.patches().size() + mountGeo.patches().size() + carveVol.cells().size());
+        out.addAll(hostGeo.patches());
+        out.addAll(carveVol.toRemovePatches());
+        out.addAll(mountGeo.patches());
+        return ComponentGenerationOutcome.success(out);
     }
 
-    private static void addComponentPatches(List<BlockPatch> out,
-                                           ComponentDefinition def,
-                                           Direction fromFacing,
-                                           ComponentTransform transform,
-                                           int baseX, int baseY, int baseZ,
-                                           boolean semanticSkin,
-                                           String semanticStyleId,
-                                           long seedBase) {
-        ResolvedComponentGeometry geo = ComponentGeometryResolver.emit(
-                def, fromFacing, transform, baseX, baseY, baseZ, semanticSkin, semanticStyleId, seedBase);
-        if (!geo.ok()) {
-            FormacraftMod.LOGGER.error(
-                    "PlayerComponentExpander: emit failed id={} status={} message={}",
-                    geo.sourceComponentId(), geo.status(), geo.message());
-            return;
+    /** Default true whenever a mount is present; set mount_required=false for optional decor. */
+    static boolean isMountRequired(Map<String, Object> reqMap) {
+        Boolean explicit = getBoolNullable(reqMap, "mount_required", "mountRequired", "require_mount", "requireMount");
+        if (explicit != null) return explicit;
+        return true;
+    }
+
+    /**
+     * Build and validate carve cells. Envelope + opening-aligned generation + host protected-block collision.
+     */
+    static ResolvedCarveVolume resolveCarveVolume(
+            ComponentDefinition host,
+            ComponentSocket socket,
+            SocketMask mask,
+            BlockPos maskOriginLocal,
+            Direction fromFacing,
+            ComponentTransform transform,
+            int baseX, int baseY, int baseZ,
+            Direction carveFacing,
+            List<BlockPatch> hostPlacePatches,
+            String socketId
+    ) {
+        String hostId = host != null && host.id != null ? host.id : "";
+        String sid = socketId != null ? socketId : "";
+        if (mask == null || maskOriginLocal == null || transform == null) {
+            return ResolvedCarveVolume.failure(hostId, sid, "carve_inputs_null");
         }
-        out.addAll(geo.patches());
+        if (mask.width() <= 0 || mask.height() <= 0 || mask.depth() <= 0) {
+            return ResolvedCarveVolume.failure(hostId, sid, "carve_mask_nonpositive");
+        }
+        if (socket != null && !carveWithinSocketEnvelope(mask, socket)) {
+            return ResolvedCarveVolume.failure(hostId, sid, "carve_exceeds_socket_envelope");
+        }
+
+        List<BlockPatch> removes = emitCarveRemoves(mask, maskOriginLocal, fromFacing, transform,
+                baseX, baseY, baseZ, carveFacing);
+        Set<BlockPos> cells = ResolvedCarveVolume.cellsFromRemoves(removes);
+        if (cells.size() != mask.width() * mask.height() * mask.depth()) {
+            return ResolvedCarveVolume.failure(hostId, sid, "carve_cell_count_mismatch");
+        }
+
+        // Protected host PLACE cells must not be deleted by carve.
+        if (hostPlacePatches != null && host != null) {
+            Map<String, String> hostAt = new java.util.HashMap<>();
+            for (BlockPatch p : hostPlacePatches) {
+                if (p == null || !BlockPatch.PLACE.equals(p.action())) continue;
+                hostAt.put(p.dx() + "," + p.dy() + "," + p.dz(), p.targetBlock());
+            }
+            for (BlockPos cell : cells) {
+                String key = cell.getX() + "," + cell.getY() + "," + cell.getZ();
+                String block = hostAt.get(key);
+                if (block != null && isProtectedHostBlock(host, cell, fromFacing, transform, baseX, baseY, baseZ, block)) {
+                    return ResolvedCarveVolume.failure(hostId, sid, "carve_hits_protected_host:" + key);
+                }
+            }
+        }
+        return ResolvedCarveVolume.success(hostId, sid, cells);
     }
 
     /** Carve REMOVEs share ComponentTransformUtil.transformOffset with PLACE. */
@@ -405,6 +474,61 @@ public final class PlayerComponentExpander {
         int maxD = max.length >= 3 ? max[2] : Math.max(1, mask.depth());
         if (maxW <= 0 || maxH <= 0) return true;
         return mask.width() <= maxW && mask.height() <= maxH && mask.depth() <= Math.max(1, maxD);
+    }
+
+    /**
+     * Protected if the matching host BlockEntry is STRUCTURE/FRAME or block id looks structural
+     * (pillar/beam/log). Opening FILL walls are not protected.
+     */
+    static boolean isProtectedHostBlock(ComponentDefinition host, BlockPos worldCell,
+            Direction fromFacing, ComponentTransform transform,
+            int baseX, int baseY, int baseZ, String placedBlock) {
+        if (placedBlock != null) {
+            String b = placedBlock.toLowerCase(Locale.ROOT);
+            if (b.contains("pillar") || b.contains("beam") || (b.contains("log") && !b.contains("catalog"))) {
+                return true;
+            }
+        }
+        if (host == null || host.blocks == null) return false;
+        for (ComponentDefinition.BlockEntry be : host.blocks) {
+            if (be == null) continue;
+            BlockPos off = ComponentTransformUtil.transformOffset(
+                    new BlockPos(be.dx, be.dy, be.dz), fromFacing, transform);
+            if (baseX + off.getX() != worldCell.getX()
+                    || baseY + off.getY() != worldCell.getY()
+                    || baseZ + off.getZ() != worldCell.getZ()) {
+                continue;
+            }
+            if (be.semantic == com.formacraft.common.semantic.SemanticPart.FOUNDATION) return true;
+            // Heuristic tags via block id when semantic tags unavailable on BlockEntry
+            String raw = be.block != null ? be.block.toLowerCase(Locale.ROOT) : "";
+            return raw.contains("pillar") || raw.contains("beam")
+                    || (raw.contains("log") && !raw.contains("catalog"));
+        }
+        return false;
+    }
+
+    private static ComponentGenerationOutcome.Status mapGeoStatus(
+            com.formacraft.common.component.variant.VariantCompileResult.Status s) {
+        if (s == null) return ComponentGenerationOutcome.Status.GEOMETRY_INVALID;
+        return switch (s) {
+            case TEMPLATE_MISSING -> ComponentGenerationOutcome.Status.TEMPLATE_MISSING;
+            case INVALID_INPUT -> ComponentGenerationOutcome.Status.INVALID_INPUT;
+            case GEOMETRY_INVALID -> ComponentGenerationOutcome.Status.GEOMETRY_INVALID;
+            case EMPTY_ALLOWED -> ComponentGenerationOutcome.Status.EMPTY_REJECTED;
+            default -> ComponentGenerationOutcome.Status.GEOMETRY_INVALID;
+        };
+    }
+
+    private static ComponentGenerationOutcome.Status mapResolveStatus(
+            com.formacraft.common.component.query.ComponentResolveResult.Status s) {
+        if (s == null) return ComponentGenerationOutcome.Status.NO_CANDIDATE;
+        return switch (s) {
+            case ADAPT_FAILED -> ComponentGenerationOutcome.Status.ADAPT_FAILED;
+            case LOAD_FAILED -> ComponentGenerationOutcome.Status.LOAD_FAILED;
+            case NO_CANDIDATE -> ComponentGenerationOutcome.Status.NO_CANDIDATE;
+            case SUCCESS -> ComponentGenerationOutcome.Status.SUCCESS;
+        };
     }
 
     private static BlockPos resolveBaseOffset(SemanticComponent semantic) {

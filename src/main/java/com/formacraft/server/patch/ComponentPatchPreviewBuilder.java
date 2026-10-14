@@ -1,8 +1,12 @@
 package com.formacraft.server.patch;
 
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.ComponentGenerationOutcome;
+import com.formacraft.common.component.ComponentGeometryResolver;
+import com.formacraft.common.component.GenerationDiagnostic;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.Mirror;
+import com.formacraft.common.component.variant.VariantCompileResult;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.block.BlockState;
@@ -29,15 +33,41 @@ public final class ComponentPatchPreviewBuilder {
             String semanticStyleId,
             long seedBase
     ) {
+        ComponentGenerationOutcome outcome = fromComponentDefinitionResult(
+                def, targetFacing, mirror, semanticSkin, semanticStyleId, seedBase);
+        if (!outcome.ok()) {
+            LOG.warn("preview emit failed status={} diagnostics={}",
+                    outcome.status(), outcome.diagnostics());
+        }
+        return outcome.patches();
+    }
+
+    public static ComponentGenerationOutcome fromComponentDefinitionResult(
+            ComponentDefinition def,
+            Direction targetFacing,
+            Mirror mirror,
+            boolean semanticSkin,
+            String semanticStyleId,
+            long seedBase
+    ) {
         Direction facing = targetFacing != null && targetFacing.getAxis().isHorizontal() ? targetFacing : Direction.SOUTH;
         Mirror m = mirror != null ? mirror : Mirror.NONE;
-        var geo = com.formacraft.common.component.ComponentGeometryResolver.emit(
+        var geo = ComponentGeometryResolver.emit(
                 def, 0, 0, 0, facing, m, semanticSkin, semanticStyleId, seedBase);
-        if (!geo.ok()) {
-            LOG.warn("preview emit failed id={} status={} message={}",
-                    geo.sourceComponentId(), geo.status(), geo.message());
+        if (geo.status() == VariantCompileResult.Status.EMPTY_ALLOWED) {
+            return ComponentGenerationOutcome.success(List.of());
         }
-        return geo.patches();
+        if (!geo.ok()) {
+            ComponentGenerationOutcome.Status st = switch (geo.status()) {
+                case TEMPLATE_MISSING -> ComponentGenerationOutcome.Status.TEMPLATE_MISSING;
+                case INVALID_INPUT -> ComponentGenerationOutcome.Status.INVALID_INPUT;
+                case GEOMETRY_INVALID -> ComponentGenerationOutcome.Status.GEOMETRY_INVALID;
+                default -> ComponentGenerationOutcome.Status.GEOMETRY_INVALID;
+            };
+            return new ComponentGenerationOutcome(st, List.of(),
+                    List.of(new GenerationDiagnostic(geo.status().name(), geo.message())));
+        }
+        return ComponentGenerationOutcome.success(geo.patches());
     }
 
     public static List<BlockPatch> fromWorldSelection(ServerWorld world, BlockPos origin, BlockPos min, BlockPos max) {

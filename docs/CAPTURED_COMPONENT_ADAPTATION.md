@@ -60,6 +60,7 @@
 - **第三十六批**：方块重建与 Socket/附着点共用切片平铺映射（首个平铺实例），禁止比例插值与周期重复分叉。
 - **第三十七批**：`applyRuntimeVariant`/`fitToQuery` 对 `CAPTURED`（及有 `variantRules`）统一门禁，无规则时禁止 `runtimeVariant` 整数放大；`VariantCompileResult` 区分 TEMPLATE_MISSING 等硬失败；`SocketPlacement.adaptMode`（FIXED/STRETCH/REPEAT/FORBIDDEN）；缩略图缓存 LOADING/READY/FAILED + `resourceEpoch`；预览与建造 Patch 多重集合一致。
 - **第三十八批**：检索 `ComponentResolveResult`（NO_CANDIDATE 才可程序化降级；ADAPT_FAILED/LOAD_FAILED 硬失败）；`ComponentGeometryResolver`/`ResolvedComponentGeometry` 作为预览与 Expander 唯一 PLACE 权威；carve 与 PLACE 共用变换，mount carve 受 socket 包络约束。
+- **第三十九批**：挂载操作原子化（宿主/清洞/安装件全成或全败）；`mount_required` 默认禁止兼容失败 onlyHost；`ResolvedCarveVolume` 校验包络与保护结构；`ComponentGenerationOutcome` 上送诊断；空 Patch 默认失败（`empty_geometry_ok` 除外）。
 - 重复/裁剪带中包含门的上下半块、床的头尾等成对对象时拒绝变形，避免切断功能结构；**保存前**与运行时使用同一套配对方块扫描。
 - 捕获保存写入 `sourceOrigin=CAPTURED`；`VariantGenerator` 对捕获件（及带 `variantRules` 的定义）禁止随机缩放/裁剪/镜像，仅走确定性 `SegmentScaler` / `ComponentModelApi`。
 - 单轴最大 256 格，变体最多 262144 个方块。

@@ -37,7 +37,7 @@ public final class ComponentGeometryResolver {
         }
         List<BlockPatch> patches = ComponentDefinitionCompiler.compile(
                 def, baseX, baseY, baseZ, targetFacing, mirror, semanticSkin, semanticStyleId, seedBase);
-        return ResolvedComponentGeometry.success(id, patches);
+        return ResolvedComponentGeometry.success(def, patches);
     }
 
     /** Expander path: facing already derived; reuse the same transform for PLACE (and carve). */
@@ -65,6 +65,6 @@ public final class ComponentGeometryResolver {
         }
         List<BlockPatch> patches = ComponentDefinitionCompiler.compile(
                 def, fromFacing, transform, baseX, baseY, baseZ, semanticSkin, semanticStyleId, seedBase);
-        return ResolvedComponentGeometry.success(id, patches);
+        return ResolvedComponentGeometry.success(def, patches);
     }
 }

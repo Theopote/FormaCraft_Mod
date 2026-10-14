@@ -183,12 +183,15 @@ public final class UnifiedGeneratorRouter {
 
         if (hasComponentRequest) {
             try {
-                List<BlockPatch> expanded = com.formacraft.common.component.PlayerComponentExpander
-                        .tryExpand(semantic, world);
-                if (expanded != null) {
-                    if (!expanded.isEmpty()) {
-                        return expanded;
+                var outcome = com.formacraft.common.component.PlayerComponentExpander
+                        .tryExpandResult(semantic, world);
+                if (outcome != null) {
+                    if (outcome.ok()) {
+                        return outcome.patches();
                     }
+                    FormacraftMod.LOGGER.error(
+                            "UnifiedGeneratorRouter: component_request failed status={} diagnostics={} — not treating as success",
+                            outcome.status(), outcome.diagnostics());
                     return base;
                 }
             } catch (Throwable t) {
