@@ -96,7 +96,12 @@ class CapturedAdaptRound14Test {
     @Test
     void carveHitsProtectedPillarFails() {
         ComponentDefinition host = wallHost("host");
-        host.blocks.getFirst().block = "minecraft:oak_log[axis=y]";
+        // Opening origin is (1,0,0); put protected log inside authorized volume.
+        for (var b : host.blocks) {
+            if (b.dx == 1 && b.dy == 0) {
+                b.block = "minecraft:oak_log[axis=y]";
+            }
+        }
         ComponentSocket socket = openingSocket("opening", 2, 3);
         SocketMask mask = new SocketMask(2, 3, 1);
         ComponentTransform t = new ComponentTransform(Direction.SOUTH, Mirror.NONE);
@@ -105,7 +110,7 @@ class CapturedAdaptRound14Test {
         assertTrue(hostGeo.patches().stream().anyMatch(p ->
                 p.targetBlock() != null && p.targetBlock().contains("log")));
         ResolvedCarveVolume vol = PlayerComponentExpander.resolveCarveVolume(
-                host, socket, mask, BlockPos.ORIGIN,
+                host, socket, mask, new BlockPos(1, 0, 0),
                 Direction.SOUTH, t, 0, 0, 0, Direction.SOUTH, hostGeo.patches(), "opening");
         assertFalse(vol.ok(), "expected protected carve failure, got: " + vol.message());
         assertTrue(vol.message().contains("protected"));

@@ -124,7 +124,12 @@ public final class UnifiedGeneratorRouter {
         base = expander.patches();
         List<GenerationDiagnostic> routeDiagnostics = new ArrayList<>(expander.diagnostics());
 
-        if (world != null && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)) {
+        boolean allowTypologyOverride = c.params() != null
+                && Boolean.TRUE.equals(c.params().get("allow_typology_override"));
+        boolean skipTypology = expander.libraryCommitted() && !allowTypologyOverride;
+
+        if (!skipTypology && world != null
+                && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)) {
             List<BlockPatch> typologyPatches = com.formacraft.common.typology.TypologyComponentRouter
                     .tryGenerate(semantic, world);
             if (!typologyPatches.isEmpty()) {
@@ -140,12 +145,21 @@ public final class UnifiedGeneratorRouter {
             return new RoutedGenerationResult(st, base, routeDiagnostics);
         }
 
-        if (world != null && shouldUseStructureFallback(semantic)) {
+        if (!skipTypology && world != null && shouldUseStructureFallback(semantic)) {
             List<BlockPatch> structurePatches = StructureGeneratorAdaptor.tryGenerate(semantic, world);
             if (!structurePatches.isEmpty()) {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: structure fallback for {}", componentType);
                 return withDiagnostics(RoutedGenerationResult.success(structurePatches), routeDiagnostics);
             }
+        }
+
+        if (base.isEmpty() && isRequiredComponentType(componentType) && !isExplicitlyDisabled(c)) {
+            FormacraftMod.LOGGER.error(
+                    "UnifiedGeneratorRouter: required component produced empty patches type={}", componentType);
+            return RoutedGenerationResult.failure(
+                    ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                    "required_component_empty",
+                    componentType == null ? "required_empty" : componentType);
         }
 
         FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: no patches for component type {}, skipping", componentType);
@@ -187,8 +201,14 @@ public final class UnifiedGeneratorRouter {
             List<BlockPatch> patches,
             RoutedGenerationResult hardFail,
             List<GenerationDiagnostic> diagnostics,
-            boolean degraded
-    ) {}
+            boolean degraded,
+            boolean libraryCommitted
+    ) {
+        ExpanderStage(List<BlockPatch> patches, RoutedGenerationResult hardFail,
+                List<GenerationDiagnostic> diagnostics, boolean degraded) {
+            this(patches, hardFail, diagnostics, degraded, false);
+        }
+    }
 
     private static ExpanderStage applyExpandersResult(
             SemanticComponent semantic,
@@ -197,10 +217,30 @@ public final class UnifiedGeneratorRouter {
             boolean hasGroupRequest,
             boolean hasComponentRequest
     ) {
-        if (!base.isEmpty() && (preservesBuildingEnvelope(semantic.source().componentType())
-                || semantic.source().params() != null && Boolean.TRUE.equals(semantic.source().params().get("resolved_host_attachment")))) {
+        Component src = semantic.source();
+        String type = src.componentType();
+        Map<String, Object> params = src.params();
+        boolean hostAttachment = params != null && Boolean.TRUE.equals(params.get("resolved_host_attachment"));
+        boolean envelopeProtected = preservesBuildingEnvelope(type) || hostAttachment;
+        boolean allowEnvelopeAttach = params != null && Boolean.TRUE.equals(params.get("allow_envelope_attach"));
+
+        // Silent skip only when there is no explicit library/group request.
+        if (!base.isEmpty() && envelopeProtected && !hasComponentRequest && !hasGroupRequest) {
             return new ExpanderStage(base, null, List.of(), false);
         }
+        // Explicit component_request must not be silently dropped under envelope protection.
+        // Exception: allow_envelope_attach or upstream resolved_host_attachment (run expander).
+        if (hasComponentRequest && preservesBuildingEnvelope(type)
+                && !allowEnvelopeAttach && !hostAttachment) {
+            FormacraftMod.LOGGER.error(
+                    "UnifiedGeneratorRouter: component_request conflicts with envelope protection type={}", type);
+            return new ExpanderStage(List.of(), RoutedGenerationResult.failure(
+                    ComponentGenerationOutcome.Status.INVALID_INPUT,
+                    "component_request_envelope_conflict",
+                    type == null ? "envelope_conflict" : type),
+                    List.of(), false);
+        }
+
         if (hasGroupRequest) {
             try {
                 List<BlockPatch> expanded = com.formacraft.common.component.group.PlayerComponentGroupExpander
@@ -228,7 +268,8 @@ public final class UnifiedGeneratorRouter {
                         .tryExpandResult(semantic, world);
                 if (outcome != null) {
                     if (outcome.commitAllowed()) {
-                        return new ExpanderStage(outcome.patches(), null, outcome.diagnostics(), outcome.degraded());
+                        return new ExpanderStage(outcome.patches(), null, outcome.diagnostics(),
+                                outcome.degraded(), true);
                     }
                     if (outcome.isHardFail()) {
                         return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
@@ -260,6 +301,23 @@ public final class UnifiedGeneratorRouter {
         }
 
         return new ExpanderStage(base, null, List.of(), false);
+    }
+
+    /** Explicit design opt-outs and param disable flags that allow SUCCESS(empty) for required types. */
+    public static boolean isExplicitlyDisabled(Component c) {
+        if (c == null) return false;
+        if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)
+                || com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c)
+                || com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c)) {
+            return true;
+        }
+        Map<String, Object> params = c.params();
+        if (params == null) return false;
+        if (Boolean.TRUE.equals(params.get("disabled")) || Boolean.FALSE.equals(params.get("generate"))) {
+            return true;
+        }
+        Object gen = params.get("generate");
+        return gen != null && "false".equalsIgnoreCase(String.valueOf(gen).trim());
     }
 
     public static boolean isRequiredComponentType(String type) {

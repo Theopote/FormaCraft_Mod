@@ -89,8 +89,15 @@ class CapturedAdaptRound15Test {
     @Test
     void structureTaggedStoneBrickBlocksCarve() {
         ComponentDefinition host = wallHost("host");
-        host.blocks.getFirst().carveRole = "STRUCTURE";
-        host.blocks.getFirst().block = "minecraft:stone_bricks";
+        host.socketPlacements = List.of(socketPlacement("opening", 1, 0, 0));
+        for (var b : host.blocks) {
+            if (b.dx == 1 && b.dy == 0) {
+                b.carveRole = "STRUCTURE";
+                b.block = "minecraft:stone_bricks";
+            } else {
+                b.carveRole = "WALL_FILL";
+            }
+        }
         ComponentSocket socket = openingSocket("opening", 2, 3);
         SocketMask mask = new SocketMask(2, 3, 1);
         ComponentTransform t = new ComponentTransform(Direction.SOUTH, Mirror.NONE);
@@ -98,7 +105,7 @@ class CapturedAdaptRound15Test {
                 host, Direction.SOUTH, t, 0, 0, 0, false, null, 1L);
         assertTrue(hostGeo.ok());
         ResolvedCarveVolume vol = PlayerComponentExpander.resolveCarveVolume(
-                host, socket, mask, BlockPos.ORIGIN,
+                host, socket, mask, new BlockPos(1, 0, 0),
                 Direction.SOUTH, t, 0, 0, 0, Direction.SOUTH, hostGeo.patches(), "opening");
         assertFalse(vol.ok());
         assertTrue(vol.message().contains("protected"));
@@ -107,6 +114,7 @@ class CapturedAdaptRound15Test {
     @Test
     void wallFillAllowsCarveInsideOpening() {
         ComponentDefinition host = wallHost("host");
+        host.socketPlacements = List.of(socketPlacement("opening", 1, 0, 0));
         for (var b : host.blocks) b.carveRole = "WALL_FILL";
         ComponentSocket socket = openingSocket("opening", 2, 3);
         SocketMask mask = new SocketMask(2, 3, 1);
@@ -177,5 +185,15 @@ class CapturedAdaptRound15Test {
                 id, SocketRole.PROVIDER, null, SocketContext.WALL, null,
                 new SizeConstraint(new int[]{w, h}, new int[]{w, h}),
                 Set.of("door"));
+    }
+
+    private static ComponentDefinition.SocketPlacement socketPlacement(String id, int dx, int dy, int dz) {
+        var p = new ComponentDefinition.SocketPlacement();
+        p.id = id;
+        p.dx = dx;
+        p.dy = dy;
+        p.dz = dz;
+        p.facing = "SOUTH";
+        return p;
     }
 }

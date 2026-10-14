@@ -130,6 +130,8 @@ flowchart TD
 
 第四十批起：`RoutedGenerationResult` 硬失败禁止回退；`carveRole` + Socket AABB；`PARTIAL_SUCCESS`；`E_COMPONENT_LIBRARY_FAILED`。
 
+第四十一批起：授权清洞 `containsAll(requested)`；包络+显式 `component_request` → `E_COMPONENT_REQUEST_CONFLICT`；必要空门禁；库提交优先于 typology（`allow_typology_override`）。优先级：显式 component_id 库结果 > component_request 成功 > 类型生成器 base > typology（可选覆盖）> structure fallback。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

@@ -394,7 +394,8 @@ public final class PlayerComponentExpander {
     }
 
     /**
-     * Build and validate carve cells. Envelope + opening-aligned generation + host protected-block collision.
+     * Build and validate carve cells against an independently computed authorized socket volume.
+     * Requested cells (mask + request origin) must be a subset of host-socket authorized cells.
      */
     static ResolvedCarveVolume resolveCarveVolume(
             ComponentDefinition host,
@@ -420,18 +421,23 @@ public final class PlayerComponentExpander {
             return ResolvedCarveVolume.failure(hostId, sid, "carve_exceeds_socket_envelope");
         }
 
+        Set<BlockPos> authorized = authorizedSocketCarveCells(
+                host, socket, sid, fromFacing, transform, baseX, baseY, baseZ, carveFacing);
+        if (authorized.isEmpty() && socket != null) {
+            return ResolvedCarveVolume.failure(hostId, sid, "authorized_socket_empty");
+        }
+
         List<BlockPatch> removes = emitCarveRemoves(mask, maskOriginLocal, fromFacing, transform,
                 baseX, baseY, baseZ, carveFacing);
-        Set<BlockPos> cells = ResolvedCarveVolume.cellsFromRemoves(removes);
-        if (cells.size() != mask.width() * mask.height() * mask.depth()) {
+        Set<BlockPos> requested = ResolvedCarveVolume.cellsFromRemoves(removes);
+        if (requested.size() != mask.width() * mask.height() * mask.depth()) {
             return ResolvedCarveVolume.failure(hostId, sid, "carve_cell_count_mismatch");
         }
 
-        int[] aabb = carveOpeningAabb(mask, maskOriginLocal, fromFacing, transform, baseX, baseY, baseZ, carveFacing);
-        for (BlockPos cell : cells) {
-            if (!insideInclusiveAabb(cell, aabb)) {
-                return ResolvedCarveVolume.failure(hostId, sid, "carve_outside_socket_aabb:"
-                        + cell.getX() + "," + cell.getY() + "," + cell.getZ());
+        for (BlockPos cell : requested) {
+            if (!authorized.contains(cell)) {
+                return ResolvedCarveVolume.failure(hostId, sid,
+                        "CARVE_OUTSIDE_AUTHORIZED_SOCKET:" + cell.getX() + "," + cell.getY() + "," + cell.getZ());
             }
         }
 
@@ -442,7 +448,7 @@ public final class PlayerComponentExpander {
                 if (p == null || !BlockPatch.PLACE.equals(p.action())) continue;
                 hostAt.put(p.dx() + "," + p.dy() + "," + p.dz(), p.targetBlock());
             }
-            for (BlockPos cell : cells) {
+            for (BlockPos cell : requested) {
                 String key = cell.getX() + "," + cell.getY() + "," + cell.getZ();
                 String block = hostAt.get(key);
                 if (block != null && isProtectedHostBlock(host, cell, fromFacing, transform, baseX, baseY, baseZ, block)) {
@@ -450,13 +456,53 @@ public final class PlayerComponentExpander {
                 }
             }
         }
-        return ResolvedCarveVolume.success(hostId, sid, cells);
+        return ResolvedCarveVolume.success(hostId, sid, requested);
     }
 
     /**
-     * Inclusive AABB of the opening box corners after the same transform as PLACE/carve.
-     * Returns int[6] = {minX,minY,minZ,maxX,maxY,maxZ}.
+     * Host-authoritative carve volume: socket placement origin + size.max (else min) opening box.
+     * Independent of any request-side maskOrigin offset.
      */
+    static Set<BlockPos> authorizedSocketCarveCells(
+            ComponentDefinition host,
+            ComponentSocket socket,
+            String socketId,
+            Direction fromFacing,
+            ComponentTransform transform,
+            int baseX, int baseY, int baseZ,
+            Direction carveFacing
+    ) {
+        if (host == null || socket == null || transform == null) return Set.of();
+        BlockPos authOrigin = SocketPlacementResolver.resolveLocalOrigin(host, socketId, socket);
+        SocketMask authMask = authorizedSocketMask(socket);
+        if (authMask == null) return Set.of();
+        return ResolvedCarveVolume.cellsFromRemoves(emitCarveRemoves(
+                authMask, authOrigin, fromFacing, transform, baseX, baseY, baseZ, carveFacing));
+    }
+
+    static SocketMask authorizedSocketMask(ComponentSocket socket) {
+        if (socket == null || socket.size == null) return null;
+        int[] max = socket.size.max;
+        int[] min = socket.size.min;
+        int[] dims = finiteOpeningDims(max) ? max : min;
+        if (dims == null || dims.length < 2) return null;
+        int w = Math.max(1, dims[0]);
+        int h = Math.max(1, dims[1]);
+        int d = dims.length >= 3 ? Math.max(1, dims[2]) : 1;
+        return new SocketMask(w, h, d);
+    }
+
+    /** Reject SizeConstraint sentinel max (Integer.MAX_VALUE) as an opening envelope. */
+    private static boolean finiteOpeningDims(int[] dims) {
+        if (dims == null || dims.length < 2) return false;
+        final int cap = 256;
+        return dims[0] > 0 && dims[0] <= cap
+                && dims[1] > 0 && dims[1] <= cap
+                && (dims.length < 3 || (dims[2] > 0 && dims[2] <= cap));
+    }
+
+    /** @deprecated self-AABB check removed; kept for Round15 tests that assert corner math. */
+    @Deprecated
     static int[] carveOpeningAabb(SocketMask mask, BlockPos maskOriginLocal,
             Direction fromFacing, ComponentTransform transform,
             int baseX, int baseY, int baseZ, Direction carveFacing) {

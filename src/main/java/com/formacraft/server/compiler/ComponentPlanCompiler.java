@@ -478,14 +478,27 @@ public final class ComponentPlanCompiler {
                         String detail = routed.diagnostics().isEmpty()
                                 ? routed.status().name()
                                 : routed.diagnostics().getFirst().code() + ": " + routed.diagnostics().getFirst().message();
+                        String diagCode = routed.diagnostics().isEmpty()
+                                ? ""
+                                : routed.diagnostics().getFirst().code();
+                        boolean envelopeConflict = "component_request_envelope_conflict".equals(diagCode);
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
-                                "E_COMPONENT_LIBRARY_FAILED",
-                                "捕获/库构件硬失败：type=" + c.componentType()
-                                        + " id=" + paramIdentity(c)
-                                        + " status=" + routed.status()
-                                        + " detail=" + detail,
+                                envelopeConflict
+                                        ? "E_COMPONENT_REQUEST_CONFLICT"
+                                        : "E_COMPONENT_LIBRARY_FAILED",
+                                envelopeConflict
+                                        ? "显式 component_request 与包络保护冲突：type=" + c.componentType()
+                                            + " id=" + paramIdentity(c)
+                                            + " detail=" + detail
+                                        : "捕获/库构件硬失败：type=" + c.componentType()
+                                            + " id=" + paramIdentity(c)
+                                            + " status=" + routed.status()
+                                            + " detail=" + detail,
                                 "components[]",
-                                List.of("修复构件 ID、适配规则或清洞约束", "禁止回退为无关默认几何")));
+                                envelopeConflict
+                                        ? List.of("移除 component_request 或设置 allow_envelope_attach=true",
+                                                "禁止静默跳过显式库请求")
+                                        : List.of("修复构件 ID、适配规则或清洞约束", "禁止回退为无关默认几何")));
                         return;
                     }
                     if (routed != null && routed.degraded()) {
