@@ -9,6 +9,8 @@ import java.util.List;
  *
  * 后处理器用于在生成器生成基础结构后，对 BlockPatch 列表进行后处理，
  * 例如：细节装饰增强、材质变化、地形适应等。
+ * <p>
+ * 约定：不得修改 {@code context} 或入参 list；通过返回值产出新的 Patch 列表。
  */
 public interface PostProcessor {
 

@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-15（第四十六批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-15（第四十七批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -14,7 +14,7 @@
 |---|---|---|
 | 预览裁剪 | `ServerPatchFilter` → `PatchFilterPipeline` | `BuildConstraintClipper` → `BuildConstraints.allow` |
 | 确认门禁 | 玩家绑定 + **维度** + 距离 ≤96 + 一次性 Ticket | 玩家预览态 + **维度** + digest + 一次性 consume |
-| 世界写入 | `PatchExecutor`（同步） | `BuildTask`（分 Tick） |
+| 世界写入 | `WorldPatchTransaction` → `PatchExecutor`（同步） | `BuildTask`（分 Tick） |
 | 历史 | `PatchHistoryManager` | `UndoService` |
 | Memory | Patch Diff Mutation | `registerBuilding`（仅完整放置） |
 
@@ -31,6 +31,15 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第四十七批（2026-10-15）— 世界事务门禁与后处理 Scope
+
+- **WorldPatchTransaction**：Preflight（高度/区块/目标 + `before.size==affected`）→ Apply（保留编译顺序）→ Recover；`BuildExecutionStatus`：`SUCCESS` / `PREFLIGHT_REJECTED` / `ROLLED_BACK` / `ROLLBACK_INCOMPLETE`。
+- **历史门禁**：仅 `SUCCESS` 调用 `recordPatch` / Memory；部分失败不入成功 undo 栈。
+- **恢复分级**：`FULL` / `STATE_ONLY` / 失败计数；STATE_ONLY → `ROLLBACK_INCOMPLETE`。
+- **WriteScope**：`PostProcessWriteScope`（volume ∪ surface ∪ seed；carve 排除 clearance）；越权 `out_of_scope_*`。
+- **净空**：`ProtectedClearanceRestorer` 产出可审计 `ProcessorDelta`。
+- **未做**：`BuildTask` 分 Tick 全批原子回滚（后续轮次）。
 
 ### 第四十六批（2026-10-15）— 后处理 WritePolicy 与分处理器增量
 

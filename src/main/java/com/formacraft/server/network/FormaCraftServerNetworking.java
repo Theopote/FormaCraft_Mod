@@ -20,7 +20,6 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -387,10 +386,28 @@ public final class FormaCraftServerNetworking {
         ));
     }
 
+    /** 事务结果：摘要含 BuildExecutionStatus（成功 / 拒绝 / 回滚 / 回滚不完整）。 */
+    public static void sendPatchApplyResult(
+            ServerPlayerEntity player,
+            com.formacraft.common.patch.WorldPatchTransaction.Result result
+    ) {
+        if (player == null || result == null) return;
+        java.util.UUID id = player.getUuid();
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.PatchApplyResultPayload(
+                "apply",
+                result.applied(),
+                result.skippedWorldHeight(),
+                result.skippedUnloaded(),
+                result.skippedIllegal(),
+                result.summaryZh(),
+                com.formacraft.server.build.MutationHistoryFacade.canUndo(id),
+                com.formacraft.server.build.MutationHistoryFacade.canRedo(id)
+        ));
+    }
+
     /**
      * 服务端下发 Patch 撤销/重做结果。
      * @param operation "undo" 或 "redo"
-     * @param changed   恢复的方块数量；<0 表示无操作
      */
     public static void sendPatchHistoryResult(ServerPlayerEntity player, String operation,
             com.formacraft.common.patch.history.PatchReplayHistory.ReplayResult result) {

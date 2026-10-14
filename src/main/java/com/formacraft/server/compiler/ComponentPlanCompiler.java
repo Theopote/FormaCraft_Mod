@@ -287,7 +287,7 @@ public final class ComponentPlanCompiler {
                 for (var step : postOutcome.processorDeltas()) {
                     if (step == null || step.delta() == null || step.delta().isEmpty()) continue;
                     var conflict = patchOccupancy.validatePostProcess(
-                            step.processorId(), step.policy(), step.delta());
+                            step.processorId(), step.policy(), step.delta(), step.scope());
                     if (conflict.isPresent()) {
                         var c = conflict.get();
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
@@ -299,7 +299,10 @@ public final class ComponentPlanCompiler {
                                         + "; previous=" + c.previousWriter() + "/" + c.previousBlock()
                                         + "; writer=" + c.writer() + "/" + c.newBlock(),
                                 "components[]",
-                                List.of("检查后处理器 WritePolicy", "避免 PLACE_ONLY 覆盖/清洞已有格", "修复冲突后重试")
+                                List.of("检查后处理器 WritePolicy / WriteScope",
+                                        "避免 PLACE_ONLY 覆盖/清洞已有格",
+                                        "避免越权修改 volume/seed 外方块",
+                                        "修复冲突后重试")
                         ));
                         return List.of();
                     }

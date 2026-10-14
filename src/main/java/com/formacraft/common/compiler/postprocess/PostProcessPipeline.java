@@ -2,21 +2,33 @@ package com.formacraft.common.compiler.postprocess;
 
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * PostProcessPipeline（后处理管道）
  *
  * 按顺序执行多个后处理器。SOFT 失败保留上一阶段；HARD 失败中止并标记 fatal。
- * 每个成功的处理器产出独立 {@link ProcessorDelta}（不再只在管线末尾做一次总 diff）。
+ * 每个成功的处理器产出独立 {@link ProcessorDelta}；净空恢复为可审计末段。
  */
 public class PostProcessPipeline {
 
     private final List<PostProcessor> processors = new ArrayList<>();
 
-    public record ProcessorDelta(String processorId, PostProcessPatchDelta delta, PostProcessWritePolicy policy) {}
+    public record ProcessorDelta(
+            String processorId,
+            PostProcessPatchDelta delta,
+            PostProcessWritePolicy policy,
+            PostProcessWriteScope scope
+    ) {
+        public ProcessorDelta(String processorId, PostProcessPatchDelta delta, PostProcessWritePolicy policy) {
+            this(processorId, delta, policy, PostProcessWriteScope.unbounded());
+        }
+    }
 
     public record ProcessOutcome(
             List<BlockPatch> patches,
@@ -77,13 +89,10 @@ public class PostProcessPipeline {
             return ProcessOutcome.ok(patches);
         }
 
-        List<BlockPatch> result = patches;
+        // Defensive copy — processors must not mutate the caller-owned list.
+        List<BlockPatch> result = new ArrayList<>(patches);
         List<ProcessorDelta> deltas = new ArrayList<>();
-        var reserved = new java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
-        for (var patch : patches) {
-            var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
-            if (context.protectedClearance().contains(pos)) reserved.put(pos, patch);
-        }
+        var reserved = ProtectedClearanceRestorer.snapshotReserved(patches, context.protectedClearance());
 
         for (PostProcessor processor : processors) {
             if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), null)
@@ -118,7 +127,9 @@ public class PostProcessPipeline {
                 }
                 PostProcessPatchDelta stepDelta = PostProcessPatchDelta.diff(previous, result);
                 if (!stepDelta.isEmpty()) {
-                    deltas.add(new ProcessorDelta(name, stepDelta, processor.writePolicy()));
+                    Set<BlockPos> seeds = new HashSet<>(PostProcessPatchDelta.foldPlaces(previous).keySet());
+                    PostProcessWriteScope scope = PostProcessWriteScope.fromContext(context, seeds);
+                    deltas.add(new ProcessorDelta(name, stepDelta, processor.writePolicy(), scope));
                 }
             } catch (Exception e) {
                 result = previous; // always roll back shared/partial state
@@ -133,15 +144,19 @@ public class PostProcessPipeline {
         }
 
         if (!reserved.isEmpty()) {
-            var preserved = new ArrayList<BlockPatch>();
-            if (result != null) {
-                for (var patch : result) {
-                    var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
-                    if (!context.protectedClearance().contains(pos)) preserved.add(patch);
-                }
+            List<BlockPatch> beforeRestore = result;
+            var restored = ProtectedClearanceRestorer.apply(result, reserved, context.protectedClearance());
+            result = restored.patches();
+            if (!restored.delta().isEmpty()) {
+                deltas.add(new ProcessorDelta(
+                        ProtectedClearanceRestorer.PROCESSOR_ID,
+                        restored.delta(),
+                        PostProcessWritePolicy.CARVE_WITHIN_SCOPE,
+                        restored.scope()));
+                FormacraftMod.LOGGER.debug("ProtectedClearanceRestorer: delta non-empty beforeSize={} afterSize={}",
+                        beforeRestore == null ? 0 : beforeRestore.size(),
+                        result == null ? 0 : result.size());
             }
-            preserved.addAll(reserved.values());
-            result = preserved;
         }
         if (result != null) {
             FormacraftMod.LOGGER.debug("PostProcessPipeline: processed {} patches through {} processors",

@@ -142,6 +142,8 @@ flowchart TD
 
 第四十六批起：后处理按处理器 `WritePolicy` validate-then-commit；`processorDeltas` 分步入索引；冲突 `E_POSTPROCESS_PATCH_CONFLICT`。
 
+第四十七批起：Patch 确认经 `WorldPatchTransaction`；后处理 `WriteScope`；净空 `ProtectedClearanceRestorer` 入增量。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

@@ -1,7 +1,9 @@
 package com.formacraft.common.patch.history;
 
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.BuildExecutionStatus;
 import com.formacraft.common.patch.PatchExecutor;
+import com.formacraft.common.patch.WorldPatchTransaction;
 import com.formacraft.common.world.BlockMutationAccess;
 import com.formacraft.common.world.BlockSnapshot;
 import net.minecraft.server.world.ServerWorld;
@@ -28,6 +30,7 @@ public final class PatchHistoryManager {
 
     private static final Map<UUID, PatchReplayHistory> PER_PLAYER = new ConcurrentHashMap<>();
     private static final Map<UUID, PatchExecutor.ApplyResult> LAST_APPLY_RESULT = new ConcurrentHashMap<>();
+    private static final Map<UUID, WorldPatchTransaction.Result> LAST_TX_RESULT = new ConcurrentHashMap<>();
 
     private static PatchReplayHistory stacks(UUID playerId) {
         return PER_PLAYER.computeIfAbsent(playerId, k -> {
@@ -54,10 +57,12 @@ public final class PatchHistoryManager {
         if (playerId == null) return;
         PER_PLAYER.remove(playerId);
         LAST_APPLY_RESULT.remove(playerId);
+        LAST_TX_RESULT.remove(playerId);
     }
     public static void clearAll() {
         PER_PLAYER.clear();
         LAST_APPLY_RESULT.clear();
+        LAST_TX_RESULT.clear();
         com.formacraft.server.build.PlayerMutationLedger.get().clearAll();
     }
 
@@ -66,34 +71,42 @@ public final class PatchHistoryManager {
         return playerId == null ? null : LAST_APPLY_RESULT.get(playerId);
     }
 
+    /** 最近一次事务结果（含 BuildExecutionStatus）。 */
+    public static WorldPatchTransaction.Result getLastTransactionResult(UUID playerId) {
+        return playerId == null ? null : LAST_TX_RESULT.get(playerId);
+    }
+
     /**
-     * 应用 patch，并写入历史（事务）。
-     * 同时更新 Memory 系统（Memory → Patch → Memory 闭环）
+     * 应用 patch：WorldPatchTransaction 三阶段；仅 {@link BuildExecutionStatus#SUCCESS} 写入历史与 Memory。
      */
-    public static PatchExecutor.ApplyResult applyWithHistory(
+    public static WorldPatchTransaction.Result applyWithHistory(
             ServerWorld world, UUID playerId, BlockPos origin, List<BlockPatch> patches) {
         if (world == null || playerId == null) return null;
         if (origin == null || patches == null || patches.isEmpty()) return null;
 
-        Set<BlockPos> affected = collectAffected(origin, patches);
         BlockMutationAccess access = BlockMutationAccess.forWorld(world);
-        Map<BlockPos, BlockSnapshot> before = snapshot(access, affected);
+        Set<BlockPos> affected = collectAffected(origin, patches);
+        // Capture before for history only after SUCCESS (transaction already snapshotted internally).
+        Map<BlockPos, BlockSnapshot> beforeForHistory = snapshot(access, affected);
 
-        PatchExecutor.ApplyResult applyResult = PatchExecutor.apply(world, origin, patches);
-        LAST_APPLY_RESULT.put(playerId, applyResult);
+        WorldPatchTransaction.Result txResult = WorldPatchTransaction.execute(access, origin, patches);
+        LAST_TX_RESULT.put(playerId, txResult);
+        if (txResult.apply() != null) {
+            LAST_APPLY_RESULT.put(playerId, txResult.apply());
+        }
+
+        if (txResult.status() != BuildExecutionStatus.SUCCESS) {
+            return txResult;
+        }
 
         Map<BlockPos, BlockSnapshot> after = snapshot(access, affected);
-
-        PatchTransaction tx = PatchTransaction.fromSnapshots(origin, before, after);
-        if (tx.before().isEmpty()) return applyResult;
+        PatchTransaction tx = PatchTransaction.fromSnapshots(origin, beforeForHistory, after);
+        if (tx.before().isEmpty()) return txResult;
 
         com.formacraft.server.build.MutationHistoryCoordinator.recordPatch(
                 playerId, stacks(playerId), world, tx);
-
-        // ========== Memory → Patch → Memory 闭环 ==========
-        // 分析 Patch 影响并更新 Memory
         updateMemoryFromPatch(world, origin, tx.patches());
-        return applyResult;
+        return txResult;
     }
     
     /**

@@ -68,6 +68,7 @@
 - **第四十四批**：Patch 占用 `BlockPos` 唯一键；validate/commit；最终扫描复用授权；嵌套深度/必需挂载硬失败。
 - **第四十五批**：覆盖权限不沿同材质继承；REMOVE 清洞授权；后处理增量 `commitPostProcess`；未入索引 PLACE → `untracked_place`。
 - **第四十六批**：后处理 `PostProcessWritePolicy`；validate-then-commit；按处理器 `ProcessorDelta` 入索引；无权覆盖/清洞 → `E_POSTPROCESS_PATCH_CONFLICT`。
+- **第四十七批**：`WorldPatchTransaction` + `BuildExecutionStatus`；`PostProcessWriteScope`；净空 Restorer 可审计增量；仅 SUCCESS 入历史。
 - 重复/裁剪带中包含门的上下半块、床的头尾等成对对象时拒绝变形，避免切断功能结构；**保存前**与运行时使用同一套配对方块扫描。
 - 捕获保存写入 `sourceOrigin=CAPTURED`；`VariantGenerator` 对捕获件（及带 `variantRules` 的定义）禁止随机缩放/裁剪/镜像，仅走确定性 `SegmentScaler` / `ComponentModelApi`。
 - 单轴最大 256 格，变体最多 262144 个方块。

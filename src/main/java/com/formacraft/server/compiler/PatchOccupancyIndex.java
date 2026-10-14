@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.compiler.postprocess.PostProcessPatchDelta;
 import com.formacraft.common.compiler.postprocess.PostProcessWritePolicy;
+import com.formacraft.common.compiler.postprocess.PostProcessWriteScope;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
@@ -60,17 +61,29 @@ public final class PatchOccupancyIndex {
     }
 
     /**
-     * Validate a post-process delta under processor-scoped write policy.
+     * Validate a post-process delta under write policy + spatial {@link PostProcessWriteScope}.
      * Does not mutate formal state.
      */
     public Optional<Conflict> validatePostProcess(
             String processorId,
             PostProcessWritePolicy policy,
-            PostProcessPatchDelta delta
+            PostProcessPatchDelta delta,
+            PostProcessWriteScope scope
     ) {
         if (delta == null || delta.isEmpty()) return Optional.empty();
+        Optional<Conflict> scopeConflict = validateScope(processorId, delta, scope);
+        if (scopeConflict.isPresent()) return scopeConflict;
         Component synthetic = syntheticWriter(processorId, policy);
         return validate(synthetic, delta.toPatchBatch());
+    }
+
+    /** Backward-compatible: unbounded spatial scope (tests that only assert policy). */
+    public Optional<Conflict> validatePostProcess(
+            String processorId,
+            PostProcessWritePolicy policy,
+            PostProcessPatchDelta delta
+    ) {
+        return validatePostProcess(processorId, policy, delta, unboundedScope());
     }
 
     /**
@@ -90,12 +103,53 @@ public final class PatchOccupancyIndex {
     public Optional<Conflict> acceptPostProcess(
             String processorId,
             PostProcessWritePolicy policy,
-            PostProcessPatchDelta delta
+            PostProcessPatchDelta delta,
+            PostProcessWriteScope scope
     ) {
-        Optional<Conflict> conflict = validatePostProcess(processorId, policy, delta);
+        Optional<Conflict> conflict = validatePostProcess(processorId, policy, delta, scope);
         if (conflict.isPresent()) return conflict;
         commitPostProcess(processorId, policy, delta);
         return Optional.empty();
+    }
+
+    public Optional<Conflict> acceptPostProcess(
+            String processorId,
+            PostProcessWritePolicy policy,
+            PostProcessPatchDelta delta
+    ) {
+        return acceptPostProcess(processorId, policy, delta, unboundedScope());
+    }
+
+    private static Optional<Conflict> validateScope(
+            String processorId,
+            PostProcessPatchDelta delta,
+            PostProcessWriteScope scope
+    ) {
+        if (scope == null) return Optional.empty();
+        String writer = processorId == null || processorId.isBlank()
+                ? "POSTPROCESS" : "POSTPROCESS:" + processorId.trim();
+        for (BlockPos pos : delta.removedPlaces().keySet()) {
+            if (!scope.allowsCarve(pos)) {
+                return Optional.of(new Conflict(pos, null, null, writer, "minecraft:air", "out_of_scope_remove"));
+            }
+        }
+        for (BlockPos pos : delta.addedPlaces().keySet()) {
+            if (!scope.allowsPlace(pos)) {
+                return Optional.of(new Conflict(pos, null, null, writer,
+                        delta.addedPlaces().get(pos), "out_of_scope_place"));
+            }
+        }
+        for (BlockPos pos : delta.replacedPlaces().keySet()) {
+            if (!scope.allowsPlace(pos)) {
+                return Optional.of(new Conflict(pos, null, null, writer,
+                        delta.replacedPlaces().get(pos), "out_of_scope_place"));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static PostProcessWriteScope unboundedScope() {
+        return PostProcessWriteScope.unbounded();
     }
 
     private static Component syntheticWriter(String processorId, PostProcessWritePolicy policy) {
