@@ -20,6 +20,11 @@ import java.util.List;
 public class MaterialVariationPostProcessor implements PostProcessor {
 
     @Override
+    public PostProcessWritePolicy writePolicy() {
+        return PostProcessWritePolicy.REPLACE_WITHIN_SCOPE;
+    }
+
+    @Override
     public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {
         if (patches == null || patches.isEmpty()) {
             return patches;

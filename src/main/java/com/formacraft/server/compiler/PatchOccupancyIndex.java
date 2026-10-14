@@ -1,5 +1,7 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.compiler.postprocess.PostProcessPatchDelta;
+import com.formacraft.common.compiler.postprocess.PostProcessWritePolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
@@ -15,6 +17,7 @@ import java.util.Set;
 /**
  * Incremental PLACE/REMOVE occupancy during compile + post-process commit.
  * Overwrite/carve authority is evaluated per current writer only (never inherited).
+ * Post-process writers use {@link PostProcessWritePolicy} in synthetic params — never a blanket POSTPROCESS grant.
  */
 public final class PatchOccupancyIndex {
     static final Set<String> OPENING_WRITERS = Set.of(
@@ -22,7 +25,7 @@ public final class PatchOccupancyIndex {
     );
     static final Set<String> CARVE_WRITERS = Set.of(
             "ENTRANCE", "FACADE_WINDOWS", "DOOR", "WINDOW", "FACADE_OPENING", "FACADE",
-            "STAIR", "STAIRS", "POSTPROCESS"
+            "STAIR", "STAIRS"
     );
 
     /** No sticky overwrite flag — authority is not inherited across writers. */
@@ -57,17 +60,53 @@ public final class PatchOccupancyIndex {
     }
 
     /**
-     * Register post-process delta under writer type {@code POSTPROCESS} (or {@code POSTPROCESS:id}).
-     * POSTPROCESS may carve; does not grant sticky overwrite to later writers.
+     * Validate a post-process delta under processor-scoped write policy.
+     * Does not mutate formal state.
      */
-    public void commitPostProcess(String processorId, PostProcessPatchDelta delta) {
+    public Optional<Conflict> validatePostProcess(
+            String processorId,
+            PostProcessWritePolicy policy,
+            PostProcessPatchDelta delta
+    ) {
+        if (delta == null || delta.isEmpty()) return Optional.empty();
+        Component synthetic = syntheticWriter(processorId, policy);
+        return validate(synthetic, delta.toPatchBatch());
+    }
+
+    /**
+     * Commit a post-process delta. Call only after {@link #validatePostProcess} succeeded.
+     */
+    public void commitPostProcess(
+            String processorId,
+            PostProcessWritePolicy policy,
+            PostProcessPatchDelta delta
+    ) {
         if (delta == null || delta.isEmpty()) return;
+        Component synthetic = syntheticWriter(processorId, policy);
+        commit(synthetic, delta.toPatchBatch());
+    }
+
+    /** Validate then commit a post-process delta if ok. */
+    public Optional<Conflict> acceptPostProcess(
+            String processorId,
+            PostProcessWritePolicy policy,
+            PostProcessPatchDelta delta
+    ) {
+        Optional<Conflict> conflict = validatePostProcess(processorId, policy, delta);
+        if (conflict.isPresent()) return conflict;
+        commitPostProcess(processorId, policy, delta);
+        return Optional.empty();
+    }
+
+    private static Component syntheticWriter(String processorId, PostProcessWritePolicy policy) {
         String type = (processorId == null || processorId.isBlank())
                 ? "POSTPROCESS"
                 : "POSTPROCESS:" + processorId.trim();
-        Component synthetic = new Component(type, null, null, null, List.of(), Map.of());
-        List<BlockPatch> batch = delta.toPatchBatch();
-        apply(synthetic, batch, places, removes);
+        PostProcessWritePolicy p = policy == null ? PostProcessWritePolicy.PLACE_ONLY : policy;
+        return new Component(type, null, null, null, List.of(), Map.of(
+                "write_policy", p.name(),
+                "postprocess_policy", p.name()
+        ));
     }
 
     public PlaceRecord placeAt(BlockPos pos) {
@@ -81,7 +120,9 @@ public final class PatchOccupancyIndex {
     static boolean canCarve(Component writer) {
         if (writer == null) return false;
         String type = writer.componentType() == null ? "" : writer.componentType().trim().toUpperCase(Locale.ROOT);
-        if (type.startsWith("POSTPROCESS")) return true;
+        if (type.startsWith("POSTPROCESS")) {
+            return policyOf(writer).allowsCarve();
+        }
         if (CARVE_WRITERS.contains(type)) return true;
         Map<String, Object> params = writer.params();
         if (params == null) return false;
@@ -92,10 +133,20 @@ public final class PatchOccupancyIndex {
     static boolean canOverwritePlace(Component writer) {
         if (writer == null) return false;
         String type = writer.componentType() == null ? "" : writer.componentType().trim().toUpperCase(Locale.ROOT);
-        if (type.startsWith("POSTPROCESS")) return true;
+        if (type.startsWith("POSTPROCESS")) {
+            return policyOf(writer).allowsOverwrite();
+        }
         if (OPENING_WRITERS.contains(type)) return true;
         Map<String, Object> params = writer.params();
         return params != null && Boolean.TRUE.equals(params.get("allow_patch_overwrite"));
+    }
+
+    private static PostProcessWritePolicy policyOf(Component writer) {
+        Map<String, Object> params = writer == null ? null : writer.params();
+        if (params == null) return PostProcessWritePolicy.PLACE_ONLY;
+        Object raw = params.get("write_policy");
+        if (raw == null) raw = params.get("postprocess_policy");
+        return PostProcessWritePolicy.fromParam(raw);
     }
 
     private static Optional<Conflict> apply(

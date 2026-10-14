@@ -39,6 +39,11 @@ public class TerrainAdaptationPostProcessor implements PostProcessor {
     }
 
     @Override
+    public PostProcessWritePolicy writePolicy() {
+        return PostProcessWritePolicy.CARVE_WITHIN_SCOPE;
+    }
+
+    @Override
     public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {
         if (patches == null || patches.isEmpty()) {
             return patches;

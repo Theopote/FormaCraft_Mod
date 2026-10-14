@@ -1,5 +1,6 @@
-package com.formacraft.server.compiler;
+package com.formacraft.common.compiler.postprocess;
 
+import com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 
@@ -9,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Diff of folded PLACE occupancy before vs after post-process.
+ * Diff of folded PLACE occupancy before vs after a post-process step.
  */
 public final class PostProcessPatchDelta {
     private final Map<BlockPos, String> addedPlaces;
@@ -49,7 +50,7 @@ public final class PostProcessPatchDelta {
     }
 
     /** Fold sequential patches to final PLACE canonical (or raw) per cell. */
-    static Map<BlockPos, String> foldPlaces(List<BlockPatch> patches) {
+    public static Map<BlockPos, String> foldPlaces(List<BlockPatch> patches) {
         Map<BlockPos, String> out = new HashMap<>();
         if (patches == null) return out;
         for (BlockPatch p : patches) {
@@ -60,7 +61,7 @@ public final class PostProcessPatchDelta {
                 continue;
             }
             if (!BlockPatch.PLACE.equals(p.action())) continue;
-            String canon = PatchOccupancyIndex.canonical(p.targetBlock());
+            String canon = ExplicitMaterialPolicy.canonical(p.targetBlock());
             out.put(pos, canon != null ? canon : p.targetBlock());
         }
         return out;

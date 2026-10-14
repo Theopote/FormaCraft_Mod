@@ -140,6 +140,8 @@ flowchart TD
 
 第四十五批起：覆盖权限不继承；REMOVE 需清洞授权；`PostProcessPatchDelta` 入索引；禁止 untracked 最终 PLACE。
 
+第四十六批起：后处理按处理器 `WritePolicy` validate-then-commit；`processorDeltas` 分步入索引；冲突 `E_POSTPROCESS_PATCH_CONFLICT`。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

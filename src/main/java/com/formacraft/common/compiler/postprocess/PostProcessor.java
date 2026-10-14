@@ -29,4 +29,9 @@ public interface PostProcessor {
     default FailurePolicy failurePolicy() {
         return FailurePolicy.SOFT;
     }
+
+    /** Occupancy write authority for this processor's delta. Default: decorate-only. */
+    default PostProcessWritePolicy writePolicy() {
+        return PostProcessWritePolicy.PLACE_ONLY;
+    }
 }

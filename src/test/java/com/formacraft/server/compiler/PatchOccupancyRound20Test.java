@@ -1,6 +1,8 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.component.group.PlayerComponentGroupExpander;
+import com.formacraft.common.compiler.postprocess.PostProcessPatchDelta;
+import com.formacraft.common.compiler.postprocess.PostProcessWritePolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -70,7 +72,7 @@ class PatchOccupancyRound20Test {
         );
         var delta = PostProcessPatchDelta.diff(before, after);
         assertFalse(delta.addedPlaces().isEmpty());
-        idx.commitPostProcess("trim", delta);
+        assertTrue(idx.acceptPostProcess("trim", PostProcessWritePolicy.PLACE_ONLY, delta).isEmpty());
 
         assertTrue(PatchConflictValidator.inspectAuthorized(after, idx).isEmpty());
     }

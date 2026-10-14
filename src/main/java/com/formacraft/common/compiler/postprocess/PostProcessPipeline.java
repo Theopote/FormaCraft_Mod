@@ -10,14 +10,28 @@ import java.util.List;
  * PostProcessPipeline（后处理管道）
  *
  * 按顺序执行多个后处理器。SOFT 失败保留上一阶段；HARD 失败中止并标记 fatal。
+ * 每个成功的处理器产出独立 {@link ProcessorDelta}（不再只在管线末尾做一次总 diff）。
  */
 public class PostProcessPipeline {
 
     private final List<PostProcessor> processors = new ArrayList<>();
 
-    public record ProcessOutcome(List<BlockPatch> patches, boolean hardFailure, String failedProcessor, String errorMessage) {
+    public record ProcessorDelta(String processorId, PostProcessPatchDelta delta, PostProcessWritePolicy policy) {}
+
+    public record ProcessOutcome(
+            List<BlockPatch> patches,
+            boolean hardFailure,
+            String failedProcessor,
+            String errorMessage,
+            List<ProcessorDelta> processorDeltas
+    ) {
         public static ProcessOutcome ok(List<BlockPatch> patches) {
-            return new ProcessOutcome(patches, false, null, null);
+            return ok(patches, List.of());
+        }
+
+        public static ProcessOutcome ok(List<BlockPatch> patches, List<ProcessorDelta> deltas) {
+            return new ProcessOutcome(patches, false, null, null,
+                    deltas == null ? List.of() : List.copyOf(deltas));
         }
     }
 
@@ -64,6 +78,7 @@ public class PostProcessPipeline {
         }
 
         List<BlockPatch> result = patches;
+        List<ProcessorDelta> deltas = new ArrayList<>();
         var reserved = new java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
         for (var patch : patches) {
             var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
@@ -82,7 +97,8 @@ public class PostProcessPipeline {
                 if (result == null) {
                     if (processor.failurePolicy() == PostProcessor.FailurePolicy.HARD) {
                         FormacraftMod.LOGGER.error("PostProcessor {} returned null (HARD)", name);
-                        return new ProcessOutcome(List.copyOf(previous), true, name, "processor returned null");
+                        return new ProcessOutcome(List.copyOf(previous), true, name, "processor returned null",
+                                List.copyOf(deltas));
                     }
                     FormacraftMod.LOGGER.warn("PostProcessor {} returned null, using previous result", name);
                     result = previous;
@@ -100,11 +116,16 @@ public class PostProcessPipeline {
                                 name, integrity.restored());
                     }
                 }
+                PostProcessPatchDelta stepDelta = PostProcessPatchDelta.diff(previous, result);
+                if (!stepDelta.isEmpty()) {
+                    deltas.add(new ProcessorDelta(name, stepDelta, processor.writePolicy()));
+                }
             } catch (Exception e) {
                 result = previous; // always roll back shared/partial state
                 if (processor.failurePolicy() == PostProcessor.FailurePolicy.HARD) {
                     FormacraftMod.LOGGER.error("PostProcessor {} failed (HARD): {}", name, e.getMessage(), e);
-                    return new ProcessOutcome(List.copyOf(previous), true, name, e.getMessage());
+                    return new ProcessOutcome(List.copyOf(previous), true, name, e.getMessage(),
+                            List.copyOf(deltas));
                 }
                 FormacraftMod.LOGGER.warn("PostProcessor {} failed (SOFT), keeping previous: {}",
                         name, e.getMessage(), e);
@@ -127,7 +148,7 @@ public class PostProcessPipeline {
                     result.size(), processors.size());
         }
 
-        return ProcessOutcome.ok(result);
+        return ProcessOutcome.ok(result, deltas);
     }
 
     private static List<BlockPatch> preserveMaterials(List<BlockPatch> before, List<BlockPatch> after,

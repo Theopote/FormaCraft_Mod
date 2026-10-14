@@ -271,7 +271,6 @@ public final class ComponentPlanCompiler {
                 pipeline = PostProcessPipeline.createDefault(context);
             }
 
-            List<BlockPatch> beforePost = List.copyOf(result);
             var postOutcome = pipeline.processWithOutcome(result, context);
             if (postOutcome.hardFailure()) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap(
@@ -285,13 +284,29 @@ public final class ComponentPlanCompiler {
             }
             result = postOutcome.patches();
             if (patchOccupancy != null) {
-                var delta = PostProcessPatchDelta.diff(beforePost, result);
-                String processorId = postOutcome.failedProcessor() != null
-                        ? postOutcome.failedProcessor()
-                        : "pipeline";
-                patchOccupancy.commitPostProcess(processorId, delta);
+                for (var step : postOutcome.processorDeltas()) {
+                    if (step == null || step.delta() == null || step.delta().isEmpty()) continue;
+                    var conflict = patchOccupancy.validatePostProcess(
+                            step.processorId(), step.policy(), step.delta());
+                    if (conflict.isPresent()) {
+                        var c = conflict.get();
+                        AssemblyCompileDiagnostics.set(new CapabilityGap(
+                                "E_POSTPROCESS_PATCH_CONFLICT",
+                                "后处理占用冲突：processor=" + step.processorId()
+                                        + "; policy=" + step.policy()
+                                        + "; reason=" + c.reason()
+                                        + "; pos=" + c.position()
+                                        + "; previous=" + c.previousWriter() + "/" + c.previousBlock()
+                                        + "; writer=" + c.writer() + "/" + c.newBlock(),
+                                "components[]",
+                                List.of("检查后处理器 WritePolicy", "避免 PLACE_ONLY 覆盖/清洞已有格", "修复冲突后重试")
+                        ));
+                        return List.of();
+                    }
+                    patchOccupancy.commitPostProcess(step.processorId(), step.policy(), step.delta());
+                }
             }
-            
+
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
         }
 
