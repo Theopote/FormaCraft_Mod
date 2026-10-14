@@ -527,9 +527,12 @@ public final class PlayerComponentGroupExpander {
 
     /** Default true; only mount_required/required=false makes a mount optional. */
     static boolean isMountRequired(MountEntry me) {
-        if (me == null) return true;
-        Map<String, Object> nr = me.nestedReq;
-        if (nr == null) return true;
+        return me == null || isMountRequiredParams(me.nestedReq());
+    }
+
+    /** Null/empty params → required. Exposed for unit tests. */
+    public static boolean isMountRequiredParams(Map<String, Object> nr) {
+        if (nr == null || nr.isEmpty()) return true;
         if (Boolean.FALSE.equals(nr.get("mount_required")) || Boolean.FALSE.equals(nr.get("required"))) {
             return false;
         }

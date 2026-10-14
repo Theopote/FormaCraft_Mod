@@ -270,7 +270,8 @@ public final class ComponentPlanCompiler {
                 // 基础管道（不包含地形适应）
                 pipeline = PostProcessPipeline.createDefault(context);
             }
-            
+
+            List<BlockPatch> beforePost = List.copyOf(result);
             var postOutcome = pipeline.processWithOutcome(result, context);
             if (postOutcome.hardFailure()) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap(
@@ -283,6 +284,13 @@ public final class ComponentPlanCompiler {
                 return List.of();
             }
             result = postOutcome.patches();
+            if (patchOccupancy != null) {
+                var delta = PostProcessPatchDelta.diff(beforePost, result);
+                String processorId = postOutcome.failedProcessor() != null
+                        ? postOutcome.failedProcessor()
+                        : "pipeline";
+                patchOccupancy.commitPostProcess(processorId, delta);
+            }
             
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
         }

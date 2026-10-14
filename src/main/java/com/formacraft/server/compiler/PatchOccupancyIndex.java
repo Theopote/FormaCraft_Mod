@@ -13,19 +13,20 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Incremental PLACE/REMOVE occupancy during {@link ComponentPlanCompiler#compileComponents}.
- * Keys are exact {@link BlockPos} (no bit-packing). Use {@link #validate} then {@link #commit}.
+ * Incremental PLACE/REMOVE occupancy during compile + post-process commit.
+ * Overwrite/carve authority is evaluated per current writer only (never inherited).
  */
 public final class PatchOccupancyIndex {
     static final Set<String> OPENING_WRITERS = Set.of(
             "ENTRANCE", "FACADE_WINDOWS", "DOOR", "WINDOW", "FACADE_OPENING", "FACADE"
     );
+    static final Set<String> CARVE_WRITERS = Set.of(
+            "ENTRANCE", "FACADE_WINDOWS", "DOOR", "WINDOW", "FACADE_OPENING", "FACADE",
+            "STAIR", "STAIRS", "POSTPROCESS"
+    );
 
-    public record PlaceRecord(String writerType, String targetBlock, boolean allowOverwrite) {
-        boolean authorizedOverwrite() {
-            return allowOverwrite || (writerType != null && OPENING_WRITERS.contains(writerType));
-        }
-    }
+    /** No sticky overwrite flag — authority is not inherited across writers. */
+    public record PlaceRecord(String writerType, String targetBlock) {}
 
     public record Conflict(BlockPos position, String previousWriter, String previousBlock,
                            String writer, String newBlock, String reason) {}
@@ -55,6 +56,20 @@ public final class PatchOccupancyIndex {
         return Optional.empty();
     }
 
+    /**
+     * Register post-process delta under writer type {@code POSTPROCESS} (or {@code POSTPROCESS:id}).
+     * POSTPROCESS may carve; does not grant sticky overwrite to later writers.
+     */
+    public void commitPostProcess(String processorId, PostProcessPatchDelta delta) {
+        if (delta == null || delta.isEmpty()) return;
+        String type = (processorId == null || processorId.isBlank())
+                ? "POSTPROCESS"
+                : "POSTPROCESS:" + processorId.trim();
+        Component synthetic = new Component(type, null, null, null, List.of(), Map.of());
+        List<BlockPatch> batch = delta.toPatchBatch();
+        apply(synthetic, batch, places, removes);
+    }
+
     public PlaceRecord placeAt(BlockPos pos) {
         return pos == null ? null : places.get(pos);
     }
@@ -63,7 +78,26 @@ public final class PatchOccupancyIndex {
         return places.isEmpty() && removes.isEmpty();
     }
 
-    /** Applies patches to the given maps (simulation or formal). */
+    static boolean canCarve(Component writer) {
+        if (writer == null) return false;
+        String type = writer.componentType() == null ? "" : writer.componentType().trim().toUpperCase(Locale.ROOT);
+        if (type.startsWith("POSTPROCESS")) return true;
+        if (CARVE_WRITERS.contains(type)) return true;
+        Map<String, Object> params = writer.params();
+        if (params == null) return false;
+        return Boolean.TRUE.equals(params.get("allow_carve"))
+                || Boolean.TRUE.equals(params.get("allow_patch_overwrite"));
+    }
+
+    static boolean canOverwritePlace(Component writer) {
+        if (writer == null) return false;
+        String type = writer.componentType() == null ? "" : writer.componentType().trim().toUpperCase(Locale.ROOT);
+        if (type.startsWith("POSTPROCESS")) return true;
+        if (OPENING_WRITERS.contains(type)) return true;
+        Map<String, Object> params = writer.params();
+        return params != null && Boolean.TRUE.equals(params.get("allow_patch_overwrite"));
+    }
+
     private static Optional<Conflict> apply(
             Component writer,
             List<BlockPatch> patches,
@@ -72,14 +106,18 @@ public final class PatchOccupancyIndex {
     ) {
         String type = writer != null && writer.componentType() != null
                 ? writer.componentType().trim().toUpperCase(Locale.ROOT) : "";
-        boolean allowOverwrite = writer != null && writer.params() != null
-                && Boolean.TRUE.equals(writer.params().get("allow_patch_overwrite"));
-        boolean openingWriter = OPENING_WRITERS.contains(type) || allowOverwrite;
+        boolean overwriteOk = canOverwritePlace(writer);
+        boolean carveOk = canCarve(writer);
 
         for (BlockPatch p : patches) {
             if (p == null) continue;
             BlockPos pos = new BlockPos(p.dx(), p.dy(), p.dz());
             if (BlockPatch.REMOVE.equals(p.action())) {
+                PlaceRecord existing = placeMap.get(pos);
+                if (existing != null && !carveOk) {
+                    return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
+                            type, p.targetBlock(), "unauthorized_remove"));
+                }
                 removeSet.add(pos);
                 placeMap.remove(pos);
                 continue;
@@ -91,17 +129,17 @@ public final class PatchOccupancyIndex {
             if (prev != null) {
                 String prevCanon = canonical(prev.targetBlock());
                 if (prevCanon != null && prevCanon.equals(canon)) {
-                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock(),
-                            allowOverwrite || prev.allowOverwrite()));
+                    // Same material: replace ownership with current writer only (no privilege inherit).
+                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock()));
                     removeSet.remove(pos);
                     continue;
                 }
-                if (!openingWriter && !prev.allowOverwrite()) {
+                if (!overwriteOk) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
                             type, p.targetBlock(), "unauthorized_place_overwrite"));
                 }
             }
-            placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), allowOverwrite || openingWriter));
+            placeMap.put(pos, new PlaceRecord(type, p.targetBlock()));
             removeSet.remove(pos);
         }
         return Optional.empty();

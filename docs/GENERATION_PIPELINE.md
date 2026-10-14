@@ -138,6 +138,8 @@ flowchart TD
 
 第四十四批起：占用索引 `BlockPos` 键；validate/commit 分离；`inspectAuthorized`；嵌套/挂载默认 required。
 
+第四十五批起：覆盖权限不继承；REMOVE 需清洞授权；`PostProcessPatchDelta` 入索引；禁止 untracked 最终 PLACE。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

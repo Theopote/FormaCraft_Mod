@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-15（第四十四批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-15（第四十五批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,13 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第四十五批（2026-10-15）— Patch 授权完备（REMOVE / 后处理）
+
+- **无权限继承**：`PlaceRecord` 不含 sticky overwrite；同材质重写只换当前 writer。
+- **REMOVE 授权**：清除已有 PLACE 需 `canCarve`（开口/楼梯/POSTPROCESS/`allow_carve`）。
+- **后处理增量**：`PostProcessPatchDelta` → `commitPostProcess`；最终 `untracked_place` 不再放行。
+- **挂载**：`isMountRequiredParams` 默认 true。
 
 ### 第四十四批（2026-10-15）— Patch 占用唯一键与授权一致
 

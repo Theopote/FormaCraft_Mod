@@ -10,18 +10,14 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Final-pass conflict check that reuses compile-time {@link PatchOccupancyIndex} authorization.
- * Does not re-guess overwrite policy from raw PLACE pairs alone.
+ * Final-pass conflict check against compile + post-process occupancy.
+ * Untracked final PLACE (no index record) is a hard conflict.
  */
 public final class PatchConflictValidator {
     private PatchConflictValidator() {}
 
     public record Finding(BlockPos position, String firstBlock, String secondBlock, String reason) {}
 
-    /**
-     * Fold {@code result} to final PLACE per cell, then compare against occupancy records.
-     * Unauthorized material changes vs a non-overwrite PlaceRecord → conflict.
-     */
     public static Optional<Finding> inspectAuthorized(List<BlockPatch> result, PatchOccupancyIndex index) {
         if (result == null || result.isEmpty() || index == null) return Optional.empty();
         Map<BlockPos, String> finalPlace = new HashMap<>();
@@ -38,10 +34,12 @@ public final class PatchConflictValidator {
         }
         for (Map.Entry<BlockPos, String> e : finalPlace.entrySet()) {
             PatchOccupancyIndex.PlaceRecord rec = index.placeAt(e.getKey());
-            if (rec == null) continue; // post-process new cell / never indexed
+            if (rec == null) {
+                return Optional.of(new Finding(e.getKey(), "", e.getValue(), "untracked_place"));
+            }
             String indexed = PatchOccupancyIndex.canonical(rec.targetBlock());
             if (indexed == null || indexed.equals(e.getValue())) continue;
-            if (rec.authorizedOverwrite()) continue;
+            // Material drift without a matching occupancy update (should have been commitPostProcess).
             return Optional.of(new Finding(e.getKey(), indexed, e.getValue(), "unauthorized_final_overwrite"));
         }
         return Optional.empty();
@@ -55,7 +53,9 @@ public final class PatchConflictValidator {
                         + " " + f.firstBlock() + " -> " + f.secondBlock()
                         + (f.reason() == null ? "" : " (" + f.reason() + ")"),
                 "components[]",
-                List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true", "禁止无关构件互相覆盖同坐标")
+                List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true",
+                        "后处理变更须经 PostProcessPatchDelta 入占用索引",
+                        "禁止无关构件 REMOVE/PLACE 绕过占用")
         ));
     }
 }
