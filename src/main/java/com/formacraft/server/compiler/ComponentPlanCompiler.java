@@ -208,8 +208,9 @@ public final class ComponentPlanCompiler {
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
+        PatchOccupancyIndex patchOccupancy;
         try {
-            compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
+            patchOccupancy = compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
                     slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
@@ -296,10 +297,12 @@ public final class ComponentPlanCompiler {
             }
         }
 
-        var postPatchConflict = PatchConflictValidator.inspectMultiPlace(result);
-        if (postPatchConflict.isPresent()) {
-            PatchConflictValidator.toCapabilityGap(postPatchConflict.get()).ifPresent(AssemblyCompileDiagnostics::set);
-            return List.of();
+        if (patchOccupancy != null) {
+            var postPatchConflict = PatchConflictValidator.inspectAuthorized(result, patchOccupancy);
+            if (postPatchConflict.isPresent()) {
+                PatchConflictValidator.toCapabilityGap(postPatchConflict.get()).ifPresent(AssemblyCompileDiagnostics::set);
+                return List.of();
+            }
         }
 
         for (var roof : components) {
@@ -415,7 +418,7 @@ public final class ComponentPlanCompiler {
         return false;
     }
 
-    private static void compileComponents(
+    private static PatchOccupancyIndex compileComponents(
             LlmPlan plan,
             ServerWorld world,
             BlockPos globalAnchor,
@@ -472,7 +475,7 @@ public final class ComponentPlanCompiler {
                             "平屋顶接合高度不匹配：host=" + attachment.host() + ", expected plan y=" + attachment.expectedY()
                                     + ", actual plan y=" + attachment.actualY(), "components[]",
                             List.of("Align the flat roof to the resolved host part's top plane, including slot offset once.")));
-                    return;
+                    return patchOccupancy;
                 }
                 Vec3i roofSlotAnchor = slot.anchor();
                 FlatRoofCoverageValidator.resolve(semantic, roofSlotAnchor == null ? BlockPos.ORIGIN
@@ -506,7 +509,7 @@ public final class ComponentPlanCompiler {
                                         ? List.of("移除 component_request 或设置 allow_envelope_attach=true",
                                                 "禁止静默跳过显式库请求")
                                         : List.of("修复构件 ID、适配规则或清洞约束", "禁止回退为无关默认几何")));
-                        return;
+                        return patchOccupancy;
                     }
                     if (routed != null && routed.degraded()) {
                         for (var d : routed.diagnostics()) {
@@ -529,7 +532,7 @@ public final class ComponentPlanCompiler {
                             "生成器未提供声明的建筑表面：" + normalizedType + " " + first.role()
                                     + " at component " + first.position().toShortString() + "; missing=" + missingSurfaces.size(),
                             "components[]", List.of("Fix surface material or generator emission; keep authored openings explicitly marked.")));
-                    return;
+                    return patchOccupancy;
                 }
                 if (!patches.isEmpty()) {
                     if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
@@ -555,7 +558,7 @@ public final class ComponentPlanCompiler {
                                 "楼梯占用或净空覆盖已有外墙：" + collision.position().toShortString()
                                         + " (" + collision.role() + ")", "components[]",
                                 List.of("Move the stair flight and its clearance inside the host building; use an existing doorway for exterior access.")));
-                        return;
+                        return patchOccupancy;
                     }
 
                     var shiftedPatches = new ArrayList<BlockPatch>();
@@ -583,7 +586,7 @@ public final class ComponentPlanCompiler {
                                         + ", surface=" + conflict.surface().role() + ", plan=" + conflict.position().toShortString()
                                         + "; " + conflict.reason(), "components[]",
                                 List.of("Keep decoration non-destructive; bind wall openings to their host building.")));
-                        return;
+                        return patchOccupancy;
                     }
                     // Validate all materials before any ledger / result mutation (transactional commit).
                     var explicitTargets = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.targets(c, styleAttributes);
@@ -592,10 +595,10 @@ public final class ComponentPlanCompiler {
                             AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
                                     "构件生成了无效方块材料：" + c.componentType() + " " + patch.targetBlock(),
                                     "components[]", List.of("Use a registered block id and valid state properties.")));
-                            return;
+                            return patchOccupancy;
                         }
                     }
-                    var occupancyConflict = patchOccupancy.accept(c, shiftedPatches);
+                    var occupancyConflict = patchOccupancy.validate(c, shiftedPatches);
                     if (occupancyConflict.isPresent()) {
                         var oc = occupancyConflict.get();
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_PATCH_CONFLICT",
@@ -606,8 +609,9 @@ public final class ComponentPlanCompiler {
                                 "components[]",
                                 List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true",
                                         "禁止无关构件互相覆盖同坐标")));
-                        return;
+                        return patchOccupancy;
                     }
+                    patchOccupancy.commit(c, shiftedPatches);
 
                     // Commit boundary: patches + ledgers + protected sets together.
                     result.addAll(shiftedPatches);
@@ -674,10 +678,11 @@ public final class ComponentPlanCompiler {
                             "components[]",
                             List.of("修复该构件参数或生成器异常", "装饰类失败可降级，主体/屋顶/门窗不可")
                     ));
-                    return;
+                    return patchOccupancy;
                 }
             }
         }
+        return patchOccupancy;
     }
 
     static boolean isSoftGenerationFailure(Component c) {

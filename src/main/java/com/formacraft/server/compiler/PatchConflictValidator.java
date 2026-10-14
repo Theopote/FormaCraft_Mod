@@ -10,65 +10,39 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Final-pass scan of the compiled patch list for residual multi-PLACE conflicts
- * (e.g. introduced by post-process). Same-material duplicates are allowed;
- * different materials at one cell without prior index authorization surface as a gap.
+ * Final-pass conflict check that reuses compile-time {@link PatchOccupancyIndex} authorization.
+ * Does not re-guess overwrite policy from raw PLACE pairs alone.
  */
 public final class PatchConflictValidator {
     private PatchConflictValidator() {}
 
-    public record Finding(BlockPos position, String firstBlock, String secondBlock) {}
-
-    public static Optional<Finding> inspect(List<BlockPatch> patches) {
-        if (patches == null || patches.isEmpty()) return Optional.empty();
-        Map<Long, String> lastPlace = new HashMap<>();
-        for (BlockPatch p : patches) {
-            if (p == null) continue;
-            long key = pack(p.dx(), p.dy(), p.dz());
-            if (BlockPatch.REMOVE.equals(p.action())) {
-                lastPlace.remove(key);
-                continue;
-            }
-            if (!BlockPatch.PLACE.equals(p.action())) continue;
-            String canon = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(p.targetBlock());
-            String prev = lastPlace.get(key);
-            if (prev != null && canon != null && !prev.equals(canon)) {
-                // Final list usually keeps only the last write; detect when both still present
-                // by scanning forward — record first conflict pair found via two-pass:
-                return Optional.of(new Finding(
-                        new BlockPos(p.dx(), p.dy(), p.dz()), prev, canon));
-            }
-            if (canon != null) lastPlace.put(key, canon);
-        }
-        return Optional.empty();
-    }
+    public record Finding(BlockPos position, String firstBlock, String secondBlock, String reason) {}
 
     /**
-     * Detects when the same cell appears with two different PLACE materials still both in the list
-     * (unordered scan collecting all place materials per cell).
+     * Fold {@code result} to final PLACE per cell, then compare against occupancy records.
+     * Unauthorized material changes vs a non-overwrite PlaceRecord → conflict.
      */
-    public static Optional<Finding> inspectMultiPlace(List<BlockPatch> patches) {
-        if (patches == null || patches.isEmpty()) return Optional.empty();
-        Map<Long, String> first = new HashMap<>();
-        Map<Long, Boolean> removed = new HashMap<>();
-        for (BlockPatch p : patches) {
+    public static Optional<Finding> inspectAuthorized(List<BlockPatch> result, PatchOccupancyIndex index) {
+        if (result == null || result.isEmpty() || index == null) return Optional.empty();
+        Map<BlockPos, String> finalPlace = new HashMap<>();
+        for (BlockPatch p : result) {
             if (p == null) continue;
-            long key = pack(p.dx(), p.dy(), p.dz());
+            BlockPos pos = new BlockPos(p.dx(), p.dy(), p.dz());
             if (BlockPatch.REMOVE.equals(p.action())) {
-                removed.put(key, Boolean.TRUE);
-                first.remove(key);
+                finalPlace.remove(pos);
                 continue;
             }
             if (!BlockPatch.PLACE.equals(p.action())) continue;
-            removed.remove(key);
-            String canon = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(p.targetBlock());
-            if (canon == null) continue;
-            String prev = first.get(key);
-            if (prev == null) {
-                first.put(key, canon);
-            } else if (!prev.equals(canon)) {
-                return Optional.of(new Finding(new BlockPos(p.dx(), p.dy(), p.dz()), prev, canon));
-            }
+            String canon = PatchOccupancyIndex.canonical(p.targetBlock());
+            if (canon != null) finalPlace.put(pos, canon);
+        }
+        for (Map.Entry<BlockPos, String> e : finalPlace.entrySet()) {
+            PatchOccupancyIndex.PlaceRecord rec = index.placeAt(e.getKey());
+            if (rec == null) continue; // post-process new cell / never indexed
+            String indexed = PatchOccupancyIndex.canonical(rec.targetBlock());
+            if (indexed == null || indexed.equals(e.getValue())) continue;
+            if (rec.authorizedOverwrite()) continue;
+            return Optional.of(new Finding(e.getKey(), indexed, e.getValue(), "unauthorized_final_overwrite"));
         }
         return Optional.empty();
     }
@@ -78,13 +52,10 @@ public final class PatchConflictValidator {
         return Optional.of(new CapabilityGap(
                 "E_PATCH_CONFLICT",
                 "未授权 Patch 覆盖：" + f.position().toShortString()
-                        + " " + f.firstBlock() + " -> " + f.secondBlock(),
+                        + " " + f.firstBlock() + " -> " + f.secondBlock()
+                        + (f.reason() == null ? "" : " (" + f.reason() + ")"),
                 "components[]",
                 List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true", "禁止无关构件互相覆盖同坐标")
         ));
-    }
-
-    private static long pack(int x, int y, int z) {
-        return ((long) (x & 0x1FFFFF)) | (((long) (y & 0x3FF)) << 21) | (((long) (z & 0x1FFFFF)) << 31);
     }
 }

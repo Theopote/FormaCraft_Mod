@@ -254,8 +254,11 @@ public final class PlayerComponentGroupExpander {
             return stats;
         }
         if (depth > MAX_NESTED_GROUP_DEPTH) {
-            FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: nested group depth exceeded at {}", group.getId());
-            stats.failMessage = "nested_depth_exceeded";
+            FormacraftMod.LOGGER.error("PlayerComponentGroupExpander: nested group depth exceeded at {}", group.getId());
+            stats.emitHardFail = true;
+            stats.emitFailStatus = ComponentGenerationOutcome.Status.LOAD_FAILED;
+            stats.emitFailCode = "nested_depth_exceeded";
+            stats.failMessage = "nested_depth_exceeded:" + group.getId();
             return stats;
         }
 
@@ -328,14 +331,22 @@ public final class PlayerComponentGroupExpander {
         }
         stats.placeCount += countPlaces(out) - beforePlaces;
 
-        // mounts on group sockets (Group acts as host) — failures are optional degradation
+        // mounts on group sockets — default required=true; only explicit false is optional
         for (MountEntry me : parseMountEntries(reqMap)) {
             if (me == null) continue;
             if (me.socketId == null || me.socketId.isBlank()) continue;
+            boolean mountRequired = isMountRequired(me);
 
             ComponentSocket socket = findGroupSocket(group, me.socketId);
             if (socket == null) {
                 FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: group socket not found: {}.{}", group.getId(), me.socketId);
+                if (mountRequired) {
+                    stats.emitHardFail = true;
+                    stats.emitFailStatus = ComponentGenerationOutcome.Status.LOAD_FAILED;
+                    stats.emitFailCode = "mount_socket_missing";
+                    stats.failMessage = group.getId() + "." + me.socketId;
+                    return stats;
+                }
                 stats.optionalSkipped++;
                 continue;
             }
@@ -386,6 +397,13 @@ public final class PlayerComponentGroupExpander {
                 ComponentGroup childGroup = ComponentGroupRegistry.get(me.mountGroupId);
                 if (childGroup == null) {
                     FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount group not found: {}", me.mountGroupId);
+                    if (mountRequired) {
+                        stats.emitHardFail = true;
+                        stats.emitFailStatus = ComponentGenerationOutcome.Status.LOAD_FAILED;
+                        stats.emitFailCode = "mount_group_missing";
+                        stats.failMessage = me.mountGroupId;
+                        return stats;
+                    }
                     stats.optionalSkipped++;
                     continue;
                 }
@@ -408,15 +426,22 @@ public final class PlayerComponentGroupExpander {
                             me.nestedReq != null ? me.nestedReq : Map.of(),
                             depth + 1);
                     stats.placeCount += countPlaces(out) - nestedBefore;
-                    stats.optionalSkipped += nested.optionalSkipped;
-                    if (!nested.childrenResolved) {
-                        stats.optionalSkipped++;
+                    if (bubbleNestedFailure(stats, nested, mountRequired)) {
+                        return stats;
                     }
+                    stats.optionalSkipped += nested.optionalSkipped;
 
                     if (i == repeat - 1) break;
                     SocketWorld next = resolveGroupSocketWorld(childGroup, curAnchor, curFacing, childMirror, repeatSocketId, worldDir);
                     if (next == null) {
                         FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: repeat_socket not found: {}.{}", childGroup.getId(), repeatSocketId);
+                        if (mountRequired) {
+                            stats.emitHardFail = true;
+                            stats.emitFailStatus = ComponentGenerationOutcome.Status.LOAD_FAILED;
+                            stats.emitFailCode = "repeat_socket_missing";
+                            stats.failMessage = childGroup.getId() + "." + repeatSocketId;
+                            return stats;
+                        }
                         stats.optionalSkipped++;
                         break;
                     }
@@ -430,6 +455,13 @@ public final class PlayerComponentGroupExpander {
             ComponentDefinition mount = ComponentStorage.loadComponent(worldDir, me.mountId.trim());
             if (mount == null || mount.blocks == null || mount.blocks.isEmpty()) {
                 FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount component not found: {}", me.mountId);
+                if (mountRequired) {
+                    stats.emitHardFail = true;
+                    stats.emitFailStatus = ComponentGenerationOutcome.Status.LOAD_FAILED;
+                    stats.emitFailCode = "mount_component_missing";
+                    stats.failMessage = me.mountId;
+                    return stats;
+                }
                 stats.optionalSkipped++;
                 continue;
             }
@@ -440,6 +472,13 @@ public final class PlayerComponentGroupExpander {
                 FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount placementSpec incompatible: mount={} need={} groupSocketContext={} hostAttachment={}",
                         mount.id, mount.placementSpec.attachment,
                         socket.context, hostAttachment);
+                if (mountRequired) {
+                    stats.emitHardFail = true;
+                    stats.emitFailStatus = ComponentGenerationOutcome.Status.INCOMPATIBLE_MOUNT;
+                    stats.emitFailCode = "mount_incompatible";
+                    stats.failMessage = me.mountId;
+                    return stats;
+                }
                 stats.optionalSkipped++;
                 continue;
             }
@@ -476,9 +515,6 @@ public final class PlayerComponentGroupExpander {
             ComponentTransform mountTransform = new ComponentTransform(mountFacing, mountMirror);
 
             int mountBefore = countPlaces(out);
-            // Socket mounts are optional decoration unless explicitly required in nestedReq
-            boolean mountRequired = me.nestedReq != null
-                    && Boolean.TRUE.equals(me.nestedReq.get("mount_required"));
             if (!emitComponentPatches(out, mount, mountFromFacing, mountTransform,
                     anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(),
                     semanticSkin, semanticStyleId, seedBase, mountRequired, stats)) {
@@ -487,6 +523,60 @@ public final class PlayerComponentGroupExpander {
             stats.placeCount += countPlaces(out) - mountBefore;
         }
         return stats;
+    }
+
+    /** Default true; only mount_required/required=false makes a mount optional. */
+    static boolean isMountRequired(MountEntry me) {
+        if (me == null) return true;
+        Map<String, Object> nr = me.nestedReq;
+        if (nr == null) return true;
+        if (Boolean.FALSE.equals(nr.get("mount_required")) || Boolean.FALSE.equals(nr.get("required"))) {
+            return false;
+        }
+        Object mr = nr.get("mount_required");
+        if (mr != null && "false".equalsIgnoreCase(String.valueOf(mr).trim())) return false;
+        Object r = nr.get("required");
+        if (r != null && "false".equalsIgnoreCase(String.valueOf(r).trim())) return false;
+        return true;
+    }
+
+    /** Bubble nested hard failures / missing required; optional nest → optionalSkipped. */
+    private static boolean bubbleNestedFailure(ExpandStats parent, ExpandStats nested, boolean mountRequired) {
+        if (nested == null) return false;
+        if (nested.emitHardFail
+                || (nested.missingRequiredIds != null && !nested.missingRequiredIds.isEmpty())) {
+            if (mountRequired) {
+                parent.emitHardFail = true;
+                parent.emitFailStatus = nested.emitFailStatus != null
+                        ? nested.emitFailStatus
+                        : ComponentGenerationOutcome.Status.LOAD_FAILED;
+                parent.emitFailCode = nested.emitFailCode != null
+                        ? nested.emitFailCode
+                        : "required_group_children_missing";
+                parent.failMessage = nested.failMessage != null
+                        ? nested.failMessage
+                        : (nested.missingRequiredIds == null
+                        ? "nested_fail"
+                        : String.join(",", nested.missingRequiredIds));
+                if (nested.missingRequiredIds != null) {
+                    parent.missingRequiredIds.addAll(nested.missingRequiredIds);
+                }
+                return true;
+            }
+            parent.optionalSkipped++;
+            return false;
+        }
+        if (!nested.childrenResolved) {
+            if (mountRequired) {
+                parent.emitHardFail = true;
+                parent.emitFailStatus = ComponentGenerationOutcome.Status.LOAD_FAILED;
+                parent.emitFailCode = "nested_children_unresolved";
+                parent.failMessage = nested.failMessage;
+                return true;
+            }
+            parent.optionalSkipped++;
+        }
+        return false;
     }
 
     /**

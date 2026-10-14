@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-14（第四十三批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-15（第四十四批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,13 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第四十四批（2026-10-15）— Patch 占用唯一键与授权一致
+
+- **坐标键**：`PatchOccupancyIndex` / 最终扫描使用 `Map<BlockPos,>`，禁止位打包碰撞。
+- **事务**：`validate` 只读模拟 → `commit` 写入；Compiler 两阶段；失败批次不污染正式索引。
+- **最终扫描**：`inspectAuthorized(result, index)` 复用编译期授权，不再无上下文误判合法覆盖。
+- **嵌套/挂载**：深度超限与必需挂载失败 hardFail；仅 `mount_required=false` 可降级。
 
 ### 第四十三批（2026-10-14）— 组完整性、统一发射与 Patch 冲突
 

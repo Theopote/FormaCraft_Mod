@@ -11,6 +11,7 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.skeleton.transform.YRotation;
 import com.formacraft.server.compiler.PatchConflictValidator;
 import com.formacraft.server.compiler.PatchOccupancyIndex;
+// Round19: final scan uses occupancy authorization
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
@@ -115,14 +116,14 @@ class CapturedAdaptRound18Test {
     }
 
     @Test
-    void finalValidatorDetectsMultiPlaceDifferentMaterials() {
-        List<BlockPatch> patches = List.of(
-                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone"),
-                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:dirt")
-        );
-        var finding = PatchConflictValidator.inspectMultiPlace(patches);
+    void finalValidatorUsesOccupancyAuthorization() {
+        PatchOccupancyIndex idx = new PatchOccupancyIndex();
+        Component mass = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0),
+                new Dimensions(4, 4, 4), List.of(), Map.of());
+        idx.commit(mass, List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone")));
+        var finding = PatchConflictValidator.inspectAuthorized(
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:dirt")), idx);
         assertTrue(finding.isPresent());
-        assertTrue(PatchConflictValidator.toCapabilityGap(finding.get()).isPresent());
         assertEquals("E_PATCH_CONFLICT",
                 PatchConflictValidator.toCapabilityGap(finding.get()).get().code());
     }

@@ -136,6 +136,8 @@ flowchart TD
 
 第四十三批起：组必需子完整性；组 PLACE 统一 `ComponentGeometryResolver`；OpeningRegion cells 优先；`PatchOccupancyIndex`/`E_PATCH_CONFLICT`。
 
+第四十四批起：占用索引 `BlockPos` 键；validate/commit 分离；`inspectAuthorized`；嵌套/挂载默认 required。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |
