@@ -58,7 +58,7 @@ public final class ComponentThumbnailGenerator {
                 for (var quad : part.getQuads(direction)) {
                     var sprite = quad.sprite();
                     var texture = textures.computeIfAbsent(sprite.getContents(), contents -> {
-                        var image = ((SpriteContentsAccessor) (Object) contents).formacraft$getImage();
+                        var image = ((SpriteContentsAccessor) contents).formacraft$getImage();
                         int width = contents.getWidth(), height = contents.getHeight();
                         int frame = contents.isAnimated() ? contents.getDistinctFrameCount().findFirst().orElse(0) : 0;
                         int frameX = frame % (image.getWidth() / width) * width;

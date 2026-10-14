@@ -40,9 +40,25 @@ public final class ComponentDefinitionCompiler {
         if (targetFacing == null || !targetFacing.getAxis().isHorizontal()) targetFacing = Direction.SOUTH;
         if (mirror == null) mirror = com.formacraft.common.component.transform.Mirror.NONE;
 
-        ComponentTransform t = new ComponentTransform(targetFacing, mirror);
-        List<BlockPatch> out = new ArrayList<>(def.blocks.size());
+        return compile(def, fromFacing, new ComponentTransform(targetFacing, mirror),
+                baseX, baseY, baseZ, semanticSkin, semanticStyleId, seedBase);
+    }
 
+    /** Shared PLACE emitter used by preview and expander (same transform authority). */
+    public static List<BlockPatch> compile(ComponentDefinition def,
+                                          Direction fromFacing,
+                                          ComponentTransform transform,
+                                          int baseX, int baseY, int baseZ,
+                                          boolean semanticSkin,
+                                          String semanticStyleId,
+                                          long seedBase) {
+        if (def == null || def.blocks == null || def.blocks.isEmpty()) return List.of();
+        if (fromFacing == null || !fromFacing.getAxis().isHorizontal()) fromFacing = Direction.SOUTH;
+        if (transform == null) {
+            transform = new ComponentTransform(Direction.SOUTH, com.formacraft.common.component.transform.Mirror.NONE);
+        }
+
+        List<BlockPatch> out = new ArrayList<>(def.blocks.size());
         int minDy = Integer.MAX_VALUE;
         for (ComponentDefinition.BlockEntry be : def.blocks) {
             if (be == null) continue;
@@ -54,7 +70,7 @@ public final class ComponentDefinitionCompiler {
             if (be == null) continue;
 
             BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
-            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, t);
+            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, transform);
 
             int dx = baseX + off.getX();
             int dy = baseY + off.getY();
@@ -72,18 +88,18 @@ public final class ComponentDefinitionCompiler {
 
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
                 if (capturedFacing != null && def.variantRules == null) {
-                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, t);
+                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, transform);
                     picked = BlockStatePropertyUtil.applyFacing(picked, tf);
                 }
                 block = def.variantRules != null
                         ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
-                                BlockStateStringUtil.fromState(picked), fromFacing, t)
+                                BlockStateStringUtil.fromState(picked), fromFacing, transform)
                         : BlockStateStringUtil.fromState(picked);
             } else {
                 if (be.block == null || be.block.isBlank()) continue;
                 block = def.variantRules != null
-                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(be.block, fromFacing, t)
-                        : BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, t);
+                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(be.block, fromFacing, transform)
+                        : BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
             }
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }

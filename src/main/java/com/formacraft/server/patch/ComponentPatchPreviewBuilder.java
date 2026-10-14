@@ -1,7 +1,6 @@
 package com.formacraft.server.patch;
 
 import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.common.component.ComponentDefinitionCompiler;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.logging.FcaLog;
@@ -30,10 +29,15 @@ public final class ComponentPatchPreviewBuilder {
             String semanticStyleId,
             long seedBase
     ) {
-        if (def == null) return List.of();
         Direction facing = targetFacing != null && targetFacing.getAxis().isHorizontal() ? targetFacing : Direction.SOUTH;
         Mirror m = mirror != null ? mirror : Mirror.NONE;
-        return ComponentDefinitionCompiler.compile(def, 0, 0, 0, facing, m, semanticSkin, semanticStyleId, seedBase);
+        var geo = com.formacraft.common.component.ComponentGeometryResolver.emit(
+                def, 0, 0, 0, facing, m, semanticSkin, semanticStyleId, seedBase);
+        if (!geo.ok()) {
+            LOG.warn("preview emit failed id={} status={} message={}",
+                    geo.sourceComponentId(), geo.status(), geo.message());
+        }
+        return geo.patches();
     }
 
     public static List<BlockPatch> fromWorldSelection(ServerWorld world, BlockPos origin, BlockPos min, BlockPos max) {

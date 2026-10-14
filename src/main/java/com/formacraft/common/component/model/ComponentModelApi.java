@@ -278,17 +278,20 @@ public final class ComponentModelApi {
      * - 如果 variant 为 null，会创建一个默认变体（原始尺寸、无材质替换）
      * - 如果 style 为 null，会跳过语义材质替换（保持原始方块）
      */
-    public static List<BlockPatch> compileToPatch(ComponentPrototype proto,
-                                                 PersistedComponentVariant variant,
-                                                 Direction facing,
-                                                 StyleProfile style) {
-        if (proto == null) return List.of();
-
-        // 如果 variant 为 null，创建一个默认变体（原始尺寸、无材质替换）
+    /** Structured compile for production callers that must not treat empty lists as success. */
+    public static com.formacraft.common.component.variant.VariantCompileResult compileToPatchResult(
+            ComponentPrototype proto,
+            PersistedComponentVariant variant,
+            Direction facing,
+            StyleProfile style) {
+        if (proto == null) {
+            return com.formacraft.common.component.variant.VariantCompileResult.failure(
+                    com.formacraft.common.component.variant.VariantCompileResult.Status.INVALID_INPUT,
+                    "prototype_null");
+        }
         if (variant == null) {
             variant = makeDefaultVariant(proto);
         }
-
         var result = com.formacraft.common.component.variant.ComponentVariantCompiler.compileResult(
                 proto, variant, facing, style);
         if (!result.ok()) {
@@ -296,7 +299,15 @@ public final class ComponentModelApi {
                     "[ComponentModelApi] variant compile failed id={} status={} message={}",
                     proto.id, result.status(), result.message());
         }
-        return com.formacraft.common.component.variant.ComponentVariantCompiler.compileToPatches(result);
+        return result;
+    }
+
+    public static List<BlockPatch> compileToPatch(ComponentPrototype proto,
+                                                 PersistedComponentVariant variant,
+                                                 Direction facing,
+                                                 StyleProfile style) {
+        return com.formacraft.common.component.variant.ComponentVariantCompiler.compileToPatches(
+                compileToPatchResult(proto, variant, facing, style));
     }
 
     /**

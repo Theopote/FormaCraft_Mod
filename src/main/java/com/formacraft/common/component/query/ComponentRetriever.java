@@ -201,10 +201,46 @@ public final class ComponentRetriever {
             ComponentDefinition base = ComponentStorage.loadComponent(null, score.componentId, VIEWER_PLAYER.get());
             if (base == null) continue;
             var variant = com.formacraft.common.component.variant.VariantGenerator.generate(base, query, random);
-            if (com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, variant) != null)
+            if (com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, variant) != null) {
                 return new VariantResult(base, variant);
+            }
         }
         return null;
+    }
+
+    /**
+     * Distinguishes NO_CANDIDATE (nothing loadable/scored) from ADAPT_FAILED (candidates existed but none fit).
+     * On SUCCESS, {@link ComponentResolveResult#definition()} is the fitted definition.
+     */
+    public static ComponentResolveResult retrieveBestResolved(ComponentQuery query, java.util.Random random) {
+        if (query == null) {
+            return ComponentResolveResult.noCandidate("query_null");
+        }
+        boolean sawLoaded = false;
+        boolean sawUnfittable = false;
+        String lastUnfittableId = "";
+        for (ComponentScore score : retrieve(query, 20)) {
+            if (score.totalScore < 0.35) continue;
+            ComponentDefinition base = ComponentStorage.loadComponent(null, score.componentId, VIEWER_PLAYER.get());
+            if (base == null) continue;
+            sawLoaded = true;
+            var variant = com.formacraft.common.component.variant.VariantGenerator.generate(base, query, random);
+            ComponentDefinition fitted =
+                    com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, variant);
+            if (fitted != null) {
+                return ComponentResolveResult.success(fitted);
+            }
+            sawUnfittable = true;
+            lastUnfittableId = score.componentId != null ? score.componentId : (base.id != null ? base.id : "");
+        }
+        if (sawUnfittable) {
+            return ComponentResolveResult.adaptFailed(lastUnfittableId,
+                    "candidates_exist_but_none_fit_query");
+        }
+        if (!sawLoaded) {
+            return ComponentResolveResult.noCandidate("no_scored_loadable_candidate");
+        }
+        return ComponentResolveResult.noCandidate("no_candidate_above_score_threshold");
     }
 
     /**

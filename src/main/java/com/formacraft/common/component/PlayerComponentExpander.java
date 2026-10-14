@@ -79,17 +79,21 @@ public final class PlayerComponentExpander {
         }
 
         // 1) 确定要加载的构件（单构件）
-        String explicitId = getString(reqMap, "id", "component_id", "componentId");
-        ComponentDefinition def = resolveComponent(worldDir, reqMap, null);
-        if (def == null || def.blocks == null || def.blocks.isEmpty()) {
-            // Library component was selected: adapt/compile failure is a hard fail — no silent fallback.
-            if (explicitId != null && !explicitId.isBlank()) {
+        com.formacraft.common.component.query.ComponentResolveResult resolved =
+                resolveComponentResult(worldDir, reqMap, null);
+        if (!resolved.ok()) {
+            if (resolved.status() == com.formacraft.common.component.query.ComponentResolveResult.Status.ADAPT_FAILED
+                    || resolved.status() == com.formacraft.common.component.query.ComponentResolveResult.Status.LOAD_FAILED) {
                 FormacraftMod.LOGGER.error(
-                        "PlayerComponentExpander: selected component failed to adapt id={} (empty patches)",
-                        explicitId);
+                        "PlayerComponentExpander: library resolve failed status={} id={} message={} (no procedural fallback)",
+                        resolved.status(), resolved.sourceId(), resolved.message());
                 return List.of();
             }
+            // NO_CANDIDATE only: optional procedural downgrade
             ComponentQuery query = parseComponentQuery(reqMap, null);
+            if (query == null) {
+                query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, "");
+            }
             if (query != null) {
                 List<BlockPatch> fallback = generateFallbackPatches(semantic, query);
                 if (!fallback.isEmpty()) {
@@ -99,6 +103,7 @@ public final class PlayerComponentExpander {
             }
             return List.of();
         }
+        ComponentDefinition def = resolved.definition();
 
         // 2) 解析变换参数（facing/mirror）
         Direction fromFacing = parseDir(def.anchor != null ? def.anchor.facing : null);
@@ -153,80 +158,30 @@ public final class PlayerComponentExpander {
         boolean semanticSkin = ComponentFeatureFlags.resolveSemanticSkin(
                 reqMap, semanticStyleId, "semantic_skin", "semanticSkin");
 
-        // 5) 展开为 patches（相对 slot anchor）
-        List<BlockPatch> out = new ArrayList<>(def.blocks.size());
+        // 5) 展开为 patches（相对 slot anchor）— PLACE 仅经 ComponentGeometryResolver
+        List<BlockPatch> out = new ArrayList<>(def.blocks.size() + 64);
         long worldSeed = world.getSeed();
 
-        // 5.1) 可选：先 carve（开洞/清洞）
-        // - 默认：DOOR/WINDOW 会 carve，其他不 carve（可用 carve=false 关闭）
+        // 5.1) 可选：先 carve（开洞/清洞）；与 PLACE 共用 fromFacing/transform
         boolean carve = shouldCarve(reqMap, def);
         if (carve) {
             SocketMask mask = resolveMask(reqMap, def);
             if (mask != null && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
-                // mask_origin 为“局部 socket 原点”（相对 anchor 的局部坐标）
                 BlockPos maskOriginLocal = resolveMaskOrigin(reqMap, def);
-                BlockPos originOff = ComponentTransformUtil.transformOffset(maskOriginLocal, fromFacing, transform);
-                BlockPos originWorld = new BlockPos(baseX + originOff.getX(), baseY + originOff.getY(), baseZ + originOff.getZ());
-
-                // 沿“最终朝向 targetFacing”清洞（符合 SocketSystem 语义：depth 方向跟随 facing）
-                for (int x = 0; x < mask.width(); x++) {
-                    for (int y = 0; y < mask.height(); y++) {
-                        for (int z = 0; z < mask.depth(); z++) {
-                            BlockPos p = FacingUtil.offset(originWorld, targetFacing, x, y, z);
-                            out.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
-                        }
-                    }
-                }
+                out.addAll(emitCarveRemoves(mask, maskOriginLocal, fromFacing, transform,
+                        baseX, baseY, baseZ, targetFacing));
             }
         }
 
-        int minDy = Integer.MAX_VALUE;
-        for (ComponentDefinition.BlockEntry be : def.blocks) {
-            if (be == null) continue;
-            minDy = Math.min(minDy, be.dy);
+        ResolvedComponentGeometry geo = ComponentGeometryResolver.emit(
+                def, fromFacing, transform, baseX, baseY, baseZ, semanticSkin, semanticStyleId, worldSeed);
+        if (!geo.ok()) {
+            FormacraftMod.LOGGER.error(
+                    "PlayerComponentExpander: emit failed id={} status={} message={}",
+                    geo.sourceComponentId(), geo.status(), geo.message());
+            return List.of();
         }
-        if (minDy == Integer.MAX_VALUE) minDy = 0;
-
-        for (ComponentDefinition.BlockEntry be : def.blocks) {
-            if (be == null) continue;
-            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
-            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, transform);
-
-            int dx = baseX + off.getX();
-            int dy = baseY + off.getY();
-            int dz = baseZ + off.getZ();
-
-            String block;
-            if (semanticSkin && (def.variantRules == null || def.variantRules.material != null)) {
-                // B：兼容旧构件（没有 semantic 字段）——服务端兜底 AUTO 推断
-                com.formacraft.common.semantic.SemanticPart part = be.semantic != null
-                        ? be.semantic
-                        : guessSemanticPartFromString(be.block, be.dy, minDy);
-
-                long seed = mixSeed(worldSeed, dx, dy, dz, part.ordinal());
-                BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
-                BlockState preserved = com.formacraft.common.component.semantic.ShapePreservingMaterialSwap.apply(be.block, picked);
-                if (preserved != null) picked = preserved;
-
-                // 若原始 blockstate 带有 facing，则把 facing 迁移到“换皮后”的方块上
-                Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
-                if (capturedFacing != null && def.variantRules == null) {
-                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, transform);
-                    picked = BlockStatePropertyUtil.applyFacing(picked, tf);
-                }
-                block = def.variantRules != null
-                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
-                                BlockStateStringUtil.fromState(picked), fromFacing, transform)
-                        : BlockStateStringUtil.fromState(picked);
-            } else {
-                if (be.block == null || be.block.isBlank()) continue;
-                block = def.variantRules != null
-                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(be.block, fromFacing, transform)
-                        : BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
-            }
-
-            out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
-        }
+        out.addAll(geo.patches());
         return out;
     }
 
@@ -244,10 +199,20 @@ public final class PlayerComponentExpander {
         @SuppressWarnings("unchecked")
         Map<String, Object> mountMap = (Map<String, Object>) mount0;
 
-        ComponentDefinition host = resolveComponent(worldDir, hostMap, "host_");
-        ComponentDefinition mount = resolveComponent(worldDir, mountMap, "mount_");
-        if (host == null || host.blocks == null || host.blocks.isEmpty()) return List.of();
-        if (mount == null || mount.blocks == null || mount.blocks.isEmpty()) return List.of();
+        var hostResolved = resolveComponentResult(worldDir, hostMap, "host_");
+        var mountResolved = resolveComponentResult(worldDir, mountMap, "mount_");
+        if (!hostResolved.ok()) {
+            FormacraftMod.LOGGER.error("PlayerComponentExpander: host resolve failed status={} id={} message={}",
+                    hostResolved.status(), hostResolved.sourceId(), hostResolved.message());
+            return List.of();
+        }
+        if (!mountResolved.ok()) {
+            FormacraftMod.LOGGER.error("PlayerComponentExpander: mount resolve failed status={} id={} message={}",
+                    mountResolved.status(), mountResolved.sourceId(), mountResolved.message());
+            return List.of();
+        }
+        ComponentDefinition host = hostResolved.definition();
+        ComponentDefinition mount = mountResolved.definition();
 
         // host transform（facing/mirror）
         Direction hostFromFacing = parseDir(host.anchor != null ? host.anchor.facing : null);
@@ -349,12 +314,17 @@ public final class PlayerComponentExpander {
 
         // carve mask defaults from socket
         boolean carve = shouldCarve(reqMap, host);
-        // v1 新版 Socket：从 size 约束中提取尺寸
         SocketMask mask = null;
         if (carve && socket.size != null && socket.size.min != null && socket.size.min.length >= 2) {
             int w = socket.size.min[0];
             int h = socket.size.min[1];
-            mask = new SocketMask(w, h, 1); // depth=1（默认）
+            mask = new SocketMask(w, h, 1);
+            if (!carveWithinSocketEnvelope(mask, socket)) {
+                FormacraftMod.LOGGER.error(
+                        "PlayerComponentExpander: carve mask exceeds socket envelope socket={} mask={}x{}x{} — skip carve",
+                        socketId, mask.width(), mask.height(), mask.depth());
+                mask = null;
+            }
         }
 
         List<BlockPatch> out = new ArrayList<>(host.blocks.size() + mount.blocks.size() + 64);
@@ -362,11 +332,9 @@ public final class PlayerComponentExpander {
         // 1) place host
         addComponentPatches(out, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
 
-        // 2) carve
+        // 2) carve — same FacingUtil.offset depth axis as PLACE mount facing
         if (mask != null && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
             BlockPos socketWorld = new BlockPos(baseX + socketOff.getX(), baseY + socketOff.getY(), baseZ + socketOff.getZ());
-
-            // 沿 socket 的“世界朝向”清洞（depth 方向跟随 socketWorldFacing）
             for (int x = 0; x < mask.width(); x++) {
                 for (int y = 0; y < mask.height(); y++) {
                     for (int z = 0; z < mask.depth(); z++) {
@@ -394,50 +362,49 @@ public final class PlayerComponentExpander {
                                            boolean semanticSkin,
                                            String semanticStyleId,
                                            long seedBase) {
-        if (def == null || def.blocks == null || def.blocks.isEmpty()) return;
-        int minDy = Integer.MAX_VALUE;
-        for (ComponentDefinition.BlockEntry be : def.blocks) {
-            if (be == null) continue;
-            minDy = Math.min(minDy, be.dy);
+        ResolvedComponentGeometry geo = ComponentGeometryResolver.emit(
+                def, fromFacing, transform, baseX, baseY, baseZ, semanticSkin, semanticStyleId, seedBase);
+        if (!geo.ok()) {
+            FormacraftMod.LOGGER.error(
+                    "PlayerComponentExpander: emit failed id={} status={} message={}",
+                    geo.sourceComponentId(), geo.status(), geo.message());
+            return;
         }
-        if (minDy == Integer.MAX_VALUE) minDy = 0;
+        out.addAll(geo.patches());
+    }
 
-        for (ComponentDefinition.BlockEntry be : def.blocks) {
-            if (be == null) continue;
-            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
-            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, transform);
-
-            int dx = baseX + off.getX();
-            int dy = baseY + off.getY();
-            int dz = baseZ + off.getZ();
-
-            String block;
-            if (semanticSkin && (def.variantRules == null || def.variantRules.material != null)) {
-                com.formacraft.common.semantic.SemanticPart part = be.semantic != null
-                        ? be.semantic
-                        : guessSemanticPartFromString(be.block, be.dy, minDy);
-                long seed = mixSeed(seedBase, dx, dy, dz, part.ordinal());
-                BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
-                BlockState preserved = com.formacraft.common.component.semantic.ShapePreservingMaterialSwap.apply(be.block, picked);
-                if (preserved != null) picked = preserved;
-
-                Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
-                if (capturedFacing != null && def.variantRules == null) {
-                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, transform);
-                    picked = BlockStatePropertyUtil.applyFacing(picked, tf);
+    /** Carve REMOVEs share ComponentTransformUtil.transformOffset with PLACE. */
+    static List<BlockPatch> emitCarveRemoves(SocketMask mask, BlockPos maskOriginLocal,
+            Direction fromFacing, ComponentTransform transform,
+            int baseX, int baseY, int baseZ, Direction carveFacing) {
+        if (mask == null || maskOriginLocal == null || transform == null) return List.of();
+        if (mask.width() <= 0 || mask.height() <= 0 || mask.depth() <= 0) return List.of();
+        Direction depth = carveFacing != null && carveFacing.getAxis().isHorizontal()
+                ? carveFacing : transform.facing();
+        BlockPos originOff = ComponentTransformUtil.transformOffset(maskOriginLocal, fromFacing, transform);
+        BlockPos originWorld = new BlockPos(baseX + originOff.getX(), baseY + originOff.getY(), baseZ + originOff.getZ());
+        List<BlockPatch> removes = new ArrayList<>(mask.width() * mask.height() * mask.depth());
+        for (int x = 0; x < mask.width(); x++) {
+            for (int y = 0; y < mask.height(); y++) {
+                for (int z = 0; z < mask.depth(); z++) {
+                    BlockPos p = FacingUtil.offset(originWorld, depth, x, y, z);
+                    removes.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
                 }
-                block = def.variantRules != null
-                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
-                                BlockStateStringUtil.fromState(picked), fromFacing, transform)
-                        : BlockStateStringUtil.fromState(picked);
-            } else {
-                if (be.block == null || be.block.isBlank()) continue;
-                block = def.variantRules != null
-                        ? com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(be.block, fromFacing, transform)
-                        : BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
             }
-            out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }
+        return removes;
+    }
+
+    /** Carve volume must not exceed socket size.max envelope (width×height×depth). */
+    static boolean carveWithinSocketEnvelope(SocketMask mask, ComponentSocket socket) {
+        if (mask == null || socket == null || socket.size == null) return true;
+        int[] max = socket.size.max;
+        if (max == null || max.length < 2) return true;
+        int maxW = max[0];
+        int maxH = max[1];
+        int maxD = max.length >= 3 ? max[2] : Math.max(1, mask.depth());
+        if (maxW <= 0 || maxH <= 0) return true;
+        return mask.width() <= maxW && mask.height() <= maxH && mask.depth() <= Math.max(1, maxD);
     }
 
     private static BlockPos resolveBaseOffset(SemanticComponent semantic) {
@@ -496,35 +463,44 @@ public final class PlayerComponentExpander {
                 || reqMap.get("socket_id") != null;
     }
 
-    private static ComponentDefinition resolveComponent(Path worldDir, Map<String, Object> reqMap, String prefix) {
-        if (worldDir == null || reqMap == null) return null;
+    private static com.formacraft.common.component.query.ComponentResolveResult resolveComponentResult(
+            Path worldDir, Map<String, Object> reqMap, String prefix) {
+        if (worldDir == null || reqMap == null) {
+            return com.formacraft.common.component.query.ComponentResolveResult.noCandidate("null_request");
+        }
         String px = prefix == null ? "" : prefix;
         String explicitId = getString(reqMap, px + "id", px + "component_id", px + "componentId");
         ComponentQuery query = parseComponentQuery(reqMap, px);
-        if (explicitId != null) {
-            if (query == null) query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, px);
+        if (explicitId != null && !explicitId.isBlank()) {
+            if (query == null) {
+                query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, px);
+            }
             ComponentDefinition base = ComponentStorage.loadComponent(worldDir, explicitId);
-            return com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, null);
+            if (base == null) {
+                return com.formacraft.common.component.query.ComponentResolveResult.loadFailed(
+                        explicitId, "component_not_found");
+            }
+            ComponentDefinition fitted =
+                    com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, null);
+            if (fitted == null) {
+                return com.formacraft.common.component.query.ComponentResolveResult.adaptFailed(
+                        explicitId, "fit_to_query_failed");
+            }
+            return com.formacraft.common.component.query.ComponentResolveResult.success(fitted);
         }
         if (query == null) {
             query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, px);
         }
         if (query != null) {
-            // Phase 8：检索最佳匹配并自动生成变体（缩放/裁剪/换材质）。
-            // 变体为运行时产物；恒等变体等价于旧 retrieveBest 行为。
             java.util.Random rng = new java.util.Random(variantSeed(query, px));
-            com.formacraft.common.component.query.ComponentRetriever.VariantResult vr =
-                    com.formacraft.common.component.query.ComponentRetriever.retrieveBestWithVariant(query, rng);
-            if (vr != null && vr.base() != null) {
-                ComponentDefinition applied =
-                        com.formacraft.common.component.model.ComponentModelApi.fitToQuery(
-                                vr.base(), query, vr.variant());
-                return applied;
-            }
-            return null; // Do not bypass failed geometry checks through legacy retrieval.
+            return com.formacraft.common.component.query.ComponentRetriever.retrieveBestResolved(query, rng);
         }
         ComponentRequest req = parseRequestWithPrefix(reqMap, px);
-        return ComponentLibrary.findBest(worldDir, req);
+        ComponentDefinition legacy = ComponentLibrary.findBest(worldDir, req);
+        if (legacy == null) {
+            return com.formacraft.common.component.query.ComponentResolveResult.noCandidate("legacy_find_best_miss");
+        }
+        return com.formacraft.common.component.query.ComponentResolveResult.success(legacy);
     }
 
     /**

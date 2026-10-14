@@ -679,7 +679,6 @@ public final class ComponentPlanCompiler {
                 return 4;
             }
         }
-        if ("DECOR_DETAIL".equals(type) || type.startsWith("DECOR")) return 5;
         return 5;
     }
 

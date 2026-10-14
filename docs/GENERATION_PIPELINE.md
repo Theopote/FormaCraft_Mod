@@ -124,6 +124,8 @@ flowchart TD
 
 第三十七批起：运行时捕获门禁统一（无规则禁止整数放大）；`VariantCompileResult` 硬失败语义；Socket `adaptMode`；材质 STRUCTURE→…→ORNAMENT；缩略图 FAILED/有限重试/`resourceEpoch`；预览=建造 Patch 对比。
 
+第三十八批起：`ComponentResolveResult` 区分未命中与适配失败；`ResolvedComponentGeometry` 为预览/建造 PLACE 权威；carve 与 PLACE 同源变换并校验 socket 包络。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |
