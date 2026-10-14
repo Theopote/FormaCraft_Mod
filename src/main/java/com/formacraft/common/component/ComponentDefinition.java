@@ -157,6 +157,11 @@ public class ComponentDefinition {
         public int dx, dy, dz;
         /** 可选："NORTH"/"SOUTH"/"EAST"/"WEST" */
         public String facing;
+        /**
+         * Adaptation under SegmentScaler: FIXED | STRETCH | REPEAT | FORBIDDEN.
+         * Null / blank defaults to STRETCH (single remapped origin).
+         */
+        public String adaptMode;
     }
 
     public static class BlockEntry {

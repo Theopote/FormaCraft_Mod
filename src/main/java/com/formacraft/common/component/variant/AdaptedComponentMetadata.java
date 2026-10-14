@@ -9,6 +9,8 @@ import com.formacraft.common.json.JsonUtil;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
+import java.util.Locale;
 
 /** Keep attachment points in the same coordinate system as resized geometry. */
 public final class AdaptedComponentMetadata {
@@ -17,7 +19,6 @@ public final class AdaptedComponentMetadata {
     public static ComponentDefinition remap(ComponentDefinition base, ComponentDefinition geometry,
             StructureTemplate template, ComponentPrototype.VariantRules.Scaling rules,
             PersistedComponentVariant.Params.Scale target) {
-        // Metadata must be independently owned: the library's original remains immutable.
         ComponentDefinition out = JsonUtil.fromJson(JsonUtil.toJson(base), ComponentDefinition.class);
         out.blocks = geometry.blocks;
         out.size = geometry.size;
@@ -41,31 +42,59 @@ public final class AdaptedComponentMetadata {
                 h.hostFace.dz = map(maps, Voxel.Axis.Z, h.hostFace.dz);
             }
         }
+
+        if (out.socketPlacements != null) {
+            var expanded = new ArrayList<ComponentDefinition.SocketPlacement>();
+            for (var p : out.socketPlacements) {
+                if (p == null) continue;
+                String mode = adaptMode(p);
+                if ("FORBIDDEN".equals(mode) && inExpandingMiddle(maps, p)) {
+                    throw new IllegalArgumentException(
+                            "Socket '" + p.id + "' is FORBIDDEN in a repeating/trimming middle band");
+                }
+                if ("REPEAT".equals(mode)) {
+                    expanded.addAll(expandRepeatPlacements(p, maps));
+                } else {
+                    var copy = copyPlacement(p);
+                    copy.dx = map(maps, Voxel.Axis.X, p.dx);
+                    copy.dy = map(maps, Voxel.Axis.Y, p.dy);
+                    copy.dz = map(maps, Voxel.Axis.Z, p.dz);
+                    expanded.add(copy);
+                }
+            }
+            out.socketPlacements = expanded;
+        }
+
         if (out.sockets != null) {
             var sockets = new ArrayList<ComponentSocket>();
             for (var socket : out.sockets) {
                 if (socket == null) continue;
-                var origin = out.socketPlacements == null ? null : out.socketPlacements.stream()
-                        .filter(p -> socket.id.equals(p.id)).findFirst().orElse(null);
-                String facing = origin != null ? origin.facing : (out.anchor != null ? out.anchor.facing : null);
-                boolean alongZ = "EAST".equalsIgnoreCase(facing) || "WEST".equalsIgnoreCase(facing);
-                var widthAxis = alongZ ? Voxel.Axis.Z : Voxel.Axis.X;
-                int widthOrigin = origin == null ? 0 : alongZ ? origin.dz : origin.dx;
-                int heightOrigin = origin == null ? 0 : origin.dy;
-                // +width follows FacingUtil's right vector (clockwise from the socket's facing).
-                int widthSign = "SOUTH".equalsIgnoreCase(facing) || "WEST".equalsIgnoreCase(facing) ? -1 : 1;
-                int[] min = resize(socket.size.min, maps, widthAxis, widthOrigin, heightOrigin, widthSign);
-                int[] max = resize(socket.size.max, maps, widthAxis, widthOrigin, heightOrigin, widthSign);
-                sockets.add(new ComponentSocket(socket.id, socket.role, socket.shape, socket.context,
-                        socket.facingPolicy, new SizeConstraint(min, max), socket.tags));
+                List<ComponentDefinition.SocketPlacement> origins = out.socketPlacements == null ? List.of()
+                        : out.socketPlacements.stream()
+                        .filter(p -> p != null && p.id != null
+                                && (p.id.equals(socket.id) || p.id.startsWith(socket.id + "#")))
+                        .toList();
+                if (origins.isEmpty()) {
+                    sockets.add(socket);
+                    continue;
+                }
+                for (var origin : origins) {
+                    String facing = origin.facing != null ? origin.facing
+                            : (out.anchor != null ? out.anchor.facing : null);
+                    boolean alongZ = "EAST".equalsIgnoreCase(facing) || "WEST".equalsIgnoreCase(facing);
+                    var widthAxis = alongZ ? Voxel.Axis.Z : Voxel.Axis.X;
+                    int widthOrigin = alongZ ? origin.dz : origin.dx;
+                    int heightOrigin = origin.dy;
+                    int widthSign = "SOUTH".equalsIgnoreCase(facing) || "WEST".equalsIgnoreCase(facing) ? -1 : 1;
+                    int[] min = resize(socket.size.min, maps, widthAxis, widthOrigin, heightOrigin, widthSign);
+                    int[] max = resize(socket.size.max, maps, widthAxis, widthOrigin, heightOrigin, widthSign);
+                    sockets.add(new ComponentSocket(origin.id, socket.role, socket.shape, socket.context,
+                            socket.facingPolicy, new SizeConstraint(min, max), socket.tags));
+                }
             }
             out.sockets = sockets;
         }
-        if (out.socketPlacements != null) for (var p : out.socketPlacements) {
-            p.dx = map(maps, Voxel.Axis.X, p.dx);
-            p.dy = map(maps, Voxel.Axis.Y, p.dy);
-            p.dz = map(maps, Voxel.Axis.Z, p.dz);
-        }
+
         if (out.anchorHint != null) {
             int minX = out.blocks.stream().mapToInt(b -> b.dx).min().orElse(0);
             int minY = out.blocks.stream().mapToInt(b -> b.dy).min().orElse(0);
@@ -75,6 +104,78 @@ public final class AdaptedComponentMetadata {
             out.anchorHint.w = (-minZ + 0.5f) / out.size.d;
         }
         return out;
+    }
+
+    private static String adaptMode(ComponentDefinition.SocketPlacement p) {
+        if (p.adaptMode == null || p.adaptMode.isBlank()) return "STRETCH";
+        return p.adaptMode.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static boolean inExpandingMiddle(EnumMap<Voxel.Axis, SegmentScaler.Mapping> maps,
+                                            ComponentDefinition.SocketPlacement p) {
+        for (Voxel.Axis axis : Voxel.Axis.values()) {
+            var map = maps.get(axis);
+            if (map == null || map.originalSize() == map.targetSize()) continue;
+            if (!"REPEAT".equalsIgnoreCase(map.mode()) && !"TRIM".equalsIgnoreCase(map.mode())) continue;
+            int coord = switch (axis) { case X -> p.dx; case Y -> p.dy; case Z -> p.dz; };
+            int local = coord - map.min();
+            if (local >= map.start() && local < map.originalSize() - map.end()) return true;
+        }
+        return false;
+    }
+
+    private static List<ComponentDefinition.SocketPlacement> expandRepeatPlacements(
+            ComponentDefinition.SocketPlacement p, EnumMap<Voxel.Axis, SegmentScaler.Mapping> maps) {
+        Voxel.Axis repeatAxis = null;
+        int periods = 1;
+        for (Voxel.Axis axis : Voxel.Axis.values()) {
+            var map = maps.get(axis);
+            if (map == null || !"REPEAT".equalsIgnoreCase(map.mode())) continue;
+            int mid = map.middle();
+            int tMid = map.targetMiddle();
+            if (mid <= 0 || tMid <= mid) continue;
+            int pCount = tMid / mid;
+            if (pCount > periods) {
+                periods = pCount;
+                repeatAxis = axis;
+            }
+        }
+        var out = new ArrayList<ComponentDefinition.SocketPlacement>();
+        if (repeatAxis == null || periods <= 1) {
+            var copy = copyPlacement(p);
+            copy.dx = map(maps, Voxel.Axis.X, p.dx);
+            copy.dy = map(maps, Voxel.Axis.Y, p.dy);
+            copy.dz = map(maps, Voxel.Axis.Z, p.dz);
+            out.add(copy);
+            return out;
+        }
+        var map = maps.get(repeatAxis);
+        int coord = switch (repeatAxis) { case X -> p.dx; case Y -> p.dy; case Z -> p.dz; };
+        int local = coord - map.min();
+        int offsetInMiddle = local - map.start();
+        for (int k = 0; k < periods; k++) {
+            int destLocal = map.start() + offsetInMiddle + k * map.middle();
+            if (destLocal >= map.targetSize() - map.end()) break;
+            int anchored = (map.min() + destLocal) - map.position(0);
+            var copy = copyPlacement(p);
+            copy.id = k == 0 ? p.id : p.id + "#" + k;
+            copy.dx = repeatAxis == Voxel.Axis.X ? anchored : map(maps, Voxel.Axis.X, p.dx);
+            copy.dy = repeatAxis == Voxel.Axis.Y ? anchored : map(maps, Voxel.Axis.Y, p.dy);
+            copy.dz = repeatAxis == Voxel.Axis.Z ? anchored : map(maps, Voxel.Axis.Z, p.dz);
+            out.add(copy);
+        }
+        return out;
+    }
+
+    private static ComponentDefinition.SocketPlacement copyPlacement(ComponentDefinition.SocketPlacement p) {
+        var c = new ComponentDefinition.SocketPlacement();
+        c.id = p.id;
+        c.dx = p.dx;
+        c.dy = p.dy;
+        c.dz = p.dz;
+        c.facing = p.facing;
+        c.adaptMode = p.adaptMode;
+        return c;
     }
 
     private static int[] resize(int[] size, EnumMap<Voxel.Axis, SegmentScaler.Mapping> maps,

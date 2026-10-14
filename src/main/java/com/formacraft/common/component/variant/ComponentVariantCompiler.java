@@ -12,36 +12,50 @@ import java.util.List;
 
 /**
  * ComponentVariantCompiler（变体编译器）v1：核心编译流水线。
- * <p>
- * 职责：
- * - 将 Prototype + Variant + StyleProfile 编译为 BlockPatch 列表
- * - 支持：分段重复（REPEAT）/ 裁剪（TRIM）/ 固定段（FIXED）/ 语义材质映射 / 朝向/镜像变换
- * <p>
- * 编译流水线：
- * <pre>
- * 1. 加载结构模板（StructureLoader）
- * 2. 分段缩放（SegmentScaler）
- * 3. 语义材质替换（SemanticMaterialApplier）
- * 4. 朝向/镜像变换（TransformApplier）
- * 5. 转成 BlockPatch（PatchEmitter）
- * </pre>
  */
 public final class ComponentVariantCompiler {
     private ComponentVariantCompiler() {}
 
     private static final FcaLog LOG = FcaLog.of("ComponentVariantCompiler");
 
+    /** Structured compile; prefer this over {@link #compile}. */
+    public static VariantCompileResult compileResult(
+            ComponentPrototype proto,
+            PersistedComponentVariant variant,
+            Direction targetFacing,
+            StyleProfile style
+    ) {
+        if (proto == null) {
+            return VariantCompileResult.failure(VariantCompileResult.Status.INVALID_INPUT, "prototype_null");
+        }
+        if (variant == null || variant.params == null) {
+            return VariantCompileResult.failure(VariantCompileResult.Status.INVALID_INPUT, "variant_params_missing");
+        }
+
+        Direction originalFacing = parseOriginalFacing(proto);
+
+        StructureTemplate tpl = StructureLoader.load(proto);
+        if (tpl == null || tpl.all().isEmpty()) {
+            return VariantCompileResult.failure(VariantCompileResult.Status.TEMPLATE_MISSING,
+                    "structure_template_missing id=" + proto.id);
+        }
+
+        try {
+            VoxelGrid grid = SegmentScaler.applyScaling(tpl, getScalingRules(proto), variant.params.scale);
+            if (style != null && proto.variant_rules != null && proto.variant_rules.material != null) {
+                SemanticMaterialApplier.apply(grid, proto.variant_rules.material, variant.params.material_set, style);
+            }
+            Mirror mirror = parseMirror(variant.params.mirror);
+            grid = TransformApplier.apply(grid, targetFacing, mirror, originalFacing);
+            return VariantCompileResult.success(PatchEmitter.emit(grid));
+        } catch (IllegalArgumentException e) {
+            return VariantCompileResult.failure(VariantCompileResult.Status.GEOMETRY_INVALID,
+                    e.getMessage() == null ? "geometry_invalid" : e.getMessage());
+        }
+    }
+
     /**
-     * 编译变体（核心入口）。
-     * <p>
-     * 参数：
-     * - proto: 原型（结构模板 + variant_rules）
-     * - variant: 变体（scale / material_set / ornament_level / mirror）
-     * - targetFacing: 目标朝向（世界坐标系）
-     * - style: 风格配置（用于语义材质映射）
-     * <p>
-     * 返回：
-     * - List<BlockPatch>（相对 origin 的偏移）
+     * Legacy entry: returns patches only for SUCCESS/EMPTY_ALLOWED; logs other failures.
      */
     public static List<BlockPatch> compile(
             ComponentPrototype proto,
@@ -49,43 +63,21 @@ public final class ComponentVariantCompiler {
             Direction targetFacing,
             StyleProfile style
     ) {
-        if (proto == null) return List.of();
-        if (variant == null || variant.params == null) return List.of();
-
-        // 0. 确定原始朝向（从 prototype.structure.default_facing）
-        Direction originalFacing = parseOriginalFacing(proto);
-
-        // 1. 加载结构模板
-        StructureTemplate tpl = StructureLoader.load(proto);
-        if (tpl == null || tpl.all().isEmpty()) return List.of();
-
-        // 2. 分段缩放（REPEAT/TRIM/FIXED）
-        VoxelGrid grid = SegmentScaler.applyScaling(tpl, getScalingRules(proto), variant.params.scale);
-
-        // 3. 语义材质替换（semantic_map → StyleProfile.palette）
-        if (style != null && proto.variant_rules != null && proto.variant_rules.material != null) {
-            SemanticMaterialApplier.apply(grid, proto.variant_rules.material, variant.params.material_set, style);
-        }
-
-        // 4. 朝向/镜像变换
-        Mirror mirror = parseMirror(variant.params.mirror);
-        grid = TransformApplier.apply(grid, targetFacing, mirror, originalFacing);
-
-        // 5. 转成 BlockPatch
-        return PatchEmitter.emit(grid);
+        return compileToPatches(compileResult(proto, variant, targetFacing, style));
     }
 
-    /**
-     * 获取 scaling rules（兼容 proto.variant_rules 为 null 的情况）。
-     */
+    public static List<BlockPatch> compileToPatches(VariantCompileResult result) {
+        if (result == null) return List.of();
+        if (result.ok()) return result.patches();
+        LOG.warn("variant compile failed status={} message={}", result.status(), result.message());
+        return List.of();
+    }
+
     private static ComponentPrototype.VariantRules.Scaling getScalingRules(ComponentPrototype proto) {
         if (proto.variant_rules == null) return null;
         return proto.variant_rules.scaling;
     }
 
-    /**
-     * 解析原始朝向（从 proto.structure.default_facing）。
-     */
     private static Direction parseOriginalFacing(ComponentPrototype proto) {
         if (proto.structure == null || proto.structure.default_facing == null) return Direction.SOUTH;
         try {
@@ -97,9 +89,6 @@ public final class ComponentVariantCompiler {
         }
     }
 
-    /**
-     * 解析镜像模式（从 variant.params.mirror）。
-     */
     private static Mirror parseMirror(String mirror) {
         if (mirror == null || mirror.isBlank()) return Mirror.NONE;
         try {

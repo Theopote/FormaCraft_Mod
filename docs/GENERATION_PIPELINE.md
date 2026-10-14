@@ -122,6 +122,8 @@ flowchart TD
 
 第三十六批起：捕获构件 `sourceOrigin=CAPTURED` 禁非授权随机变体；`SegmentScaler` 方块/Socket 共享切片映射；保存前配对方块校验；材质多 tag 优先级经 `ShapePreservingMaterialSwap`。
 
+第三十七批起：运行时捕获门禁统一（无规则禁止整数放大）；`VariantCompileResult` 硬失败语义；Socket `adaptMode`；材质 STRUCTURE→…→ORNAMENT；缩略图 FAILED/有限重试/`resourceEpoch`；预览=建造 Patch 对比。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

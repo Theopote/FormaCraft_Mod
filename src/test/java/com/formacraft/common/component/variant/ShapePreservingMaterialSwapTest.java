@@ -38,6 +38,16 @@ class ShapePreservingMaterialSwapTest {
         assertEquals(Blocks.BLUE_STAINED_GLASS_PANE,result.getBlock());assertTrue(result.get(Properties.NORTH));
         assertEquals(Blocks.GLASS_PANE.getDefaultState(),ShapePreservingMaterialSwap.apply("minecraft:glass_pane",Blocks.STONE.getDefaultState()));
     }
+    @Test void fencesAndWallsRetainConnections() {
+        var fence=ShapePreservingMaterialSwap.apply("minecraft:oak_fence[north=true,east=true]",Blocks.SPRUCE_PLANKS.getDefaultState());
+        assertEquals(Blocks.SPRUCE_FENCE,fence.getBlock());
+        assertTrue(fence.get(Properties.NORTH));
+        assertTrue(fence.get(Properties.EAST));
+        var wall=ShapePreservingMaterialSwap.apply("minecraft:cobblestone_wall[north=low,up=true]",Blocks.STONE_BRICKS.getDefaultState());
+        assertEquals(Blocks.STONE_BRICK_WALL,wall.getBlock());
+        assertTrue(wall.toString().contains("north=low"));
+        assertTrue(wall.get(Properties.UP));
+    }
     @Test void rotationAlsoTransformsLogAxis() {
         var rotated=com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
                 "minecraft:oak_log[axis=x]",Direction.SOUTH,

@@ -31,7 +31,7 @@ public class ClientInitializer implements ClientModInitializer {
                     @Override public void reload(net.minecraft.resource.ResourceManager manager) {
                         net.minecraft.client.MinecraftClient.getInstance().execute(() -> {
                             com.formacraft.client.component.ComponentThumbnailGenerator.resourcesReloaded();
-                            com.formacraft.client.component.ComponentThumbnailCache.clearAllCache();
+                            com.formacraft.client.component.ComponentThumbnailCache.onResourceReload();
                             com.formacraft.client.ui.render.ImageRenderer.clear();
                         });
                     }

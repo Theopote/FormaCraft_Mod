@@ -58,10 +58,12 @@
 - 分段适配按 X、Y、Z 顺序累积，精确控制最终切片数，不再次执行整体放大或外侧裁剪。
 - 锚点保持原点，内外/上下标记、宿主面和插槽原点跟随坐标映射；插槽尺寸对应更新，原始元数据保持独立。
 - **第三十六批**：方块重建与 Socket/附着点共用切片平铺映射（首个平铺实例），禁止比例插值与周期重复分叉。
+- **第三十七批**：`applyRuntimeVariant`/`fitToQuery` 对 `CAPTURED`（及有 `variantRules`）统一门禁，无规则时禁止 `runtimeVariant` 整数放大；`VariantCompileResult` 区分 TEMPLATE_MISSING 等硬失败；`SocketPlacement.adaptMode`（FIXED/STRETCH/REPEAT/FORBIDDEN）；缩略图缓存 LOADING/READY/FAILED + `resourceEpoch`；预览与建造 Patch 多重集合一致。
 - 重复/裁剪带中包含门的上下半块、床的头尾等成对对象时拒绝变形，避免切断功能结构；**保存前**与运行时使用同一套配对方块扫描。
 - 捕获保存写入 `sourceOrigin=CAPTURED`；`VariantGenerator` 对捕获件（及带 `variantRules` 的定义）禁止随机缩放/裁剪/镜像，仅走确定性 `SegmentScaler` / `ComponentModelApi`。
 - 单轴最大 256 格，变体最多 262144 个方块。
-- 换材保留楼梯、台阶、墙、栅栏、窗格等形状，以及适用的朝向、半块、轴向、含水等属性。没有兼容材料形状时保留原方块；门、床、活板门、方块实体和不支持的功能方块保留原样。多语义标签按 `tag_priority` 或 STRUCTURE→FRAME→FILL 选取。
+- 换材保留楼梯、台阶、墙、栅栏、窗格等形状，以及适用的朝向、半块、轴向、含水等属性。没有兼容材料形状时保留原方块；门、床、活板门、方块实体和不支持的功能方块保留原样。多语义标签先过滤 `semantic_map` 命中项，再按 STRUCTURE/STRUCTURAL→FRAME→SURFACE→FILL→ORNAMENT→作者 `tag_priority`→sorted。
+- `SocketPlacement.adaptMode`：缺省 STRETCH（单点映射）；REPEAT 沿 REPEAT 轴按平铺周期复制安装点（id 加 `#k`）；FORBIDDEN 落在可变中段则适配失败。
 - 旋转和镜像使用 Minecraft 原生方块状态变换，包含原木轴向等属性。
 - 保存端及既有健康检查共用变化规则校验。未包含 `variantRules` 的旧构件保持旧的规则来源与兼容路径。
 

@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-14（第三十六批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-14（第三十七批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,13 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第三十七批（2026-10-14）— 捕获运行时契约统一
+
+- **门禁**：`ComponentModelApi.applyRuntimeVariant` 在分段失败后对 `isCapturedOrigin()`/`variantRules!=null` 直接返回原件；无 scaling 规则时不用 `repeatCount` 改写目标尺寸；`fitToQuery` 不匹配仍返回 null。
+- **VariantCompileResult**：SUCCESS/EMPTY_ALLOWED/INVALID_INPUT/TEMPLATE_MISSING/GEOMETRY_INVALID；`compileToPatch` 硬失败打 error；Expander 对显式选中库构件适配失败不走静默 fallback。
+- **Socket adaptMode**：FIXED/STRETCH/REPEAT/FORBIDDEN；REPEAT 按周期复制安装点。
+- **缩略图**：LOADING/READY/FAILED；`failCount<2` 或 `resourceEpoch` 变化才重试；资源重载走 `onResourceReload()`。
 
 ### 第三十六批（2026-10-14）— 捕获构件适配契约
 

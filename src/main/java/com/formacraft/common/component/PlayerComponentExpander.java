@@ -79,8 +79,16 @@ public final class PlayerComponentExpander {
         }
 
         // 1) 确定要加载的构件（单构件）
+        String explicitId = getString(reqMap, "id", "component_id", "componentId");
         ComponentDefinition def = resolveComponent(worldDir, reqMap, null);
         if (def == null || def.blocks == null || def.blocks.isEmpty()) {
+            // Library component was selected: adapt/compile failure is a hard fail — no silent fallback.
+            if (explicitId != null && !explicitId.isBlank()) {
+                FormacraftMod.LOGGER.error(
+                        "PlayerComponentExpander: selected component failed to adapt id={} (empty patches)",
+                        explicitId);
+                return List.of();
+            }
             ComponentQuery query = parseComponentQuery(reqMap, null);
             if (query != null) {
                 List<BlockPatch> fallback = generateFallbackPatches(semantic, query);

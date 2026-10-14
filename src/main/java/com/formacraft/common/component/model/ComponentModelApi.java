@@ -114,11 +114,14 @@ public final class ComponentModelApi {
             return null;
         }
         if (query != null && query.geometry != null && !query.geometry.scalable) return base;
+        // CAPTURED without author variantRules: never adapt via archetype-injected rules or Applier.
+        if (base.isCapturedOrigin() && base.variantRules == null) return base;
         ComponentDefinition segmented = tryApplySegmentScaling(base, query, runtimeVariant);
         if (segmented != null) {
             return segmented; // Never scale/trim again after a segmented fit.
         }
-        if (base.variantRules != null) return base; // Explicit FIXED rules cannot be bypassed.
+        // Author-ruled defs never fall through to integer scale/trim.
+        if (base.variantRules != null) return base;
         return runtimeVariant != null ? ComponentVariantApplier.apply(base, runtimeVariant) : base;
     }
 
@@ -160,6 +163,10 @@ public final class ComponentModelApi {
             ComponentVariant runtimeVariant
     ) {
         if (base == null || base.blocks == null || base.blocks.isEmpty()) {
+            return null;
+        }
+        // Only author-declared rules scale; do not invent REPEAT from archetype for captures.
+        if (base.variantRules == null || base.variantRules.scaling == null) {
             return null;
         }
 
@@ -231,7 +238,9 @@ public final class ComponentModelApi {
             scale.z = permittedTarget(base, "Z", scale.z, bd);
         }
 
-        if (base.variantRules == null && runtimeVariant != null && runtimeVariant.repeatCount > 1) {
+        // Captured without scaling rules: never invent size from runtimeVariant.repeatCount.
+        if (!base.isCapturedOrigin() && base.variantRules == null
+                && runtimeVariant != null && runtimeVariant.repeatCount > 1) {
             int repeat = runtimeVariant.repeatCount;
             ComponentVariantSpec.Axis axis = runtimeVariant.repeatAxis != null
                     ? runtimeVariant.repeatAxis
@@ -280,8 +289,14 @@ public final class ComponentModelApi {
             variant = makeDefaultVariant(proto);
         }
 
-        // 使用新变体编译器（支持分段缩放 + 语义材质映射）
-        return com.formacraft.common.component.variant.ComponentVariantCompiler.compile(proto, variant, facing, style);
+        var result = com.formacraft.common.component.variant.ComponentVariantCompiler.compileResult(
+                proto, variant, facing, style);
+        if (!result.ok()) {
+            com.formacraft.FormacraftMod.LOGGER.error(
+                    "[ComponentModelApi] variant compile failed id={} status={} message={}",
+                    proto.id, result.status(), result.message());
+        }
+        return com.formacraft.common.component.variant.ComponentVariantCompiler.compileToPatches(result);
     }
 
     /**
