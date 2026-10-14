@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-14（第四十一批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-14（第四十二批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,13 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第四十二批（2026-10-14）— 组契约、权威路由与 Patch 事务
+
+- **Group Outcome**：`PlayerComponentGroupExpander.tryExpandResult`；必要子失败硬失败；可选挂载跳过 → `PARTIAL_SUCCESS`；禁止 carve-only SUCCESS；Router 与 `component_request` 同形（含 `libraryCommitted`）。
+- **权威先择**：显式 `group_request`/`component_request` 先于默认类型生成器；库已提交则跳过 generator。
+- **编译事务**：材质与 surface 校验通过后，一次性提交 `result` / `surfaceLedger` / `protectedMaterials` / `generatedSurfaces` / `circulation` / `buildingVolumes`。
+- **OpeningRegion**：`SocketPlacement.openingRegion` 优先作为可清洞格；`Socket.size` 仅尺寸兼容；缺省回退 size.max 盒。
 
 ### 第四十一批（2026-10-14）— 路由契约与授权清洞
 

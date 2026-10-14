@@ -107,22 +107,47 @@ public final class UnifiedGeneratorRouter {
 
         boolean hasGroupRequest = hasFeaturePrefix(c, "group_request:");
         boolean hasComponentRequest = hasFeaturePrefix(c, "component_request:");
+        boolean explicitLibrary = hasGroupRequest || hasComponentRequest;
 
-        ComponentGeneratorAttempt genAttempt = tryComponentGeneratorResult(semantic, componentType);
-        if (genAttempt.hardFail() != null) {
-            return genAttempt.hardFail();
-        }
-        List<BlockPatch> base = genAttempt.patches();
+        List<BlockPatch> base = new ArrayList<>();
+        ExpanderStage expander;
+        List<GenerationDiagnostic> routeDiagnostics = new ArrayList<>();
 
-        ExpanderStage expander = applyExpandersResult(semantic, world, base, hasGroupRequest, hasComponentRequest);
-        if (expander.hardFail() != null) {
-            FormacraftMod.LOGGER.error(
-                    "UnifiedGeneratorRouter: component_request hard-fail status={} diagnostics={} — blocking fallbacks",
-                    expander.hardFail().status(), expander.hardFail().diagnostics());
-            return expander.hardFail();
+        if (explicitLibrary) {
+            // Authority-first: explicit library request before default type generator.
+            expander = applyExpandersResult(semantic, world, List.of(), hasGroupRequest, hasComponentRequest);
+            if (expander.hardFail() != null) {
+                FormacraftMod.LOGGER.error(
+                        "UnifiedGeneratorRouter: library request hard-fail status={} diagnostics={} — blocking fallbacks",
+                        expander.hardFail().status(), expander.hardFail().diagnostics());
+                return expander.hardFail();
+            }
+            routeDiagnostics.addAll(expander.diagnostics());
+            if (expander.libraryCommitted()) {
+                base = expander.patches();
+            } else {
+                ComponentGeneratorAttempt genAttempt = tryComponentGeneratorResult(semantic, componentType);
+                if (genAttempt.hardFail() != null) {
+                    return genAttempt.hardFail();
+                }
+                base = genAttempt.patches();
+                if (base.isEmpty() && !expander.patches().isEmpty()) {
+                    base = expander.patches();
+                }
+            }
+        } else {
+            ComponentGeneratorAttempt genAttempt = tryComponentGeneratorResult(semantic, componentType);
+            if (genAttempt.hardFail() != null) {
+                return genAttempt.hardFail();
+            }
+            base = genAttempt.patches();
+            expander = applyExpandersResult(semantic, world, base, false, false);
+            if (expander.hardFail() != null) {
+                return expander.hardFail();
+            }
+            base = expander.patches();
+            routeDiagnostics.addAll(expander.diagnostics());
         }
-        base = expander.patches();
-        List<GenerationDiagnostic> routeDiagnostics = new ArrayList<>(expander.diagnostics());
 
         boolean allowTypologyOverride = c.params() != null
                 && Boolean.TRUE.equals(c.params().get("allow_typology_override"));
@@ -228,12 +253,12 @@ public final class UnifiedGeneratorRouter {
         if (!base.isEmpty() && envelopeProtected && !hasComponentRequest && !hasGroupRequest) {
             return new ExpanderStage(base, null, List.of(), false);
         }
-        // Explicit component_request must not be silently dropped under envelope protection.
+        // Explicit library request must not be silently dropped under envelope protection.
         // Exception: allow_envelope_attach or upstream resolved_host_attachment (run expander).
-        if (hasComponentRequest && preservesBuildingEnvelope(type)
+        if ((hasComponentRequest || hasGroupRequest) && preservesBuildingEnvelope(type)
                 && !allowEnvelopeAttach && !hostAttachment) {
             FormacraftMod.LOGGER.error(
-                    "UnifiedGeneratorRouter: component_request conflicts with envelope protection type={}", type);
+                    "UnifiedGeneratorRouter: library request conflicts with envelope protection type={}", type);
             return new ExpanderStage(List.of(), RoutedGenerationResult.failure(
                     ComponentGenerationOutcome.Status.INVALID_INPUT,
                     "component_request_envelope_conflict",
@@ -243,21 +268,41 @@ public final class UnifiedGeneratorRouter {
 
         if (hasGroupRequest) {
             try {
-                List<BlockPatch> expanded = com.formacraft.common.component.group.PlayerComponentGroupExpander
-                        .tryExpand(semantic, world);
-                if (expanded != null) {
-                    if (expanded.isEmpty()) {
-                        return new ExpanderStage(base, null, List.of(), false);
+                var outcome = com.formacraft.common.component.group.PlayerComponentGroupExpander
+                        .tryExpandResult(semantic, world);
+                if (outcome != null) {
+                    if (outcome.commitAllowed()) {
+                        if (base.isEmpty()) {
+                            return new ExpanderStage(outcome.patches(), null, outcome.diagnostics(),
+                                    outcome.degraded(), true);
+                        }
+                        List<BlockPatch> merged = new ArrayList<>(base.size() + outcome.patches().size());
+                        merged.addAll(base);
+                        merged.addAll(outcome.patches());
+                        return new ExpanderStage(merged, null, outcome.diagnostics(),
+                                outcome.degraded(), true);
                     }
-                    if (base.isEmpty()) {
-                        return new ExpanderStage(expanded, null, List.of(), false);
+                    if (outcome.isHardFail()) {
+                        return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
+                                outcome.diagnostics(), false);
                     }
-                    List<BlockPatch> merged = new ArrayList<>(base.size() + expanded.size());
-                    merged.addAll(base);
-                    merged.addAll(expanded);
-                    return new ExpanderStage(merged, null, List.of(), false);
+                    if (outcome.status() == ComponentGenerationOutcome.Status.NO_CANDIDATE) {
+                        FormacraftMod.LOGGER.debug(
+                                "UnifiedGeneratorRouter: group NO_CANDIDATE — allowing generator/typology fallback");
+                        return new ExpanderStage(base, null, outcome.diagnostics(), false);
+                    }
+                    return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
+                            outcome.diagnostics(), false);
                 }
             } catch (Throwable t) {
+                if (isRequiredComponentType(type)) {
+                    FormacraftMod.LOGGER.error("UnifiedGeneratorRouter: PlayerComponentGroupExpander failed (required)", t);
+                    return new ExpanderStage(List.of(), RoutedGenerationResult.failure(
+                            ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                            "group_expander_exception",
+                            t.getMessage() == null ? "group_expander_exception" : t.getMessage()),
+                            List.of(), false);
+                }
                 FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: PlayerComponentGroupExpander failed, skipping", t);
             }
         }

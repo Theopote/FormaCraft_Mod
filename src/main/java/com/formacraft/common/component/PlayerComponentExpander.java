@@ -460,8 +460,9 @@ public final class PlayerComponentExpander {
     }
 
     /**
-     * Host-authoritative carve volume: socket placement origin + size.max (else min) opening box.
-     * Independent of any request-side maskOrigin offset.
+     * Host-authoritative carve volume.
+     * Prefer {@link ComponentDefinition.SocketPlacement#openingRegion}; else size.max opening box.
+     * Independent of any request-side maskOrigin offset. Socket.size remains install-size only.
      */
     static Set<BlockPos> authorizedSocketCarveCells(
             ComponentDefinition host,
@@ -474,10 +475,56 @@ public final class PlayerComponentExpander {
     ) {
         if (host == null || socket == null || transform == null) return Set.of();
         BlockPos authOrigin = SocketPlacementResolver.resolveLocalOrigin(host, socketId, socket);
+        OpeningRegion region = resolveOpeningRegion(host, socketId);
+        if (region != null && !region.isEmpty()) {
+            return openingRegionAuthorizedCells(
+                    region, authOrigin, fromFacing, transform, baseX, baseY, baseZ, carveFacing);
+        }
         SocketMask authMask = authorizedSocketMask(socket);
         if (authMask == null) return Set.of();
         return ResolvedCarveVolume.cellsFromRemoves(emitCarveRemoves(
                 authMask, authOrigin, fromFacing, transform, baseX, baseY, baseZ, carveFacing));
+    }
+
+    static OpeningRegion resolveOpeningRegion(ComponentDefinition host, String socketId) {
+        if (host == null || host.socketPlacements == null || socketId == null) return null;
+        for (ComponentDefinition.SocketPlacement sp : host.socketPlacements) {
+            if (sp == null || sp.id == null) continue;
+            if (socketId.equals(sp.id) && sp.openingRegion != null && !sp.openingRegion.isEmpty()) {
+                return sp.openingRegion;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Box OpeningRegion shares emitCarveRemoves with request masks; explicit cells use transformOffset.
+     */
+    static Set<BlockPos> openingRegionAuthorizedCells(
+            OpeningRegion region,
+            BlockPos socketOriginLocal,
+            Direction fromFacing,
+            ComponentTransform transform,
+            int baseX, int baseY, int baseZ,
+            Direction carveFacing
+    ) {
+        if (region == null || transform == null || socketOriginLocal == null) return Set.of();
+        Set<BlockPos> out = new java.util.LinkedHashSet<>();
+        if (region.cells != null && !region.cells.isEmpty()) {
+            for (int[] c : region.cells) {
+                if (c == null || c.length < 3) continue;
+                BlockPos absoluteLocal = socketOriginLocal.add(c[0], c[1], c[2]);
+                BlockPos off = ComponentTransformUtil.transformOffset(absoluteLocal, fromFacing, transform);
+                out.add(new BlockPos(baseX + off.getX(), baseY + off.getY(), baseZ + off.getZ()));
+            }
+        }
+        if (region.w > 0 && region.h > 0 && region.d > 0) {
+            BlockPos boxOrigin = socketOriginLocal.add(region.ox, region.oy, region.oz);
+            out.addAll(ResolvedCarveVolume.cellsFromRemoves(emitCarveRemoves(
+                    new SocketMask(region.w, region.h, region.d),
+                    boxOrigin, fromFacing, transform, baseX, baseY, baseZ, carveFacing)));
+        }
+        return out;
     }
 
     static SocketMask authorizedSocketMask(ComponentSocket socket) {

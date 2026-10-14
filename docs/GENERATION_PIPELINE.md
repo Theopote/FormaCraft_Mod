@@ -132,6 +132,8 @@ flowchart TD
 
 第四十一批起：授权清洞 `containsAll(requested)`；包络+显式 `component_request` → `E_COMPONENT_REQUEST_CONFLICT`；必要空门禁；库提交优先于 typology（`allow_typology_override`）。优先级：显式 component_id 库结果 > component_request 成功 > 类型生成器 base > typology（可选覆盖）> structure fallback。
 
+第四十二批起：`group_request` 结构化 Outcome；显式库/组请求先于默认生成器；编译期 Patch 事务化；`OpeningRegion` 与 `Socket.size` 分离。优先级：显式 group/component 库结果 > 类型生成器 > typology（可选覆盖）> structure。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

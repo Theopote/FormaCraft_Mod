@@ -162,6 +162,11 @@ public class ComponentDefinition {
          * Null / blank defaults to STRETCH (single remapped origin).
          */
         public String adaptMode;
+        /**
+         * Authoritative carve cells relative to this placement origin.
+         * When null, runtime falls back to socket size.max opening box.
+         */
+        public com.formacraft.common.component.socket.OpeningRegion openingRegion;
     }
 
     public static class BlockEntry {

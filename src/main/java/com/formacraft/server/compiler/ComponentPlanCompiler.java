@@ -538,10 +538,9 @@ public final class ComponentPlanCompiler {
                     logComponentPatchCount(normalizedType, c, patches.size());
                     com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
                     BlockPos flightOffset = slotAnchor == null ? BlockPos.ORIGIN : new BlockPos(slotAnchor.x(), slotAnchor.y(), slotAnchor.z());
-                    for (var cell : surfaceCells) if (cell.requiresBlock())
-                        generatedSurfaces.add(cell.shift(flightOffset).position());
                     var shiftedFlights = componentFlights.stream()
                             .map(flight -> AssemblyCirculationConstraints.shift(flight, flightOffset)).toList();
+                    // Read-only against prior components' result; do not mutate ledgers yet.
                     var exteriorCollision = ExteriorCirculationValidator.findCollision(result, shiftedFlights, buildingVolumes);
                     if (exteriorCollision.isPresent()) {
                         var collision = exteriorCollision.get();
@@ -551,21 +550,6 @@ public final class ComponentPlanCompiler {
                                 List.of("Move the stair flight and its clearance inside the host building; use an existing doorway for exterior access.")));
                         return;
                     }
-                    circulation.addAll(shiftedFlights);
-                    // A floor plate has no enclosing walls, even if legacy dimensions give it height.
-                    if (isMassType(normalizedType) && !(c.params() != null
-                            && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode"))))) {
-                        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
-                        var bounds = part.bounds();
-                            Vec3i offset = slotAnchor == null ? new Vec3i(0, 0, 0) : slotAnchor;
-                            var shifted = new ComponentFootprintUtil.Bounds(bounds.minX() + offset.x(), bounds.minY() + offset.y(),
-                                bounds.minZ() + offset.z(), bounds.maxX() + offset.x(), bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
-                            int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
-                                .resolveFloorHeight(plan, c, shifted.height());
-                            buildingVolumes.add(new PostProcessContext.BuildingVolume(slotKey, shifted, floorHeight));
-                        }
-                    }
-
 
                     var shiftedPatches = new ArrayList<BlockPatch>();
                     if (slotAnchor != null) {
@@ -594,8 +578,7 @@ public final class ComponentPlanCompiler {
                                 List.of("Keep decoration non-destructive; bind wall openings to their host building.")));
                         return;
                     }
-                    result.addAll(shiftedPatches);
-                    OpeningMaterialAudit.capture(openingExpectations, c, surfaceCells, flightOffset);
+                    // Validate all materials before any ledger / result mutation (transactional commit).
                     var explicitTargets = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.targets(c, styleAttributes);
                     for (var patch : shiftedPatches) {
                         if (com.formacraft.common.patch.BlockPatchTargetResolver.resolve(patch) == null) {
@@ -604,9 +587,29 @@ public final class ComponentPlanCompiler {
                                     "components[]", List.of("Use a registered block id and valid state properties.")));
                             return;
                         }
+                    }
+
+                    // Commit boundary: patches + ledgers + protected sets together.
+                    result.addAll(shiftedPatches);
+                    OpeningMaterialAudit.capture(openingExpectations, c, surfaceCells, flightOffset);
+                    for (var cell : surfaceCells) if (cell.requiresBlock())
+                        generatedSurfaces.add(cell.shift(flightOffset).position());
+                    circulation.addAll(shiftedFlights);
+                    if (isMassType(normalizedType) && !(c.params() != null
+                            && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode"))))) {
+                        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
+                        var bounds = part.bounds();
+                            Vec3i offset = slotAnchor == null ? new Vec3i(0, 0, 0) : slotAnchor;
+                            var shifted = new ComponentFootprintUtil.Bounds(bounds.minX() + offset.x(), bounds.minY() + offset.y(),
+                                bounds.minZ() + offset.z(), bounds.maxX() + offset.x(), bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
+                            int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
+                                .resolveFloorHeight(plan, c, shifted.height());
+                            buildingVolumes.add(new PostProcessContext.BuildingVolume(slotKey, shifted, floorHeight));
+                        }
+                    }
+                    for (var patch : shiftedPatches) {
                         var position = new BlockPos(patch.dx(), patch.dy(), patch.dz());
                         if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, c.params())) {
-                            // Optional post-processing decorates existing cells and adjacent trim cells.
                             for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++)
                                 decorationRestrictions.add(position.add(dx, dy, dz));
                         }
