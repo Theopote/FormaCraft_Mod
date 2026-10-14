@@ -5,16 +5,19 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
  * Host-authoritative cells that may be carved at a socket.
  * Distinct from {@link SizeConstraint} (install-size compatibility only).
  * <p>
- * Prefer explicit {@link #cells}; otherwise an axis-aligned box from {@link #ox}/{@link #oy}/{@link #oz}
- * + {@link #w}/{@link #h}/{@link #d} (local to the socket placement origin).
+ * When {@link #cells} is non-empty it is the sole authority; the AABB box is ignored.
+ * Only when cells are missing/empty does {@link #ox}/{@link #oy}/{@link #oz} + {@link #w}/{@link #h}/{@link #d} apply.
  */
 public final class OpeningRegion {
+    public static final int MAX_CELLS = 4096;
+
     /** Explicit local cells relative to socket origin (each int[3] = dx,dy,dz). */
     public List<int[]> cells;
 
@@ -44,19 +47,27 @@ public final class OpeningRegion {
         return new OpeningRegion(0, 0, 0, w, h, d);
     }
 
+    public boolean hasExplicitCells() {
+        return cells != null && !cells.isEmpty();
+    }
+
     public boolean isEmpty() {
-        if (cells != null && !cells.isEmpty()) return false;
+        if (hasExplicitCells()) return false;
         return w <= 0 || h <= 0 || d <= 0;
     }
 
-    /** Local cells relative to socket origin (not yet world-transformed). */
+    /**
+     * Local cells relative to socket origin (not yet world-transformed).
+     * Explicit cells win; box is fallback only.
+     */
     public Set<BlockPos> localCells() {
         Set<BlockPos> out = new LinkedHashSet<>();
-        if (cells != null) {
+        if (hasExplicitCells()) {
             for (int[] c : cells) {
                 if (c == null || c.length < 3) continue;
                 out.add(new BlockPos(c[0], c[1], c[2]));
             }
+            return out;
         }
         if (w > 0 && h > 0 && d > 0) {
             for (int x = 0; x < w; x++) {
@@ -68,5 +79,27 @@ public final class OpeningRegion {
             }
         }
         return out;
+    }
+
+    /** Dedup / size / negative-dim checks for save or load. Empty Optional = ok. */
+    public Optional<String> validate() {
+        if (hasExplicitCells()) {
+            Set<BlockPos> seen = new LinkedHashSet<>();
+            for (int[] c : cells) {
+                if (c == null || c.length < 3) return Optional.of("cell_malformed");
+                if (!seen.add(new BlockPos(c[0], c[1], c[2]))) {
+                    // duplicates ignored after dedup in localCells; flag for authors
+                    continue;
+                }
+            }
+            if (seen.size() > MAX_CELLS) return Optional.of("cells_exceed_" + MAX_CELLS);
+            return Optional.empty();
+        }
+        if (w < 0 || h < 0 || d < 0) return Optional.of("negative_box_size");
+        if (w > 0 && h > 0 && d > 0) {
+            long vol = (long) w * h * d;
+            if (vol > MAX_CELLS) return Optional.of("box_exceed_" + MAX_CELLS);
+        }
+        return Optional.empty();
     }
 }

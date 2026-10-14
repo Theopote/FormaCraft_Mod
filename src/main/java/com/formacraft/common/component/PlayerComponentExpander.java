@@ -509,22 +509,24 @@ public final class PlayerComponentExpander {
             Direction carveFacing
     ) {
         if (region == null || transform == null || socketOriginLocal == null) return Set.of();
-        Set<BlockPos> out = new java.util.LinkedHashSet<>();
-        if (region.cells != null && !region.cells.isEmpty()) {
+        // Explicit cells are sole authority (do not union with leftover AABB).
+        if (region.hasExplicitCells()) {
+            Set<BlockPos> out = new java.util.LinkedHashSet<>();
             for (int[] c : region.cells) {
                 if (c == null || c.length < 3) continue;
                 BlockPos absoluteLocal = socketOriginLocal.add(c[0], c[1], c[2]);
                 BlockPos off = ComponentTransformUtil.transformOffset(absoluteLocal, fromFacing, transform);
                 out.add(new BlockPos(baseX + off.getX(), baseY + off.getY(), baseZ + off.getZ()));
             }
+            return out;
         }
         if (region.w > 0 && region.h > 0 && region.d > 0) {
             BlockPos boxOrigin = socketOriginLocal.add(region.ox, region.oy, region.oz);
-            out.addAll(ResolvedCarveVolume.cellsFromRemoves(emitCarveRemoves(
+            return ResolvedCarveVolume.cellsFromRemoves(emitCarveRemoves(
                     new SocketMask(region.w, region.h, region.d),
-                    boxOrigin, fromFacing, transform, baseX, baseY, baseZ, carveFacing)));
+                    boxOrigin, fromFacing, transform, baseX, baseY, baseZ, carveFacing));
         }
-        return out;
+        return Set.of();
     }
 
     static SocketMask authorizedSocketMask(ComponentSocket socket) {

@@ -134,6 +134,8 @@ flowchart TD
 
 第四十二批起：`group_request` 结构化 Outcome；显式库/组请求先于默认生成器；编译期 Patch 事务化；`OpeningRegion` 与 `Socket.size` 分离。优先级：显式 group/component 库结果 > 类型生成器 > typology（可选覆盖）> structure。
 
+第四十三批起：组必需子完整性；组 PLACE 统一 `ComponentGeometryResolver`；OpeningRegion cells 优先；`PatchOccupancyIndex`/`E_PATCH_CONFLICT`。
+
 ### 阶段 5 — 确认放置
 
 | # | 阶段 | 类 |

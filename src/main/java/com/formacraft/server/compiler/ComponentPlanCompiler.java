@@ -296,6 +296,12 @@ public final class ComponentPlanCompiler {
             }
         }
 
+        var postPatchConflict = PatchConflictValidator.inspectMultiPlace(result);
+        if (postPatchConflict.isPresent()) {
+            PatchConflictValidator.toCapabilityGap(postPatchConflict.get()).ifPresent(AssemblyCompileDiagnostics::set);
+            return List.of();
+        }
+
         for (var roof : components) {
             if (!"ROOF".equals(normalizeType(roof.componentType()))) continue;
             var slot = slotMap.get(roof.slotId());
@@ -430,6 +436,7 @@ public final class ComponentPlanCompiler {
         var ordered = new ArrayList<>(components);
         ordered.sort(java.util.Comparator.comparingInt(ComponentPlanCompiler::compilationPriority));
         var surfaceLedger = new SurfaceOwnershipLedger();
+        var patchOccupancy = new PatchOccupancyIndex();
         for (Component c : ordered) {
             if (c == null) continue;
             String normalizedType = normalizeType(c.componentType());
@@ -587,6 +594,19 @@ public final class ComponentPlanCompiler {
                                     "components[]", List.of("Use a registered block id and valid state properties.")));
                             return;
                         }
+                    }
+                    var occupancyConflict = patchOccupancy.accept(c, shiftedPatches);
+                    if (occupancyConflict.isPresent()) {
+                        var oc = occupancyConflict.get();
+                        AssemblyCompileDiagnostics.set(new CapabilityGap("E_PATCH_CONFLICT",
+                                "未授权 Patch 覆盖：pos=" + oc.position().toShortString()
+                                        + " prev=" + oc.previousWriter() + "/" + oc.previousBlock()
+                                        + " writer=" + oc.writer() + "/" + oc.newBlock()
+                                        + " (" + oc.reason() + ")",
+                                "components[]",
+                                List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true",
+                                        "禁止无关构件互相覆盖同坐标")));
+                        return;
                     }
 
                     // Commit boundary: patches + ledgers + protected sets together.

@@ -4,7 +4,9 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentFeatureFlags;
 import com.formacraft.common.component.ComponentGenerationOutcome;
+import com.formacraft.common.component.ComponentGeometryResolver;
 import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.common.component.ResolvedComponentGeometry;
 import com.formacraft.common.component.placement.AttachmentRecognizer;
 import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.FacingDeriver;
@@ -13,14 +15,11 @@ import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.FacingUtil;
 import com.formacraft.common.component.socket.SocketMask;
 import com.formacraft.common.component.socket.SocketPlacementResolver;
-import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
 import com.formacraft.common.component.transform.FacingTransformUtil;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.logging.FcaLog;
-import com.formacraft.common.component.semantic.BlockStatePropertyUtil;
-import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
@@ -29,7 +28,6 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.skeleton.transform.YRotation;
-import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
@@ -183,6 +181,20 @@ public final class PlayerComponentGroupExpander {
                 semanticSkin, semanticStyleId, world.getSeed(),
                 reqMap, 0);
 
+        if (stats.missingRequiredIds != null && !stats.missingRequiredIds.isEmpty()) {
+            return ComponentGenerationOutcome.failure(
+                    ComponentGenerationOutcome.Status.LOAD_FAILED,
+                    "required_group_children_missing",
+                    String.join(",", stats.missingRequiredIds));
+        }
+        if (stats.emitHardFail) {
+            return ComponentGenerationOutcome.failure(
+                    stats.emitFailStatus != null
+                            ? stats.emitFailStatus
+                            : ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                    stats.emitFailCode != null ? stats.emitFailCode : "group_emit_failed",
+                    stats.failMessage != null ? stats.failMessage : group.getId());
+        }
         if (!stats.childrenResolved) {
             return ComponentGenerationOutcome.failure(
                     ComponentGenerationOutcome.Status.LOAD_FAILED, "group_children_unresolved",
@@ -198,10 +210,13 @@ public final class PlayerComponentGroupExpander {
         out.addAll(pendingCarve);
         out.addAll(placePatches);
 
-        if (stats.optionalSkipped > 0) {
-            return ComponentGenerationOutcome.partialSuccess(out,
-                    "group_optional_mount_skipped",
-                    "skipped=" + stats.optionalSkipped);
+        boolean partial = stats.optionalSkipped > 0
+                || (stats.missingOptionalIds != null && !stats.missingOptionalIds.isEmpty());
+        if (partial) {
+            String msg = "optionalSkipped=" + stats.optionalSkipped
+                    + (stats.missingOptionalIds == null || stats.missingOptionalIds.isEmpty()
+                    ? "" : "; missingOptional=" + String.join(",", stats.missingOptionalIds));
+            return ComponentGenerationOutcome.partialSuccess(out, "group_partial", msg);
         }
         return ComponentGenerationOutcome.success(out);
     }
@@ -211,6 +226,11 @@ public final class PlayerComponentGroupExpander {
         int placeCount;
         int optionalSkipped;
         String failMessage;
+        java.util.List<String> missingRequiredIds = new java.util.ArrayList<>();
+        java.util.List<String> missingOptionalIds = new java.util.ArrayList<>();
+        boolean emitHardFail;
+        ComponentGenerationOutcome.Status emitFailStatus;
+        String emitFailCode;
     }
 
     // ===== helpers (mostly mirrored from PlayerComponentExpander, kept local to avoid widening API surface) =====
@@ -239,7 +259,7 @@ public final class PlayerComponentGroupExpander {
             return stats;
         }
 
-        // 预加载：避免“组件缺失但先 carve 挖洞”的副作用
+        // 预加载：必需子缺失立即失败；可选缺失记入 PARTIAL
         List<GroupComponentEntry> entries = group.getComponents();
         if (entries == null || entries.isEmpty()) {
             stats.failMessage = "group_empty_entries";
@@ -250,9 +270,25 @@ public final class PlayerComponentGroupExpander {
         for (GroupComponentEntry e : entries) {
             if (e == null || e.componentId() == null || e.componentId().isBlank()) continue;
             declared++;
-            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, e.componentId().trim());
-            if (def == null || def.blocks == null || def.blocks.isEmpty()) continue;
+            String id = e.componentId().trim();
+            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, id);
+            if (def == null || def.blocks == null || def.blocks.isEmpty()) {
+                if (e.isRequired()) {
+                    stats.missingRequiredIds.add(id);
+                } else {
+                    stats.missingOptionalIds.add(id);
+                    stats.optionalSkipped++;
+                }
+                continue;
+            }
             resolved.add(new ResolvedEntry(e, def));
+        }
+        if (!stats.missingRequiredIds.isEmpty()) {
+            FormacraftMod.LOGGER.error(
+                    "PlayerComponentGroupExpander: required children missing group={} ids={}",
+                    group.getId(), stats.missingRequiredIds);
+            stats.failMessage = "required_missing=" + String.join(",", stats.missingRequiredIds);
+            return stats;
         }
         if (resolved.isEmpty()) {
             FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: group {} has no resolvable child components (missing ids?)", group.getId());
@@ -261,7 +297,7 @@ public final class PlayerComponentGroupExpander {
         }
         stats.childrenResolved = true;
 
-        // expand group entries
+        // expand group entries via shared ComponentGeometryResolver
         ComponentTransform groupTransform = new ComponentTransform(groupFacing, groupMirror);
         Direction groupFromFacing = Direction.SOUTH;
 
@@ -284,9 +320,11 @@ public final class PlayerComponentGroupExpander {
             Direction childFromFacing = parseDir(def.anchor != null ? def.anchor.facing : null);
             if (childFromFacing == null || !childFromFacing.getAxis().isHorizontal()) childFromFacing = Direction.SOUTH;
 
-            addComponentPatches(out, def, childFromFacing, childTransform,
+            if (!emitComponentPatches(out, def, childFromFacing, childTransform,
                     childBaseX, childBaseY, childBaseZ,
-                    semanticSkin, semanticStyleId, seedBase);
+                    semanticSkin, semanticStyleId, seedBase, e.isRequired(), stats)) {
+                return stats;
+            }
         }
         stats.placeCount += countPlaces(out) - beforePlaces;
 
@@ -438,12 +476,57 @@ public final class PlayerComponentGroupExpander {
             ComponentTransform mountTransform = new ComponentTransform(mountFacing, mountMirror);
 
             int mountBefore = countPlaces(out);
-            addComponentPatches(out, mount, mountFromFacing, mountTransform,
+            // Socket mounts are optional decoration unless explicitly required in nestedReq
+            boolean mountRequired = me.nestedReq != null
+                    && Boolean.TRUE.equals(me.nestedReq.get("mount_required"));
+            if (!emitComponentPatches(out, mount, mountFromFacing, mountTransform,
                     anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(),
-                    semanticSkin, semanticStyleId, seedBase);
+                    semanticSkin, semanticStyleId, seedBase, mountRequired, stats)) {
+                return stats;
+            }
             stats.placeCount += countPlaces(out) - mountBefore;
         }
         return stats;
+    }
+
+    /**
+     * Shared PLACE emission via {@link ComponentGeometryResolver}.
+     * @return false if hard-fail was recorded on stats
+     */
+    private static boolean emitComponentPatches(
+            List<BlockPatch> out,
+            ComponentDefinition def,
+            Direction fromFacing,
+            ComponentTransform transform,
+            int baseX, int baseY, int baseZ,
+            boolean semanticSkin,
+            String semanticStyleId,
+            long seedBase,
+            boolean required,
+            ExpandStats stats
+    ) {
+        ResolvedComponentGeometry geo = ComponentGeometryResolver.emit(
+                def, fromFacing, transform, baseX, baseY, baseZ,
+                semanticSkin, semanticStyleId, seedBase);
+        if (!geo.ok()) {
+            if (required) {
+                stats.emitHardFail = true;
+                stats.emitFailStatus = ComponentGenerationOutcome.Status.GEOMETRY_INVALID;
+                stats.emitFailCode = "group_child_emit_failed";
+                stats.failMessage = (def != null ? def.id : "?") + ":" + geo.message();
+                FormacraftMod.LOGGER.error(
+                        "PlayerComponentGroupExpander: required child emit failed id={} status={} msg={}",
+                        def != null ? def.id : "?", geo.status(), geo.message());
+                return false;
+            }
+            stats.optionalSkipped++;
+            FormacraftMod.LOGGER.warn(
+                    "PlayerComponentGroupExpander: optional child emit skipped id={} msg={}",
+                    def != null ? def.id : "?", geo.message());
+            return true;
+        }
+        out.addAll(geo.patches());
+        return true;
     }
 
     private static int countPlaces(List<BlockPatch> patches) {
@@ -504,69 +587,6 @@ public final class PlayerComponentGroupExpander {
         return new SocketWorld(pos, facing);
     }
 
-    private static void addComponentPatches(List<BlockPatch> out,
-                                           ComponentDefinition def,
-                                           Direction fromFacing,
-                                           ComponentTransform transform,
-                                           int baseX, int baseY, int baseZ,
-                                           boolean semanticSkin,
-                                           String semanticStyleId,
-                                           long seedBase) {
-        if (def == null || def.blocks == null || def.blocks.isEmpty()) return;
-
-        int minDy = Integer.MAX_VALUE;
-        for (ComponentDefinition.BlockEntry be : def.blocks) {
-            if (be == null) continue;
-            minDy = Math.min(minDy, be.dy);
-        }
-        if (minDy == Integer.MAX_VALUE) minDy = 0;
-
-        for (ComponentDefinition.BlockEntry be : def.blocks) {
-            if (be == null) continue;
-            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
-            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, transform);
-
-            int dx = baseX + off.getX();
-            int dy = baseY + off.getY();
-            int dz = baseZ + off.getZ();
-
-            String block;
-            if (semanticSkin) {
-                com.formacraft.common.semantic.SemanticPart part = be.semantic != null
-                        ? be.semantic
-                        : guessSemanticPartFromString(be.block, be.dy, minDy);
-                long seed = mixSeed(seedBase, dx, dy, dz, part.ordinal());
-                BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
-
-                Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
-                if (capturedFacing != null) {
-                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, transform);
-                    picked = BlockStatePropertyUtil.applyFacing(picked, tf);
-                }
-                block = BlockStateStringUtil.fromState(picked);
-            } else {
-                if (be.block == null || be.block.isBlank()) continue;
-                block = BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
-            }
-            out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
-        }
-    }
-
-    private static com.formacraft.common.semantic.SemanticPart guessSemanticPartFromString(String blockStateString, int dy, int minDy) {
-        if (dy == minDy) return com.formacraft.common.semantic.SemanticPart.FOUNDATION;
-        if (blockStateString == null || blockStateString.isBlank()) return com.formacraft.common.semantic.SemanticPart.WALL;
-        String s = blockStateString.toLowerCase(Locale.ROOT);
-
-        if (s.contains("door") || s.contains("trapdoor")) return com.formacraft.common.semantic.SemanticPart.DOORWAY;
-        if (s.contains("glass_pane") || s.contains("stained_glass_pane") || s.contains(":glass")) return com.formacraft.common.semantic.SemanticPart.WINDOW;
-        if (s.contains("fence") || s.contains("iron_bars") || s.contains("bars")) return com.formacraft.common.semantic.SemanticPart.RAILING;
-        if (s.contains("lantern") || s.contains("torch")) return com.formacraft.common.semantic.SemanticPart.LIGHT;
-        if (s.contains("stairs")) return com.formacraft.common.semantic.SemanticPart.STAIR_STEP;
-        if (s.contains("slab")) return com.formacraft.common.semantic.SemanticPart.FLOOR;
-        if (s.contains("log") || s.contains("stem")) return com.formacraft.common.semantic.SemanticPart.PILLAR;
-
-        return com.formacraft.common.semantic.SemanticPart.WALL;
-    }
 
     private static String extractFeatureJson(List<String> features) {
         if (features == null) return null;
@@ -662,6 +682,7 @@ public final class PlayerComponentGroupExpander {
         return null;
     }
 
+    @SuppressWarnings("unused")
     private static long mixSeed(long base, int x, int y, int z, int t) {
         long h = 1469598103934665603L ^ base;
         h ^= x; h *= 1099511628211L;

@@ -64,6 +64,7 @@
 - **第四十批**：Router/Hub/Compiler 贯通硬失败（禁止回退普通几何）；`BlockEntry.carveRole` 与 Socket AABB 包含性；可选挂载 `PARTIAL_SUCCESS`；必需生成器异常门禁。
 - **第四十一批**：授权清洞体积（宿主 socket 原点 + size.max，与请求解耦）；包络类型显式 `component_request` 硬冲突 `E_COMPONENT_REQUEST_CONFLICT`；必要类型空 Patch 门禁；库成功跳过 typology 覆盖。
 - **第四十二批**：组展开 `tryExpandResult`（必要子硬失败 / 可选挂载 PARTIAL）；权威路由先库后生成器；编译 Patch 事务提交；`OpeningRegion` 表达可清洞格（size 仅兼容约束）。
+- **第四十三批**：`GroupComponentEntry.required` 默认 true；组几何仅 `ComponentGeometryResolver.emit`；OpeningRegion 显式 cells 不与盒并集；编译期/后处理 Patch 冲突门禁 `E_PATCH_CONFLICT`。
 - 重复/裁剪带中包含门的上下半块、床的头尾等成对对象时拒绝变形，避免切断功能结构；**保存前**与运行时使用同一套配对方块扫描。
 - 捕获保存写入 `sourceOrigin=CAPTURED`；`VariantGenerator` 对捕获件（及带 `variantRules` 的定义）禁止随机缩放/裁剪/镜像，仅走确定性 `SegmentScaler` / `ComponentModelApi`。
 - 单轴最大 256 格，变体最多 262144 个方块。

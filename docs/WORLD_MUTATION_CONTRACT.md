@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-14（第四十二批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-14（第四十三批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,13 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第四十三批（2026-10-14）— 组完整性、统一发射与 Patch 冲突
+
+- **组必需子**：`GroupComponentEntry.required` 默认 true；缺任一必需子 → `LOAD_FAILED`/`required_group_children_missing`；可选缺失 → `PARTIAL_SUCCESS`。
+- **统一几何**：组/挂载 PLACE 仅经 `ComponentGeometryResolver.emit`（删除组内独立换皮/朝向路径）。
+- **OpeningRegion**：显式 `cells` 非空时为唯一权威（不与 AABB 并集）；`validate()` 限 4096。
+- **Patch 冲突**：`PatchOccupancyIndex` 提交期检测未授权 PLACE→PLACE；后处理后 `PatchConflictValidator` → `E_PATCH_CONFLICT`；开口类/ `allow_patch_overwrite` 可覆盖。
 
 ### 第四十二批（2026-10-14）— 组契约、权威路由与 Patch 事务
 

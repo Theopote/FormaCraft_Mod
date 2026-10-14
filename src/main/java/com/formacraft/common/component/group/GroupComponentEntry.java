@@ -8,6 +8,7 @@ import com.formacraft.common.skeleton.transform.YRotation;
  * <p>
  * 坐标约定：offsetX/offsetZ 为 group 局部平面坐标（以 SOUTH 为“前方”），offsetY 为高度。
  * rotation/mirror 是对子构件的额外局部修正（叠加在 group 的 facing/mirror 之后）。
+ * {@link #required} 缺省/null 视为 true；显式 false 才可选。
  */
 public record GroupComponentEntry(
         String componentId,
@@ -15,11 +16,27 @@ public record GroupComponentEntry(
         int offsetY,
         int offsetZ,
         YRotation rotation,
-        Mirror mirror
+        Mirror mirror,
+        Boolean required
 ) {
     public GroupComponentEntry {
         if (rotation == null) rotation = YRotation.NONE;
         if (mirror == null) mirror = Mirror.NONE;
     }
-}
 
+    /** Backward-compatible ctor; required defaults to true. */
+    public GroupComponentEntry(
+            String componentId,
+            int offsetX,
+            int offsetY,
+            int offsetZ,
+            YRotation rotation,
+            Mirror mirror
+    ) {
+        this(componentId, offsetX, offsetY, offsetZ, rotation, mirror, null);
+    }
+
+    public boolean isRequired() {
+        return required == null || Boolean.TRUE.equals(required);
+    }
+}
