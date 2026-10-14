@@ -48,4 +48,11 @@ class AssemblyIntentSectionsTest {
         String prompt = PromptAssembler.assemble("建一栋中式别墅，带庭院", PromptMode.BUILD);
         assertFalse(prompt.contains("ASSEMBLY INTENT (MANDATORY"));
     }
+
+    @Test
+    void assemblyIntentSoftRuleByDefault() {
+        String prompt = PromptAssembler.assemble("原创螺旋瞭望塔 ASSEMBLY 自由几何", PromptMode.BUILD);
+        assertTrue(prompt.contains("非强制"));
+        assertFalse(prompt.contains("本请求必须使用 component_type ASSEMBLY 表达主体量，禁止"));
+    }
 }

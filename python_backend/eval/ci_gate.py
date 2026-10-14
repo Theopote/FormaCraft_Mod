@@ -59,6 +59,8 @@ _UNITTEST_MODULES: Tuple[str, ...] = (
     "tests.test_assembly_plan_validator",
     "tests.test_assembly_plan_repair",
     "tests.test_golden_assembly_capability_gap",
+    "tests.test_design_fidelity_contract",
+    "tests.test_prompt_routing_authority",
 )
 
 
