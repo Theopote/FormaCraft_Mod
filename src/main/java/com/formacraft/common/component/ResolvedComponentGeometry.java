@@ -4,7 +4,6 @@ import com.formacraft.common.component.variant.VariantCompileResult;
 import com.formacraft.common.patch.BlockPatch;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Final PLACE geometry for library/captured components. Preview and expander must share this
