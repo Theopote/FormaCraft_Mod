@@ -15,7 +15,7 @@
       "dimensions": { "width": 30, "depth": 20, "height": 16 },
       "features": [],
       "params": {
-        "roof_type": "none",
+        "component_id": "nave",
         "window_style": "none",
         "entrance_type": "none"
       }
@@ -29,7 +29,9 @@
       "params": {
         "roof_type": "gable",
         "roof_pitch_degrees": 58,
-        "host_id": "nave"
+        "host_id": "nave",
+        "overhang": 0,
+        "allow_patch_overwrite": true
       }
     }
   ]

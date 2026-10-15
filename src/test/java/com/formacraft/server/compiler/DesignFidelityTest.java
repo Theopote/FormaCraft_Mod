@@ -5,18 +5,37 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.llm.parser.LlmPlanParser;
+import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import com.formacraft.test.PatchTestSnapshot;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Design fidelity suite: fixtures under {@code /plans/fidelity/} must survive parse → compile
+ * without silent design mutation (satellites, roof pitch, provenance locks).
+ */
 class DesignFidelityTest {
+
+    @BeforeAll
+    static void bootstrap() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
 
     @AfterEach
     void clearDiagnostics() {
@@ -45,4 +64,63 @@ class DesignFidelityTest {
         assertEquals("E_DESIGN_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
     }
 
+    @Test
+    void massOnlyFixtureReportsDesignIncomplete() throws Exception {
+        LlmPlan plan = loadFidelityPlan("mass_only_no_infer.json");
+        assertFalse(Boolean.TRUE.equals(
+                plan.planMeta() == null ? null : plan.planMeta().get("allow_compiler_satellites")));
+
+        var patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_DESIGN_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void gothicSteepRoofFixtureCompilesWithPitchAboveTechnicalCap() throws Exception {
+        LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
+
+        assertEquals("AI_PLANNED", plan.designSources().get("roof_pitch_degrees"));
+        assertEquals("AI_PLANNED", plan.designSources().get("roof_type"));
+        assertFalse(Boolean.TRUE.equals(plan.planMeta().get("allow_compiler_satellites")));
+
+        Component roof = plan.components().stream()
+                .filter(c -> c != null && "ROOF".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(58, ((Number) roof.params().get("roof_pitch_degrees")).intValue());
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty(), "gothic steep roof plan must produce geometry");
+
+        // alignRoofToMass places the roof at mass.height-1; pitch 58° on span 20 → rise ≈ 16 (> cap 8).
+        Component mass = plan.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        int roofBaseY = mass.dimensions().height() - 1;
+        int maxRoofY = patches.stream()
+                .filter(p -> p.dy() >= roofBaseY)
+                .mapToInt(BlockPatch::dy)
+                .max()
+                .orElse(roofBaseY);
+        int rise = maxRoofY - roofBaseY + 1;
+        assertTrue(rise > 8, "expected steep gable rise > 8 after full compile, got " + rise);
+
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertFalse(blocks.isEmpty());
+        assertTrue(blocks.keySet().stream().anyMatch(p -> p.y() >= roofBaseY + 9),
+                "compiled blocks must reach above technical roof cap of 8");
+    }
+
+    private static LlmPlan loadFidelityPlan(String fileName) throws Exception {
+        String path = "/plans/fidelity/" + fileName;
+        try (var in = DesignFidelityTest.class.getResourceAsStream(path)) {
+            assertNotNull(in, "missing fixture " + path);
+            String json = new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8);
+            return LlmPlanParser.parseAndValidate(json);
+        }
+    }
 }
