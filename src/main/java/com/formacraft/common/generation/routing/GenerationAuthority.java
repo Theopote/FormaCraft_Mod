@@ -61,17 +61,17 @@ public enum GenerationAuthority {
 
     /** True when typology may replace non-empty registry/expander geometry. */
     public boolean allowsTypologyReplace(boolean allowTypologyOverride) {
-        if (allowTypologyOverride) {
-            return true;
-        }
-        return this == TYPOLOGY;
+        return GenerationFallbackPolicy.forAuthority(this).allowsTypologyReplace(allowTypologyOverride);
     }
 
-    /** True when typology/structure may run as empty-base fill (not replace). */
+    /** @deprecated use {@link GenerationFallbackPolicy#allowTypologyWhenBaseEmpty()} */
+    @Deprecated
     public boolean allowsEmptyBaseFallback() {
-        return switch (this) {
-            case COMPONENTS, TYPOLOGY, CAPTURED_LIBRARY -> true;
-            case ASSEMBLY, SKELETON -> false;
-        };
+        GenerationFallbackPolicy policy = GenerationFallbackPolicy.forAuthority(this);
+        return policy.allowTypologyWhenBaseEmpty() || policy.allowStructureWhenBaseEmpty();
+    }
+
+    public GenerationFallbackPolicy fallbackPolicy() {
+        return GenerationFallbackPolicy.forAuthority(this);
     }
 }

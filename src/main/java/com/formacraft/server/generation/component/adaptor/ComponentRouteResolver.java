@@ -8,8 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Hint-only component routing. Must stay aligned with {@link UnifiedGeneratorRouter#generateResult}
- * early-exit branches (stair / skeleton / assembly / pipeline).
+ * Hint-only component routing (stair / skeleton / assembly / pipeline).
+ * {@link GenerationRouteContract} and {@link com.formacraft.common.generation.routing.GenerationAuthority}
+ * are the first-class constraints applied in {@link UnifiedGeneratorRouter#generateResult}.
  */
 public final class ComponentRouteResolver {
     private ComponentRouteResolver() {}

@@ -87,7 +87,10 @@ public final class UnifiedGeneratorRouter {
         return result.commitAllowed() ? new ArrayList<>(result.patches()) : new ArrayList<>();
     }
 
-    /** Hint-only route decision; same authority as {@link #generateResult} early branches. */
+    /**
+     * Hint-only route decision. When validating against {@link com.formacraft.common.generation.routing.GenerationAuthority},
+     * compile must set plan authority via {@link #setPlanGenerationAuthority} (as {@link com.formacraft.server.compiler.ComponentPlanCompiler} does).
+     */
     public static ComponentRouteDecision previewRoute(SemanticComponent semantic, ServerWorld world) {
         return ComponentRouteResolver.resolve(semantic, world);
     }
@@ -97,23 +100,25 @@ public final class UnifiedGeneratorRouter {
         return shouldUseStructureFallback(semantic);
     }
 
-    /** Structured route; hard library failures do not fall through to typology/structure. */
+    /** Structured route; authority is enforced before executor selection. */
     public static RoutedGenerationResult generateResult(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || semantic.source() == null) {
             return RoutedGenerationResult.failure(
                     ComponentGenerationOutcome.Status.INVALID_INPUT, "null_semantic", "semantic_null");
         }
 
-        ComponentRouteDecision route = ComponentRouteResolver.resolve(semantic, world);
         Component c = semantic.source();
         String componentType = c.componentType();
+        com.formacraft.common.generation.routing.GenerationAuthority authority =
+                ComponentGenerationPipeline.resolveAuthority(c);
 
-        if (route.executor() == ComponentExecutorId.STAIR_COMPONENT) {
+        if (ComponentRouteHints.acceptsStair(c)) {
+            ComponentRouteDecision stairRoute = ComponentRouteResolver.resolve(semantic, world);
             try {
                 List<BlockPatch> stair = com.formacraft.server.generation.component.impl.StraightStairComponentGenerator
                         .generate(semantic);
                 com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
-                        ComponentExecutorId.STAIR_COMPONENT.name(), route.reason(), componentType);
+                        ComponentExecutorId.STAIR_COMPONENT.name(), stairRoute.reason(), componentType);
                 return RoutedGenerationResult.success(
                         stair == null ? List.of() : stair, ComponentExecutorId.STAIR_COMPONENT, null);
             } catch (Exception e) {
@@ -123,32 +128,63 @@ public final class UnifiedGeneratorRouter {
             }
         }
 
-        if (route.executor() == ComponentExecutorId.SKELETON) {
-            List<BlockPatch> skeletonPatches = trySkeletonPath(semantic, world);
-            if (!skeletonPatches.isEmpty()) {
-                FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: skeleton path for {} ({})", componentType, route.reason());
-                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
-                        ComponentExecutorId.SKELETON.name(), route.reason(), componentType);
-                return RoutedGenerationResult.success(
-                        skeletonPatches, ComponentExecutorId.SKELETON, null);
-            }
+        ComponentRouteDecision hint = ComponentRouteResolver.resolve(semantic, world);
+        var conflict = GenerationRouteContract.validate(authority, hint, semantic, world);
+        if (conflict.isPresent()) {
+            var diagnostic = conflict.get();
+            return RoutedGenerationResult.failure(
+                    ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                    diagnostic.code(),
+                    diagnostic.message());
         }
 
-        if (route.executor() == ComponentExecutorId.ASSEMBLY && world != null) {
+        ComponentExecutorId required = GenerationRouteContract.requiredExecutor(authority);
+
+        if (required == ComponentExecutorId.SKELETON) {
+            List<BlockPatch> skeletonPatches = trySkeletonPath(semantic, world);
+            if (skeletonPatches.isEmpty()) {
+                return RoutedGenerationResult.failure(
+                        ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                        "skeleton_empty",
+                        "generation_authority=SKELETON produced no geometry");
+            }
+            FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: skeleton path for {} ({})", componentType, hint.reason());
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
+                    ComponentExecutorId.SKELETON.name(), hint.reason(), componentType);
+            return RoutedGenerationResult.success(
+                    skeletonPatches, ComponentExecutorId.SKELETON, null);
+        }
+
+        if (required == ComponentExecutorId.ASSEMBLY) {
+            if (world == null) {
+                return RoutedGenerationResult.failure(
+                        ComponentGenerationOutcome.Status.INVALID_INPUT,
+                        "assembly_requires_world",
+                        "generation_authority=ASSEMBLY requires ServerWorld");
+            }
             List<BlockPatch> assemblyPatches = com.formacraft.server.generation.component.impl.AssemblyPatchGenerator
                     .tryGenerate(semantic, world);
-            if (!assemblyPatches.isEmpty()) {
-                FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: assembly path for {} ({})", componentType, route.reason());
-                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordCompositionalHit(
-                        "ASSEMBLY", "assembly_router");
-                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
-                        ComponentExecutorId.ASSEMBLY.name(), route.reason(), componentType);
-                return RoutedGenerationResult.success(
-                        assemblyPatches, ComponentExecutorId.ASSEMBLY, null);
+            if (assemblyPatches.isEmpty()) {
+                return RoutedGenerationResult.failure(
+                        ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                        "assembly_empty",
+                        "generation_authority=ASSEMBLY produced no geometry");
             }
+            FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: assembly path for {} ({})", componentType, hint.reason());
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordCompositionalHit(
+                    "ASSEMBLY", "assembly_router");
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
+                    ComponentExecutorId.ASSEMBLY.name(), hint.reason(), componentType);
+            return RoutedGenerationResult.success(
+                    assemblyPatches, ComponentExecutorId.ASSEMBLY, null);
         }
 
-        return ComponentGenerationPipeline.execute(route.pipelinePlan(), semantic, world, c, componentType);
+        ComponentPipelinePlan pipelinePlan = hint.pipelinePlan();
+        if (authority == com.formacraft.common.generation.routing.GenerationAuthority.CAPTURED_LIBRARY) {
+            pipelinePlan = GenerationRouteContract.capturedLibraryPlan(c);
+        }
+        return ComponentGenerationPipeline.execute(
+                pipelinePlan, semantic, world, c, componentType, authority);
     }
 
     record ComponentGeneratorAttempt(List<BlockPatch> patches, RoutedGenerationResult hardFail) {}

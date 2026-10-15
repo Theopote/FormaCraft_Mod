@@ -4,16 +4,34 @@ import com.formacraft.common.llm.dto.LlmPlan;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public final class DesignProvenance {
     private DesignProvenance() {}
 
     /**
-     * Plan-level {@code design_sources} and optional component {@code params.design_sources}
-     * both lock USER_EXPLICIT / AI_PLANNED keys.
+     * Plan-level {@code design_sources} and component {@code params.design_sources};
+     * any alias of the same canonical param shares one lock group.
      */
-    @SuppressWarnings("unchecked")
     public static boolean canMutateParam(LlmPlan plan, Map<String, Object> componentParams, String paramKey) {
+        if (paramKey == null) {
+            return true;
+        }
+        String canonical = DesignParameterRegistry.canonicalKey(paramKey);
+        for (String alias : DesignParameterRegistry.aliases(canonical)) {
+            if (!canMutateParamByExactKey(plan, componentParams, alias)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Single-key provenance check (no alias expansion). */
+    public static boolean canMutateParamByExactKey(
+            LlmPlan plan,
+            Map<String, Object> componentParams,
+            String paramKey
+    ) {
         if (paramKey == null) {
             return true;
         }
@@ -21,6 +39,13 @@ public final class DesignProvenance {
             DesignParamSource source = DesignParamSource.parse(plan.designSources().get(paramKey));
             if (source != null && source.isDesignLocked()) {
                 return false;
+            }
+            String canonical = DesignParameterRegistry.canonicalKey(paramKey);
+            if (!canonical.equals(paramKey)) {
+                source = DesignParamSource.parse(plan.designSources().get(canonical));
+                if (source != null && source.isDesignLocked()) {
+                    return false;
+                }
             }
         }
         if (componentParams != null) {
@@ -36,18 +61,24 @@ public final class DesignProvenance {
         return true;
     }
 
-    /** Writes {@code value} only when plan/component provenance allows changing {@code paramKey}. */
+    /** Writes {@code value} only when plan/component provenance allows changing the param group. */
     public static boolean putIfAllowed(LlmPlan plan, Map<String, Object> params, String paramKey, Object value) {
         if (params == null || paramKey == null || !canMutateParam(plan, params, paramKey)) {
             return false;
         }
-        params.put(paramKey, value);
+        String canonical = DesignParameterRegistry.canonicalKey(paramKey);
+        String writeKey = DesignParameterRegistry.lockedHolderKey(params, canonical);
+        params.put(writeKey, value);
+        for (String alias : DesignParameterRegistry.aliases(canonical)) {
+            if (!alias.equals(writeKey) && canMutateParamByExactKey(plan, params, alias)) {
+                params.remove(alias);
+            }
+        }
         return true;
     }
 
     /**
      * Removes each key independently when provenance allows mutation of that key.
-     * Alias keys are not treated as a single lock group.
      */
     public static boolean removeIfAllowed(LlmPlan plan, Map<String, Object> params, String... paramKeys) {
         if (params == null || paramKeys == null || paramKeys.length == 0) {

@@ -521,22 +521,41 @@ public final class ComponentPlanCompiler {
                                 ? ""
                                 : routed.diagnostics().getFirst().code();
                         boolean envelopeConflict = "component_request_envelope_conflict".equals(diagCode);
+                        boolean authorityConflict = "generation_authority_conflict".equals(diagCode)
+                                || "skeleton_empty".equals(diagCode)
+                                || "assembly_empty".equals(diagCode);
+                        boolean capturedLibraryMiss = "captured_library_miss".equals(diagCode);
+                        String gapCode = envelopeConflict
+                                ? "E_COMPONENT_REQUEST_CONFLICT"
+                                : authorityConflict
+                                ? "E_GENERATION_AUTHORITY_CONFLICT"
+                                : "E_COMPONENT_LIBRARY_FAILED";
+                        String gapMessage = envelopeConflict
+                                ? "显式 component_request 与包络保护冲突：type=" + c.componentType()
+                                    + " id=" + paramIdentity(c)
+                                    + " detail=" + detail
+                                : authorityConflict
+                                ? "生成权威冲突：type=" + c.componentType()
+                                    + " id=" + paramIdentity(c)
+                                    + " detail=" + detail
+                                : capturedLibraryMiss
+                                ? "捕获构件未产生几何：type=" + c.componentType()
+                                    + " id=" + paramIdentity(c)
+                                    + " detail=" + detail
+                                : "捕获/库构件硬失败：type=" + c.componentType()
+                                    + " id=" + paramIdentity(c)
+                                    + " status=" + routed.status()
+                                    + " detail=" + detail;
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
-                                envelopeConflict
-                                        ? "E_COMPONENT_REQUEST_CONFLICT"
-                                        : "E_COMPONENT_LIBRARY_FAILED",
-                                envelopeConflict
-                                        ? "显式 component_request 与包络保护冲突：type=" + c.componentType()
-                                            + " id=" + paramIdentity(c)
-                                            + " detail=" + detail
-                                        : "捕获/库构件硬失败：type=" + c.componentType()
-                                            + " id=" + paramIdentity(c)
-                                            + " status=" + routed.status()
-                                            + " detail=" + detail,
+                                gapCode,
+                                gapMessage,
                                 "components[]",
                                 envelopeConflict
                                         ? List.of("移除 component_request 或设置 allow_envelope_attach=true",
                                                 "禁止静默跳过显式库请求")
+                                        : authorityConflict
+                                        ? List.of("Align generation_authority with component hints and payload",
+                                                "Do not silently fall back to another executor")
                                         : List.of("修复构件 ID、适配规则或清洞约束", "禁止回退为无关默认几何")));
                         return patchOccupancy;
                     }

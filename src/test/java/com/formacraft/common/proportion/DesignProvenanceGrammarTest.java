@@ -39,6 +39,18 @@ class DesignProvenanceGrammarTest {
     }
 
     @Test
+    void putIfAllowedRespectsWindowRatioAliasLock() {
+        Map<String, Object> params = new java.util.HashMap<>();
+        params.put("windowRatio", 0.35);
+        params.put("design_sources", Map.of("windowRatio", "USER_EXPLICIT"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+
+        assertFalse(DesignProvenance.putIfAllowed(plan, params, "window_ratio", 0.25));
+        assertEquals(0.35, params.get("windowRatio"));
+        assertFalse(params.containsKey("window_ratio"));
+    }
+
+    @Test
     void openingGrammarRespectsComponentLevelWindowRatioLock() {
         Component facade = new Component(
                 "FACADE_WINDOWS",

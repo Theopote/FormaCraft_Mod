@@ -18,10 +18,12 @@ External protocol: **`LlmPlan` JSON** (evolving). `BuildingSpec` is a **legacy a
 | Key | Type | Meaning |
 |-----|------|---------|
 | `generation_mode` | string | e.g. `component`, `program`, `patch`, `structure_adapter` |
-| `generation_authority` | string | `COMPONENTS` \| `TYPOLOGY` \| `ASSEMBLY` \| `CAPTURED_LIBRARY` \| `SKELETON` — who may own geometry; default `COMPONENTS` (typology must not silently replace non-empty registry patches). Also accepted on `components[].params`. |
+| `generation_authority` | string | `COMPONENTS` \| `TYPOLOGY` \| `ASSEMBLY` \| `CAPTURED_LIBRARY` \| `SKELETON` — routing contract (see [GenerationRouteContract](../../src/main/java/com/formacraft/server/generation/component/adaptor/GenerationRouteContract.java)); default `COMPONENTS`. Also on `components[].params`. STAIR types remain stair-forced. |
 | `allow_compiler_satellites` | boolean | **Transition only:** if true, Java may infer FACADE/ENTRANCE/ROOF/CROWN (tagged COMPILER_INFERRED) |
 | `design_requirements` | object | Keys `facade` / `entrance` / `roof` / `crown` → `REQUIRED` \| `OPTIONAL` \| `OMITTED` \| `UNSPECIFIED` |
 | `capability_report` | object | See below |
+
+**Fallback policy** ([GenerationFallbackPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackPolicy.java)): authority controls empty-base typology/structure fallback separately from typology *replace*. `CAPTURED_LIBRARY` / `ASSEMBLY` / `SKELETON` must not silently fall back to another executor; mismatch → `E_GENERATION_AUTHORITY_CONFLICT`.
 
 ### `capability_report`
 
@@ -42,7 +44,7 @@ Map of param name → source enum (plan-level and/or `components[].params.design
 - `DERIVED_GEOMETRY` — Java may refine within constraints
 - `TECHNICAL_DEFAULT` — deterministic defaults OK
 
-Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/common/generation/design/DesignParamSource.java) and [DesignProvenance.java](../../src/main/java/com/formacraft/common/generation/design/DesignProvenance.java).
+Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/common/generation/design/DesignParamSource.java), [DesignProvenance.java](../../src/main/java/com/formacraft/common/generation/design/DesignProvenance.java), and alias groups in [DesignParameterRegistry.java](../../src/main/java/com/formacraft/common/generation/design/DesignParameterRegistry.java). **LLM output should use snake_case canonical keys** (e.g. `window_ratio`, not `windowRatio`).
 
 **Roof rise:** prefer `params.roof_height` or `params.roof_pitch_degrees` via [RoofPitchGeometry](../../src/main/java/com/formacraft/common/generation/component/util/RoofPitchGeometry.java). Technical `span/3` capped at 8 applies only when neither is set.
 

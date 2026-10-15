@@ -219,7 +219,20 @@ def build_llm_plan_json_schema(*, strict: bool = True) -> Dict[str, Any]:
             "plan_meta": {
                 "type": "object",
                 "additionalProperties": True,
-                "description": "generation_mode, allow_compiler_satellites, capability_report",
+                "description": "generation_mode, generation_authority, allow_compiler_satellites, design_requirements, capability_report",
+                "properties": {
+                    "generation_authority": {
+                        "type": "string",
+                        "enum": [
+                            "COMPONENTS",
+                            "TYPOLOGY",
+                            "ASSEMBLY",
+                            "CAPTURED_LIBRARY",
+                            "SKELETON",
+                        ],
+                        "description": "Plan default; override per component via components[].params.generation_authority",
+                    },
+                },
             },
             "design_sources": {
                 "type": "object",

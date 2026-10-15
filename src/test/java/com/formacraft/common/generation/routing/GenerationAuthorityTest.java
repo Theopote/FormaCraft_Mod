@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.routing;
 
+import com.formacraft.common.generation.routing.GenerationFallbackPolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -46,6 +47,14 @@ class GenerationAuthorityTest {
         assertFalse(GenerationAuthority.ASSEMBLY.allowsEmptyBaseFallback());
         assertFalse(GenerationAuthority.SKELETON.allowsEmptyBaseFallback());
         assertTrue(GenerationAuthority.COMPONENTS.allowsEmptyBaseFallback());
+        assertFalse(GenerationAuthority.CAPTURED_LIBRARY.allowsEmptyBaseFallback());
+    }
+
+    @Test
+    void capturedLibraryFallbackPolicyBlocksTypologyAndStructure() {
+        GenerationFallbackPolicy policy = GenerationAuthority.CAPTURED_LIBRARY.fallbackPolicy();
+        assertFalse(policy.allowTypologyWhenBaseEmpty());
+        assertFalse(policy.allowStructureWhenBaseEmpty());
     }
 
     private static Component mass(Map<String, Object> params) {

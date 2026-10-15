@@ -5,6 +5,7 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.component.ComponentGenerationOutcome;
 import com.formacraft.common.component.GenerationDiagnostic;
 import com.formacraft.common.generation.routing.GenerationAuthority;
+import com.formacraft.common.generation.routing.GenerationFallbackPolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.network.metrics.TypologyRoutingMetrics;
 import com.formacraft.common.patch.BlockPatch;
@@ -24,13 +25,19 @@ final class ComponentGenerationPipeline {
             SemanticComponent semantic,
             ServerWorld world,
             Component c,
-            String componentType
+            String componentType,
+            GenerationAuthority authority
     ) {
+        if (authority == GenerationAuthority.CAPTURED_LIBRARY) {
+            return executeCapturedLibrary(plan, semantic, world, c, componentType);
+        }
+
         FormacraftMod.LOGGER.debug(
-                "ComponentGenerationPipeline: explicitLibraryFirst={} skipTypologyWhenLibrary={} steps={}",
+                "ComponentGenerationPipeline: explicitLibraryFirst={} skipTypologyWhenLibrary={} steps={} authority={}",
                 plan.explicitLibraryFirst(),
                 plan.skipTypologyWhenLibraryCommits(),
-                plan.steps());
+                plan.steps(),
+                authority);
 
         boolean explicitLibrary = plan.explicitLibraryFirst();
         List<BlockPatch> base = new ArrayList<>();
@@ -83,22 +90,20 @@ final class ComponentGenerationPipeline {
             routeDiagnostics.addAll(expander.diagnostics());
         }
 
-        GenerationAuthority authority = resolveAuthority(c);
+        GenerationFallbackPolicy policy = GenerationFallbackPolicy.forAuthority(authority);
         boolean allowTypologyOverride = c.params() != null
                 && Boolean.TRUE.equals(c.params().get("allow_typology_override"));
-        boolean skipTypology = (expander.libraryCommitted() && !allowTypologyOverride)
-                || authority == GenerationAuthority.CAPTURED_LIBRARY && expander.libraryCommitted()
-                || authority == GenerationAuthority.ASSEMBLY
-                || authority == GenerationAuthority.SKELETON;
+        boolean skipTypology = (expander.libraryCommitted() && !allowTypologyOverride);
 
-        boolean canReplace = authority.allowsTypologyReplace(allowTypologyOverride);
-        boolean canFillEmpty = authority.allowsEmptyBaseFallback();
+        boolean canReplace = policy.allowsTypologyReplace(allowTypologyOverride);
+        boolean canTypologyFillEmpty = policy.allowTypologyWhenBaseEmpty();
+        boolean canStructureFillEmpty = policy.allowStructureWhenBaseEmpty();
 
         if (!skipTypology
                 && plan.isStepEligible(ComponentPipelineStepId.TYPOLOGY)
                 && world != null
                 && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)
-                && (base.isEmpty() ? canFillEmpty : canReplace)) {
+                && (base.isEmpty() ? canTypologyFillEmpty : canReplace)) {
             List<BlockPatch> typologyPatches = com.formacraft.common.typology.TypologyComponentRouter
                     .tryGenerate(semantic, world);
             if (!typologyPatches.isEmpty()) {
@@ -132,7 +137,7 @@ final class ComponentGenerationPipeline {
         }
 
         if (!skipTypology
-                && canFillEmpty
+                && canStructureFillEmpty
                 && plan.isStepEligible(ComponentPipelineStepId.STRUCTURE_ADAPTOR)
                 && world != null
                 && UnifiedGeneratorRouter.shouldUseStructureFallbackForRouting(semantic)) {
@@ -168,7 +173,49 @@ final class ComponentGenerationPipeline {
                 routeDiagnostics);
     }
 
-    private static GenerationAuthority resolveAuthority(Component c) {
+    private static RoutedGenerationResult executeCapturedLibrary(
+            ComponentPipelinePlan plan,
+            SemanticComponent semantic,
+            ServerWorld world,
+            Component c,
+            String componentType
+    ) {
+        if (!ComponentRouteHints.hasExplicitLibraryRequest(c)) {
+            return RoutedGenerationResult.failure(
+                    ComponentGenerationOutcome.Status.LOAD_FAILED,
+                    "captured_library_miss",
+                    "generation_authority=CAPTURED_LIBRARY but no library request");
+        }
+        boolean hasGroupRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "group_request:");
+        boolean hasComponentRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "component_request:");
+        UnifiedGeneratorRouter.ExpanderStage expander = UnifiedGeneratorRouter.applyExpandersResult(
+                semantic, world, List.of(), hasGroupRequest, hasComponentRequest);
+        if (expander.hardFail() != null) {
+            return expander.hardFail();
+        }
+        List<BlockPatch> base = expander.libraryCommitted() ? expander.patches() : List.of();
+        if (base.isEmpty()) {
+            return RoutedGenerationResult.failure(
+                    ComponentGenerationOutcome.Status.LOAD_FAILED,
+                    "captured_library_miss",
+                    "captured component did not commit geometry");
+        }
+        TypologyRoutingMetrics.recordExecutorHit(
+                ComponentExecutorId.COMPONENT_PIPELINE.name(),
+                ComponentPipelineStepId.LIBRARY_EXPANDER.name(),
+                componentType);
+        ComponentGenerationOutcome.Status st = expander.degraded()
+                ? ComponentGenerationOutcome.Status.PARTIAL_SUCCESS
+                : ComponentGenerationOutcome.Status.SUCCESS;
+        return new RoutedGenerationResult(
+                st,
+                base,
+                expander.diagnostics(),
+                ComponentExecutorId.COMPONENT_PIPELINE,
+                ComponentPipelineStepId.LIBRARY_EXPANDER);
+    }
+
+    static GenerationAuthority resolveAuthority(Component c) {
         Map<String, Object> planMeta = null;
         GenerationAuthority planAuthority = UnifiedGeneratorRouter.planGenerationAuthority();
         if (planAuthority != null) {
