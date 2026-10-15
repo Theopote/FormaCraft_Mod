@@ -130,7 +130,8 @@ public final class NonClassicalEnrichmentGuard {
         DesignProvenance.removeIfAllowed(plan, out, "crown_template", "crownTemplate");
         Object roofSpecialty = out.get("roof_specialty");
         if (roofSpecialty != null && String.valueOf(roofSpecialty).toLowerCase(Locale.ROOT).contains("mansard")) {
-            DesignProvenance.removeIfAllowed(plan, out, "roof_specialty", "roof_dormers");
+            DesignProvenance.removeIfAllowed(plan, out, "roof_specialty");
+            DesignProvenance.removeIfAllowed(plan, out, "roof_dormers");
         }
         return out;
     }

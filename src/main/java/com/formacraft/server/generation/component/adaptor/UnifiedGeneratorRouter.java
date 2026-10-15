@@ -42,6 +42,8 @@ public final class UnifiedGeneratorRouter {
     private static final double ARCHETYPE_STRONG_THRESHOLD = 0.85;
 
     private static final ThreadLocal<Boolean> TYPOLOGY_EXCLUSIVE_PLAN = new ThreadLocal<>();
+    private static final ThreadLocal<com.formacraft.common.generation.routing.GenerationAuthority> PLAN_AUTHORITY =
+            new ThreadLocal<>();
 
     private static final Set<String> WHOLE_BUILDING_TYPES = Set.of(
             "HOUSE", "CASTLE", "COMPOUND", "LANDMARK", "BUILDING"
@@ -60,6 +62,24 @@ public final class UnifiedGeneratorRouter {
 
     public static void clearTypologyExclusivePlan() {
         TYPOLOGY_EXCLUSIVE_PLAN.remove();
+    }
+
+    /** Plan-level {@code generation_authority} visible to the component pipeline for this compile. */
+    public static void setPlanGenerationAuthority(
+            com.formacraft.common.generation.routing.GenerationAuthority authority) {
+        if (authority == null) {
+            PLAN_AUTHORITY.remove();
+        } else {
+            PLAN_AUTHORITY.set(authority);
+        }
+    }
+
+    public static void clearPlanGenerationAuthority() {
+        PLAN_AUTHORITY.remove();
+    }
+
+    static com.formacraft.common.generation.routing.GenerationAuthority planGenerationAuthority() {
+        return PLAN_AUTHORITY.get();
     }
 
     public static List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
@@ -92,7 +112,10 @@ public final class UnifiedGeneratorRouter {
             try {
                 List<BlockPatch> stair = com.formacraft.server.generation.component.impl.StraightStairComponentGenerator
                         .generate(semantic);
-                return RoutedGenerationResult.success(stair == null ? List.of() : stair);
+                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
+                        ComponentExecutorId.STAIR_COMPONENT.name(), route.reason(), componentType);
+                return RoutedGenerationResult.success(
+                        stair == null ? List.of() : stair, ComponentExecutorId.STAIR_COMPONENT, null);
             } catch (Exception e) {
                 FormacraftMod.LOGGER.error("UnifiedGeneratorRouter: stair generator failed", e);
                 return RoutedGenerationResult.failure(
@@ -104,7 +127,10 @@ public final class UnifiedGeneratorRouter {
             List<BlockPatch> skeletonPatches = trySkeletonPath(semantic, world);
             if (!skeletonPatches.isEmpty()) {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: skeleton path for {} ({})", componentType, route.reason());
-                return RoutedGenerationResult.success(skeletonPatches);
+                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
+                        ComponentExecutorId.SKELETON.name(), route.reason(), componentType);
+                return RoutedGenerationResult.success(
+                        skeletonPatches, ComponentExecutorId.SKELETON, null);
             }
         }
 
@@ -115,7 +141,10 @@ public final class UnifiedGeneratorRouter {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: assembly path for {} ({})", componentType, route.reason());
                 com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordCompositionalHit(
                         "ASSEMBLY", "assembly_router");
-                return RoutedGenerationResult.success(assemblyPatches);
+                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
+                        ComponentExecutorId.ASSEMBLY.name(), route.reason(), componentType);
+                return RoutedGenerationResult.success(
+                        assemblyPatches, ComponentExecutorId.ASSEMBLY, null);
             }
         }
 
@@ -313,7 +342,8 @@ public final class UnifiedGeneratorRouter {
         if (extra == null || extra.isEmpty()) return base;
         List<GenerationDiagnostic> merged = new ArrayList<>(base.diagnostics());
         merged.addAll(extra);
-        return new RoutedGenerationResult(base.status(), base.patches(), merged);
+        return new RoutedGenerationResult(
+                base.status(), base.patches(), merged, base.executor(), base.pipelineStep());
     }
 
     static boolean preservesBuildingEnvelope(String type) {

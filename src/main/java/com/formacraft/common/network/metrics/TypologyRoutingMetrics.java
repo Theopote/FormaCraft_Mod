@@ -62,6 +62,15 @@ public final class TypologyRoutingMetrics {
         log("compositional_hit", null, componentType != null ? componentType : "-", "-", "-", source);
     }
 
+    /** Final executor attribution (stair / skeleton / assembly / pipeline step). */
+    public static void recordExecutorHit(String executor, String reason, String componentType) {
+        log("executor_hit", null,
+                componentType != null ? componentType : "-",
+                executor != null ? executor : "-",
+                reason != null ? reason : "-",
+                "route");
+    }
+
     public static void recordStructureGeneratorHit(String generatorKey, String source) {
         if (generatorKey == null || generatorKey.isBlank()) return;
         structureGeneratorHits.incrementAndGet();

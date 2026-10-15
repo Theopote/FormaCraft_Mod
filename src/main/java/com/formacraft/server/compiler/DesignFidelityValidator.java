@@ -18,9 +18,10 @@ public final class DesignFidelityValidator {
             boolean hasEntrance,
             boolean hasRoof,
             boolean useAssemblyFacade,
+            boolean hasCrown,
             boolean wouldInferCrown
     ) {
         return CompilerSatellitePolicy.missingSatellitesGap(
-                plan, mass, hasFacade, hasEntrance, hasRoof, useAssemblyFacade, wouldInferCrown);
+                plan, mass, hasFacade, hasEntrance, hasRoof, useAssemblyFacade, hasCrown, wouldInferCrown);
     }
 }

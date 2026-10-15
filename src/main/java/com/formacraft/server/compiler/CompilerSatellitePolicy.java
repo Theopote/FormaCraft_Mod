@@ -21,6 +21,7 @@ final class CompilerSatellitePolicy {
             boolean hasEntrance,
             boolean hasRoof,
             boolean useAssemblyFacade,
+            boolean hasCrown,
             boolean wouldInferCrown
     ) {
         if (plan == null || plan.allowCompilerSatellites() || useAssemblyFacade) {
@@ -37,7 +38,7 @@ final class CompilerSatellitePolicy {
         if (needsSatellite(DesignRequirementAccess.roof(plan, mass), hasRoof)) {
             missing.add("ROOF");
         }
-        if (needsSatellite(DesignRequirementAccess.crown(plan, mass, wouldInferCrown), false)) {
+        if (needsSatellite(DesignRequirementAccess.crown(plan, mass, wouldInferCrown), hasCrown)) {
             missing.add("CROWN");
         }
 

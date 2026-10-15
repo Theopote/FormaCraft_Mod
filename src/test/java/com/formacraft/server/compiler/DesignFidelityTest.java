@@ -7,6 +7,7 @@ import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.proportion.OpeningGrammarResolver;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import com.formacraft.test.PatchTestSnapshot;
@@ -74,6 +75,37 @@ class DesignFidelityTest {
         assertTrue(patches.isEmpty());
         assertTrue(AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_DESIGN_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void lockedWindowRatioSurvivesOpeningGrammarAndCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("locked_window_ratio.json");
+        Component facade = plan.components().stream()
+                .filter(c -> c != null && "FACADE_WINDOWS".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(0.42, ((Number) facade.params().get("window_ratio")).doubleValue(), 1e-9);
+
+        Component afterOpening = OpeningGrammarResolver.apply(plan, facade);
+        assertEquals(0.42, ((Number) afterOpening.params().get("window_ratio")).doubleValue(), 1e-9,
+                "component-level AI_PLANNED window_ratio must not be clamped");
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
+    void crownRequiredWithExplicitCrownCompiles() throws Exception {
+        LlmPlan plan = loadFidelityPlan("crown_required_present.json");
+        assertEquals("REQUIRED",
+                ((Map<?, ?>) plan.planMeta().get("design_requirements")).get("crown"));
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty(), "REQUIRED crown plan with explicit CROWN must compile");
     }
 
     @Test

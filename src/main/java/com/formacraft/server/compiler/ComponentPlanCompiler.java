@@ -207,6 +207,8 @@ public final class ComponentPlanCompiler {
         var flatRoofs = new ArrayList<FlatRoofCoverageValidator.Roof>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
+        UnifiedGeneratorRouter.setPlanGenerationAuthority(
+                com.formacraft.common.generation.routing.PlanMetaAccess.planGenerationAuthority(plan));
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         PatchOccupancyIndex patchOccupancy;
         try {
@@ -214,6 +216,7 @@ public final class ComponentPlanCompiler {
                     slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
+            UnifiedGeneratorRouter.clearPlanGenerationAuthority();
             TypologyPatchBridge.clearPlanWorldAnchor();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
@@ -962,11 +965,12 @@ public final class ComponentPlanCompiler {
                     && !hasEntrance && !windowsDisabled && !entranceDisabled;
 
             boolean hasRoofEarly = hasSatelliteForMass(c, components, inferred, "ROOF");
-            boolean wouldInferCrown = !slotsWithCrown.contains(slotKey)
+            boolean hasCrown = slotsWithCrown.contains(slotKey);
+            boolean wouldInferCrown = !hasCrown
                     && !NonClassicalEnrichmentGuard.blocksCrownInference(plan)
                     && ComponentCrownDecorator.shouldApply(plan, c.params());
             var designGap = CompilerSatellitePolicy.missingSatellitesGap(
-                    plan, c, hasFacade, hasEntrance, hasRoofEarly, useAssemblyFacade, wouldInferCrown);
+                    plan, c, hasFacade, hasEntrance, hasRoofEarly, useAssemblyFacade, hasCrown, wouldInferCrown);
             if (designGap.isPresent()) {
                 AssemblyCompileDiagnostics.set(designGap.get());
                 return new PreparedComponents(List.of(), Set.of());

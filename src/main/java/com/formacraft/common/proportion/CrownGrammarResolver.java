@@ -53,11 +53,10 @@ public final class CrownGrammarResolver {
                             CrownTemplateLibrary.CLASSICAL_CUPOLA);
                 }
             }
-        } else if (DesignProvenance.canMutateParam(plan, "crown_template")) {
+        } else {
             String normalized = CrownTemplateLibrary.normalize(template);
             if (!template.equalsIgnoreCase(normalized)) {
-                params.put("crown_template", normalized);
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "crown_template", normalized);
             }
         }
 

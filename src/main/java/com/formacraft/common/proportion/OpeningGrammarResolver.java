@@ -56,12 +56,10 @@ public final class OpeningGrammarResolver {
                     changed |= DesignProvenance.putIfAllowed(plan, params, "window_aspect", fallback);
                 }
             }
-        } else if (card != null && card.openingGrammar() != null
-                && DesignProvenance.canMutateParam(plan, "window_aspect")) {
+        } else if (card != null && card.openingGrammar() != null) {
             String clamped = clampAspect(aspect, card);
             if (!aspect.equalsIgnoreCase(clamped)) {
-                params.put("window_aspect", clamped);
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "window_aspect", clamped);
             }
         }
 
@@ -78,11 +76,10 @@ public final class OpeningGrammarResolver {
                         changed |= DesignProvenance.putIfAllowed(plan, params, "window_ratio", spec.ideal());
                     }
                 }
-            } else if (DesignProvenance.canMutateParam(plan, "window_ratio")) {
+            } else {
                 double clamped = clampRatio(windowRatio, card, "window_wall_ratio");
                 if (Math.abs(clamped - windowRatio) > 1e-6) {
-                    params.put("window_ratio", clamped);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "window_ratio", clamped);
                 }
             }
         }
@@ -183,9 +180,8 @@ public final class OpeningGrammarResolver {
             }
             return false;
         }
-        if (voidRatio > maxVoid + 1e-6 && DesignProvenance.canMutateParam(plan, "void_ratio")) {
-            params.put("void_ratio", maxVoid);
-            return true;
+        if (voidRatio > maxVoid + 1e-6) {
+            return DesignProvenance.putIfAllowed(plan, params, "void_ratio", maxVoid);
         }
         return false;
     }

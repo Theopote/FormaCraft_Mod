@@ -8,10 +8,6 @@ import java.util.Map;
 public final class DesignProvenance {
     private DesignProvenance() {}
 
-    public static boolean canMutateParam(LlmPlan plan, String paramKey) {
-        return canMutateParam(plan, null, paramKey);
-    }
-
     /**
      * Plan-level {@code design_sources} and optional component {@code params.design_sources}
      * both lock USER_EXPLICIT / AI_PLANNED keys.
@@ -49,18 +45,17 @@ public final class DesignProvenance {
         return true;
     }
 
-    /** Removes {@code paramKey} (and optional aliases) only when provenance allows mutation. */
+    /**
+     * Removes each key independently when provenance allows mutation of that key.
+     * Alias keys are not treated as a single lock group.
+     */
     public static boolean removeIfAllowed(LlmPlan plan, Map<String, Object> params, String... paramKeys) {
         if (params == null || paramKeys == null || paramKeys.length == 0) {
             return false;
         }
-        String primary = paramKeys[0];
-        if (!canMutateParam(plan, params, primary)) {
-            return false;
-        }
         boolean removed = false;
         for (String key : paramKeys) {
-            if (key != null && params.remove(key) != null) {
+            if (key != null && canMutateParam(plan, params, key) && params.remove(key) != null) {
                 removed = true;
             }
         }

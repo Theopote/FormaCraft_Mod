@@ -1,5 +1,6 @@
 package com.formacraft.common.proportion;
 
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -7,11 +8,14 @@ import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DesignProvenanceGrammarTest {
 
@@ -32,6 +36,55 @@ class DesignProvenanceGrammarTest {
 
         Component out = OpeningGrammarResolver.apply(plan, facade);
         assertEquals(0.42, out.params().get("window_ratio"));
+    }
+
+    @Test
+    void openingGrammarRespectsComponentLevelWindowRatioLock() {
+        Component facade = new Component(
+                "FACADE_WINDOWS",
+                "f",
+                new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8),
+                List.of(),
+                Map.of(
+                        "window_ratio", 0.42,
+                        "design_sources", Map.of("window_ratio", "AI_PLANNED")));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(facade))
+                .proportionHints(Map.of("typology", "cottage"))
+                .build();
+
+        Component out = OpeningGrammarResolver.apply(plan, facade);
+        assertEquals(0.42, out.params().get("window_ratio"));
+    }
+
+    @Test
+    void removeIfAllowedChecksEachAliasIndependently() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("crown_template", "spire");
+        params.put("crownTemplate", "spire");
+        params.put("design_sources", Map.of("crownTemplate", "USER_EXPLICIT"));
+
+        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        DesignProvenance.removeIfAllowed(plan, params, "crown_template", "crownTemplate");
+
+        assertFalse(params.containsKey("crown_template"));
+        assertEquals("spire", params.get("crownTemplate"));
+    }
+
+    @Test
+    void removeIfAllowedDoesNotStripLockedSiblingParam() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("roof_specialty", "mansard_dormer");
+        params.put("roof_dormers", true);
+        params.put("design_sources", Map.of("roof_dormers", "AI_PLANNED"));
+
+        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        DesignProvenance.removeIfAllowed(plan, params, "roof_specialty");
+        DesignProvenance.removeIfAllowed(plan, params, "roof_dormers");
+
+        assertFalse(params.containsKey("roof_specialty"));
+        assertTrue(Boolean.TRUE.equals(params.get("roof_dormers")));
     }
 
     @Test

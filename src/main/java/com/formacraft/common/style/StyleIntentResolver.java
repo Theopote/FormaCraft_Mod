@@ -71,10 +71,8 @@ public final class StyleIntentResolver {
         if (roof && flavor == StyleFlavor.HUI && component.dimensions() != null
                 && Math.min(component.dimensions().width(), component.dimensions().depth()) < 14
                 && isMissingOrDefault(getParamString(params, "plan_type", "planType", "footprint_pattern",
-                        "footprintPattern", "plan_pattern", "planPattern"))
-                && DesignProvenance.canMutateParam(plan, "plan_type")) {
-            params.put("plan_type", "none");
-            changed = true;
+                        "footprintPattern", "plan_pattern", "planPattern"))) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", "none");
         }
 
         if (mass) {
@@ -109,11 +107,10 @@ public final class StyleIntentResolver {
 
         if (mass || roof) {
             String roofType = getParamString(params, "roof_type", "roofType");
-            if (isMissingOrDefault(roofType) && DesignProvenance.canMutateParam(plan, "roof_type")) {
+            if (isMissingOrDefault(roofType)) {
                 String fallback = resolveRoofType(flavor);
                 if (fallback != null) {
-                    params.put("roof_type", fallback);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "roof_type", fallback);
                 }
             }
         }
@@ -133,7 +130,10 @@ public final class StyleIntentResolver {
                 && !params.containsKey("horse_head_walls") && !params.containsKey("horseHeadWalls")) {
             changed |= DesignProvenance.putIfAllowed(plan, params, "horse_head_walls", true);
         }
-        if (!ExplicitDesignPolicy.noComplexDecor(plan, params)) changed |= appendStyleFeatures(flavor, features);
+        if (!ExplicitDesignPolicy.noComplexDecor(plan, params)
+                && DesignProvenance.canEnrichFeatures(plan, params)) {
+            changed |= appendStyleFeatures(flavor, features);
+        }
 
         if (!changed) {
             return component;

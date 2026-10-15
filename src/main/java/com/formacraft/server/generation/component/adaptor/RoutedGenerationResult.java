@@ -10,12 +10,23 @@ import java.util.List;
 public record RoutedGenerationResult(
         ComponentGenerationOutcome.Status status,
         List<BlockPatch> patches,
-        List<GenerationDiagnostic> diagnostics
+        List<GenerationDiagnostic> diagnostics,
+        ComponentExecutorId executor,
+        ComponentPipelineStepId pipelineStep
 ) {
     public RoutedGenerationResult {
         patches = patches == null ? List.of() : List.copyOf(patches);
         diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
         if (status == null) status = ComponentGenerationOutcome.Status.INVALID_INPUT;
+        if (executor == null) executor = ComponentExecutorId.NONE;
+    }
+
+    public RoutedGenerationResult(
+            ComponentGenerationOutcome.Status status,
+            List<BlockPatch> patches,
+            List<GenerationDiagnostic> diagnostics
+    ) {
+        this(status, patches, diagnostics, null, null);
     }
 
     public static RoutedGenerationResult from(ComponentGenerationOutcome outcome) {
@@ -29,10 +40,26 @@ public record RoutedGenerationResult(
         return new RoutedGenerationResult(ComponentGenerationOutcome.Status.SUCCESS, patches, List.of());
     }
 
+    public static RoutedGenerationResult success(
+            List<BlockPatch> patches,
+            ComponentExecutorId executor,
+            ComponentPipelineStepId pipelineStep
+    ) {
+        return new RoutedGenerationResult(
+                ComponentGenerationOutcome.Status.SUCCESS, patches, List.of(), executor, pipelineStep);
+    }
+
     public static RoutedGenerationResult failure(
             ComponentGenerationOutcome.Status status, String code, String message) {
         return new RoutedGenerationResult(status, List.of(),
                 List.of(new GenerationDiagnostic(code, message)));
+    }
+
+    public RoutedGenerationResult withAttribution(
+            ComponentExecutorId executor,
+            ComponentPipelineStepId pipelineStep
+    ) {
+        return new RoutedGenerationResult(status, patches, diagnostics, executor, pipelineStep);
     }
 
     public boolean commitAllowed() {
