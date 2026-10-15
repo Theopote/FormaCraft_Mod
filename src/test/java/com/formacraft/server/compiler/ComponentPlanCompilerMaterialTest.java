@@ -92,18 +92,30 @@ class ComponentPlanCompilerMaterialTest {
         return LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of())).components(List.of(mass)).build();
     }
-    @Test void invalidAttributeProducesActionableGap() {
-        var plan = LlmPlanTestFixtures.builder().styleAttributes(new StyleAttributes(null, "minecraft:not_a_block",
-                null, null, null, null, null, null)).build();
-        assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
-        assertEquals("E_MATERIAL_INVALID", AssemblyCompileDiagnostics.get().code());
-        assertTrue(AssemblyCompileDiagnostics.get().message().contains("wall_material"));
+    @Test void unknownMaterialsFallBackAndStillCompile() {
+        var source = plan("missingmod:unknown_wall").components().getFirst();
+        var params = new HashMap<String, Object>(source.params());
+        params.put("allow_patch_overwrite", true);
+        var original = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+                .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of()))
+                .components(List.of(new Component(source.componentType(), source.slotId(), source.relativePosition(),
+                        source.dimensions(), source.features(), params))).build();
+        var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(original);
+        assertEquals("minecraft:stone_bricks", normalized.components().getFirst().params().get("wall_block"));
+        assertEquals("missingmod:unknown_wall", original.components().getFirst().params().get("wall_block"));
+        var output = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(original));
+        assertFalse(output.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertTrue(output.containsValue("minecraft:stone_bricks"));
+        assertFalse(AssemblyCompileDiagnostics.hasGap());
     }
-    @Test void invalidComponentMaterialCannotReturnPartialSuccess() {
-        assertTrue(ComponentPlanCompiler.compile(plan("minecraft:not_a_block")).isEmpty());
-        assertNotNull(AssemblyCompileDiagnostics.get());
-        assertEquals("E_MATERIAL_INVALID", AssemblyCompileDiagnostics.get().code());
-        assertTrue(AssemblyCompileDiagnostics.get().message().contains("wall_block"));
+    @Test void loggedRoofVocabularyAndUnknownAttributesUseFallbacks() {
+        var policy = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
+                LlmPlanTestFixtures.builder().styleAttributes(new StyleAttributes(null, "unknown_wall",
+                        null, "gray_clay_tile", "dark_timber", "unknown_floor", null, null)).build());
+        assertEquals("minecraft:deepslate_tiles", policy.styleAttributes().roofMaterial());
+        assertEquals("minecraft:dark_oak_planks", policy.styleAttributes().accentMaterial());
+        assertEquals("minecraft:stone_bricks", policy.styleAttributes().wallMaterial());
+        assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(policy.styleAttributes()).isEmpty());
     }
     @Test void explicitWallSurvivesWholePostProcessingPipeline() {
         var plan = plan("minecraft:stone_bricks");

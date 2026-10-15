@@ -2,7 +2,6 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Component;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -132,9 +131,7 @@ public final class RoofTypeCatalog {
 
     private static RoofTypeKind mapToken(String normalized) {
         return switch (normalized) {
-            case "flat" -> RoofTypeKind.FLAT;
-            case "gable", "gabled" -> RoofTypeKind.GABLE;
-            case "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
+            case "gable", "gabled", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;
             case "hip", "hipped" -> RoofTypeKind.HIP;
             case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山" -> RoofTypeKind.XIESHAN;
