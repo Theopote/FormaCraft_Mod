@@ -1,0 +1,20 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "generation_authority": "COMPONENTS",
+    "allow_structure_empty_fallback": true,
+    "allow_compiler_satellites": false
+  },
+  "components": [
+    {
+      "component_type": "LANDMARK",
+      "slot_id": "landmark",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 12, "depth": 12, "height": 10 },
+      "features": ["structure_generator:house"],
+      "params": {}
+    }
+  ]
+}

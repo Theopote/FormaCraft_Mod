@@ -12,6 +12,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GenerationAuthorityTest {
@@ -64,6 +66,31 @@ class GenerationAuthorityTest {
         assertFalse(policy.allowTypologyWhenBaseEmpty());
         assertFalse(policy.allowStructureWhenBaseEmpty());
         assertTrue(policy.allowRegistryPriming());
+    }
+
+    @Test
+    void parseStrictRejectsUnknownAuthority() {
+        assertThrows(IllegalArgumentException.class, () -> GenerationAuthority.parseStrict("TYPOLOOGY"));
+    }
+
+    @Test
+    void parseStrictAcceptsKnownAuthority() {
+        assertEquals(GenerationAuthority.TYPOLOGY, GenerationAuthority.parseStrict("typology"));
+    }
+
+    @Test
+    void parseStrictTreatsBlankAsUnset() {
+        assertNull(GenerationAuthority.parseStrict(""));
+        assertNull(GenerationAuthority.parseStrict(null));
+    }
+
+    @Test
+    void validateRawIncludesPathInMessage() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> GenerationAuthority.validateRaw("BOGUS", "plan_meta"));
+        assertTrue(ex.getMessage().contains("plan_meta"));
+        assertTrue(ex.getMessage().contains("BOGUS"));
     }
 
     @Test

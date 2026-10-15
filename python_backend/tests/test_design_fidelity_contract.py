@@ -12,15 +12,18 @@ GENERATION_AUTHORITY_VALUES = frozenset(
     {"COMPONENTS", "TYPOLOGY", "ASSEMBLY", "CAPTURED_LIBRARY", "SKELETON"}
 )
 
-FIXTURE_PATH = (
+FIXTURE_DIR = (
     Path(__file__).resolve().parents[2]
     / "src"
     / "test"
     / "resources"
     / "plans"
     / "fidelity"
-    / "authority_contract_components.json"
 )
+
+FIXTURES = sorted(FIXTURE_DIR.glob("*.json"))
+
+INVALID_AUTHORITY_FIXTURE = FIXTURE_DIR / "invalid_generation_authority.json"
 
 
 class DesignFidelityContractTest(unittest.TestCase):
@@ -45,29 +48,62 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertIn("allow_structure_empty_fallback", props)
         self.assertIn("design_requirements", props)
 
-    def test_shared_authority_contract_fixture(self):
-        self.assertTrue(FIXTURE_PATH.is_file(), f"missing fixture {FIXTURE_PATH}")
-        plan = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    def test_all_fidelity_fixtures_load_and_use_snake_case_sources(self):
+        self.assertGreaterEqual(len(FIXTURES), 10, "expected expanded fidelity fixture set")
+        for path in FIXTURES:
+            with self.subTest(fixture=path.name):
+                plan = json.loads(path.read_text(encoding="utf-8"))
+                self._assert_snake_case_sources(plan.get("design_sources", {}))
+                for component in plan.get("components", []):
+                    nested = component.get("params", {}).get("design_sources", {})
+                    self._assert_snake_case_sources(nested)
+                if path.name == "invalid_generation_authority.json":
+                    continue
+                plan_meta = plan.get("plan_meta", {})
+                authority = plan_meta.get("generation_authority")
+                if authority is not None:
+                    self.assertIn(authority, GENERATION_AUTHORITY_VALUES)
+
+    def test_authority_contract_components_fixture(self):
+        plan = self._load("authority_contract_components.json")
         plan_meta = plan.get("plan_meta", {})
         self.assertEqual("COMPONENTS", plan_meta.get("generation_authority"))
         self.assertNotIn("allow_typology_empty_fallback", plan_meta)
         self.assertNotIn("allow_structure_empty_fallback", plan_meta)
 
-        design_sources = plan.get("design_sources", {})
-        self.assertIn("window_ratio", design_sources)
-        self.assertNotIn("windowRatio", design_sources)
+    def test_components_typology_empty_fallback_fixture(self):
+        plan = self._load("components_typology_empty_fallback.json")
+        self.assertTrue(plan["plan_meta"].get("allow_typology_empty_fallback"))
 
-        facade = next(
-            c for c in plan.get("components", []) if c.get("component_type") == "FACADE_WINDOWS"
-        )
-        nested_sources = facade.get("params", {}).get("design_sources", {})
-        self.assertIn("window_ratio", nested_sources)
-        self.assertNotIn("windowRatio", nested_sources)
+    def test_components_structure_empty_fallback_fixture(self):
+        plan = self._load("components_structure_empty_fallback.json")
+        self.assertTrue(plan["plan_meta"].get("allow_structure_empty_fallback"))
+
+    def test_stair_typology_authority_fixture(self):
+        plan = self._load("stair_typology_authority.json")
+        self.assertEqual("TYPOLOGY", plan["plan_meta"].get("generation_authority"))
+        stair = plan["components"][0]
+        self.assertEqual("STAIR_SYSTEM", stair["component_type"])
+        self.assertIn("from", stair["params"])
+        self.assertIn("to", stair["params"])
+
+    def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
+        self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
+        plan = json.loads(INVALID_AUTHORITY_FIXTURE.read_text(encoding="utf-8"))
+        self.assertEqual("TYPOLOOGY", plan["plan_meta"]["generation_authority"])
 
     def test_generation_capability_values_documented(self):
-        # Keep in sync with Java GenerationCapability enum
         expected = {"SUPPORTED", "COMPOSABLE", "NEEDS_REPLAN", "UNSUPPORTED"}
         self.assertEqual(len(expected), 4)
+
+    def _assert_snake_case_sources(self, sources: dict) -> None:
+        for key in sources:
+            self.assertNotRegex(key, r"[A-Z]", f"camelCase design_sources key: {key}")
+
+    def _load(self, name: str) -> dict:
+        path = FIXTURE_DIR / name
+        self.assertTrue(path.is_file(), f"missing fixture {path}")
+        return json.loads(path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

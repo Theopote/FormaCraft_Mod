@@ -5,8 +5,8 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.component.ComponentGenerationOutcome;
 import com.formacraft.common.component.GenerationDiagnostic;
 import com.formacraft.common.generation.routing.GenerationAuthority;
+import com.formacraft.common.generation.routing.GenerationFallbackMatrix;
 import com.formacraft.common.generation.routing.GenerationFallbackPolicy;
-import com.formacraft.common.generation.routing.PlanMetaAccess;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.network.metrics.TypologyRoutingMetrics;
 import com.formacraft.common.patch.BlockPatch;
@@ -97,12 +97,12 @@ final class ComponentGenerationPipeline {
         boolean skipTypology = (expander.libraryCommitted() && !allowTypologyOverride);
 
         Map<String, Object> planMeta = UnifiedGeneratorRouter.planMeta();
-        boolean allowTypologyEmptyFallback = PlanMetaAccess.allowTypologyEmptyFallback(c, planMeta);
-        boolean allowStructureEmptyFallback = PlanMetaAccess.allowStructureEmptyFallback(c, planMeta);
 
         boolean canReplace = policy.allowsTypologyReplace(allowTypologyOverride);
-        boolean canTypologyFillEmpty = policy.allowTypologyWhenBaseEmpty() || allowTypologyEmptyFallback;
-        boolean canStructureFillEmpty = policy.allowStructureWhenBaseEmpty() || allowStructureEmptyFallback;
+        boolean canTypologyFillEmpty = GenerationFallbackMatrix.effectiveTypologyEmpty(
+                authority, policy, c, planMeta);
+        boolean canStructureFillEmpty = GenerationFallbackMatrix.effectiveStructureEmpty(
+                authority, policy, c, planMeta);
 
         if (!skipTypology
                 && plan.isStepEligible(ComponentPipelineStepId.TYPOLOGY)

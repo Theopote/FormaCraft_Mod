@@ -1,7 +1,10 @@
 package com.formacraft.common.generation.component.util;
 
+import com.formacraft.common.generation.design.DesignParameterRegistry;
 import com.formacraft.common.logging.FcaLog;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -11,6 +14,28 @@ public final class ComponentParamParsers {
     private ComponentParamParsers() {}
 
     private static final FcaLog LOG = FcaLog.of("ComponentParams");
+
+    /** Lookup keys for a canonical design param (snake_case first, then registry aliases). */
+    public static String[] keysFor(String canonicalParam, String... extraKeys) {
+        List<String> keys = new ArrayList<>();
+        String canonical = DesignParameterRegistry.canonicalKey(canonicalParam);
+        if (canonical != null && !canonical.isBlank()) {
+            keys.add(canonical);
+        }
+        for (String alias : DesignParameterRegistry.aliases(canonical)) {
+            if (!keys.contains(alias)) {
+                keys.add(alias);
+            }
+        }
+        if (extraKeys != null) {
+            for (String extra : extraKeys) {
+                if (extra != null && !extra.isBlank() && !keys.contains(extra)) {
+                    keys.add(extra);
+                }
+            }
+        }
+        return keys.toArray(String[]::new);
+    }
 
     public static int intParam(Map<String, Object> params, String... keys) {
         return intParam(params, 0, keys);

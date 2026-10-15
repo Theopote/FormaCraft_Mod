@@ -36,6 +36,41 @@ public enum GenerationAuthority {
         }
     }
 
+    /** Strict parse for LLM plan validation; rejects unknown enum strings. */
+    public static GenerationAuthority parseStrict(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = String.valueOf(raw).trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        try {
+            return GenerationAuthority.valueOf(s.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("invalid generation_authority: " + s, e);
+        }
+    }
+
+    /**
+     * Validates a raw authority value at {@code path}. Null/blank means unset (valid).
+     * Non-blank unknown values throw {@link IllegalArgumentException}.
+     */
+    public static void validateRaw(Object raw, String path) {
+        if (raw == null) {
+            return;
+        }
+        String s = String.valueOf(raw).trim();
+        if (s.isEmpty()) {
+            return;
+        }
+        try {
+            parseStrict(raw);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("invalid generation_authority at " + path + ": " + s, e);
+        }
+    }
+
     /**
      * Resolve order: component params → plan_meta → default {@link #COMPONENTS}.
      */

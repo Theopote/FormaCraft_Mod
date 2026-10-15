@@ -11,6 +11,19 @@ External protocol: **`LlmPlan` JSON** (evolving). `BuildingSpec` is a **legacy a
 | Patch | `mode=patch`, `patch` | Incremental edits |
 | Capability failure | `plan_status`, `capability_gap` | No compile; replan |
 
+## Design authority vs geometry executor
+
+Two layers keep routing contracts precise without rewriting deterministic solvers:
+
+| Layer | Meaning | Examples |
+|-------|---------|----------|
+| **Design authority** | Who owns the component plan (LLM / typology / assembly payload) | `generation_authority=TYPOLOGY` on a stair keeps typology as the design owner |
+| **Geometry executor** | Which deterministic algorithm materializes patches | `STAIR_COMPONENT` runs `StraightStairComponentGenerator`; `COMPONENT_PIPELINE` runs registry → typology → structure stages |
+
+Typology may **reuse** COMPONENTS-family geometry executors (e.g. stairs) when the plan already specifies endpoints, width, and materials. Provenance on [`RoutedGenerationResult`](../../src/main/java/com/formacraft/server/generation/component/adaptor/RoutedGenerationResult.java) records both: `authority=TYPOLOGY`, `executor=STAIR_COMPONENT`.
+
+Invalid `generation_authority` strings are rejected at **Java parse** ([`LlmPlanParser`](../../src/main/java/com/formacraft/common/llm/parser/LlmPlanParser.java)); omitted values default to `COMPONENTS` at resolve time only.
+
 ## New metadata (optional, backward compatible)
 
 ### `plan_meta`
@@ -25,7 +38,13 @@ External protocol: **`LlmPlan` JSON** (evolving). `BuildingSpec` is a **legacy a
 | `design_requirements` | object | Keys `facade` / `entrance` / `roof` / `crown` → `REQUIRED` \| `OPTIONAL` \| `OMITTED` \| `UNSPECIFIED` |
 | `capability_report` | object | See below |
 
-**Fallback policy** ([GenerationFallbackPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackPolicy.java)): authority controls empty-base typology/structure fallback separately from typology *replace*. Default `COMPONENTS`: registry priming only — no typology or structure empty fill unless `allow_typology_empty_fallback` / `allow_structure_empty_fallback`. Non-empty typology replace under `COMPONENTS` still requires `allow_typology_override` on the component. `CAPTURED_LIBRARY` / `ASSEMBLY` / `SKELETON` must not silently fall back to another executor; mismatch → `E_GENERATION_AUTHORITY_CONFLICT`.
+**Fallback policy** ([GenerationFallbackPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackPolicy.java), matrix in [GenerationFallbackMatrix.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackMatrix.java)): authority controls empty-base typology/structure fallback separately from typology *replace*. Default `COMPONENTS`: registry priming only — no typology or structure empty fill unless `allow_typology_empty_fallback` / `allow_structure_empty_fallback`. **Those explicit flags apply only under `COMPONENTS`**; `TYPOLOGY` / `CAPTURED_LIBRARY` / `ASSEMBLY` / `SKELETON` ignore them and follow policy only. Non-empty typology replace under `COMPONENTS` still requires `allow_typology_override` on the component. Dedicated authorities must not silently fall back to another executor; mismatch → `E_GENERATION_AUTHORITY_CONFLICT`.
+
+| Authority | Typology empty (base) | Structure empty (base) | `allow_typology_empty_fallback` | `allow_structure_empty_fallback` |
+|-----------|----------------------|------------------------|-----------------------------------|----------------------------------|
+| COMPONENTS | policy (false) | policy (false) | enables typology empty | enables structure empty |
+| TYPOLOGY | policy (true) | policy (false) | ignored | ignored |
+| CAPTURED_LIBRARY / ASSEMBLY / SKELETON | false | false | ignored | ignored |
 
 ### `capability_report`
 

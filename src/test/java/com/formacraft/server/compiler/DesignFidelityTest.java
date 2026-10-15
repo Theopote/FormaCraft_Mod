@@ -117,6 +117,15 @@ class DesignFidelityTest {
         assertFalse(AssemblyCompileDiagnostics.hasGap(),
                 () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         assertFalse(patches.isEmpty());
+        assertTrue(patches.size() > 20,
+                "0.42 window_ratio plan should produce substantial facade opening geometry");
+    }
+
+    @Test
+    void gothicSteepRoofDocumentsPitchFidelityBaseline() throws Exception {
+        LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
+        assertEquals("AI_PLANNED", plan.designSources().get("roof_pitch_degrees"),
+                "baseline: AI_PLANNED pitch must survive to compile geometry");
     }
 
     @Test

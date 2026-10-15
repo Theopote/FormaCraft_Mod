@@ -56,7 +56,7 @@ public class RoofGenerator implements ComponentGenerator {
         height = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
                 width, depth, d.height(), params);
 
-        int overhang = ComponentParamParsers.intParam(params, "overhang", "overhang_blocks", "eave_overhang");
+        int overhang = ComponentParamParsers.intParam(params, ComponentParamParsers.keysFor("overhang"));
         if (roofType == RoofType.XUANSHAN && overhang <= 0) {
             overhang = 2;
         } else if (roofType == RoofType.XIESHAN && overhang <= 0) {

@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.formacraft.common.generation.routing.GenerationAuthority;
 import com.formacraft.common.llm.dto.*;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -104,6 +106,8 @@ public final class LlmPlanParser {
             }
         }
 
+        validateGenerationAuthority(plan);
+
         // components：build 可以为空（让生成器从 slots/preset 推导）；patch 通常应提供
         if (plan.components() != null) {
             for (Component c : plan.components()) {
@@ -157,6 +161,37 @@ public final class LlmPlanParser {
             if (hasBlockPatch) {
                 if (plan.patch().origin() == null) throw new PlanParseException("patch.origin is required");
             }
+        }
+    }
+
+    private static void validateGenerationAuthority(LlmPlan plan) throws PlanParseException {
+        Map<String, Object> planMeta = plan.planMeta();
+        if (planMeta != null && planMeta.containsKey(GenerationAuthority.META_KEY)) {
+            try {
+                GenerationAuthority.validateRaw(planMeta.get(GenerationAuthority.META_KEY), "plan_meta");
+            } catch (IllegalArgumentException e) {
+                throw new PlanParseException(e.getMessage(), e);
+            }
+        }
+        if (plan.components() == null) {
+            return;
+        }
+        int index = 0;
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) {
+                index++;
+                continue;
+            }
+            if (c.params().containsKey(GenerationAuthority.PARAM_KEY)) {
+                try {
+                    GenerationAuthority.validateRaw(
+                            c.params().get(GenerationAuthority.PARAM_KEY),
+                            "components[" + index + "].params");
+                } catch (IllegalArgumentException e) {
+                    throw new PlanParseException(e.getMessage(), e);
+                }
+            }
+            index++;
         }
     }
 
