@@ -51,13 +51,17 @@ public final class LlmPlanParser {
     }
 
     /**
-     * 只解析不校验（一般不建议）
+     * Parse and validate (same contract as {@link #parseAndValidate(String)}).
      */
     public static LlmPlan parse(String json) throws PlanParseException {
         try {
             LlmPlan plan = MAPPER.readValue(normalizeLegacySlotIds(json), LlmPlan.class);
             plan = LlmPlanAnchorNormalizer.normalize(plan);
-            return com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
+            plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
+            validate(plan);
+            return plan;
+        } catch (PlanParseException e) {
+            throw e;
         } catch (Exception e) {
             throw new PlanParseException("Parse error: " + e.getMessage(), e);
         }

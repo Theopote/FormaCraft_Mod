@@ -122,6 +122,24 @@ class DesignFidelityTest {
     }
 
     @Test
+    void unknownRoofTypeFailsCompileWithUnsupportedError() throws Exception {
+        LlmPlan plan = loadFidelityPlan("unknown_roof_type.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_ROOF_TYPE_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void conflictingRoofHeightAndPitchFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("conflicting_roof_height_pitch.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_ROOF_GEOMETRY_CONFLICT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void gothicSteepRoofDocumentsPitchFidelityBaseline() throws Exception {
         LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
         assertEquals("AI_PLANNED", plan.designSources().get("roof_pitch_degrees"),

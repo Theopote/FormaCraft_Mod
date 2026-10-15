@@ -177,6 +177,16 @@ public final class ComponentPlanCompiler {
         }
         List<Component> components = prepared.components();
         Set<String> assemblyFacadeSlots = prepared.assemblyFacadeSlots();
+        var invalidAuthority = com.formacraft.common.generation.routing.GenerationAuthorityValidator.check(plan);
+        if (invalidAuthority.isPresent()) {
+            AssemblyCompileDiagnostics.set(invalidAuthority.get());
+            return List.of();
+        }
+        var roofDesignConflict = RoofDesignValidator.check(plan, components);
+        if (roofDesignConflict.isPresent()) {
+            AssemblyCompileDiagnostics.set(roofDesignConflict.get());
+            return List.of();
+        }
         var designConflict = ExplicitDesignConflictValidator.check(plan, components);
         if (designConflict.isPresent()) {
             AssemblyCompileDiagnostics.set(designConflict.get());
@@ -527,10 +537,14 @@ public final class ComponentPlanCompiler {
                                 || "skeleton_empty".equals(diagCode)
                                 || "assembly_empty".equals(diagCode);
                         boolean capturedLibraryMiss = "captured_library_miss".equals(diagCode);
+                        boolean roofTypeUnsupported = "generator_exception".equals(diagCode)
+                                && detail != null && detail.contains("roof_type_unsupported");
                         String gapCode = envelopeConflict
                                 ? "E_COMPONENT_REQUEST_CONFLICT"
                                 : authorityConflict
                                 ? "E_GENERATION_AUTHORITY_CONFLICT"
+                                : roofTypeUnsupported
+                                ? "E_ROOF_TYPE_UNSUPPORTED"
                                 : "E_COMPONENT_LIBRARY_FAILED";
                         String gapMessage = envelopeConflict
                                 ? "显式 component_request 与包络保护冲突：type=" + c.componentType()

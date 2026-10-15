@@ -87,6 +87,17 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertIn("from", stair["params"])
         self.assertIn("to", stair["params"])
 
+    def test_unknown_roof_type_fixture(self):
+        plan = self._load("unknown_roof_type.json")
+        roof = next(c for c in plan["components"] if c.get("component_type") == "ROOF")
+        self.assertEqual("sawtooth", roof["params"]["roof_type"])
+
+    def test_conflicting_roof_height_pitch_fixture(self):
+        plan = self._load("conflicting_roof_height_pitch.json")
+        roof = next(c for c in plan["components"] if c.get("component_type") == "ROOF")
+        self.assertEqual(3, roof["params"]["roof_height"])
+        self.assertEqual(60, roof["params"]["roof_pitch_degrees"])
+
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
         plan = json.loads(INVALID_AUTHORITY_FIXTURE.read_text(encoding="utf-8"))

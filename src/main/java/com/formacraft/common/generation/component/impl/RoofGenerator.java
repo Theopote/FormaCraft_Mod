@@ -3,6 +3,8 @@ package com.formacraft.common.generation.component.impl;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.RoofTypeCatalog;
+import com.formacraft.common.generation.component.util.RoofTypeKind;
 import com.formacraft.common.generation.component.util.ComponentRoofSpecialtyDecorator;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
@@ -51,19 +53,19 @@ public class RoofGenerator implements ComponentGenerator {
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        RoofType roofType = resolveRoofType(c, semantic, params);
+        RoofTypeKind roofType = resolveRoofType(c, semantic, params);
         // Prefer explicit roof_height / roof_pitch_degrees over span/3 technical default (cap 8).
         height = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
                 width, depth, d.height(), params);
 
         int overhang = ComponentParamParsers.intParam(params, ComponentParamParsers.keysFor("overhang"));
-        if (roofType == RoofType.XUANSHAN && overhang <= 0) {
+        if (roofType == RoofTypeKind.XUANSHAN && overhang <= 0) {
             overhang = 2;
-        } else if (roofType == RoofType.XIESHAN && overhang <= 0) {
+        } else if (roofType == RoofTypeKind.XIESHAN && overhang <= 0) {
             overhang = 1;
         }
         if (hasRoofFeature(c, semantic, "flying_eaves", "flying eaves", "飞檐")) {
-            int minOverhang = (roofType == RoofType.XIESHAN || roofType == RoofType.XUANSHAN) ? 3 : 2;
+            int minOverhang = (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN) ? 3 : 2;
             overhang = Math.max(overhang, minOverhang);
         }
         int baseX = rp.x();
@@ -77,8 +79,8 @@ public class RoofGenerator implements ComponentGenerator {
         }
 
         boolean doubleEave = isDoubleEave(params, c.features());
-        if (doubleEave && (roofType == RoofType.XIESHAN || roofType == RoofType.XUANSHAN || roofType == RoofType.GABLE
-                || roofType == RoofType.DOUBLE_GABLE || roofType == RoofType.HIP)) {
+        if (doubleEave && (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.GABLE
+                || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.HIP)) {
             generateDoubleEaveRoof(out, semantic, roofType, baseX, rp.y(), baseZ, width, depth, height, palette,
                     footprint, appliedOverhang);
         } else {
@@ -113,7 +115,7 @@ public class RoofGenerator implements ComponentGenerator {
         }
 
         boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱");
-        if (emphasizeEaves && roofType != RoofType.FLAT
+        if (emphasizeEaves && roofType != RoofTypeKind.FLAT
                 && !com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params)) {
             int eaveOutset = hasRoofFeature(c, semantic, "dougong", "斗拱") ? 2 : 1;
             int eaveY = rp.y() > 0 ? rp.y() - 1 : rp.y();
@@ -125,7 +127,7 @@ public class RoofGenerator implements ComponentGenerator {
                 GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
                         GeneratedSurfaceCapture.Role.ROOF);
         }
-        if (!doubleEave && (roofType == RoofType.GABLE || roofType == RoofType.DOUBLE_GABLE || roofType == RoofType.XUANSHAN)
+        if (!doubleEave && (roofType == RoofTypeKind.GABLE || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.XUANSHAN)
                 && !"false".equalsIgnoreCase(getParamString(params, "gable_walls"))) {
             sealRectangularGables(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette);
             if (getParamBoolean(params, "horse_head_walls", "horseHeadWalls")
@@ -331,7 +333,7 @@ public class RoofGenerator implements ComponentGenerator {
         }
     }
 
-    private void generateDoubleEaveRoof(List<BlockPatch> out, SemanticComponent semantic, RoofType roofType, int baseX, int baseY,
+    private void generateDoubleEaveRoof(List<BlockPatch> out, SemanticComponent semantic, RoofTypeKind roofType, int baseX, int baseY,
                                         int baseZ, int width, int depth, int height, Palette palette,
                                         ComponentFootprintMask footprint, int overhang) {
         int upperHeight = Math.max(2, height / 2);
@@ -573,30 +575,17 @@ public class RoofGenerator implements ComponentGenerator {
         return "MEDIEVAL_CLASSIC";
     }
 
-    private RoofType resolveRoofType(Component c, SemanticComponent semantic, Map<String, Object> params) {
-        String type = getParamString(params, "roof_type", "roofType");
-        if (type == null && c.features() != null) {
-            for (String feature : c.features()) {
-                if (feature == null) continue;
-                String lower = feature.toLowerCase();
-                if (lower.contains("yingshan") || lower.contains("ying_shan") || lower.contains("ying-shan")
-                        || lower.contains("hard_gable") || lower.contains("hard gable") || lower.contains("硬山")) {
-                    type = "yingshan";
-                } else if (lower.contains("xuanshan") || lower.contains("xuan_shan") || lower.contains("悬山")) {
-                    type = "xuanshan";
-                }
-                else if (lower.contains("xieshan") || lower.contains("xie_shan") || lower.contains("hip_and_gable") || lower.contains("歇山")) type = "xieshan";
-                else if (lower.contains("double_gable") || lower.contains("double gable") || lower.contains("shuangpo") || lower.contains("双坡")) type = "double_gable";
-                else if (lower.contains("gable")) type = "gable";
-                else if (lower.contains("hip")) type = "hip";
-                else if (lower.contains("pyramid")) type = "pyramid";
-                else if (lower.contains("cone")) type = "cone";
-                else if (lower.contains("dome") || lower.contains("curved")) type = "dome";
-                else if (lower.contains("mansard") || lower.contains("baroque") || lower.contains("french")) type = "mansard";
-                else if (lower.contains("sloped") || lower.contains("pitched")) type = "gable";
+    private RoofTypeKind resolveRoofType(Component c, SemanticComponent semantic, Map<String, Object> params) {
+        var explicitType = RoofTypeCatalog.extractExplicitType(c, params);
+        if (explicitType.isPresent()) {
+            String type = explicitType.get();
+            if (!RoofTypeCatalog.isSupportedExplicit(type)) {
+                throw new IllegalArgumentException("roof_type_unsupported:" + type);
             }
+            return RoofTypeCatalog.parseExplicit(type).orElse(RoofTypeKind.GABLE);
         }
-        if (type == null && semantic != null && semantic.genome() != null && semantic.genome().form != null) {
+        String type = null;
+        if (semantic != null && semantic.genome() != null && semantic.genome().form != null) {
             String curvature = semantic.genome().form.curvature;
             if ("curved".equalsIgnoreCase(curvature)) {
                 type = "dome";
@@ -606,37 +595,25 @@ public class RoofGenerator implements ComponentGenerator {
                 type = "pyramid";
             }
         }
-        if (type == null) {
-            String profile = getStyleProfile(semantic);
-            String upper = profile.toUpperCase();
-            if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
-                    || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
-                return RoofType.XIESHAN;
-            }
-            if (upper.contains("CHINESE") || upper.contains("HUI")) {
-                return RoofType.XUANSHAN;
-            }
-            if (upper.contains("GOTHIC") || upper.contains("MEDIEVAL")) {
-                return RoofType.GABLE;
-            }
-            if (upper.contains("MODERN")) {
-                return RoofType.FLAT;
-            }
-            return RoofType.GABLE;
+        if (type != null) {
+            return RoofTypeCatalog.parseExplicit(type).orElse(RoofTypeKind.GABLE);
         }
-        return switch (type.trim().toLowerCase()) {
-            case "gable", "gabled" -> RoofType.GABLE;
-            case "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofType.GABLE;
-            case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofType.DOUBLE_GABLE;
-            case "hip", "hipped" -> RoofType.HIP;
-            case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山" -> RoofType.XIESHAN;
-            case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofType.XUANSHAN;
-            case "pyramid" -> RoofType.PYRAMID;
-            case "cone", "conical" -> RoofType.CONE;
-            case "dome", "domed", "curved" -> RoofType.DOME;
-            case "mansard", "mansard_roof", "baroque_roof" -> RoofType.MANSARD;
-            default -> RoofType.FLAT;
-        };
+        String profile = getStyleProfile(semantic);
+        String upper = profile.toUpperCase();
+        if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
+                || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
+            return RoofTypeKind.XIESHAN;
+        }
+        if (upper.contains("CHINESE") || upper.contains("HUI")) {
+            return RoofTypeKind.XUANSHAN;
+        }
+        if (upper.contains("GOTHIC") || upper.contains("MEDIEVAL")) {
+            return RoofTypeKind.GABLE;
+        }
+        if (upper.contains("MODERN")) {
+            return RoofTypeKind.FLAT;
+        }
+        return RoofTypeKind.GABLE;
     }
 
     private static boolean isDoubleEave(Map<String, Object> params, List<String> features) {
@@ -744,16 +721,4 @@ public class RoofGenerator implements ComponentGenerator {
         };
     }
 
-    private enum RoofType {
-        FLAT,
-        GABLE,
-        DOUBLE_GABLE,
-        HIP,
-        XIESHAN,
-        XUANSHAN,
-        PYRAMID,
-        CONE,
-        DOME,
-        MANSARD
-    }
 }

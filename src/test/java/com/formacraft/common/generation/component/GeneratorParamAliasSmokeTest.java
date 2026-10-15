@@ -1,12 +1,14 @@
 package com.formacraft.common.generation.component;
 
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.RoofTypeCatalog;
 import com.formacraft.common.generation.design.DesignParameterRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GeneratorParamAliasSmokeTest {
@@ -43,5 +45,12 @@ class GeneratorParamAliasSmokeTest {
     void intParamReadsWallThicknessSnakeCase() {
         Map<String, Object> params = Map.of("wall_thickness", 2);
         assertEquals(2, ComponentParamParsers.intParam(params, ComponentParamParsers.keysFor("wall_thickness")));
+    }
+
+    @Test
+    void roofTypeCatalogReadsSnakeCaseParam() {
+        assertTrue(RoofTypeCatalog.parseExplicit("gable").isPresent());
+        assertEquals("gable", RoofTypeCatalog.extractExplicitParamType(Map.of("roof_type", "gable")).orElseThrow());
+        assertFalse(RoofTypeCatalog.isSupportedExplicit("sawtooth"));
     }
 }

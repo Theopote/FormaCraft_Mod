@@ -54,6 +54,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         boolean wrapFacade = hasFeature(c, "wrap", "all_sides", "around", "perimeter");
         Double windowRatio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
         String rhythm = getParamString(params, "rhythm");
+        if (rhythm == null) {
+            rhythm = getParamString(params, ComponentParamParsers.keysFor("rhythm_preset"));
+        }
         if (rhythm == null && semantic.genome() != null && semantic.genome().form != null) {
             rhythm = semantic.genome().form.rhythm;
         }

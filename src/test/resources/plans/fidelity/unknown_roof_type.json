@@ -1,0 +1,40 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "REQUIRED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 12, "depth": 10, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "body",
+        "roof_type": "none",
+        "entrance_type": "none"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 7, "z": 0 },
+      "dimensions": { "width": 12, "depth": 10, "height": 2 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "roof_type": "sawtooth",
+        "allow_patch_overwrite": true
+      }
+    }
+  ]
+}

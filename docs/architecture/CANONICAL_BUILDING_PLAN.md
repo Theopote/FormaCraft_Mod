@@ -67,7 +67,17 @@ Map of param name → source enum (plan-level and/or `components[].params.design
 
 Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/common/generation/design/DesignParamSource.java), [DesignProvenance.java](../../src/main/java/com/formacraft/common/generation/design/DesignProvenance.java), and alias groups in [DesignParameterRegistry.java](../../src/main/java/com/formacraft/common/generation/design/DesignParameterRegistry.java). **LLM output should use snake_case canonical keys** (e.g. `window_ratio`, not `windowRatio`).
 
-**Roof rise:** prefer `params.roof_height` or `params.roof_pitch_degrees` via [RoofPitchGeometry](../../src/main/java/com/formacraft/common/generation/component/util/RoofPitchGeometry.java). Technical `span/3` capped at 8 applies only when neither is set.
+**Roof geometry:**
+
+- `components[].dimensions.height` = component bounding box height (not ridge rise).
+- `params.roof_height` / `params.roof_pitch_degrees` = explicit roof rise design params ([RoofPitchGeometry](../../src/main/java/com/formacraft/common/generation/component/util/RoofPitchGeometry.java)). When both are set they must agree within ±1 block or compile fails with `E_ROOF_GEOMETRY_CONFLICT`.
+- Technical `span/3` capped at 8 applies only when neither rise param is set.
+
+**Supported `roof_type` tokens** (explicit values only; unknown explicit values → `E_ROOF_TYPE_UNSUPPORTED`, not silent flat):
+
+`flat`, `gable`, `hip`, `double_gable`, `xieshan`, `xuanshan`, `pyramid`, `cone`, `dome`, `mansard`, `none` (omit roof). Omitted `roof_type` may derive from style/genome defaults via [RoofTypeCatalog](../../src/main/java/com/formacraft/common/generation/component/util/RoofTypeCatalog.java).
+
+**Parse boundary:** both [`LlmPlanParser.parse`](../../src/main/java/com/formacraft/common/llm/parser/LlmPlanParser.java) and `parseAndValidate` reject invalid `generation_authority`; [`ComponentPlanCompiler`](../../src/main/java/com/formacraft/server/compiler/ComponentPlanCompiler.java) also rejects via `E_INVALID_GENERATION_AUTHORITY` if a plan bypasses parse.
 
 ## BuildingSpec mapping (legacy adapter)
 
