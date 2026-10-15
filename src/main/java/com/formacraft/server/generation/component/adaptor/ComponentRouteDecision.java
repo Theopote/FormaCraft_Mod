@@ -2,13 +2,25 @@ package com.formacraft.server.generation.component.adaptor;
 
 import java.util.List;
 
-/** Documented component generation route (Phase 4 authority map). */
+/** Result of {@link ComponentRouteResolver#resolve} — no geometry generated. */
 public record ComponentRouteDecision(
-        String executorId,
+        ComponentExecutorId executor,
         String reason,
-        List<String> forbiddenFallbacks
+        List<String> forbiddenFallbacks,
+        ComponentPipelinePlan pipelinePlan
 ) {
-    public static ComponentRouteDecision of(String executorId, String reason) {
-        return new ComponentRouteDecision(executorId, reason, List.of());
+    public ComponentRouteDecision {
+        if (pipelinePlan == null) {
+            pipelinePlan = ComponentPipelinePlan.empty();
+        }
+    }
+
+    public static ComponentRouteDecision of(ComponentExecutorId executor, String reason) {
+        return new ComponentRouteDecision(executor, reason, List.of(), ComponentPipelinePlan.empty());
+    }
+
+    /** Legacy string id for logs/tests. */
+    public String executorId() {
+        return executor == null ? "none" : executor.name().toLowerCase();
     }
 }

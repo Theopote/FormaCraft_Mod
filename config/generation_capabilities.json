@@ -1,5 +1,6 @@
 {
   "capabilities": ["SUPPORTED", "COMPOSABLE", "NEEDS_REPLAN", "UNSUPPORTED"],
+  "design_requirements": ["REQUIRED", "OPTIONAL", "OMITTED", "UNSPECIFIED"],
   "design_param_sources": [
     "USER_EXPLICIT",
     "AI_PLANNED",

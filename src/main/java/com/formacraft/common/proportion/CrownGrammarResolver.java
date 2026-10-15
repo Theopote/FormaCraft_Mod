@@ -2,6 +2,7 @@ package com.formacraft.common.proportion;
 
 import com.formacraft.common.generation.component.util.CrownTemplateLibrary;
 import com.formacraft.common.generation.component.util.RevolveProfileParser;
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -39,20 +40,20 @@ public final class CrownGrammarResolver {
                 hint = hints.get("crownTemplate");
             }
             if (hint != null && !String.valueOf(hint).isBlank()) {
-                params.put("crown_template", CrownTemplateLibrary.normalize(String.valueOf(hint)));
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "crown_template",
+                        CrownTemplateLibrary.normalize(String.valueOf(hint)));
             } else {
                 String typology = String.valueOf(hints.getOrDefault("typology", "")).toLowerCase(Locale.ROOT);
                 if (typology.contains("baroque") || typology.contains("orthodox") || typology.contains("onion")) {
-                    params.put("crown_template", CrownTemplateLibrary.ONION_DOME);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "crown_template",
+                            CrownTemplateLibrary.ONION_DOME);
                 } else if (typology.contains("classical") || typology.contains("monument")
                         || typology.contains("palace") || typology.contains("castle")) {
-                    params.put("crown_template", CrownTemplateLibrary.CLASSICAL_CUPOLA);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "crown_template",
+                            CrownTemplateLibrary.CLASSICAL_CUPOLA);
                 }
             }
-        } else {
+        } else if (DesignProvenance.canMutateParam(plan, "crown_template")) {
             String normalized = CrownTemplateLibrary.normalize(template);
             if (!template.equalsIgnoreCase(normalized)) {
                 params.put("crown_template", normalized);
@@ -61,8 +62,7 @@ public final class CrownGrammarResolver {
         }
 
         if (!params.containsKey("revolve_segments")) {
-            params.put("revolve_segments", 32);
-            changed = true;
+            changed |= DesignProvenance.putIfAllowed(plan, params, "revolve_segments", 32);
         }
 
         if (!hasProfileParam(params)) {
@@ -70,8 +70,7 @@ public final class CrownGrammarResolver {
                     "profile_curve_y_radius", "profileCurveYRadius",
                     "profile_curve", "profileCurve", "crown_profile", "crownProfile");
             if (profileHint != null) {
-                params.put("profile_curve_y_radius", profileHint);
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "profile_curve_y_radius", profileHint);
             }
         }
 

@@ -17,10 +17,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 
 | Class | Params touched | Tag | Migration |
 |-------|----------------|-----|-----------|
-| `StyleIntentResolver` | plan_type, roof_type, features | DESIGN_ENRICH | Skip keys with `design_sources` = USER_EXPLICIT / AI_PLANNED |
-| `RoofGrammarResolver` | roof pitch, specialty | DESIGN_ENRICH / GEOMETRY | Same |
-| `OpeningGrammarResolver` | window rhythm | DESIGN_ENRICH | Same |
-| `CrownGrammarResolver` | crown template | DESIGN_ENRICH | Same |
+| `StyleIntentResolver` | plan_type, roof_type, features | DESIGN_ENRICH | **Wired:** `DesignProvenance.canMutateParam` for plan_type / roof_type |
+| `RoofGrammarResolver` | roof_type, specialty, dormers | DESIGN_ENRICH | **Wired:** `putIfAllowed` / locked sources |
+| `OpeningGrammarResolver` | window_aspect, window_ratio, void_ratio, rhythm | DESIGN_ENRICH | **Wired:** `putIfAllowed` / locked sources |
+| `CrownGrammarResolver` | crown_template, profile | DESIGN_ENRICH | **Wired:** `putIfAllowed` / locked sources |
 
 ## Structure routing substitutes (Java)
 

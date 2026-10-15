@@ -6,6 +6,7 @@ import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
 import com.formacraft.common.generation.component.impl.WindowAspect;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -47,16 +48,16 @@ public final class OpeningGrammarResolver {
         if (isBlank(aspect)) {
             Object hintAspect = hints.get("window_aspect");
             if (hintAspect != null && !String.valueOf(hintAspect).isBlank()) {
-                params.put("window_aspect", String.valueOf(hintAspect).trim());
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "window_aspect",
+                        String.valueOf(hintAspect).trim());
             } else if (card != null && card.openingGrammar() != null) {
                 String fallback = firstAllowedAspect(card);
                 if (fallback != null) {
-                    params.put("window_aspect", fallback);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "window_aspect", fallback);
                 }
             }
-        } else if (card != null && card.openingGrammar() != null) {
+        } else if (card != null && card.openingGrammar() != null
+                && DesignProvenance.canMutateParam(plan, "window_aspect")) {
             String clamped = clampAspect(aspect, card);
             if (!aspect.equalsIgnoreCase(clamped)) {
                 params.put("window_aspect", clamped);
@@ -69,16 +70,15 @@ public final class OpeningGrammarResolver {
             if (windowRatio == null) {
                 Object hintRatio = hints.get("window_wall_ratio");
                 if (hintRatio instanceof Number n) {
-                    params.put("window_ratio", clampRatio(n.doubleValue(), card, "window_wall_ratio"));
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "window_ratio",
+                            clampRatio(n.doubleValue(), card, "window_wall_ratio"));
                 } else if (card != null && card.ratios() != null) {
                     ProportionCardRegistry.RatioSpec spec = card.ratios().get("window_wall_ratio");
                     if (spec != null) {
-                        params.put("window_ratio", spec.ideal());
-                        changed = true;
+                        changed |= DesignProvenance.putIfAllowed(plan, params, "window_ratio", spec.ideal());
                     }
                 }
-            } else {
+            } else if (DesignProvenance.canMutateParam(plan, "window_ratio")) {
                 double clamped = clampRatio(windowRatio, card, "window_wall_ratio");
                 if (Math.abs(clamped - windowRatio) > 1e-6) {
                     params.put("window_ratio", clamped);
@@ -88,17 +88,17 @@ public final class OpeningGrammarResolver {
         }
 
         if (facade || mass || wall) {
-            changed |= applyVoidRatio(params, card, hints);
+            changed |= applyVoidRatio(plan, params, card, hints);
         }
 
         if (facade || mass) {
-            changed |= applyRepeatingPattern(params, hints, card);
-            changed |= applyFacadeProfileFromPattern(params);
+            changed |= applyRepeatingPattern(plan, params, hints, card);
+            changed |= applyFacadeProfileFromPattern(plan, params);
         }
 
         if (facade) {
-            changed |= applyRhythmPreset(params, card, hints);
-            changed |= applyWindowOrder(params, card, hints);
+            changed |= applyRhythmPreset(plan, params, card, hints);
+            changed |= applyWindowOrder(plan, params, card, hints);
         }
 
         if (!changed) {
@@ -162,6 +162,7 @@ public final class OpeningGrammarResolver {
     }
 
     private static boolean applyVoidRatio(
+            LlmPlan plan,
             Map<String, Object> params,
             ProportionCardRegistry.ProportionCard card,
             Map<String, Object> hints
@@ -177,12 +178,12 @@ public final class OpeningGrammarResolver {
                 hintVoid = hints.get("max_void_ratio");
             }
             if (hintVoid instanceof Number n) {
-                params.put("void_ratio", Math.min(n.doubleValue(), maxVoid));
-                return true;
+                return DesignProvenance.putIfAllowed(plan, params, "void_ratio",
+                        Math.min(n.doubleValue(), maxVoid));
             }
             return false;
         }
-        if (voidRatio > maxVoid + 1e-6) {
+        if (voidRatio > maxVoid + 1e-6 && DesignProvenance.canMutateParam(plan, "void_ratio")) {
             params.put("void_ratio", maxVoid);
             return true;
         }
@@ -190,6 +191,7 @@ public final class OpeningGrammarResolver {
     }
 
     private static boolean applyRepeatingPattern(
+            LlmPlan plan,
             Map<String, Object> params,
             Map<String, Object> hints,
             ProportionCardRegistry.ProportionCard card
@@ -206,14 +208,13 @@ public final class OpeningGrammarResolver {
             if (suggested == null) {
                 return false;
             }
-            params.put("repeating_pattern", RepeatingPatternParser.toParamsMap(suggested));
-            return true;
+            return DesignProvenance.putIfAllowed(plan, params, "repeating_pattern",
+                    RepeatingPatternParser.toParamsMap(suggested));
         }
-        params.put("repeating_pattern", raw);
-        return true;
+        return DesignProvenance.putIfAllowed(plan, params, "repeating_pattern", raw);
     }
 
-    private static boolean applyFacadeProfileFromPattern(Map<String, Object> params) {
+    private static boolean applyFacadeProfileFromPattern(LlmPlan plan, Map<String, Object> params) {
         if (!isBlank(getParamString(params, "facade_profile", "facadeProfile", "facade"))) {
             return false;
         }
@@ -221,11 +222,12 @@ public final class OpeningGrammarResolver {
         if (!RepeatingPatternDefaults.hasPillarElements(pattern)) {
             return false;
         }
-        params.put("facade_profile", "base_plinth,vertical_pilasters");
-        return true;
+        return DesignProvenance.putIfAllowed(plan, params, "facade_profile",
+                "base_plinth,vertical_pilasters");
     }
 
     private static boolean applyRhythmPreset(
+            LlmPlan plan,
             Map<String, Object> params,
             ProportionCardRegistry.ProportionCard card,
             Map<String, Object> hints
@@ -238,33 +240,33 @@ public final class OpeningGrammarResolver {
             hintPreset = hints.get("rhythmPreset");
         }
         if (hintPreset instanceof String s && !s.isBlank()) {
-            params.put("rhythm_preset", s.trim());
-            return true;
+            return DesignProvenance.putIfAllowed(plan, params, "rhythm_preset", s.trim());
         }
         String aspect = getParamString(params, "window_aspect", "windowAspect");
         if ("vertical_bay".equalsIgnoreCase(aspect)) {
-            params.put("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
-            return true;
+            return DesignProvenance.putIfAllowed(plan, params, "rhythm_preset",
+                    ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
         }
         if (card != null) {
             String typology = card.typology() != null ? card.typology().toLowerCase(Locale.ROOT) : "";
             if (typology.contains("classical") || typology.contains("monument") || typology.contains("palace")) {
-                params.put("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
-                return true;
+                return DesignProvenance.putIfAllowed(plan, params, "rhythm_preset",
+                        ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
             }
         }
         String facadeProfile = getParamString(params, "facade_profile", "facadeProfile");
         if (facadeProfile != null) {
             String fp = facadeProfile.toLowerCase(Locale.ROOT);
             if (fp.contains("pilaster") || fp.contains("colonnade")) {
-                params.put("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
-                return true;
+                return DesignProvenance.putIfAllowed(plan, params, "rhythm_preset",
+                        ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
             }
         }
         return false;
     }
 
     private static boolean applyWindowOrder(
+            LlmPlan plan,
             Map<String, Object> params,
             ProportionCardRegistry.ProportionCard card,
             Map<String, Object> hints
@@ -277,20 +279,17 @@ public final class OpeningGrammarResolver {
             hint = hints.get("windowOrder");
         }
         if (hint instanceof String s && !s.isBlank()) {
-            params.put("window_order", s.trim());
-            return true;
+            return DesignProvenance.putIfAllowed(plan, params, "window_order", s.trim());
         }
         if (card != null) {
             String typology = card.typology() != null ? card.typology().toLowerCase(Locale.ROOT) : "";
             if (typology.contains("classical") || typology.contains("monument") || typology.contains("castle")) {
-                params.put("window_order", "full");
-                return true;
+                return DesignProvenance.putIfAllowed(plan, params, "window_order", "full");
             }
         }
         String aspect = getParamString(params, "window_aspect", "windowAspect");
         if ("vertical_bay".equalsIgnoreCase(aspect)) {
-            params.put("window_order", "medium");
-            return true;
+            return DesignProvenance.putIfAllowed(plan, params, "window_order", "medium");
         }
         return false;
     }

@@ -44,4 +44,5 @@ class DesignFidelityTest {
         assertTrue(AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_DESIGN_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
     }
+
 }

@@ -19,6 +19,7 @@ External protocol: **`LlmPlan` JSON** (evolving). `BuildingSpec` is a **legacy a
 |-----|------|---------|
 | `generation_mode` | string | e.g. `component`, `program`, `patch`, `structure_adapter` |
 | `allow_compiler_satellites` | boolean | **Transition only:** if true, Java may infer FACADE/ENTRANCE/ROOF/CROWN (tagged COMPILER_INFERRED) |
+| `design_requirements` | object | Keys `facade` / `entrance` / `roof` / `crown` → `REQUIRED` \| `OPTIONAL` \| `OMITTED` \| `UNSPECIFIED` |
 | `capability_report` | object | See below |
 
 ### `capability_report`

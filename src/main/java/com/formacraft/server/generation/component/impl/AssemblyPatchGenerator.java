@@ -63,6 +63,21 @@ public final class AssemblyPatchGenerator {
         return generate(semantic, world).patches();
     }
 
+    /** Route hint only — does not compile assembly geometry. */
+    public static boolean isRoutableAssembly(SemanticComponent semantic) {
+        if (semantic == null || semantic.source() == null) {
+            return false;
+        }
+        Component component = semantic.source();
+        if (!"ASSEMBLY".equals(normalizeType(component.componentType()))) {
+            return false;
+        }
+        if (component.relativePosition() == null) {
+            return false;
+        }
+        return resolveAssemblyPayload(component.params()) != null;
+    }
+
     public static GenerateResult generate(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || world == null || semantic.source() == null) {
             return GenerateResult.ok(List.of());

@@ -73,6 +73,9 @@ public final class LlmPlanTestFixtures {
         public Builder planMeta(Map<String, Object> value) { planMeta = value; return this; }
         public Builder designSources(Map<String, String> value) { designSources = value; return this; }
 
+        /** Alias for {@link #designSources(Map)}. */
+        public Builder designSourcesMap(Map<String, String> value) { return designSources(value); }
+
         public LlmPlan build() {
             Map<String, Object> meta = planMeta;
             if (meta == null) {

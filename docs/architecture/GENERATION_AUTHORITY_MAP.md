@@ -57,7 +57,7 @@ flowchart TD
 | [build.py](../../python_backend/app/routes/build.py) | llmplan vs buildingspec | Primary discriminator (`outputFormat`) |
 | [BuildingSpecRoutingPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/BuildingSpecRoutingPolicy.java) | Client-side skip LlmPlan | Adapter-only scenarios |
 | [GeneratorRouter.java](../../src/main/java/com/formacraft/server/generation/structure/router/GeneratorRouter.java) | Structure generator | `routeDecision()` — no silent house/tower unless `allow_legacy_fallback` |
-| [UnifiedGeneratorRouter.java](../../src/main/java/com/formacraft/server/generation/component/adaptor/UnifiedGeneratorRouter.java) | Component executor chain | Documented priority; no silent whole-building overwrite |
+| [UnifiedGeneratorRouter.java](../../src/main/java/com/formacraft/server/generation/component/adaptor/UnifiedGeneratorRouter.java) | Component executor chain | `ComponentRouteResolver.resolve()` → early executors or `ComponentGenerationPipeline` driven by `ComponentPipelinePlan` steps |
 
 ## Failure semantics
 

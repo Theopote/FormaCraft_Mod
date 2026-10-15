@@ -1,6 +1,7 @@
 package com.formacraft.common.proportion;
 
 import com.formacraft.common.generation.component.util.ComponentRoofSpecialtyDecorator;
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -41,25 +42,21 @@ public final class RoofGrammarResolver {
         if (level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD
                 || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER) {
             if (isBlank(roofType) || "default".equalsIgnoreCase(roofType)) {
-                params.put("roof_type", "mansard");
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard");
             }
         }
         if (level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER) {
             if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")) {
-                params.put("roof_dormers", true);
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_dormers", true);
             }
             Object specialty = params.get("roof_specialty");
             if (specialty == null || String.valueOf(specialty).isBlank()) {
-                params.put("roof_specialty", "mansard_dormer");
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard_dormer");
             }
         } else if (level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD) {
             Object specialty = params.get("roof_specialty");
             if (specialty == null || String.valueOf(specialty).isBlank()) {
-                params.put("roof_specialty", "mansard");
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard");
             }
         }
 
@@ -69,8 +66,8 @@ public final class RoofGrammarResolver {
                 hint = hints.get("roofSpecialty");
             }
             if (hint != null && !String.valueOf(hint).isBlank()) {
-                params.put("roof_specialty", String.valueOf(hint).trim());
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty",
+                        String.valueOf(hint).trim());
             }
         }
 

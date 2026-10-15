@@ -16,6 +16,15 @@ public final class DesignProvenance {
         return source == null || !source.isDesignLocked();
     }
 
+    /** Writes {@code value} only when plan provenance allows changing {@code paramKey}. */
+    public static boolean putIfAllowed(LlmPlan plan, Map<String, Object> params, String paramKey, Object value) {
+        if (params == null || paramKey == null || !canMutateParam(plan, paramKey)) {
+            return false;
+        }
+        params.put(paramKey, value);
+        return true;
+    }
+
     public static Map<String, String> tagCompilerInferred(String... paramKeys) {
         Map<String, String> out = new HashMap<>();
         if (paramKeys != null) {
