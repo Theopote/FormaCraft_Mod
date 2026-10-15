@@ -47,10 +47,15 @@ class GenerationAuthorityTest {
 
     @Test
     void assemblyAndSkeletonForbidEmptyBaseFallback() {
-        assertFalse(GenerationAuthority.ASSEMBLY.allowsEmptyBaseFallback());
-        assertFalse(GenerationAuthority.SKELETON.allowsEmptyBaseFallback());
-        assertFalse(GenerationAuthority.COMPONENTS.allowsEmptyBaseFallback());
-        assertFalse(GenerationAuthority.CAPTURED_LIBRARY.allowsEmptyBaseFallback());
+        for (GenerationAuthority authority : new GenerationAuthority[]{
+                GenerationAuthority.ASSEMBLY,
+                GenerationAuthority.SKELETON,
+                GenerationAuthority.COMPONENTS,
+                GenerationAuthority.CAPTURED_LIBRARY}) {
+            GenerationFallbackPolicy policy = authority.fallbackPolicy();
+            assertFalse(policy.allowTypologyWhenBaseEmpty());
+            assertFalse(policy.allowStructureWhenBaseEmpty());
+        }
     }
 
     @Test

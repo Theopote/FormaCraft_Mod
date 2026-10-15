@@ -51,13 +51,13 @@ class RoofDelegationSuppressTest {
     }
 
     @Test
-    void parseFaceListSupportsCsvAndList() {
+    void parseFaceNamesSupportsCsvAndList() {
         assertEquals(java.util.Set.of("NORTH", "SOUTH"),
-                ComponentPlanCompiler.parseFaceList(Map.of("faces", "NORTH,SOUTH")));
+                OpeningDelegation.parseFaceNames(Map.of("faces", "NORTH,SOUTH")));
         assertEquals(java.util.Set.of("EAST"),
-                ComponentPlanCompiler.parseFaceList(Map.of("suppress_faces", List.of("EAST"))));
+                OpeningDelegation.parseFaceNames(Map.of("suppress_faces", List.of("EAST"))));
         // facing alone is door orientation, not a suppress face list
-        assertTrue(ComponentPlanCompiler.parseFaceList(Map.of("facing", "SOUTH")).isEmpty());
-        assertTrue(ComponentPlanCompiler.parseFaceList(Map.of()).isEmpty());
+        assertTrue(OpeningDelegation.parseFaceNames(Map.of("facing", "SOUTH")).isEmpty());
+        assertTrue(OpeningDelegation.parseFaceNames(Map.of()).isEmpty());
     }
 }

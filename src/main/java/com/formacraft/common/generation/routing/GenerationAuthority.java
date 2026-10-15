@@ -99,13 +99,6 @@ public enum GenerationAuthority {
         return GenerationFallbackPolicy.forAuthority(this).allowsTypologyReplace(allowTypologyOverride);
     }
 
-    /** @deprecated use {@link GenerationFallbackPolicy#allowTypologyWhenBaseEmpty()} */
-    @Deprecated
-    public boolean allowsEmptyBaseFallback() {
-        GenerationFallbackPolicy policy = GenerationFallbackPolicy.forAuthority(this);
-        return policy.allowTypologyWhenBaseEmpty() || policy.allowStructureWhenBaseEmpty();
-    }
-
     public GenerationFallbackPolicy fallbackPolicy() {
         return GenerationFallbackPolicy.forAuthority(this);
     }

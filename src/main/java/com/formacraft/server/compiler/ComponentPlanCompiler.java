@@ -2210,11 +2210,6 @@ public final class ComponentPlanCompiler {
         return merged;
     }
 
-    /** @deprecated use {@link OpeningDelegation#parseFaceNames} */
-    static Set<String> parseFaceList(Map<String, Object> params) {
-        return OpeningDelegation.parseFaceNames(params);
-    }
-
     private static Component findRoofInList(List<Component> components, String slotKey) {
         if (components == null) {
             return null;
