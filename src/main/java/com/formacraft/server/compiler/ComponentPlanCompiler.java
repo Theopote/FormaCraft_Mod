@@ -161,14 +161,18 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
-        var authoredRoofIssue = RoofDesignValidator.check(plan,
-                plan.components() == null ? List.of() : plan.components());
+        List<Component> authoredComponents = plan.components() == null ? List.of() : plan.components();
+        var authoredRoofIssue = RoofDesignValidator.check(plan, authoredComponents);
         if (authoredRoofIssue.isPresent()) {
             AssemblyCompileDiagnostics.set(authoredRoofIssue.get());
             return List.of();
         }
-        var authoredConflict = ExplicitDesignConflictValidator.check(plan,
-                plan.components() == null ? List.of() : plan.components());
+        var authoredFacadeIssue = FacadeDesignValidator.check(plan, authoredComponents);
+        if (authoredFacadeIssue.isPresent()) {
+            AssemblyCompileDiagnostics.set(authoredFacadeIssue.get());
+            return List.of();
+        }
+        var authoredConflict = ExplicitDesignConflictValidator.check(plan, authoredComponents);
         if (authoredConflict.isPresent()) {
             AssemblyCompileDiagnostics.set(authoredConflict.get());
             return List.of();

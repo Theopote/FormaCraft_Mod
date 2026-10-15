@@ -32,7 +32,7 @@
       "features": [],
       "params": {
         "host_id": "body",
-        "roof_type": "unknown_roof_geometry",
+        "roof_type": "unsupported_fantasy_roof",
         "allow_patch_overwrite": true
       }
     }

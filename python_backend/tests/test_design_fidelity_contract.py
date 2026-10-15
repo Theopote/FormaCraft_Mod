@@ -90,13 +90,36 @@ class DesignFidelityContractTest(unittest.TestCase):
     def test_unknown_roof_type_fixture(self):
         plan = self._load("unknown_roof_type.json")
         roof = next(c for c in plan["components"] if c.get("component_type") == "ROOF")
-        self.assertEqual("sawtooth", roof["params"]["roof_type"])
+        self.assertEqual("unsupported_fantasy_roof", roof["params"]["roof_type"])
 
     def test_conflicting_roof_height_pitch_fixture(self):
         plan = self._load("conflicting_roof_height_pitch.json")
         roof = next(c for c in plan["components"] if c.get("component_type") == "ROOF")
         self.assertEqual(3, roof["params"]["roof_height"])
         self.assertEqual(60, roof["params"]["roof_pitch_degrees"])
+
+    def test_invalid_roof_height_pitch_fixture(self):
+        plan = self._load("invalid_roof_height_pitch.json")
+        roof = next(c for c in plan["components"] if c.get("component_type") == "ROOF")
+        self.assertEqual(-3, roof["params"]["roof_height"])
+        self.assertEqual(95, roof["params"]["roof_pitch_degrees"])
+
+    def test_window_aspect_conflict_and_floor_overflow_fixtures(self):
+        conflict = self._load("window_aspect_style_conflict.json")
+        facade = next(c for c in conflict["components"] if c.get("component_type") == "FACADE_WINDOWS")
+        self.assertEqual("square", facade["params"]["window_aspect"])
+        self.assertEqual("arrow_slit", facade["params"]["window_style"])
+        overflow = self._load("floor_layout_overflow.json")
+        mass = next(c for c in overflow["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(4, mass["params"]["floor_count"])
+        self.assertEqual(3, mass["params"]["floor_height"])
+        self.assertEqual(6, mass["dimensions"]["height"])
+
+    def test_roof_type_none_fixture(self):
+        plan = self._load("roof_type_none.json")
+        mass = next(c for c in plan["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual("none", mass["params"]["roof_type"])
+        self.assertFalse(any(c.get("component_type") == "ROOF" for c in plan["components"]))
 
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
