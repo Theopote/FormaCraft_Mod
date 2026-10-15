@@ -1,5 +1,6 @@
 package com.formacraft.common.llm;
 
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.StyleAttributes;
@@ -15,6 +16,9 @@ import java.util.Set;
  * Propagates top-level {@link LlmPlan#distinguishingFeatures()} into fields the Java
  * generation pipeline already consumes ({@link StyleAttributes#decorativeElements()},
  * {@link Component#features()}).
+ * <p>
+ * Respects {@code design_sources} locks on {@code features}, {@code distinctive_features},
+ * and {@code decorative_elements}.
  */
 public final class DistinguishingFeaturesBridge {
 
@@ -38,8 +42,8 @@ public final class DistinguishingFeaturesBridge {
             return plan;
         }
 
-        StyleAttributes styleAttributes = mergeStyleAttributes(plan.styleAttributes(), distinguishing);
-        List<Component> components = enrichComponents(plan.components(), distinguishing);
+        StyleAttributes styleAttributes = mergeStyleAttributes(plan, plan.styleAttributes(), distinguishing);
+        List<Component> components = enrichComponents(plan, plan.components(), distinguishing);
 
         return new LlmPlan(
                 plan.mode(),
@@ -94,7 +98,12 @@ public final class DistinguishingFeaturesBridge {
         return slug;
     }
 
-    private static StyleAttributes mergeStyleAttributes(StyleAttributes attrs, List<String> distinguishing) {
+    private static StyleAttributes mergeStyleAttributes(
+            LlmPlan plan, StyleAttributes attrs, List<String> distinguishing) {
+        if (!DesignProvenance.canMutateParam(plan, null, "decorative_elements")) {
+            return attrs;
+        }
+
         List<String> mergedDecorative = new ArrayList<>();
         if (attrs != null && attrs.decorativeElements() != null) {
             for (String existing : attrs.decorativeElements()) {
@@ -127,7 +136,8 @@ public final class DistinguishingFeaturesBridge {
         );
     }
 
-    private static List<Component> enrichComponents(List<Component> components, List<String> distinguishing) {
+    private static List<Component> enrichComponents(
+            LlmPlan plan, List<Component> components, List<String> distinguishing) {
         if (components == null || components.isEmpty()) {
             return components;
         }
@@ -142,22 +152,25 @@ public final class DistinguishingFeaturesBridge {
                 continue;
             }
 
+            Map<String, Object> params = component.params() != null
+                    ? new HashMap<>(component.params())
+                    : new HashMap<>();
+
             List<String> features = new ArrayList<>();
             if (component.features() != null) {
                 features.addAll(component.features());
             }
-            for (String token : distinguishing) {
-                String slug = slugify(token);
-                if (!slug.isEmpty() && !featureContains(features, slug)) {
-                    features.add(slug);
+            if (DesignProvenance.canMutateParam(plan, params, "features")) {
+                for (String token : distinguishing) {
+                    String slug = slugify(token);
+                    if (!slug.isEmpty() && !featureContains(features, slug)) {
+                        features.add(slug);
+                    }
                 }
             }
 
-            Map<String, Object> params = component.params() != null
-                    ? new HashMap<>(component.params())
-                    : new HashMap<>();
             if (!params.containsKey("distinctive_features") && !distinguishing.isEmpty()) {
-                params.put("distinctive_features", List.copyOf(distinguishing));
+                DesignProvenance.putIfAllowed(plan, params, "distinctive_features", List.copyOf(distinguishing));
             }
 
             out.add(new Component(

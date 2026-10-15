@@ -82,13 +82,11 @@ public final class StyleIntentResolver {
                     "footprintPattern", "plan_pattern", "planPattern");
             String shape = getParamString(params, "shape", "footprint_shape", "footprintShape");
             if (isMissingOrDefault(planType) && shape != null && Set.of("rectangle", "rect", "box").contains(shape.toLowerCase(Locale.ROOT))) {
-                params.put("plan_type", "none");
-                changed = true;
+                changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", "none");
             } else if (isMissingOrDefault(planType)) {
                 String fallback = resolvePlanType(flavor, component.dimensions());
                 if (fallback != null) {
-                    params.put("plan_type", fallback);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", fallback);
                 }
             }
 
@@ -96,8 +94,7 @@ public final class StyleIntentResolver {
             if (windowRatio == null) {
                 Double fallback = resolveWindowRatio(flavor);
                 if (fallback != null) {
-                    params.put("window_ratio", fallback);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "window_ratio", fallback);
                 }
             }
 
@@ -105,8 +102,7 @@ public final class StyleIntentResolver {
             if (wallThickness == null) {
                 Integer fallback = resolveWallThickness(flavor);
                 if (fallback != null) {
-                    params.put("wall_thickness", fallback);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "wall_thickness", fallback);
                 }
             }
         }
@@ -127,8 +123,7 @@ public final class StyleIntentResolver {
             if (isMissingOrDefault(windowStyle)) {
                 String fallback = resolveWindowStyle(flavor);
                 if (fallback != null) {
-                    params.put("window_style", fallback);
-                    changed = true;
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "window_style", fallback);
                 }
             }
         }
@@ -136,8 +131,7 @@ public final class StyleIntentResolver {
         if (roof && flavor == StyleFlavor.HUI && !ExplicitDesignPolicy.noComplexDecor(plan, params)
                 && "yingshan".equalsIgnoreCase(getParamString(params, "roof_type", "roofType"))
                 && !params.containsKey("horse_head_walls") && !params.containsKey("horseHeadWalls")) {
-            params.put("horse_head_walls", true);
-            changed = true;
+            changed |= DesignProvenance.putIfAllowed(plan, params, "horse_head_walls", true);
         }
         if (!ExplicitDesignPolicy.noComplexDecor(plan, params)) changed |= appendStyleFeatures(flavor, features);
 

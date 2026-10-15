@@ -34,7 +34,7 @@ Shared enum: [GenerationCapability.java](../../src/main/java/com/formacraft/comm
 
 ### `design_sources`
 
-Map of param name → source enum:
+Map of param name → source enum (plan-level and/or `components[].params.design_sources`):
 
 - `USER_EXPLICIT` — must not be silently changed
 - `AI_PLANNED` — must not be silently changed
@@ -42,6 +42,8 @@ Map of param name → source enum:
 - `TECHNICAL_DEFAULT` — deterministic defaults OK
 
 Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/common/generation/design/DesignParamSource.java) and [DesignProvenance.java](../../src/main/java/com/formacraft/common/generation/design/DesignProvenance.java).
+
+**Roof rise:** prefer `params.roof_height` or `params.roof_pitch_degrees` via [RoofPitchGeometry](../../src/main/java/com/formacraft/common/generation/component/util/RoofPitchGeometry.java). Technical `span/3` capped at 8 applies only when neither is set.
 
 ## BuildingSpec mapping (legacy adapter)
 

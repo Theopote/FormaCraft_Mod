@@ -1,0 +1,36 @@
+{
+  "mode": "build",
+  "style_profile": "GOTHIC",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": { "allow_compiler_satellites": false },
+  "design_sources": {
+    "roof_type": "AI_PLANNED",
+    "roof_pitch_degrees": "AI_PLANNED"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "nave",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 30, "depth": 20, "height": 16 },
+      "features": [],
+      "params": {
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "nave",
+      "relative_position": { "x": 0, "y": 15, "z": 0 },
+      "dimensions": { "width": 30, "depth": 20, "height": 2 },
+      "features": [],
+      "params": {
+        "roof_type": "gable",
+        "roof_pitch_degrees": 58,
+        "host_id": "nave"
+      }
+    }
+  ]
+}

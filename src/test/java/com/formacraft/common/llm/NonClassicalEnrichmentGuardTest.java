@@ -144,6 +144,50 @@ class NonClassicalEnrichmentGuardTest {
         assertFalse(ComponentCrownDecorator.shouldApply(sanitized, mass.params()));
     }
 
+    @Test
+    void sanitizeDoesNotOverwriteAiPlannedRoofType() {
+        Map<String, Object> massParams = new HashMap<>();
+        massParams.put("facade_profile", "vertical_pilasters");
+        massParams.put("roof_type", "mansard");
+        massParams.put("design_sources", Map.of("roof_type", "AI_PLANNED", "facade_profile", "USER_EXPLICIT"));
+
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Modern_Expressionist")
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of(
+                        new Component(
+                                "MASS_MAIN",
+                                null,
+                                new Vec3i(0, 2, 0),
+                                new Dimensions(20, 16, 10),
+                                List.of("pilasters"),
+                                massParams
+                        ),
+                        new Component(
+                                "CROWN",
+                                null,
+                                new Vec3i(0, 12, 0),
+                                new Dimensions(6, 6, 4),
+                                List.of("crown"),
+                                Map.of(
+                                        "crown_template", "CLASSICAL_CUPOLA",
+                                        "design_sources", Map.of("crown_template", "AI_PLANNED"))
+                        )
+                ))
+                .enrichmentGuard("non_classical_marker:zaha")
+                .build();
+
+        LlmPlan sanitized = NonClassicalEnrichmentGuard.sanitize(plan);
+        Component mass = sanitized.components().stream()
+                .filter(c -> "MASS_MAIN".equals(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("mansard", mass.params().get("roof_type"));
+        assertEquals("vertical_pilasters", mass.params().get("facade_profile"));
+        assertTrue(sanitized.components().stream().anyMatch(c -> "CROWN".equals(c.componentType())));
+    }
+
     private static LlmPlan planWithGuard(String guard) {
         return LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)

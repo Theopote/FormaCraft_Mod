@@ -1829,18 +1829,25 @@ public final class ComponentPlanCompiler {
                 rp = new Vec3i(rp.x()+top.xOffset,rp.y(),rp.z()+top.zOffset);
             }
         }
-        int span = Math.min(width, depth);
-        int roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
-
         Map<String, Object> params = new HashMap<>();
         if (base.params() != null) {
             params.putAll(base.params());
         }
+        int roofHeight = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
+                width, depth, 0, params);
         String roofType = getParamString(params, "roof_type", "roofType");
         if (roofType == null || roofType.isBlank()) {
             roofType = resolveDefaultRoofType(plan, base);
+            if (roofType != null) {
+                com.formacraft.common.generation.design.DesignProvenance.putIfAllowed(
+                        plan, params, "roof_type", roofType);
+                roofType = getParamString(params, "roof_type", "roofType");
+                if (roofType == null || roofType.isBlank()) {
+                    roofType = "gable";
+                    params.put("roof_type", roofType);
+                }
+            }
         }
-        params.put("roof_type", roofType);
         if (params.get("component_id") != null) params.putIfAbsent("host_id", params.get("component_id"));
         bindDerived(params, base, "roof");
         // The inferred height lives in Dimensions. Do not inject a duplicate
@@ -1923,7 +1930,7 @@ public final class ComponentPlanCompiler {
             if (derived != null) {
                 roofParams.putAll(derived.params());
             }
-            if (roof.params() != null) roofParams.putAll(roof.params());
+            roofParams.putAll(roof.params());
             roofParams.remove("masses");
             roofParams.put("anchor_mode", "min_corner");
             copyFootprintParams(params, roofParams);
@@ -2157,7 +2164,10 @@ public final class ComponentPlanCompiler {
                 } catch (NumberFormatException ignored) { }
             }
         }
-        Component bound = findBoundSatellite(mass, primary, inferred, wantedType);
+        Component bound = null;
+        if (mass != null) {
+            bound = findBoundSatellite(mass, primary, inferred, wantedType);
+        }
         if (bound == null) return merged;
         merged = merged.merge(OpeningDelegation.fromSatelliteParams(bound.params(), floorHint));
         var all = new ArrayList<Component>(primary);
@@ -2168,7 +2178,7 @@ public final class ComponentPlanCompiler {
             if (!wantedType.equals(normalizeType(s.componentType()))) continue;
             if (!slotKey(s).equals(slotKey(mass))) continue;
             Object host = s.params() == null ? null : s.params().get("host_id");
-            if (host != null && identity != null && host.equals(identity)) {
+            if (host != null && host.equals(identity)) {
                 merged = merged.merge(OpeningDelegation.fromSatelliteParams(s.params(), floorHint));
             }
         }

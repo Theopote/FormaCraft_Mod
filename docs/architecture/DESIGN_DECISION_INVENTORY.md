@@ -10,17 +10,22 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `ComponentPlanCompiler.java` ~976–984 | MASS without ENTRANCE | entrance_type, door width | DESIGN_INFER | Same |
 | `ComponentPlanCompiler.java` ~1001–1008 | MASS without ROOF | roof_type, roof height (dims) | DESIGN_INFER | Same; height cap `span/3` max 8 at ~1800–1801 |
 | `ComponentPlanCompiler.java` ~1014–1027 | MASS without CROWN | crown_type | DESIGN_INFER | Same + `ComponentCrownDecorator` |
-| `ComponentPlanCompiler.java` `makeRoofComponent` | missing roof_type | roof_type default | DESIGN_INFER | LLM must specify or replan |
-| `ComponentPlanCompiler.java` `resolveDefaultRoofType` | style/heuristic | roof_type | DESIGN_ENRICH | Source-aware StyleIntentResolver |
+| `ComponentPlanCompiler.java` `makeRoofComponent` | missing roof_type / height | roof_type default; height via `RoofPitchGeometry` | DESIGN_INFER | **Wired:** explicit `roof_height` / `roof_pitch_degrees` preferred; no silent cap 8 when pitch set |
+| `ComponentPlanCompiler.java` `resolveDefaultRoofType` | style/heuristic | roof_type | DESIGN_ENRICH | Source-aware `putIfAllowed` |
+| `RoofGenerator.java` | rise resolution | height from pitch/height params | GEOMETRY | **Wired:** `RoofPitchGeometry.resolveRise` (pitch 58° on span 30 → rise 24, not 8) |
+| `HouseGenerator` / `HouseRoofGenerator` | whole-building roof | hardcoded rise caps | AUTHORITY_SUBSTITUTE | Template path only; do not use for AI-planned pitch — prefer LlmPlan ROOF |
 
 ## Style / grammar enrichers (Java)
 
 | Class | Params touched | Tag | Migration |
 |-------|----------------|-----|-----------|
-| `StyleIntentResolver` | plan_type, roof_type, features | DESIGN_ENRICH | **Wired:** `DesignProvenance.canMutateParam` for plan_type / roof_type |
+| `StyleIntentResolver` | plan_type, roof_type, window_ratio, window_style, horse_head | DESIGN_ENRICH | **Wired:** all enrich writes via `putIfAllowed` |
 | `RoofGrammarResolver` | roof_type, specialty, dormers | DESIGN_ENRICH | **Wired:** `putIfAllowed` / locked sources |
 | `OpeningGrammarResolver` | window_aspect, window_ratio, void_ratio, rhythm | DESIGN_ENRICH | **Wired:** `putIfAllowed` / locked sources |
 | `CrownGrammarResolver` | crown_template, profile | DESIGN_ENRICH | **Wired:** `putIfAllowed` / locked sources |
+| Typology interpreters | builder-local geometry params | GEOMETRY / TEMPLATE | Explicit typology hint only; not a parallel design planner |
+| `DistinguishingFeaturesBridge` | features, distinctive_features, decorative_elements | DESIGN_ENRICH | **Wired:** skips append when sources locked |
+| `NonClassicalEnrichmentGuard` | strips classical roof/facade/crown | DESIGN_ENRICH | **Wired:** `putIfAllowed` / `removeIfAllowed`; keeps locked CROWN |
 
 ## Structure routing substitutes (Java)
 
@@ -60,5 +65,9 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | Item | Test |
 |------|------|
 | MASS-only no satellites | `DesignFidelityTest.massOnlyWithoutSatellitesFails` |
-| Unmatched BuildingType | `GenerationCapabilityResolverTest.unmatchedTypeNeedsReplan` |
-| Assembly prompt soft rule | `PromptRoutingAuthorityTest` + Java `PromptAssemblerAssemblyTest` |
+| OMITTED design requirements | `CompilerSatellitePolicyTest` |
+| Pipeline sub-decision | `ComponentPipelineRouteResolverTest` |
+| Steep roof pitch fidelity | `RoofPitchGeometryTest`, `RoofGeneratorPitchFidelityTest`, fixture `plans/fidelity/gothic_steep_roof.json` |
+| Grammar provenance | `DesignProvenanceGrammarTest` |
+| Unmatched BuildingType | `GeneratorRouterCapabilityTest` |
+| Assembly prompt soft rule | `AssemblyIntentSectionsTest` |

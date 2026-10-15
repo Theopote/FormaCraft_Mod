@@ -14,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DistinguishingFeaturesBridgeTest {
@@ -52,6 +53,30 @@ class DistinguishingFeaturesBridgeTest {
         assertTrue(mass.features().contains("white_sail_shells"));
         assertTrue(mass.features().contains("shell_roof"));
         assertEquals(List.of("white sail shells", "shell roof"), mass.params().get("distinctive_features"));
+    }
+
+    @Test
+    void enrichSkipsFeatureAppendWhenFeaturesAreAiPlanned() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Modern_Expressionist")
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of(new Component(
+                        "MASS_MAIN",
+                        null,
+                        new Vec3i(0, 0, 0),
+                        new Dimensions(20, 14, 10),
+                        List.of("existing_feature"),
+                        Map.of("design_sources", Map.of("features", "AI_PLANNED"))
+                )))
+                .distinguishingFeatures(List.of("white sail shells"))
+                .designSources(Map.of("decorative_elements", "AI_PLANNED"))
+                .build();
+
+        LlmPlan enriched = DistinguishingFeaturesBridge.enrich(plan);
+        Component mass = enriched.components().get(0);
+        assertEquals(List.of("existing_feature"), mass.features());
+        assertNull(enriched.styleAttributes());
     }
 
     @Test

@@ -1,6 +1,9 @@
 package com.formacraft.common.llm;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.design.DesignProvenance;
+import com.formacraft.common.generation.design.DesignRequirement;
+import com.formacraft.common.generation.design.DesignRequirementAccess;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -68,8 +71,8 @@ public final class NonClassicalEnrichmentGuard {
             return plan;
         }
 
-        Map<String, Object> proportionHints = sanitizeProportionHints(plan.proportionHints());
-        List<Component> components = sanitizeComponents(plan.components());
+        Map<String, Object> proportionHints = sanitizeProportionHints(plan, plan.proportionHints());
+        List<Component> components = sanitizeComponents(plan, plan.components());
         int strippedCrowns = countRemovedCrowns(plan.components(), components);
 
         if (strippedCrowns > 0 || proportionHints != plan.proportionHints() || components != plan.components()) {
@@ -114,22 +117,20 @@ public final class NonClassicalEnrichmentGuard {
         return Math.max(0, before.size() - after.size());
     }
 
-    private static Map<String, Object> sanitizeProportionHints(Map<String, Object> hints) {
+    private static Map<String, Object> sanitizeProportionHints(LlmPlan plan, Map<String, Object> hints) {
         if (hints == null || hints.isEmpty()) {
             return hints;
         }
         Map<String, Object> out = new HashMap<>(hints);
         Object typology = out.get("typology");
         if (typology != null && isClassicalTypology(String.valueOf(typology))) {
-            out.remove("typology");
+            DesignProvenance.removeIfAllowed(plan, out, "typology");
         }
-        out.put("crown_assembly", false);
-        out.remove("crown_template");
-        out.remove("crownTemplate");
+        DesignProvenance.putIfAllowed(plan, out, "crown_assembly", false);
+        DesignProvenance.removeIfAllowed(plan, out, "crown_template", "crownTemplate");
         Object roofSpecialty = out.get("roof_specialty");
         if (roofSpecialty != null && String.valueOf(roofSpecialty).toLowerCase(Locale.ROOT).contains("mansard")) {
-            out.remove("roof_specialty");
-            out.remove("roof_dormers");
+            DesignProvenance.removeIfAllowed(plan, out, "roof_specialty", "roof_dormers");
         }
         return out;
     }
@@ -144,10 +145,14 @@ public final class NonClassicalEnrichmentGuard {
         return false;
     }
 
-    private static List<Component> sanitizeComponents(List<Component> components) {
+    private static List<Component> sanitizeComponents(LlmPlan plan, List<Component> components) {
         if (components == null || components.isEmpty()) {
             return components;
         }
+        boolean keepExplicitCrowns = DesignRequirementAccess.crown(plan, null, true) == DesignRequirement.REQUIRED
+                || !DesignProvenance.canMutateParam(plan, null, "crown_template")
+                || !DesignProvenance.canMutateParam(plan, null, "crown_type");
+
         List<Component> out = new ArrayList<>(components.size());
         for (Component component : components) {
             if (component == null) {
@@ -155,6 +160,13 @@ public final class NonClassicalEnrichmentGuard {
             }
             String type = normalizeType(component.componentType());
             if (CROWN_COMPONENT_TYPES.contains(type)) {
+                Map<String, Object> crownParams = component.params();
+                boolean lockedCrown = keepExplicitCrowns
+                        || !DesignProvenance.canMutateParam(plan, crownParams, "crown_template")
+                        || !DesignProvenance.canMutateParam(plan, crownParams, "crown_type");
+                if (lockedCrown) {
+                    out.add(component);
+                }
                 continue;
             }
             Map<String, Object> params = component.params() != null
@@ -165,15 +177,19 @@ public final class NonClassicalEnrichmentGuard {
                     : new ArrayList<>();
 
             if (isMassType(type)) {
-                stripClassicalMassParams(params);
-                stripClassicalFeatures(features);
+                stripClassicalMassParams(plan, params);
+                if (DesignProvenance.canMutateParam(plan, params, "features")) {
+                    stripClassicalFeatures(features);
+                }
             } else if ("ROOF".equals(type) || "ROOF_STRUCTURE".equals(type)) {
-                stripClassicalRoofParams(params);
+                stripClassicalRoofParams(plan, params);
             } else if ("DECOR_DETAIL".equals(type)) {
-                stripClassicalFeatures(features);
-                stripClassicalDecorParams(params);
+                if (DesignProvenance.canMutateParam(plan, params, "features")) {
+                    stripClassicalFeatures(features);
+                }
+                stripClassicalDecorParams(plan, params);
             } else if ("FACADE_WINDOWS".equals(type)) {
-                stripClassicalFacadeParams(params);
+                stripClassicalFacadeParams(plan, params);
             }
 
             out.add(new Component(
@@ -188,19 +204,19 @@ public final class NonClassicalEnrichmentGuard {
         return out;
     }
 
-    private static void stripClassicalMassParams(Map<String, Object> params) {
+    private static void stripClassicalMassParams(LlmPlan plan, Map<String, Object> params) {
         String facade = paramString(params, "facade_profile", "facadeProfile");
         if (facade != null && isClassicalFacade(facade)) {
-            params.put("facade_profile", "none");
+            DesignProvenance.putIfAllowed(plan, params, "facade_profile", "none");
         }
-        params.remove("floor_cornice");
+        DesignProvenance.removeIfAllowed(plan, params, "floor_cornice");
         String roofType = paramString(params, "roof_type", "roofType");
         if (roofType != null && roofType.toLowerCase(Locale.ROOT).contains("mansard")) {
-            params.put("roof_type", "flat");
+            DesignProvenance.putIfAllowed(plan, params, "roof_type", "flat");
         }
     }
 
-    private static void stripClassicalRoofParams(Map<String, Object> params) {
+    private static void stripClassicalRoofParams(LlmPlan plan, Map<String, Object> params) {
         if (hasRevolvedSurface(params)) {
             return;
         }
@@ -208,18 +224,17 @@ public final class NonClassicalEnrichmentGuard {
         if (roofType != null) {
             String lower = roofType.toLowerCase(Locale.ROOT);
             if (lower.contains("mansard")) {
-                params.put("roof_type", "hip");
+                DesignProvenance.putIfAllowed(plan, params, "roof_type", "hip");
             } else if (lower.contains("gable") || lower.contains("hip")) {
-                params.put("roof_type", "flat");
+                DesignProvenance.putIfAllowed(plan, params, "roof_type", "flat");
             }
         }
         String template = paramString(params, "crown_template", "crownTemplate");
         if (template != null && isClassicalCrownTemplate(template)) {
-            params.remove("crown_template");
-            params.remove("crownTemplate");
+            DesignProvenance.removeIfAllowed(plan, params, "crown_template", "crownTemplate");
         }
-        params.remove("roof_dormers");
-        params.remove("roof_specialty");
+        DesignProvenance.removeIfAllowed(plan, params, "roof_dormers");
+        DesignProvenance.removeIfAllowed(plan, params, "roof_specialty");
     }
 
     private static boolean inferNonClassicalFromPlan(LlmPlan plan) {
@@ -285,25 +300,24 @@ public final class NonClassicalEnrichmentGuard {
         return sb.toString().toLowerCase(Locale.ROOT);
     }
 
-    private static void stripClassicalFacadeParams(Map<String, Object> params) {
+    private static void stripClassicalFacadeParams(LlmPlan plan, Map<String, Object> params) {
         String rhythm = paramString(params, "rhythm_preset", "rhythmPreset");
         if (rhythm != null && rhythm.toUpperCase(Locale.ROOT).contains("PILASTER")) {
-            params.remove("rhythm_preset");
-            params.remove("rhythmPreset");
+            DesignProvenance.removeIfAllowed(plan, params, "rhythm_preset", "rhythmPreset");
         }
         Object pattern = params.get("repeating_pattern");
         if (pattern instanceof Map<?, ?> repeating) {
             Object elements = repeating.get("elements");
             if (elements instanceof List<?> list && containsPillarElement(list)) {
-                params.remove("repeating_pattern");
+                DesignProvenance.removeIfAllowed(plan, params, "repeating_pattern");
             }
         }
     }
 
-    private static void stripClassicalDecorParams(Map<String, Object> params) {
+    private static void stripClassicalDecorParams(LlmPlan plan, Map<String, Object> params) {
         String cutout = paramString(params, "facade_cutout", "facadeCutout");
         if (cutout != null && !"none".equalsIgnoreCase(cutout)) {
-            params.put("facade_cutout", "none");
+            DesignProvenance.putIfAllowed(plan, params, "facade_cutout", "none");
         }
     }
 
