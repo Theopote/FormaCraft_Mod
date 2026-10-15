@@ -34,6 +34,14 @@ class RoofDesignValidatorTest {
     }
 
     @Test
+    void rejectsInvalidRoofHeightAndPitch() throws Exception {
+        var plan = LlmPlanParser.parseAndValidate(loadFixture("invalid_roof_height_pitch.json"));
+        var gap = RoofDesignValidator.check(plan, plan.components());
+        assertTrue(gap.isPresent());
+        assertEquals("E_ROOF_GEOMETRY_INVALID", gap.get().code());
+    }
+
+    @Test
     void acceptsKnownRoofType() {
         Component roof = new Component(
                 "ROOF",

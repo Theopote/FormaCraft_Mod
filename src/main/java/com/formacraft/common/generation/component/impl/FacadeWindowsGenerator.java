@@ -64,18 +64,23 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         if (windowStyle == null && isLattice) {
             windowStyle = "lattice";
         }
-        WindowAspect windowAspect = WindowAspect.parse(
-                getParamString(params, "window_aspect", "windowAspect"));
-        if (windowAspect == WindowAspect.SQUARE && "arrow_slit".equalsIgnoreCase(windowStyle)) {
-            windowAspect = WindowAspect.ARROW_SLIT;
-        }
-        if (windowAspect == WindowAspect.SQUARE && isLarge) {
-            windowAspect = WindowAspect.PUNCH_WINDOW;
+        String aspectRaw = getParamString(params, "window_aspect", "windowAspect");
+        boolean aspectExplicit = aspectRaw != null;
+        WindowAspect windowAspect = WindowAspect.parseOrNull(aspectRaw).orElse(WindowAspect.SQUARE);
+        // Feature/style inference only when aspect was not explicitly planned.
+        if (!aspectExplicit) {
+            if (windowAspect == WindowAspect.SQUARE && "arrow_slit".equalsIgnoreCase(windowStyle)) {
+                windowAspect = WindowAspect.ARROW_SLIT;
+            }
+            if (windowAspect == WindowAspect.SQUARE && isLarge) {
+                windowAspect = WindowAspect.PUNCH_WINDOW;
+            }
         }
         int floorHeight = ComponentParamParsers.intParam(params, "floor_height", "floorHeight");
         int floorCount = ComponentParamParsers.intParam(params, "floor_count", "floorCount");
+        // Do not silently raise storey height above envelope/floor_count (no Math.max(3, ...)).
         if (floorHeight <= 0 && floorCount > 0) {
-            floorHeight = Math.max(3, height / floorCount);
+            floorHeight = Math.max(1, height / floorCount);
         }
         if (floorHeight <= 0) {
             floorHeight = 3;

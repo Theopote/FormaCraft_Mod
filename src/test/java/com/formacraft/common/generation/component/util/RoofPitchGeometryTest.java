@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoofPitchGeometryTest {
@@ -18,10 +19,17 @@ class RoofPitchGeometryTest {
     }
 
     @Test
-    void explicitRoofHeightWinsOverPitch() {
+    void explicitRoofHeightWinsWhenConsistentWithPitch() {
+        // pitch 38° on span 30 → rise ≈ 12; within ±1 of roof_height=12
         int rise = RoofPitchGeometry.resolveRise(30, 30, 0, Map.of(
-                "roof_pitch_degrees", 58,
+                "roof_pitch_degrees", 38.7,
                 "roof_height", 12));
+        assertEquals(12, rise);
+    }
+
+    @Test
+    void explicitRoofHeightAloneWins() {
+        int rise = RoofPitchGeometry.resolveRise(30, 30, 0, Map.of("roof_height", 12));
         assertEquals(12, rise);
     }
 
@@ -29,5 +37,25 @@ class RoofPitchGeometryTest {
     void technicalDefaultStillCapsAtEight() {
         int rise = RoofPitchGeometry.resolveRise(30, 30, 0, Map.of());
         assertEquals(8, rise);
+    }
+
+    @Test
+    void invalidNegativeHeightRejected() {
+        var err = RoofPitchGeometry.validateRoofGeometryParams(20, 20, Map.of(
+                "roof_height", -3,
+                "roof_pitch_degrees", 95));
+        assertTrue(err.isPresent());
+        assertTrue(err.get().contains("roof_height") || err.get().contains("roof_pitch"));
+        assertThrows(IllegalArgumentException.class,
+                () -> RoofPitchGeometry.resolveRise(20, 20, 0, Map.of("roof_height", -3)));
+    }
+
+    @Test
+    void conflictingHeightAndPitchRejected() {
+        var err = RoofPitchGeometry.validateRoofGeometryParams(20, 20, Map.of(
+                "roof_height", 3,
+                "roof_pitch_degrees", 60));
+        assertTrue(err.isPresent());
+        assertTrue(err.get().contains("conflicts"));
     }
 }

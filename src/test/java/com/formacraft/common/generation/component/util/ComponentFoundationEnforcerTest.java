@@ -49,7 +49,7 @@ class ComponentFoundationEnforcerTest {
         List<Component> components = new ArrayList<>(List.of(foundation, mass));
         assertEquals(1, ComponentFoundationEnforcer.apply(components, 2));
 
-        Component expanded = components.get(0);
+        Component expanded = components.getFirst();
         ComponentFootprintUtil.Bounds found = ComponentFootprintUtil.bounds(expanded);
         ComponentFootprintUtil.Bounds massBounds = ComponentFootprintUtil.bounds(mass);
 
@@ -84,7 +84,7 @@ class ComponentFoundationEnforcerTest {
         List<Component> components = new ArrayList<>(List.of(foundation, mass));
         ComponentFoundationEnforcer.apply(components, 2);
 
-        ComponentFootprintUtil.Bounds found = ComponentFootprintUtil.bounds(components.get(0));
+        ComponentFootprintUtil.Bounds found = ComponentFootprintUtil.bounds(components.getFirst());
         ComponentFootprintUtil.Bounds massBounds = ComponentFootprintUtil.bounds(mass);
 
         assertTrue(found.contains(massBounds.expandHorizontal(2)));

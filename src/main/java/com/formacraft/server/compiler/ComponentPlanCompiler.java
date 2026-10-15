@@ -161,6 +161,12 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
+        var authoredRoofIssue = RoofDesignValidator.check(plan,
+                plan.components() == null ? List.of() : plan.components());
+        if (authoredRoofIssue.isPresent()) {
+            AssemblyCompileDiagnostics.set(authoredRoofIssue.get());
+            return List.of();
+        }
         var authoredConflict = ExplicitDesignConflictValidator.check(plan,
                 plan.components() == null ? List.of() : plan.components());
         if (authoredConflict.isPresent()) {
@@ -192,6 +198,11 @@ public final class ComponentPlanCompiler {
         var roofDesignConflict = RoofDesignValidator.check(plan, components);
         if (roofDesignConflict.isPresent()) {
             AssemblyCompileDiagnostics.set(roofDesignConflict.get());
+            return List.of();
+        }
+        var facadeDesignConflict = FacadeDesignValidator.check(plan, components);
+        if (facadeDesignConflict.isPresent()) {
+            AssemblyCompileDiagnostics.set(facadeDesignConflict.get());
             return List.of();
         }
         var designConflict = ExplicitDesignConflictValidator.check(plan, components);
@@ -827,6 +838,8 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_ENTRANCE_DOOR_WIDTH")) return "E_ENTRANCE_DOOR_WIDTH";
         if (message.startsWith("E_WINDOW_COUNT_UNFIT")) return "E_WINDOW_COUNT_UNFIT";
         if (message.startsWith("E_FACADE_SCOPE_INVALID")) return "E_FACADE_SCOPE_INVALID";
+        if (message.startsWith("E_ROOF_GEOMETRY_INVALID")) return "E_ROOF_GEOMETRY_INVALID";
+        if (message.startsWith("E_ROOF_GEOMETRY_CONFLICT")) return "E_ROOF_GEOMETRY_CONFLICT";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 

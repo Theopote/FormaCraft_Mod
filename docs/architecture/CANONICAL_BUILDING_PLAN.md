@@ -70,12 +70,36 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 **Roof geometry:**
 
 - `components[].dimensions.height` = component bounding box height (not ridge rise).
-- `params.roof_height` / `params.roof_pitch_degrees` = explicit roof rise design params ([RoofPitchGeometry](../../src/main/java/com/formacraft/common/generation/component/util/RoofPitchGeometry.java)). When both are set they must agree within ±1 block or compile fails with `E_ROOF_GEOMETRY_CONFLICT`.
+- `params.roof_height` / `params.roof_pitch_degrees` = explicit roof rise design params ([RoofPitchGeometry](../../src/main/java/com/formacraft/common/generation/component/util/RoofPitchGeometry.java)). Invalid explicit values (height ≤ 0, pitch ∉ (0, 89), non-numeric) → `E_ROOF_GEOMETRY_INVALID`. When both are set they must agree within ±1 block or compile fails with `E_ROOF_GEOMETRY_CONFLICT`. Generators must not fall back to technical defaults for invalid explicit params.
 - Technical `span/3` capped at 8 applies only when neither rise param is set.
+- `roof_type=none` is an explicit opt-out ([ExplicitDesignPolicy](../../src/main/java/com/formacraft/common/style/ExplicitDesignPolicy.java)): no roof geometry; hosted ROOF contradicting the host opt-out → `E_EXPLICIT_DESIGN_CONFLICT`.
 
 **Supported `roof_type` tokens** (explicit values only; unknown explicit values → `E_ROOF_TYPE_UNSUPPORTED`, not silent flat):
 
 `flat`, `gable`, `hip`, `double_gable`, `xieshan`, `xuanshan`, `pyramid`, `cone`, `dome`, `mansard`, `none` (omit roof). Omitted `roof_type` may derive from style/genome defaults via [RoofTypeCatalog](../../src/main/java/com/formacraft/common/generation/component/util/RoofTypeCatalog.java).
+
+**Facade / openings:**
+
+- Explicit `window_aspect` must not be overridden by features (`large` → punch) or style inference (`arrow_slit`). Incompatible explicit `window_aspect` + `window_style` → `E_WINDOW_ASPECT_CONFLICT` ([FacadeDesignValidator](../../src/main/java/com/formacraft/server/compiler/FacadeDesignValidator.java)).
+- Feature-based aspect inference applies only when `window_aspect` is omitted.
+
+**Floor layout:**
+
+- Authority for storey spacing is [ResolvedComponentGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedComponentGeometry.java) (`floor_height`, `floor_count`, `floorYs`, `floorLayoutFits`).
+- Generators must not silently raise computed storey height with `Math.max(3, height/floorCount)` when the envelope is short. Explicit `floor_count` × `floor_height` exceeding envelope height → `E_FLOOR_LAYOUT_OVERFLOW`.
+
+**MassMain fidelity notes (Round-7 audit):**
+
+| Param / behavior | Preserved? | Notes |
+|------------------|------------|-------|
+| `dimensions` | yes | envelope respected; plate mode separate |
+| `roof_type=none` | yes | clears mass-embedded roof |
+| `window_style=none` / `suppress_windows` | yes | blocks default window fill |
+| `entrance_type=none` | yes | blocks default door fill |
+| explicit `void_ratio` | yes (R7) | size heuristic must not re-hollow/solid override when ratio is set |
+| `floor_count` / `floor_height` | partial | shared geometry resolve exists; facade no longer raises min storey; overflow gated |
+| setbacks / `ResolvedFacadeLayers` | mostly | still style-influenced when params omit layers |
+| default doors/windows without features | technical | only when not explicitly disabled |
 
 **Parse boundary:** both [`LlmPlanParser.parse`](../../src/main/java/com/formacraft/common/llm/parser/LlmPlanParser.java) and `parseAndValidate` reject invalid `generation_authority`; [`ComponentPlanCompiler`](../../src/main/java/com/formacraft/server/compiler/ComponentPlanCompiler.java) also rejects via `E_INVALID_GENERATION_AUTHORITY` if a plan bypasses parse.
 

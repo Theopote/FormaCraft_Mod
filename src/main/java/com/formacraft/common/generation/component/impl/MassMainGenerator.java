@@ -179,7 +179,8 @@ public class MassMainGenerator implements ComponentGenerator {
         // Occupied storeys require rooms; low facade void ratio is not an instruction to fill rooms.
         if (ComponentParamParsers.intParam(params, "floor_count", "floorCount") > 0
                 && !Boolean.FALSE.equals(params == null ? null : params.get("hollow"))) hasInterior = true;
-        if (!hasInterior && isBuilding && width >= 5 && depth >= 5 && height >= 4) {
+        // Explicit void_ratio must not be overridden by size heuristics (solid mass when ratio < 0.08).
+        if (!hasInterior && voidRatio == null && isBuilding && width >= 5 && depth >= 5 && height >= 4) {
             // 对于足够大的建筑，默认应该有内部空间
             hasInterior = true;
             FormacraftMod.LOGGER.info("MassMainGenerator: enabling default interior space for building {}x{}x{} (program: {})", 

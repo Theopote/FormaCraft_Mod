@@ -55,8 +55,12 @@ public class RoofGenerator implements ComponentGenerator {
 
         RoofTypeKind roofType = resolveRoofType(c, semantic, params);
         // Prefer explicit roof_height / roof_pitch_degrees over span/3 technical default (cap 8).
-        height = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
-                width, depth, d.height(), params);
+        try {
+            height = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
+                    width, depth, d.height(), params);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: " + e.getMessage(), e);
+        }
 
         int overhang = ComponentParamParsers.intParam(params, ComponentParamParsers.keysFor("overhang"));
         if (roofType == RoofTypeKind.XUANSHAN && overhang <= 0) {

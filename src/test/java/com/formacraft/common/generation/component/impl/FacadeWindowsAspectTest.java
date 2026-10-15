@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FacadeWindowsAspectTest {
@@ -43,16 +44,57 @@ class FacadeWindowsAspectTest {
         assertTrue(slit.size() < square.size());
     }
 
+    @Test
+    void explicitSquare_notOverriddenByLargeFeature() {
+        List<BlockPatch> explicitSquare = generateWithAspectAndFeatures(
+                "square", List.of("large", "wide"), 20, 10, 1, 6);
+        List<BlockPatch> inferredPunch = generateWithAspectAndFeatures(
+                null, List.of("large", "wide"), 20, 10, 1, 6);
+        assertTrue(explicitSquare.size() > 0);
+        assertTrue(inferredPunch.size() > 0);
+        // Punch uses a narrower mid-band; explicit square must not collapse to that geometry.
+        assertTrue(explicitSquare.size() != inferredPunch.size()
+                        || !sameYSpan(explicitSquare, inferredPunch),
+                "explicit square must not become punch_window via large feature");
+    }
+
+    @Test
+    void omittedAspect_largeFeatureInfersPunch() {
+        List<BlockPatch> withLarge = generateWithAspectAndFeatures(
+                null, List.of("large"), 20, 10, 1);
+        List<BlockPatch> punch = generateWithAspect("punch_window", 20, 10, 1);
+        assertEquals(punch.size(), withLarge.size());
+    }
+
+    private static boolean sameYSpan(List<BlockPatch> a, List<BlockPatch> b) {
+        var ya = a.stream().map(BlockPatch::dy).collect(java.util.stream.Collectors.toSet());
+        var yb = b.stream().map(BlockPatch::dy).collect(java.util.stream.Collectors.toSet());
+        return ya.equals(yb);
+    }
+
     private static List<BlockPatch> generateWithAspect(String aspect, int width, int height, int depth) {
+        return generateWithAspectAndFeatures(aspect, List.of(), width, height, depth);
+    }
+
+    private static List<BlockPatch> generateWithAspectAndFeatures(
+            String aspect, List<String> features, int width, int height, int depth) {
+        return generateWithAspectAndFeatures(aspect, features, width, height, depth, 0);
+    }
+
+    private static List<BlockPatch> generateWithAspectAndFeatures(
+            String aspect, List<String> features, int width, int height, int depth, int floorHeight) {
         Map<String, Object> params = new HashMap<>();
-        params.put("window_aspect", aspect);
+        if (floorHeight > 0) params.put("floor_height", floorHeight);
+        if (aspect != null) {
+            params.put("window_aspect", aspect);
+        }
         params.put("window_ratio", 0.15);
         Component c = new Component(
                 "FACADE_WINDOWS",
                 "",
                 new Vec3i(0, 0, 0),
                 new Dimensions(width, depth, height),
-                List.of(),
+                features,
                 params
         );
         Slot slot = new Slot("", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);

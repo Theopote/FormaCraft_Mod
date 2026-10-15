@@ -159,6 +159,65 @@ class DesignFidelityTest {
     }
 
     @Test
+    void invalidRoofHeightAndPitchFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("invalid_roof_height_pitch.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_ROOF_GEOMETRY_INVALID", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void windowAspectStyleConflictFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("window_aspect_style_conflict.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_WINDOW_ASPECT_CONFLICT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void floorLayoutOverflowFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("floor_layout_overflow.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_FLOOR_LAYOUT_OVERFLOW", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void roofTypeNoneProducesNoRoofRise() throws Exception {
+        LlmPlan plan = loadFidelityPlan("roof_type_none.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        int massHeight = plan.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow()
+                .dimensions()
+                .height();
+        int maxY = patches.stream().mapToInt(BlockPatch::dy).max().orElse(-1);
+        assertTrue(maxY < massHeight,
+                "roof_type=none must not emit blocks above mass envelope, maxY=" + maxY);
+    }
+
+    @Test
+    void explicitSquareAspectSurvivesLargeFeatureCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("explicit_square_window_large.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        var blocks = PatchTestSnapshot.blocks(patches);
+        long glass = blocks.values().stream()
+                .filter(id -> id != null && id.toLowerCase().contains("glass"))
+                .count();
+        assertTrue(glass > 0, "explicit square facade must still produce glazing");
+    }
+
+    @Test
     void gothicSteepRoofFixtureCompilesWithPitchAboveTechnicalCap() throws Exception {
         LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
 

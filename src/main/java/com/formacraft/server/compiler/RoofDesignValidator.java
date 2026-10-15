@@ -41,14 +41,18 @@ final class RoofDesignValidator {
             }
             Dimensions dimensions = component.dimensions();
             if (dimensions != null) {
-                Optional<String> geometryConflict = RoofPitchGeometry.validateConsistency(
+                Optional<String> geometryIssue = RoofPitchGeometry.validateRoofGeometryParams(
                         dimensions.width(), dimensions.depth(), params);
-                if (geometryConflict.isPresent()) {
+                if (geometryIssue.isPresent()) {
+                    String message = geometryIssue.get();
+                    boolean conflict = message.contains("conflicts with");
                     return Optional.of(new CapabilityGap(
-                            "E_ROOF_GEOMETRY_CONFLICT",
-                            geometryConflict.get(),
+                            conflict ? "E_ROOF_GEOMETRY_CONFLICT" : "E_ROOF_GEOMETRY_INVALID",
+                            message,
                             "components[]",
-                            List.of("Align roof_height with roof_pitch_degrees or specify only one.")));
+                            List.of(conflict
+                                    ? "Align roof_height with roof_pitch_degrees or specify only one."
+                                    : "Provide a positive roof_height and/or roof_pitch_degrees in (0, 89).")));
                 }
             }
         }
