@@ -360,7 +360,17 @@ public final class ComponentPlanCompiler {
             var anchor = slot.anchor();
             var offset = anchor == null ? BlockPos.ORIGIN : new BlockPos(anchor.x(), anchor.y(), anchor.z());
             var semantic = new SemanticComponent("ROOF", slot, roof, plan.styleProfile());
-            var shapeAudit = RoofShapeAudit.inspect(semantic, result, offset);
+            // Adjacent taller towers can share roof materials and overlap this
+            // roof's section. Audit its own committed cells, not every roof.
+            final var auditOccupancy = patchOccupancy;
+            String roofIdentity = getParamString(roof.params(), "component_id");
+            var roofPatches = result.stream().filter(p -> {
+                var record = auditOccupancy == null ? null : auditOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+                return record == null || roofIdentity == null
+                        || roofIdentity.equals(getParamString(record.owner() == null ? null : record.owner().params(), "component_id"))
+                        || record.writerType().startsWith("POSTPROCESS");
+            }).toList();
+            var shapeAudit = RoofShapeAudit.inspect(semantic, roofPatches, offset);
             shapeAudit.ifPresent(audit ->
                     FormacraftMod.LOGGER.info("[RoofShapeAudit] stage=postprocess result={}", audit));
             if (shapeAudit.isPresent()) {
@@ -651,8 +661,8 @@ public final class ComponentPlanCompiler {
                         shiftedPatches.addAll(patches);
                     }
                     int attachmentPatchCount = shiftedPatches.size();
-                    if ("ENTRANCE".equals(normalizedType) && isAutoInferred(c)) {
-                        shiftedPatches.removeIf(p -> surfaceLedger.isHostRoof(c, new BlockPos(p.dx(), p.dy(), p.dz())));
+                    if ("ENTRANCE".equals(normalizedType)) {
+                        shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromEntrance(c, new BlockPos(p.dx(), p.dy(), p.dz())));
                     }
                     if ("FACADE_WINDOWS".equals(normalizedType)) {
                         int before = shiftedPatches.size();
@@ -666,13 +676,29 @@ public final class ComponentPlanCompiler {
                     if ("ROOF".equals(normalizedType)) {
                         trimCollidingRoofOverhang(c, components, flightOffset, patchOccupancy, shiftedPatches);
                     }
+                    if ("MASS_SECONDARY".equals(normalizedType) && c.params() != null
+                            && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
+                        // Connector decks meet existing walls; retain those walls rather
+                        // than aborting the whole compound or granting blanket overwrite.
+                        String host = getParamString(c.params(), "host_id");
+                        shiftedPatches.removeIf(p -> {
+                            var prev = patchOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+                            return prev != null && prev.owner() != null
+                                    && (host == null || (!host.equals(getParamString(prev.owner().params(), "component_id"))
+                                    && !host.equals(getParamString(prev.owner().params(), "host_id"))));
+                        });
+                    }
                     if ("DECOR_DETAIL".equals(normalizedType)) {
                         int before = shiftedPatches.size();
-                        shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromDecoration(new BlockPos(p.dx(), p.dy(), p.dz())));
+                        shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromDecoration(c, new BlockPos(p.dx(), p.dy(), p.dz())));
                         if (before != shiftedPatches.size()) AssemblyCompileDiagnostics.addSoftWarning("DECOR_CLIPPED",
                                 "装饰已避让门窗及屋顶，跳过 " + (before - shiftedPatches.size()) + " 条操作",
                                 c.componentType(), paramIdentity(c));
                     }
+                    int incompatible = patchOccupancy.trimIncompatibleAttachment(c, shiftedPatches, connectorAccess);
+                    if (incompatible > 0) AssemblyCompileDiagnostics.addSoftWarning("ATTACHMENT_JOIN_CLIPPED",
+                            "附属构件已保留已有结构，跳过冲突操作 " + incompatible,
+                            c.componentType(), paramIdentity(c));
                     // Adapted overhang/window cells must not claim surfaces they no longer emit.
                     if (attachmentPatchCount != shiftedPatches.size()) {
                         var emittedPositions = new HashSet<BlockPos>();
@@ -702,10 +728,13 @@ public final class ComponentPlanCompiler {
                     var occupancyConflict = patchOccupancy.validate(c, shiftedPatches, connectorAccess);
                     if (occupancyConflict.isPresent()) {
                         var oc = occupancyConflict.get();
+                        var previous = patchOccupancy.placeAt(oc.position());
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_PATCH_CONFLICT",
                                 "未授权 Patch 覆盖：pos=" + oc.position().toShortString()
                                         + " prev=" + oc.previousWriter() + "/" + oc.previousBlock()
                                         + " writer=" + oc.writer() + "/" + oc.newBlock()
+                                        + " id=" + paramIdentity(c) + " host=" + getParamString(c.params(), "host_id")
+                                        + " previous_id=" + (previous == null || previous.owner() == null ? "?" : paramIdentity(previous.owner()))
                                         + " (" + oc.reason() + ")",
                                 "components[]",
                                 List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true",
@@ -836,7 +865,9 @@ public final class ComponentPlanCompiler {
         if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
                 || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 6;
         String type = normalizeType(c.componentType());
-        if (isMassType(type) || "TOWER".equals(type)) return 0;
+        if ("MASS_SECONDARY".equals(type) && c.params() != null
+                && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) return 1;
+        if (isMassType(type) || "TOWER".equals(type) || "MASS_ANCILLARY".equals(type)) return 0;
         if (isStructureFloorType(type)) return 1;
         switch (type) {
             case "ROOF", "ROOF_STRUCTURE" -> {
@@ -1024,8 +1055,11 @@ public final class ComponentPlanCompiler {
             if (AssemblyCompileDiagnostics.hasGap()) {
                 return new PreparedComponents(List.of(), Set.of());
             }
-            boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c);
-            boolean entranceDisabled = com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
+            boolean connectorBody = c.params() != null && Boolean.TRUE.equals(c.params().get("compiler_connector_body"));
+            boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c) || connectorBody;
+            boolean entranceDisabled = com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c)
+                    || ("MASS_SECONDARY".equals(type) && c.params() != null
+                        && c.params().containsKey("tier_index")) || connectorBody;
             OpeningDelegation windowDelegation = collectOpeningDelegation(c, components, inferred, "FACADE_WINDOWS");
             OpeningDelegation doorDelegation = collectOpeningDelegation(c, components, inferred, "ENTRANCE");
             if (AssemblyCompileDiagnostics.hasGap()) {
@@ -1233,7 +1267,8 @@ public final class ComponentPlanCompiler {
                 mass = null;
                 for (Component candidate : components) {
                     if (candidate == null || !(isMassType(normalizeType(candidate.componentType()))
-                            || "TOWER".equals(normalizeType(candidate.componentType())))
+                            || "TOWER".equals(normalizeType(candidate.componentType()))
+                            || "MASS_ANCILLARY".equals(normalizeType(candidate.componentType())))
                             || candidate.params() == null
                             || !hostId.equals(candidate.params().get("component_id"))) continue;
                     // Explicit ownership cannot equate different real slot coordinate frames.
@@ -1280,7 +1315,8 @@ public final class ComponentPlanCompiler {
                 var params = new HashMap<String, Object>();
                 if (aligned.params() != null) params.putAll(aligned.params());
                 params.putIfAbsent("host_id", mass.params().get("component_id"));
-                if (Set.of("ENTRANCE", "FACADE_WINDOWS").contains(type) && hasComponentRequest(aligned.features())) {
+                params.putIfAbsent("building_id", mass.params().getOrDefault("building_id", mass.params().get("component_id")));
+                if (Set.of("ENTRANCE", "FACADE_WINDOWS", "ROOF", "ROOF_STRUCTURE").contains(type) && hasComponentRequest(aligned.features())) {
                     params.put("resolved_host_attachment", true);
                 }
                 if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, mass.params())) params.put("no_complex_decor", true);
@@ -2420,6 +2456,13 @@ public final class ComponentPlanCompiler {
         if (component == null) {
             return null;
         }
+        if ("MASS_ANCILLARY".equals(normalizeType(component.componentType()))) {
+            var params = new HashMap<String, Object>();
+            if (component.params() != null) params.putAll(component.params());
+            params.put("compiler_connector_body", true);
+            component = new Component("MASS_SECONDARY", component.slotId(), component.relativePosition(),
+                    component.dimensions(), component.features(), params);
+        }
         // allowUnknown：component_request/group_request，或显式地标/模块路由提示，
         // 都应保留原始 type（交由 UnifiedGeneratorRouter 的扩展/整栋回退处理）。
         boolean allowUnknown = hasComponentRequest(component.features())
@@ -2616,15 +2659,12 @@ public final class ComponentPlanCompiler {
         Component body = components.stream().filter(c -> host.equals(getParamString(c.params(), "component_id")))
                 .findFirst().orElse(null);
         if (body == null || !java.util.Objects.equals(body.slotId(), roof.slotId())) return;
-        var bounds = ComponentFootprintUtil.bounds(body);
-        if (bounds == null) return;
         int before = patches.size();
         patches.removeIf(p -> {
-            int x = p.dx() - offset.getX(), z = p.dz() - offset.getZ();
-            if (x >= bounds.minX() && x < bounds.maxX() && z >= bounds.minZ() && z < bounds.maxZ()) return false;
             var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
             return existing != null && existing.owner() != null
-                    && !host.equals(getParamString(existing.owner().params(), "component_id"));
+                    && !host.equals(getParamString(existing.owner().params(), "component_id"))
+                    && !host.equals(getParamString(existing.owner().params(), "host_id"));
         });
         if (before != patches.size()) AssemblyCompileDiagnostics.addSoftWarning("ROOF_OVERHANG_TRIMMED",
                 "屋檐已避让相邻建筑，跳过 " + (before - patches.size()) + " 条操作", roof.componentType(), paramIdentity(roof));

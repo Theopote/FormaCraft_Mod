@@ -2,6 +2,9 @@ package com.formacraft.common.palette.dynamic;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.llm.dto.*;
+import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.BlockPatchTargetResolver;
+import net.minecraft.block.StairsBlock;
 import java.util.*;
 
 /** Resolve planner vocabulary before validation and material protection see the plan. */
@@ -37,8 +40,16 @@ public final class MaterialFallbackPolicy {
             return copy;
         }
         if (value instanceof List<?> list) return list.stream().map(v -> normalizeValue(key, v)).toList();
-        if (Set.of("wall_block", "roof_block", "floor_block", "trim_block", "glass_block", "glazing_block",
-                "glass_material", "material", "block").contains(key) && value != null) {
+        if (Set.of("stairs", "steps", "stair_block").contains(key) && value instanceof String requested) {
+            var state = BlockPatchTargetResolver.resolve(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, requested));
+            if (state != null && state.getBlock() instanceof StairsBlock) return value;
+            String replacement = requested.contains("wood") || requested.contains("oak") || requested.contains("timber")
+                    ? "minecraft:oak_stairs" : "minecraft:stone_brick_stairs";
+            FormacraftMod.LOGGER.warn("Material fallback: {}={} -> {}", key, requested, replacement);
+            return replacement;
+        }
+        if ((key.endsWith("_block") || key.endsWith("_material")
+                || Set.of("material", "block", "floor", "supportMaterial").contains(key)) && value instanceof String) {
             String text = String.valueOf(value);
             if (ExplicitMaterialPolicy.canonical(text) != null) return value;
             return material(text.isBlank() ? "unspecified" : text, key);
@@ -52,7 +63,9 @@ public final class MaterialFallbackPolicy {
         if (exact != null) return exact;
         String name = requested.toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
         String replacement;
-        if (name.contains("tile") || name.contains("slate") || name.contains("瓦"))
+        if (role.contains("door")) replacement = "minecraft:oak_door";
+        else if (role.contains("rail") || role.contains("fence")) replacement = "minecraft:oak_fence";
+        else if (name.contains("tile") || name.contains("slate") || name.contains("瓦"))
             replacement = name.contains("red") ? "minecraft:bricks" : "minecraft:deepslate_tiles";
         else if (name.contains("glass") || role.contains("glass") || role.contains("glazing")) replacement = "minecraft:glass";
         else if (name.contains("timber") || name.contains("wood") || name.contains("木"))

@@ -211,6 +211,30 @@ def normalize_circulation_plan(plan: dict) -> dict:
         out.pop('capability_gap', None)
         if out.get('plan_status') == 'capability_gap': out.pop('plan_status', None)
     _fit_straight_stairs(out)
+    # Narrow towers cannot accommodate independently rotated flights whose
+    # supports fill the previous flight's headroom. Repeat the fitted stairwell
+    # at each floor instead, preserving floor elevations and materials.
+    tower_ids = {c.get('params', {}).get('component_id') for c in out.get('components', [])
+                 if c.get('component_type') == 'TOWER'}
+    stairwells = {}
+    for comp in sorted(out.get('components', []), key=lambda c: (c.get('relative_position') or {}).get('y', 0)):
+        params = comp.get('params') or {}
+        if params.get('host_id') not in tower_ids or params.get('exterior') is True:
+            continue
+        if comp.get('component_type') != 'STRUCTURE' or 'stair:straight_single_run' not in comp.get('features', []):
+            continue
+        a, b = params.get('from'), params.get('to')
+        if not isinstance(a, dict) or not isinstance(b, dict): continue
+        key = (params['host_id'], b['y']-a['y'], params.get('width', 3))
+        first = stairwells.setdefault(key, comp)
+        if first is comp: continue
+        for axis in ('x', 'z'):
+            comp['relative_position'][axis] = first['relative_position'][axis]
+            a[axis] = first['params']['from'][axis]
+            b[axis] = first['params']['to'][axis]
+        params['landing_length'] = first['params'].get('landing_length', 1)
+        comp['dimensions']['width'] = first['dimensions']['width']
+        comp['dimensions']['depth'] = first['dimensions']['depth']
     plates = []
     for comp in out.get("components", []):
         if comp.get("component_type") not in ("ASSEMBLY", "STRUCTURE"): continue

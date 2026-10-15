@@ -50,6 +50,17 @@ public final class PatchOccupancyIndex {
         return apply(writer, patches, simPlaces, simRemoves, connectorAccess);
     }
 
+    /** Preserve existing geometry when an optional attachment cannot join it. */
+    public int trimIncompatibleAttachment(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
+        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "FOUNDATION", "BALCONY", "TERRACE")
+                .contains(writer.componentType().toUpperCase(Locale.ROOT))) return 0;
+        Map<BlockPos, PlaceRecord> simulation = new HashMap<>(places);
+        Set<BlockPos> removed = new HashSet<>(removes);
+        int before = patches.size();
+        patches.removeIf(p -> apply(writer, List.of(p), simulation, removed, connectorAccess).isPresent());
+        return before - patches.size();
+    }
+
     /** Mutates formal state; call only after {@link #validate} succeeded. */
     public void commit(Component writer, List<BlockPatch> patches) {
         commit(writer, patches, Set.of());
@@ -274,7 +285,7 @@ public final class PatchOccupancyIndex {
         if (!(host instanceof String id) || id.isBlank()
                 || (!id.equals(ownerId) && !id.equals(previous.owner().params().get("host_id")))) return false;
         if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
-        if (!Set.of("MASS_MAIN", "MAIN_MASS", "MASS_WING", "SIDE_WING", "MASS_SECONDARY", "TOWER", "FOUNDATION", "BALCONY", "TERRACE", "DECOR_DETAIL")
+        if (!Set.of("MASS_MAIN", "MAIN_MASS", "MASS_WING", "SIDE_WING", "MASS_SECONDARY", "TOWER", "FOUNDATION", "BALCONY", "TERRACE", "DECOR_DETAIL", "ROOF")
                 .contains(previous.writerType())) return false;
         // Bound structural/detail parts may join their own building. The surface
         // ledger still protects roofs and openings from decoration; REMOVE uses
@@ -290,9 +301,13 @@ public final class PatchOccupancyIndex {
         Object host = writer.params().get("host_id");
         if (!(host instanceof String id) || id.isBlank()) return false;
         if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
-        if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER").contains(previous.writerType()))
+        Object building = writer.params().get("building_id");
+        if (building != null && building.equals(previous.owner().params().get("building_id"))
+                && Set.of("ROOF", "FOUNDATION", "MASS_SECONDARY", "TERRACE", "BALCONY").contains(previous.writerType())) return true;
+        if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY").contains(previous.writerType())
+                && !"plate".equals(previous.owner().params().get("extrude_mode")))
             return id.equals(previous.owner().params().get("component_id"));
-        return (Set.of("TERRACE", "BALCONY", "FOUNDATION", "DECOR_DETAIL").contains(previous.writerType())
+        return (Set.of("TERRACE", "BALCONY", "FOUNDATION", "DECOR_DETAIL", "ROOF").contains(previous.writerType())
                 || ("MASS_SECONDARY".equals(previous.writerType())
                     && "plate".equals(previous.owner().params().get("extrude_mode"))))
                 && id.equals(previous.owner().params().get("host_id"));

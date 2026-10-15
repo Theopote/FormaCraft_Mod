@@ -117,6 +117,31 @@ class ComponentPlanCompilerMaterialTest {
         assertEquals("minecraft:stone_bricks", policy.styleAttributes().wallMaterial());
         assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(policy.styleAttributes()).isEmpty());
     }
+    @Test void stairFallbackAlwaysUsesActualStairBlocks() {
+        for (String material : List.of("minecraft:gray_concrete_stairs", "minecraft:iron_block", "unknown:wood_stairs", "minecraft:dark_oak_stairs")) {
+            var stair = new Component("STRUCTURE", null, new Vec3i(0,0,0), new Dimensions(3,6,5),
+                    List.of("stair:straight_single_run"), Map.of("stairs", material));
+            var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
+                    LlmPlanTestFixtures.builder().components(List.of(stair)).build());
+            String replacement = String.valueOf(normalized.components().getFirst().params().get("stairs"));
+            var state = com.formacraft.common.patch.BlockPatchTargetResolver.resolve(new com.formacraft.common.patch.BlockPatch(
+                    com.formacraft.common.patch.BlockPatch.PLACE, 0,0,0,replacement));
+            assertNotNull(state);
+            assertInstanceOf(net.minecraft.block.StairsBlock.class, state.getBlock());
+            if (material.equals("minecraft:dark_oak_stairs")) assertEquals(material, replacement);
+        }
+    }
+    @Test void attachmentAndStairFloorMaterialsAlsoHaveFallbacks() {
+        var source = new Component("STRUCTURE", null, new Vec3i(0,0,0), new Dimensions(3,6,5), List.of(),
+                Map.of("floor", "missing:coastal_stone", "frame_block", "missing:dark_timber",
+                        "door_block", "missing:door", "rail_block", "missing:railing"));
+        var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
+                LlmPlanTestFixtures.builder().components(List.of(source)).build()).components().getFirst().params();
+        assertEquals("minecraft:stone_bricks", normalized.get("floor"));
+        assertEquals("minecraft:dark_oak_planks", normalized.get("frame_block"));
+        assertEquals("minecraft:oak_door", normalized.get("door_block"));
+        assertEquals("minecraft:oak_fence", normalized.get("rail_block"));
+    }
     @Test void explicitWallSurvivesWholePostProcessingPipeline() {
         var plan = plan("minecraft:stone_bricks");
         var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan));

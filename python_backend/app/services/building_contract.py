@@ -11,6 +11,32 @@ NUMBERS = {'一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6,
 HOSTED = {'ROOF', 'ROOF_STRUCTURE', 'FOUNDATION', 'FACADE_WINDOWS', 'FACADE', 'ENTRANCE',
           'CROWN', 'CUPOLA', 'DOME', 'MASS_SECONDARY', 'DECOR_DETAIL', 'BALCONY', 'STRUCTURE', 'ASSEMBLY'}
 
+NAMED_BUILDINGS = {
+    'office': ('办公楼', 'office'),
+    'workshop': ('主车间', 'workshop'),
+    'boiler': ('锅炉房', 'boiler'),
+    'main_hall': ('正厅', 'main_hall'),
+    'wing': ('厢房', 'east_wing', 'west_wing'),
+    'gatehouse': ('门楼', 'gatehouse'),
+}
+
+
+def _numeric_subject(text: str, match: re.Match) -> str:
+    # A clause's named building owns its dimensions, not every MASS_MAIN in
+    # the compound. Carry the subject across commas, but not sentence boundaries.
+    start = max(text.rfind(s, 0, match.start()) for s in ('。', '；', ';')) + 1
+    prefix = text[start:match.start()]
+    candidates = [(m.start(), key) for key, names in NAMED_BUILDINGS.items()
+                  for m in re.finditer('|'.join(map(re.escape, names)), prefix)]
+    if candidates:
+        return 'named_' + max(candidates)[1]
+    # Chinese declarations also put the noun after the count (两层正厅).
+    suffix = text[match.start():match.end()+8]
+    for key, names in NAMED_BUILDINGS.items():
+        if any(name in suffix for name in names):
+            return 'named_' + key
+    return 'all_main_masses'
+
 
 
 def _positive_match(text: str, match: re.Match) -> bool:
@@ -35,10 +61,14 @@ def _extract_global_requirements(text: str) -> list[dict]:
     for key, pattern in patterns.items():
         matches = [m for m in re.finditer(pattern, text) if _positive_match(text, m)]
         if not matches: continue
-        values = {NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1]) for m in matches}
-        result.append({'id': f'req_{key}', 'property': key, 'value': next(iter(values)) if len(values) == 1 else None,
+        groups = {}
+        for match in matches:
+            groups.setdefault(_numeric_subject(text, match), []).append(match)
+        for subject, group in groups.items():
+            values = {NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1]) for m in group}
+            result.append({'id': f'req_{key}' + ('_' + subject if subject != 'all_main_masses' else ''), 'property': key, 'value': next(iter(values)) if len(values) == 1 else None,
                        'unit': 'floors' if key == 'floor_count' else 'blocks', 'source': 'user_explicit',
-                       'source_text': [m[0] for m in matches], 'scope': 'all_main_masses' if len(values) == 1 else 'unresolved',
+                       'source_text': [m[0] for m in group], 'scope': subject if len(values) == 1 else 'unresolved',
                        'priority': 'hard', 'status': 'pending' if len(values) == 1 else 'unsupported_scope'})
     if any(_positive_match(text, m) for m in re.finditer(r'双坡屋\s*顶|山墙屋\s*顶', text)):
         result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
@@ -208,7 +238,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     # Towers and wings own their attached roofs/windows too. Keep requirement
     # targets separate: a main-building width must not be imposed on its towers.
     owners = [c for c in components if c.get('component_type') in
-              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY')]
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'TERRACE')]
     ids = {c['params']['component_id']: c for c in owners}
     # Global attributes cannot encode different materials for separate buildings.
     attrs = out.get('style_attributes') or {}
@@ -240,14 +270,22 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if params.get('roof_type') == 'none' and requested and not prohibited and roofs:
             params['roof_type'] = roofs[0]['params'].get('roof_type', 'gable')
     has_slots = bool((out.get('layout') or {}).get('slots'))
-    for mass in masses:
-        mass['params']['building_id'] = mass['params']['component_id']
+    for mass in owners:
+        mass['params'].setdefault('building_id', mass['params']['component_id'])
     by_id = {c['params']['component_id']: c for c in components}
     for comp in components:
         params = comp['params']
+        attachment = by_id.get(params.get('attachment_host_id'))
+        if attachment in owners and attachment is not None:
+            # Earlier contracts flattened tier attachments to the root building.
+            # Preserve the actual geometric host while retaining building_id.
+            params['host_id'] = attachment['params']['component_id']
+    for comp in components:
+        params = comp['params']
         if comp in owners:
-            params['building_id'] = params['component_id']
-            continue
+            params.setdefault('building_id', params['component_id'])
+            if not params.get('host_id'):
+                continue
         if comp.get('component_type') not in HOSTED: continue
         if params.get('host_source') == 'legacy_geometry_inference':
             params.pop('host_id', None)
@@ -335,6 +373,10 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         scope = mass['params'].get('requirement_scope')
         if isinstance(scope, str):
             bindings.setdefault(scope, []).append(mass)
+        identity = str(mass['params']['component_id']).lower()
+        for key, names in NAMED_BUILDINGS.items():
+            if any(name in identity for name in names):
+                bindings.setdefault('named_' + key, []).append(mass)
     contract['scope_bindings'] = {scope: [m['params']['component_id'] for m in targets]
                                   for scope, targets in bindings.items()}
     slots = {slot.get('slot_id'): slot for slot in (out.get('layout') or {}).get('slots', []) if isinstance(slot, dict)}

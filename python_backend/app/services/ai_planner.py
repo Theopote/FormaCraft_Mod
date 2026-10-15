@@ -4780,6 +4780,9 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
             "Use an axis-aligned run at least as long as the rise; top endpoint must meet the upper floor Y. "
             "Keep the flight and landing wholly inside the shell, with two blocks of headroom. "
             "Floor plates use MASS_SECONDARY params.extrude_mode='plate', dimensions.height=1; "
+            "Keep the JSON concise: ordinary native roofs, doors, windows and railings do not need verbose component_request queries. "
+            "For stacked tiers use MASS_SECONDARY with tier_index and host_id pointing to the parent building; do not give every tier a ground entrance. "
+            "Use connects=[component_id,component_id] for bridge decks; railings may bind to the bridge component. "
             "never model a floor as a tall solid volume. Stairs carve the floor opening after plates. "
             "Text-only features do not generate stairs or holes. Do not add furniture/ornament when excluded by the user."
         )

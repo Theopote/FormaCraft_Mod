@@ -364,6 +364,7 @@ def call_chat_with_llm_plan_response_formats(
         is_schema_attempt = label == "json_schema"
         try:
             attempt_timeout = timeout_sec
+            attempt_messages = messages
             while True:
                 try:
                     # Also bound the underlying HTTP call; the outer watchdog
@@ -371,8 +372,8 @@ def call_chat_with_llm_plan_response_formats(
                     attempt_client = (client.with_options(timeout=attempt_timeout, max_retries=0)
                                       if callable(getattr(client, 'with_options', None)) else client)
                     response = call_with_timeout(
-                        lambda rf=response_format, api=attempt_client: api.chat.completions.create(
-                            model=model, messages=messages, response_format=rf, temperature=temperature),
+                        lambda rf=response_format, api=attempt_client, msgs=attempt_messages: api.chat.completions.create(
+                            model=model, messages=msgs, response_format=rf, temperature=temperature),
                         attempt_timeout,
                     )
                     break
@@ -384,6 +385,12 @@ def call_chat_with_llm_plan_response_formats(
                         raise
                     retries_left -= 1
                     attempt_timeout = min(timeout_sec, 60.0)
+                    attempt_messages = messages + [{'role': 'user', 'content':
+                        'Retry with compact executable JSON. Keep every requested building, dimensions, '
+                        'floor, roof, opening and circulation connection. Omit repeated prose, redundant '
+                        'default params and optional ornament metadata. Use native semantic generators; '
+                        'do not repeat verbose component_request queries for ordinary roofs, doors, '
+                        'windows or railings. Return only the complete JSON object.'}]
                     logger.warning('LlmPlan: transient %s; retrying once with %.0fs limit',
                                    type(failure).__name__, attempt_timeout)
         except Exception as exc:

@@ -13,6 +13,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ComponentFoundationEnforcerTest {
+    @Test
+    void explicitHostPreventsExpansionAcrossCompoundInSameSlot() {
+        var hall = new Component("MASS_MAIN", "compound", new Vec3i(0,0,-40), new Dimensions(20,12,10),
+                List.of(), Map.of("component_id", "hall", "anchor_mode", "min_corner"));
+        var gate = new Component("MASS_MAIN", "compound", new Vec3i(0,0,3), new Dimensions(12,6,6),
+                List.of(), Map.of("component_id", "gate", "anchor_mode", "min_corner"));
+        var foundation = new Component("FOUNDATION", "compound", new Vec3i(0,-1,3), new Dimensions(12,6,1),
+                List.of(), Map.of("host_id", "gate", "anchor_mode", "min_corner"));
+        var components = new ArrayList<>(List.of(hall, gate, foundation));
+        assertEquals(0, ComponentFoundationEnforcer.apply(components));
+        assertEquals(foundation, components.get(2));
+        assertEquals(3, ComponentFootprintUtil.bounds(components.get(2)).minZ());
+    }
 
     @Test
     void expandsFoundationToCoverMassDepthWithMargin() {

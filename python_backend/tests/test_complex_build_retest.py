@@ -14,6 +14,28 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class ComplexBuildRetest(unittest.TestCase):
+    def test_latest_real_plans_pass_contract_with_building_scopes(self):
+        for i in range(1, 7):
+            with self.subTest(plan=i):
+                plan = json.loads((FIXTURES / f'latest_{i}.json').read_text(encoding='utf-8'))
+                text = plan['proportion_hints']['architecture_intent']['original_text']
+                result = normalize_circulation_plan(apply_building_contract(plan, text, finalize=True))
+                self.assertNotIn('capability_gap', result)
+                self.assertEqual(result, normalize_circulation_plan(result))
+                self.assertEqual(result, json.loads((FIXTURES / f'latest_{i}.normalized.json').read_text(encoding='utf-8')))
+
+    def test_named_requirement_still_rejects_wrong_office_height(self):
+        plan = json.loads((FIXTURES / 'latest_5.json').read_text(encoding='utf-8'))
+        text = plan['proportion_hints']['architecture_intent']['original_text']
+        for comp in plan['components']:
+            if comp['params'].get('component_id') == 'office_main':
+                comp['params']['floor_height'] = 3
+        result = apply_building_contract(plan, text, finalize=True)
+        self.assertEqual('E_BUILDING_CONTRACT', result['capability_gap']['code'])
+        requirements = result['proportion_hints']['building_contract']['requirements']
+        height = next(r for r in requirements if r['property'] == 'floor_height')
+        self.assertEqual(['office_main'], height['target_components'])
+
     def test_attached_tower_does_not_route_villa_or_hotel_to_castle(self):
         for text in ('中式别墅，由一个长方体主楼和一个圆柱形塔楼组成',
                      '三层海边旅馆，右侧附带一座两层圆形观景塔，通过二层连廊相连'):

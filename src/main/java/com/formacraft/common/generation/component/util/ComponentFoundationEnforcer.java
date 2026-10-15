@@ -44,7 +44,18 @@ public final class ComponentFoundationEnforcer {
             if (!isFoundationOnly(type)) {
                 continue;
             }
-            ComponentFootprintUtil.Bounds targetMass = resolveTargetMass(c, massBySlot, allMassUnion);
+            ComponentFootprintUtil.Bounds targetMass = null;
+            Object host = c.params() == null ? null : c.params().get("host_id");
+            if (host != null) {
+                for (Component body : components) {
+                    if (body != null && body.params() != null && host.equals(body.params().get("component_id"))) {
+                        targetMass = ComponentFootprintUtil.bounds(body);
+                        break;
+                    }
+                }
+            } else {
+                targetMass = resolveTargetMass(c, massBySlot, allMassUnion);
+            }
             if (targetMass == null) {
                 continue;
             }

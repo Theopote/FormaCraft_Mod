@@ -22,20 +22,27 @@ final class SurfaceOwnershipLedger {
     boolean isProtectedFromWindows(Component writer, BlockPos position) {
         Surface surface = surfaces.get(position);
         return surface != null && (surface.role() == GeneratedSurfaceCapture.Role.ROOF
-                || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING)
-                && java.util.Objects.equals(param(writer, "host_id"), surface.owner());
+                || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
+                || surface.role() == GeneratedSurfaceCapture.Role.WINDOW && !surface.source().equals(surface.owner()));
     }
 
-    boolean isHostRoof(Component writer, BlockPos position) {
+    boolean isProtectedFromEntrance(Component writer, BlockPos position) {
         Surface surface = surfaces.get(position);
-        return surface != null && surface.role() == GeneratedSurfaceCapture.Role.ROOF
-                && java.util.Objects.equals(param(writer, "host_id"), surface.owner());
+        return surface != null && (surface.role() == GeneratedSurfaceCapture.Role.ROOF
+                || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING);
     }
 
     boolean isProtectedFromDecoration(BlockPos position) {
         Surface surface = surfaces.get(position);
         return surface != null && Set.of(GeneratedSurfaceCapture.Role.WINDOW,
                 GeneratedSurfaceCapture.Role.DOOR_OPENING, GeneratedSurfaceCapture.Role.ROOF).contains(surface.role());
+    }
+
+    boolean isProtectedFromDecoration(Component writer, BlockPos position) {
+        Surface surface = surfaces.get(position);
+        return isProtectedFromDecoration(position) || surface != null
+                && surface.role() == GeneratedSurfaceCapture.Role.WALL
+                && !buildingOwner(writer).equals(surface.owner());
     }
 
     Optional<Conflict> check(Component component, List<BlockPatch> patches) {
@@ -45,7 +52,7 @@ final class SurfaceOwnershipLedger {
         if (!decor && !opening) return Optional.empty();
 
         String writer = identity(component);
-        String host = param(component, "host_id");
+        String host = buildingOwner(component);
         var writes = index(patches);
         for (var entry : writes.entrySet()) {
             BlockPos pos = entry.getKey();
@@ -67,8 +74,7 @@ final class SurfaceOwnershipLedger {
 
     void accept(Component component, List<BlockPatch> patches, List<GeneratedSurfaceCapture.Cell> cells, BlockPos offset) {
         finalPatches.putAll(index(patches));
-        String owner = param(component, "host_id");
-        if (owner == null) owner = identity(component);
+        String owner = buildingOwner(component);
         if ("ENTRANCE".equalsIgnoreCase(component.componentType())) {
             // Entrance generators can emit a carved hole without capture cells.
             // Reserve both its opening and frame before placing facade windows.
@@ -82,6 +88,12 @@ final class SurfaceOwnershipLedger {
                 surfaces.put(position, new Surface(owner, identity(component), cell.role()));
             }
         }
+    }
+
+    private static String buildingOwner(Component component) {
+        String owner = param(component, "building_id");
+        if (owner == null) owner = param(component, "host_id");
+        return owner == null ? identity(component) : owner;
     }
 
     /** Classify write intent; null means no ledger-relevant conflict to evaluate. */
