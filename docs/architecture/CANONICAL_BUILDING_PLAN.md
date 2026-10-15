@@ -18,12 +18,14 @@ External protocol: **`LlmPlan` JSON** (evolving). `BuildingSpec` is a **legacy a
 | Key | Type | Meaning |
 |-----|------|---------|
 | `generation_mode` | string | e.g. `component`, `program`, `patch`, `structure_adapter` |
-| `generation_authority` | string | `COMPONENTS` \| `TYPOLOGY` \| `ASSEMBLY` \| `CAPTURED_LIBRARY` \| `SKELETON` — routing contract (see [GenerationRouteContract](../../src/main/java/com/formacraft/server/generation/component/adaptor/GenerationRouteContract.java)); default `COMPONENTS`. Also on `components[].params`. STAIR types remain stair-forced. |
+| `generation_authority` | string | `COMPONENTS` \| `TYPOLOGY` \| `ASSEMBLY` \| `CAPTURED_LIBRARY` \| `SKELETON` — routing contract (see [GenerationRouteContract](../../src/main/java/com/formacraft/server/generation/component/adaptor/GenerationRouteContract.java)); default `COMPONENTS`. Also on `components[].params`. `STAIR` / `STAIR_SYSTEM` / `STAIRS` use the stair executor only under `COMPONENTS` or `TYPOLOGY`; forbidden under `ASSEMBLY`, `SKELETON`, `CAPTURED_LIBRARY`. |
+| `allow_typology_empty_fallback` | boolean | Under `COMPONENTS`, allows typology executor when the component base is empty (component params override plan_meta). |
+| `allow_structure_empty_fallback` | boolean | Under `COMPONENTS`, allows structure adaptor when the component base is empty (component params override plan_meta). |
 | `allow_compiler_satellites` | boolean | **Transition only:** if true, Java may infer FACADE/ENTRANCE/ROOF/CROWN (tagged COMPILER_INFERRED) |
 | `design_requirements` | object | Keys `facade` / `entrance` / `roof` / `crown` → `REQUIRED` \| `OPTIONAL` \| `OMITTED` \| `UNSPECIFIED` |
 | `capability_report` | object | See below |
 
-**Fallback policy** ([GenerationFallbackPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackPolicy.java)): authority controls empty-base typology/structure fallback separately from typology *replace*. `CAPTURED_LIBRARY` / `ASSEMBLY` / `SKELETON` must not silently fall back to another executor; mismatch → `E_GENERATION_AUTHORITY_CONFLICT`.
+**Fallback policy** ([GenerationFallbackPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackPolicy.java)): authority controls empty-base typology/structure fallback separately from typology *replace*. Default `COMPONENTS`: registry priming only — no typology or structure empty fill unless `allow_typology_empty_fallback` / `allow_structure_empty_fallback`. Non-empty typology replace under `COMPONENTS` still requires `allow_typology_override` on the component. `CAPTURED_LIBRARY` / `ASSEMBLY` / `SKELETON` must not silently fall back to another executor; mismatch → `E_GENERATION_AUTHORITY_CONFLICT`.
 
 ### `capability_report`
 

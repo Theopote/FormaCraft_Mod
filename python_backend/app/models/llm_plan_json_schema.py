@@ -232,6 +232,19 @@ def build_llm_plan_json_schema(*, strict: bool = True) -> Dict[str, Any]:
                         ],
                         "description": "Plan default; override per component via components[].params.generation_authority",
                     },
+                    "allow_typology_empty_fallback": {
+                        "type": "boolean",
+                        "description": "Under COMPONENTS, allow typology when component base is empty",
+                    },
+                    "allow_structure_empty_fallback": {
+                        "type": "boolean",
+                        "description": "Under COMPONENTS, allow structure adaptor when component base is empty",
+                    },
+                    "design_requirements": {
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                        "description": "facade/entrance/roof/crown -> REQUIRED|OPTIONAL|OMITTED|UNSPECIFIED",
+                    },
                 },
             },
             "design_sources": {

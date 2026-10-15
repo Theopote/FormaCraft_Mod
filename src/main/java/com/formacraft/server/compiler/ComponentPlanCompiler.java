@@ -209,6 +209,7 @@ public final class ComponentPlanCompiler {
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
         UnifiedGeneratorRouter.setPlanGenerationAuthority(
                 com.formacraft.common.generation.routing.PlanMetaAccess.planGenerationAuthority(plan));
+        UnifiedGeneratorRouter.setPlanMeta(plan.planMeta());
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         PatchOccupancyIndex patchOccupancy;
         try {
@@ -217,6 +218,7 @@ public final class ComponentPlanCompiler {
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             UnifiedGeneratorRouter.clearPlanGenerationAuthority();
+            UnifiedGeneratorRouter.clearPlanMeta();
             TypologyPatchBridge.clearPlanWorldAnchor();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();

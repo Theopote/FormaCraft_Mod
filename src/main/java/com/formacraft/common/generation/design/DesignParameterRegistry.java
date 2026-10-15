@@ -20,14 +20,49 @@ public final class DesignParameterRegistry {
             Map.entry("roofpitchdegrees", "roof_pitch_degrees"),
             Map.entry("pitch_degrees", "roof_pitch_degrees"),
             Map.entry("window_aspect", "window_aspect"),
-            Map.entry("windowaspect", "window_aspect")
+            Map.entry("windowaspect", "window_aspect"),
+            Map.entry("roof_type", "roof_type"),
+            Map.entry("rooftype", "roof_type"),
+            Map.entry("entrance_type", "entrance_type"),
+            Map.entry("entrancetype", "entrance_type"),
+            Map.entry("window_style", "window_style"),
+            Map.entry("windowstyle", "window_style"),
+            Map.entry("wall_thickness", "wall_thickness"),
+            Map.entry("wallthickness", "wall_thickness"),
+            Map.entry("floor_count", "floor_count"),
+            Map.entry("floorcount", "floor_count"),
+            Map.entry("door_width", "door_width"),
+            Map.entry("doorwidth", "door_width"),
+            Map.entry("door_height", "door_height"),
+            Map.entry("doorheight", "door_height"),
+            Map.entry("rhythm_preset", "rhythm_preset"),
+            Map.entry("rhythmpreset", "rhythm_preset"),
+            Map.entry("facade_rhythm_preset", "rhythm_preset"),
+            Map.entry("facaderhythmpreset", "rhythm_preset"),
+            Map.entry("overhang", "overhang"),
+            Map.entry("overhang_blocks", "overhang"),
+            Map.entry("overhangblocks", "overhang"),
+            Map.entry("eave_overhang", "overhang"),
+            Map.entry("eaveoverhang", "overhang"),
+            Map.entry("crown_template", "crown_template"),
+            Map.entry("crowntemplate", "crown_template")
     );
 
-    private static final Map<String, Set<String>> CANONICAL_ALIASES = Map.of(
-            "window_ratio", Set.of("window_ratio", "windowRatio", "window_wall_ratio"),
-            "void_ratio", Set.of("void_ratio", "voidRatio"),
-            "roof_pitch_degrees", Set.of("roof_pitch_degrees", "roofPitchDegrees", "pitch_degrees"),
-            "window_aspect", Set.of("window_aspect", "windowAspect")
+    private static final Map<String, Set<String>> CANONICAL_ALIASES = Map.ofEntries(
+            Map.entry("window_ratio", Set.of("window_ratio", "windowRatio", "window_wall_ratio")),
+            Map.entry("void_ratio", Set.of("void_ratio", "voidRatio")),
+            Map.entry("roof_pitch_degrees", Set.of("roof_pitch_degrees", "roofPitchDegrees", "pitch_degrees")),
+            Map.entry("window_aspect", Set.of("window_aspect", "windowAspect")),
+            Map.entry("roof_type", Set.of("roof_type", "roofType")),
+            Map.entry("entrance_type", Set.of("entrance_type", "entranceType")),
+            Map.entry("window_style", Set.of("window_style", "windowStyle")),
+            Map.entry("wall_thickness", Set.of("wall_thickness", "wallThickness")),
+            Map.entry("floor_count", Set.of("floor_count", "floorCount")),
+            Map.entry("door_width", Set.of("door_width", "doorWidth")),
+            Map.entry("door_height", Set.of("door_height", "doorHeight")),
+            Map.entry("rhythm_preset", Set.of("rhythm_preset", "rhythmPreset", "facade_rhythm_preset")),
+            Map.entry("overhang", Set.of("overhang", "overhang_blocks", "eave_overhang")),
+            Map.entry("crown_template", Set.of("crown_template", "crownTemplate"))
     );
 
     public static String canonicalKey(String anyKey) {

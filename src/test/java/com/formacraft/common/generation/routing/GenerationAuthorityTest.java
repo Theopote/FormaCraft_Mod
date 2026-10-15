@@ -1,6 +1,7 @@
 package com.formacraft.common.generation.routing;
 
 import com.formacraft.common.generation.routing.GenerationFallbackPolicy;
+import com.formacraft.common.generation.routing.PlanMetaAccess;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -46,7 +47,7 @@ class GenerationAuthorityTest {
     void assemblyAndSkeletonForbidEmptyBaseFallback() {
         assertFalse(GenerationAuthority.ASSEMBLY.allowsEmptyBaseFallback());
         assertFalse(GenerationAuthority.SKELETON.allowsEmptyBaseFallback());
-        assertTrue(GenerationAuthority.COMPONENTS.allowsEmptyBaseFallback());
+        assertFalse(GenerationAuthority.COMPONENTS.allowsEmptyBaseFallback());
         assertFalse(GenerationAuthority.CAPTURED_LIBRARY.allowsEmptyBaseFallback());
     }
 
@@ -55,6 +56,21 @@ class GenerationAuthorityTest {
         GenerationFallbackPolicy policy = GenerationAuthority.CAPTURED_LIBRARY.fallbackPolicy();
         assertFalse(policy.allowTypologyWhenBaseEmpty());
         assertFalse(policy.allowStructureWhenBaseEmpty());
+    }
+
+    @Test
+    void componentsFallbackPolicyBlocksEmptyTypologyAndStructure() {
+        GenerationFallbackPolicy policy = GenerationAuthority.COMPONENTS.fallbackPolicy();
+        assertFalse(policy.allowTypologyWhenBaseEmpty());
+        assertFalse(policy.allowStructureWhenBaseEmpty());
+        assertTrue(policy.allowRegistryPriming());
+    }
+
+    @Test
+    void componentParamsOverridePlanMetaForEmptyFallbackFlags() {
+        Component mass = mass(Map.of("allow_typology_empty_fallback", true));
+        assertTrue(PlanMetaAccess.allowTypologyEmptyFallback(mass, Map.of()));
+        assertFalse(PlanMetaAccess.allowStructureEmptyFallback(mass, Map.of()));
     }
 
     private static Component mass(Map<String, Object> params) {

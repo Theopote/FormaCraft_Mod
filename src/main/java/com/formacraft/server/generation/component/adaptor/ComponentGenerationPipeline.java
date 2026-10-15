@@ -6,6 +6,7 @@ import com.formacraft.common.component.ComponentGenerationOutcome;
 import com.formacraft.common.component.GenerationDiagnostic;
 import com.formacraft.common.generation.routing.GenerationAuthority;
 import com.formacraft.common.generation.routing.GenerationFallbackPolicy;
+import com.formacraft.common.generation.routing.PlanMetaAccess;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.network.metrics.TypologyRoutingMetrics;
 import com.formacraft.common.patch.BlockPatch;
@@ -95,9 +96,13 @@ final class ComponentGenerationPipeline {
                 && Boolean.TRUE.equals(c.params().get("allow_typology_override"));
         boolean skipTypology = (expander.libraryCommitted() && !allowTypologyOverride);
 
+        Map<String, Object> planMeta = UnifiedGeneratorRouter.planMeta();
+        boolean allowTypologyEmptyFallback = PlanMetaAccess.allowTypologyEmptyFallback(c, planMeta);
+        boolean allowStructureEmptyFallback = PlanMetaAccess.allowStructureEmptyFallback(c, planMeta);
+
         boolean canReplace = policy.allowsTypologyReplace(allowTypologyOverride);
-        boolean canTypologyFillEmpty = policy.allowTypologyWhenBaseEmpty();
-        boolean canStructureFillEmpty = policy.allowStructureWhenBaseEmpty();
+        boolean canTypologyFillEmpty = policy.allowTypologyWhenBaseEmpty() || allowTypologyEmptyFallback;
+        boolean canStructureFillEmpty = policy.allowStructureWhenBaseEmpty() || allowStructureEmptyFallback;
 
         if (!skipTypology
                 && plan.isStepEligible(ComponentPipelineStepId.TYPOLOGY)
@@ -110,15 +115,18 @@ final class ComponentGenerationPipeline {
                 FormacraftMod.LOGGER.debug(
                         "ComponentGenerationPipeline: typology for {} authority={} replace={}",
                         componentType, authority, !base.isEmpty());
+                String routeReason = authority + ":" + ComponentPipelineStepId.TYPOLOGY.name();
                 TypologyRoutingMetrics.recordExecutorHit(
                         ComponentExecutorId.COMPONENT_PIPELINE.name(),
-                        ComponentPipelineStepId.TYPOLOGY.name(),
+                        routeReason,
                         componentType);
                 return UnifiedGeneratorRouter.withDiagnostics(
                         RoutedGenerationResult.success(
                                 typologyPatches,
                                 ComponentExecutorId.COMPONENT_PIPELINE,
-                                ComponentPipelineStepId.TYPOLOGY),
+                                ComponentPipelineStepId.TYPOLOGY,
+                                authority,
+                                ComponentPipelineStepId.TYPOLOGY.name()),
                         routeDiagnostics);
             }
         }
@@ -130,10 +138,17 @@ final class ComponentGenerationPipeline {
             ComponentPipelineStepId step = baseStep != null
                     ? baseStep
                     : ComponentPipelineStepId.COMPONENT_REGISTRY;
+            String routeReason = authority + ":" + step.name();
             TypologyRoutingMetrics.recordExecutorHit(
-                    ComponentExecutorId.COMPONENT_PIPELINE.name(), step.name(), componentType);
+                    ComponentExecutorId.COMPONENT_PIPELINE.name(), routeReason, componentType);
             return new RoutedGenerationResult(
-                    st, base, routeDiagnostics, ComponentExecutorId.COMPONENT_PIPELINE, step);
+                    st,
+                    base,
+                    routeDiagnostics,
+                    ComponentExecutorId.COMPONENT_PIPELINE,
+                    step,
+                    authority,
+                    step.name());
         }
 
         if (!skipTypology
@@ -144,15 +159,18 @@ final class ComponentGenerationPipeline {
             List<BlockPatch> structurePatches = StructureGeneratorAdaptor.tryGenerate(semantic, world);
             if (!structurePatches.isEmpty()) {
                 FormacraftMod.LOGGER.debug("ComponentGenerationPipeline: structure adaptor for {}", componentType);
+                String routeReason = authority + ":" + ComponentPipelineStepId.STRUCTURE_ADAPTOR.name();
                 TypologyRoutingMetrics.recordExecutorHit(
                         ComponentExecutorId.COMPONENT_PIPELINE.name(),
-                        ComponentPipelineStepId.STRUCTURE_ADAPTOR.name(),
+                        routeReason,
                         componentType);
                 return UnifiedGeneratorRouter.withDiagnostics(
                         RoutedGenerationResult.success(
                                 structurePatches,
                                 ComponentExecutorId.COMPONENT_PIPELINE,
-                                ComponentPipelineStepId.STRUCTURE_ADAPTOR),
+                                ComponentPipelineStepId.STRUCTURE_ADAPTOR,
+                                authority,
+                                ComponentPipelineStepId.STRUCTURE_ADAPTOR.name()),
                         routeDiagnostics);
             }
         }
@@ -164,12 +182,19 @@ final class ComponentGenerationPipeline {
             return RoutedGenerationResult.failure(
                     ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
                     "required_component_empty",
-                    componentType == null ? "required_empty" : componentType);
+                    componentType == null ? "required_empty" : componentType,
+                    authority,
+                    "empty");
         }
 
         FormacraftMod.LOGGER.debug("ComponentGenerationPipeline: no patches for {}, skipping", componentType);
         return UnifiedGeneratorRouter.withDiagnostics(
-                RoutedGenerationResult.success(List.of(), ComponentExecutorId.COMPONENT_PIPELINE, null),
+                RoutedGenerationResult.success(
+                        List.of(),
+                        ComponentExecutorId.COMPONENT_PIPELINE,
+                        null,
+                        authority,
+                        "skip"),
                 routeDiagnostics);
     }
 
@@ -212,15 +237,19 @@ final class ComponentGenerationPipeline {
                 base,
                 expander.diagnostics(),
                 ComponentExecutorId.COMPONENT_PIPELINE,
-                ComponentPipelineStepId.LIBRARY_EXPANDER);
+                ComponentPipelineStepId.LIBRARY_EXPANDER,
+                GenerationAuthority.CAPTURED_LIBRARY,
+                ComponentPipelineStepId.LIBRARY_EXPANDER.name());
     }
 
     static GenerationAuthority resolveAuthority(Component c) {
-        Map<String, Object> planMeta = null;
-        GenerationAuthority planAuthority = UnifiedGeneratorRouter.planGenerationAuthority();
-        if (planAuthority != null) {
-            planMeta = new HashMap<>();
-            planMeta.put(GenerationAuthority.META_KEY, planAuthority.name());
+        Map<String, Object> planMeta = UnifiedGeneratorRouter.planMeta();
+        if (planMeta == null) {
+            GenerationAuthority planAuthority = UnifiedGeneratorRouter.planGenerationAuthority();
+            if (planAuthority != null) {
+                planMeta = new HashMap<>();
+                planMeta.put(GenerationAuthority.META_KEY, planAuthority.name());
+            }
         }
         return GenerationAuthority.resolve(c, planMeta);
     }

@@ -23,6 +23,14 @@ public final class GenerationRouteContract {
         };
     }
 
+    /** Stair executor is a COMPONENTS-family deterministic implementation. */
+    public static boolean allowsStairExecutor(GenerationAuthority authority) {
+        if (authority == null) {
+            authority = GenerationAuthority.COMPONENTS;
+        }
+        return authority == GenerationAuthority.COMPONENTS || authority == GenerationAuthority.TYPOLOGY;
+    }
+
     public static boolean strictEmptyFailure(GenerationAuthority authority) {
         if (authority == null) {
             return false;
@@ -45,7 +53,13 @@ public final class GenerationRouteContract {
         if (c == null) {
             return Optional.empty();
         }
+
         if (ComponentRouteHints.acceptsStair(c)) {
+            if (!allowsStairExecutor(authority)) {
+                return Optional.of(new GenerationDiagnostic(
+                        "generation_authority_conflict",
+                        "generation_authority=" + authority + " cannot use stair executor"));
+            }
             return Optional.empty();
         }
 

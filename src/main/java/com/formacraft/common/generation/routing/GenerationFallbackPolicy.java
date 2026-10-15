@@ -14,7 +14,7 @@ public record GenerationFallbackPolicy(
             authority = GenerationAuthority.COMPONENTS;
         }
         return switch (authority) {
-            case COMPONENTS -> new GenerationFallbackPolicy(false, true, true, true);
+            case COMPONENTS -> new GenerationFallbackPolicy(false, false, false, true);
             case TYPOLOGY -> new GenerationFallbackPolicy(true, true, false, true);
             case CAPTURED_LIBRARY -> new GenerationFallbackPolicy(false, false, false, false);
             case ASSEMBLY, SKELETON -> new GenerationFallbackPolicy(false, false, false, false);

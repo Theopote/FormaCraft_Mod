@@ -1,5 +1,7 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.routing.GenerationAuthority;
+import com.formacraft.common.generation.routing.PlanMetaAccess;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -75,6 +77,27 @@ class DesignFidelityTest {
         assertTrue(patches.isEmpty());
         assertTrue(AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_DESIGN_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void authorityContractComponentsFixturePreservesLockedRatio() throws Exception {
+        LlmPlan plan = loadFidelityPlan("authority_contract_components.json");
+        assertEquals(GenerationAuthority.COMPONENTS, PlanMetaAccess.planGenerationAuthority(plan));
+        assertFalse(PlanMetaAccess.allowTypologyEmptyFallback(null, plan.planMeta()));
+        assertFalse(PlanMetaAccess.allowStructureEmptyFallback(null, plan.planMeta()));
+        assertEquals("AI_PLANNED", plan.designSources().get("window_ratio"));
+
+        Component facade = plan.components().stream()
+                .filter(c -> c != null && "FACADE_WINDOWS".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        Component afterOpening = OpeningGrammarResolver.apply(plan, facade);
+        assertEquals(0.42, ((Number) afterOpening.params().get("window_ratio")).doubleValue(), 1e-9);
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
     }
 
     @Test
