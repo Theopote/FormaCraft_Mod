@@ -172,6 +172,11 @@ public final class ComponentPlanCompiler {
             AssemblyCompileDiagnostics.set(authoredFacadeIssue.get());
             return List.of();
         }
+        var authoredMassIssue = MassDesignValidator.check(plan, authoredComponents);
+        if (authoredMassIssue.isPresent()) {
+            AssemblyCompileDiagnostics.set(authoredMassIssue.get());
+            return List.of();
+        }
         var authoredConflict = ExplicitDesignConflictValidator.check(plan, authoredComponents);
         if (authoredConflict.isPresent()) {
             AssemblyCompileDiagnostics.set(authoredConflict.get());
@@ -207,6 +212,11 @@ public final class ComponentPlanCompiler {
         var facadeDesignConflict = FacadeDesignValidator.check(plan, components);
         if (facadeDesignConflict.isPresent()) {
             AssemblyCompileDiagnostics.set(facadeDesignConflict.get());
+            return List.of();
+        }
+        var massDesignConflict = MassDesignValidator.check(plan, components);
+        if (massDesignConflict.isPresent()) {
+            AssemblyCompileDiagnostics.set(massDesignConflict.get());
             return List.of();
         }
         var designConflict = ExplicitDesignConflictValidator.check(plan, components);
@@ -1328,6 +1338,9 @@ public final class ComponentPlanCompiler {
                 case "DECOR_DETAIL", "CHIMNEY" -> alignHostedDetail(c, mass);
                 default -> isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
+            if (AssemblyCompileDiagnostics.hasGap()) {
+                return;
+            }
             if (aligned != null && mass.params() != null && mass.params().get("component_id") != null) {
                 var params = new HashMap<String, Object>();
                 if (aligned.params() != null) params.putAll(aligned.params());
@@ -1469,10 +1482,27 @@ public final class ComponentPlanCompiler {
         if (llmDims != null) {
             int extraW = Math.max(0, llmDims.width() - baseW);
             int extraD = Math.max(0, llmDims.depth() - baseD);
-            int overhang = Math.max(extraW / 2, extraD / 2);
-            if (overhang > 0) {
-                int existing = ComponentParamParsers.intParam(params, 0, "overhang", "overhang_blocks", "eave_overhang");
-                params.put("overhang", Math.max(existing, overhang));
+            int bboxOverhang = Math.max(extraW / 2, extraD / 2);
+            Integer explicitOverhang = ComponentParamParsers.intOrNull(params,
+                    ComponentParamParsers.keysFor("overhang"));
+            boolean overhangLocked = com.formacraft.common.generation.design.DesignParameterRegistry
+                    .isDesignLocked(plan, params, "overhang");
+            boolean overhangExplicit = explicitOverhang != null || overhangLocked
+                    || hasRawOverhangKey(params);
+            if (overhangExplicit) {
+                int existing = explicitOverhang != null ? explicitOverhang
+                        : ComponentParamParsers.intParam(params, 0, ComponentParamParsers.keysFor("overhang"));
+                if (bboxOverhang > 0 && existing != bboxOverhang) {
+                    AssemblyCompileDiagnostics.set(new CapabilityGap(
+                            "E_ROOF_OVERHANG_CONFLICT",
+                            "explicit overhang=" + existing + " conflicts with roof bbox overhang=" + bboxOverhang,
+                            "components[]",
+                            List.of("Align roof dimensions with overhang, or omit overhang to derive from bbox.")));
+                    return null;
+                }
+                // Keep explicit value; do not raise via Math.max(existing, bbox).
+            } else if (bboxOverhang > 0) {
+                params.put("overhang", bboxOverhang);
             }
         }
 
@@ -1504,7 +1534,11 @@ public final class ComponentPlanCompiler {
             params.putAll(llmFacade.params());
         }
         params.put("anchor_mode", "min_corner");
-        params.put("wall_thickness", ComponentParamParsers.intParam(mass.params(), 1, "wall_thickness", "wallThickness"));
+        // Inherit host wall thickness only when facade did not author its own.
+        if (ComponentParamParsers.intOrNull(llmFacade.params(), "wall_thickness", "wallThickness") == null) {
+            params.put("wall_thickness",
+                    ComponentParamParsers.intParam(mass.params(), 1, "wall_thickness", "wallThickness"));
+        }
 
         Dimensions massDims = mass.dimensions();
         Dimensions llmDims = llmFacade.dimensions();
@@ -1737,6 +1771,18 @@ public final class ComponentPlanCompiler {
                 to.put(key, from.get(key));
             }
         }
+    }
+
+    private static boolean hasRawOverhangKey(Map<String, Object> params) {
+        if (params == null) {
+            return false;
+        }
+        for (String key : ComponentParamParsers.keysFor("overhang")) {
+            if (key != null && params.containsKey(key) && params.get(key) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List<String> mergeFeatureLists(List<String> primary, List<String> secondary) {

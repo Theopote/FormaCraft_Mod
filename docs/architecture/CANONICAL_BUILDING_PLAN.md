@@ -85,10 +85,17 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 
 **Floor layout:**
 
-- Authority for storey spacing is [ResolvedComponentGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedComponentGeometry.java) (`floor_height`, `floor_count`, `floorYs`, `floorLayoutFits`).
-- Generators must not silently raise computed storey height with `Math.max(3, height/floorCount)` when the envelope is short. Explicit `floor_count` × `floor_height` exceeding envelope height → `E_FLOOR_LAYOUT_OVERFLOW`.
+- Authority for storey spacing is [ResolvedFloorLayout](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFloorLayout.java) (and [ResolvedComponentGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedComponentGeometry.java)): explicit `floor_height` → else `envelope/floor_count` (≥1) → technical default 3.
+- Generators must not silently raise band height with `Math.max(3, floorHeight)`. Explicit `floor_count` × `floor_height` exceeding envelope height → `E_FLOOR_LAYOUT_OVERFLOW`.
 
-**MassMain fidelity notes (Round-7 audit):**
+**Mass / roof alignment (Round-8):**
+
+- Explicit `courtyard_ratio` is not clamped to 0.2–0.6; unbuildable ratio → `E_COURTYARD_GEOMETRY_CONFLICT` ([MassDesignValidator](../../src/main/java/com/formacraft/server/compiler/MassDesignValidator.java)).
+- Explicit `wall_thickness` has no fixed cap of 4; hollow masses require `2 * thickness < min(width,depth)` else `E_WALL_THICKNESS_UNFIT`.
+- `alignRoofToMass` must not raise a locked/explicit `overhang` from roof bbox; mismatch → `E_ROOF_OVERHANG_CONFLICT`.
+- Explicit `arm_width` / `l_cut` / `corner_cut` exceeding footprint−2 → `E_PLAN_PATTERN_UNFIT`.
+
+**MassMain fidelity notes (Round-7/8 audit):**
 
 | Param / behavior | Preserved? | Notes |
 |------------------|------------|-------|
@@ -97,8 +104,12 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 | `window_style=none` / `suppress_windows` | yes | blocks default window fill |
 | `entrance_type=none` | yes | blocks default door fill |
 | explicit `void_ratio` | yes (R7) | size heuristic must not re-hollow/solid override when ratio is set |
-| `floor_count` / `floor_height` | partial | shared geometry resolve exists; facade no longer raises min storey; overflow gated |
-| setbacks / `ResolvedFacadeLayers` | mostly | still style-influenced when params omit layers |
+| `courtyard_ratio` | yes (R8) | no aesthetic clamp; geometry gate |
+| `wall_thickness` | yes (R8) | no cap at 4; buildability gate |
+| `overhang` vs roof bbox | yes (R8) | conflict, not silent max |
+| `arm_width` / `l_cut` / `corner_cut` | yes (R8) | unfit when explicit > footprint−2 |
+| `floor_count` / `floor_height` | yes (R8) | `ResolvedFloorLayout` shared by Mass+Facade |
+| `setback_ratio` | yes | clamped only to [0,1]; not rewritten |
 | default doors/windows without features | technical | only when not explicitly disabled |
 
 **Parse boundary:** both [`LlmPlanParser.parse`](../../src/main/java/com/formacraft/common/llm/parser/LlmPlanParser.java) and `parseAndValidate` reject invalid `generation_authority`; [`ComponentPlanCompiler`](../../src/main/java/com/formacraft/server/compiler/ComponentPlanCompiler.java) also rejects via `E_INVALID_GENERATION_AUTHORITY` if a plan bypasses parse.

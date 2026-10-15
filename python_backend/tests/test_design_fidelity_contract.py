@@ -121,6 +121,25 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertEqual("none", mass["params"]["roof_type"])
         self.assertFalse(any(c.get("component_type") == "ROOF" for c in plan["components"]))
 
+    def test_round8_mass_fidelity_fixtures(self):
+        courtyard = self._load("courtyard_ratio_075.json")
+        mass = next(c for c in courtyard["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(0.75, mass["params"]["courtyard_ratio"])
+        unfit = self._load("courtyard_ratio_unfit.json")
+        unfit_mass = next(c for c in unfit["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(0.75, unfit_mass["params"]["courtyard_ratio"])
+        self.assertEqual(6, unfit_mass["dimensions"]["width"])
+        thick = self._load("wall_thickness_6.json")
+        thick_mass = next(c for c in thick["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(6, thick_mass["params"]["wall_thickness"])
+        overhang = self._load("overhang_bbox_conflict.json")
+        roof = next(c for c in overhang["components"] if c.get("component_type") == "ROOF")
+        self.assertEqual(1, roof["params"]["overhang"])
+        self.assertGreater(roof["dimensions"]["width"], 12)
+        setback = self._load("setback_ratio_explicit.json")
+        setback_mass = next(c for c in setback["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(0.12, setback_mass["params"]["setback_ratio"])
+
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
         plan = json.loads(INVALID_AUTHORITY_FIXTURE.read_text(encoding="utf-8"))

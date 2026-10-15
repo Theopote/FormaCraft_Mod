@@ -76,15 +76,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 windowAspect = WindowAspect.PUNCH_WINDOW;
             }
         }
-        int floorHeight = ComponentParamParsers.intParam(params, "floor_height", "floorHeight");
-        int floorCount = ComponentParamParsers.intParam(params, "floor_count", "floorCount");
-        // Do not silently raise storey height above envelope/floor_count (no Math.max(3, ...)).
-        if (floorHeight <= 0 && floorCount > 0) {
-            floorHeight = Math.max(1, height / floorCount);
-        }
-        if (floorHeight <= 0) {
-            floorHeight = 3;
-        }
+        var floorLayout = com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(c, height);
+        int floorHeight = floorLayout.bandHeight();
+        int floorCount = floorLayout.floorCount();
         int windowSpacing = resolveWindowSpacing(windowRatio);
         com.formacraft.common.llm.dto.GlobalConstraints.Facing facing =
                 (semantic.slot() != null && semantic.slot().facing() != null)
@@ -491,7 +485,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
     }
 
     private static boolean isVerticalStripY(int y, int height, int floorHeight) {
-        int fh = Math.max(3, floorHeight);
+        int fh = Math.max(1, floorHeight);
         int bandStart = (y / fh) * fh;
         int bandEnd = Math.min(height - 1, bandStart + fh - 1);
         int minY = bandStart + 1;
@@ -500,7 +494,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
     }
 
     private static boolean isPunchWindowY(int y, int height, int floorHeight) {
-        int fh = Math.max(3, floorHeight);
+        int fh = Math.max(1, floorHeight);
         int bandStart = (y / fh) * fh;
         int mid = bandStart + fh / 2;
         return y >= mid - 1 && y <= mid + 1 && y > 0 && y < height - 1;

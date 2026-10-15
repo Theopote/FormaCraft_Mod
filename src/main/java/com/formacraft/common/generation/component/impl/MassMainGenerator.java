@@ -114,8 +114,9 @@ public class MassMainGenerator implements ComponentGenerator {
         // 使用转换后的实际原点
         rp = actualRp;
         
-        // Resolve before creating MassConfig so the emitted body and satellite bounds agree.
-        int userFloorHeight = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.explicitFloorHeight(c);
+        // Shared storey layout with FacadeWindows (no silent Math.max(3, …) raise).
+        int userFloorHeight = com.formacraft.common.generation.component.util.ResolvedFloorLayout
+                .from(c, height).bandHeight();
 
         // 获取风格
         String styleProfile = getStyleProfile(semantic);
@@ -328,7 +329,7 @@ public class MassMainGenerator implements ComponentGenerator {
                     }
 
                     if (mass.pattern != null && mass.pattern.pattern == PlanPattern.COURTYARD
-                            && isInCourtyardHole(localX, localZ, width, depth, mass.pattern)) {
+                            && isInCourtyardHole(localX, localZ, width, depth, mass.pattern, wallThickness)) {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.COURTYARD_FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
@@ -658,8 +659,7 @@ public class MassMainGenerator implements ComponentGenerator {
         if (y <= 0 || y >= height - 1) {
             return false;
         }
-        int bandHeight = floorHeight > 0 ? floorHeight : 3;
-        bandHeight = Math.max(3, bandHeight);
+        int bandHeight = Math.max(1, floorHeight > 0 ? floorHeight : 3);
         int localY = Math.floorMod(y, bandHeight);
         return localY > 0 && localY < bandHeight - 1;
     }
@@ -1061,17 +1061,22 @@ public class MassMainGenerator implements ComponentGenerator {
                 if (ratioValue != null && ratioValue > 0.0) {
                     ratio = ratioValue;
                 } else {
-                    ratio = 0.35;
+                    // Technical default only when ratio was not explicitly planned.
+                    ratio = Math.max(0.2, Math.min(0.6, 0.35));
                 }
             }
             default -> {
             }
         }
 
-        if (pattern == PlanPattern.COURTYARD) {
-            ratio = Math.max(0.2, Math.min(0.6, ratio));
+        // Aesthetic 0.2–0.6 clamp applies only to non-explicit courtyard defaults (handled above).
+        // Explicit courtyard_ratio is validated by MassDesignValidator / isInCourtyardHole geometry.
+        int maxPatternSize = Math.min(width, depth) - 2;
+        if (size > 0 && size > maxPatternSize) {
+            throw new IllegalArgumentException("E_PLAN_PATTERN_UNFIT: plan pattern size=" + size
+                    + " exceeds buildable max=" + maxPatternSize);
         }
-        size = Math.max(1, Math.min(size, Math.min(width, depth) - 2));
+        size = Math.max(0, Math.min(size, Math.max(0, maxPatternSize)));
 
         return new PatternConfig(pattern, size, ratio, corner);
     }
@@ -1163,6 +1168,11 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private static boolean isInCourtyardHole(int x, int z, int width, int depth, PatternConfig pattern) {
+        return isInCourtyardHole(x, z, width, depth, pattern, 1);
+    }
+
+    private static boolean isInCourtyardHole(int x, int z, int width, int depth, PatternConfig pattern,
+                                            int wallThickness) {
         if (pattern == null || pattern.pattern != PlanPattern.COURTYARD) {
             return false;
         }
@@ -1173,8 +1183,11 @@ public class MassMainGenerator implements ComponentGenerator {
         if (ratio <= 0.0) {
             ratio = 0.35;
         }
-        int holeWidth = Math.max(1, Math.min(width - 2, (int) Math.round(width * ratio)));
-        int holeDepth = Math.max(1, Math.min(depth - 2, (int) Math.round(depth * ratio)));
+        int wt = Math.max(1, wallThickness);
+        int maxHoleW = Math.max(1, width - 2 * wt);
+        int maxHoleD = Math.max(1, depth - 2 * wt);
+        int holeWidth = Math.max(1, Math.min(maxHoleW, (int) Math.round(width * ratio)));
+        int holeDepth = Math.max(1, Math.min(maxHoleD, (int) Math.round(depth * ratio)));
         int startX = (width - holeWidth) / 2;
         int startZ = (depth - holeDepth) / 2;
         int endX = startX + holeWidth - 1;
@@ -1265,7 +1278,8 @@ public class MassMainGenerator implements ComponentGenerator {
     private int resolveWallThickness(Map<String, Object> params, SemanticComponent semantic) {
         int override = ComponentParamParsers.intParam(params, -1, "wall_thickness", "wallThickness");
         if (override > 0) {
-            return Math.min(4, override);
+            // No fixed aesthetic cap; buildability is enforced by MassDesignValidator.
+            return override;
         }
         Double massiveness = ComponentParamParsers.doubleOrNull(params, "massiveness");
         if (massiveness == null && semantic != null && semantic.genome() != null
@@ -1371,7 +1385,7 @@ public class MassMainGenerator implements ComponentGenerator {
             case CROSS -> isInCrossArms(x, z, width, depth, pattern.size);
             case CUT_CORNERS -> !isInCornerCut(x, z, width, depth, pattern.size);
             case L_SHAPE -> !isInLCut(x, z, width, depth, pattern.size, pattern.corner);
-            case COURTYARD -> !isInCourtyardHole(x, z, width, depth, pattern);
+            case COURTYARD -> !isInCourtyardHole(x, z, width, depth, pattern, 1);
             default -> true;
         };
     }

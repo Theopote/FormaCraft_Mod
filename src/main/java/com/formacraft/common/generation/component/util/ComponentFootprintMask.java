@@ -244,15 +244,17 @@ public final class ComponentFootprintMask {
             case COURTYARD -> {
                 Double ratioValue = ComponentParamParsers.doubleOrNull(params, "courtyard_ratio", "courtyardRatio",
                         "court_ratio", "void_ratio", "voidRatio");
-                ratio = ratioValue != null && ratioValue > 0.0 ? ratioValue : 0.35;
+                if (ratioValue != null && ratioValue > 0.0) {
+                    // Explicit ratio: do not apply aesthetic 0.2–0.6 clamp.
+                    ratio = ratioValue;
+                } else {
+                    ratio = Math.max(0.2, Math.min(0.6, 0.35));
+                }
             }
             default -> {
             }
         }
 
-        if (pattern == PlanPattern.COURTYARD) {
-            ratio = Math.max(0.2, Math.min(0.6, ratio));
-        }
         size = Math.max(1, Math.min(size, Math.min(width, depth) - 2));
 
         return new PatternConfig(pattern, size, ratio, corner);
@@ -357,6 +359,7 @@ public final class ComponentFootprintMask {
             return false;
         }
         double ratio = pattern.ratio <= 0.0 ? 0.35 : pattern.ratio;
+        // Geometric ring only (min 1-block walls); explicit ratio is not aesthetically clamped.
         int holeWidth = Math.max(1, Math.min(width - 2, (int) Math.round(width * ratio)));
         int holeDepth = Math.max(1, Math.min(depth - 2, (int) Math.round(depth * ratio)));
         int startX = (width - holeWidth) / 2;

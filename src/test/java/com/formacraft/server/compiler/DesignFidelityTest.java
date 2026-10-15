@@ -204,6 +204,66 @@ class DesignFidelityTest {
     }
 
     @Test
+    void courtyardRatio075PreservesLargeHole() throws Exception {
+        LlmPlan plan = loadFidelityPlan("courtyard_ratio_075.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        var blocks = PatchTestSnapshot.blocks(patches);
+        // Mid-height interior of a 20x20 courtyard at ratio 0.75 should be open (no solid wall).
+        assertFalse(blocks.containsKey(new com.formacraft.common.llm.dto.Vec3i(10, 2, 10)),
+                "courtyard_ratio=0.75 must leave a large central void");
+    }
+
+    @Test
+    void courtyardRatioUnfitFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("courtyard_ratio_unfit.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_COURTYARD_GEOMETRY_CONFLICT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void wallThickness6SurvivesToFacadeCarve() throws Exception {
+        LlmPlan plan = loadFidelityPlan("wall_thickness_6.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        long inwardAir = patches.stream()
+                .filter(p -> BlockPatch.REMOVE.equalsIgnoreCase(p.action())
+                        || (p.targetBlock() != null && p.targetBlock().toLowerCase().contains("air")))
+                .count();
+        assertTrue(inwardAir >= 5,
+                "wall_thickness=6 facade should carve multiple inward air layers, got " + inwardAir);
+    }
+
+    @Test
+    void overhangBboxConflictFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("overhang_bbox_conflict.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_ROOF_OVERHANG_CONFLICT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void setbackRatioExplicitCompilesWithoutMutation() throws Exception {
+        LlmPlan plan = loadFidelityPlan("setback_ratio_explicit.json");
+        Component mass = plan.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(0.12, ((Number) mass.params().get("setback_ratio")).doubleValue(), 1e-9);
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
     void explicitSquareAspectSurvivesLargeFeatureCompile() throws Exception {
         LlmPlan plan = loadFidelityPlan("explicit_square_window_large.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
