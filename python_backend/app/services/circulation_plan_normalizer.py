@@ -107,7 +107,8 @@ def _mass_origin(mass: dict) -> dict:
 
 
 def _host_mass(plan: dict, component: dict) -> dict | None:
-    masses = [c for c in plan.get('components', []) if c.get('component_type') == 'MASS_MAIN']
+    masses = [c for c in plan.get('components', []) if c.get('component_type') in
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY')]
     host_id = (component.get('params') or {}).get('host_id')
     if host_id:
         host = next((m for m in masses if (m.get('params') or {}).get('component_id') == host_id), None)
@@ -132,6 +133,19 @@ def _fit_straight_stairs(plan: dict) -> None:
         if comp.get('component_type') != 'STRUCTURE' or not any(
                 f == 'stair:straight_single_run' for f in comp.get('features', [])):
             continue
+        a, b = params.get('from'), params.get('to')
+        if not isinstance(a, dict) or not isinstance(b, dict): continue
+        # Some plans describe a vertical column rather than an executable flight.
+        # Give it the minimum horizontal run while preserving its floor endpoints.
+        if a['x'] == b['x'] and a['z'] == b['z'] and a['y'] != b['y']:
+            b = dict(b)
+            b['z'] = a['z'] + abs(b['y'] - a['y'])
+            params['to'] = b
+        if params.get('stairs') in ('minecraft:iron_block', 'iron_block'):
+            params['stairs'] = 'minecraft:stone_brick_stairs'
+        identity = str(params.get('component_id') or '').lower()
+        if identity.startswith(('external_stairs', 'exterior_stairs')):
+            params['exterior'] = True
         if params.get('exterior') is True: continue
         mass = _host_mass(plan, comp)
         if mass is None or not isinstance(params.get('from'), dict) or not isinstance(params.get('to'), dict): continue
@@ -141,6 +155,12 @@ def _fit_straight_stairs(plan: dict) -> None:
         width = int(params.get('width', 3))
         landing = int(params.get('landing_length', 1))
         rp = comp.get('relative_position') or _point(0, 0, 0)
+        if a['y'] > 0 and a['y'] == rp['y'] - origin['y']:
+            # Planner repeated the floor elevation in both component position
+            # and local endpoints. Apply that elevation once, not twice.
+            aa, bb = dict(a), dict(b)
+            aa['y'], bb['y'] = 0, b['y'] - a['y']
+            params['from'], params['to'] = a, b = aa, bb
         found = False
         for rotate in (False, True):
             aa, bb = dict(a), dict(b)
@@ -187,6 +207,9 @@ def _fit_straight_stairs(plan: dict) -> None:
 
 def normalize_circulation_plan(plan: dict) -> dict:
     out = deepcopy(plan)
+    if (out.get('capability_gap') or {}).get('code') == 'E_STAIR_ENVELOPE_FIT':
+        out.pop('capability_gap', None)
+        if out.get('plan_status') == 'capability_gap': out.pop('plan_status', None)
     _fit_straight_stairs(out)
     plates = []
     for comp in out.get("components", []):

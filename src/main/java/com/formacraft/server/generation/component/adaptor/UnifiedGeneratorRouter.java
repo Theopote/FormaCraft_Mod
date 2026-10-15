@@ -404,7 +404,7 @@ public final class UnifiedGeneratorRouter {
         return switch (n) {
             case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
                  "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "ENTRANCE",
-                 "CHIMNEY", "DOOR", "WINDOW", "COLUMN", "STAIR", "STAIRS" -> true;
+                 "CHIMNEY", "DOOR", "WINDOW", "COLUMN", "STAIR", "STAIRS", "STRUCTURE", "TOWER" -> true;
             default -> false;
         };
     }

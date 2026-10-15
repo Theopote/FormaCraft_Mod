@@ -27,6 +27,11 @@ public class DetailRulePostProcessor implements PostProcessor {
     private static final int MAX_REPLACEMENTS = 2500;
 
     @Override
+    public PostProcessWritePolicy writePolicy() {
+        return PostProcessWritePolicy.REPLACE_WITHIN_SCOPE;
+    }
+
+    @Override
     public FailurePolicy failurePolicy() {
         return FailurePolicy.HARD;
     }

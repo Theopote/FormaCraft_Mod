@@ -251,6 +251,12 @@ final class ComponentGenerationPipeline {
                 planMeta.put(GenerationAuthority.META_KEY, planAuthority.name());
             }
         }
+        if (c != null && "STRUCTURE".equalsIgnoreCase(c.componentType())
+                && ComponentRouteHints.hasTypologyHint(c)
+                && (c.params() == null || GenerationAuthority.parse(c.params().get(GenerationAuthority.PARAM_KEY)) == null)
+                && (planMeta == null || GenerationAuthority.parse(planMeta.get(GenerationAuthority.META_KEY)) == null)) {
+            return GenerationAuthority.TYPOLOGY;
+        }
         return GenerationAuthority.resolve(c, planMeta);
     }
 }

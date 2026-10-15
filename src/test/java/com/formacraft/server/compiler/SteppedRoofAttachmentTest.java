@@ -10,6 +10,9 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SteppedRoofAttachmentTest {
+    @org.junit.jupiter.api.BeforeEach void clearCompileDiagnostics() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
     @Test void nestedAnnexUsesRootLayerPolicyAndKeepsItsOwnTopFrame() throws Exception {
         MinecraftRegistryTestBootstrap.initialize();
         var params = new HashMap<>(body("rectangle").params());

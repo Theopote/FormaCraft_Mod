@@ -205,7 +205,11 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 counter += 1; identity = f'{stem}_{counter}'
             params['component_id'] = identity; used.add(identity)
     masses = [c for c in components if c.get('component_type') == 'MASS_MAIN']
-    ids = {c['params']['component_id']: c for c in masses}
+    # Towers and wings own their attached roofs/windows too. Keep requirement
+    # targets separate: a main-building width must not be imposed on its towers.
+    owners = [c for c in components if c.get('component_type') in
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY')]
+    ids = {c['params']['component_id']: c for c in owners}
     # Global attributes cannot encode different materials for separate buildings.
     attrs = out.get('style_attributes') or {}
     for role in ('wall', 'floor', 'roof'):
@@ -241,7 +245,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     by_id = {c['params']['component_id']: c for c in components}
     for comp in components:
         params = comp['params']
-        if comp in masses:
+        if comp in owners:
             params['building_id'] = params['component_id']
             continue
         if comp.get('component_type') not in HOSTED: continue

@@ -5148,6 +5148,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             call_with_timeout=_call_with_timeout,
             timeout_sec=timeout_sec,
             prefer_json_object=prefer_json_object,
+            transient_retries=1,
         )
         llm_ms = (time.monotonic() - _t_llm) * 1000.0
         

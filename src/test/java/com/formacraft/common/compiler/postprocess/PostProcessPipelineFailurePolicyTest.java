@@ -10,6 +10,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PostProcessPipelineFailurePolicyTest {
+    @org.junit.jupiter.api.BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @Test
     void softFailureKeepsPreviousAndContinues() {
         var pipeline = new PostProcessPipeline();

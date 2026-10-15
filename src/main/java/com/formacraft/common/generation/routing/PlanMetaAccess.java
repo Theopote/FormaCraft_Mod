@@ -17,7 +17,10 @@ public final class PlanMetaAccess {
         if (plan == null) {
             return false;
         }
-        return booleanMeta(plan.planMeta(), ALLOW_COMPILER_SATELLITES);
+        // Ordinary AI plans may omit a basic entrance/facade/roof. Complete those
+        // unless the caller explicitly opted into strict satellite ownership.
+        return plan.planMeta() == null || !plan.planMeta().containsKey(ALLOW_COMPILER_SATELLITES)
+                || booleanMeta(plan.planMeta(), ALLOW_COMPILER_SATELLITES);
     }
 
     /** Plan-level authority only (ignores component params). */

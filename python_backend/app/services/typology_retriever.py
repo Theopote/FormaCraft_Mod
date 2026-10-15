@@ -113,6 +113,9 @@ def resolve_typology_for_intent(
     best: Optional[TypologyMatch] = None
     best_score = 0.0
     for defn in list_typologies():
+        if defn.id == 'radial_fortress' and not any(
+                word in q.lower() for word in ('城堡', '要塞', '堡垒', '城墙', '垛口', 'castle', 'fortress', 'battlement')):
+            continue
         score, matched = _score_keywords(q, defn.match_keywords, defn.negative_keywords)
         if score > best_score:
             best_score = score

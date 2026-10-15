@@ -14,6 +14,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ComponentPipelineRouteResolverTest {
 
+    @Test void typologyStructureWithWindowRequestCannotBecomeOnlyAWindow() {
+        var c = new Component("STRUCTURE", "main", new Vec3i(0,0,0), new Dimensions(24,20,18),
+                List.of("typology:radial_fortress", "component_request:{}"), Map.of());
+        var route = ComponentPipelineRouteResolver.resolve(new SemanticComponent("STRUCTURE", null, c), null);
+        org.junit.jupiter.api.Assertions.assertFalse(route.explicitLibraryFirst());
+        org.junit.jupiter.api.Assertions.assertFalse(route.isStepEligible(ComponentPipelineStepId.LIBRARY_EXPANDER));
+        assertEquals(com.formacraft.common.generation.routing.GenerationAuthority.TYPOLOGY,
+                ComponentGenerationPipeline.resolveAuthority(c));
+    }
+
     @Test
     void roofPipelineIncludesRegistryAndTypologyWhenEligible() {
         Component roof = new Component(

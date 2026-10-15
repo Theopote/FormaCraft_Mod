@@ -21,6 +21,7 @@ class ComponentPlanCompilerDetailVolumeTest {
                 "RESIDENTIAL", null, null))))
             .components(List.of(foundation, mass)).build();
         var result = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, new BlockPos(100, 64, 200), null, null, false));
+        assertFalse(result.isEmpty(), String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         // min corner = (3-4,4,-2-3), plus slot (20,6,30); fourth layer is y=10+3.
         String boundary = result.get(new Vec3i(19, 13, 25));
         assertNotNull(boundary); assertTrue(boundary.contains("half=top"), boundary);
@@ -40,6 +41,7 @@ class ComponentPlanCompilerDetailVolumeTest {
                 new Slot("b", new Vec3i(30, 10, 20), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null))))
             .components(List.of(first, second)).build();
         var result = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
+        assertFalse(result.isEmpty(), String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         assertTrue(result.get(new Vec3i(10, 7, 0)).contains("half=top"));
         assertTrue(result.get(new Vec3i(30, 11, 20)).contains("half=top"));
         assertFalse(result.get(new Vec3i(30, 10, 20)).contains("half=top"));

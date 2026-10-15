@@ -9,6 +9,7 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PostProcessGeometryPreservationTest {
+    @org.junit.jupiter.api.BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @Test void explicitMaterialSurvivesVariationAndDecorativeReplacement() {
         var locked = new HashSet<BlockPos>();
         var input = new ArrayList<BlockPatch>();

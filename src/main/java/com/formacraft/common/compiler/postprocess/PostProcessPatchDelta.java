@@ -60,7 +60,7 @@ public final class PostProcessPatchDelta {
                 out.remove(pos);
                 continue;
             }
-            if (!BlockPatch.PLACE.equals(p.action())) continue;
+            if (!BlockPatch.PLACE.equals(p.action()) && !BlockPatch.REPLACE.equals(p.action())) continue;
             String canon = ExplicitMaterialPolicy.canonical(p.targetBlock());
             out.put(pos, canon != null ? canon : p.targetBlock());
         }

@@ -23,6 +23,10 @@ import java.util.Map;
  * - 在顶部添加装饰元素
  */
 public class DetailEnhancementPostProcessor implements PostProcessor {
+    @Override
+    public PostProcessWritePolicy writePolicy() {
+        return PostProcessWritePolicy.REPLACE_WITHIN_SCOPE;
+    }
 
     @Override
     public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {

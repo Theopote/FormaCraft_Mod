@@ -11,5 +11,6 @@ public enum RoofTypeKind {
     PYRAMID,
     CONE,
     DOME,
-    MANSARD
+    MANSARD,
+    SAWTOOTH
 }

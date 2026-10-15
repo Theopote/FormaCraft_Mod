@@ -150,6 +150,10 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         style_id = str(c.get("styleId") or "").strip()
         if not cid or not style_id:
             continue
+        # A tower attached to a villa/hotel is not evidence of a fortress.
+        if cid in ('medieval_castle', 'castle_compound') and not any(
+                word in qn for word in ('城堡', '要塞', '堡垒', '城墙', '垛口', 'castle', 'fortress', 'battlement')):
+            continue
 
         intents = _str_list(c.get("intents"))
         keywords = _str_list(c.get("keywords"))

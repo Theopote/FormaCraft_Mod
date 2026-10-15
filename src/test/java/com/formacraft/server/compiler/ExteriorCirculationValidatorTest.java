@@ -11,6 +11,31 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @Test void externalLandingPermissionIsLimitedToItsConnectorAndEndpoint() {
+        MinecraftRegistryTestBootstrap.initialize();
+        var corridor = new com.formacraft.common.llm.dto.Component("MASS_SECONDARY", "s",
+                new com.formacraft.common.llm.dto.Vec3i(0,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(5,5,6), List.of(),
+                Map.of("component_id","corridor", "anchor_mode","min_corner"));
+        var unrelated = new com.formacraft.common.llm.dto.Component("MASS_MAIN", "s", corridor.relativePosition(),
+                corridor.dimensions(), List.of(), Map.of("component_id","other"));
+        var stair = new com.formacraft.common.llm.dto.Component("STRUCTURE", "s", corridor.relativePosition(),
+                corridor.dimensions(), List.of("stair:straight_single_run"),
+                Map.of("exterior",true, "from",Map.of("x",2,"y",0,"z",0),
+                        "to",Map.of("x",2,"y",3,"z",3), "width",3));
+        var landing = new BlockPos(2,3,3);
+        var other = new BlockPos(1,3,3);
+        var outside = new BlockPos(2,3,0);
+        var index = new PatchOccupancyIndex();
+        index.commit(corridor, List.of(stone(landing), stone(outside)));
+        index.commit(unrelated, List.of(stone(other)));
+        var access = ExteriorCirculationValidator.connectorAccess(stair, List.of(corridor, unrelated), Map.of(), BlockPos.ORIGIN, index);
+        assertTrue(access.contains(landing));
+        assertFalse(access.contains(other));
+        assertFalse(access.contains(outside));
+        assertTrue(index.validate(stair,List.of(new BlockPatch("remove",2,3,3,"minecraft:air")),access).isEmpty());
+        assertTrue(index.validate(stair,List.of(new BlockPatch("remove",1,3,3,"minecraft:air")),access).isPresent());
+    }
     private final List<BuildingVolume> volumes = List.of(
             new BuildingVolume("house", new Bounds(10, 2, 20, 16, 10, 26), 4),
             new BuildingVolume("house", new Bounds(16, 2, 22, 20, 7, 26), 4));

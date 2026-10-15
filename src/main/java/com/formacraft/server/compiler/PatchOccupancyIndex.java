@@ -30,7 +30,7 @@ public final class PatchOccupancyIndex {
     );
 
     /** No sticky overwrite flag — authority is not inherited across writers. */
-    public record PlaceRecord(String writerType, String targetBlock) {}
+    public record PlaceRecord(String writerType, String targetBlock, Component owner) {}
 
     public record Conflict(BlockPos position, String previousWriter, String previousBlock,
                            String writer, String newBlock, String reason) {}
@@ -40,16 +40,24 @@ public final class PatchOccupancyIndex {
 
     /** Read-only: does not mutate formal state. */
     public Optional<Conflict> validate(Component writer, List<BlockPatch> patches) {
+        return validate(writer, patches, Set.of());
+    }
+
+    public Optional<Conflict> validate(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
         if (patches == null || patches.isEmpty()) return Optional.empty();
         Map<BlockPos, PlaceRecord> simPlaces = new HashMap<>(places);
         Set<BlockPos> simRemoves = new HashSet<>(removes);
-        return apply(writer, patches, simPlaces, simRemoves);
+        return apply(writer, patches, simPlaces, simRemoves, connectorAccess);
     }
 
     /** Mutates formal state; call only after {@link #validate} succeeded. */
     public void commit(Component writer, List<BlockPatch> patches) {
+        commit(writer, patches, Set.of());
+    }
+
+    public void commit(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
         if (patches == null || patches.isEmpty()) return;
-        apply(writer, patches, places, removes);
+        apply(writer, patches, places, removes, connectorAccess);
     }
 
     /** Convenience: validate then commit if ok. */
@@ -207,7 +215,8 @@ public final class PatchOccupancyIndex {
             Component writer,
             List<BlockPatch> patches,
             Map<BlockPos, PlaceRecord> placeMap,
-            Set<BlockPos> removeSet
+            Set<BlockPos> removeSet,
+            Set<BlockPos> connectorAccess
     ) {
         String type = writer != null && writer.componentType() != null
                 ? writer.componentType().trim().toUpperCase(Locale.ROOT) : "";
@@ -219,7 +228,7 @@ public final class PatchOccupancyIndex {
             BlockPos pos = new BlockPos(p.dx(), p.dy(), p.dz());
             if (BlockPatch.REMOVE.equals(p.action())) {
                 PlaceRecord existing = placeMap.get(pos);
-                if (existing != null && !carveOk) {
+                if (existing != null && !carveOk && !isHostedStairJoin(writer, existing) && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
                             type, p.targetBlock(), "unauthorized_remove"));
                 }
@@ -235,16 +244,19 @@ public final class PatchOccupancyIndex {
                 String prevCanon = canonical(prev.targetBlock());
                 if (prevCanon != null && prevCanon.equals(canon)) {
                     // Same material: replace ownership with current writer only (no privilege inherit).
-                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock()));
+                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
                     removeSet.remove(pos);
                     continue;
                 }
-                if (!overwriteOk) {
+                boolean chimneyFooting = "CHIMNEY".equals(type)
+                        && Set.of("FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType());
+                if (!overwriteOk && !chimneyFooting && !connectorAccess.contains(pos)
+                        && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev)) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
                             type, p.targetBlock(), "unauthorized_place_overwrite"));
                 }
             }
-            placeMap.put(pos, new PlaceRecord(type, p.targetBlock()));
+            placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
             removeSet.remove(pos);
         }
         return Optional.empty();
@@ -252,5 +264,37 @@ public final class PatchOccupancyIndex {
 
     static String canonical(String target) {
         return com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(target);
+    }
+
+    private static boolean isHostedStructuralJoin(Component writer, PlaceRecord previous) {
+        if (writer == null || writer.params() == null || previous.owner() == null
+                || previous.owner().params() == null) return false;
+        Object host = writer.params().get("host_id");
+        Object ownerId = previous.owner().params().get("component_id");
+        if (!(host instanceof String id) || id.isBlank()
+                || (!id.equals(ownerId) && !id.equals(previous.owner().params().get("host_id")))) return false;
+        if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
+        if (!Set.of("MASS_MAIN", "MAIN_MASS", "MASS_WING", "SIDE_WING", "MASS_SECONDARY", "TOWER", "FOUNDATION", "BALCONY", "TERRACE", "DECOR_DETAIL")
+                .contains(previous.writerType())) return false;
+        // Bound structural/detail parts may join their own building. The surface
+        // ledger still protects roofs and openings from decoration; REMOVE uses
+        // the separate stair/carve rules.
+        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL").contains(writer.componentType().toUpperCase(Locale.ROOT))
+                || ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType())
+                    && "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode"))));
+    }
+
+    private static boolean isHostedStairJoin(Component writer, PlaceRecord previous) {
+        if (!com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(writer)
+                || writer.params() == null || previous.owner() == null || previous.owner().params() == null) return false;
+        Object host = writer.params().get("host_id");
+        if (!(host instanceof String id) || id.isBlank()) return false;
+        if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
+        if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER").contains(previous.writerType()))
+            return id.equals(previous.owner().params().get("component_id"));
+        return (Set.of("TERRACE", "BALCONY", "FOUNDATION", "DECOR_DETAIL").contains(previous.writerType())
+                || ("MASS_SECONDARY".equals(previous.writerType())
+                    && "plate".equals(previous.owner().params().get("extrude_mode"))))
+                && id.equals(previous.owner().params().get("host_id"));
     }
 }

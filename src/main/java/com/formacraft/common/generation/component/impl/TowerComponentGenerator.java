@@ -34,13 +34,17 @@ public class TowerComponentGenerator implements ComponentGenerator {
 
         int radius = Math.max(1, d.width() / 2);
         int height = Math.max(1, d.height());
+        if (com.formacraft.common.generation.component.util.ComponentFootprintUtil.isCornerAnchor(c.params())) {
+            rp = new Vec3i(rp.x() + radius, rp.y(), rp.z() + radius);
+        }
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         boolean hasWindows = hasFeature(c, "windows", "window");
         boolean hasStairs = hasFeature(c, "stairs", "stair", "spiral_stairs");
-        boolean hasInterior = hasFeature(c, "interior", "rooms", "floors");
+        boolean hasInterior = hasFeature(c, "interior", "rooms", "floors")
+                || (c.params() != null && Boolean.TRUE.equals(c.params().get("hollow")));
         boolean hasBattlements = hasFeature(c, "battlements", "battlement", "crenelation");
         boolean hasRoof = hasFeature(c, "roof", "spire", "dome");
 
@@ -81,7 +85,7 @@ public class TowerComponentGenerator implements ComponentGenerator {
                             continue;
                         }
 
-                        if (hasInterior && isInteriorSpace(x, z, radius)) {
+                        if (hasInterior && y > 0 && isInteriorSpace(x, z, radius)) {
                             continue;
                         }
 
@@ -121,6 +125,8 @@ public class TowerComponentGenerator implements ComponentGenerator {
 
                         SemanticPart part = determinePart(y, height, radius, x, z);
                         String block = palette.pick(part);
+                        Object explicit = c.params() == null ? null : c.params().get(y == 0 ? "floor_block" : "wall_block");
+                        if (explicit != null) block = String.valueOf(explicit);
 
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,

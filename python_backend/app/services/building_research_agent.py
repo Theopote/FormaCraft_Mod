@@ -567,10 +567,12 @@ def finalize_profile_minecraft_strategy(
             ).strip()
     else:
         mc.landmark_module = None
+        mc.structural_typology = None
+        mc.reference_landmark = None
         components = [
             str(c).upper()
             for c in (mc.recommended_components or [])
-            if str(c).upper() != "MODULE"
+            if str(c).upper() not in ("MODULE", "STRUCTURE")
         ]
         if not components:
             components = ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]

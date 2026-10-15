@@ -38,7 +38,8 @@ class ComponentPlanCompilerCirculationTest {
                 new Slot("a", new Vec3i(10, 2, -5), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
                 new Slot("b", new Vec3i(30, 2, -5), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null))))
             .components(List.of(new Component(SOURCE, "a", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1), List.of(), Map.of()),
-                new Component(OVERRIDE, separate ? "b" : "a", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1), List.of(), Map.of("test_mode", mode))))
+                new Component(OVERRIDE, separate ? "b" : "a", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1), List.of(),
+                        Map.of("test_mode", mode, "allow_patch_overwrite", true))))
             .build();
     }
     @Test void laterComponentBlockingClearanceRejectsWholePlan() {

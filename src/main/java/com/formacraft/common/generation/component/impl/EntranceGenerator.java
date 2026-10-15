@@ -66,9 +66,9 @@ public class EntranceGenerator implements ComponentGenerator {
                                 + " requiredMinSpan=" + (requestedDoorWidth + 1));
             }
             doorWidth = requestedDoorWidth;
-            if (hasArch && doorWidth < 3) {
+            if (hasArch && doorWidth < 2) {
                 throw new IllegalArgumentException(
-                        "E_ENTRANCE_DOOR_WIDTH: arched entrance requires door_width>=3, got=" + doorWidth);
+                        "E_ENTRANCE_DOOR_WIDTH: arched entrance requires door_width>=2, got=" + doorWidth);
             }
         } else {
             int auto = Math.max(2, Math.min(requestedDoorWidth, Math.max(1, openingSpan - 1)));

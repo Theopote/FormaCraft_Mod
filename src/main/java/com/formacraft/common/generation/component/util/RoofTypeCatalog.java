@@ -23,6 +23,7 @@ public final class RoofTypeCatalog {
             "cone", "conical",
             "dome", "domed", "curved",
             "mansard", "mansard_roof", "baroque_roof",
+            "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿",
             "none"
     );
 
@@ -140,6 +141,7 @@ public final class RoofTypeCatalog {
             case "cone", "conical" -> RoofTypeKind.CONE;
             case "dome", "domed", "curved" -> RoofTypeKind.DOME;
             case "mansard", "mansard_roof", "baroque_roof" -> RoofTypeKind.MANSARD;
+            case "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿" -> RoofTypeKind.SAWTOOTH;
             default -> RoofTypeKind.FLAT;
         };
     }

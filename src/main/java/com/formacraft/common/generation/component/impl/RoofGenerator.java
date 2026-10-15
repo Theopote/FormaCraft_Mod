@@ -85,6 +85,8 @@ public class RoofGenerator implements ComponentGenerator {
                     footprint, appliedOverhang);
         } else {
             switch (roofType) {
+                case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
+                        palette, footprint, appliedOverhang);
                 case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
                 case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -204,6 +206,24 @@ public class RoofGenerator implements ComponentGenerator {
     private static boolean allowsRoofCell(ComponentFootprintMask footprint, int overhang, int localX, int localZ,
                                           int fpOffsetX, int fpOffsetZ) {
         return footprint == null || footprint.shouldPlaceRoof(localX + fpOffsetX, localZ + fpOffsetZ, overhang);
+    }
+
+    private void generateSawtoothRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                      int width, int depth, int height, Palette palette,
+                                      ComponentFootprintMask footprint, int overhang) {
+        int bay = Math.max(3, Math.min(depth, ComponentParamParsers.intParam(semantic.source().params(), 5,
+                "sawtooth_bay_depth", "bay_depth")));
+        for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++) {
+            if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
+            int rise = (z % bay) * Math.max(1, height - 1) / Math.max(1, bay - 1);
+            out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+rise, baseZ+z,
+                    getBlockForPart(semantic, palette, SemanticPart.ROOF)));
+            // Glazed vertical face closes each north-light bay and the end wall.
+            if (z % bay == 0 || z == depth - 1) {
+                for (int y = 1; y < height; y++) if (y != rise)
+                    out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+y, baseZ+z, "minecraft:glass"));
+            }
+        }
     }
 
     private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,

@@ -161,6 +161,12 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
+        var authoredConflict = ExplicitDesignConflictValidator.check(plan,
+                plan.components() == null ? List.of() : plan.components());
+        if (authoredConflict.isPresent()) {
+            AssemblyCompileDiagnostics.set(authoredConflict.get());
+            return List.of();
+        }
         var invalidMaterial = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(plan.styleAttributes(), plan.components());
         if (invalidMaterial.isPresent()) {
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
@@ -616,7 +622,8 @@ public final class ComponentPlanCompiler {
                     var shiftedFlights = componentFlights.stream()
                             .map(flight -> AssemblyCirculationConstraints.shift(flight, flightOffset)).toList();
                     // Read-only against prior components' result; do not mutate ledgers yet.
-                    var exteriorCollision = ExteriorCirculationValidator.findCollision(result, shiftedFlights, buildingVolumes);
+                    var connectorAccess = ExteriorCirculationValidator.connectorAccess(c, components, slotMap, flightOffset, patchOccupancy);
+                    var exteriorCollision = ExteriorCirculationValidator.findCollision(result, shiftedFlights, buildingVolumes, connectorAccess);
                     if (exteriorCollision.isPresent()) {
                         var collision = exteriorCollision.get();
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_CIRCULATION_EXTERIOR_CONFLICT",
@@ -643,6 +650,35 @@ public final class ComponentPlanCompiler {
                         FormacraftMod.LOGGER.warn("ComponentPlanCompiler: missing slotAnchor, component={}", c.componentType());
                         shiftedPatches.addAll(patches);
                     }
+                    int attachmentPatchCount = shiftedPatches.size();
+                    if ("ENTRANCE".equals(normalizedType) && isAutoInferred(c)) {
+                        shiftedPatches.removeIf(p -> surfaceLedger.isHostRoof(c, new BlockPos(p.dx(), p.dy(), p.dz())));
+                    }
+                    if ("FACADE_WINDOWS".equals(normalizedType)) {
+                        int before = shiftedPatches.size();
+                        shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromWindows(c, new BlockPos(p.dx(), p.dy(), p.dz())));
+                        if (before != shiftedPatches.size()) {
+                            AssemblyCompileDiagnostics.addSoftWarning("WINDOWS_CLIPPED_TO_WALL",
+                                    "窗户已避让宿主屋顶或入口，跳过 " + (before - shiftedPatches.size()) + " 条操作",
+                                    c.componentType(), paramIdentity(c));
+                        }
+                    }
+                    if ("ROOF".equals(normalizedType)) {
+                        trimCollidingRoofOverhang(c, components, flightOffset, patchOccupancy, shiftedPatches);
+                    }
+                    if ("DECOR_DETAIL".equals(normalizedType)) {
+                        int before = shiftedPatches.size();
+                        shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromDecoration(new BlockPos(p.dx(), p.dy(), p.dz())));
+                        if (before != shiftedPatches.size()) AssemblyCompileDiagnostics.addSoftWarning("DECOR_CLIPPED",
+                                "装饰已避让门窗及屋顶，跳过 " + (before - shiftedPatches.size()) + " 条操作",
+                                c.componentType(), paramIdentity(c));
+                    }
+                    // Adapted overhang/window cells must not claim surfaces they no longer emit.
+                    if (attachmentPatchCount != shiftedPatches.size()) {
+                        var emittedPositions = new HashSet<BlockPos>();
+                        for (var p : shiftedPatches) emittedPositions.add(new BlockPos(p.dx(), p.dy(), p.dz()));
+                        surfaceCells.removeIf(cell -> !emittedPositions.contains(cell.shift(flightOffset).position()));
+                    }
                     var surfaceConflict = surfaceLedger.check(c, shiftedPatches);
                     if (surfaceConflict.isPresent()) {
                         var conflict = surfaceConflict.get();
@@ -663,7 +699,7 @@ public final class ComponentPlanCompiler {
                             return patchOccupancy;
                         }
                     }
-                    var occupancyConflict = patchOccupancy.validate(c, shiftedPatches);
+                    var occupancyConflict = patchOccupancy.validate(c, shiftedPatches, connectorAccess);
                     if (occupancyConflict.isPresent()) {
                         var oc = occupancyConflict.get();
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_PATCH_CONFLICT",
@@ -676,7 +712,7 @@ public final class ComponentPlanCompiler {
                                         "禁止无关构件互相覆盖同坐标")));
                         return patchOccupancy;
                     }
-                    patchOccupancy.commit(c, shiftedPatches);
+                    patchOccupancy.commit(c, shiftedPatches, connectorAccess);
 
                     // Commit boundary: patches + ledgers + protected sets together.
                     result.addAll(shiftedPatches);
@@ -800,16 +836,16 @@ public final class ComponentPlanCompiler {
         if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
                 || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 6;
         String type = normalizeType(c.componentType());
-        if (isMassType(type)) return 0;
+        if (isMassType(type) || "TOWER".equals(type)) return 0;
         if (isStructureFloorType(type)) return 1;
         switch (type) {
             case "ROOF", "ROOF_STRUCTURE" -> {
                 return 2;
             }
-            case "FACADE" -> {
+            case "FACADE", "ENTRANCE", "DOOR" -> {
                 return 3;
             }
-            case "ENTRANCE", "FACADE_WINDOWS", "FACADE_OPENING", "DOOR", "WINDOW" -> {
+            case "FACADE_WINDOWS", "FACADE_OPENING", "WINDOW" -> {
                 return 4;
             }
         }
@@ -1196,7 +1232,8 @@ public final class ComponentPlanCompiler {
             if (hostId != null) {
                 mass = null;
                 for (Component candidate : components) {
-                    if (candidate == null || !"MASS_MAIN".equals(normalizeType(candidate.componentType()))
+                    if (candidate == null || !(isMassType(normalizeType(candidate.componentType()))
+                            || "TOWER".equals(normalizeType(candidate.componentType())))
                             || candidate.params() == null
                             || !hostId.equals(candidate.params().get("component_id"))) continue;
                     // Explicit ownership cannot equate different real slot coordinate frames.
@@ -1243,6 +1280,9 @@ public final class ComponentPlanCompiler {
                 var params = new HashMap<String, Object>();
                 if (aligned.params() != null) params.putAll(aligned.params());
                 params.putIfAbsent("host_id", mass.params().get("component_id"));
+                if (Set.of("ENTRANCE", "FACADE_WINDOWS").contains(type) && hasComponentRequest(aligned.features())) {
+                    params.put("resolved_host_attachment", true);
+                }
                 if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, mass.params())) params.put("no_complex_decor", true);
                 aligned = new Component(aligned.componentType(), aligned.slotId(), aligned.relativePosition(),
                         aligned.dimensions(), aligned.features(), params);
@@ -1421,6 +1461,30 @@ public final class ComponentPlanCompiler {
         }
 
         List<String> features = mergeFeatureLists(template.features(), llmFacade.features());
+        // A thin authored strip identifies a wall and often one floor. Do not
+        // expand every strip into the same full-building facade.
+        if (llmDims != null && llmFacade.relativePosition() != null
+                && (llmDims.width() == 1 || llmDims.depth() == 1)
+                && isFacadeStripOnHost(llmFacade, massOrigin, massDims)) {
+            var position = llmFacade.relativePosition();
+            if (!params.containsKey("faces")) {
+                String face = llmDims.width() == 1 && llmDims.depth() > 1
+                        ? (Math.abs(position.x()-massOrigin.x()) <= Math.abs(position.x()-(massOrigin.x()+massDims.width()-1)) ? "EAST" : "WEST")
+                        : (Math.abs(position.z()-massOrigin.z()) <= Math.abs(position.z()-(massOrigin.z()+massDims.depth()-1)) ? "SOUTH" : "NORTH");
+                params.put("faces", List.of(face));
+            }
+            int fh = ComponentParamParsers.intParam(mass.params(), "floor_height", "floorHeight");
+            int fc = ComponentParamParsers.intParam(mass.params(), "floor_count", "floorCount");
+            if (fh > 0 && fc > 0 && llmDims.height() < massDims.height()) {
+                int first = Math.max(0, Math.min(fc-1, (position.y()-massOrigin.y())/fh));
+                int last = Math.max(first, Math.min(fc-1, (position.y()-massOrigin.y()+llmDims.height()-1)/fh));
+                params.putIfAbsent("min_floor", first);
+                params.putIfAbsent("max_floor", last);
+            }
+            var scopedFeatures = new ArrayList<>(features);
+            scopedFeatures.add("wrap");
+            features = scopedFeatures;
+        }
         boolean wrap = hasWrapFeature(features);
         GlobalConstraints.Facing effectiveFacing = facing != null ? facing : GlobalConstraints.Facing.SOUTH;
         if ("front".equalsIgnoreCase(String.valueOf(params.get("wall")))) {
@@ -1549,6 +1613,13 @@ public final class ComponentPlanCompiler {
                     new Vec3i(massOrigin.x() + mw - 1, massOrigin.y(), massOrigin.z()));
             case SOUTH -> new OrientedFacade(mw, 1, massOrigin);
         };
+    }
+
+    private static boolean isFacadeStripOnHost(Component facade, Vec3i origin, Dimensions dims) {
+        var p = facade.relativePosition();
+        if (facade.dimensions().width() == 1 && facade.dimensions().depth() > 1)
+            return Math.min(Math.abs(p.x()-origin.x()), Math.abs(p.x()-(origin.x()+dims.width()-1))) <= 1;
+        return Math.min(Math.abs(p.z()-origin.z()), Math.abs(p.z()-(origin.z()+dims.depth()-1))) <= 1;
     }
 
     private static boolean hasWrapFeature(List<String> features) {
@@ -1705,7 +1776,8 @@ public final class ComponentPlanCompiler {
         if (component == null || component.params() == null) {
             return false;
         }
-        Object v = component.params().get("auto_inferred");
+        Object v = component.params().get("_compiler_inferred");
+        if (v == null) v = component.params().get("auto_inferred");
         if (v == null) {
             v = component.params().get("autoInferred");
         }
@@ -2535,6 +2607,27 @@ public final class ComponentPlanCompiler {
                 || "MASS_WING".equals(type)
                 || "SIDE_WING".equals(type)
                 || "MAIN_MASS".equals(type);
+    }
+
+    private static void trimCollidingRoofOverhang(Component roof, List<Component> components, BlockPos offset,
+                                                  PatchOccupancyIndex occupancy, List<BlockPatch> patches) {
+        String host = getParamString(roof.params(), "host_id");
+        if (host == null) return;
+        Component body = components.stream().filter(c -> host.equals(getParamString(c.params(), "component_id")))
+                .findFirst().orElse(null);
+        if (body == null || !java.util.Objects.equals(body.slotId(), roof.slotId())) return;
+        var bounds = ComponentFootprintUtil.bounds(body);
+        if (bounds == null) return;
+        int before = patches.size();
+        patches.removeIf(p -> {
+            int x = p.dx() - offset.getX(), z = p.dz() - offset.getZ();
+            if (x >= bounds.minX() && x < bounds.maxX() && z >= bounds.minZ() && z < bounds.maxZ()) return false;
+            var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+            return existing != null && existing.owner() != null
+                    && !host.equals(getParamString(existing.owner().params(), "component_id"));
+        });
+        if (before != patches.size()) AssemblyCompileDiagnostics.addSoftWarning("ROOF_OVERHANG_TRIMMED",
+                "屋檐已避让相邻建筑，跳过 " + (before - patches.size()) + " 条操作", roof.componentType(), paramIdentity(roof));
     }
 
     private static boolean isRoofType(String type) {

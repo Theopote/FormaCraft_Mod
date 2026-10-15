@@ -18,6 +18,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DetailRulePostProcessorTest {
+    @org.junit.jupiter.api.BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
 
     @Test
     void appliesFloorCornicePresetOnPerimeterFloorBoundary() {

@@ -19,6 +19,25 @@ final class SurfaceOwnershipLedger {
     private final Map<BlockPos, Surface> surfaces = new HashMap<>();
     private final Map<BlockPos, BlockPatch> finalPatches = new HashMap<>();
 
+    boolean isProtectedFromWindows(Component writer, BlockPos position) {
+        Surface surface = surfaces.get(position);
+        return surface != null && (surface.role() == GeneratedSurfaceCapture.Role.ROOF
+                || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING)
+                && java.util.Objects.equals(param(writer, "host_id"), surface.owner());
+    }
+
+    boolean isHostRoof(Component writer, BlockPos position) {
+        Surface surface = surfaces.get(position);
+        return surface != null && surface.role() == GeneratedSurfaceCapture.Role.ROOF
+                && java.util.Objects.equals(param(writer, "host_id"), surface.owner());
+    }
+
+    boolean isProtectedFromDecoration(BlockPos position) {
+        Surface surface = surfaces.get(position);
+        return surface != null && Set.of(GeneratedSurfaceCapture.Role.WINDOW,
+                GeneratedSurfaceCapture.Role.DOOR_OPENING, GeneratedSurfaceCapture.Role.ROOF).contains(surface.role());
+    }
+
     Optional<Conflict> check(Component component, List<BlockPatch> patches) {
         String type = component.componentType().toUpperCase(Locale.ROOT);
         boolean decor = type.equals("DECOR_DETAIL");
@@ -50,6 +69,12 @@ final class SurfaceOwnershipLedger {
         finalPatches.putAll(index(patches));
         String owner = param(component, "host_id");
         if (owner == null) owner = identity(component);
+        if ("ENTRANCE".equalsIgnoreCase(component.componentType())) {
+            // Entrance generators can emit a carved hole without capture cells.
+            // Reserve both its opening and frame before placing facade windows.
+            for (var p : patches) surfaces.put(new BlockPos(p.dx(), p.dy(), p.dz()),
+                    new Surface(owner, identity(component), GeneratedSurfaceCapture.Role.DOOR_OPENING));
+        }
         for (var cell : cells) {
             BlockPos position = cell.shift(offset).position();
             if (cell.requiresBlock() || cell.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
@@ -89,6 +114,8 @@ final class SurfaceOwnershipLedger {
         GeneratedSurfaceCapture.Role role = surface.role();
         boolean sameHost = host != null && host.equals(surface.owner());
         boolean sameSource = writer.equals(surface.source());
+        if ("ENTRANCE".equals(type) && sameHost && host.equals(surface.source())
+                && role == GeneratedSurfaceCapture.Role.WINDOW) return null;
 
         return switch (op) {
             case ERASE -> {

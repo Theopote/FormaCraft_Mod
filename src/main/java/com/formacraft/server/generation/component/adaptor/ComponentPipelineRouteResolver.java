@@ -17,6 +17,12 @@ public final class ComponentPipelineRouteResolver {
         }
         Component c = semantic.source();
         boolean explicitLibrary = ComponentRouteHints.hasExplicitLibraryRequest(c);
+        // Window/door requests embedded in a whole typology describe details;
+        // they must never replace the building with a single library component.
+        if ("STRUCTURE".equalsIgnoreCase(c.componentType()) && ComponentRouteHints.hasTypologyHint(c)
+                && ComponentGenerationPipeline.resolveAuthority(c) != com.formacraft.common.generation.routing.GenerationAuthority.CAPTURED_LIBRARY) {
+            explicitLibrary = false;
+        }
         boolean allowTypologyOverride = c.params() != null
                 && Boolean.TRUE.equals(c.params().get("allow_typology_override"));
         boolean skipTypologyWhenLibrary = explicitLibrary && !allowTypologyOverride;

@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** When LLM omits facade/entrance/roof satellites, fail closed unless transition flag is set. */
+/** Completeness checks for plans that explicitly disable compiler satellite completion. */
 final class CompilerSatellitePolicy {
     private CompilerSatellitePolicy() {}
 
@@ -38,7 +38,9 @@ final class CompilerSatellitePolicy {
         if (needsSatellite(DesignRequirementAccess.roof(plan, mass), hasRoof)) {
             missing.add("ROOF");
         }
-        if (needsSatellite(DesignRequirementAccess.crown(plan, mass, wouldInferCrown), hasCrown)) {
+        // A stylistic crown suggestion is optional; only an explicit requirement
+        // may block an otherwise complete building in strict mode.
+        if (DesignRequirementAccess.crown(plan, mass, wouldInferCrown) == DesignRequirement.REQUIRED && !hasCrown) {
             missing.add("CROWN");
         }
 

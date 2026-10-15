@@ -341,6 +341,7 @@ def call_chat_with_llm_plan_response_formats(
     call_with_timeout: Any,
     timeout_sec: float,
     prefer_json_object: bool = False,
+    transient_retries: int = 0,
 ) -> Tuple[Any, str]:
     """
     Call chat.completions.create with json_schema first (if enabled), then json_object.
@@ -357,19 +358,34 @@ def call_chat_with_llm_plan_response_formats(
     else:
         formats = iter_llm_plan_response_formats()
     last_exc: BaseException | None = None
+    retries_left = max(0, min(1, transient_retries))
 
     for index, (label, response_format) in enumerate(formats):
         is_schema_attempt = label == "json_schema"
         try:
-            response = call_with_timeout(
-                lambda rf=response_format: client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    response_format=rf,
-                    temperature=temperature,
-                ),
-                timeout_sec,
-            )
+            attempt_timeout = timeout_sec
+            while True:
+                try:
+                    # Also bound the underlying HTTP call; the outer watchdog
+                    # alone cannot cancel a blocked SDK worker.
+                    attempt_client = (client.with_options(timeout=attempt_timeout, max_retries=0)
+                                      if callable(getattr(client, 'with_options', None)) else client)
+                    response = call_with_timeout(
+                        lambda rf=response_format, api=attempt_client: api.chat.completions.create(
+                            model=model, messages=messages, response_format=rf, temperature=temperature),
+                        attempt_timeout,
+                    )
+                    break
+                except Exception as failure:
+                    status = getattr(failure, 'status_code', None)
+                    transient = isinstance(failure, (TimeoutError, ConnectionError)) or type(failure).__name__ in (
+                        'APITimeoutError', 'APIConnectionError') or status in (429, 500, 502, 503, 504)
+                    if not transient or retries_left == 0:
+                        raise
+                    retries_left -= 1
+                    attempt_timeout = min(timeout_sec, 60.0)
+                    logger.warning('LlmPlan: transient %s; retrying once with %.0fs limit',
+                                   type(failure).__name__, attempt_timeout)
         except Exception as exc:
             last_exc = exc
             has_fallback = index + 1 < len(formats)

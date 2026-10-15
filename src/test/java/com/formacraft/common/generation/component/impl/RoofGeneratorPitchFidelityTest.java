@@ -70,7 +70,7 @@ class RoofGeneratorPitchFidelityTest {
                 new Vec3i(0, 8, 0),
                 new Dimensions(12, 10, 2),
                 List.of(),
-                Map.of("roof_type", "sawtooth"));
+                Map.of("roof_type", "unknown_roof_geometry"));
         assertThrows(IllegalArgumentException.class,
                 () -> new RoofGenerator().generate(new SemanticComponent("ROOF", null, roof)));
     }
