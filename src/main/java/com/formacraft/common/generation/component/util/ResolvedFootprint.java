@@ -3,9 +3,9 @@ package com.formacraft.common.generation.component.util;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.Component;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Single authority for mass plan footprint occupancy (shape, plan pattern, courtyard hole).
@@ -176,24 +176,14 @@ public record ResolvedFootprint(
     }
 
     private static FootprintShape resolveShape(Map<String, Object> params, SemanticComponent semantic) {
-        String shape = getParamString(params, "shape", "footprint_shape", "footprintShape");
-        if (shape == null && semantic != null && semantic.genome() != null
-                && semantic.genome().topology != null && semantic.genome().topology.layout != null) {
-            String layout = semantic.genome().topology.layout;
-            if (layout.equalsIgnoreCase("circular") || layout.equalsIgnoreCase("radial")) {
-                shape = "circle";
-            } else if (layout.equalsIgnoreCase("freeform")) {
-                shape = "rounded_rect";
-            }
+        Optional<String> explicit = FootprintShapeCatalog.extractExplicit(params);
+        if (explicit.isPresent()) {
+            return FootprintShapeCatalog.parseSupported(explicit.get())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "E_FOOTPRINT_SHAPE_UNSUPPORTED: Unsupported shape: " + explicit.get()));
         }
-        if (shape == null) {
-            return FootprintShape.RECTANGLE;
-        }
-        return switch (shape.trim().toLowerCase(Locale.ROOT)) {
-            case "circle", "circular", "round", "cylinder" -> FootprintShape.CIRCLE;
-            case "rounded_rect", "rounded", "roundrect", "round_rect" -> FootprintShape.ROUNDED_RECT;
-            default -> FootprintShape.RECTANGLE;
-        };
+        // Technical default when shape was not authored. Genome/style must not invent topology here.
+        return FootprintShape.RECTANGLE;
     }
 
     private static int resolveCornerRadius(Map<String, Object> params, int width, int depth, FootprintShape shape) {
@@ -209,93 +199,32 @@ public record ResolvedFootprint(
 
     private static PatternFields resolvePlanPattern(Map<String, Object> params, SemanticComponent semantic,
                                                     int width, int depth, FootprintShape shape) {
-        String planType = getParamString(params, "plan_type", "planType",
-                "footprint_pattern", "footprintPattern", "plan_pattern", "planPattern");
-        Component c = semantic != null ? semantic.source() : null;
-
-        if ("none".equalsIgnoreCase(planType) || "rectangle".equalsIgnoreCase(planType)) {
-            return new PatternFields(PlanPattern.NONE, 0, 0.0, null);
-        }
-        String explicitShape = getParamString(params, "shape", "footprint_shape", "footprintShape");
-        if (planType == null && explicitShape != null
-                && List.of("rectangle", "rect", "box").contains(explicitShape.toLowerCase(Locale.ROOT))) {
-            return new PatternFields(PlanPattern.NONE, 0, 0.0, null);
-        }
-
-        if (planType != null) {
-            String normalized = planType.trim().toLowerCase(Locale.ROOT);
-            if (normalized.isEmpty() || "none".equals(normalized) || "default".equals(normalized)) {
-                planType = null;
+        Optional<String> explicitPlan = PlanPatternCatalog.extractExplicit(params);
+        PlanPattern pattern;
+        if (explicitPlan.isPresent()) {
+            pattern = PlanPatternCatalog.parseSupported(explicitPlan.get())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "E_PLAN_PATTERN_UNSUPPORTED: Unsupported plan_type: " + explicitPlan.get()));
+        } else {
+            // No style/feature/genome topology inference — geometry consumes authored params only.
+            // Explicit rectangle shape without plan_type → solid rectangle.
+            Optional<String> explicitShape = FootprintShapeCatalog.extractExplicit(params);
+            if (explicitShape.isPresent()
+                    && FootprintShapeCatalog.RECTANGLE_TOKENS.contains(
+                    explicitShape.get().trim().toLowerCase(Locale.ROOT))) {
+                pattern = PlanPattern.NONE;
+            } else {
+                pattern = PlanPattern.NONE;
             }
         }
 
-        if (planType == null && c != null && c.features() != null) {
-            for (String feature : c.features()) {
-                if (feature == null) {
-                    continue;
-                }
-                String lower = feature.toLowerCase(Locale.ROOT);
-                if (lower.contains("gothic") || lower.contains("cathedral") || lower.contains("cruciform")
-                        || lower.contains("cross")) {
-                    planType = "cross";
-                    break;
-                }
-                if (lower.contains("courtyard") || lower.contains("siheyuan") || lower.contains("四合院")
-                        || lower.contains("庭院") || lower.contains("compound") || lower.contains("ring")) {
-                    planType = "courtyard";
-                    break;
-                }
-                if (lower.contains("l-shape") || lower.contains("l_shape") || lower.contains("lshape")
-                        || lower.contains("corner_wing")) {
-                    planType = "l_shape";
-                    break;
-                }
-                if (lower.contains("chinese") || lower.contains("hui") || lower.contains("徽派")
-                        || lower.contains("中式")) {
-                    planType = "cut_corners";
-                    break;
-                }
-            }
-        }
-
-        if (planType == null && semantic != null && semantic.genome() != null
-                && semantic.genome().culturalStyle != null) {
-            String region = semantic.genome().culturalStyle.region;
-            List<String> keywords = semantic.genome().culturalStyle.keywords;
-            if (region != null && region.toLowerCase(Locale.ROOT).contains("chinese")) {
-                planType = "cut_corners";
-            }
-            if (keywords != null) {
-                for (String kw : keywords) {
-                    if (kw == null) {
-                        continue;
-                    }
-                    String lower = kw.toLowerCase(Locale.ROOT);
-                    if (lower.contains("gothic") || lower.contains("cruciform")) {
-                        planType = "cross";
-                    }
-                    if (lower.contains("courtyard") || lower.contains("siheyuan")) {
-                        planType = "courtyard";
-                    }
-                }
-            }
-        }
-
-        if (planType == null && semantic != null && semantic.styleProfile() != null) {
-            String upper = semantic.styleProfile().toUpperCase(Locale.ROOT);
-            if (upper.contains("HUI") || upper.contains("CHINESE")) {
-                planType = "cut_corners";
-            } else if (upper.contains("GOTHIC") || upper.contains("CATHEDRAL") || upper.contains("CHURCH")) {
-                planType = "cross";
-            }
-        }
-
-        PlanPattern pattern = parsePlanPattern(planType);
         if (pattern == PlanPattern.NONE) {
             return new PatternFields(PlanPattern.NONE, 0, 0.0, null);
         }
-        if (shape == FootprintShape.CIRCLE && pattern != PlanPattern.COURTYARD) {
-            return new PatternFields(PlanPattern.NONE, 0, 0.0, null);
+        if (shape == FootprintShape.CIRCLE && PlanPatternCatalog.requiresNonCircularBase(pattern)) {
+            throw new IllegalArgumentException(
+                    "E_FOOTPRINT_COMBINATION_UNSUPPORTED: shape=circle is incompatible with plan_type="
+                            + pattern.name().toLowerCase(Locale.ROOT));
         }
 
         int size = 0;
@@ -365,21 +294,6 @@ public record ResolvedFootprint(
             case L_SHAPE -> ComponentParamParsers.intOrNull(params,
                     "l_cut", "lCut", "cut_size", "corner_cut", "cornerCut", "arm_width");
             default -> null;
-        };
-    }
-
-    private static PlanPattern parsePlanPattern(String value) {
-        if (value == null || value.isBlank()) {
-            return PlanPattern.NONE;
-        }
-        String v = value.trim().toLowerCase(Locale.ROOT);
-        return switch (v) {
-            case "cross", "cruciform", "plus", "t_shape", "t-shape", "tshape" -> PlanPattern.CROSS;
-            case "cut_corners", "cut-corners", "cutcorner", "cut_corner", "chamfer", "chamfered", "octagon", "octagonal" ->
-                    PlanPattern.CUT_CORNERS;
-            case "l", "l_shape", "l-shape", "lshape", "corner", "corner_wing" -> PlanPattern.L_SHAPE;
-            case "courtyard", "court", "ring", "donut", "siheyuan", "compound" -> PlanPattern.COURTYARD;
-            default -> PlanPattern.NONE;
         };
     }
 

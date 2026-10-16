@@ -274,6 +274,57 @@ class DesignFidelityTest {
     }
 
     @Test
+    void unsupportedPlanTypeFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("plan_type_unsupported.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_PLAN_PATTERN_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void unsupportedFootprintShapeFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("footprint_shape_unsupported.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_FOOTPRINT_SHAPE_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void circleCrossCombinationFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circle_cross_combo_unsupported.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_FOOTPRINT_COMBINATION_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void gothicStyleDoesNotForceCrossPlanType() throws Exception {
+        LlmPlan plan = loadFidelityPlan("gothic_style_no_forced_cross.json");
+        Component mass = plan.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertFalse(mass.params() != null && mass.params().containsKey("plan_type"),
+                "style must not invent plan_type before compile");
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+
+        // After StyleIntent + resolve, footprint must stay rectangular (NONE), not cruciform.
+        var geom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(mass);
+        assertNotNull(geom);
+        assertEquals(com.formacraft.common.generation.component.util.ResolvedFootprint.PlanPattern.NONE,
+                geom.footprint().pattern());
+        assertFalse(mass.params() != null && "cross".equals(String.valueOf(mass.params().get("plan_type"))),
+                "compiled mass must not receive style-forced plan_type=cross");
+    }
+
+    @Test
     void negativeCourtyardRatioFailsCompileAsInvalid() throws Exception {
         LlmPlan plan = loadFidelityPlan("courtyard_ratio_negative.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

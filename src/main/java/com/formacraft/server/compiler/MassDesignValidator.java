@@ -1,6 +1,9 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.FootprintShapeCatalog;
+import com.formacraft.common.generation.component.util.PlanPatternCatalog;
+import com.formacraft.common.generation.component.util.ResolvedFootprint;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -35,6 +38,18 @@ final class MassDesignValidator {
                 continue;
             }
             if (component.params() != null && "plate".equalsIgnoreCase(String.valueOf(component.params().get("extrude_mode")))) continue;
+            Optional<CapabilityGap> planUnsupported = checkPlanPatternUnsupported(component);
+            if (planUnsupported.isPresent()) {
+                return planUnsupported;
+            }
+            Optional<CapabilityGap> shapeUnsupported = checkFootprintShapeUnsupported(component);
+            if (shapeUnsupported.isPresent()) {
+                return shapeUnsupported;
+            }
+            Optional<CapabilityGap> combo = checkFootprintCombination(component);
+            if (combo.isPresent()) {
+                return combo;
+            }
             Optional<CapabilityGap> wallInvalid = checkWallThicknessInvalid(component);
             if (wallInvalid.isPresent()) {
                 return wallInvalid;
@@ -62,6 +77,64 @@ final class MassDesignValidator {
     private static boolean isMassType(String type) {
         return "MASS_MAIN".equals(type) || "MAIN_MASS".equals(type)
                 || "MASS_SECONDARY".equals(type) || "MASS_WING".equals(type) || "SIDE_WING".equals(type);
+    }
+
+    private static Optional<CapabilityGap> checkPlanPatternUnsupported(Component component) {
+        Map<String, Object> params = component.params() == null ? Map.of() : component.params();
+        Optional<String> explicit = PlanPatternCatalog.extractExplicit(params);
+        if (explicit.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!PlanPatternCatalog.isSupportedExplicit(explicit.get())) {
+            return Optional.of(new CapabilityGap(
+                    "E_PLAN_PATTERN_UNSUPPORTED",
+                    "Unsupported plan_type: " + explicit.get(),
+                    "components[]",
+                    List.of("Use a supported plan_type (none/cross/cut_corners/l_shape/courtyard) or omit for a rectangle.")));
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<CapabilityGap> checkFootprintShapeUnsupported(Component component) {
+        Map<String, Object> params = component.params() == null ? Map.of() : component.params();
+        Optional<String> explicit = FootprintShapeCatalog.extractExplicit(params);
+        if (explicit.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!FootprintShapeCatalog.isSupportedExplicit(explicit.get())) {
+            return Optional.of(new CapabilityGap(
+                    "E_FOOTPRINT_SHAPE_UNSUPPORTED",
+                    "Unsupported shape: " + explicit.get(),
+                    "components[]",
+                    List.of("Use a supported shape (rectangle/circle/rounded_rect) or omit for rectangle.")));
+        }
+        return Optional.empty();
+    }
+
+    /** Explicit circle + explicit non-courtyard plan pattern → unsupported combination. */
+    private static Optional<CapabilityGap> checkFootprintCombination(Component component) {
+        Map<String, Object> params = component.params() == null ? Map.of() : component.params();
+        Optional<String> shapeRaw = FootprintShapeCatalog.extractExplicit(params);
+        Optional<String> planRaw = PlanPatternCatalog.extractExplicit(params);
+        if (shapeRaw.isEmpty() || planRaw.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!FootprintShapeCatalog.isSupportedExplicit(shapeRaw.get())
+                || !PlanPatternCatalog.isSupportedExplicit(planRaw.get())) {
+            return Optional.empty();
+        }
+        ResolvedFootprint.FootprintShape shape = FootprintShapeCatalog.parseSupported(shapeRaw.get()).orElse(null);
+        ResolvedFootprint.PlanPattern pattern = PlanPatternCatalog.parseSupported(planRaw.get()).orElse(null);
+        if (shape == ResolvedFootprint.FootprintShape.CIRCLE
+                && pattern != null
+                && PlanPatternCatalog.requiresNonCircularBase(pattern)) {
+            return Optional.of(new CapabilityGap(
+                    "E_FOOTPRINT_COMBINATION_UNSUPPORTED",
+                    "shape=" + shapeRaw.get() + " is incompatible with plan_type=" + planRaw.get(),
+                    "components[]",
+                    List.of("Use plan_type=courtyard (or none) with circle, or change shape to rectangle.")));
+        }
+        return Optional.empty();
     }
 
     /** Explicit key present but non-numeric or <= 0 → INVALID (not UNFIT). */
@@ -210,10 +283,10 @@ final class MassDesignValidator {
     }
 
     private static boolean isCourtyardPlan(Map<String, Object> params, List<String> features) {
-        String plan = firstString(params, "plan_type", "planType");
-        if (plan != null) {
-            String v = plan.trim().toLowerCase(Locale.ROOT);
-            if (List.of("courtyard", "court", "ring", "donut", "siheyuan", "compound").contains(v)) {
+        Optional<String> plan = PlanPatternCatalog.extractExplicit(params);
+        if (plan.isPresent()) {
+            Optional<ResolvedFootprint.PlanPattern> parsed = PlanPatternCatalog.parseSupported(plan.get());
+            if (parsed.isPresent() && parsed.get() == ResolvedFootprint.PlanPattern.COURTYARD) {
                 return true;
             }
         }

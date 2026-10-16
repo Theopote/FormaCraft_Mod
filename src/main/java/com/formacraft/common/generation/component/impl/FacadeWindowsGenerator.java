@@ -76,7 +76,10 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 windowAspect = WindowAspect.PUNCH_WINDOW;
             }
         }
-        var floorLayout = com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(c, height);
+        var buildingGeom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(
+                semantic, width, depth, height);
+        var floorLayout = buildingGeom != null ? buildingGeom.floors()
+                : com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(c, height);
         int floorHeight = floorLayout.bandHeight();
         int floorCount = floorLayout.floorCount();
         int windowSpacing = resolveWindowSpacing(windowRatio);

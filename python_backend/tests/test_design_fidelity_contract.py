@@ -163,6 +163,23 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertEqual(4, dual_masses[0]["params"]["floor_height"])
         self.assertEqual(4, dual_masses[1]["params"]["floor_height"])
 
+    def test_round10_plan_strictness_fixtures(self):
+        unsupported = self._load("plan_type_unsupported.json")
+        mass = next(c for c in unsupported["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual("u_shape", mass["params"]["plan_type"])
+        shape = self._load("footprint_shape_unsupported.json")
+        shape_mass = next(c for c in shape["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual("hexagon", shape_mass["params"]["shape"])
+        combo = self._load("circle_cross_combo_unsupported.json")
+        combo_mass = next(c for c in combo["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual("circle", combo_mass["params"]["shape"])
+        self.assertEqual("cross", combo_mass["params"]["plan_type"])
+        gothic = self._load("gothic_style_no_forced_cross.json")
+        gothic_mass = next(c for c in gothic["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual("Gothic_Cathedral", gothic["style_profile"])
+        self.assertNotIn("plan_type", gothic_mass.get("params") or {})
+        self.assertIn("gothic", gothic_mass.get("features") or [])
+
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
         plan = json.loads(INVALID_AUTHORITY_FIXTURE.read_text(encoding="utf-8"))

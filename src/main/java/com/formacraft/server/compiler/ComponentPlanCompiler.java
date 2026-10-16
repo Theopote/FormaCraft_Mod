@@ -859,6 +859,9 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_COURTYARD_GEOMETRY_CONFLICT")) return "E_COURTYARD_GEOMETRY_CONFLICT";
         if (message.startsWith("E_WALL_THICKNESS_UNFIT")) return "E_WALL_THICKNESS_UNFIT";
         if (message.startsWith("E_PLAN_PATTERN_UNFIT")) return "E_PLAN_PATTERN_UNFIT";
+        if (message.startsWith("E_PLAN_PATTERN_UNSUPPORTED")) return "E_PLAN_PATTERN_UNSUPPORTED";
+        if (message.startsWith("E_FOOTPRINT_SHAPE_UNSUPPORTED")) return "E_FOOTPRINT_SHAPE_UNSUPPORTED";
+        if (message.startsWith("E_FOOTPRINT_COMBINATION_UNSUPPORTED")) return "E_FOOTPRINT_COMBINATION_UNSUPPORTED";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 

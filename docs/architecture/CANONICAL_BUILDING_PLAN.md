@@ -88,16 +88,21 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 - Authority for storey spacing is [ResolvedFloorLayout](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFloorLayout.java) (and [ResolvedComponentGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedComponentGeometry.java)): explicit `floor_height` → else `envelope/floor_count` (≥1) → technical default 3.
 - Generators must not silently raise band height with `Math.max(3, floorHeight)`. Explicit `floor_count` × `floor_height` exceeding envelope height → `E_FLOOR_LAYOUT_OVERFLOW`.
 
-**Mass / roof alignment (Round-8/9):**
+**Mass / roof alignment (Round-8/9/10):**
 
 - Plan occupancy authority is [ResolvedFootprint](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFootprint.java). MassMain and [ComponentFootprintMask](../../src/main/java/com/formacraft/common/generation/component/util/ComponentFootprintMask.java) (roofs/seams) share one courtyard hole: `hole = min(round(span*ratio), span - 2*wall_thickness)`, centered.
+- Shared read-only aggregation: [ResolvedBuildingGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedBuildingGeometry.java) = footprint + [ResolvedFloorLayout](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFloorLayout.java) + facade layers (MassMain / FacadeWindows consume this).
+- Explicit `plan_type` catalog: [PlanPatternCatalog](../../src/main/java/com/formacraft/common/generation/component/util/PlanPatternCatalog.java). Unknown explicit token → `E_PLAN_PATTERN_UNSUPPORTED` (never silently becomes rectangle).
+- Explicit `shape` / `footprint_shape` catalog: [FootprintShapeCatalog](../../src/main/java/com/formacraft/common/generation/component/util/FootprintShapeCatalog.java). Unknown explicit token → `E_FOOTPRINT_SHAPE_UNSUPPORTED`.
+- Explicit `shape=circle` + explicit non-courtyard `plan_type` (cross / l_shape / cut_corners) → `E_FOOTPRINT_COMBINATION_UNSUPPORTED`.
+- Style / features / genome must **not** invent mass topology (`plan_type`). [StyleIntentResolver](../../src/main/java/com/formacraft/common/style/StyleIntentResolver.java) only disambiguates explicit rectangle shape → `plan_type=none`; Gothic/Chinese labels alone do not force cross/courtyard/cut_corners.
 - `alignRoofToMass` copies host `wall_thickness` / plan pattern params onto roofs so mask matches the mass shell.
 - Explicit `courtyard_ratio` is not clamped to 0.2–0.6. Key present but non-numeric / `<=0` / `>=1` → `E_COURTYARD_RATIO_INVALID`; legal but unbuildable → `E_COURTYARD_GEOMETRY_CONFLICT` ([MassDesignValidator](../../src/main/java/com/formacraft/server/compiler/MassDesignValidator.java)).
 - Explicit `wall_thickness` has no fixed cap of 4. Key present but non-numeric / `<=0` → `E_WALL_THICKNESS_INVALID`; hollow masses require `2 * thickness < min(width,depth)` else `E_WALL_THICKNESS_UNFIT`.
 - `alignRoofToMass` must not raise a locked/explicit `overhang` from roof bbox; mismatch → `E_ROOF_OVERHANG_CONFLICT`.
 - Explicit `arm_width` / `l_cut` / `corner_cut` exceeding footprint−2 → `E_PLAN_PATTERN_UNFIT` (no silent truncate of explicit sizes in resolve).
 
-**MassMain fidelity notes (Round-7/8/9 audit):**
+**MassMain fidelity notes (Round-7/8/9/10 audit):**
 
 | Param / behavior | Preserved? | Notes |
 |------------------|------------|-------|
@@ -109,6 +114,9 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 | `courtyard_ratio` | yes (R8/R9) | no aesthetic clamp; INVALID vs CONFLICT gates |
 | `wall_thickness` | yes (R8/R9) | no cap at 4; INVALID vs UNFIT; shared via ResolvedFootprint |
 | footprint / courtyard hole | yes (R9) | `ResolvedFootprint` sole occupancy authority |
+| explicit `plan_type` / `shape` | yes (R10) | catalog gate; UNSUPPORTED not silent rectangle |
+| circle + cross (etc.) | yes (R10) | `E_FOOTPRINT_COMBINATION_UNSUPPORTED` |
+| style → plan topology | no (R10) | style must not invent `plan_type` |
 | `overhang` vs roof bbox | yes (R8) | conflict, not silent max |
 | `arm_width` / `l_cut` / `corner_cut` | yes (R8) | unfit when explicit > footprint−2 |
 | `floor_count` / `floor_height` | yes (R8) | `ResolvedFloorLayout` shared by Mass+Facade |

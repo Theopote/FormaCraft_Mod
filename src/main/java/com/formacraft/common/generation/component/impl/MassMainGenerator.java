@@ -106,9 +106,12 @@ public class MassMainGenerator implements ComponentGenerator {
             return out;
         }
 
-        FootprintShape baseShape = resolveShape(c, semantic);
-        int cornerRadius = resolveCornerRadius(params, width, depth, baseShape);
-        PatternConfig basePattern = resolvePlanPattern(params, semantic, width, depth, baseShape);
+        // Occupancy / plan topology authority is ResolvedFootprint (no parallel style inference).
+        var resolvedFp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                semantic, params, width, depth);
+        FootprintShape baseShape = mapFootprintShape(resolvedFp.shape());
+        int cornerRadius = resolvedFp.cornerRadius();
+        PatternConfig basePattern = mapPatternConfig(resolvedFp);
         List<MassConfig> massConfigs = resolveMasses(params, semantic, width, depth, height, baseShape, cornerRadius, basePattern);
         
         // 使用转换后的实际原点
@@ -293,9 +296,10 @@ public class MassMainGenerator implements ComponentGenerator {
         String facadeFoundationId = styleActive ? getBlockForPart(SemanticPart.WALL_BASE, semantic, palette) : null;
 
         Map<String, Object> massParams = semantic.source() != null ? semantic.source().params() : null;
-        // Single footprint authority shared with roofs via ComponentFootprintMask.
-        var footprint = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
-                semantic, massParams, width, depth);
+        var buildingGeom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(
+                semantic, width, depth, height);
+        var footprint = buildingGeom.footprint();
+        var layers = buildingGeom.layers();
         com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.RhythmPlan widthRhythm =
                 com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.resolve(
                         semantic, massParams, width);
@@ -308,7 +312,6 @@ public class MassMainGenerator implements ComponentGenerator {
         int[] layerXOffsets = new int[height];
         int[] layerZOffsets = new int[height];
 
-        var layers = com.formacraft.common.generation.component.util.ResolvedFacadeLayers.resolve(semantic, width, depth, height);
         for (int y = 0; y < height; y++) {
             layerWidths[y] = layers[y].width;
             layerDepths[y] = layers[y].depth;
@@ -925,174 +928,32 @@ public class MassMainGenerator implements ComponentGenerator {
         return SemanticPart.WALL;
     }
 
-    private FootprintShape resolveShape(Component c, SemanticComponent semantic) {
-        String shape = getParamString(c.params(), "shape", "footprint_shape", "footprintShape");
-        if (shape == null && semantic != null && semantic.genome() != null
-                && semantic.genome().topology != null && semantic.genome().topology.layout != null) {
-            String layout = semantic.genome().topology.layout;
-            if (layout.equalsIgnoreCase("circular") || layout.equalsIgnoreCase("radial")) {
-                shape = "circle";
-            } else if (layout.equalsIgnoreCase("freeform")) {
-                shape = "rounded_rect";
-            }
-        }
-        if (shape == null && c.features() != null) {
-            for (String feature : c.features()) {
-                if (feature == null) continue;
-                String lower = feature.toLowerCase();
-                if (lower.contains("circle") || lower.contains("circular") || lower.contains("round")) {
-                    shape = "circle";
-                    break;
-                }
-                if (lower.contains("rounded") || lower.contains("curved")) {
-                    shape = "rounded_rect";
-                }
-            }
-        }
-        if (shape == null && semantic != null && semantic.genome() != null
-                && semantic.genome().form != null && "curved".equalsIgnoreCase(semantic.genome().form.curvature)) {
-            shape = "rounded_rect";
-        }
-        if (shape == null) {
-            return FootprintShape.RECTANGLE;
-        }
-        return switch (shape.trim().toLowerCase()) {
-            case "circle", "circular", "round", "cylinder" -> FootprintShape.CIRCLE;
-            case "rounded_rect", "rounded", "roundrect", "round_rect" -> FootprintShape.ROUNDED_RECT;
+    private static FootprintShape mapFootprintShape(
+            com.formacraft.common.generation.component.util.ResolvedFootprint.FootprintShape shape) {
+        return switch (shape) {
+            case CIRCLE -> FootprintShape.CIRCLE;
+            case ROUNDED_RECT -> FootprintShape.ROUNDED_RECT;
             default -> FootprintShape.RECTANGLE;
         };
     }
 
-    private PatternConfig resolvePlanPattern(Map<String, Object> params, SemanticComponent semantic,
-                                             int width, int depth, FootprintShape shape) {
-        String planType = getParamString(params, "plan_type", "planType",
-                "footprint_pattern", "footprintPattern", "plan_pattern", "planPattern");
-        Component c = semantic != null ? semantic.source() : null;
-
-        if ("none".equalsIgnoreCase(planType) || "rectangle".equalsIgnoreCase(planType))
-            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
-        String explicitShape = getParamString(params, "shape", "footprint_shape", "footprintShape");
-        if (planType == null && explicitShape != null && List.of("rectangle", "rect", "box").contains(explicitShape.toLowerCase(Locale.ROOT)))
-            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
-
-        if (planType != null) {
-            String normalized = planType.trim().toLowerCase(Locale.ROOT);
-            if (normalized.isEmpty() || normalized.equals("none") || normalized.equals("default")) {
-                planType = null;
-            }
-        }
-
-        if (planType == null && c != null) {
-            if (hasFeature(c, "gothic", "cathedral", "church", "basilica", "cruciform", "cross")) {
-                planType = "cross";
-            } else if (hasFeature(c, "courtyard", "siheyuan", "四合院", "庭院", "compound", "ring")) {
-                planType = "courtyard";
-            } else if (hasFeature(c, "l-shape", "l_shape", "lshape", "corner_wing")) {
-                planType = "l_shape";
-            } else if (hasFeature(c, "chinese", "hui", "徽派", "中式")) {
-                planType = "cut_corners";
-            }
-        }
-
-        if (planType == null && semantic != null && semantic.genome() != null && semantic.genome().culturalStyle != null) {
-            String region = semantic.genome().culturalStyle.region;
-            List<String> keywords = semantic.genome().culturalStyle.keywords;
-            if (region != null && region.toLowerCase().contains("chinese")) {
-                planType = "cut_corners";
-            }
-            if (keywords != null) {
-                if (containsKeyword(keywords, "gothic", "cathedral", "church", "cruciform")) {
-                    planType = "cross";
-                }
-                if (containsKeyword(keywords, "courtyard", "siheyuan")) {
-                    planType = "courtyard";
-                }
-            }
-        }
-
-        if (planType == null && semantic != null) {
-            String profile = getStyleProfile(semantic);
-            String upper = profile.toUpperCase();
-            if (upper.contains("HUI") || upper.contains("CHINESE")) {
-                planType = "cut_corners";
-            } else if (upper.contains("GOTHIC") || upper.contains("CATHEDRAL") || upper.contains("CHURCH")) {
-                planType = "cross";
-            }
-        }
-
-        PlanPattern pattern = parsePlanPattern(planType);
-        if (pattern == PlanPattern.NONE) {
-            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
-        }
-        if (shape == FootprintShape.CIRCLE && pattern != PlanPattern.COURTYARD) {
-            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
-        }
-
-        int size = 0;
-        double ratio = 0.0;
-        String corner = null;
-
-        switch (pattern) {
-            case CROSS -> {
-                size = ComponentParamParsers.intParam(params, 0, "arm_width", "cross_arm", "cross_arm_width", "armWidth", "crossArmWidth");
-                if (size <= 0) {
-                    size = Math.max(3, Math.min(width, depth) / 3);
-                }
-            }
-            case CUT_CORNERS -> {
-                size = ComponentParamParsers.intParam(params, 0, "corner_cut", "cornerCut", "cut_corner", "cutCorner", "cut_size");
-                if (size <= 0) {
-                    size = Math.max(2, Math.min(width, depth) / 5);
-                }
-            }
-            case L_SHAPE -> {
-                size = ComponentParamParsers.intParam(params, 0, "l_cut", "lCut", "cut_size", "corner_cut", "cornerCut");
-                if (size <= 0) {
-                    size = Math.max(3, Math.min(width, depth) / 3);
-                }
-                corner = normalizeCorner(getParamString(params, "l_corner", "lCorner", "cut_corner", "cutCorner", "corner"));
-            }
-            case COURTYARD -> {
-                Double ratioValue = ComponentParamParsers.doubleOrNull(params, "courtyard_ratio", "courtyardRatio",
-                        "court_ratio", "void_ratio", "voidRatio");
-                if (ratioValue != null && ratioValue > 0.0 && ratioValue < 1.0) {
-                    ratio = ratioValue;
-                } else if (ratioValue == null) {
-                    // Technical default only when ratio was not explicitly planned.
-                    ratio = Math.max(0.2, Math.min(0.6, 0.35));
-                } else {
-                    // Illegal explicit ratio — MassDesignValidator rejects; do not fall back to 0.35.
-                    ratio = 0.0;
-                }
-            }
-            default -> {
-            }
-        }
-
-        // Aesthetic 0.2–0.6 clamp applies only to non-explicit courtyard defaults (handled above).
-        // Explicit courtyard_ratio is validated by MassDesignValidator / isInCourtyardHole geometry.
-        int maxPatternSize = Math.min(width, depth) - 2;
-        if (size > 0 && size > maxPatternSize) {
-            throw new IllegalArgumentException("E_PLAN_PATTERN_UNFIT: plan pattern size=" + size
-                    + " exceeds buildable max=" + maxPatternSize);
-        }
-        size = Math.max(0, Math.min(size, Math.max(0, maxPatternSize)));
-
-        return new PatternConfig(pattern, size, ratio, corner);
-    }
-
-    private static PlanPattern parsePlanPattern(String value) {
-        if (value == null) return PlanPattern.NONE;
-        String v = value.trim().toLowerCase();
-        if (v.isEmpty()) return PlanPattern.NONE;
-        return switch (v) {
-            case "cross", "cruciform", "plus", "t_shape", "t-shape", "tshape" -> PlanPattern.CROSS;
-            case "cut_corners", "cut-corners", "cutcorner", "cut_corner", "chamfer", "chamfered", "octagon", "octagonal" ->
-                    PlanPattern.CUT_CORNERS;
-            case "l", "l_shape", "l-shape", "lshape", "corner", "corner_wing" -> PlanPattern.L_SHAPE;
-            case "courtyard", "court", "ring", "donut", "siheyuan", "compound" -> PlanPattern.COURTYARD;
+    private static PatternConfig mapPatternConfig(
+            com.formacraft.common.generation.component.util.ResolvedFootprint fp) {
+        PlanPattern pattern = switch (fp.pattern()) {
+            case CROSS -> PlanPattern.CROSS;
+            case CUT_CORNERS -> PlanPattern.CUT_CORNERS;
+            case L_SHAPE -> PlanPattern.L_SHAPE;
+            case COURTYARD -> PlanPattern.COURTYARD;
             default -> PlanPattern.NONE;
         };
+        return new PatternConfig(pattern, fp.patternSize(), fp.courtyardRatio(), fp.lCorner());
+    }
+
+    private PatternConfig resolvePlanPattern(Map<String, Object> params, SemanticComponent semantic,
+                                             int width, int depth, FootprintShape shape) {
+        var fp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                semantic, params, width, depth);
+        return mapPatternConfig(fp);
     }
 
     private static String normalizeCorner(String value) {
@@ -1218,17 +1079,11 @@ public class MassMainGenerator implements ComponentGenerator {
                 continue;
             }
 
-            FootprintShape shape = baseShape;
-            String massShape = getParamString(m, "shape");
-            if (massShape != null) {
-                shape = switch (massShape.trim().toLowerCase()) {
-                    case "circle", "circular", "round", "cylinder" -> FootprintShape.CIRCLE;
-                    case "rounded_rect", "rounded", "roundrect", "round_rect" -> FootprintShape.ROUNDED_RECT;
-                    default -> FootprintShape.RECTANGLE;
-                };
-            }
-            int cr = resolveCornerRadius(m, mw, md, shape);
-            PatternConfig pattern = resolvePlanPattern(m, semantic, mw, md, shape);
+            var subFp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                    semantic, m, mw, md);
+            FootprintShape shape = mapFootprintShape(subFp.shape());
+            int cr = subFp.cornerRadius();
+            PatternConfig pattern = mapPatternConfig(subFp);
             if (pattern.pattern == PlanPattern.NONE && basePattern != null && basePattern.pattern != null && basePattern.pattern != PlanPattern.NONE) {
                 Map<String, Object> fallback = getStringObjectMap(basePattern);
                 pattern = resolvePlanPattern(fallback, semantic, mw, md, shape);

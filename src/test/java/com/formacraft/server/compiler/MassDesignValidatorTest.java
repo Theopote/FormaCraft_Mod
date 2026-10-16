@@ -105,6 +105,30 @@ class MassDesignValidatorTest {
         assertEquals("E_COURTYARD_RATIO_INVALID", gap.get().code());
     }
 
+    @Test
+    void rejectsUnsupportedPlanType() throws Exception {
+        var plan = LlmPlanParser.parseAndValidate(loadFixture("plan_type_unsupported.json"));
+        var gap = MassDesignValidator.check(plan, plan.components());
+        assertTrue(gap.isPresent());
+        assertEquals("E_PLAN_PATTERN_UNSUPPORTED", gap.get().code());
+    }
+
+    @Test
+    void rejectsUnsupportedFootprintShape() throws Exception {
+        var plan = LlmPlanParser.parseAndValidate(loadFixture("footprint_shape_unsupported.json"));
+        var gap = MassDesignValidator.check(plan, plan.components());
+        assertTrue(gap.isPresent());
+        assertEquals("E_FOOTPRINT_SHAPE_UNSUPPORTED", gap.get().code());
+    }
+
+    @Test
+    void rejectsCircleCrossCombination() throws Exception {
+        var plan = LlmPlanParser.parseAndValidate(loadFixture("circle_cross_combo_unsupported.json"));
+        var gap = MassDesignValidator.check(plan, plan.components());
+        assertTrue(gap.isPresent());
+        assertEquals("E_FOOTPRINT_COMBINATION_UNSUPPORTED", gap.get().code());
+    }
+
     private static String loadFixture(String fileName) throws Exception {
         String path = "/plans/fidelity/" + fileName;
         try (var in = MassDesignValidatorTest.class.getResourceAsStream(path)) {

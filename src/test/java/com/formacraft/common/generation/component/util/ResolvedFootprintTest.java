@@ -79,4 +79,56 @@ class ResolvedFootprintTest {
         assertEquals(0.0, fp.courtyardRatio(), 1e-9);
         assertFalse(fp.isCourtyardHole(8, 8));
     }
+
+    @Test
+    void gothicFeaturesDoNotForceCrossWithoutExplicitPlanType() {
+        Map<String, Object> params = Map.of();
+        Component mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 14, 12), List.of("gothic", "cathedral"), params);
+        ResolvedFootprint fp = ResolvedFootprint.resolve(mass, 20, 14);
+        assertEquals(ResolvedFootprint.PlanPattern.NONE, fp.pattern());
+        assertEquals(ResolvedFootprint.FootprintShape.RECTANGLE, fp.shape());
+    }
+
+    @Test
+    void unsupportedExplicitPlanTypeThrows() {
+        Map<String, Object> params = Map.of("plan_type", "u_shape");
+        try {
+            ResolvedFootprint.resolve(
+                    new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                            new Dimensions(16, 16, 8), List.of(), params),
+                    16, 16);
+            throw new AssertionError("expected E_PLAN_PATTERN_UNSUPPORTED");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().startsWith("E_PLAN_PATTERN_UNSUPPORTED"));
+        }
+    }
+
+    @Test
+    void unsupportedExplicitShapeThrows() {
+        Map<String, Object> params = Map.of("shape", "hexagon");
+        try {
+            ResolvedFootprint.resolve(
+                    new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                            new Dimensions(16, 16, 8), List.of(), params),
+                    16, 16);
+            throw new AssertionError("expected E_FOOTPRINT_SHAPE_UNSUPPORTED");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().startsWith("E_FOOTPRINT_SHAPE_UNSUPPORTED"));
+        }
+    }
+
+    @Test
+    void circleCrossCombinationThrows() {
+        Map<String, Object> params = Map.of("shape", "circle", "plan_type", "cross");
+        try {
+            ResolvedFootprint.resolve(
+                    new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                            new Dimensions(16, 16, 8), List.of(), params),
+                    16, 16);
+            throw new AssertionError("expected E_FOOTPRINT_COMBINATION_UNSUPPORTED");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().startsWith("E_FOOTPRINT_COMBINATION_UNSUPPORTED"));
+        }
+    }
 }
