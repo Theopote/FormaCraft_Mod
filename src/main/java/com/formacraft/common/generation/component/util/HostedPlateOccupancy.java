@@ -25,12 +25,9 @@ public final class HostedPlateOccupancy {
 
     public static PlateRole resolveRole(Map<String, Object> params) {
         var explicit = PlateRoleCatalog.extractExplicit(params);
-        if (explicit.isEmpty()) {
-            return PlateRole.INTERIOR;
-        }
-        return PlateRoleCatalog.parseSupported(explicit.get())
+        return explicit.map(s -> PlateRoleCatalog.parseSupported(s)
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "E_PLATE_ROLE_UNSUPPORTED: Unsupported plate_role: " + explicit.get()));
+                        "E_PLATE_ROLE_UNSUPPORTED: Unsupported plate_role: " + s))).orElse(PlateRole.INTERIOR);
     }
 
     public static boolean skipsHostFootprintClip(PlateRole role) {

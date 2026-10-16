@@ -921,7 +921,7 @@ public final class ComponentPlanCompiler {
         if (components == null || result == null || result.isEmpty()) {
             return true;
         }
-        var blocks = com.formacraft.common.generation.component.util.BridgeWalkability.blocksFromPatches(result);
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability.occupancyFromPatches(result);
         Vec3i zero = new Vec3i(0, 0, 0);
         for (Component plate : components) {
             if (plate == null || plate.params() == null) {
@@ -941,14 +941,14 @@ public final class ComponentPlanCompiler {
             Vec3i hostOff = slotAnchorOrZero(slotMap, host.get().slotId(), zero);
             Vec3i targetOff = slotAnchorOrZero(slotMap, target.get().slotId(), zero);
             if (!com.formacraft.common.generation.component.util.BridgeWalkability.bridgeConnectsInteriors(
-                    blocks, plate, plateOff, host.get(), hostOff, target.get(), targetOff)) {
+                    occ, plate, plateOff, host.get(), hostOff, target.get(), targetOff)) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap(
                         "E_BRIDGE_PATH_BLOCKED",
                         "Bridge cannot walk from deck into both interiors (host_id=" + hostId
                                 + ", target_host_id=" + targetId + ")",
                         "components[]",
                         List.of("Carve portals through wall_thickness at both contact faces.",
-                                "Ensure bridge Y shares a connectable storey with both masses.")));
+                                "Ensure bridge Y has solid floors and 2-high clearance into both masses.")));
                 return false;
             }
         }

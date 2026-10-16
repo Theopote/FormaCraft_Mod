@@ -2,74 +2,47 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.patch.BlockPatch;
 
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * BlockPatch-map walkability for bridge decks: missing/air is free; solid blocks block;
- * standing on spruce (or any non-air) at feet-1 is allowed when the head cell is free.
+ * Bridge-specific walkability over final BlockPatches via {@link WalkabilityGraph}:
+ * standing nodes (support + feet + head), not air 6-connectivity.
  */
 public final class BridgeWalkability {
     private BridgeWalkability() {}
 
+    /** @deprecated Prefer {@link PlannedOccupancy#isBodyClear}; kept for callers using string maps. */
     public static boolean isPassable(Map<Vec3i, String> blocks, int x, int y, int z) {
-        String id = blocks.get(new Vec3i(x, y, z));
+        String id = blocks == null ? null : blocks.get(new Vec3i(x, y, z));
         return id == null || isAir(id);
     }
 
     public static boolean isAir(String blockId) {
-        if (blockId == null) {
-            return true;
-        }
-        String lower = blockId.toLowerCase(Locale.ROOT);
-        return lower.equals("minecraft:air") || lower.endsWith(":air") || lower.contains("air");
+        return PlannedOccupancy.isAirId(blockId);
     }
 
-    /** 6-connected BFS from standing cell start to goal (both at head/torso height). */
-    public static boolean canReach(Map<Vec3i, String> blocks, Vec3i start, Vec3i goal, int maxSteps) {
-        if (blocks == null || start == null || goal == null) {
+    /**
+     * Reachability between floor-support cells (not feet cells).
+     * Prefer {@link #canReach(PlannedOccupancy, Vec3i, Vec3i, int)}.
+     */
+    public static boolean canReach(Map<Vec3i, String> blocks, Vec3i startFeet, Vec3i goalFeet, int maxSteps) {
+        if (startFeet == null || goalFeet == null) {
             return false;
         }
-        if (!isPassable(blocks, start.x(), start.y(), start.z())
-                || !isPassable(blocks, goal.x(), goal.y(), goal.z())) {
-            return false;
-        }
-        ArrayDeque<long[]> q = new ArrayDeque<>();
-        Set<Long> seen = new HashSet<>();
-        long sKey = pack(start.x(), start.y(), start.z());
-        q.add(new long[]{start.x(), start.y(), start.z(), 0});
-        seen.add(sKey);
-        int[][] dirs = {{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0}};
-        while (!q.isEmpty()) {
-            long[] cur = q.removeFirst();
-            int x = (int) cur[0], y = (int) cur[1], z = (int) cur[2], dist = (int) cur[3];
-            if (x == goal.x() && y == goal.y() && z == goal.z()) {
-                return true;
-            }
-            if (dist >= maxSteps) {
-                continue;
-            }
-            for (int[] d : dirs) {
-                int nx = x + d[0], ny = y + d[1], nz = z + d[2];
-                if (!isPassable(blocks, nx, ny, nz)) {
-                    continue;
-                }
-                long key = pack(nx, ny, nz);
-                if (!seen.add(key)) {
-                    continue;
-                }
-                q.addLast(new long[]{nx, ny, nz, dist + 1});
-            }
-        }
-        return false;
+        PlannedOccupancy occ = fromLegacyBlocks(blocks);
+        Vec3i startFloor = new Vec3i(startFeet.x(), startFeet.y() - 1, startFeet.z());
+        Vec3i goalFloor = new Vec3i(goalFeet.x(), goalFeet.y() - 1, goalFeet.z());
+        return WalkabilityGraph.canReach(occ, startFloor, goalFloor, maxSteps);
     }
 
-    /** Interior standing cell of a mass at plateY+1, inset by wall_thickness. */
-    public static Vec3i interiorStandingCell(Component mass, int plateY) {
+    public static boolean canReach(PlannedOccupancy occ, Vec3i startFloor, Vec3i goalFloor, int maxSteps) {
+        return WalkabilityGraph.canReach(occ, startFloor, goalFloor, maxSteps);
+    }
+
+    /** Interior floor-support cell of a mass at {@code plateY}, inset by wall_thickness. */
+    public static Vec3i interiorFloorCell(Component mass, int plateY) {
         var bounds = ComponentFootprintUtil.bounds(mass);
         if (bounds == null) {
             return null;
@@ -84,17 +57,29 @@ public final class BridgeWalkability {
         if (z >= bounds.maxZ() - thickness) {
             z = (bounds.minZ() + bounds.maxZ()) / 2;
         }
-        return new Vec3i(x, plateY + 1, z);
+        return new Vec3i(x, plateY, z);
     }
 
-    public static Vec3i deckStandingCell(Component plate) {
+    /** @deprecated Use {@link #interiorFloorCell}; returns feet cell at plateY+1. */
+    public static Vec3i interiorStandingCell(Component mass, int plateY) {
+        Vec3i floor = interiorFloorCell(mass, plateY);
+        return floor == null ? null : new Vec3i(floor.x(), floor.y() + 1, floor.z());
+    }
+
+    public static Vec3i deckFloorCell(Component plate) {
         var bounds = ComponentFootprintUtil.bounds(plate);
         if (bounds == null || plate.relativePosition() == null) {
             return null;
         }
         int x = (bounds.minX() + bounds.maxX()) / 2;
         int z = (bounds.minZ() + bounds.maxZ()) / 2;
-        return new Vec3i(x, plate.relativePosition().y() + 1, z);
+        return new Vec3i(x, plate.relativePosition().y(), z);
+    }
+
+    /** @deprecated Use {@link #deckFloorCell}; returns feet cell at plateY+1. */
+    public static Vec3i deckStandingCell(Component plate) {
+        Vec3i floor = deckFloorCell(plate);
+        return floor == null ? null : new Vec3i(floor.x(), floor.y() + 1, floor.z());
     }
 
     public static boolean bridgeConnectsInteriors(
@@ -103,13 +88,19 @@ public final class BridgeWalkability {
             Component host,
             Component target
     ) {
-        return bridgeConnectsInteriors(blocks, plate, ZERO, host, ZERO, target, ZERO);
+        return bridgeConnectsInteriors(PlannedOccupancy.fromPatches(legacyToPatches(blocks)),
+                plate, ZERO, host, ZERO, target, ZERO);
     }
 
-    /**
-     * Same as {@link #bridgeConnectsInteriors(Map, Component, Component, Component)} but standing
-     * cells are shifted by each component's slot anchor (compile output space).
-     */
+    public static boolean bridgeConnectsInteriors(
+            PlannedOccupancy occ,
+            Component plate,
+            Component host,
+            Component target
+    ) {
+        return bridgeConnectsInteriors(occ, plate, ZERO, host, ZERO, target, ZERO);
+    }
+
     public static boolean bridgeConnectsInteriors(
             Map<Vec3i, String> blocks,
             Component plate,
@@ -119,32 +110,65 @@ public final class BridgeWalkability {
             Component target,
             Vec3i targetOffset
     ) {
-        if (plate == null || plate.relativePosition() == null) {
+        return bridgeConnectsInteriors(
+                PlannedOccupancy.fromPatches(legacyToPatches(blocks)),
+                plate, plateOffset, host, hostOffset, target, targetOffset);
+    }
+
+    /**
+     * Deck and both mass interiors must be legal standing floors at {@code plateY},
+     * then BFS with step ±1 within the union search bounds.
+     */
+    public static boolean bridgeConnectsInteriors(
+            PlannedOccupancy occ,
+            Component plate,
+            Vec3i plateOffset,
+            Component host,
+            Vec3i hostOffset,
+            Component target,
+            Vec3i targetOffset
+    ) {
+        if (occ == null || plate == null || plate.relativePosition() == null) {
             return false;
         }
         int plateY = plate.relativePosition().y();
-        Vec3i deck = shift(deckStandingCell(plate), plateOffset);
-        Vec3i hostIn = shift(interiorStandingCell(host, plateY), hostOffset);
-        Vec3i targetIn = shift(interiorStandingCell(target, plateY), targetOffset);
+        Vec3i deck = shift(deckFloorCell(plate), plateOffset);
+        Vec3i hostIn = shift(interiorFloorCell(host, plateY), hostOffset);
+        Vec3i targetIn = shift(interiorFloorCell(target, plateY), targetOffset);
         if (deck == null || hostIn == null || targetIn == null) {
             return false;
         }
+        if (!WalkabilityGraph.canStand(occ, deck)
+                || !WalkabilityGraph.canStand(occ, hostIn)
+                || !WalkabilityGraph.canStand(occ, targetIn)) {
+            return false;
+        }
+        var bounds = WalkabilityGraph.searchBounds(
+                ComponentFootprintUtil.bounds(plate), plateOffset,
+                ComponentFootprintUtil.bounds(host), hostOffset,
+                ComponentFootprintUtil.bounds(target), targetOffset,
+                1);
         int budget = 512;
-        return canReach(blocks, deck, hostIn, budget) && canReach(blocks, deck, targetIn, budget);
+        return WalkabilityGraph.canReach(occ, deck, hostIn, budget, bounds)
+                && WalkabilityGraph.canReach(occ, deck, targetIn, budget, bounds);
     }
 
-    public static Map<Vec3i, String> blocksFromPatches(Iterable<com.formacraft.common.patch.BlockPatch> patches) {
+    public static PlannedOccupancy occupancyFromPatches(Iterable<BlockPatch> patches) {
+        return PlannedOccupancy.fromPatches(patches);
+    }
+
+    /** Legacy string map (REMOVE collapsed to absent) — prefer {@link #occupancyFromPatches}. */
+    public static Map<Vec3i, String> blocksFromPatches(Iterable<BlockPatch> patches) {
         Map<Vec3i, String> blocks = new java.util.HashMap<>();
         if (patches == null) {
             return blocks;
         }
-        for (com.formacraft.common.patch.BlockPatch patch : patches) {
+        for (BlockPatch patch : patches) {
             if (patch == null) {
                 continue;
             }
             Vec3i pos = new Vec3i(patch.dx(), patch.dy(), patch.dz());
-            if (com.formacraft.common.patch.BlockPatch.REMOVE.equals(patch.action())
-                    || "minecraft:air".equals(patch.targetBlock())) {
+            if (BlockPatch.REMOVE.equals(patch.action()) || "minecraft:air".equals(patch.targetBlock())) {
                 blocks.remove(pos);
             } else {
                 blocks.put(pos, patch.targetBlock());
@@ -165,9 +189,37 @@ public final class BridgeWalkability {
         return new Vec3i(local.x() + offset.x(), local.y() + offset.y(), local.z() + offset.z());
     }
 
-    private static long pack(int x, int y, int z) {
-        return (((long) (x + 512) & 0x3FFL) << 20)
-                | (((long) (y + 512) & 0x3FFL) << 10)
-                | ((long) (z + 512) & 0x3FFL);
+    private static PlannedOccupancy fromLegacyBlocks(Map<Vec3i, String> blocks) {
+        if (blocks == null || blocks.isEmpty()) {
+            return PlannedOccupancy.of(Map.of());
+        }
+        Map<Vec3i, PlannedOccupancy.Cell> cells = new java.util.HashMap<>();
+        for (var e : blocks.entrySet()) {
+            if (e.getKey() == null) {
+                continue;
+            }
+            if (isAir(e.getValue())) {
+                cells.put(e.getKey(), PlannedOccupancy.Cell.PLANNED_AIR);
+            } else {
+                cells.put(e.getKey(), PlannedOccupancy.Cell.SOLID);
+            }
+        }
+        return PlannedOccupancy.of(cells);
+    }
+
+    /** Approximate patches from a solid-only string map (absent = UNTOUCHED). */
+    private static Iterable<BlockPatch> legacyToPatches(Map<Vec3i, String> blocks) {
+        java.util.List<BlockPatch> out = new java.util.ArrayList<>();
+        if (blocks == null) {
+            return out;
+        }
+        for (var e : blocks.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null || isAir(e.getValue())) {
+                continue;
+            }
+            Vec3i p = e.getKey();
+            out.add(new BlockPatch(BlockPatch.PLACE, p.x(), p.y(), p.z(), e.getValue()));
+        }
+        return out;
     }
 }

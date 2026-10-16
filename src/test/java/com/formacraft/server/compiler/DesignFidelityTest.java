@@ -620,9 +620,11 @@ class DesignFidelityTest {
                 .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
         Component wing = plan.components().stream()
                 .filter(c -> "wing".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
         assertTrue(com.formacraft.common.generation.component.util.BridgeWalkability
-                        .bridgeConnectsInteriors(blocks, plate, hall, wing),
-                "dual-mass bridge must BFS-reach both interiors");
+                        .bridgeConnectsInteriors(occ, plate, hall, wing),
+                "dual-mass bridge must walk to both interiors");
     }
 
     @Test
@@ -663,9 +665,29 @@ class DesignFidelityTest {
         assertTrue(isAirOrMissing(blocks, 14, 6, 7), "hall inner portal depth");
         assertTrue(isAirOrMissing(blocks, 24, 6, 7), "wing outer portal cell");
         assertTrue(isAirOrMissing(blocks, 29, 6, 7), "wing inner portal depth");
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
         assertTrue(com.formacraft.common.generation.component.util.BridgeWalkability
-                        .bridgeConnectsInteriors(blocks, plate, hall, wing),
+                        .bridgeConnectsInteriors(occ, plate, hall, wing),
                 "thick-wall portals must open a walkable path into both interiors");
+    }
+
+    @Test
+    void bridgeMidAtriumWithoutFloorFailsWalkability() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_walk_mid_atrium_no_floor.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BRIDGE_PATH_BLOCKED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void bridgeLowClearanceFailsWalkability() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_walk_low_clearance.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BRIDGE_PATH_BLOCKED", AssemblyCompileDiagnostics.get().code());
     }
 
     @Test
@@ -712,11 +734,11 @@ class DesignFidelityTest {
         assertFalse(AssemblyCompileDiagnostics.hasGap(),
                 () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         var blocks = PatchTestSnapshot.blocks(patches);
-        // floor_height=5 would snap interior inferred plates to 5/10; bridge must keep Y=7.
+        // floor_height=7 storeys at 0/7; interior snap would use 7/14 — bridge must keep authored Y=7.
         assertTrue(isSprucePlate(blocks.get(new Vec3i(9, 7, 3))),
                 "inferred bridge must not storey-snap away from authored Y=7");
-        assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 5, 3))));
-        assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 10, 3))));
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 0, 3))));
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 14, 3))));
     }
 
     @Test

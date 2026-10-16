@@ -289,7 +289,7 @@ class DesignFidelityContractTest(unittest.TestCase):
         )
         self.assertTrue(inferred_plate["params"]["_compiler_inferred"])
         self.assertEqual(7, inferred_plate["relative_position"]["y"])
-        self.assertEqual(5, inferred["components"][0]["params"]["floor_height"])
+        self.assertEqual(7, inferred["components"][0]["params"]["floor_height"])
 
         overhang = self._load("bridge_hosted_plate_overhang.json")
         overhang_plate = next(
@@ -344,6 +344,38 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertEqual(4, dual_plate["relative_position"]["y"])
         self.assertEqual(1, dual_plate["params"]["connection_level"])
         self.assertEqual(4, dual["components"][0]["params"]["floor_height"])
+
+    def test_round16_walkability_fixtures(self):
+        atrium = self._load("bridge_walk_mid_atrium_no_floor.json")
+        atrium_plate = next(
+            c for c in atrium["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(7, atrium_plate["relative_position"]["y"])
+        self.assertEqual(10, atrium["components"][0]["params"]["floor_height"])
+        self.assertEqual(2, atrium["components"][0]["params"]["floor_count"])
+        self.assertNotIn("connection_level", atrium_plate["params"])
+
+        low = self._load("bridge_walk_low_clearance.json")
+        lids = [
+            c for c in low["components"]
+            if c.get("params", {}).get("component_id") == "low_lid"
+        ]
+        self.assertEqual(1, len(lids))
+        self.assertEqual(6, lids[0]["relative_position"]["y"])
+        self.assertEqual("interior", lids[0]["params"]["plate_role"])
+        link = next(
+            c for c in low["components"]
+            if c.get("params", {}).get("component_id") == "sky_link"
+        )
+        self.assertEqual(4, link["relative_position"]["y"])
+
+        inferred = self._load("inferred_bridge_keeps_y.json")
+        inferred_plate = next(
+            c for c in inferred["components"]
+            if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(7, inferred_plate["relative_position"]["y"])
+        self.assertEqual(7, inferred["components"][0]["params"]["floor_height"])
 
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
