@@ -24,10 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Design fidelity suite: fixtures under {@code /plans/fidelity/} must survive parse → compile
@@ -70,8 +67,7 @@ class DesignFidelityTest {
     @Test
     void massOnlyFixtureReportsDesignIncomplete() throws Exception {
         LlmPlan plan = loadFidelityPlan("mass_only_no_infer.json");
-        assertFalse(Boolean.TRUE.equals(
-                plan.planMeta() == null ? null : plan.planMeta().get("allow_compiler_satellites")));
+        assertNotEquals(Boolean.TRUE, plan.planMeta() == null ? null : plan.planMeta().get("allow_compiler_satellites"));
 
         var patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
         assertTrue(patches.isEmpty());
@@ -304,7 +300,7 @@ class DesignFidelityTest {
         assertFalse(patches.isEmpty());
 
         var fp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
-                plan.components().get(0), 48, 48);
+                plan.components().getFirst(), 48, 48);
         int cx = (fp.holeMinX() + fp.holeMaxX()) / 2;
         int cz = (fp.holeMinZ() + fp.holeMaxZ()) / 2;
         assertTrue(fp.isCourtyardHole(cx, cz));
@@ -373,7 +369,7 @@ class DesignFidelityTest {
 
         assertEquals("AI_PLANNED", plan.designSources().get("roof_pitch_degrees"));
         assertEquals("AI_PLANNED", plan.designSources().get("roof_type"));
-        assertFalse(Boolean.TRUE.equals(plan.planMeta().get("allow_compiler_satellites")));
+        assertNotEquals(Boolean.TRUE, plan.planMeta().get("allow_compiler_satellites"));
 
         Component roof = plan.components().stream()
                 .filter(c -> c != null && "ROOF".equalsIgnoreCase(c.componentType()))

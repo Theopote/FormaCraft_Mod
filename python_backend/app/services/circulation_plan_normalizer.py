@@ -191,6 +191,11 @@ def _fit_straight_stairs(plan: dict) -> None:
                         lateral = (axis == 'x' and dz != 0) or (axis == 'z' and dx != 0)
                         offsets[axis] = (min(p[axis] for p in ends)-(width//2 if lateral else 0),
                                          max(p[axis] for p in ends)+(width-1-width//2 if lateral else 0))
+                    for axis, center, dimension in (('x', cx, 'width'), ('z', cz, 'depth')):
+                        lo, hi = offsets[axis]
+                        lower = origin[axis] + wall - lo
+                        upper = origin[axis] + int(dims[dimension])-1-wall - hi
+                        bounds[axis] = max(lower, min(round(center-(lo+hi)/2), upper))
                     if rx <= 0 or rz <= 0 or any(((bounds['x']+x-cx)/rx)**2 + ((bounds['z']+z-cz)/rz)**2 > 1
                                                  for x in offsets['x'] for z in offsets['z']):
                         continue
@@ -215,7 +220,8 @@ def normalize_circulation_plan(plan: dict) -> dict:
     # supports fill the previous flight's headroom. Repeat the fitted stairwell
     # at each floor instead, preserving floor elevations and materials.
     tower_ids = {c.get('params', {}).get('component_id') for c in out.get('components', [])
-                 if c.get('component_type') == 'TOWER'}
+                 if c.get('component_type') in ('TOWER', 'MASS_MAIN', 'MASS_SECONDARY')
+                 and c.get('params', {}).get('component_id')}
     stairwells = {}
     for comp in sorted(out.get('components', []), key=lambda c: (c.get('relative_position') or {}).get('y', 0)):
         params = comp.get('params') or {}
@@ -228,6 +234,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
         key = (params['host_id'], b['y']-a['y'], params.get('width', 3))
         first = stairwells.setdefault(key, comp)
         if first is comp: continue
+        if comp['relative_position']['y']+a['y'] == first['relative_position']['y']+first['params']['from']['y']: continue
         for axis in ('x', 'z'):
             comp['relative_position'][axis] = first['relative_position'][axis]
             a[axis] = first['params']['from'][axis]

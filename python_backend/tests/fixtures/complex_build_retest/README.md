@@ -22,3 +22,8 @@ factory and courtyard compound. Their normalized snapshots apply
 `normalize_circulation_plan`. Python tests exercise those transformations from
 the raw logged plans; Java tests replay all six snapshots in the real parser
 and compiler. These are offline regressions, not in-game visual validation.
+
+`oct16_1` through `oct16_5` are the Oct 16 21:58–22:26 game responses:
+Chinese villa, mountain hotel, stepped house, factory and coastal inn.
+The two provider timeouts produced no plan to replay. Normalized variants use
+the original request with the building contract and circulation normalizers.

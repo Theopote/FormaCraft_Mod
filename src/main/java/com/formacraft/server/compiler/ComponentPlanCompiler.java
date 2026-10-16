@@ -947,8 +947,7 @@ public final class ComponentPlanCompiler {
                         normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
             }
             normalizedComponent = reconcileDelegatedRoof(plan, normalizedComponent, normalized);
-            if ("MASS_MAIN".equals(normalizeType(normalizedComponent.componentType()))
-                    && ComponentParamParsers.intParam(normalizedComponent.params(), "floor_count", "floorCount") > 0
+            if (isMassType(normalizeType(normalizedComponent.componentType()))
                     && ComponentParamParsers.intOrNull(normalizedComponent.params(), "wall_thickness", "wallThickness") == null) {
                 var params = new HashMap<String, Object>(normalizedComponent.params());
                 params.put("wall_thickness", 1);
@@ -1567,6 +1566,9 @@ public final class ComponentPlanCompiler {
             }
             int fh = ComponentParamParsers.intParam(mass.params(), "floor_height", "floorHeight");
             int fc = ComponentParamParsers.intParam(mass.params(), "floor_count", "floorCount");
+            if ("clerestory".equalsIgnoreCase(String.valueOf(params.get("height_level"))) && fh > 0) {
+                params.putIfAbsent("sill_offset", Math.max(1, Math.floorMod(position.y()-massOrigin.y(), fh)));
+            }
             if (fh > 0 && fc > 0 && llmDims.height() < massDims.height()) {
                 int first = Math.max(0, Math.min(fc-1, (position.y()-massOrigin.y())/fh));
                 int last = Math.max(first, Math.min(fc-1, (position.y()-massOrigin.y()+llmDims.height()-1)/fh));
@@ -1753,10 +1755,18 @@ public final class ComponentPlanCompiler {
                 "ENTRANCE",
                 llmEntrance.slotId(),
                 template.relativePosition(),
-                template.dimensions(),
+                entranceDimensions(template.dimensions(), params, facing),
                 mergeFeatureLists(template.features(), llmEntrance.features()),
                 params
         );
+    }
+
+    private static Dimensions entranceDimensions(Dimensions dims, Map<String, Object> params, GlobalConstraints.Facing facing) {
+        int width = ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth");
+        if (width <= 0 || dims == null) return dims;
+        return facing == GlobalConstraints.Facing.EAST || facing == GlobalConstraints.Facing.WEST
+                ? new Dimensions(dims.width(), Math.max(dims.depth(), width+1), dims.height())
+                : new Dimensions(Math.max(dims.width(), width+1), dims.depth(), dims.height());
     }
 
     private static void copyFootprintParams(Map<String, Object> from, Map<String, Object> to) {
@@ -2529,6 +2539,8 @@ public final class ComponentPlanCompiler {
             var params = new HashMap<String, Object>();
             if (component.params() != null) params.putAll(component.params());
             params.put("compiler_connector_body", true);
+            params.putIfAbsent("wall_thickness", 1);
+            params.put("plan_type", "none");
             component = new Component("MASS_SECONDARY", component.slotId(), component.relativePosition(),
                     component.dimensions(), component.features(), params);
         }

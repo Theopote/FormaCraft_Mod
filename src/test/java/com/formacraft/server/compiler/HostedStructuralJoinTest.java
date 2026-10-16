@@ -26,6 +26,17 @@ class HostedStructuralJoinTest {
         assertTrue(LlmPlanTestFixtures.builder().build().allowCompilerSatellites());
         assertFalse(LlmPlanTestFixtures.builder().planMeta(Map.of("allow_compiler_satellites",false)).build().allowCompilerSatellites());
     }
+    @Test void tierCanJoinHostTopButCannotOverwriteItsInterior() {
+        var index = new PatchOccupancyIndex();
+        index.commit(component("MASS_MAIN", Map.of("component_id", "house")),
+                List.of(new BlockPatch(BlockPatch.PLACE, 1,7,1,"minecraft:stone_bricks")));
+        var params = Map.<String,Object>of("component_id", "tier", "host_id", "house", "tier_index", 1, "anchor_mode", "min_corner");
+        var tier = new Component("MASS_SECONDARY", "main", new Vec3i(0,7,0), new Dimensions(10,10,5), List.of(), params);
+        var patch = List.of(new BlockPatch(BlockPatch.PLACE,1,7,1,"minecraft:oak_planks"));
+        assertTrue(index.validate(tier, patch).isEmpty());
+        var intersecting = new Component("MASS_SECONDARY", "main", new Vec3i(0,2,0), tier.dimensions(), List.of(), params);
+        assertTrue(index.validate(intersecting, patch).isPresent());
+    }
     @Test void optionalAttachmentClipsConflictWithoutChangingPrimaryOrLedger() {
         var index = new PatchOccupancyIndex();
         var original = new BlockPatch(BlockPatch.PLACE, 1, 4, 1, "minecraft:stone_bricks");

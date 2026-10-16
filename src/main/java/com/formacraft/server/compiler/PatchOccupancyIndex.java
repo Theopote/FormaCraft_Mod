@@ -285,6 +285,11 @@ public final class PatchOccupancyIndex {
         if (!(host instanceof String id) || id.isBlank()
                 || (!id.equals(ownerId) && !id.equals(previous.owner().params().get("host_id")))) return false;
         if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
+        if ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType()) && writer.params().containsKey("tier_index")) {
+            var tier = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
+            var base = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(previous.owner());
+            if (tier != null && base != null && tier.minY() >= base.maxY()-1) return true;
+        }
         if (!Set.of("MASS_MAIN", "MAIN_MASS", "MASS_WING", "SIDE_WING", "MASS_SECONDARY", "TOWER", "FOUNDATION", "BALCONY", "TERRACE", "DECOR_DETAIL", "ROOF")
                 .contains(previous.writerType())) return false;
         // Bound structural/detail parts may join their own building. The surface
@@ -303,7 +308,7 @@ public final class PatchOccupancyIndex {
         if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
         Object building = writer.params().get("building_id");
         if (building != null && building.equals(previous.owner().params().get("building_id"))
-                && Set.of("ROOF", "FOUNDATION", "MASS_SECONDARY", "TERRACE", "BALCONY").contains(previous.writerType())) return true;
+                && Set.of("ROOF", "FOUNDATION", "MASS_SECONDARY", "TERRACE", "BALCONY", "DECOR_DETAIL").contains(previous.writerType())) return true;
         if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY").contains(previous.writerType())
                 && !"plate".equals(previous.owner().params().get("extrude_mode")))
             return id.equals(previous.owner().params().get("component_id"));

@@ -34,6 +34,7 @@ final class MassDesignValidator {
             if (!isMassType(type)) {
                 continue;
             }
+            if (component.params() != null && "plate".equalsIgnoreCase(String.valueOf(component.params().get("extrude_mode")))) continue;
             Optional<CapabilityGap> wallInvalid = checkWallThicknessInvalid(component);
             if (wallInvalid.isPresent()) {
                 return wallInvalid;

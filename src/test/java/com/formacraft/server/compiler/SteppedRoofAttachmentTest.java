@@ -69,13 +69,20 @@ class SteppedRoofAttachmentTest {
     @Test void explicitOverhangHeightAndLegacyWideRoofIntentSurviveAlignment() throws Exception {
         for (var dims : List.of(new Dimensions(9,8,4),new Dimensions(15,13,4))) {
             var authored = new Component("ROOF","house",new Vec3i(0,0,0),dims,List.of(),
-                    Map.of("host_id","house","roof_type","flat","overhang",2));
+                    Map.of("host_id","house","roof_type","flat","overhang",dims.width()==9 ? 2 : 3));
             var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("rectangle"),authored)).build();
             var roof = prepared(plan).stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
             assertEquals(new Vec3i(23,11,32),roof.relativePosition());
             assertEquals(4,roof.dimensions().height());
             assertEquals(dims.width()==9 ? 2 : 3, ((Number)roof.params().get("overhang")).intValue());
         }
+    }
+    @Test void conflictingExplicitOverhangIsDiagnosedInsteadOfSilentlyRaised() throws Exception {
+        var authored = new Component("ROOF", "house", new Vec3i(0,0,0), new Dimensions(15,13,4), List.of(),
+                Map.of("host_id", "house", "roof_type", "flat", "overhang", 2));
+        prepared(LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("rectangle"),authored)).build());
+        assertTrue(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_ROOF_OVERHANG_CONFLICT", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
     }
     @Test void curvedFootprintIsNotRebasedIntoSmallerMask() throws Exception {
         var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("circle"))).build();

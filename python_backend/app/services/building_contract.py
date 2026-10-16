@@ -9,9 +9,11 @@ SCHEMA = 'formacraft.building_contract.v1'
 LEGACY_ENTRANCE_FACING = {'NORTH': 'SOUTH', 'SOUTH': 'NORTH', 'EAST': 'WEST', 'WEST': 'EAST'}
 NUMBERS = {'一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
 HOSTED = {'ROOF', 'ROOF_STRUCTURE', 'FOUNDATION', 'FACADE_WINDOWS', 'FACADE', 'ENTRANCE',
-          'CROWN', 'CUPOLA', 'DOME', 'MASS_SECONDARY', 'DECOR_DETAIL', 'BALCONY', 'STRUCTURE', 'ASSEMBLY'}
+          'CROWN', 'CUPOLA', 'DOME', 'MASS_SECONDARY', 'DECOR_DETAIL', 'BALCONY', 'TERRACE', 'STRUCTURE', 'ASSEMBLY'}
 
 NAMED_BUILDINGS = {
+    'main_body': ('主楼', 'main_body'),
+    'tower': ('塔楼', 'tower'),
     'office': ('办公楼', 'office'),
     'workshop': ('主车间', 'workshop'),
     'boiler': ('锅炉房', 'boiler'),
@@ -195,6 +197,36 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     hints['architecture_intent']['materials'] = [deepcopy(r) for r in requirements
                                                if r['property'] in ('wall_block', 'floor_block', 'roof_block')]
     components = [c for c in (out.get('components') or []) if isinstance(c, dict)]
+    for component in components:
+        params = component.get('params') or {}
+        if params.get('interior') == 'single_open_bay' and component.get('component_type') == 'MASS_MAIN':
+            params.update(floor_count=1, floor_height=component['dimensions']['height'])
+    # A stack of authored tiers describes one storey per body, not a full-height
+    # building repeated at every setback. Use the next tier's floor as its top.
+    bodies_by_id = {(c.get('params') or {}).get('component_id'): c for c in components}
+    for identity, body in list(bodies_by_id.items()):
+        if body.get('component_type') != 'MASS_MAIN': continue
+        tiers = [body] + [c for c in components if c.get('component_type') == 'MASS_SECONDARY'
+                         and (c.get('params') or {}).get('host_id') == identity
+                         and 'tier_index' in (c.get('params') or {})
+                         and (c.get('params') or {}).get('extrude_mode') != 'plate']
+        if len(tiers) < 3: continue
+        tiers.sort(key=lambda c: c['relative_position']['y'])
+        for index, tier in enumerate(tiers):
+            height = (tiers[index+1]['relative_position']['y'] - tier['relative_position']['y']
+                      if index+1 < len(tiers) else int(tier['params'].get('floor_height', 0)))
+            if height > 0 and tier['dimensions']['height'] > height:
+                tier['dimensions']['height'] = height
+                tier['params'].update(floor_count=1, floor_height=height)
+    for roof in components:
+        params = roof.get('params') or {}
+        host = bodies_by_id.get(params.get('host_id'))
+        overhang = params.get('overhang')
+        if roof.get('component_type') != 'ROOF' or host is None or not isinstance(overhang, int) or overhang < 0: continue
+        dims, hd = roof.get('dimensions') or {}, host.get('dimensions') or {}
+        extra = max((dims.get('width', 0)-hd.get('width', 0))//2, (dims.get('depth', 0)-hd.get('depth', 0))//2)
+        if extra > 0 and extra != overhang:
+            dims.update(width=hd['width']+2*overhang, depth=hd['depth']+2*overhang)
     slots = (out.get('layout') or {}).get('slots') or []
     aliases = {s['id']: s['slot_id'] for s in slots if isinstance(s, dict) and s.get('id') and s.get('slot_id')}
     for comp in components:
@@ -377,6 +409,9 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         for key, names in NAMED_BUILDINGS.items():
             if any(name in identity for name in names):
                 bindings.setdefault('named_' + key, []).append(mass)
+    for tower in owners:
+        if tower.get('component_type') == 'TOWER':
+            bindings.setdefault('named_tower', []).append(tower)
     contract['scope_bindings'] = {scope: [m['params']['component_id'] for m in targets]
                                   for scope, targets in bindings.items()}
     slots = {slot.get('slot_id'): slot for slot in (out.get('layout') or {}).get('slots', []) if isinstance(slot, dict)}
