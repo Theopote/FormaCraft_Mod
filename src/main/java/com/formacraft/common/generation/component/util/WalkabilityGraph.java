@@ -155,6 +155,20 @@ public final class WalkabilityGraph {
         return canReach(occ, startFloor, goalFloor, maxSteps, null);
     }
 
+    /** Immutable search result with occupancy precision (not VoxelShape collision). */
+    public record WalkabilityOutcome(ReachResult result, PlannedOccupancy.WalkabilityPrecision precision) {
+        public WalkabilityOutcome {
+            Objects.requireNonNull(result);
+            if (precision == null) {
+                precision = PlannedOccupancy.WalkabilityPrecision.FAST;
+            }
+        }
+
+        public boolean reachable() {
+            return result == ReachResult.REACHABLE;
+        }
+    }
+
     public static ReachResult search(
             PlannedOccupancy occ,
             Vec3i startFloor,
@@ -162,7 +176,7 @@ public final class WalkabilityGraph {
             int maxSteps,
             ComponentFootprintUtil.Bounds bounds
     ) {
-        return search(occ, startFloor, goalFloor, SearchBudget.ofDepth(maxSteps), bounds);
+        return searchDetailed(occ, startFloor, goalFloor, SearchBudget.ofDepth(maxSteps), bounds).result();
     }
 
     public static ReachResult search(
@@ -172,9 +186,7 @@ public final class WalkabilityGraph {
             SearchBudget budget,
             ComponentFootprintUtil.Bounds bounds
     ) {
-        StandingPose start = poseAt(occ, startFloor);
-        StandingPose goal = poseAt(occ, goalFloor);
-        return search(occ, start, goal, budget, bounds);
+        return searchDetailed(occ, startFloor, goalFloor, budget, bounds).result();
     }
 
     public static ReachResult search(
@@ -184,14 +196,44 @@ public final class WalkabilityGraph {
             SearchBudget budget,
             ComponentFootprintUtil.Bounds bounds
     ) {
+        return searchDetailed(occ, start, goal, budget, bounds).result();
+    }
+
+    public static WalkabilityOutcome searchDetailed(
+            PlannedOccupancy occ,
+            Vec3i startFloor,
+            Vec3i goalFloor,
+            SearchBudget budget,
+            ComponentFootprintUtil.Bounds bounds
+    ) {
+        StandingPose start = poseAt(occ, startFloor);
+        StandingPose goal = poseAt(occ, goalFloor);
+        return searchDetailed(occ, start, goal, budget, bounds);
+    }
+
+    /**
+     * BFS over standing poses. {@code maxVisits} is a hard cap: after dequeue, if
+     * {@code visits > maxVisits}, search stops immediately (goal must be dequeued to count
+     * as {@link ReachResult#REACHABLE}). Enqueue also refuses when {@code seen.size() >= maxVisits}.
+     */
+    public static WalkabilityOutcome searchDetailed(
+            PlannedOccupancy occ,
+            StandingPose start,
+            StandingPose goal,
+            SearchBudget budget,
+            ComponentFootprintUtil.Bounds bounds
+    ) {
+        PlannedOccupancy.WalkabilityPrecision precision = occ == null
+                ? PlannedOccupancy.WalkabilityPrecision.FAST
+                : occ.precision();
         if (occ == null || start == null || goal == null || budget == null) {
-            return ReachResult.UNREACHABLE;
+            return new WalkabilityOutcome(ReachResult.UNREACHABLE, precision);
         }
         if (!canStand(occ, start) || !canStand(occ, goal)) {
-            return ReachResult.UNREACHABLE;
+            return new WalkabilityOutcome(ReachResult.UNREACHABLE, precision);
         }
         if (bounds != null && (!containsFloor(bounds, start.blockCell()) || !containsFloor(bounds, goal.blockCell()))) {
-            return ReachResult.UNREACHABLE;
+            return new WalkabilityOutcome(ReachResult.UNREACHABLE, precision);
         }
 
         ArrayDeque<PoseNode> q = new ArrayDeque<>();
@@ -209,15 +251,18 @@ public final class WalkabilityGraph {
             StandingPose pose = cur.pose();
             int dist = cur.dist();
 
-            if (pose.equals(goal)) {
-                return ReachResult.REACHABLE;
+            // Hard visit stop before goal check / expand — queued goal does not count as REACHABLE.
+            if (visits > budget.maxVisits()) {
+                boolean pending = !q.isEmpty()
+                        || hasDeferredFrontier
+                        || hasUnseenNeighbor(occ, bounds, seen, pose, horiz);
+                return new WalkabilityOutcome(
+                        pending ? ReachResult.SEARCH_LIMIT : ReachResult.UNREACHABLE,
+                        precision);
             }
 
-            if (visits > budget.maxVisits()) {
-                if (hasUnseenNeighbor(occ, bounds, seen, pose, horiz)) {
-                    return ReachResult.SEARCH_LIMIT;
-                }
-                continue;
+            if (pose.equals(goal)) {
+                return new WalkabilityOutcome(ReachResult.REACHABLE, precision);
             }
 
             if (dist >= budget.maxDepth()) {
@@ -239,14 +284,21 @@ public final class WalkabilityGraph {
                     if (!canTraverse(occ, pose, next)) {
                         continue;
                     }
-                    if (!seen.add(next)) {
+                    if (seen.contains(next)) {
                         continue;
                     }
+                    if (seen.size() >= budget.maxVisits()) {
+                        hasDeferredFrontier = true;
+                        continue;
+                    }
+                    seen.add(next);
                     q.addLast(new PoseNode(next, dist + 1));
                 }
             }
         }
-        return hasDeferredFrontier ? ReachResult.SEARCH_LIMIT : ReachResult.UNREACHABLE;
+        return new WalkabilityOutcome(
+                hasDeferredFrontier ? ReachResult.SEARCH_LIMIT : ReachResult.UNREACHABLE,
+                precision);
     }
 
     private static boolean hasUnseenNeighbor(

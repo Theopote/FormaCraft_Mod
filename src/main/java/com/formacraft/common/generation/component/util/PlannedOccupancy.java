@@ -76,7 +76,8 @@ public final class PlannedOccupancy {
 
     /**
      * Fast = string/type profiles + height table.
-     * BlockState = registry-refined classification (compile); VoxelShape reserved for later.
+     * BlockState = registry-refined classification (compile).
+     * Neither is VoxelShape / player-AABB collision proof.
      */
     public enum WalkabilityPrecision {
         FAST,
@@ -106,9 +107,19 @@ public final class PlannedOccupancy {
     }
 
     private final Map<Vec3i, CollisionProfile> cells;
+    private final WalkabilityPrecision precision;
 
     private PlannedOccupancy(Map<Vec3i, CollisionProfile> cells) {
+        this(cells, WalkabilityPrecision.FAST);
+    }
+
+    private PlannedOccupancy(Map<Vec3i, CollisionProfile> cells, WalkabilityPrecision precision) {
         this.cells = cells;
+        this.precision = precision == null ? WalkabilityPrecision.FAST : precision;
+    }
+
+    public WalkabilityPrecision precision() {
+        return precision;
     }
 
     public static PlannedOccupancy fromPatches(Iterable<BlockPatch> patches) {
@@ -117,8 +128,11 @@ public final class PlannedOccupancy {
 
     public static PlannedOccupancy fromPatches(Iterable<BlockPatch> patches, boolean preferRegistry) {
         Map<Vec3i, CollisionProfile> cells = new HashMap<>();
+        WalkabilityPrecision precision = preferRegistry
+                ? WalkabilityPrecision.BLOCKSTATE
+                : WalkabilityPrecision.FAST;
         if (patches == null) {
-            return new PlannedOccupancy(cells);
+            return new PlannedOccupancy(cells, precision);
         }
         for (BlockPatch patch : patches) {
             if (patch == null) {
@@ -131,11 +145,11 @@ public final class PlannedOccupancy {
                 cells.put(pos, classify(patch.targetBlock(), preferRegistry));
             }
         }
-        return new PlannedOccupancy(cells);
+        return new PlannedOccupancy(cells, precision);
     }
 
     public static PlannedOccupancy ofProfiles(Map<Vec3i, CollisionProfile> cells) {
-        return new PlannedOccupancy(cells == null ? Map.of() : new HashMap<>(cells));
+        return new PlannedOccupancy(cells == null ? Map.of() : new HashMap<>(cells), WalkabilityPrecision.FAST);
     }
 
     /** @deprecated Prefer {@link #ofProfiles}. */
@@ -154,7 +168,7 @@ public final class PlannedOccupancy {
                 });
             }
         }
-        return new PlannedOccupancy(mapped);
+        return new PlannedOccupancy(mapped, WalkabilityPrecision.FAST);
     }
 
     public CollisionProfile profileAt(int x, int y, int z) {

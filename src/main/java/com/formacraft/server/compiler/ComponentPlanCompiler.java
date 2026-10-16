@@ -940,8 +940,10 @@ public final class ComponentPlanCompiler {
             Vec3i plateOff = slotAnchorOrZero(slotMap, plate.slotId(), zero);
             Vec3i hostOff = slotAnchorOrZero(slotMap, host.get().slotId(), zero);
             Vec3i targetOff = slotAnchorOrZero(slotMap, target.get().slotId(), zero);
-            var reach = com.formacraft.common.generation.component.util.BridgeWalkability.evaluateBridge(
+            var outcome = com.formacraft.common.generation.component.util.BridgeWalkability.evaluateBridgeDetailed(
                     occ, plate, plateOff, host.get(), hostOff, target.get(), targetOff);
+            var reach = outcome.reach();
+            String precisionNote = ", precision=" + outcome.precision();
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED) {
                 continue;
             }
@@ -949,19 +951,21 @@ public final class ComponentPlanCompiler {
                 AssemblyCompileDiagnostics.set(new CapabilityGap(
                         "E_WALKABILITY_SEARCH_LIMIT",
                         "Bridge walkability search exhausted its budget before proving a path (host_id="
-                                + hostId + ", target_host_id=" + targetId + ")",
+                                + hostId + ", target_host_id=" + targetId + precisionNote + ")",
                         "components[]",
                         List.of("Shorten the bridge span or simplify circulation.",
-                                "This is not a proof that no path exists — only that search stopped early.")));
+                                "This is not a proof that no path exists — only that search stopped early.",
+                                "precision=BLOCKSTATE is registry-refined profiles, not VoxelShape collision.")));
                 return false;
             }
             AssemblyCompileDiagnostics.set(new CapabilityGap(
                     "E_BRIDGE_PATH_BLOCKED",
                     "Bridge cannot walk from deck into both interiors (host_id=" + hostId
-                            + ", target_host_id=" + targetId + ")",
+                            + ", target_host_id=" + targetId + precisionNote + ")",
                     "components[]",
                     List.of("Carve portals through wall_thickness at both contact faces.",
-                            "Ensure bridge Y has solid floors and 2-high clearance into both masses.")));
+                            "Ensure bridge Y has solid floors and 2-high clearance into both masses.",
+                            "precision=BLOCKSTATE is registry-refined profiles, not VoxelShape collision.")));
             return false;
         }
         return true;

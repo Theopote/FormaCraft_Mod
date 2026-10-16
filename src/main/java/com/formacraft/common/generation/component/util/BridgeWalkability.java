@@ -17,6 +17,18 @@ public final class BridgeWalkability {
         SEARCH_LIMIT
     }
 
+    /** Bridge reach plus occupancy precision ({@code BLOCKSTATE} ≠ VoxelShape). */
+    public record BridgeWalkOutcome(BridgeReach reach, PlannedOccupancy.WalkabilityPrecision precision) {
+        public BridgeWalkOutcome {
+            if (reach == null) {
+                reach = BridgeReach.PATH_BLOCKED;
+            }
+            if (precision == null) {
+                precision = PlannedOccupancy.WalkabilityPrecision.FAST;
+            }
+        }
+    }
+
     private BridgeWalkability() {}
 
     /** @deprecated Prefer {@link PlannedOccupancy#isBodyClear}. */
@@ -145,20 +157,35 @@ public final class BridgeWalkability {
             Component target,
             Vec3i targetOffset
     ) {
+        return evaluateBridgeDetailed(occ, plate, plateOffset, host, hostOffset, target, targetOffset).reach();
+    }
+
+    public static BridgeWalkOutcome evaluateBridgeDetailed(
+            PlannedOccupancy occ,
+            Component plate,
+            Vec3i plateOffset,
+            Component host,
+            Vec3i hostOffset,
+            Component target,
+            Vec3i targetOffset
+    ) {
+        PlannedOccupancy.WalkabilityPrecision precision = occ == null
+                ? PlannedOccupancy.WalkabilityPrecision.FAST
+                : occ.precision();
         if (occ == null || plate == null || plate.relativePosition() == null) {
-            return BridgeReach.PATH_BLOCKED;
+            return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
         int plateY = plate.relativePosition().y();
         Vec3i deck = shift(deckFloorCell(plate), plateOffset);
         Vec3i hostIn = shift(interiorFloorCell(host, plateY), hostOffset);
         Vec3i targetIn = shift(interiorFloorCell(target, plateY), targetOffset);
         if (deck == null || hostIn == null || targetIn == null) {
-            return BridgeReach.PATH_BLOCKED;
+            return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
         if (!WalkabilityGraph.canStand(occ, deck)
                 || !WalkabilityGraph.canStand(occ, hostIn)
                 || !WalkabilityGraph.canStand(occ, targetIn)) {
-            return BridgeReach.PATH_BLOCKED;
+            return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
         var bounds = WalkabilityGraph.searchBounds(
                 ComponentFootprintUtil.bounds(plate), plateOffset,
@@ -167,17 +194,17 @@ public final class BridgeWalkability {
                 1);
         var budgetHost = WalkabilityGraph.adaptiveBudget(deck, hostIn, bounds);
         var budgetTarget = WalkabilityGraph.adaptiveBudget(deck, targetIn, bounds);
-        var hostReach = WalkabilityGraph.search(occ, deck, hostIn, budgetHost, bounds);
-        var targetReach = WalkabilityGraph.search(occ, deck, targetIn, budgetTarget, bounds);
-        if (hostReach == WalkabilityGraph.ReachResult.SEARCH_LIMIT
-                || targetReach == WalkabilityGraph.ReachResult.SEARCH_LIMIT) {
-            return BridgeReach.SEARCH_LIMIT;
+        var hostOut = WalkabilityGraph.searchDetailed(occ, deck, hostIn, budgetHost, bounds);
+        var targetOut = WalkabilityGraph.searchDetailed(occ, deck, targetIn, budgetTarget, bounds);
+        if (hostOut.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT
+                || targetOut.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT) {
+            return new BridgeWalkOutcome(BridgeReach.SEARCH_LIMIT, precision);
         }
-        if (hostReach == WalkabilityGraph.ReachResult.REACHABLE
-                && targetReach == WalkabilityGraph.ReachResult.REACHABLE) {
-            return BridgeReach.CONNECTED;
+        if (hostOut.result() == WalkabilityGraph.ReachResult.REACHABLE
+                && targetOut.result() == WalkabilityGraph.ReachResult.REACHABLE) {
+            return new BridgeWalkOutcome(BridgeReach.CONNECTED, precision);
         }
-        return BridgeReach.PATH_BLOCKED;
+        return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
     }
 
     /** Compile-path occupancy with registry refinement when available. */

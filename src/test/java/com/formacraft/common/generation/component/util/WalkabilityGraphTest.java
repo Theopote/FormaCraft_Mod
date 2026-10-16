@@ -257,6 +257,72 @@ class WalkabilityGraphTest {
     }
 
     @Test
+    void visitBudgetExactPathLengthIsReachable() {
+        // Path visits: start + 1 + 2 + 3 + 4 = 5 dequeues to reach goal at x=4.
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        for (int x = 0; x <= 4; x++) {
+            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        }
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
+        var exact = new WalkabilityGraph.SearchBudget(64, 5);
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE,
+                WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(4, 0, 0), exact, null));
+    }
+
+    @Test
+    void visitBudgetExhaustedWithQueueRemainingIsSearchLimit() {
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        for (int x = 0; x <= 8; x++) {
+            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        }
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
+        var tight = new WalkabilityGraph.SearchBudget(64, 2);
+        assertEquals(WalkabilityGraph.ReachResult.SEARCH_LIMIT,
+                WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(8, 0, 0), tight, null));
+    }
+
+    @Test
+    void goalQueuedButNotDequeuedUnderVisitCapIsSearchLimit() {
+        // Linear floor: with maxVisits=3 we dequeue x=0,1,2 then stop. Goal x=4 may already
+        // be enqueued from x=2's expand under soft semantics, but hard-stop must not REACHABLE.
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        for (int x = 0; x <= 4; x++) {
+            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        }
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
+        // visits=4 would dequeue goal; cap at 3 leaves goal only queued (or never visited).
+        var beforeGoal = new WalkabilityGraph.SearchBudget(64, 3);
+        var outcome = WalkabilityGraph.searchDetailed(
+                occ, new Vec3i(0, 0, 0), new Vec3i(4, 0, 0), beforeGoal, null);
+        assertEquals(WalkabilityGraph.ReachResult.SEARCH_LIMIT, outcome.result(),
+                "goal must be dequeued within maxVisits to count as REACHABLE");
+        assertNotEquals(WalkabilityGraph.ReachResult.REACHABLE, outcome.result());
+        assertEquals(PlannedOccupancy.WalkabilityPrecision.FAST, outcome.precision());
+    }
+
+    @Test
+    void visitBudgetExhaustedReachableSetIsUnreachable() {
+        PlannedOccupancy islands = fullAt(new Vec3i(0, 0, 0), new Vec3i(5, 0, 0));
+        assertEquals(WalkabilityGraph.ReachResult.UNREACHABLE,
+                WalkabilityGraph.search(islands, new Vec3i(0, 0, 0), new Vec3i(5, 0, 0),
+                        new WalkabilityGraph.SearchBudget(64, 64), null));
+    }
+
+    @Test
+    void searchDetailedCarriesBlockStatePrecision() {
+        List<BlockPatch> patches = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_planks"),
+                new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:oak_planks")
+        );
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
+        var outcome = WalkabilityGraph.searchDetailed(
+                occ, new Vec3i(0, 0, 0), new Vec3i(1, 0, 0),
+                new WalkabilityGraph.SearchBudget(8, 16), null);
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE, outcome.result());
+        assertEquals(PlannedOccupancy.WalkabilityPrecision.BLOCKSTATE, outcome.precision());
+    }
+
+    @Test
     void slabBottomConnectsToAdjacentFullFloor() {
         List<BlockPatch> patches = List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_slab[half=bottom]"),
