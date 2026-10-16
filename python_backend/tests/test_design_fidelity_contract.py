@@ -203,6 +203,39 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertEqual("terrace", terrace_plate["params"]["plate_role"])
         self.assertTrue(terrace_plate["params"]["exposed_floor_edges"])
 
+    def test_round12_plate_level_and_role_fixtures(self):
+        mezz = self._load("mezzanine_hosted_plate_explicit_y.json")
+        mezz_plate = next(
+            c for c in mezz["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(7, mezz_plate["relative_position"]["y"])
+        self.assertEqual(5, mezz["components"][0]["params"]["floor_height"])
+
+        outside = self._load("hosted_plate_level_outside_host.json")
+        outside_plate = next(
+            c for c in outside["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(20, outside_plate["relative_position"]["y"])
+
+        unresolved = self._load("hosted_plate_host_unresolved.json")
+        unresolved_plate = next(
+            c for c in unresolved["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("missing_host", unresolved_plate["params"]["host_id"])
+
+        role = self._load("plate_role_unsupported.json")
+        role_plate = next(
+            c for c in role["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("skybridge", role_plate["params"]["plate_role"])
+
+        bridge = self._load("bridge_hosted_plate_overhang.json")
+        bridge_plate = next(
+            c for c in bridge["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("bridge", bridge_plate["params"]["plate_role"])
+        self.assertTrue(bridge_plate["params"]["exposed_floor_edges"])
+
 
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())

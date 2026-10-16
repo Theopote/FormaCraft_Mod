@@ -945,6 +945,10 @@ public class MassMainGenerator implements ComponentGenerator {
         com.formacraft.common.generation.component.util.BuildingGeometryContext.Entry hostEntry = null;
         if (clipToHost) {
             hostEntry = com.formacraft.common.generation.component.util.BuildingGeometryContext.get(hostId);
+            if (hostEntry == null) {
+                throw new IllegalArgumentException(
+                        "E_HOST_GEOMETRY_MISSING: Host geometry missing for interior plate host_id=" + hostId);
+            }
         }
 
         // Standalone plates (no host clip): optional own footprint mask when plan_type/shape authored.
@@ -963,14 +967,11 @@ public class MassMainGenerator implements ComponentGenerator {
                 int wx = actualRp.x() + x;
                 int wy = actualRp.y();
                 int wz = actualRp.z() + z;
-                if (clipToHost) {
-                    // Interior hosted plates must not fill without host geometry (fail closed).
-                    if (hostEntry == null
-                            || !com.formacraft.common.generation.component.util.HostedPlateOccupancy
-                            .allowsHostedInteriorCell(hostEntry.geometry(), hostEntry.originMinCorner(),
-                                    wx, wy, wz)) {
-                        continue;
-                    }
+                if (clipToHost
+                        && !com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                        .allowsHostedInteriorCell(hostEntry.geometry(), hostEntry.originMinCorner(),
+                                wx, wy, wz)) {
+                    continue;
                 }
                 if (selfFootprint != null && !selfFootprint.contains(x, z)) {
                     continue;

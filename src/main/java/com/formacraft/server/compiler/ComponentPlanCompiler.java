@@ -177,6 +177,11 @@ public final class ComponentPlanCompiler {
             AssemblyCompileDiagnostics.set(authoredMassIssue.get());
             return List.of();
         }
+        var authoredPlateIssue = HostedPlateDesignValidator.check(plan, authoredComponents);
+        if (authoredPlateIssue.isPresent()) {
+            AssemblyCompileDiagnostics.set(authoredPlateIssue.get());
+            return List.of();
+        }
         var authoredConflict = ExplicitDesignConflictValidator.check(plan, authoredComponents);
         if (authoredConflict.isPresent()) {
             AssemblyCompileDiagnostics.set(authoredConflict.get());
@@ -217,6 +222,11 @@ public final class ComponentPlanCompiler {
         var massDesignConflict = MassDesignValidator.check(plan, components);
         if (massDesignConflict.isPresent()) {
             AssemblyCompileDiagnostics.set(massDesignConflict.get());
+            return List.of();
+        }
+        var plateDesignConflict = HostedPlateDesignValidator.check(plan, components);
+        if (plateDesignConflict.isPresent()) {
+            AssemblyCompileDiagnostics.set(plateDesignConflict.get());
             return List.of();
         }
         var designConflict = ExplicitDesignConflictValidator.check(plan, components);
@@ -260,6 +270,11 @@ public final class ComponentPlanCompiler {
                 if (mass != null && isMassType(normalizeType(mass.componentType()))) {
                     com.formacraft.common.generation.component.util.BuildingGeometryContext.putMass(mass);
                 }
+            }
+            var hostGeomGap = HostedPlateDesignValidator.checkHostGeometry(components);
+            if (hostGeomGap.isPresent()) {
+                AssemblyCompileDiagnostics.set(hostGeomGap.get());
+                return List.of();
             }
             patchOccupancy = compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
                     slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
@@ -869,6 +884,10 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_PLAN_PATTERN_UNSUPPORTED")) return "E_PLAN_PATTERN_UNSUPPORTED";
         if (message.startsWith("E_FOOTPRINT_SHAPE_UNSUPPORTED")) return "E_FOOTPRINT_SHAPE_UNSUPPORTED";
         if (message.startsWith("E_FOOTPRINT_COMBINATION_UNSUPPORTED")) return "E_FOOTPRINT_COMBINATION_UNSUPPORTED";
+        if (message.startsWith("E_PLATE_ROLE_UNSUPPORTED")) return "E_PLATE_ROLE_UNSUPPORTED";
+        if (message.startsWith("E_HOST_GEOMETRY_MISSING")) return "E_HOST_GEOMETRY_MISSING";
+        if (message.startsWith("E_HOST_ID_UNRESOLVED")) return "E_HOST_ID_UNRESOLVED";
+        if (message.startsWith("E_HOSTED_PLATE_LEVEL_CONFLICT")) return "E_HOSTED_PLATE_LEVEL_CONFLICT";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
@@ -1026,10 +1045,28 @@ public final class ComponentPlanCompiler {
                         || host == null || !host.equals(getParamString(body.params(), "component_id"))) continue;
                 int fh = ComponentParamParsers.intParam(body.params(), "floor_height", "floorHeight");
                 Vec3i origin = resolveMassOrigin(body);
-                if (fh <= 0 || origin == null || slab.relativePosition() == null) break;
-                int count = ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount");
-                int level = Math.max(1, Math.min(Math.max(1, count - 1), Math.round((slab.relativePosition().y() - origin.y()) / (float) fh)));
+                if (fh <= 0 || origin == null || slab.relativePosition() == null || body.dimensions() == null) break;
                 Vec3i pos = slab.relativePosition();
+                int plateY = pos.y();
+                // Only compiler-inferred plates snap to storey planes; explicit Y (mezzanine) is preserved.
+                if (isAutoInferred(slab)) {
+                    int count = ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount");
+                    int level = Math.max(1, Math.min(Math.max(1, count - 1),
+                            Math.round((pos.y() - origin.y()) / (float) fh)));
+                    plateY = origin.y() + level * fh;
+                } else {
+                    int minY = origin.y();
+                    int maxY = origin.y() + body.dimensions().height();
+                    if (plateY < minY || plateY > maxY) {
+                        AssemblyCompileDiagnostics.set(new CapabilityGap(
+                                "E_HOSTED_PLATE_LEVEL_CONFLICT",
+                                "Explicit plate Y=" + plateY + " is outside host envelope [" + minY + "," + maxY + "]",
+                                "components[].relative_position.y",
+                                List.of("Keep explicit plate Y within the host mass height.",
+                                        "Only compiler-inferred plates are snapped to storey planes.")));
+                        return new PreparedComponents(List.of(), Set.of());
+                    }
+                }
                 var slabParams = new HashMap<String, Object>(slab.params());
                 String floorBlock = getParamString(body.params(), "floor_block");
                 String slabMaterial = getParamString(slab.params(), "material");
@@ -1049,7 +1086,7 @@ public final class ComponentPlanCompiler {
                     depth = Math.max(0, endZ - z);
                 }
                 components.set(i, new Component(slab.componentType(), slab.slotId(),
-                        new Vec3i(x, origin.y() + level * fh, z),
+                        new Vec3i(x, plateY, z),
                         new Dimensions(width, depth, 1), slab.features(), slabParams));
                 break;
             }

@@ -2,12 +2,12 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Vec3i;
 
-import java.util.Locale;
 import java.util.Map;
 
 /**
  * Occupancy rules for {@code extrude_mode=plate} slabs relative to a host mass.
  * Interior plates must respect {@link ResolvedFootprint}; terrace/bridge may exceed it.
+ * Role tokens are owned by {@link PlateRoleCatalog} — unknown explicit roles must not become INTERIOR.
  */
 public final class HostedPlateOccupancy {
     private HostedPlateOccupancy() {}
@@ -19,22 +19,13 @@ public final class HostedPlateOccupancy {
     }
 
     public static PlateRole resolveRole(Map<String, Object> params) {
-        if (params == null) {
+        var explicit = PlateRoleCatalog.extractExplicit(params);
+        if (explicit.isEmpty()) {
             return PlateRole.INTERIOR;
         }
-        Object raw = params.get("plate_role");
-        if (raw == null) {
-            raw = params.get("plateRole");
-        }
-        if (raw == null) {
-            return PlateRole.INTERIOR;
-        }
-        String v = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
-        return switch (v) {
-            case "terrace", "balcony", "deck", "cantilever" -> PlateRole.TERRACE;
-            case "bridge", "link", "connector" -> PlateRole.BRIDGE;
-            default -> PlateRole.INTERIOR;
-        };
+        return PlateRoleCatalog.parseSupported(explicit.get())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "E_PLATE_ROLE_UNSUPPORTED: Unsupported plate_role: " + explicit.get()));
     }
 
     public static boolean skipsHostFootprintClip(PlateRole role) {

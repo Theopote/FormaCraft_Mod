@@ -516,6 +516,62 @@ class DesignFidelityTest {
     }
 
     @Test
+    void mezzanineHostedPlateKeepsExplicitY() throws Exception {
+        LlmPlan plan = loadFidelityPlan("mezzanine_hosted_plate_explicit_y.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        // floor_height=5 would snap inferred plates to Y=5 or 10; authored mezzanine is Y=7.
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(2, 7, 2))),
+                "explicit mezzanine Y must not be storey-snapped");
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(2, 5, 2))),
+                "must not snap mezzanine down to nearest storey");
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(2, 10, 2))),
+                "must not snap mezzanine up to nearest storey");
+    }
+
+    @Test
+    void hostedPlateOutsideHostEnvelopeFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("hosted_plate_level_outside_host.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_HOSTED_PLATE_LEVEL_CONFLICT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void hostedPlateUnresolvedHostFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("hosted_plate_host_unresolved.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_HOST_ID_UNRESOLVED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void unsupportedPlateRoleFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("plate_role_unsupported.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_PLATE_ROLE_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void bridgeHostedPlateMayOverhangHostFootprint() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_hosted_plate_overhang.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(6, 4, -2))),
+                "plate_role=bridge must place overhang outside host footprint");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(6, 4, 6))),
+                "bridge plate must still cover host interior");
+    }
+
+    @Test
     void gothicSteepRoofFixtureCompilesWithPitchAboveTechnicalCap() throws Exception {
         LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
 

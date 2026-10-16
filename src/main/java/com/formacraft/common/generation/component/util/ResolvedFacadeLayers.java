@@ -2,6 +2,7 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 /** Shared layer rectangles used by body emission and roof coverage, before footprint masking. */
 public final class ResolvedFacadeLayers {
@@ -9,8 +10,8 @@ public final class ResolvedFacadeLayers {
     public static ProportionalFacadeCalculator.LayerConfig[] resolve(SemanticComponent semantic, int width, int depth, int height) {
         var source = semantic.source();
         boolean stepped = source.features() != null && source.features().stream().filter(java.util.Objects::nonNull)
-                .map(f -> f.toLowerCase(Locale.ROOT)).anyMatch(f -> java.util.List.of("stepped_facade", "stepped", "setback",
-                        "setbacks", "进退", "进退关系", "立面", "facade_setback", "tiered").stream().anyMatch(f::contains));
+                .map(f -> f.toLowerCase(Locale.ROOT)).anyMatch(f -> Stream.of("stepped_facade", "stepped", "setback",
+                        "setbacks", "进退", "进退关系", "立面", "facade_setback", "tiered").anyMatch(f::contains));
         String progression = semantic.genome() == null || semantic.genome().form == null ? null : semantic.genome().form.progression;
         stepped |= "stepping".equalsIgnoreCase(progression) || "tapering".equalsIgnoreCase(progression);
         if (stepped && height >= 3) {
