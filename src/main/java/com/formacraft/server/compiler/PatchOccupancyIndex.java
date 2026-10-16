@@ -199,6 +199,9 @@ public final class PatchOccupancyIndex {
         if (CARVE_WRITERS.contains(type)) return true;
         Map<String, Object> params = writer.params();
         if (params == null) return false;
+        if (com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(params)) {
+            return true;
+        }
         return Boolean.TRUE.equals(params.get("allow_carve"))
                 || Boolean.TRUE.equals(params.get("allow_patch_overwrite"));
     }
@@ -280,11 +283,19 @@ public final class PatchOccupancyIndex {
     private static boolean isHostedStructuralJoin(Component writer, PlaceRecord previous) {
         if (writer == null || writer.params() == null || previous.owner() == null
                 || previous.owner().params() == null) return false;
-        Object host = writer.params().get("host_id");
         Object ownerId = previous.owner().params().get("component_id");
-        if (!(host instanceof String id) || id.isBlank()
-                || (!id.equals(ownerId) && !id.equals(previous.owner().params().get("host_id")))) return false;
-        if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
+        String ownerIdStr = ownerId == null ? null : String.valueOf(ownerId).trim();
+        Object ownerHost = previous.owner().params().get("host_id");
+        String ownerHostStr = ownerHost == null ? null : String.valueOf(ownerHost).trim();
+        if (!bindsToOwner(writer, ownerIdStr, ownerHostStr)) {
+            return false;
+        }
+        boolean bridge = com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                .isBridgePlate(writer.params());
+        // Bridges may join either endpoint mass even when slot_id differs across dual masses.
+        if (!bridge && !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) {
+            return false;
+        }
         if ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType()) && writer.params().containsKey("tier_index")) {
             var tier = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
             var base = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(previous.owner());
@@ -298,6 +309,20 @@ public final class PatchOccupancyIndex {
         return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL").contains(writer.componentType().toUpperCase(Locale.ROOT))
                 || ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType())
                     && "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode"))));
+    }
+
+    private static boolean bindsToOwner(Component writer, String ownerId, String ownerHost) {
+        Object host = writer.params().get("host_id");
+        if (host instanceof String id && !id.isBlank()
+                && (id.equals(ownerId) || id.equals(ownerHost))) {
+            return true;
+        }
+        Object target = writer.params().get("target_host_id");
+        if (target == null) {
+            target = writer.params().get("targetHostId");
+        }
+        return target instanceof String tid && !tid.isBlank()
+                && (tid.equals(ownerId) || tid.equals(ownerHost));
     }
 
     private static boolean isHostedStairJoin(Component writer, PlaceRecord previous) {

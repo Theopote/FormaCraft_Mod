@@ -51,6 +51,26 @@ class HostedPlateOccupancyTest {
     }
 
     @Test
+    void bridgeEndpointTouchAndTargetHostId() {
+        assertTrue(HostedPlateOccupancy.targetHostId(Map.of("target_host_id", "wing")).isPresent());
+        Component plate = new Component(
+                "MASS_SECONDARY", "hall", new Vec3i(8, 4, 2), new Dimensions(4, 4, 1),
+                List.of(), Map.of("extrude_mode", "plate", "plate_role", "bridge",
+                        "host_id", "hall", "target_host_id", "wing", "anchor_mode", "min_corner"));
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(10, 8, 12),
+                List.of(), Map.of("component_id", "hall", "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_MAIN", "wing", new Vec3i(12, 0, 0), new Dimensions(8, 8, 12),
+                List.of(), Map.of("component_id", "wing", "anchor_mode", "min_corner"));
+        assertTrue(HostedPlateOccupancy.touchesEndpoint(
+                ComponentFootprintUtil.bounds(plate), ComponentFootprintUtil.bounds(hall)));
+        assertTrue(HostedPlateOccupancy.touchesEndpoint(
+                ComponentFootprintUtil.bounds(plate), ComponentFootprintUtil.bounds(wing)));
+        assertFalse(HostedPlateOccupancy.bridgePortalRemovals(plate, hall).isEmpty());
+    }
+
+    @Test
     void courtyardHoleRejectsInteriorCell() {
         Component mass = new Component(
                 "MASS_MAIN", "body", new Vec3i(0, 0, 0), new Dimensions(24, 24, 8),

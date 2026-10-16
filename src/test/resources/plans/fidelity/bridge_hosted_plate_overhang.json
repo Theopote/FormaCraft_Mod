@@ -32,14 +32,34 @@
       }
     },
     {
+      "component_type": "MASS_MAIN",
+      "slot_id": "pier",
+      "relative_position": { "x": -6, "y": 0, "z": 4 },
+      "dimensions": { "width": 4, "depth": 4, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "pier",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
       "component_type": "MASS_SECONDARY",
       "slot_id": "body",
-      "relative_position": { "x": 0, "y": 4, "z": -3 },
-      "dimensions": { "width": 12, "depth": 15, "height": 1 },
+      "relative_position": { "x": -3, "y": 4, "z": 0 },
+      "dimensions": { "width": 15, "depth": 12, "height": 1 },
       "features": [],
       "params": {
         "component_id": "bridge",
         "host_id": "body",
+        "target_host_id": "pier",
         "anchor_mode": "min_corner",
         "extrude_mode": "plate",
         "plate_role": "bridge",

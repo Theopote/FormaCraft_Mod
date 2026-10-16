@@ -88,14 +88,15 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 - Authority for storey spacing is [ResolvedFloorLayout](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFloorLayout.java) (and [ResolvedComponentGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedComponentGeometry.java)): explicit `floor_height` → else `envelope/floor_count` (≥1) → technical default 3.
 - Generators must not silently raise band height with `Math.max(3, floorHeight)`. Explicit `floor_count` × `floor_height` exceeding envelope height → `E_FLOOR_LAYOUT_OVERFLOW`.
 
-**Mass / roof / plate alignment (Round-8/9/10/11/12/13):**
+**Mass / roof / plate alignment (Round-8/9/10/11/12/13/14):**
 
 - Plan occupancy authority is [ResolvedFootprint](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFootprint.java). MassMain and [ComponentFootprintMask](../../src/main/java/com/formacraft/common/generation/component/util/ComponentFootprintMask.java) (roofs/seams) share one courtyard hole: `hole = min(round(span*ratio), span - 2*wall_thickness)`, centered.
 - Shared read-only aggregation: [ResolvedBuildingGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedBuildingGeometry.java) = footprint + [ResolvedFloorLayout](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFloorLayout.java) + immutable facade layers (MassMain / FacadeWindows / hosted plates).
 - Compile-scoped cache: [BuildingGeometryContext](../../src/main/java/com/formacraft/common/generation/component/util/BuildingGeometryContext.java) (`begin` / `putMass` / `end` in [ComponentPlanCompiler](../../src/main/java/com/formacraft/server/compiler/ComponentPlanCompiler.java)) so mass, facade, and plates share one host geometry instance.
 - Hosted interior plates (`extrude_mode=plate` without terrace/bridge role): occupancy clip via [HostedPlateOccupancy](../../src/main/java/com/formacraft/common/generation/component/util/HostedPlateOccupancy.java) against host footprint (+ stepped layers). Prepare AABB-insets by `wall_thickness` **only for INTERIOR** (Round-13); irregular voids clipped at emit time.
-- Plate Y (Round-12/13): only inferred plates snap to storeys. Role envelopes via `HostedPlateOccupancy.levelEnvelope`: INTERIOR `[0..height]`, TERRACE `[0..height+1]` (roof deck), BRIDGE no single-host height gate. Violations → `E_HOSTED_PLATE_LEVEL_CONFLICT`.
-- Host binding (Round-12/13): unknown `host_id` → `E_HOST_ID_UNRESOLVED`; interior missing host geometry → `E_HOST_GEOMETRY_MISSING`; duplicate `component_id` → `E_DUPLICATE_COMPONENT_ID`. See [HostedPlateDesignValidator](../../src/main/java/com/formacraft/server/compiler/HostedPlateDesignValidator.java).
+- Plate Y (Round-12/14): storey snap only for **INTERIOR** + inferred. TERRACE/BRIDGE never use interior `floor_count` snap. Optional bridge `connection_level` sets Y = `hostOrigin + level * floor_height`. Role envelopes: INTERIOR `[0..height]`, TERRACE `[0..height+1]`, BRIDGE no single-host height gate.
+- Bridge dual-host (Round-14): explicit bridge requires `target_host_id` (≠ `host_id`); AABB must touch both footprints (`E_BRIDGE_ENDPOINT_NO_CONTACT`); compile carves short portals at both contact faces. See [HostedPlateDesignValidator](../../src/main/java/com/formacraft/server/compiler/HostedPlateDesignValidator.java).
+- Host binding (Round-12/13): unknown `host_id` → `E_HOST_ID_UNRESOLVED`; missing `target_host_id` on bridge → `E_TARGET_HOST_ID_REQUIRED`; interior missing host geometry → `E_HOST_GEOMETRY_MISSING`; duplicate mass `component_id` → `E_DUPLICATE_COMPONENT_ID`.
 - Explicit `plate_role` catalog: [PlateRoleCatalog](../../src/main/java/com/formacraft/common/generation/component/util/PlateRoleCatalog.java). Unknown explicit token → `E_PLATE_ROLE_UNSUPPORTED`. Omit role → INTERIOR. Terrace/bridge skip footprint clip **and** wall inset (Round-13).
 - Explicit `plan_type` catalog: [PlanPatternCatalog](../../src/main/java/com/formacraft/common/generation/component/util/PlanPatternCatalog.java). Unknown explicit token → `E_PLAN_PATTERN_UNSUPPORTED` (never silently becomes rectangle).
 - Explicit `shape` / `footprint_shape` catalog: [FootprintShapeCatalog](../../src/main/java/com/formacraft/common/generation/component/util/FootprintShapeCatalog.java). Unknown explicit token → `E_FOOTPRINT_SHAPE_UNSUPPORTED`.
@@ -123,9 +124,10 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 | circle + cross (etc.) | yes (R10) | `E_FOOTPRINT_COMBINATION_UNSUPPORTED` |
 | style → plan topology | no (R10) | style must not invent `plan_type` |
 | hosted interior plate clip | yes (R11) | host footprint+layers; not AABB-only |
-| `plate_role` terrace/bridge | yes (R11–R13) | skip clip+inset; role Y envelopes |
-| explicit plate Y | yes (R12) | no storey snap unless compiler-inferred |
+| `plate_role` terrace/bridge | yes (R11–R14) | skip clip+inset; role Y envelopes |
+| explicit plate Y | yes (R12/R14) | snap only INTERIOR+inferred |
 | plate `host_id` | yes (R12) | unresolved / missing geometry → `E_*` |
+| bridge `target_host_id` | yes (R14) | required; endpoint contact + portals |
 | unique `component_id` | yes (R13) | `E_DUPLICATE_COMPONENT_ID` |
 | `overhang` vs roof bbox | yes (R8) | conflict, not silent max |
 | `arm_width` / `l_cut` / `corner_cut` | yes (R8) | unfit when explicit > footprint−2 |

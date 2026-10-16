@@ -4782,7 +4782,8 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
             "Floor plates use MASS_SECONDARY params.extrude_mode='plate', dimensions.height=1; "
             "Keep the JSON concise: ordinary native roofs, doors, windows and railings do not need verbose component_request queries. "
             "For stacked tiers use MASS_SECONDARY with tier_index and host_id pointing to the parent building; do not give every tier a ground entrance. "
-            "Use connects=[component_id,component_id] for bridge decks; railings may bind to the bridge component. "
+            "For bridge decks set plate_role=bridge with host_id and target_host_id (two mass component_ids); "
+            "optional connection_level sets storey Y. Railings may bind to the bridge component. "
             "never model a floor as a tall solid volume. Stairs carve the floor opening after plates. "
             "Text-only features do not generate stairs or holes. Do not add furniture/ornament when excluded by the user."
         )

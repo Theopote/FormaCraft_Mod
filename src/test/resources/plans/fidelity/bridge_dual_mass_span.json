@@ -59,6 +59,8 @@
       "params": {
         "component_id": "sky_link",
         "host_id": "hall",
+        "target_host_id": "wing",
+        "connection_level": 1,
         "anchor_mode": "min_corner",
         "extrude_mode": "plate",
         "plate_role": "bridge",

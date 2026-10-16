@@ -565,8 +565,10 @@ class DesignFidelityTest {
         assertFalse(AssemblyCompileDiagnostics.hasGap(),
                 () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         var blocks = PatchTestSnapshot.blocks(patches);
-        assertTrue(isSprucePlate(blocks.get(new Vec3i(6, 4, -2))),
-                "plate_role=bridge must place overhang outside host footprint");
+        // Plate spans body↔pier (x=-3..11); overhang is west of body (x<0).
+        boolean overhang = blocks.entrySet().stream().anyMatch(e ->
+                e.getKey().y() == 4 && e.getKey().x() < 0 && isSprucePlate(e.getValue()));
+        assertTrue(overhang, "plate_role=bridge must place overhang outside host footprint");
         assertTrue(isSprucePlate(blocks.get(new Vec3i(6, 4, 6))),
                 "bridge plate must still cover host interior");
     }
@@ -603,11 +605,45 @@ class DesignFidelityTest {
                 () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         var blocks = PatchTestSnapshot.blocks(patches);
         // Plate (8,4,2) w=4 → x=8..11. Hall 0..9; gap 10–11; wing face at x=12.
-        // Single host_id cannot overwrite the foreign wing shell; endpoints are hall + wing-adjacent gap.
         assertTrue(isSprucePlate(blocks.get(new Vec3i(9, 4, 3))), "hall-side bridge endpoint");
         assertTrue(isSprucePlate(blocks.get(new Vec3i(10, 4, 3))), "gap span");
         assertTrue(isSprucePlate(blocks.get(new Vec3i(11, 4, 3))),
                 "wing-adjacent endpoint (flush to wing west face at x=12)");
+        // Portal carve clears clear-height above the deck (Y+1 / Y+2), not the deck itself.
+        assertTrue(isAirOrMissing(blocks, 9, 5, 3), "hall portal clear height");
+        assertTrue(isAirOrMissing(blocks, 12, 5, 3), "wing portal clear height");
+    }
+
+    @Test
+    void bridgeMissingTargetHostFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_missing_target_host.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_TARGET_HOST_ID_REQUIRED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void bridgeEndpointNoContactFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_endpoint_no_contact.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BRIDGE_ENDPOINT_NO_CONTACT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void inferredBridgeKeepsAuthoredY() throws Exception {
+        LlmPlan plan = loadFidelityPlan("inferred_bridge_keeps_y.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        // floor_height=5 would snap interior inferred plates to 5/10; bridge must keep Y=7.
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(9, 7, 3))),
+                "inferred bridge must not storey-snap away from authored Y=7");
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 5, 3))));
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 10, 3))));
     }
 
     @Test
@@ -660,6 +696,11 @@ class DesignFidelityTest {
 
     private static boolean isSprucePlate(String blockId) {
         return blockId != null && blockId.toLowerCase().contains("spruce");
+    }
+
+    private static boolean isAirOrMissing(java.util.Map<Vec3i, String> blocks, int x, int y, int z) {
+        String id = blocks.get(new Vec3i(x, y, z));
+        return id == null || id.equalsIgnoreCase("minecraft:air") || id.toLowerCase().contains("air");
     }
 
     private static LlmPlan loadFidelityPlan(String fileName) throws Exception {

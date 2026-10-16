@@ -42,6 +42,10 @@ final class HostedPlateDesignValidator {
             if (level.isPresent()) {
                 return level;
             }
+            Optional<CapabilityGap> endpoints = checkBridgeEndpoints(component, components);
+            if (endpoints.isPresent()) {
+                return endpoints;
+            }
         }
         return Optional.empty();
     }
@@ -128,6 +132,32 @@ final class HostedPlateDesignValidator {
 
     private static Optional<CapabilityGap> checkHostResolved(Component plate, List<Component> components) {
         String hostId = paramString(plate.params(), "host_id", "hostId");
+        var role = HostedPlateOccupancy.resolveRole(plate.params());
+        if (role == HostedPlateOccupancy.PlateRole.BRIDGE) {
+            Optional<String> target = HostedPlateOccupancy.targetHostId(plate.params());
+            if (target.isEmpty()) {
+                return Optional.of(new CapabilityGap(
+                        "E_TARGET_HOST_ID_REQUIRED",
+                        "Bridge plate requires target_host_id",
+                        "components[].params.target_host_id",
+                        List.of("Set target_host_id to the second mass component_id.",
+                                "host_id is the primary mass; target_host_id is the far end.")));
+            }
+            if (hostId != null && hostId.equals(target.get())) {
+                return Optional.of(new CapabilityGap(
+                        "E_TARGET_HOST_ID_UNRESOLVED",
+                        "target_host_id must differ from host_id",
+                        "components[].params.target_host_id",
+                        List.of("Point target_host_id at a different mass than host_id.")));
+            }
+            if (findHostMass(target.get(), components).isEmpty()) {
+                return Optional.of(new CapabilityGap(
+                        "E_TARGET_HOST_ID_UNRESOLVED",
+                        "No host mass with component_id=" + target.get() + " for bridge target_host_id",
+                        "components[].params.target_host_id",
+                        List.of("Set target_host_id to an existing mass component_id.")));
+            }
+        }
         if (hostId == null) {
             return Optional.empty();
         }
@@ -138,6 +168,36 @@ final class HostedPlateDesignValidator {
                     "components[].params.host_id",
                     List.of("Set host_id to an existing mass component_id.",
                             "Do not point host_id at another plate.")));
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<CapabilityGap> checkBridgeEndpoints(Component plate, List<Component> components) {
+        var role = HostedPlateOccupancy.resolveRole(plate.params());
+        if (role != HostedPlateOccupancy.PlateRole.BRIDGE) {
+            return Optional.empty();
+        }
+        String hostId = paramString(plate.params(), "host_id", "hostId");
+        Optional<String> targetId = HostedPlateOccupancy.targetHostId(plate.params());
+        if (hostId == null || targetId.isEmpty() || plate.dimensions() == null || plate.relativePosition() == null) {
+            return Optional.empty();
+        }
+        Optional<Component> host = findHostMass(hostId, components);
+        Optional<Component> target = findHostMass(targetId.get(), components);
+        if (host.isEmpty() || target.isEmpty()) {
+            return Optional.empty();
+        }
+        var plateBounds = ComponentFootprintUtil.bounds(plate);
+        var hostBounds = ComponentFootprintUtil.bounds(host.get());
+        var targetBounds = ComponentFootprintUtil.bounds(target.get());
+        if (!HostedPlateOccupancy.touchesEndpoint(plateBounds, hostBounds)
+                || !HostedPlateOccupancy.touchesEndpoint(plateBounds, targetBounds)) {
+            return Optional.of(new CapabilityGap(
+                    "E_BRIDGE_ENDPOINT_NO_CONTACT",
+                    "Bridge plate does not touch both host_id=" + hostId + " and target_host_id=" + targetId.get(),
+                    "components[].relative_position",
+                    List.of("Extend the bridge AABB to meet both mass footprints.",
+                            "Endpoints may be flush (face-adjacent); they need not overwrite shells.")));
         }
         return Optional.empty();
     }
@@ -159,6 +219,10 @@ final class HostedPlateDesignValidator {
             return Optional.empty();
         }
         var role = HostedPlateOccupancy.resolveRole(plate.params());
+        // connection_level is applied in prepare (sets Y); skip single-host envelope for bridges.
+        if (role == HostedPlateOccupancy.PlateRole.BRIDGE) {
+            return Optional.empty();
+        }
         var envelope = HostedPlateOccupancy.levelEnvelope(
                 role, origin.y(), host.get().dimensions().height());
         if (envelope == null) {

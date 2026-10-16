@@ -261,10 +261,41 @@ class DesignFidelityContractTest(unittest.TestCase):
         )
         self.assertEqual("bridge", link["params"]["plate_role"])
         self.assertEqual("hall", link["params"]["host_id"])
+        self.assertEqual("wing", link["params"]["target_host_id"])
+        self.assertEqual(1, link["params"]["connection_level"])
 
         dup = self._load("duplicate_component_id.json")
         ids = [c["params"]["component_id"] for c in dup["components"]]
         self.assertEqual(["dup", "dup"], ids)
+
+    def test_round14_bridge_contract_fixtures(self):
+        missing = self._load("bridge_missing_target_host.json")
+        missing_plate = next(
+            c for c in missing["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("bridge", missing_plate["params"]["plate_role"])
+        self.assertNotIn("target_host_id", missing_plate["params"])
+
+        no_contact = self._load("bridge_endpoint_no_contact.json")
+        no_contact_plate = next(
+            c for c in no_contact["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("wing", no_contact_plate["params"]["target_host_id"])
+        self.assertEqual(30, no_contact["components"][1]["relative_position"]["x"])
+
+        inferred = self._load("inferred_bridge_keeps_y.json")
+        inferred_plate = next(
+            c for c in inferred["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertTrue(inferred_plate["params"]["_compiler_inferred"])
+        self.assertEqual(7, inferred_plate["relative_position"]["y"])
+        self.assertEqual(5, inferred["components"][0]["params"]["floor_height"])
+
+        overhang = self._load("bridge_hosted_plate_overhang.json")
+        overhang_plate = next(
+            c for c in overhang["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("pier", overhang_plate["params"]["target_host_id"])
 
 
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):

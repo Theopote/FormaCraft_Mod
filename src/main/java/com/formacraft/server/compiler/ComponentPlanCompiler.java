@@ -727,12 +727,38 @@ public final class ComponentPlanCompiler {
                             && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
                         // Connector decks meet existing walls; retain those walls rather
                         // than aborting the whole compound or granting blanket overwrite.
+                        // Bridges may also touch target_host_id shells (portal carve / flush join).
                         String host = getParamString(c.params(), "host_id");
+                        String target = getParamString(c.params(), "target_host_id", "targetHostId");
+                        boolean bridge = com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                                .isBridgePlate(c.params());
+                        if (bridge) {
+                            var hostMass = HostedPlateDesignValidator.findHostMass(host, components);
+                            var targetMass = HostedPlateDesignValidator.findHostMass(target, components);
+                            hostMass.ifPresent(m -> shiftedPatches.addAll(
+                                    com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                                            .bridgePortalRemovals(c, m)));
+                            targetMass.ifPresent(m -> shiftedPatches.addAll(
+                                    com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                                            .bridgePortalRemovals(c, m)));
+                        }
                         shiftedPatches.removeIf(p -> {
+                            if (BlockPatch.REMOVE.equals(p.action()) && bridge) {
+                                return false;
+                            }
                             var prev = patchOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
-                            return prev != null && prev.owner() != null
-                                    && (host == null || (!host.equals(getParamString(prev.owner().params(), "component_id"))
-                                    && !host.equals(getParamString(prev.owner().params(), "host_id"))));
+                            if (prev == null || prev.owner() == null) {
+                                return false;
+                            }
+                            String ownerId = getParamString(prev.owner().params(), "component_id");
+                            String ownerHost = getParamString(prev.owner().params(), "host_id");
+                            if (host != null && (host.equals(ownerId) || host.equals(ownerHost))) {
+                                return false;
+                            }
+                            if (bridge && target != null && (target.equals(ownerId) || target.equals(ownerHost))) {
+                                return false;
+                            }
+                            return true;
                         });
                     }
                     if ("DECOR_DETAIL".equals(normalizedType)) {
@@ -889,6 +915,11 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_HOST_ID_UNRESOLVED")) return "E_HOST_ID_UNRESOLVED";
         if (message.startsWith("E_HOSTED_PLATE_LEVEL_CONFLICT")) return "E_HOSTED_PLATE_LEVEL_CONFLICT";
         if (message.startsWith("E_DUPLICATE_COMPONENT_ID")) return "E_DUPLICATE_COMPONENT_ID";
+        if (message.startsWith("E_TARGET_HOST_ID_REQUIRED")) return "E_TARGET_HOST_ID_REQUIRED";
+        if (message.startsWith("E_TARGET_HOST_ID_UNRESOLVED")) return "E_TARGET_HOST_ID_UNRESOLVED";
+        if (message.startsWith("E_BRIDGE_ENDPOINT_NO_CONTACT")) return "E_BRIDGE_ENDPOINT_NO_CONTACT";
+        if (message.startsWith("E_CONNECTION_LEVEL_MISMATCH")) return "E_CONNECTION_LEVEL_MISMATCH";
+        if (message.startsWith("E_BRIDGE_OPENING_BLOCKED")) return "E_BRIDGE_OPENING_BLOCKED";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
@@ -1051,13 +1082,19 @@ public final class ComponentPlanCompiler {
                 int plateY = pos.y();
                 var plateRole = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                         .resolveRole(slab.params());
-                // Only compiler-inferred plates snap to storey planes; explicit Y (mezzanine) is preserved.
-                if (isAutoInferred(slab)) {
+                var connectionLevel = com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                        .connectionLevel(slab.params());
+                // Storey snap is interior-only; terrace/bridge keep connection or authored Y.
+                if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.INTERIOR
+                        && isAutoInferred(slab)) {
                     int count = ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount");
                     int level = Math.max(1, Math.min(Math.max(1, count - 1),
                             Math.round((pos.y() - origin.y()) / (float) fh)));
                     plateY = origin.y() + level * fh;
-                } else {
+                } else if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.BRIDGE
+                        && connectionLevel.isPresent()) {
+                    plateY = origin.y() + connectionLevel.get() * fh;
+                } else if (!isAutoInferred(slab)) {
                     var envelope = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                             .levelEnvelope(plateRole, origin.y(), body.dimensions().height());
                     if (envelope != null && !envelope.contains(plateY)) {
@@ -1073,6 +1110,9 @@ public final class ComponentPlanCompiler {
                     }
                 }
                 var slabParams = new HashMap<String, Object>(slab.params());
+                if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.BRIDGE) {
+                    slabParams.put("allow_carve", true);
+                }
                 String floorBlock = getParamString(body.params(), "floor_block");
                 String slabMaterial = getParamString(slab.params(), "material");
                 // A generic material family must not override the host's explicit floor block.
