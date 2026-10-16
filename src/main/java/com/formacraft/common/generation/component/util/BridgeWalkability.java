@@ -165,8 +165,8 @@ public final class BridgeWalkability {
                 ComponentFootprintUtil.bounds(host), hostOffset,
                 ComponentFootprintUtil.bounds(target), targetOffset,
                 1);
-        int budgetHost = WalkabilityGraph.adaptiveBudget(deck, hostIn, bounds);
-        int budgetTarget = WalkabilityGraph.adaptiveBudget(deck, targetIn, bounds);
+        var budgetHost = WalkabilityGraph.adaptiveBudget(deck, hostIn, bounds);
+        var budgetTarget = WalkabilityGraph.adaptiveBudget(deck, targetIn, bounds);
         var hostReach = WalkabilityGraph.search(occ, deck, hostIn, budgetHost, bounds);
         var targetReach = WalkabilityGraph.search(occ, deck, targetIn, budgetTarget, bounds);
         if (hostReach == WalkabilityGraph.ReachResult.SEARCH_LIMIT

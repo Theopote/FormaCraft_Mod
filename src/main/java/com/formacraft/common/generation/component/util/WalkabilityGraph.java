@@ -4,12 +4,13 @@ import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * Plan-geometry player standing-node graph over {@link PlannedOccupancy}.
- * Standing nodes need support + feet/head clearance; edges use {@link #canTraverse}.
- * Not a live-world pathfinding proof.
+ * Standing uses support + feet/head clearance; edges use surface-height steps (eighths).
+ * Not a live-world / VoxelShape pathfinding proof.
  */
 public final class WalkabilityGraph {
     public enum ReachResult {
@@ -18,7 +19,57 @@ public final class WalkabilityGraph {
         SEARCH_LIMIT
     }
 
+    /** Dual budget: path depth vs total visit work. */
+    public record SearchBudget(int maxDepth, int maxVisits) {
+        public SearchBudget {
+            if (maxDepth < 0) {
+                maxDepth = 0;
+            }
+            if (maxVisits < 0) {
+                maxVisits = 0;
+            }
+        }
+
+        public static SearchBudget ofDepth(int maxDepth) {
+            int d = Math.max(0, maxDepth);
+            return new SearchBudget(d, Math.max(4096, 4 * Math.max(1, d)));
+        }
+    }
+
+    /** Standing pose: block cell of support + surface height in eighths. */
+    public record StandingPose(int x, int blockY, int z, int surfaceEighths) {
+        public StandingPose {
+            surfaceEighths = Math.max(0, Math.min(8, surfaceEighths));
+        }
+
+        public int absoluteEighths() {
+            return blockY * 8 + surfaceEighths;
+        }
+
+        public Vec3i blockCell() {
+            return new Vec3i(x, blockY, z);
+        }
+    }
+
     private WalkabilityGraph() {}
+
+    public static StandingPose poseAt(PlannedOccupancy occ, int x, int blockY, int z) {
+        if (occ == null) {
+            return null;
+        }
+        var profile = occ.profileAt(x, blockY, z);
+        if (!profile.isSupport()) {
+            return null;
+        }
+        return new StandingPose(x, blockY, z, profile.supportTopEighths());
+    }
+
+    public static StandingPose poseAt(PlannedOccupancy occ, Vec3i floorCell) {
+        if (floorCell == null) {
+            return null;
+        }
+        return poseAt(occ, floorCell.x(), floorCell.y(), floorCell.z());
+    }
 
     public static boolean canStand(PlannedOccupancy occ, int x, int floorY, int z) {
         if (occ == null) {
@@ -33,30 +84,45 @@ public final class WalkabilityGraph {
         return floorCell != null && canStand(occ, floorCell.x(), floorCell.y(), floorCell.z());
     }
 
-    public static boolean canTraverse(PlannedOccupancy occ, Vec3i fromFloor, Vec3i toFloor) {
-        if (occ == null || fromFloor == null || toFloor == null) {
-            return false;
-        }
-        int dx = Math.abs(toFloor.x() - fromFloor.x());
-        int dz = Math.abs(toFloor.z() - fromFloor.z());
-        int dy = toFloor.y() - fromFloor.y();
-        if (dx + dz != 1 || Math.abs(dy) > 1) {
-            return false;
-        }
-        if (!canStand(occ, fromFloor) || !canStand(occ, toFloor)) {
-            return false;
-        }
-        if (dy == 0) {
-            return true;
-        }
-        if (dy == 1) {
-            return occ.isBodyClear(fromFloor.x(), fromFloor.y() + 3, fromFloor.z());
-        }
-        return occ.isBodyClear(toFloor.x(), fromFloor.y() + 2, toFloor.z());
+    public static boolean canStand(PlannedOccupancy occ, StandingPose pose) {
+        return pose != null && canStand(occ, pose.x(), pose.blockY(), pose.z());
     }
 
-    /** Adaptive step budget from geometry (floor of 512). */
-    public static int adaptiveBudget(Vec3i start, Vec3i goal, ComponentFootprintUtil.Bounds bounds) {
+    public static boolean canTraverse(PlannedOccupancy occ, Vec3i fromFloor, Vec3i toFloor) {
+        return canTraverse(occ, poseAt(occ, fromFloor), poseAt(occ, toFloor));
+    }
+
+    public static boolean canTraverse(PlannedOccupancy occ, StandingPose from, StandingPose to) {
+        if (occ == null || from == null || to == null) {
+            return false;
+        }
+        int dx = Math.abs(to.x() - from.x());
+        int dz = Math.abs(to.z() - from.z());
+        if (dx + dz != 1) {
+            return false;
+        }
+        if (!canStand(occ, from) || !canStand(occ, to)) {
+            return false;
+        }
+        int dAbs = Math.abs(to.absoluteEighths() - from.absoluteEighths());
+        if (dAbs > 8) {
+            return false;
+        }
+        int dBlockY = to.blockY() - from.blockY();
+        if (dBlockY == 0) {
+            return true;
+        }
+        if (dBlockY == 1) {
+            return occ.isBodyClear(from.x(), from.blockY() + 3, from.z());
+        }
+        if (dBlockY == -1) {
+            return occ.isBodyClear(to.x(), from.blockY() + 2, to.z());
+        }
+        // |dBlockY| > 1 but absolute eighths still ≤8 (e.g. slab quirks) — reject block jump >1
+        return false;
+    }
+
+    public static SearchBudget adaptiveBudget(Vec3i start, Vec3i goal, ComponentFootprintUtil.Bounds bounds) {
         int manhattan = 0;
         if (start != null && goal != null) {
             manhattan = Math.abs(goal.x() - start.x())
@@ -70,7 +136,8 @@ public final class WalkabilityGraph {
                     * Math.max(1, bounds.depth());
             volumeTerm = (int) Math.min(Integer.MAX_VALUE / 2, vol / 64);
         }
-        return Math.max(512, 8 * manhattan + volumeTerm);
+        int maxDepth = Math.max(512, 8 * manhattan + volumeTerm);
+        return new SearchBudget(maxDepth, Math.max(4096, 4 * maxDepth));
     }
 
     public static boolean canReach(
@@ -80,7 +147,8 @@ public final class WalkabilityGraph {
             int maxSteps,
             ComponentFootprintUtil.Bounds bounds
     ) {
-        return search(occ, startFloor, goalFloor, maxSteps, bounds) == ReachResult.REACHABLE;
+        return search(occ, startFloor, goalFloor, SearchBudget.ofDepth(maxSteps), bounds)
+                == ReachResult.REACHABLE;
     }
 
     public static boolean canReach(PlannedOccupancy occ, Vec3i startFloor, Vec3i goalFloor, int maxSteps) {
@@ -94,70 +162,121 @@ public final class WalkabilityGraph {
             int maxSteps,
             ComponentFootprintUtil.Bounds bounds
     ) {
-        if (occ == null || startFloor == null || goalFloor == null) {
-            return ReachResult.UNREACHABLE;
-        }
-        if (!canStand(occ, startFloor) || !canStand(occ, goalFloor)) {
-            return ReachResult.UNREACHABLE;
-        }
-        if (bounds != null && (!containsFloor(bounds, startFloor) || !containsFloor(bounds, goalFloor))) {
-            return ReachResult.UNREACHABLE;
-        }
-        if (maxSteps < 0) {
-            maxSteps = 0;
-        }
-
-        ArrayDeque<int[]> q = new ArrayDeque<>();
-        Set<Vec3i> seen = new HashSet<>();
-        q.add(new int[]{startFloor.x(), startFloor.y(), startFloor.z(), 0});
-        seen.add(startFloor);
-
-        boolean hitLimitWithPending = false;
-        int[][] horiz = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        while (!q.isEmpty()) {
-            int[] cur = q.removeFirst();
-            int x = cur[0], fy = cur[1], z = cur[2], dist = cur[3];
-            if (x == goalFloor.x() && fy == goalFloor.y() && z == goalFloor.z()) {
-                return ReachResult.REACHABLE;
-            }
-            if (dist >= maxSteps) {
-                hitLimitWithPending = true;
-                continue;
-            }
-            Vec3i from = new Vec3i(x, fy, z);
-            for (int[] h : horiz) {
-                int nx = x + h[0];
-                int nz = z + h[1];
-                tryEnqueue(occ, bounds, seen, q, from, nx, fy, nz, dist + 1);
-                tryEnqueue(occ, bounds, seen, q, from, nx, fy + 1, nz, dist + 1);
-                tryEnqueue(occ, bounds, seen, q, from, nx, fy - 1, nz, dist + 1);
-            }
-        }
-        return hitLimitWithPending ? ReachResult.SEARCH_LIMIT : ReachResult.UNREACHABLE;
+        return search(occ, startFloor, goalFloor, SearchBudget.ofDepth(maxSteps), bounds);
     }
 
-    private static void tryEnqueue(
+    public static ReachResult search(
+            PlannedOccupancy occ,
+            Vec3i startFloor,
+            Vec3i goalFloor,
+            SearchBudget budget,
+            ComponentFootprintUtil.Bounds bounds
+    ) {
+        StandingPose start = poseAt(occ, startFloor);
+        StandingPose goal = poseAt(occ, goalFloor);
+        return search(occ, start, goal, budget, bounds);
+    }
+
+    public static ReachResult search(
+            PlannedOccupancy occ,
+            StandingPose start,
+            StandingPose goal,
+            SearchBudget budget,
+            ComponentFootprintUtil.Bounds bounds
+    ) {
+        if (occ == null || start == null || goal == null || budget == null) {
+            return ReachResult.UNREACHABLE;
+        }
+        if (!canStand(occ, start) || !canStand(occ, goal)) {
+            return ReachResult.UNREACHABLE;
+        }
+        if (bounds != null && (!containsFloor(bounds, start.blockCell()) || !containsFloor(bounds, goal.blockCell()))) {
+            return ReachResult.UNREACHABLE;
+        }
+
+        ArrayDeque<PoseNode> q = new ArrayDeque<>();
+        Set<StandingPose> seen = new HashSet<>();
+        q.add(new PoseNode(start, 0));
+        seen.add(start);
+
+        boolean hasDeferredFrontier = false;
+        int visits = 0;
+        int[][] horiz = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+        while (!q.isEmpty()) {
+            PoseNode cur = q.removeFirst();
+            visits++;
+            StandingPose pose = cur.pose();
+            int dist = cur.dist();
+
+            if (pose.equals(goal)) {
+                return ReachResult.REACHABLE;
+            }
+
+            if (visits > budget.maxVisits()) {
+                if (hasUnseenNeighbor(occ, bounds, seen, pose, horiz)) {
+                    return ReachResult.SEARCH_LIMIT;
+                }
+                continue;
+            }
+
+            if (dist >= budget.maxDepth()) {
+                if (hasUnseenNeighbor(occ, bounds, seen, pose, horiz)) {
+                    hasDeferredFrontier = true;
+                }
+                continue;
+            }
+
+            for (int[] h : horiz) {
+                for (int dBy = -1; dBy <= 1; dBy++) {
+                    StandingPose next = poseAt(occ, pose.x() + h[0], pose.blockY() + dBy, pose.z() + h[1]);
+                    if (next == null) {
+                        continue;
+                    }
+                    if (bounds != null && !containsFloor(bounds, next.blockCell())) {
+                        continue;
+                    }
+                    if (!canTraverse(occ, pose, next)) {
+                        continue;
+                    }
+                    if (!seen.add(next)) {
+                        continue;
+                    }
+                    q.addLast(new PoseNode(next, dist + 1));
+                }
+            }
+        }
+        return hasDeferredFrontier ? ReachResult.SEARCH_LIMIT : ReachResult.UNREACHABLE;
+    }
+
+    private static boolean hasUnseenNeighbor(
             PlannedOccupancy occ,
             ComponentFootprintUtil.Bounds bounds,
-            Set<Vec3i> seen,
-            ArrayDeque<int[]> q,
-            Vec3i from,
-            int x,
-            int floorY,
-            int z,
-            int dist
+            Set<StandingPose> seen,
+            StandingPose pose,
+            int[][] horiz
     ) {
-        Vec3i to = new Vec3i(x, floorY, z);
-        if (bounds != null && !containsFloor(bounds, to)) {
-            return;
+        for (int[] h : horiz) {
+            for (int dBy = -1; dBy <= 1; dBy++) {
+                StandingPose next = poseAt(occ, pose.x() + h[0], pose.blockY() + dBy, pose.z() + h[1]);
+                if (next == null || seen.contains(next)) {
+                    continue;
+                }
+                if (bounds != null && !containsFloor(bounds, next.blockCell())) {
+                    continue;
+                }
+                if (canTraverse(occ, pose, next)) {
+                    return true;
+                }
+            }
         }
-        if (!canTraverse(occ, from, to)) {
-            return;
+        return false;
+    }
+
+    private record PoseNode(StandingPose pose, int dist) {
+        private PoseNode {
+            Objects.requireNonNull(pose);
         }
-        if (!seen.add(to)) {
-            return;
-        }
-        q.addLast(new int[]{x, floorY, z, dist});
     }
 
     private static boolean containsFloor(ComponentFootprintUtil.Bounds bounds, Vec3i floor) {

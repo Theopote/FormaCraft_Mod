@@ -59,6 +59,42 @@ public final class PlannedOccupancy {
                 default -> false;
             };
         }
+
+        /**
+         * Standing-surface height above the block's min Y, in eighths of a block (0..8).
+         * Offline height table — not VoxelShape. Non-supports return 0.
+         */
+        public int supportTopEighths() {
+            return switch (this) {
+                case FULL, STAIR, SLAB_TOP -> 8;
+                case SLAB_BOTTOM -> 4;
+                case CARPET -> 1;
+                default -> 0;
+            };
+        }
+    }
+
+    /**
+     * Fast = string/type profiles + height table.
+     * BlockState = registry-refined classification (compile); VoxelShape reserved for later.
+     */
+    public enum WalkabilityPrecision {
+        FAST,
+        BLOCKSTATE
+    }
+
+    /**
+     * Hook for future VoxelShape-based tops; today returns profile defaults for known types.
+     */
+    public static int supportTopEighths(net.minecraft.block.BlockState state, CollisionProfile fallback) {
+        if (fallback != null && fallback.isSupport()) {
+            return fallback.supportTopEighths();
+        }
+        if (state == null || state.isAir()) {
+            return 0;
+        }
+        CollisionProfile fromState = classifyState(state, state.getBlock().getTranslationKey());
+        return fromState.supportTopEighths();
     }
 
     /** @deprecated Use {@link CollisionProfile}; SOLID maps to FULL. */

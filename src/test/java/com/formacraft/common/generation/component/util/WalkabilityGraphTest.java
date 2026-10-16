@@ -223,9 +223,53 @@ class WalkabilityGraphTest {
                 WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(20, 0, 0), 64, null));
         assertEquals(WalkabilityGraph.ReachResult.SEARCH_LIMIT,
                 WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(20, 0, 0), 5, null),
-                "tiny budget with pending queue must be SEARCH_LIMIT not UNREACHABLE");
+                "depth cap with unexplored neighbors must be SEARCH_LIMIT");
         PlannedOccupancy islands = fullAt(new Vec3i(0, 0, 0), new Vec3i(20, 0, 0));
         assertEquals(WalkabilityGraph.ReachResult.UNREACHABLE,
                 WalkabilityGraph.search(islands, new Vec3i(0, 0, 0), new Vec3i(20, 0, 0), 512, null));
+    }
+
+    @Test
+    void depthCapExhaustedWithoutDeferredIsUnreachable() {
+        // Reachable chain length 2 (dist 0..2); goal isolated. At maxDepth=2 every frontier
+        // node has no further unseen neighbor → UNREACHABLE, not SEARCH_LIMIT.
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        cells.put(new Vec3i(1, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        cells.put(new Vec3i(2, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        cells.put(new Vec3i(9, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
+        assertEquals(WalkabilityGraph.ReachResult.UNREACHABLE,
+                WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(9, 0, 0), 2, null),
+                "finished exploring all nodes at depth cap must be UNREACHABLE");
+    }
+
+    @Test
+    void visitCapWithPendingNeighborsIsSearchLimit() {
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        for (int x = 0; x <= 10; x++) {
+            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        }
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
+        var budget = new WalkabilityGraph.SearchBudget(64, 3);
+        assertEquals(WalkabilityGraph.ReachResult.SEARCH_LIMIT,
+                WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(10, 0, 0), budget, null));
+    }
+
+    @Test
+    void slabBottomConnectsToAdjacentFullFloor() {
+        List<BlockPatch> patches = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_slab[half=bottom]"),
+                new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:oak_planks")
+        );
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertEquals(4, occ.profileAt(0, 0, 0).supportTopEighths());
+        assertEquals(8, occ.profileAt(1, 0, 0).supportTopEighths());
+        assertTrue(WalkabilityGraph.canTraverse(
+                occ,
+                WalkabilityGraph.poseAt(occ, 0, 0, 0),
+                WalkabilityGraph.poseAt(occ, 1, 0, 0)));
+        assertTrue(WalkabilityGraph.canReach(
+                occ, new Vec3i(0, 0, 0), new Vec3i(1, 0, 0), 8));
     }
 }
