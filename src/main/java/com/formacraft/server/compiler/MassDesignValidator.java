@@ -15,6 +15,13 @@ import java.util.Optional;
 final class MassDesignValidator {
     private MassDesignValidator() {}
 
+    private static final String[] COURTYARD_RATIO_KEYS = {
+            "courtyard_ratio", "courtyardRatio", "court_ratio", "void_ratio", "voidRatio"
+    };
+    private static final String[] WALL_THICKNESS_KEYS = {
+            "wall_thickness", "wallThickness"
+    };
+
     static Optional<CapabilityGap> check(LlmPlan plan, List<Component> components) {
         if (components == null) {
             return Optional.empty();
@@ -26,6 +33,14 @@ final class MassDesignValidator {
             String type = component.componentType().toUpperCase(Locale.ROOT);
             if (!isMassType(type)) {
                 continue;
+            }
+            Optional<CapabilityGap> wallInvalid = checkWallThicknessInvalid(component);
+            if (wallInvalid.isPresent()) {
+                return wallInvalid;
+            }
+            Optional<CapabilityGap> courtyardInvalid = checkCourtyardRatioInvalid(component);
+            if (courtyardInvalid.isPresent()) {
+                return courtyardInvalid;
             }
             Optional<CapabilityGap> wall = checkWallThickness(component);
             if (wall.isPresent()) {
@@ -48,9 +63,55 @@ final class MassDesignValidator {
                 || "MASS_SECONDARY".equals(type) || "MASS_WING".equals(type) || "SIDE_WING".equals(type);
     }
 
+    /** Explicit key present but non-numeric or <= 0 → INVALID (not UNFIT). */
+    private static Optional<CapabilityGap> checkWallThicknessInvalid(Component component) {
+        Map<String, Object> params = component.params() == null ? Map.of() : component.params();
+        String presentKey = firstPresentKey(params, WALL_THICKNESS_KEYS);
+        if (presentKey == null) {
+            return Optional.empty();
+        }
+        Object raw = params.get(presentKey);
+        Integer thickness = parseIntStrict(raw);
+        if (thickness == null || thickness <= 0) {
+            return Optional.of(new CapabilityGap(
+                    "E_WALL_THICKNESS_INVALID",
+                    "wall_thickness=" + raw + " is not a positive integer",
+                    "components[]",
+                    List.of("Provide wall_thickness as a positive integer, or omit for the technical default.")));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Explicit courtyard ratio key present but non-numeric / &lt;=0 / &gt;=1 → INVALID.
+     * Only applies when courtyard plan is active or the ratio key itself was authored.
+     */
+    private static Optional<CapabilityGap> checkCourtyardRatioInvalid(Component component) {
+        Map<String, Object> params = component.params() == null ? Map.of() : component.params();
+        String presentKey = firstPresentKey(params, COURTYARD_RATIO_KEYS);
+        if (presentKey == null) {
+            return Optional.empty();
+        }
+        // void_ratio is shared with solid-mass semantics; skip INVALID when used as solid marker.
+        if (("void_ratio".equals(presentKey) || "voidRatio".equals(presentKey))
+                && !isCourtyardPlan(params, component.features())) {
+            return Optional.empty();
+        }
+        Object raw = params.get(presentKey);
+        Double ratio = parseDoubleStrict(raw);
+        if (ratio == null || ratio <= 0.0 || ratio >= 1.0) {
+            return Optional.of(new CapabilityGap(
+                    "E_COURTYARD_RATIO_INVALID",
+                    "courtyard_ratio=" + raw + " must be a number in (0, 1)",
+                    "components[]",
+                    List.of("Provide courtyard_ratio in (0, 1), or omit for the technical default.")));
+        }
+        return Optional.empty();
+    }
+
     private static Optional<CapabilityGap> checkWallThickness(Component component) {
         Map<String, Object> params = component.params() == null ? Map.of() : component.params();
-        Integer thickness = ComponentParamParsers.intOrNull(params, "wall_thickness", "wallThickness");
+        Integer thickness = ComponentParamParsers.intOrNull(params, WALL_THICKNESS_KEYS);
         if (thickness == null || thickness <= 0) {
             return Optional.empty();
         }
@@ -74,13 +135,12 @@ final class MassDesignValidator {
         if (!isCourtyardPlan(params, component.features())) {
             return Optional.empty();
         }
-        Double ratio = ComponentParamParsers.doubleOrNull(params,
-                "courtyard_ratio", "courtyardRatio", "court_ratio", "void_ratio", "voidRatio");
-        if (ratio == null || ratio <= 0) {
+        Double ratio = ComponentParamParsers.doubleOrNull(params, COURTYARD_RATIO_KEYS);
+        if (ratio == null || ratio <= 0 || ratio >= 1.0) {
             return Optional.empty();
         }
         Dimensions d = component.dimensions();
-        int wallThickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness"));
+        int wallThickness = Math.max(1, ComponentParamParsers.intParam(params, 1, WALL_THICKNESS_KEYS));
         Optional<String> conflict = courtyardGeometryConflict(d.width(), d.depth(), ratio, wallThickness);
         if (conflict.isPresent()) {
             return Optional.of(new CapabilityGap(
@@ -168,7 +228,51 @@ final class MassDesignValidator {
                 }
             }
         }
-        return ComponentParamParsers.doubleOrNull(params, "courtyard_ratio", "courtyardRatio", "court_ratio") != null;
+        return firstPresentKey(params, "courtyard_ratio", "courtyardRatio", "court_ratio") != null;
+    }
+
+    private static String firstPresentKey(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (key != null && params.containsKey(key) && params.get(key) != null) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    private static Integer parseIntStrict(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number n) {
+            double d = n.doubleValue();
+            if (Double.isNaN(d) || Double.isInfinite(d) || d != Math.rint(d)) {
+                return null;
+            }
+            return n.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static Double parseDoubleStrict(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number n) {
+            return n.doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static Integer firstPositive(Integer... values) {

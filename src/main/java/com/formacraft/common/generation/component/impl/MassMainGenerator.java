@@ -293,6 +293,9 @@ public class MassMainGenerator implements ComponentGenerator {
         String facadeFoundationId = styleActive ? getBlockForPart(SemanticPart.WALL_BASE, semantic, palette) : null;
 
         Map<String, Object> massParams = semantic.source() != null ? semantic.source().params() : null;
+        // Single footprint authority shared with roofs via ComponentFootprintMask.
+        var footprint = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                semantic, massParams, width, depth);
         com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.RhythmPlan widthRhythm =
                 com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.resolve(
                         semantic, massParams, width);
@@ -324,12 +327,8 @@ public class MassMainGenerator implements ComponentGenerator {
                     int localX = x + xOffset;
                     int localZ = z + zOffset;
 
-                    if (!isInsideFootprint(localX, localZ, width, depth, mass.shape, mass.cornerRadius, mass.pattern)) {
-                        continue;
-                    }
-
-                    if (mass.pattern != null && mass.pattern.pattern == PlanPattern.COURTYARD
-                            && isInCourtyardHole(localX, localZ, width, depth, mass.pattern, wallThickness)) {
+                    // Courtyard hole is excluded from contains(); place floor then skip before occupancy check.
+                    if (footprint.isCourtyardHole(localX, localZ)) {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.COURTYARD_FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
@@ -343,6 +342,10 @@ public class MassMainGenerator implements ComponentGenerator {
                                 ));
                             }
                         }
+                        continue;
+                    }
+
+                    if (!footprint.contains(localX, localZ)) {
                         continue;
                     }
 
@@ -362,8 +365,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
                     if (hasInterior && x >= wallThickness && x < currentWidth-wallThickness
                             && z >= wallThickness && z < currentDepth-wallThickness
-                            && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness,
-                            mass.shape, mass.cornerRadius, mass.pattern)) {
+                            && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness, footprint)) {
                         int storeys = 0;
                         if (semantic.source() != null) {
                             storeys = ComponentParamParsers.intParam(semantic.source().params(), "floor_count", "floorCount");
@@ -396,7 +398,7 @@ public class MassMainGenerator implements ComponentGenerator {
                     int surfaceY = rp.y() + mass.offsetY + y;
                     int surfaceZ = rp.z() + mass.offsetZ + localZ;
                     if (x == 0 || z == 0 || x == currentWidth-1 || z == currentDepth-1
-                            || isExteriorWallPosition(localX, localZ, width, depth, mass.shape, mass.cornerRadius, mass.pattern))
+                            || isExteriorWallPosition(localX, localZ, footprint))
                         GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
                                 GeneratedSurfaceCapture.Role.WALL);
 
@@ -406,8 +408,8 @@ public class MassMainGenerator implements ComponentGenerator {
                                 && Boolean.FALSE.equals(semantic.source().params().get("gable_windows"))
                                 && (depth >= width ? localZ == 0 || localZ == depth - 1 : localX == 0 || localX == width - 1);
                     }
-                    if (hasWindows && !forbiddenGableWindow && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape,
-                            mass.cornerRadius, mass.pattern, windowSpacing, userFloorHeight)
+                    if (hasWindows && !forbiddenGableWindow && isWindowPosition(localX, localZ, width, depth, y, height,
+                            footprint, windowSpacing, userFloorHeight)
                             && !isOpeningSuppressed(localX, localZ, y, width, depth, userFloorHeight,
                             suppressWindowFaces, suppressWindowRegions)) {
                         SemanticPart part = SemanticPart.WINDOW;
@@ -427,8 +429,7 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, mass.shape,
-                            mass.cornerRadius, mass.pattern, doorFacing)
+                    if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, footprint, doorFacing)
                             && !isOpeningSuppressed(localX, localZ, y, width, depth, userFloorHeight,
                             suppressDoorFaces, suppressDoorRegions)) {
                         SemanticPart part = SemanticPart.DOORWAY;
@@ -471,8 +472,7 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    if (hasDecor && isDecorPosition(localX, localZ, width, depth, y, height, mass.shape,
-                            mass.cornerRadius, mass.pattern)) {
+                    if (hasDecor && isDecorPosition(localX, localZ, width, depth, y, height, footprint)) {
                         SemanticPart part = SemanticPart.WALL_ACCENT;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block.isEmpty()) {
@@ -489,15 +489,13 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    SemanticPart part = determinePart(y, height, width, depth, localX, localZ,
-                            mass.shape, mass.cornerRadius, mass.pattern);
+                    SemanticPart part = determinePart(y, height, width, depth, localX, localZ, footprint);
                     String block = getBlockForPart(part, semantic, palette);
 
                     // A2/A4: apply facade rhythm + optional cutout to solid wall cells only
                     // (windows/doors/roof already handled and skipped above).
                     if (styleActive && (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE)) {
-                        boolean isExterior = isExteriorWallPosition(localX, localZ, width, depth,
-                                mass.shape, mass.cornerRadius, mass.pattern);
+                        boolean isExterior = isExteriorWallPosition(localX, localZ, footprint);
                         boolean isEdgeZ = (localZ == 0 || localZ == depth - 1);
 
                         // A2: material rhythm (gradient/striped) + composition profile (plinth/pilasters/…).
@@ -516,8 +514,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
                         // A4: perforation / tracery on exterior body walls (opt-in via param).
                         if (facadeStyle.hasCutout() && isExterior && part == SemanticPart.WALL
-                                && !isCornerPosition(localX, localZ, width, depth,
-                                        mass.shape, mass.cornerRadius, mass.pattern)) {
+                                && !isCornerPosition(localX, localZ, footprint)) {
                             int u = isEdgeZ ? localX : localZ;
                             int uSize = isEdgeZ ? width : depth;
                             var cell = com.formacraft.common.generation.component.util.FacadePatternDsl
@@ -639,17 +636,17 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是窗户位置
      */
     private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height,
-                                     FootprintShape shape, int cornerRadius, PatternConfig pattern, int spacing,
-                                     int floorHeight) {
+                                     com.formacraft.common.generation.component.util.ResolvedFootprint footprint,
+                                     int spacing, int floorHeight) {
         boolean isMiddleHeight = (y > 0 && y < height - 1);
         if (!isMiddleHeight || !isWindowBand(y, height, floorHeight)) {
             return false;
         }
-        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
+        boolean isExterior = isExteriorWallPosition(x, z, footprint);
         if (!isExterior) {
             return false;
         }
-        if (isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
+        if (isCornerPosition(x, z, footprint)) {
             return false;
         }
         return isWindowSpacing(x, z, spacing);
@@ -668,12 +665,12 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是门位置
      */
     private boolean isDoorPosition(int x, int z, int width, int depth, int y,
-                                   FootprintShape shape, int cornerRadius, PatternConfig pattern,
+                                   com.formacraft.common.generation.component.util.ResolvedFootprint footprint,
                                    com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
         if (y >= 3) {
             return false;
         }
-        if (!isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
+        if (!isExteriorWallPosition(x, z, footprint)) {
             return false;
         }
         int centerX = width / 2;
@@ -692,10 +689,10 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是装饰位置
      */
     private boolean isDecorPosition(int x, int z, int width, int depth, int y, int height,
-                                    FootprintShape shape, int cornerRadius, PatternConfig pattern) {
+                                    com.formacraft.common.generation.component.util.ResolvedFootprint footprint) {
         boolean isTop = (y >= height - 2);
-        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
-        boolean isCorner = isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern);
+        boolean isExterior = isExteriorWallPosition(x, z, footprint);
+        boolean isCorner = isCornerPosition(x, z, footprint);
         return (isTop || isCorner) && isExterior && (y > 0);
     }
 
@@ -899,16 +896,16 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是内部空间（需要留空）
      */
     private boolean isInteriorSpace(int x, int z, int width, int depth, int y, int height,
-                                    int wallThickness, FootprintShape shape, int cornerRadius,
-                                    PatternConfig pattern) {
+                                    int wallThickness,
+                                    com.formacraft.common.generation.component.util.ResolvedFootprint footprint) {
         if (y >= height - 1) {
             return false;
         }
-        return isInsideInnerFootprint(x, z, width, depth, wallThickness, shape, cornerRadius, pattern);
+        return isInsideInnerFootprint(x, z, width, depth, wallThickness, footprint);
     }
 
     private SemanticPart determinePart(int y, int height, int width, int depth, int x, int z,
-                                       FootprintShape shape, int cornerRadius, PatternConfig pattern) {
+                                       com.formacraft.common.generation.component.util.ResolvedFootprint footprint) {
         // 基础部分
         if (y == 0) {
             return SemanticPart.WALL_BASE;
@@ -919,10 +916,10 @@ public class MassMainGenerator implements ComponentGenerator {
             return SemanticPart.WALL_ACCENT;
         }
         
-        if (isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
+        if (isCornerPosition(x, z, footprint)) {
             return SemanticPart.WALL_ACCENT;
         }
-        isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
+        isExteriorWallPosition(x, z, footprint);
 
         // 内部（填充）
         return SemanticPart.WALL;
@@ -1058,11 +1055,14 @@ public class MassMainGenerator implements ComponentGenerator {
             case COURTYARD -> {
                 Double ratioValue = ComponentParamParsers.doubleOrNull(params, "courtyard_ratio", "courtyardRatio",
                         "court_ratio", "void_ratio", "voidRatio");
-                if (ratioValue != null && ratioValue > 0.0) {
+                if (ratioValue != null && ratioValue > 0.0 && ratioValue < 1.0) {
                     ratio = ratioValue;
-                } else {
+                } else if (ratioValue == null) {
                     // Technical default only when ratio was not explicitly planned.
                     ratio = Math.max(0.2, Math.min(0.6, 0.35));
+                } else {
+                    // Illegal explicit ratio — MassDesignValidator rejects; do not fall back to 0.35.
+                    ratio = 0.0;
                 }
             }
             default -> {
@@ -1391,6 +1391,45 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private boolean isInsideInnerFootprint(int x, int z, int width, int depth, int wallThickness,
+                                           com.formacraft.common.generation.component.util.ResolvedFootprint footprint) {
+        if (wallThickness <= 0) {
+            return footprint.contains(x, z);
+        }
+        // Interior void: inside outer footprint, outside courtyard hole, and inset by wall thickness.
+        if (!footprint.contains(x, z) || footprint.isCourtyardHole(x, z)) {
+            return false;
+        }
+        if (x < wallThickness || z < wallThickness
+                || x >= width - wallThickness || z >= depth - wallThickness) {
+            return false;
+        }
+        // For non-rect shapes, also require a neighbor inset check via eroded footprint occupancy.
+        return switch (footprint.shape()) {
+            case RECTANGLE -> true;
+            case CIRCLE -> {
+                double cx = (width - 1) / 2.0;
+                double cz = (depth - 1) / 2.0;
+                double rx = Math.max(0.1, (width / 2.0) - wallThickness);
+                double rz = Math.max(0.1, (depth / 2.0) - wallThickness);
+                double dx = (x - cx) / rx;
+                double dz = (z - cz) / rz;
+                yield (dx * dx + dz * dz) <= 1.0;
+            }
+            case ROUNDED_RECT -> {
+                int r = Math.max(0, footprint.cornerRadius() - wallThickness);
+                int iw = width - wallThickness * 2;
+                int id = depth - wallThickness * 2;
+                if (iw <= 0 || id <= 0) {
+                    yield false;
+                }
+                yield isInsideFootprint(x - wallThickness, z - wallThickness, iw, id,
+                        FootprintShape.ROUNDED_RECT, r,
+                        new PatternConfig(PlanPattern.NONE, 0, 0.0, null));
+            }
+        };
+    }
+
+    private boolean isInsideInnerFootprint(int x, int z, int width, int depth, int wallThickness,
                                            FootprintShape shape, int cornerRadius,
                                            PatternConfig pattern) {
         if (wallThickness <= 0) {
@@ -1435,6 +1474,30 @@ public class MassMainGenerator implements ComponentGenerator {
                 Math.max(0, cornerRadius - wallThickness),
                 pattern
         );
+    }
+
+    private boolean isExteriorWallPosition(int x, int z,
+                                           com.formacraft.common.generation.component.util.ResolvedFootprint footprint) {
+        if (!footprint.contains(x, z)) {
+            return false;
+        }
+        return !footprint.contains(x + 1, z)
+                || !footprint.contains(x - 1, z)
+                || !footprint.contains(x, z + 1)
+                || !footprint.contains(x, z - 1);
+    }
+
+    private boolean isCornerPosition(int x, int z,
+                                     com.formacraft.common.generation.component.util.ResolvedFootprint footprint) {
+        if (!isExteriorWallPosition(x, z, footprint)) {
+            return false;
+        }
+        int outside = 0;
+        if (!footprint.contains(x + 1, z)) outside++;
+        if (!footprint.contains(x - 1, z)) outside++;
+        if (!footprint.contains(x, z + 1)) outside++;
+        if (!footprint.contains(x, z - 1)) outside++;
+        return outside >= 2;
     }
 
     private boolean isExteriorWallPosition(int x, int z, int width, int depth,

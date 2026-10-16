@@ -278,6 +278,96 @@ class DesignFidelityTest {
     }
 
     @Test
+    void negativeCourtyardRatioFailsCompileAsInvalid() throws Exception {
+        LlmPlan plan = loadFidelityPlan("courtyard_ratio_negative.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_COURTYARD_RATIO_INVALID", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void negativeWallThicknessFailsCompileAsInvalid() throws Exception {
+        LlmPlan plan = loadFidelityPlan("wall_thickness_negative.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_WALL_THICKNESS_INVALID", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void thickWallCourtyardRoofLeavesHoleOpenInMassAndRoof() throws Exception {
+        LlmPlan plan = loadFidelityPlan("courtyard_thick_wall_roof.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+
+        var fp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                plan.components().get(0), 48, 48);
+        int cx = (fp.holeMinX() + fp.holeMaxX()) / 2;
+        int cz = (fp.holeMinZ() + fp.holeMaxZ()) / 2;
+        assertTrue(fp.isCourtyardHole(cx, cz));
+
+        var blocks = PatchTestSnapshot.blocks(patches);
+        // Mass shell mid-height and roof layers must not fill the courtyard column.
+        // y=0 may hold COURTYARD_FLOOR; above that (and roof attachment) must stay open.
+        for (int y = 1; y <= 10; y++) {
+            assertFalse(blocks.containsKey(new Vec3i(cx, y, cz)),
+                    "courtyard column must stay open at (" + cx + "," + y + "," + cz + ")"
+                            + " block=" + blocks.get(new Vec3i(cx, y, cz)));
+        }
+    }
+
+    @Test
+    void fourStoreyFacadeWindowBandsAlignWithFloorLayout() throws Exception {
+        LlmPlan plan = loadFidelityPlan("four_storey_mass_facade.json");
+        Component mass = plan.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        var layout = com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(
+                mass, mass.dimensions().height());
+        assertEquals(List.of(0, 4, 8, 12), layout.floorYs());
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        var glassYs = blocks.entrySet().stream()
+                .filter(e -> e.getValue() != null && e.getValue().toLowerCase().contains("glass"))
+                .map(e -> e.getKey().y())
+                .collect(java.util.stream.Collectors.toSet());
+        assertFalse(glassYs.isEmpty(), "expected facade glass");
+        // sill_offset=1 → glass starts at floorY+1 within each band of height 4.
+        for (int floorY : layout.floorYs()) {
+            int sill = floorY + 1;
+            assertTrue(glassYs.contains(sill) || glassYs.contains(sill + 1),
+                    "expected glass in floor band starting at " + floorY + ", glassYs=" + glassYs);
+        }
+    }
+
+    @Test
+    void dualMassSharedFloorHeightProducesAlignedFloorYs() throws Exception {
+        LlmPlan plan = loadFidelityPlan("dual_mass_shared_floor_height.json");
+        var masses = plan.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .toList();
+        assertEquals(2, masses.size());
+        var a = com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(
+                masses.get(0), masses.get(0).dimensions().height());
+        var b = com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(
+                masses.get(1), masses.get(1).dimensions().height());
+        assertEquals(a.floorYs(), b.floorYs());
+        assertEquals(List.of(0, 4, 8), a.floorYs());
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
     void gothicSteepRoofFixtureCompilesWithPitchAboveTechnicalCap() throws Exception {
         LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
 

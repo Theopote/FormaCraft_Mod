@@ -140,6 +140,29 @@ class DesignFidelityContractTest(unittest.TestCase):
         setback_mass = next(c for c in setback["components"] if c.get("component_type") == "MASS_MAIN")
         self.assertEqual(0.12, setback_mass["params"]["setback_ratio"])
 
+    def test_round9_resolved_footprint_fixtures(self):
+        neg_ratio = self._load("courtyard_ratio_negative.json")
+        neg_mass = next(c for c in neg_ratio["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(-0.2, neg_mass["params"]["courtyard_ratio"])
+        neg_wall = self._load("wall_thickness_negative.json")
+        neg_wall_mass = next(c for c in neg_wall["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(-2, neg_wall_mass["params"]["wall_thickness"])
+        thick_roof = self._load("courtyard_thick_wall_roof.json")
+        thick_mass = next(c for c in thick_roof["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(0.75, thick_mass["params"]["courtyard_ratio"])
+        self.assertEqual(6, thick_mass["params"]["wall_thickness"])
+        self.assertEqual(48, thick_mass["dimensions"]["width"])
+        self.assertTrue(any(c.get("component_type") == "ROOF" for c in thick_roof["components"]))
+        four = self._load("four_storey_mass_facade.json")
+        four_mass = next(c for c in four["components"] if c.get("component_type") == "MASS_MAIN")
+        self.assertEqual(4, four_mass["params"]["floor_count"])
+        self.assertEqual(4, four_mass["params"]["floor_height"])
+        dual = self._load("dual_mass_shared_floor_height.json")
+        dual_masses = [c for c in dual["components"] if c.get("component_type") == "MASS_MAIN"]
+        self.assertEqual(2, len(dual_masses))
+        self.assertEqual(4, dual_masses[0]["params"]["floor_height"])
+        self.assertEqual(4, dual_masses[1]["params"]["floor_height"])
+
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
         plan = json.loads(INVALID_AUTHORITY_FIXTURE.read_text(encoding="utf-8"))

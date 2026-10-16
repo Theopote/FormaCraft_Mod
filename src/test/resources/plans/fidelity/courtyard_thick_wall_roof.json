@@ -1,0 +1,51 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "REQUIRED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 48, "depth": 48, "height": 8 },
+      "features": ["courtyard"],
+      "params": {
+        "component_id": "body",
+        "anchor_mode": "min_corner",
+        "plan_type": "courtyard",
+        "courtyard_ratio": 0.75,
+        "wall_thickness": 6,
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true,
+        "design_sources": {
+          "courtyard_ratio": "AI_PLANNED",
+          "wall_thickness": "AI_PLANNED"
+        }
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 8, "z": 0 },
+      "dimensions": { "width": 48, "depth": 48, "height": 4 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "roof_type": "flat",
+        "overhang": 0,
+        "anchor_mode": "min_corner"
+      }
+    }
+  ]
+}

@@ -854,6 +854,11 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_FACADE_SCOPE_INVALID")) return "E_FACADE_SCOPE_INVALID";
         if (message.startsWith("E_ROOF_GEOMETRY_INVALID")) return "E_ROOF_GEOMETRY_INVALID";
         if (message.startsWith("E_ROOF_GEOMETRY_CONFLICT")) return "E_ROOF_GEOMETRY_CONFLICT";
+        if (message.startsWith("E_COURTYARD_RATIO_INVALID")) return "E_COURTYARD_RATIO_INVALID";
+        if (message.startsWith("E_WALL_THICKNESS_INVALID")) return "E_WALL_THICKNESS_INVALID";
+        if (message.startsWith("E_COURTYARD_GEOMETRY_CONFLICT")) return "E_COURTYARD_GEOMETRY_CONFLICT";
+        if (message.startsWith("E_WALL_THICKNESS_UNFIT")) return "E_WALL_THICKNESS_UNFIT";
+        if (message.startsWith("E_PLAN_PATTERN_UNFIT")) return "E_PLAN_PATTERN_UNFIT";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
@@ -1765,6 +1770,7 @@ public final class ComponentPlanCompiler {
                 "l_corner", "lCorner", "l_cut", "lCut",
                 "arm_width", "cross_arm", "cross_arm_width", "armWidth",
                 "courtyard_ratio", "courtyardRatio", "court_ratio", "void_ratio", "voidRatio",
+                "wall_thickness", "wallThickness",
                 "corner_radius", "cornerRadius"
         )) {
             if (from.containsKey(key)) {

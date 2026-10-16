@@ -88,14 +88,16 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 - Authority for storey spacing is [ResolvedFloorLayout](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFloorLayout.java) (and [ResolvedComponentGeometry](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedComponentGeometry.java)): explicit `floor_height` → else `envelope/floor_count` (≥1) → technical default 3.
 - Generators must not silently raise band height with `Math.max(3, floorHeight)`. Explicit `floor_count` × `floor_height` exceeding envelope height → `E_FLOOR_LAYOUT_OVERFLOW`.
 
-**Mass / roof alignment (Round-8):**
+**Mass / roof alignment (Round-8/9):**
 
-- Explicit `courtyard_ratio` is not clamped to 0.2–0.6; unbuildable ratio → `E_COURTYARD_GEOMETRY_CONFLICT` ([MassDesignValidator](../../src/main/java/com/formacraft/server/compiler/MassDesignValidator.java)).
-- Explicit `wall_thickness` has no fixed cap of 4; hollow masses require `2 * thickness < min(width,depth)` else `E_WALL_THICKNESS_UNFIT`.
+- Plan occupancy authority is [ResolvedFootprint](../../src/main/java/com/formacraft/common/generation/component/util/ResolvedFootprint.java). MassMain and [ComponentFootprintMask](../../src/main/java/com/formacraft/common/generation/component/util/ComponentFootprintMask.java) (roofs/seams) share one courtyard hole: `hole = min(round(span*ratio), span - 2*wall_thickness)`, centered.
+- `alignRoofToMass` copies host `wall_thickness` / plan pattern params onto roofs so mask matches the mass shell.
+- Explicit `courtyard_ratio` is not clamped to 0.2–0.6. Key present but non-numeric / `<=0` / `>=1` → `E_COURTYARD_RATIO_INVALID`; legal but unbuildable → `E_COURTYARD_GEOMETRY_CONFLICT` ([MassDesignValidator](../../src/main/java/com/formacraft/server/compiler/MassDesignValidator.java)).
+- Explicit `wall_thickness` has no fixed cap of 4. Key present but non-numeric / `<=0` → `E_WALL_THICKNESS_INVALID`; hollow masses require `2 * thickness < min(width,depth)` else `E_WALL_THICKNESS_UNFIT`.
 - `alignRoofToMass` must not raise a locked/explicit `overhang` from roof bbox; mismatch → `E_ROOF_OVERHANG_CONFLICT`.
-- Explicit `arm_width` / `l_cut` / `corner_cut` exceeding footprint−2 → `E_PLAN_PATTERN_UNFIT`.
+- Explicit `arm_width` / `l_cut` / `corner_cut` exceeding footprint−2 → `E_PLAN_PATTERN_UNFIT` (no silent truncate of explicit sizes in resolve).
 
-**MassMain fidelity notes (Round-7/8 audit):**
+**MassMain fidelity notes (Round-7/8/9 audit):**
 
 | Param / behavior | Preserved? | Notes |
 |------------------|------------|-------|
@@ -104,8 +106,9 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 | `window_style=none` / `suppress_windows` | yes | blocks default window fill |
 | `entrance_type=none` | yes | blocks default door fill |
 | explicit `void_ratio` | yes (R7) | size heuristic must not re-hollow/solid override when ratio is set |
-| `courtyard_ratio` | yes (R8) | no aesthetic clamp; geometry gate |
-| `wall_thickness` | yes (R8) | no cap at 4; buildability gate |
+| `courtyard_ratio` | yes (R8/R9) | no aesthetic clamp; INVALID vs CONFLICT gates |
+| `wall_thickness` | yes (R8/R9) | no cap at 4; INVALID vs UNFIT; shared via ResolvedFootprint |
+| footprint / courtyard hole | yes (R9) | `ResolvedFootprint` sole occupancy authority |
 | `overhang` vs roof bbox | yes (R8) | conflict, not silent max |
 | `arm_width` / `l_cut` / `corner_cut` | yes (R8) | unfit when explicit > footprint−2 |
 | `floor_count` / `floor_height` | yes (R8) | `ResolvedFloorLayout` shared by Mass+Facade |

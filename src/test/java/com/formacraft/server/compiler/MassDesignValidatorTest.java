@@ -74,6 +74,37 @@ class MassDesignValidatorTest {
         assertEquals("E_PLAN_PATTERN_UNFIT", gap.get().code());
     }
 
+    @Test
+    void rejectsNegativeCourtyardRatioAsInvalid() throws Exception {
+        var plan = LlmPlanParser.parseAndValidate(loadFixture("courtyard_ratio_negative.json"));
+        var gap = MassDesignValidator.check(plan, plan.components());
+        assertTrue(gap.isPresent());
+        assertEquals("E_COURTYARD_RATIO_INVALID", gap.get().code());
+    }
+
+    @Test
+    void rejectsNegativeWallThicknessAsInvalid() throws Exception {
+        var plan = LlmPlanParser.parseAndValidate(loadFixture("wall_thickness_negative.json"));
+        var gap = MassDesignValidator.check(plan, plan.components());
+        assertTrue(gap.isPresent());
+        assertEquals("E_WALL_THICKNESS_INVALID", gap.get().code());
+    }
+
+    @Test
+    void rejectsNonNumericCourtyardRatioAsInvalid() {
+        Component mass = new Component(
+                "MASS_MAIN",
+                "body",
+                new Vec3i(0, 0, 0),
+                new Dimensions(16, 16, 8),
+                List.of("courtyard"),
+                Map.of("plan_type", "courtyard", "courtyard_ratio", "wide"));
+        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        var gap = MassDesignValidator.check(plan, List.of(mass));
+        assertTrue(gap.isPresent());
+        assertEquals("E_COURTYARD_RATIO_INVALID", gap.get().code());
+    }
+
     private static String loadFixture(String fileName) throws Exception {
         String path = "/plans/fidelity/" + fileName;
         try (var in = MassDesignValidatorTest.class.getResourceAsStream(path)) {
