@@ -72,6 +72,8 @@ class GeometryConstraintRound9Test {
                 ComponentPlanCompiler.geometryConstraintCode("E_BRIDGE_LEVEL_CONFLICT: y vs level"));
         assertEquals("E_BRIDGE_PATH_BLOCKED",
                 ComponentPlanCompiler.geometryConstraintCode("E_BRIDGE_PATH_BLOCKED: no path"));
+        assertEquals("E_WALKABILITY_SEARCH_LIMIT",
+                ComponentPlanCompiler.geometryConstraintCode("E_WALKABILITY_SEARCH_LIMIT: budget"));
         assertEquals("E_COMPONENT_GENERATION_FAILED",
                 ComponentPlanCompiler.geometryConstraintCode("other"));
     }

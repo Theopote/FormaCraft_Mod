@@ -13,20 +13,28 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class WalkabilityGraphTest {
 
+    private static PlannedOccupancy fullAt(Vec3i... positions) {
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        for (Vec3i p : positions) {
+            cells.put(p, PlannedOccupancy.CollisionProfile.FULL);
+        }
+        return PlannedOccupancy.ofProfiles(cells);
+    }
+
     @Test
     void standingRequiresSupportFeetAndHead() {
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
-        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.Cell.SOLID);
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
         assertTrue(WalkabilityGraph.canStand(occ, 0, 0, 0));
 
-        cells.put(new Vec3i(0, 2, 0), PlannedOccupancy.Cell.SOLID);
-        occ = PlannedOccupancy.of(cells);
+        cells.put(new Vec3i(0, 2, 0), PlannedOccupancy.CollisionProfile.FULL);
+        occ = PlannedOccupancy.ofProfiles(cells);
         assertFalse(WalkabilityGraph.canStand(occ, 0, 0, 0), "head blocked");
 
         cells.remove(new Vec3i(0, 0, 0));
-        cells.put(new Vec3i(0, 1, 0), PlannedOccupancy.Cell.PLANNED_AIR);
-        occ = PlannedOccupancy.of(cells);
+        cells.put(new Vec3i(0, 1, 0), PlannedOccupancy.CollisionProfile.AIR);
+        occ = PlannedOccupancy.ofProfiles(cells);
         assertFalse(WalkabilityGraph.canStand(occ, 0, 0, 0), "no solid support");
     }
 
@@ -37,9 +45,9 @@ class WalkabilityGraphTest {
                 new BlockPatch(BlockPatch.REMOVE, 1, 1, 1, "minecraft:air")
         );
         PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
-        assertEquals(PlannedOccupancy.Cell.SOLID, occ.get(1, 0, 1));
-        assertEquals(PlannedOccupancy.Cell.PLANNED_AIR, occ.get(1, 1, 1));
-        assertEquals(PlannedOccupancy.Cell.UNTOUCHED, occ.get(9, 9, 9));
+        assertEquals(PlannedOccupancy.CollisionProfile.FULL, occ.profileAt(1, 0, 1));
+        assertEquals(PlannedOccupancy.CollisionProfile.AIR, occ.profileAt(1, 1, 1));
+        assertEquals(PlannedOccupancy.CollisionProfile.UNTOUCHED, occ.profileAt(9, 9, 9));
         assertTrue(occ.isBodyClear(1, 1, 1));
         assertFalse(occ.isSupport(1, 1, 1));
         assertFalse(occ.isSupport(9, 9, 9));
@@ -47,42 +55,32 @@ class WalkabilityGraphTest {
 
     @Test
     void floatingAirPathCannotReach() {
-        // Two platforms with only air between — no continuous floor.
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
-        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.Cell.SOLID);
-        cells.put(new Vec3i(5, 0, 0), PlannedOccupancy.Cell.SOLID);
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        PlannedOccupancy occ = fullAt(new Vec3i(0, 0, 0), new Vec3i(5, 0, 0));
         assertFalse(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 0, 0), new Vec3i(5, 0, 0), 64));
     }
 
     @Test
     void continuousFloorPathReaches() {
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
         for (int x = 0; x <= 5; x++) {
-            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.Cell.SOLID);
+            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
         }
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
         assertTrue(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 0, 0), new Vec3i(5, 0, 0), 64));
     }
 
     @Test
     void singleStepUpAllowed() {
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
-        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.Cell.SOLID);
-        cells.put(new Vec3i(1, 1, 0), PlannedOccupancy.Cell.SOLID);
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        PlannedOccupancy occ = fullAt(new Vec3i(0, 0, 0), new Vec3i(1, 1, 0));
         assertTrue(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 0, 0), new Vec3i(1, 1, 0), 16));
     }
 
     @Test
     void twoBlockDropWithoutIntermediateFloorFails() {
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
-        cells.put(new Vec3i(0, 2, 0), PlannedOccupancy.Cell.SOLID);
-        cells.put(new Vec3i(1, 0, 0), PlannedOccupancy.Cell.SOLID);
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        PlannedOccupancy occ = fullAt(new Vec3i(0, 2, 0), new Vec3i(1, 0, 0));
         assertFalse(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 2, 0), new Vec3i(1, 0, 0), 16),
                 "step ±1 only — cannot drop 2 without mid floor");
@@ -90,12 +88,12 @@ class WalkabilityGraphTest {
 
     @Test
     void lowClearanceBlocksStanding() {
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
         for (int x = 0; x <= 3; x++) {
-            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.Cell.SOLID);
-            cells.put(new Vec3i(x, 2, 0), PlannedOccupancy.Cell.SOLID); // head height blocked
+            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+            cells.put(new Vec3i(x, 2, 0), PlannedOccupancy.CollisionProfile.FULL);
         }
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
         assertFalse(WalkabilityGraph.canStand(occ, 1, 0, 0));
         assertFalse(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 0, 0), new Vec3i(3, 0, 0), 32));
@@ -103,13 +101,12 @@ class WalkabilityGraphTest {
 
     @Test
     void largeCoordinatesDoNotCollideInSeenSet() {
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
-        // Path near x=0 and a distant solid that would alias under 10-bit pack (+512 & 0x3FF).
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
         for (int x = 0; x <= 4; x++) {
-            cells.put(new Vec3i(x, 10, 0), PlannedOccupancy.Cell.SOLID);
+            cells.put(new Vec3i(x, 10, 0), PlannedOccupancy.CollisionProfile.FULL);
         }
-        cells.put(new Vec3i(1024, 10, 0), PlannedOccupancy.Cell.SOLID);
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        cells.put(new Vec3i(1024, 10, 0), PlannedOccupancy.CollisionProfile.FULL);
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
         assertTrue(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 10, 0), new Vec3i(4, 10, 0), 32));
         assertFalse(WalkabilityGraph.canReach(
@@ -120,17 +117,15 @@ class WalkabilityGraphTest {
     @Test
     void portalRemoveClearsBodyButNeedsFloorSupport() {
         List<BlockPatch> patches = new ArrayList<>();
-        // Floor corridor
         for (int x = 0; x <= 4; x++) {
             patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 0, "minecraft:oak_planks"));
         }
-        // Wall then portal carve at body height
         patches.add(new BlockPatch(BlockPatch.PLACE, 2, 1, 0, "minecraft:stone"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 2, 2, 0, "minecraft:stone"));
         patches.add(new BlockPatch(BlockPatch.REMOVE, 2, 1, 0, "minecraft:air"));
         patches.add(new BlockPatch(BlockPatch.REMOVE, 2, 2, 0, "minecraft:air"));
         PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
-        assertEquals(PlannedOccupancy.Cell.PLANNED_AIR, occ.get(2, 1, 0));
+        assertEquals(PlannedOccupancy.CollisionProfile.AIR, occ.profileAt(2, 1, 0));
         assertTrue(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 0, 0), new Vec3i(4, 0, 0), 32));
     }
@@ -138,10 +133,12 @@ class WalkabilityGraphTest {
     @Test
     void stairsAreNotAirAndSupportStanding() {
         assertFalse(PlannedOccupancy.isAirId("minecraft:oak_stairs"));
-        assertFalse(PlannedOccupancy.isAirId("minecraft:stone_brick_stairs"));
-        assertFalse(PlannedOccupancy.isAirId("minecraft:quartz_stairs[facing=east,half=bottom]"));
-        assertTrue(PlannedOccupancy.isAirId("minecraft:air"));
-        assertTrue(PlannedOccupancy.isAirId("minecraft:cave_air"));
+        assertEquals(PlannedOccupancy.CollisionProfile.STAIR,
+                PlannedOccupancy.classify("minecraft:oak_stairs", false));
+        assertEquals(PlannedOccupancy.CollisionProfile.STAIR,
+                PlannedOccupancy.classify("minecraft:quartz_stairs[facing=east,half=bottom]", false));
+        assertEquals(PlannedOccupancy.CollisionProfile.STAIR,
+                PlannedOccupancy.classify("minecraft:oak_stairs[facing=north,half=top]", false));
 
         List<BlockPatch> patches = List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_stairs[facing=east,half=bottom]"),
@@ -149,42 +146,86 @@ class WalkabilityGraphTest {
                 new BlockPatch(BlockPatch.PLACE, 2, 0, 0, "minecraft:oak_planks")
         );
         PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
-        assertEquals(PlannedOccupancy.Cell.SOLID, occ.get(0, 0, 0));
-        assertEquals(PlannedOccupancy.Cell.SOLID, occ.get(1, 0, 0));
+        assertEquals(PlannedOccupancy.CollisionProfile.STAIR, occ.profileAt(0, 0, 0));
+        assertEquals(PlannedOccupancy.CollisionProfile.STAIR, occ.profileAt(1, 0, 0));
         assertTrue(WalkabilityGraph.canStand(occ, 0, 0, 0));
         assertTrue(WalkabilityGraph.canReach(
-                occ, new Vec3i(0, 0, 0), new Vec3i(2, 0, 0), 16),
-                "stair treads must support a walkable corridor");
+                occ, new Vec3i(0, 0, 0), new Vec3i(2, 0, 0), 16));
+    }
+
+    @Test
+    void slabFenceCarpetProfilesDifferFromFull() {
+        assertEquals(PlannedOccupancy.CollisionProfile.SLAB_BOTTOM,
+                PlannedOccupancy.classify("minecraft:oak_slab[half=bottom]", false));
+        assertEquals(PlannedOccupancy.CollisionProfile.SLAB_TOP,
+                PlannedOccupancy.classify("minecraft:oak_slab[half=top]", false));
+        assertEquals(PlannedOccupancy.CollisionProfile.FENCE,
+                PlannedOccupancy.classify("minecraft:oak_fence", false));
+        assertEquals(PlannedOccupancy.CollisionProfile.CARPET,
+                PlannedOccupancy.classify("minecraft:white_carpet", false));
+
+        PlannedOccupancy slab = PlannedOccupancy.fromPatches(List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_slab[half=bottom]"),
+                new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:oak_planks")
+        ));
+        assertTrue(WalkabilityGraph.canStand(slab, 0, 0, 0));
+        assertTrue(WalkabilityGraph.canReach(slab, new Vec3i(0, 0, 0), new Vec3i(1, 0, 0), 8));
+
+        PlannedOccupancy fence = PlannedOccupancy.fromPatches(List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_fence")
+        ));
+        assertFalse(fence.isSupport(0, 0, 0));
+        assertTrue(fence.profileAt(0, 0, 0).blocksBody());
+        assertFalse(WalkabilityGraph.canStand(fence, 0, 0, 0));
+
+        PlannedOccupancy carpet = PlannedOccupancy.fromPatches(List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:white_carpet")
+        ));
+        assertTrue(carpet.isSupport(0, 0, 0));
+        assertTrue(carpet.isBodyClear(0, 0, 0), "carpet must not block body in its own cell");
+        assertTrue(WalkabilityGraph.canStand(carpet, 0, 0, 0));
     }
 
     @Test
     void stepUpBlockedWhenOriginLiftClearanceMissing() {
-        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
-        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.Cell.SOLID);
-        cells.put(new Vec3i(1, 1, 0), PlannedOccupancy.Cell.SOLID);
-        // Both nodes can stand (head at fy+2), but lift needs fy+3 clear at origin.
-        cells.put(new Vec3i(0, 3, 0), PlannedOccupancy.Cell.SOLID);
-        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        cells.put(new Vec3i(1, 1, 0), PlannedOccupancy.CollisionProfile.FULL);
+        cells.put(new Vec3i(0, 3, 0), PlannedOccupancy.CollisionProfile.FULL);
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
         assertTrue(WalkabilityGraph.canStand(occ, 0, 0, 0));
         assertTrue(WalkabilityGraph.canStand(occ, 1, 1, 0));
         assertFalse(WalkabilityGraph.canTraverse(
                 occ, new Vec3i(0, 0, 0), new Vec3i(1, 1, 0)));
         assertFalse(WalkabilityGraph.canReach(
-                occ, new Vec3i(0, 0, 0), new Vec3i(1, 1, 0), 16),
-                "blocked lift clearance must fail the step-up edge");
+                occ, new Vec3i(0, 0, 0), new Vec3i(1, 1, 0), 16));
     }
 
     @Test
     void bridgeDeckViaStairsToInteriorFloor() {
-        // Simulated bridge deck (y=4) → stair step (y=4) → interior plank (y=4).
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 0, 4, 0, "minecraft:spruce_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 4, 0, "minecraft:oak_stairs[facing=east,half=bottom]"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 2, 4, 0, "minecraft:oak_planks"));
         PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
-        assertFalse(PlannedOccupancy.isAirId("minecraft:oak_stairs"));
         assertTrue(WalkabilityGraph.canReach(
-                occ, new Vec3i(0, 4, 0), new Vec3i(2, 4, 0), 16),
-                "bridge–stair–interior landing must be walkable");
+                occ, new Vec3i(0, 4, 0), new Vec3i(2, 4, 0), 16));
+    }
+
+    @Test
+    void searchLimitDistinctFromUnreachable() {
+        Map<Vec3i, PlannedOccupancy.CollisionProfile> cells = new HashMap<>();
+        for (int x = 0; x <= 20; x++) {
+            cells.put(new Vec3i(x, 0, 0), PlannedOccupancy.CollisionProfile.FULL);
+        }
+        PlannedOccupancy occ = PlannedOccupancy.ofProfiles(cells);
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE,
+                WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(20, 0, 0), 64, null));
+        assertEquals(WalkabilityGraph.ReachResult.SEARCH_LIMIT,
+                WalkabilityGraph.search(occ, new Vec3i(0, 0, 0), new Vec3i(20, 0, 0), 5, null),
+                "tiny budget with pending queue must be SEARCH_LIMIT not UNREACHABLE");
+        PlannedOccupancy islands = fullAt(new Vec3i(0, 0, 0), new Vec3i(20, 0, 0));
+        assertEquals(WalkabilityGraph.ReachResult.UNREACHABLE,
+                WalkabilityGraph.search(islands, new Vec3i(0, 0, 0), new Vec3i(20, 0, 0), 512, null));
     }
 }

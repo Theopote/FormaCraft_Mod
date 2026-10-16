@@ -940,17 +940,29 @@ public final class ComponentPlanCompiler {
             Vec3i plateOff = slotAnchorOrZero(slotMap, plate.slotId(), zero);
             Vec3i hostOff = slotAnchorOrZero(slotMap, host.get().slotId(), zero);
             Vec3i targetOff = slotAnchorOrZero(slotMap, target.get().slotId(), zero);
-            if (!com.formacraft.common.generation.component.util.BridgeWalkability.bridgeConnectsInteriors(
-                    occ, plate, plateOff, host.get(), hostOff, target.get(), targetOff)) {
+            var reach = com.formacraft.common.generation.component.util.BridgeWalkability.evaluateBridge(
+                    occ, plate, plateOff, host.get(), hostOff, target.get(), targetOff);
+            if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED) {
+                continue;
+            }
+            if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.SEARCH_LIMIT) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap(
-                        "E_BRIDGE_PATH_BLOCKED",
-                        "Bridge cannot walk from deck into both interiors (host_id=" + hostId
-                                + ", target_host_id=" + targetId + ")",
+                        "E_WALKABILITY_SEARCH_LIMIT",
+                        "Bridge walkability search exhausted its budget before proving a path (host_id="
+                                + hostId + ", target_host_id=" + targetId + ")",
                         "components[]",
-                        List.of("Carve portals through wall_thickness at both contact faces.",
-                                "Ensure bridge Y has solid floors and 2-high clearance into both masses.")));
+                        List.of("Shorten the bridge span or simplify circulation.",
+                                "This is not a proof that no path exists — only that search stopped early.")));
                 return false;
             }
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    "E_BRIDGE_PATH_BLOCKED",
+                    "Bridge cannot walk from deck into both interiors (host_id=" + hostId
+                            + ", target_host_id=" + targetId + ")",
+                    "components[]",
+                    List.of("Carve portals through wall_thickness at both contact faces.",
+                            "Ensure bridge Y has solid floors and 2-high clearance into both masses.")));
+            return false;
         }
         return true;
     }
@@ -995,6 +1007,7 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_BRIDGE_ENDPOINT_LEVEL_MISMATCH")) return "E_BRIDGE_ENDPOINT_LEVEL_MISMATCH";
         if (message.startsWith("E_BRIDGE_LEVEL_CONFLICT")) return "E_BRIDGE_LEVEL_CONFLICT";
         if (message.startsWith("E_BRIDGE_PATH_BLOCKED")) return "E_BRIDGE_PATH_BLOCKED";
+        if (message.startsWith("E_WALKABILITY_SEARCH_LIMIT")) return "E_WALKABILITY_SEARCH_LIMIT";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
