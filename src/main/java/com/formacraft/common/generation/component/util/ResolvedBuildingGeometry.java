@@ -4,6 +4,8 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,8 +16,12 @@ public record ResolvedBuildingGeometry(
         Component host,
         ResolvedFootprint footprint,
         ResolvedFloorLayout floors,
-        ProportionalFacadeCalculator.LayerConfig[] layers
+        List<ProportionalFacadeCalculator.LayerConfig> layers
 ) {
+    public ResolvedBuildingGeometry {
+        layers = layers == null ? List.of() : List.copyOf(layers);
+    }
+
     public static ResolvedBuildingGeometry resolve(Component component) {
         if (component == null || component.dimensions() == null) {
             return null;
@@ -45,8 +51,10 @@ public record ResolvedBuildingGeometry(
         int h = Math.max(1, height);
         ResolvedFootprint footprint = ResolvedFootprint.resolve(semantic, params, w, d);
         ResolvedFloorLayout floors = ResolvedFloorLayout.from(host, h);
-        ProportionalFacadeCalculator.LayerConfig[] layers =
+        ProportionalFacadeCalculator.LayerConfig[] layerArr =
                 ResolvedFacadeLayers.resolve(semantic, w, d, h);
+        List<ProportionalFacadeCalculator.LayerConfig> layers =
+                layerArr == null ? List.of() : List.copyOf(Arrays.asList(layerArr));
         return new ResolvedBuildingGeometry(host, footprint, floors, layers);
     }
 }

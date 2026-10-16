@@ -76,10 +76,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 windowAspect = WindowAspect.PUNCH_WINDOW;
             }
         }
-        var buildingGeom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(
-                semantic, width, depth, height);
-        var floorLayout = buildingGeom != null ? buildingGeom.floors()
-                : com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(c, height);
+        var floorLayout = resolveFacadeFloorLayout(semantic, c, width, depth, height);
         int floorHeight = floorLayout.bandHeight();
         int floorCount = floorLayout.floorCount();
         int windowSpacing = resolveWindowSpacing(windowRatio);
@@ -518,6 +515,27 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             return (hash % 100) < density;
         }
         return (axis % step) == (step / 2);
+    }
+
+    private static com.formacraft.common.generation.component.util.ResolvedFloorLayout resolveFacadeFloorLayout(
+            SemanticComponent semantic,
+            Component c,
+            int width,
+            int depth,
+            int height
+    ) {
+        String hostId = getParamString(c.params(), "host_id", "hostId");
+        if (hostId == null) {
+            hostId = getParamString(c.params(), "component_id");
+        }
+        var cached = com.formacraft.common.generation.component.util.BuildingGeometryContext.get(hostId);
+        if (cached != null && cached.geometry() != null) {
+            return cached.geometry().floors();
+        }
+        var buildingGeom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(
+                semantic, width, depth, height);
+        return buildingGeom != null ? buildingGeom.floors()
+                : com.formacraft.common.generation.component.util.ResolvedFloorLayout.from(c, height);
     }
 
     private int resolveWindowSpacing(Double windowRatio) {

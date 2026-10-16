@@ -34,4 +34,10 @@ public final class ResolvedFacadeLayers {
         return y >= 0 && y + 1 < layers.length && contains(layers[y], x, z)
                 && !contains(layers[y + 1], x, z);
     }
+
+    public static boolean exposedAbove(java.util.List<ProportionalFacadeCalculator.LayerConfig> layers, int y, int x, int z) {
+        return layers != null && y >= 0 && y + 1 < layers.size()
+                && contains(layers.get(y), x, z)
+                && !contains(layers.get(y + 1), x, z);
+    }
 }

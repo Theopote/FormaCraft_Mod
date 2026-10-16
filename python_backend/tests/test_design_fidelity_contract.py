@@ -180,6 +180,30 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertNotIn("plan_type", gothic_mass.get("params") or {})
         self.assertIn("gothic", gothic_mass.get("features") or [])
 
+    def test_round11_hosted_plate_fixtures(self):
+        courtyard = self._load("courtyard_hosted_interior_plate.json")
+        courtyard_plate = next(
+            c for c in courtyard["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("body", courtyard_plate["params"]["host_id"])
+        self.assertEqual("courtyard", courtyard["components"][0]["params"]["plan_type"])
+
+        l_shape = self._load("l_shape_hosted_interior_plate.json")
+        self.assertEqual("l_shape", l_shape["components"][0]["params"]["plan_type"])
+        cross = self._load("cross_hosted_interior_plate.json")
+        self.assertEqual("cross", cross["components"][0]["params"]["plan_type"])
+        stepped = self._load("stepped_hosted_interior_plate.json")
+        self.assertEqual(0.2, stepped["components"][0]["params"]["setback_ratio"])
+        self.assertIn("stepped_facade", stepped["components"][0]["features"])
+
+        terrace = self._load("terrace_hosted_plate_overhang.json")
+        terrace_plate = next(
+            c for c in terrace["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("terrace", terrace_plate["params"]["plate_role"])
+        self.assertTrue(terrace_plate["params"]["exposed_floor_edges"])
+
+
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())
         plan = json.loads(INVALID_AUTHORITY_FIXTURE.read_text(encoding="utf-8"))

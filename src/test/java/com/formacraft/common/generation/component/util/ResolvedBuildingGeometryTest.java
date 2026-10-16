@@ -35,7 +35,7 @@ class ResolvedBuildingGeometryTest {
         assertEquals(ResolvedFootprint.PlanPattern.COURTYARD, geom.footprint().pattern());
         assertEquals(List.of(0, 4, 8, 12), geom.floors().floorYs());
         assertEquals(4, geom.floors().bandHeight());
-        assertEquals(16, geom.layers().length);
+        assertEquals(16, geom.layers().size());
         assertEquals(geom.footprint().width(), 12);
         assertEquals(geom.footprint().depth(), 10);
     }

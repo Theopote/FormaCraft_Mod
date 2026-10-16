@@ -253,11 +253,18 @@ public final class ComponentPlanCompiler {
                 com.formacraft.common.generation.routing.PlanMetaAccess.planGenerationAuthority(plan));
         UnifiedGeneratorRouter.setPlanMeta(plan.planMeta());
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
+        com.formacraft.common.generation.component.util.BuildingGeometryContext.begin();
         PatchOccupancyIndex patchOccupancy;
         try {
+            for (Component mass : components) {
+                if (mass != null && isMassType(normalizeType(mass.componentType()))) {
+                    com.formacraft.common.generation.component.util.BuildingGeometryContext.putMass(mass);
+                }
+            }
             patchOccupancy = compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
                     slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
         } finally {
+            com.formacraft.common.generation.component.util.BuildingGeometryContext.end();
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             UnifiedGeneratorRouter.clearPlanGenerationAuthority();
             UnifiedGeneratorRouter.clearPlanMeta();

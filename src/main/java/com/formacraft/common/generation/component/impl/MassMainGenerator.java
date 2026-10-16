@@ -101,8 +101,7 @@ public class MassMainGenerator implements ComponentGenerator {
             String resolvedFloor = DynamicPaletteResolver.mapMaterialToBlock(floor);
             if (resolvedFloor != null) floor = resolvedFloor;
             else if (!floor.contains(":")) floor = "minecraft:" + floor;
-            for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++)
-                out.add(new BlockPatch(BlockPatch.PLACE, actualRp.x() + x, actualRp.y(), actualRp.z() + z, floor));
+            emitPlate(out, semantic, c, params, actualRp, width, depth, floor);
             return out;
         }
 
@@ -296,8 +295,7 @@ public class MassMainGenerator implements ComponentGenerator {
         String facadeFoundationId = styleActive ? getBlockForPart(SemanticPart.WALL_BASE, semantic, palette) : null;
 
         Map<String, Object> massParams = semantic.source() != null ? semantic.source().params() : null;
-        var buildingGeom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(
-                semantic, width, depth, height);
+        var buildingGeom = resolveMassGeometry(semantic, massParams, width, depth, height);
         var footprint = buildingGeom.footprint();
         var layers = buildingGeom.layers();
         com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.RhythmPlan widthRhythm =
@@ -313,10 +311,11 @@ public class MassMainGenerator implements ComponentGenerator {
         int[] layerZOffsets = new int[height];
 
         for (int y = 0; y < height; y++) {
-            layerWidths[y] = layers[y].width;
-            layerDepths[y] = layers[y].depth;
-            layerXOffsets[y] = layers[y].xOffset;
-            layerZOffsets[y] = layers[y].zOffset;
+            var layer = layers.get(y);
+            layerWidths[y] = layer.width;
+            layerDepths[y] = layer.depth;
+            layerXOffsets[y] = layer.xOffset;
+            layerZOffsets[y] = layer.zOffset;
         }
 
         for (int y = 0; y < height; y++) {
@@ -926,6 +925,85 @@ public class MassMainGenerator implements ComponentGenerator {
 
         // 内部（填充）
         return SemanticPart.WALL;
+    }
+
+    private void emitPlate(
+            List<BlockPatch> out,
+            SemanticComponent semantic,
+            Component c,
+            Map<String, Object> params,
+            Vec3i actualRp,
+            int width,
+            int depth,
+            String floor
+    ) {
+        var role = com.formacraft.common.generation.component.util.HostedPlateOccupancy.resolveRole(params);
+        String hostId = getParamString(params, "host_id", "hostId");
+        boolean clipToHost = hostId != null
+                && !com.formacraft.common.generation.component.util.HostedPlateOccupancy.skipsHostFootprintClip(role);
+
+        com.formacraft.common.generation.component.util.BuildingGeometryContext.Entry hostEntry = null;
+        if (clipToHost) {
+            hostEntry = com.formacraft.common.generation.component.util.BuildingGeometryContext.get(hostId);
+        }
+
+        // Standalone plates (no host clip): optional own footprint mask when plan_type/shape authored.
+        com.formacraft.common.generation.component.util.ResolvedFootprint selfFootprint = null;
+        if (!clipToHost && hostId == null) {
+            var explicitPlan = com.formacraft.common.generation.component.util.PlanPatternCatalog.extractExplicit(params);
+            var explicitShape = com.formacraft.common.generation.component.util.FootprintShapeCatalog.extractExplicit(params);
+            if (explicitPlan.isPresent() || explicitShape.isPresent()) {
+                selfFootprint = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                        semantic, params, width, depth);
+            }
+        }
+
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                int wx = actualRp.x() + x;
+                int wy = actualRp.y();
+                int wz = actualRp.z() + z;
+                if (clipToHost) {
+                    // Interior hosted plates must not fill without host geometry (fail closed).
+                    if (hostEntry == null
+                            || !com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                            .allowsHostedInteriorCell(hostEntry.geometry(), hostEntry.originMinCorner(),
+                                    wx, wy, wz)) {
+                        continue;
+                    }
+                }
+                if (selfFootprint != null && !selfFootprint.contains(x, z)) {
+                    continue;
+                }
+                out.add(new BlockPatch(BlockPatch.PLACE, wx, wy, wz, floor));
+            }
+        }
+    }
+
+    private static com.formacraft.common.generation.component.util.ResolvedBuildingGeometry resolveMassGeometry(
+            SemanticComponent semantic,
+            Map<String, Object> massParams,
+            int width,
+            int depth,
+            int height
+    ) {
+        String componentId = massParams == null || massParams.get("component_id") == null
+                ? null
+                : String.valueOf(massParams.get("component_id")).trim();
+        var cached = com.formacraft.common.generation.component.util.BuildingGeometryContext.get(componentId);
+        if (cached != null && cached.geometry() != null) {
+            return cached.geometry();
+        }
+        var geom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(
+                semantic, width, depth, height);
+        if (componentId != null && !componentId.isEmpty() && geom != null
+                && semantic.source() != null) {
+            com.formacraft.common.generation.component.util.BuildingGeometryContext.put(
+                    componentId, geom,
+                    com.formacraft.common.generation.component.util.ComponentFootprintUtil
+                            .resolveMinCornerOrigin(semantic.source()));
+        }
+        return geom;
     }
 
     private static FootprintShape mapFootprintShape(

@@ -415,6 +415,107 @@ class DesignFidelityTest {
     }
 
     @Test
+    void courtyardHostedInteriorPlateSkipsCourtyardHole() throws Exception {
+        LlmPlan plan = loadFidelityPlan("courtyard_hosted_interior_plate.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var fp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                plan.components().getFirst(), 24, 24);
+        int cx = (fp.holeMinX() + fp.holeMaxX()) / 2;
+        int cz = (fp.holeMinZ() + fp.holeMaxZ()) / 2;
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(cx, 4, cz))),
+                "courtyard hole must not receive hosted interior plate");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(2, 4, 2))),
+                "interior shell ring must receive hosted plate");
+    }
+
+    @Test
+    void lShapeHostedInteriorPlateSkipsCutCorner() throws Exception {
+        LlmPlan plan = loadFidelityPlan("l_shape_hosted_interior_plate.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var fp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                plan.components().getFirst(), 18, 18);
+        assertFalse(fp.contains(15, 2), "expected NE cut void");
+        assertTrue(fp.contains(2, 2));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(15, 4, 2))),
+                "L-cut void must not receive hosted interior plate");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(2, 4, 2))),
+                "L arm must receive hosted plate");
+    }
+
+    @Test
+    void crossHostedInteriorPlateSkipsCornerVoid() throws Exception {
+        LlmPlan plan = loadFidelityPlan("cross_hosted_interior_plate.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var fp = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(
+                plan.components().getFirst(), 18, 18);
+        assertFalse(fp.contains(1, 1), "expected cross corner void");
+        assertTrue(fp.contains(9, 1));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(1, 4, 1))),
+                "cross corner void must not receive hosted interior plate");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(9, 4, 1))),
+                "cross arm must receive hosted plate");
+    }
+
+    @Test
+    void steppedHostedInteriorPlateRespectsUpperLayer() throws Exception {
+        LlmPlan plan = loadFidelityPlan("stepped_hosted_interior_plate.json");
+        Component mass = plan.components().getFirst();
+        var geom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(mass);
+        assertNotNull(geom);
+        var layer = geom.layers().get(8);
+        int outsideX = 0;
+        int outsideZ = 0;
+        boolean found = false;
+        for (int x = 0; x < 20 && !found; x++) {
+            for (int z = 0; z < 16; z++) {
+                if (geom.footprint().contains(x, z)
+                        && !com.formacraft.common.generation.component.util.ResolvedFacadeLayers
+                        .contains(layer, x, z)) {
+                    outsideX = x;
+                    outsideZ = z;
+                    found = true;
+                    break;
+                }
+            }
+        }
+        assertTrue(found, "expected a ground-footprint cell outside upper setback layer");
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(outsideX, 8, outsideZ))),
+                "setback shoulder must not receive upper hosted plate at ("
+                        + outsideX + ",8," + outsideZ + ")");
+        int insideX = layer.xOffset + layer.width / 2;
+        int insideZ = layer.zOffset + layer.depth / 2;
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(insideX, 8, insideZ))),
+                "upper layer core must receive hosted plate");
+    }
+
+    @Test
+    void terraceHostedPlateMayOverhangHostFootprint() throws Exception {
+        LlmPlan plan = loadFidelityPlan("terrace_hosted_plate_overhang.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(-2, 4, 6))),
+                "plate_role=terrace must place overhang outside host footprint");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(6, 4, 6))),
+                "terrace plate must still cover host interior");
+    }
+
+    @Test
     void gothicSteepRoofFixtureCompilesWithPitchAboveTechnicalCap() throws Exception {
         LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
 
@@ -451,6 +552,10 @@ class DesignFidelityTest {
         assertFalse(blocks.isEmpty());
         assertTrue(blocks.keySet().stream().anyMatch(p -> p.y() >= roofBaseY + 9),
                 "compiled blocks must reach above technical roof cap of 8");
+    }
+
+    private static boolean isSprucePlate(String blockId) {
+        return blockId != null && blockId.toLowerCase().contains("spruce");
     }
 
     private static LlmPlan loadFidelityPlan(String fileName) throws Exception {
