@@ -236,6 +236,36 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertEqual("bridge", bridge_plate["params"]["plate_role"])
         self.assertTrue(bridge_plate["params"]["exposed_floor_edges"])
 
+    def test_round13_role_contract_fixtures(self):
+        roof_deck = self._load("terrace_roof_deck_above_host.json")
+        deck = next(
+            c for c in roof_deck["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("terrace", deck["params"]["plate_role"])
+        self.assertEqual(9, deck["relative_position"]["y"])
+        self.assertEqual(8, roof_deck["components"][0]["dimensions"]["height"])
+
+        no_exposed = self._load("terrace_overhang_without_exposed_edges.json")
+        terrace = next(
+            c for c in no_exposed["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("terrace", terrace["params"]["plate_role"])
+        self.assertNotIn("exposed_floor_edges", terrace["params"])
+        self.assertEqual(-3, terrace["relative_position"]["x"])
+
+        dual = self._load("bridge_dual_mass_span.json")
+        masses = [c for c in dual["components"] if c.get("component_type") == "MASS_MAIN"]
+        self.assertEqual(2, len(masses))
+        link = next(
+            c for c in dual["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual("bridge", link["params"]["plate_role"])
+        self.assertEqual("hall", link["params"]["host_id"])
+
+        dup = self._load("duplicate_component_id.json")
+        ids = [c["params"]["component_id"] for c in dup["components"]]
+        self.assertEqual(["dup", "dup"], ids)
+
 
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())

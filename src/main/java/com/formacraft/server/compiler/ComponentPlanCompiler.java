@@ -888,6 +888,7 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_HOST_GEOMETRY_MISSING")) return "E_HOST_GEOMETRY_MISSING";
         if (message.startsWith("E_HOST_ID_UNRESOLVED")) return "E_HOST_ID_UNRESOLVED";
         if (message.startsWith("E_HOSTED_PLATE_LEVEL_CONFLICT")) return "E_HOSTED_PLATE_LEVEL_CONFLICT";
+        if (message.startsWith("E_DUPLICATE_COMPONENT_ID")) return "E_DUPLICATE_COMPONENT_ID";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
@@ -1048,6 +1049,8 @@ public final class ComponentPlanCompiler {
                 if (fh <= 0 || origin == null || slab.relativePosition() == null || body.dimensions() == null) break;
                 Vec3i pos = slab.relativePosition();
                 int plateY = pos.y();
+                var plateRole = com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                        .resolveRole(slab.params());
                 // Only compiler-inferred plates snap to storey planes; explicit Y (mezzanine) is preserved.
                 if (isAutoInferred(slab)) {
                     int count = ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount");
@@ -1055,15 +1058,17 @@ public final class ComponentPlanCompiler {
                             Math.round((pos.y() - origin.y()) / (float) fh)));
                     plateY = origin.y() + level * fh;
                 } else {
-                    int minY = origin.y();
-                    int maxY = origin.y() + body.dimensions().height();
-                    if (plateY < minY || plateY > maxY) {
+                    var envelope = com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                            .levelEnvelope(plateRole, origin.y(), body.dimensions().height());
+                    if (envelope != null && !envelope.contains(plateY)) {
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
                                 "E_HOSTED_PLATE_LEVEL_CONFLICT",
-                                "Explicit plate Y=" + plateY + " is outside host envelope [" + minY + "," + maxY + "]",
+                                "Explicit plate Y=" + plateY + " is outside " + plateRole + " envelope ["
+                                        + envelope.minInclusive() + "," + envelope.maxInclusive() + "]",
                                 "components[].relative_position.y",
-                                List.of("Keep explicit plate Y within the host mass height.",
-                                        "Only compiler-inferred plates are snapped to storey planes.")));
+                                List.of("Keep interior plates within the host mass height.",
+                                        "Terrace may sit on the roof (host height + 1).",
+                                        "Bridge Y is not limited to a single host envelope.")));
                         return new PreparedComponents(List.of(), Set.of());
                     }
                 }
@@ -1074,9 +1079,12 @@ public final class ComponentPlanCompiler {
                 if (floorBlock != null && (slabMaterial == null
                         || Set.of("wood", "minecraft:wood", "planks", "wooden").contains(slabMaterial.toLowerCase(java.util.Locale.ROOT))))
                     slabParams.put("material", floorBlock);
-                // Hosted interior plates must not repaint the enclosing exterior walls.
+                // Only interior plates clear exterior walls via host AABB inset.
                 int x = pos.x(), z = pos.z(), width = slab.dimensions().width(), depth = slab.dimensions().depth();
-                if (!Boolean.TRUE.equals(slabParams.get("exposed_floor_edges"))) {
+                boolean skipInset = Boolean.TRUE.equals(slabParams.get("exposed_floor_edges"))
+                        || !com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                        .appliesHostWallInset(plateRole);
+                if (!skipInset) {
                     int thickness = Math.max(1, ComponentParamParsers.intParam(body.params(), 1, "wall_thickness", "wallThickness"));
                     int endX = Math.min(x + width, origin.x() + body.dimensions().width() - thickness);
                     int endZ = Math.min(z + depth, origin.z() + body.dimensions().depth() - thickness);

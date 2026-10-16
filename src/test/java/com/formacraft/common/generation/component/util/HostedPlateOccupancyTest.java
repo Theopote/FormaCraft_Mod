@@ -10,6 +10,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HostedPlateOccupancyTest {
@@ -24,6 +25,29 @@ class HostedPlateOccupancyTest {
                 HostedPlateOccupancy.resolveRole(Map.of())));
         assertEquals(HostedPlateOccupancy.PlateRole.INTERIOR,
                 HostedPlateOccupancy.resolveRole(Map.of("plate_role", "interior")));
+    }
+
+    @Test
+    void roleSplitLevelEnvelopeAndWallInset() {
+        var interior = HostedPlateOccupancy.levelEnvelope(
+                HostedPlateOccupancy.PlateRole.INTERIOR, 0, 8);
+        assertTrue(interior.contains(8));
+        assertFalse(interior.contains(9));
+
+        var terrace = HostedPlateOccupancy.levelEnvelope(
+                HostedPlateOccupancy.PlateRole.TERRACE, 0, 8);
+        assertTrue(terrace.contains(9));
+        assertFalse(terrace.contains(10));
+
+        assertNull(HostedPlateOccupancy.levelEnvelope(
+                HostedPlateOccupancy.PlateRole.BRIDGE, 0, 8));
+
+        assertTrue(HostedPlateOccupancy.appliesHostWallInset(
+                HostedPlateOccupancy.PlateRole.INTERIOR));
+        assertFalse(HostedPlateOccupancy.appliesHostWallInset(
+                HostedPlateOccupancy.PlateRole.TERRACE));
+        assertFalse(HostedPlateOccupancy.appliesHostWallInset(
+                HostedPlateOccupancy.PlateRole.BRIDGE));
     }
 
     @Test

@@ -572,6 +572,54 @@ class DesignFidelityTest {
     }
 
     @Test
+    void terraceRoofDeckAboveHostCompiles() throws Exception {
+        LlmPlan plan = loadFidelityPlan("terrace_roof_deck_above_host.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(5, 9, 5))),
+                "terrace may sit one block above host roof (height+1)");
+    }
+
+    @Test
+    void terraceOverhangWithoutExposedEdgesKeepsAuthoredSize() throws Exception {
+        LlmPlan plan = loadFidelityPlan("terrace_overhang_without_exposed_edges.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        // wall_thickness=2 would inset interior plates; terrace must keep overhang at x=-2.
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(-2, 4, 6))),
+                "terrace without exposed_floor_edges must not be wall-inset");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(6, 4, 6))));
+    }
+
+    @Test
+    void dualMassBridgeSpansBothEndpoints() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_dual_mass_span.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        // Plate (8,4,2) w=4 → x=8..11. Hall 0..9; gap 10–11; wing face at x=12.
+        // Single host_id cannot overwrite the foreign wing shell; endpoints are hall + wing-adjacent gap.
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(9, 4, 3))), "hall-side bridge endpoint");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(10, 4, 3))), "gap span");
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(11, 4, 3))),
+                "wing-adjacent endpoint (flush to wing west face at x=12)");
+    }
+
+    @Test
+    void duplicateComponentIdFailsCompile() throws Exception {
+        LlmPlan plan = loadFidelityPlan("duplicate_component_id.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_DUPLICATE_COMPONENT_ID", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void gothicSteepRoofFixtureCompilesWithPitchAboveTechnicalCap() throws Exception {
         LlmPlan plan = loadFidelityPlan("gothic_steep_roof.json");
 

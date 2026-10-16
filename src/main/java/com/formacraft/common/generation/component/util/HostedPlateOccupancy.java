@@ -33,6 +33,36 @@ public final class HostedPlateOccupancy {
     }
 
     /**
+     * Whether prepare may AABB-inset the plate by host wall thickness.
+     * Terrace/bridge keep authored footprint; interior still clears exterior walls.
+     */
+    public static boolean appliesHostWallInset(PlateRole role) {
+        return role == PlateRole.INTERIOR;
+    }
+
+    /**
+     * Role-specific vertical envelope relative to host min-corner origin and height.
+     * Bridge does not use a single-host height envelope (endpoints validated geometrically).
+     *
+     * @return empty when this role does not enforce a host-height envelope
+     */
+    public static OptionalIntRange levelEnvelope(PlateRole role, int hostOriginY, int hostHeight) {
+        int minY = hostOriginY;
+        return switch (role == null ? PlateRole.INTERIOR : role) {
+            case INTERIOR -> new OptionalIntRange(minY, hostOriginY + hostHeight);
+            case TERRACE -> new OptionalIntRange(minY, hostOriginY + hostHeight + 1);
+            case BRIDGE -> null;
+        };
+    }
+
+    /** Inclusive Y range when role enforces an envelope; {@code null} means no host-height gate. */
+    public record OptionalIntRange(int minInclusive, int maxInclusive) {
+        public boolean contains(int y) {
+            return y >= minInclusive && y <= maxInclusive;
+        }
+    }
+
+    /**
      * Whether an interior hosted plate may place a block at world (wx,wy,wz).
      * Local coords are relative to the host min-corner origin.
      */

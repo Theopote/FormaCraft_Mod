@@ -22,6 +22,10 @@ final class HostedPlateDesignValidator {
         if (components == null) {
             return Optional.empty();
         }
+        Optional<CapabilityGap> duplicateId = checkDuplicateComponentIds(components);
+        if (duplicateId.isPresent()) {
+            return duplicateId;
+        }
         for (Component component : components) {
             if (!isHostedPlate(component)) {
                 continue;
@@ -37,6 +41,39 @@ final class HostedPlateDesignValidator {
             Optional<CapabilityGap> level = checkLevelEnvelope(component, components);
             if (level.isPresent()) {
                 return level;
+            }
+        }
+        return Optional.empty();
+    }
+
+    static Optional<CapabilityGap> checkDuplicateComponentIds(List<Component> components) {
+        if (components == null) {
+            return Optional.empty();
+        }
+        // Only hostable masses: satellites may legitimately reuse a display id in some fixtures.
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        for (Component c : components) {
+            if (c == null || c.params() == null) {
+                continue;
+            }
+            if ("plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
+                continue;
+            }
+            String type = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
+            if (!isMassType(type)) {
+                continue;
+            }
+            String id = paramString(c.params(), "component_id");
+            if (id == null) {
+                continue;
+            }
+            if (!seen.add(id)) {
+                return Optional.of(new CapabilityGap(
+                        "E_DUPLICATE_COMPONENT_ID",
+                        "Duplicate params.component_id: " + id,
+                        "components[].params.component_id",
+                        List.of("Give every hostable mass a unique component_id.",
+                                "host_id / attachments require unique mass ids.")));
             }
         }
         return Optional.empty();
@@ -121,16 +158,22 @@ final class HostedPlateDesignValidator {
         if (origin == null) {
             return Optional.empty();
         }
+        var role = HostedPlateOccupancy.resolveRole(plate.params());
+        var envelope = HostedPlateOccupancy.levelEnvelope(
+                role, origin.y(), host.get().dimensions().height());
+        if (envelope == null) {
+            return Optional.empty();
+        }
         int y = plate.relativePosition().y();
-        int minY = origin.y();
-        int maxY = origin.y() + host.get().dimensions().height();
-        if (y < minY || y > maxY) {
+        if (!envelope.contains(y)) {
             return Optional.of(new CapabilityGap(
                     "E_HOSTED_PLATE_LEVEL_CONFLICT",
-                    "Explicit plate Y=" + y + " is outside host envelope [" + minY + "," + maxY + "]",
+                    "Explicit plate Y=" + y + " is outside " + role + " envelope ["
+                            + envelope.minInclusive() + "," + envelope.maxInclusive() + "]",
                     "components[].relative_position.y",
-                    List.of("Keep explicit plate Y within the host mass height.",
-                            "Only compiler-inferred plates are snapped to storey planes.")));
+                    List.of("Keep interior plates within the host mass height.",
+                            "Terrace may sit on the roof (host height + 1).",
+                            "Bridge Y is not limited to a single host envelope.")));
         }
         return Optional.empty();
     }
