@@ -6,13 +6,19 @@ import com.formacraft.common.patch.BlockPatch;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Offline empty-world occupancy from BlockPatch replay.
- * {@link Cell#PLANNED_AIR} (explicit REMOVE/air) is distinct from {@link Cell#UNTOUCHED}
- * (never written): both allow body passage, but only {@link Cell#SOLID} supports standing.
+ * Plan-geometry occupancy from BlockPatch replay under an empty-world assumption.
+ * This is <em>not</em> a real Minecraft world snapshot: {@link Cell#UNTOUCHED} means
+ * never written by the plan (body-clear offline), not "verified clear in the live world".
+ *
+ * <p>{@link Cell#PLANNED_AIR} (explicit REMOVE/air) is distinct from {@link Cell#UNTOUCHED}.
+ * Both allow body passage offline; only {@link Cell#SOLID} supports standing.
  */
 public final class PlannedOccupancy {
+    private static final Set<String> AIR_PATHS = Set.of("air", "cave_air", "void_air");
+
     public enum Cell {
         SOLID,
         PLANNED_AIR,
@@ -75,11 +81,23 @@ public final class PlannedOccupancy {
         return isSolid(x, y, z);
     }
 
+    /**
+     * Strict air-id check for plan geometry: path segment after {@code :} (strip {@code [...]})
+     * must be exactly {@code air}, {@code cave_air}, or {@code void_air}.
+     * Never substring-match {@code "air"} (that mis-classifies {@code *_stairs}).
+     * Does not touch the block registry — safe before Minecraft bootstrap.
+     */
     public static boolean isAirId(String blockId) {
-        if (blockId == null) {
+        if (blockId == null || blockId.isBlank()) {
             return true;
         }
-        String lower = blockId.toLowerCase(Locale.ROOT);
-        return lower.equals("minecraft:air") || lower.endsWith(":air") || lower.contains("air");
+        String raw = blockId.trim().toLowerCase(Locale.ROOT);
+        int bracket = raw.indexOf('[');
+        if (bracket >= 0) {
+            raw = raw.substring(0, bracket);
+        }
+        int colon = raw.indexOf(':');
+        String path = colon >= 0 ? raw.substring(colon + 1) : raw;
+        return AIR_PATHS.contains(path);
     }
 }

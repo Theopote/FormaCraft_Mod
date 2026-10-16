@@ -134,4 +134,57 @@ class WalkabilityGraphTest {
         assertTrue(WalkabilityGraph.canReach(
                 occ, new Vec3i(0, 0, 0), new Vec3i(4, 0, 0), 32));
     }
+
+    @Test
+    void stairsAreNotAirAndSupportStanding() {
+        assertFalse(PlannedOccupancy.isAirId("minecraft:oak_stairs"));
+        assertFalse(PlannedOccupancy.isAirId("minecraft:stone_brick_stairs"));
+        assertFalse(PlannedOccupancy.isAirId("minecraft:quartz_stairs[facing=east,half=bottom]"));
+        assertTrue(PlannedOccupancy.isAirId("minecraft:air"));
+        assertTrue(PlannedOccupancy.isAirId("minecraft:cave_air"));
+
+        List<BlockPatch> patches = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_stairs[facing=east,half=bottom]"),
+                new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:oak_stairs"),
+                new BlockPatch(BlockPatch.PLACE, 2, 0, 0, "minecraft:oak_planks")
+        );
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertEquals(PlannedOccupancy.Cell.SOLID, occ.get(0, 0, 0));
+        assertEquals(PlannedOccupancy.Cell.SOLID, occ.get(1, 0, 0));
+        assertTrue(WalkabilityGraph.canStand(occ, 0, 0, 0));
+        assertTrue(WalkabilityGraph.canReach(
+                occ, new Vec3i(0, 0, 0), new Vec3i(2, 0, 0), 16),
+                "stair treads must support a walkable corridor");
+    }
+
+    @Test
+    void stepUpBlockedWhenOriginLiftClearanceMissing() {
+        Map<Vec3i, PlannedOccupancy.Cell> cells = new HashMap<>();
+        cells.put(new Vec3i(0, 0, 0), PlannedOccupancy.Cell.SOLID);
+        cells.put(new Vec3i(1, 1, 0), PlannedOccupancy.Cell.SOLID);
+        // Both nodes can stand (head at fy+2), but lift needs fy+3 clear at origin.
+        cells.put(new Vec3i(0, 3, 0), PlannedOccupancy.Cell.SOLID);
+        PlannedOccupancy occ = PlannedOccupancy.of(cells);
+        assertTrue(WalkabilityGraph.canStand(occ, 0, 0, 0));
+        assertTrue(WalkabilityGraph.canStand(occ, 1, 1, 0));
+        assertFalse(WalkabilityGraph.canTraverse(
+                occ, new Vec3i(0, 0, 0), new Vec3i(1, 1, 0)));
+        assertFalse(WalkabilityGraph.canReach(
+                occ, new Vec3i(0, 0, 0), new Vec3i(1, 1, 0), 16),
+                "blocked lift clearance must fail the step-up edge");
+    }
+
+    @Test
+    void bridgeDeckViaStairsToInteriorFloor() {
+        // Simulated bridge deck (y=4) → stair step (y=4) → interior plank (y=4).
+        List<BlockPatch> patches = new ArrayList<>();
+        patches.add(new BlockPatch(BlockPatch.PLACE, 0, 4, 0, "minecraft:spruce_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 4, 0, "minecraft:oak_stairs[facing=east,half=bottom]"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 2, 4, 0, "minecraft:oak_planks"));
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertFalse(PlannedOccupancy.isAirId("minecraft:oak_stairs"));
+        assertTrue(WalkabilityGraph.canReach(
+                occ, new Vec3i(0, 4, 0), new Vec3i(2, 4, 0), 16),
+                "bridge–stair–interior landing must be walkable");
+    }
 }

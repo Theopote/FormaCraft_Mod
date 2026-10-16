@@ -7,8 +7,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Player standing-node graph over {@link PlannedOccupancy}: solid floor + feet/head clearance,
- * horizontal neighbors and single-block step up/down. No unsupported vertical air flight.
+ * Plan-geometry player standing-node graph over {@link PlannedOccupancy}.
+ * Standing nodes need solid floor + feet/head clearance; edges use {@link #canTraverse}
+ * (horizontal + step ±1 with lift/drop clearance). Not a live-world pathfinding proof.
  */
 public final class WalkabilityGraph {
     private WalkabilityGraph() {}
@@ -28,6 +29,34 @@ public final class WalkabilityGraph {
 
     public static boolean canStand(PlannedOccupancy occ, Vec3i floorCell) {
         return floorCell != null && canStand(occ, floorCell.x(), floorCell.y(), floorCell.z());
+    }
+
+    /**
+     * Edge collision between two adjacent standing floors (manhattan XZ = 1, |ΔY| ≤ 1).
+     * Both endpoints must {@link #canStand}; step up/down add lift/drop body clearance.
+     */
+    public static boolean canTraverse(PlannedOccupancy occ, Vec3i fromFloor, Vec3i toFloor) {
+        if (occ == null || fromFloor == null || toFloor == null) {
+            return false;
+        }
+        int dx = Math.abs(toFloor.x() - fromFloor.x());
+        int dz = Math.abs(toFloor.z() - fromFloor.z());
+        int dy = toFloor.y() - fromFloor.y();
+        if (dx + dz != 1 || Math.abs(dy) > 1) {
+            return false;
+        }
+        if (!canStand(occ, fromFloor) || !canStand(occ, toFloor)) {
+            return false;
+        }
+        if (dy == 0) {
+            return true;
+        }
+        if (dy == 1) {
+            // Rise: need one more clear cell above current head so lift is not blocked.
+            return occ.isBodyClear(fromFloor.x(), fromFloor.y() + 3, fromFloor.z());
+        }
+        // dy == -1: drop through neighbor column at current head height.
+        return occ.isBodyClear(toFloor.x(), fromFloor.y() + 2, toFloor.z());
     }
 
     /**
@@ -66,14 +95,13 @@ public final class WalkabilityGraph {
             if (dist >= maxSteps) {
                 continue;
             }
+            Vec3i from = new Vec3i(x, fy, z);
             for (int[] h : horiz) {
                 int nx = x + h[0];
                 int nz = z + h[1];
-                // Same level
-                tryEnqueue(occ, bounds, seen, q, nx, fy, nz, dist + 1);
-                // Step up / down one block
-                tryEnqueue(occ, bounds, seen, q, nx, fy + 1, nz, dist + 1);
-                tryEnqueue(occ, bounds, seen, q, nx, fy - 1, nz, dist + 1);
+                tryEnqueue(occ, bounds, seen, q, from, nx, fy, nz, dist + 1);
+                tryEnqueue(occ, bounds, seen, q, from, nx, fy + 1, nz, dist + 1);
+                tryEnqueue(occ, bounds, seen, q, from, nx, fy - 1, nz, dist + 1);
             }
         }
         return false;
@@ -88,19 +116,20 @@ public final class WalkabilityGraph {
             ComponentFootprintUtil.Bounds bounds,
             Set<Vec3i> seen,
             ArrayDeque<int[]> q,
+            Vec3i from,
             int x,
             int floorY,
             int z,
             int dist
     ) {
-        Vec3i key = new Vec3i(x, floorY, z);
-        if (bounds != null && !containsFloor(bounds, key)) {
+        Vec3i to = new Vec3i(x, floorY, z);
+        if (bounds != null && !containsFloor(bounds, to)) {
             return;
         }
-        if (!canStand(occ, x, floorY, z)) {
+        if (!canTraverse(occ, from, to)) {
             return;
         }
-        if (!seen.add(key)) {
+        if (!seen.add(to)) {
             return;
         }
         q.addLast(new int[]{x, floorY, z, dist});
