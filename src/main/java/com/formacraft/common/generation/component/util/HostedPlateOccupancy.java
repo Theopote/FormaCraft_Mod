@@ -109,7 +109,34 @@ public final class HostedPlateOccupancy {
     }
 
     /**
-     * Carve a short portal (up to 3 wide, 2 tall, 1 deep) where the plate meets {@code mass}.
+     * Plate deck Y must sit within the mass vertical envelope
+     * {@code [minY, minY + height]} (inclusive), not only share an XZ projection.
+     */
+    public static boolean endpointLevelMatches(int plateY, Component mass) {
+        if (mass == null || mass.dimensions() == null) {
+            return false;
+        }
+        Vec3i origin = ComponentFootprintUtil.resolveMinCornerOrigin(mass);
+        if (origin == null) {
+            return false;
+        }
+        int minY = origin.y();
+        int maxY = origin.y() + Math.max(1, mass.dimensions().height());
+        return plateY >= minY && plateY <= maxY;
+    }
+
+    public static boolean touchesEndpoint3d(
+            ComponentFootprintUtil.Bounds plate,
+            ComponentFootprintUtil.Bounds mass,
+            int plateY,
+            Component massComponent
+    ) {
+        return touchesEndpoint(plate, mass) && endpointLevelMatches(plateY, massComponent);
+    }
+
+    /**
+     * Carve a portal where the plate meets {@code mass}: up to 3 wide, clear height plateY+1/+2,
+     * depth = mass {@code wall_thickness} inward along the contact normal.
      */
     public static List<BlockPatch> bridgePortalRemovals(Component plate, Component mass) {
         List<BlockPatch> out = new ArrayList<>();
@@ -119,11 +146,11 @@ public final class HostedPlateOccupancy {
             return out;
         }
         int plateY = plate.relativePosition().y();
-        // Clear height above the deck only — never REMOVE the plate Y deck cells.
         int clearY0 = plateY + 1;
         int clearY1 = plateY + 2;
+        int depth = Math.max(1, ComponentParamParsers.intParam(
+                mass.params(), 1, "wall_thickness", "wallThickness"));
 
-        // Prefer the shared face: plate primarily west of mass → carve mass west face inward (+X).
         boolean plateWestOfMass = pb.maxX() <= mb.minX() + 1 || (pb.maxX() <= mb.minX() + 2 && pb.minX() < mb.minX());
         boolean plateEastOfMass = pb.minX() >= mb.maxX() - 1 || (pb.minX() >= mb.maxX() - 2 && pb.maxX() > mb.maxX());
         boolean plateNorthOfMass = pb.maxZ() <= mb.minZ() + 1 || (pb.maxZ() <= mb.minZ() + 2 && pb.minZ() < mb.minZ());
@@ -131,66 +158,33 @@ public final class HostedPlateOccupancy {
 
         if (plateWestOfMass || (!plateEastOfMass && !plateNorthOfMass && !plateSouthOfMass
                 && pb.maxX() > mb.minX() && pb.minX() < mb.minX() + 2)) {
-            int faceX = mb.minX();
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            for (int z = zStart; z <= zEnd; z++) {
-                for (int clearY : new int[]{clearY0, clearY1}) {
-                    out.add(new BlockPatch(BlockPatch.REMOVE, faceX, clearY, z, "minecraft:air"));
-                    if (faceX + 1 < mb.maxX()) {
-                        out.add(new BlockPatch(BlockPatch.REMOVE, faceX + 1, clearY, z, "minecraft:air"));
-                    }
-                }
-            }
+            carveDepth(out, mb.minX(), 1, 0, depth, mb, zStart, zEnd, true, clearY0, clearY1);
             return out;
         }
         if (plateEastOfMass) {
-            int faceX = mb.maxX() - 1;
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            for (int z = zStart; z <= zEnd; z++) {
-                for (int clearY : new int[]{clearY0, clearY1}) {
-                    out.add(new BlockPatch(BlockPatch.REMOVE, faceX, clearY, z, "minecraft:air"));
-                    if (faceX - 1 >= mb.minX()) {
-                        out.add(new BlockPatch(BlockPatch.REMOVE, faceX - 1, clearY, z, "minecraft:air"));
-                    }
-                }
-            }
+            carveDepth(out, mb.maxX() - 1, -1, 0, depth, mb, zStart, zEnd, true, clearY0, clearY1);
             return out;
         }
         if (plateNorthOfMass) {
-            int faceZ = mb.minZ();
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            for (int x = xStart; x <= xEnd; x++) {
-                for (int clearY : new int[]{clearY0, clearY1}) {
-                    out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY, faceZ, "minecraft:air"));
-                    if (faceZ + 1 < mb.maxZ()) {
-                        out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY, faceZ + 1, "minecraft:air"));
-                    }
-                }
-            }
+            carveDepth(out, mb.minZ(), 0, 1, depth, mb, xStart, xEnd, false, clearY0, clearY1);
             return out;
         }
         if (plateSouthOfMass) {
-            int faceZ = mb.maxZ() - 1;
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            for (int x = xStart; x <= xEnd; x++) {
-                for (int clearY : new int[]{clearY0, clearY1}) {
-                    out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY, faceZ, "minecraft:air"));
-                    if (faceZ - 1 >= mb.minZ()) {
-                        out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY, faceZ - 1, "minecraft:air"));
-                    }
-                }
-            }
+            carveDepth(out, mb.maxZ() - 1, 0, -1, depth, mb, xStart, xEnd, false, clearY0, clearY1);
             return out;
         }
-        // Overlap / flush: carve along the overlapped band on the nearer mass face.
         int overlapMinZ = Math.max(pb.minZ(), mb.minZ());
         int overlapMaxZ = Math.min(pb.maxZ(), mb.maxZ());
         int overlapMinX = Math.max(pb.minX(), mb.minX());
@@ -201,14 +195,35 @@ public final class HostedPlateOccupancy {
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
             int faceX = pb.minX() < mb.minX() + (mb.width() / 2) ? mb.minX() : mb.maxX() - 1;
             int inward = faceX == mb.minX() ? 1 : -1;
-            for (int z = zStart; z <= zEnd; z++) {
-                for (int clearY : new int[]{clearY0, clearY1}) {
-                    out.add(new BlockPatch(BlockPatch.REMOVE, faceX, clearY, z, "minecraft:air"));
-                    out.add(new BlockPatch(BlockPatch.REMOVE, faceX + inward, clearY, z, "minecraft:air"));
-                }
-            }
+            carveDepth(out, faceX, inward, 0, depth, mb, zStart, zEnd, true, clearY0, clearY1);
         }
         return out;
+    }
+
+    private static void carveDepth(
+            List<BlockPatch> out,
+            int faceCoord,
+            int dirX,
+            int dirZ,
+            int depth,
+            ComponentFootprintUtil.Bounds mb,
+            int spanStart,
+            int spanEnd,
+            boolean spanIsZ,
+            int clearY0,
+            int clearY1
+    ) {
+        for (int span = spanStart; span <= spanEnd; span++) {
+            for (int d = 0; d < depth; d++) {
+                int x = spanIsZ ? faceCoord + dirX * d : span;
+                int z = spanIsZ ? span : faceCoord + dirZ * d;
+                if (x < mb.minX() || x >= mb.maxX() || z < mb.minZ() || z >= mb.maxZ()) {
+                    continue;
+                }
+                out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY0, z, "minecraft:air"));
+                out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY1, z, "minecraft:air"));
+            }
+        }
     }
 
     public static boolean isBridgePlate(Map<String, Object> params) {

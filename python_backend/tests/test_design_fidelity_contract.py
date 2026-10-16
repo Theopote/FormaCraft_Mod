@@ -297,6 +297,53 @@ class DesignFidelityContractTest(unittest.TestCase):
         )
         self.assertEqual("pier", overhang_plate["params"]["target_host_id"])
 
+    def test_round15_bridge_3d_walkability_fixtures(self):
+        level_mismatch = self._load("bridge_endpoint_level_mismatch.json")
+        mismatch_plate = next(
+            c for c in level_mismatch["components"]
+            if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(20, mismatch_plate["relative_position"]["y"])
+        self.assertEqual(12, level_mismatch["components"][0]["dimensions"]["height"])
+        self.assertNotIn("connection_level", mismatch_plate["params"])
+
+        level_conflict = self._load("bridge_level_conflict.json")
+        conflict_plate = next(
+            c for c in level_conflict["components"]
+            if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(7, conflict_plate["relative_position"]["y"])
+        self.assertEqual(1, conflict_plate["params"]["connection_level"])
+        self.assertEqual(5, level_conflict["components"][0]["params"]["floor_height"])
+
+        thick = self._load("bridge_thick_wall_portal.json")
+        thick_plate = next(
+            c for c in thick["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(6, thick["components"][0]["params"]["wall_thickness"])
+        self.assertEqual(6, thick["components"][1]["params"]["wall_thickness"])
+        self.assertEqual("bridge", thick_plate["params"]["plate_role"])
+        self.assertEqual(1, thick_plate["params"]["connection_level"])
+        self.assertEqual(5, thick_plate["relative_position"]["y"])
+
+        slot_shift = self._load("bridge_slot_anchor_shift.json")
+        slot = slot_shift["layout"]["slots"][0]
+        self.assertEqual("hall", slot["slot_id"])
+        self.assertEqual({"x": 50, "y": 10, "z": 20}, slot["anchor"])
+        shift_plate = next(
+            c for c in slot_shift["components"]
+            if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(4, shift_plate["relative_position"]["y"])
+        self.assertEqual(1, shift_plate["params"]["connection_level"])
+
+        dual = self._load("bridge_dual_mass_span.json")
+        dual_plate = next(
+            c for c in dual["components"] if c.get("params", {}).get("extrude_mode") == "plate"
+        )
+        self.assertEqual(4, dual_plate["relative_position"]["y"])
+        self.assertEqual(1, dual_plate["params"]["connection_level"])
+        self.assertEqual(4, dual["components"][0]["params"]["floor_height"])
 
     def test_invalid_authority_fixture_loads_in_python_but_java_parse_rejects(self):
         self.assertTrue(INVALID_AUTHORITY_FIXTURE.is_file())

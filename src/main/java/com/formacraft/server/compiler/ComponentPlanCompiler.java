@@ -286,6 +286,9 @@ public final class ComponentPlanCompiler {
             TypologyPatchBridge.clearPlanWorldAnchor();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
+        if (!validateBridgeWalkability(components, result, slotMap)) {
+            return List.of();
+        }
 
         Set<BlockPos> roofClearance = new HashSet<>();
         for (var flight : circulation) roofClearance.addAll(flight.clearance());
@@ -735,10 +738,22 @@ public final class ComponentPlanCompiler {
                         if (bridge) {
                             var hostMass = HostedPlateDesignValidator.findHostMass(host, components);
                             var targetMass = HostedPlateDesignValidator.findHostMass(target, components);
-                            hostMass.ifPresent(m -> shiftedPatches.addAll(
+                            // Portal coords are component-relative; shift into the same space as plate patches.
+                            java.util.function.Consumer<java.util.List<BlockPatch>> addPortals = portals -> {
+                                for (BlockPatch p : portals) {
+                                    if (p == null) continue;
+                                    shiftedPatches.add(new BlockPatch(
+                                            p.action(),
+                                            flightOffset.getX() + p.dx(),
+                                            flightOffset.getY() + p.dy(),
+                                            flightOffset.getZ() + p.dz(),
+                                            p.targetBlock()));
+                                }
+                            };
+                            hostMass.ifPresent(m -> addPortals.accept(
                                     com.formacraft.common.generation.component.util.HostedPlateOccupancy
                                             .bridgePortalRemovals(c, m)));
-                            targetMass.ifPresent(m -> shiftedPatches.addAll(
+                            targetMass.ifPresent(m -> addPortals.accept(
                                     com.formacraft.common.generation.component.util.HostedPlateOccupancy
                                             .bridgePortalRemovals(c, m)));
                         }
@@ -894,6 +909,63 @@ public final class ComponentPlanCompiler {
         return "DECOR_DETAIL".equals(type) || type.startsWith("DECOR");
     }
 
+    /**
+     * After all patches commit, require bridge decks to BFS-reach both mass interiors
+     * through portal clearances ({@code E_BRIDGE_PATH_BLOCKED} on failure).
+     */
+    private static boolean validateBridgeWalkability(
+            List<Component> components,
+            List<BlockPatch> result,
+            Map<String, Slot> slotMap
+    ) {
+        if (components == null || result == null || result.isEmpty()) {
+            return true;
+        }
+        var blocks = com.formacraft.common.generation.component.util.BridgeWalkability.blocksFromPatches(result);
+        Vec3i zero = new Vec3i(0, 0, 0);
+        for (Component plate : components) {
+            if (plate == null || plate.params() == null) {
+                continue;
+            }
+            if (!com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(plate.params())) {
+                continue;
+            }
+            String hostId = getParamString(plate.params(), "host_id", "hostId");
+            String targetId = getParamString(plate.params(), "target_host_id", "targetHostId");
+            var host = HostedPlateDesignValidator.findHostMass(hostId, components);
+            var target = HostedPlateDesignValidator.findHostMass(targetId, components);
+            if (host.isEmpty() || target.isEmpty()) {
+                continue;
+            }
+            Vec3i plateOff = slotAnchorOrZero(slotMap, plate.slotId(), zero);
+            Vec3i hostOff = slotAnchorOrZero(slotMap, host.get().slotId(), zero);
+            Vec3i targetOff = slotAnchorOrZero(slotMap, target.get().slotId(), zero);
+            if (!com.formacraft.common.generation.component.util.BridgeWalkability.bridgeConnectsInteriors(
+                    blocks, plate, plateOff, host.get(), hostOff, target.get(), targetOff)) {
+                AssemblyCompileDiagnostics.set(new CapabilityGap(
+                        "E_BRIDGE_PATH_BLOCKED",
+                        "Bridge cannot walk from deck into both interiors (host_id=" + hostId
+                                + ", target_host_id=" + targetId + ")",
+                        "components[]",
+                        List.of("Carve portals through wall_thickness at both contact faces.",
+                                "Ensure bridge Y shares a connectable storey with both masses.")));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Vec3i slotAnchorOrZero(Map<String, Slot> slotMap, String slotId, Vec3i zero) {
+        if (slotMap == null || slotId == null) {
+            return zero;
+        }
+        Slot slot = slotMap.get(slotId);
+        if (slot == null || slot.anchor() == null) {
+            return zero;
+        }
+        return slot.anchor();
+    }
+
     /** Prefer dedicated geometry codes when generators prefix IllegalArgumentException messages. */
     static String geometryConstraintCode(String message) {
         if (message == null) return "E_COMPONENT_GENERATION_FAILED";
@@ -920,6 +992,9 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_BRIDGE_ENDPOINT_NO_CONTACT")) return "E_BRIDGE_ENDPOINT_NO_CONTACT";
         if (message.startsWith("E_CONNECTION_LEVEL_MISMATCH")) return "E_CONNECTION_LEVEL_MISMATCH";
         if (message.startsWith("E_BRIDGE_OPENING_BLOCKED")) return "E_BRIDGE_OPENING_BLOCKED";
+        if (message.startsWith("E_BRIDGE_ENDPOINT_LEVEL_MISMATCH")) return "E_BRIDGE_ENDPOINT_LEVEL_MISMATCH";
+        if (message.startsWith("E_BRIDGE_LEVEL_CONFLICT")) return "E_BRIDGE_LEVEL_CONFLICT";
+        if (message.startsWith("E_BRIDGE_PATH_BLOCKED")) return "E_BRIDGE_PATH_BLOCKED";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
@@ -1084,7 +1159,7 @@ public final class ComponentPlanCompiler {
                         .resolveRole(slab.params());
                 var connectionLevel = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                         .connectionLevel(slab.params());
-                // Storey snap is interior-only; terrace/bridge keep connection or authored Y.
+                // Storey snap is interior-only. Bridge connection_level never silently overwrites explicit Y.
                 if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.INTERIOR
                         && isAutoInferred(slab)) {
                     int count = ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount");
@@ -1093,7 +1168,20 @@ public final class ComponentPlanCompiler {
                     plateY = origin.y() + level * fh;
                 } else if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.BRIDGE
                         && connectionLevel.isPresent()) {
-                    plateY = origin.y() + connectionLevel.get() * fh;
+                    int expectedY = origin.y() + connectionLevel.get() * fh;
+                    if (isAutoInferred(slab)) {
+                        plateY = expectedY;
+                    } else if (pos.y() != expectedY) {
+                        AssemblyCompileDiagnostics.set(new CapabilityGap(
+                                "E_BRIDGE_LEVEL_CONFLICT",
+                                "Explicit bridge Y=" + pos.y()
+                                        + " conflicts with connection_level=" + connectionLevel.get()
+                                        + " expected Y=" + expectedY,
+                                "components[].relative_position.y",
+                                List.of("Align relative_position.y with hostOrigin.y + connection_level * floor_height.",
+                                        "Or omit connection_level to keep the authored bridge Y.")));
+                        return new PreparedComponents(List.of(), Set.of());
+                    }
                 } else if (!isAutoInferred(slab)) {
                     var envelope = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                             .levelEnvelope(plateRole, origin.y(), body.dimensions().height());

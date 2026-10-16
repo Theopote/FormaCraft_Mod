@@ -38,6 +38,10 @@ final class HostedPlateDesignValidator {
             if (host.isPresent()) {
                 return host;
             }
+            Optional<CapabilityGap> bridgeLevel = checkBridgeLevelConflict(component, components);
+            if (bridgeLevel.isPresent()) {
+                return bridgeLevel;
+            }
             Optional<CapabilityGap> level = checkLevelEnvelope(component, components);
             if (level.isPresent()) {
                 return level;
@@ -190,14 +194,64 @@ final class HostedPlateDesignValidator {
         var plateBounds = ComponentFootprintUtil.bounds(plate);
         var hostBounds = ComponentFootprintUtil.bounds(host.get());
         var targetBounds = ComponentFootprintUtil.bounds(target.get());
-        if (!HostedPlateOccupancy.touchesEndpoint(plateBounds, hostBounds)
-                || !HostedPlateOccupancy.touchesEndpoint(plateBounds, targetBounds)) {
+        boolean hostXz = HostedPlateOccupancy.touchesEndpoint(plateBounds, hostBounds);
+        boolean targetXz = HostedPlateOccupancy.touchesEndpoint(plateBounds, targetBounds);
+        if (!hostXz || !targetXz) {
             return Optional.of(new CapabilityGap(
                     "E_BRIDGE_ENDPOINT_NO_CONTACT",
                     "Bridge plate does not touch both host_id=" + hostId + " and target_host_id=" + targetId.get(),
                     "components[].relative_position",
                     List.of("Extend the bridge AABB to meet both mass footprints.",
                             "Endpoints may be flush (face-adjacent); they need not overwrite shells.")));
+        }
+        int plateY = plate.relativePosition().y();
+        boolean hostY = HostedPlateOccupancy.endpointLevelMatches(plateY, host.get());
+        boolean targetY = HostedPlateOccupancy.endpointLevelMatches(plateY, target.get());
+        if (!hostY || !targetY) {
+            return Optional.of(new CapabilityGap(
+                    "E_BRIDGE_ENDPOINT_LEVEL_MISMATCH",
+                    "Bridge Y=" + plateY + " is outside the vertical envelope of "
+                            + (!hostY ? "host_id=" + hostId : "target_host_id=" + targetId.get()),
+                    "components[].relative_position.y",
+                    List.of("Place the bridge deck within each mass height envelope.",
+                            "XZ contact alone is not enough — endpoints must share a connectable storey.")));
+        }
+        return Optional.empty();
+    }
+
+    /** Explicit bridge Y must agree with connection_level when both are authored. */
+    static Optional<CapabilityGap> checkBridgeLevelConflict(Component plate, List<Component> components) {
+        if (!isHostedPlate(plate) || isAutoInferred(plate)) {
+            return Optional.empty();
+        }
+        if (HostedPlateOccupancy.resolveRole(plate.params()) != HostedPlateOccupancy.PlateRole.BRIDGE) {
+            return Optional.empty();
+        }
+        Optional<Integer> level = HostedPlateOccupancy.connectionLevel(plate.params());
+        if (level.isEmpty() || plate.relativePosition() == null) {
+            return Optional.empty();
+        }
+        String hostId = paramString(plate.params(), "host_id", "hostId");
+        Optional<Component> host = findHostMass(hostId, components);
+        if (host.isEmpty()) {
+            return Optional.empty();
+        }
+        Vec3i origin = ComponentFootprintUtil.resolveMinCornerOrigin(host.get());
+        int fh = com.formacraft.common.generation.component.util.ComponentParamParsers
+                .intParam(host.get().params(), "floor_height", "floorHeight");
+        if (origin == null || fh <= 0) {
+            return Optional.empty();
+        }
+        int expected = origin.y() + level.get() * fh;
+        if (plate.relativePosition().y() != expected) {
+            return Optional.of(new CapabilityGap(
+                    "E_BRIDGE_LEVEL_CONFLICT",
+                    "Explicit bridge Y=" + plate.relativePosition().y()
+                            + " conflicts with connection_level=" + level.get()
+                            + " expected Y=" + expected,
+                    "components[].relative_position.y",
+                    List.of("Align relative_position.y with hostOrigin.y + connection_level * floor_height.",
+                            "Or omit connection_level to keep the authored bridge Y.")));
         }
         return Optional.empty();
     }

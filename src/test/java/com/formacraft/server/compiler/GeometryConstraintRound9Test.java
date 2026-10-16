@@ -66,6 +66,12 @@ class GeometryConstraintRound9Test {
                 ComponentPlanCompiler.geometryConstraintCode("E_WINDOW_COUNT_UNFIT: requested=6"));
         assertEquals("E_FACADE_SCOPE_INVALID",
                 ComponentPlanCompiler.geometryConstraintCode("E_FACADE_SCOPE_INVALID: faces"));
+        assertEquals("E_BRIDGE_ENDPOINT_LEVEL_MISMATCH",
+                ComponentPlanCompiler.geometryConstraintCode("E_BRIDGE_ENDPOINT_LEVEL_MISMATCH: y"));
+        assertEquals("E_BRIDGE_LEVEL_CONFLICT",
+                ComponentPlanCompiler.geometryConstraintCode("E_BRIDGE_LEVEL_CONFLICT: y vs level"));
+        assertEquals("E_BRIDGE_PATH_BLOCKED",
+                ComponentPlanCompiler.geometryConstraintCode("E_BRIDGE_PATH_BLOCKED: no path"));
         assertEquals("E_COMPONENT_GENERATION_FAILED",
                 ComponentPlanCompiler.geometryConstraintCode("other"));
     }

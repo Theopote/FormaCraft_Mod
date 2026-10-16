@@ -612,6 +612,79 @@ class DesignFidelityTest {
         // Portal carve clears clear-height above the deck (Y+1 / Y+2), not the deck itself.
         assertTrue(isAirOrMissing(blocks, 9, 5, 3), "hall portal clear height");
         assertTrue(isAirOrMissing(blocks, 12, 5, 3), "wing portal clear height");
+        Component plate = plan.components().stream()
+                .filter(c -> c != null && "plate".equalsIgnoreCase(String.valueOf(
+                        c.params() == null ? null : c.params().get("extrude_mode"))))
+                .findFirst().orElseThrow();
+        Component hall = plan.components().stream()
+                .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        Component wing = plan.components().stream()
+                .filter(c -> "wing".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        assertTrue(com.formacraft.common.generation.component.util.BridgeWalkability
+                        .bridgeConnectsInteriors(blocks, plate, hall, wing),
+                "dual-mass bridge must BFS-reach both interiors");
+    }
+
+    @Test
+    void bridgeEndpointLevelMismatchFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BRIDGE_ENDPOINT_LEVEL_MISMATCH", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void bridgeLevelConflictFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_level_conflict.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BRIDGE_LEVEL_CONFLICT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void thickWallBridgePortalsReachInteriors() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_thick_wall_portal.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        Component plate = plan.components().stream()
+                .filter(c -> c != null && "plate".equalsIgnoreCase(String.valueOf(
+                        c.params() == null ? null : c.params().get("extrude_mode"))))
+                .findFirst().orElseThrow();
+        Component hall = plan.components().stream()
+                .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        Component wing = plan.components().stream()
+                .filter(c -> "wing".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        // wall_thickness=6 → portal REMOVE through face + 5 inward cells at clear height.
+        assertTrue(isAirOrMissing(blocks, 19, 6, 7), "hall outer portal cell");
+        assertTrue(isAirOrMissing(blocks, 14, 6, 7), "hall inner portal depth");
+        assertTrue(isAirOrMissing(blocks, 24, 6, 7), "wing outer portal cell");
+        assertTrue(isAirOrMissing(blocks, 29, 6, 7), "wing inner portal depth");
+        assertTrue(com.formacraft.common.generation.component.util.BridgeWalkability
+                        .bridgeConnectsInteriors(blocks, plate, hall, wing),
+                "thick-wall portals must open a walkable path into both interiors");
+    }
+
+    @Test
+    void bridgeSlotAnchorShiftsPortalsWithDeck() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_slot_anchor_shift.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        var blocks = PatchTestSnapshot.blocks(patches);
+        // Relative deck (9,4,3) + slotAnchor (50,10,20) → (59,14,23)
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(59, 14, 23))), "deck shifted by slotAnchor");
+        // Relative portal (9,5,3) / (12,5,3) must share the same shift.
+        assertTrue(isAirOrMissing(blocks, 59, 15, 23), "hall portal shifted with deck");
+        assertTrue(isAirOrMissing(blocks, 62, 15, 23), "wing portal shifted with deck");
+        assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 4, 3))),
+                "unshifted relative deck coords must not appear in output");
+        // Hall east face wall exists only in shifted space; portal cleared there.
+        assertTrue(blocks.containsKey(new Vec3i(59, 11, 23)) || blocks.containsKey(new Vec3i(58, 11, 23)),
+                "mass geometry must be emitted in slot-shifted coordinates");
     }
 
     @Test
