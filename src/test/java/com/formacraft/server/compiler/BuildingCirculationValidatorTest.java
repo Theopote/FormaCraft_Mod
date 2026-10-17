@@ -16,6 +16,24 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BuildingCirculationValidatorTest {
 
+    @Test
+    void bridgeSamplesSameWorldFloorAcrossSlotsWithDifferentHeights() {
+        Component host = new Component("MASS_MAIN", "host", new Vec3i(0, 0, 0),
+                new Dimensions(4, 4, 8), List.of(), Map.of("component_id", "host", "anchor_mode", "min_corner"));
+        Component target = new Component("MASS_MAIN", "target", new Vec3i(0, 0, 0),
+                new Dimensions(4, 4, 8), List.of(), Map.of("component_id", "target", "anchor_mode", "min_corner"));
+        Component deck = new Component("MASS_SECONDARY", "host", new Vec3i(4, 4, 1),
+                new Dimensions(2, 2, 1), List.of(), Map.of("anchor_mode", "min_corner", "extrude_mode", "plate"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 10; x < 20; x++) for (int z = 10; z < 14; z++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 7, z, "minecraft:oak_planks"));
+        }
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability.occupancyFromPatches(patches, false);
+        var reach = com.formacraft.common.generation.component.util.BridgeWalkability.evaluateBridge(
+                occ, deck, new Vec3i(10, 3, 10), host, new Vec3i(10, 3, 10), target, new Vec3i(16, 7, 10));
+        assertEquals(com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED, reach);
+    }
+
     private static Component twoStoreyMass() {
         return new Component(
                 "MASS_MAIN",
