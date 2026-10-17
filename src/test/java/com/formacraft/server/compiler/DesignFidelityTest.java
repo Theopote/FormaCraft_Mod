@@ -800,6 +800,47 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationCourtyardBridgeUpperRingCompiles() throws Exception {
+        // MassMain courtyard keeps a wall_thickness corridor, so interiorFloorCell stays standable;
+        // void-at-fixed-sample coverage lives in BuildingCirculationValidatorTest unit fixtures.
+        LlmPlan plan = loadFidelityPlan("circulation_courtyard_bridge_upper_ring.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Component court = plan.components().stream()
+                .filter(c -> "court".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        Component plate = plan.components().stream()
+                .filter(c -> c != null && "plate".equalsIgnoreCase(String.valueOf(
+                        c.params() == null ? null : c.params().get("extrude_mode")))
+                        && "bridge".equalsIgnoreCase(String.valueOf(
+                        c.params().get("plate_role"))))
+                .findFirst().orElseThrow();
+        Component hall = plan.components().stream()
+                .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
+        var scan = com.formacraft.common.generation.component.util.StoreyWalkRegions
+                .scan(occ, court, 4, new Vec3i(0, 0, 0));
+        assertFalse(scan.representatives().isEmpty(), "court bridge storey must have region reps");
+        assertTrue(com.formacraft.common.generation.component.util.BridgeWalkability
+                        .bridgeConnectsInteriors(occ, plate, hall, court),
+                "deck must reach host/target storey region reps");
+    }
+
+    @Test
+    void circulationCourtyardBridgePortalBlockedFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_courtyard_bridge_portal_blocked.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        String code = AssemblyCompileDiagnostics.get().code();
+        assertTrue(
+                "E_BRIDGE_PATH_BLOCKED".equals(code) || "E_BUILDING_CIRCULATION_INCOMPLETE".equals(code),
+                () -> "expected bridge/circulation failure, got " + code);
+    }
+
+    @Test
     void circulationCourtyardGroundRingLocalCompiles() throws Exception {
         LlmPlan plan = loadFidelityPlan("circulation_courtyard_ground_ring_local.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

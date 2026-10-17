@@ -902,4 +902,141 @@ class BuildingCirculationValidatorTest {
         var gap = BuildingCirculationValidator.validate(plan, List.of(hall), patches, Map.of());
         assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
     }
+
+    /**
+     * Explicit bridge plate into a courtyard target whose fixed interiorFloorCell is void;
+     * region reps on the ring must still satisfy the bridge loop.
+     */
+    @Test
+    void bridgeTargetCourtyardVoidAtFixedSampleStillPasses() {
+        Component host = new Component(
+                "MASS_MAIN", "host", new Vec3i(0, 0, 0), new Dimensions(14, 8, 10), List.of(),
+                Map.of("component_id", "host", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component target = new Component(
+                "MASS_MAIN", "target", new Vec3i(24, 0, 0), new Dimensions(14, 14, 10), List.of(),
+                Map.of("component_id", "target", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component bridge = new Component(
+                "MASS_SECONDARY", "host", new Vec3i(12, 4, 3), new Dimensions(12, 2, 1), List.of(),
+                Map.of("component_id", "sky_link", "host_id", "host", "target_host_id", "target",
+                        "extrude_mode", "plate", "plate_role", "bridge", "anchor_mode", "min_corner",
+                        "connection_level", 1));
+        Vec3i targetSample = com.formacraft.common.generation.component.util.BridgeWalkability
+                .interiorFloorCell(target, 4);
+        assertEquals(new Vec3i(25, 4, 7), targetSample);
+        Vec3i deck = com.formacraft.common.generation.component.util.BridgeWalkability
+                .deckFloorCell(bridge);
+        assertEquals(new Vec3i(18, 4, 4), deck);
+
+        List<BlockPatch> patches = courtyardBridgeRingPatches(false);
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
+        assertFalse(
+                com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, targetSample),
+                "target fixed sample must sit in courtyard void");
+        assertTrue(
+                com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, deck),
+                "bridge deck must be standable");
+
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(host, target, bridge))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "CONNECTED_COMPLEX"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(
+                plan, List.of(host, target, bridge), patches, Map.of());
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
+    }
+
+    @Test
+    void bridgeDeckSealedFromTargetRegionsFails() {
+        Component host = new Component(
+                "MASS_MAIN", "host", new Vec3i(0, 0, 0), new Dimensions(14, 8, 10), List.of(),
+                Map.of("component_id", "host", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component target = new Component(
+                "MASS_MAIN", "target", new Vec3i(24, 0, 0), new Dimensions(14, 14, 10), List.of(),
+                Map.of("component_id", "target", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component bridge = new Component(
+                "MASS_SECONDARY", "host", new Vec3i(12, 4, 3), new Dimensions(12, 2, 1), List.of(),
+                Map.of("component_id", "sky_link", "host_id", "host", "target_host_id", "target",
+                        "extrude_mode", "plate", "plate_role", "bridge", "anchor_mode", "min_corner",
+                        "connection_level", 1));
+        List<BlockPatch> patches = courtyardBridgeRingPatches(true);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(host, target, bridge))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "CONNECTED_COMPLEX"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(
+                plan, List.of(host, target, bridge), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+        assertTrue(
+                gap.get().message().toLowerCase().contains("bridge")
+                        || gap.get().message().contains("target")
+                        || gap.get().message().contains("Standable region"),
+                () -> gap.get().message());
+    }
+
+    /**
+     * Same skeleton as {@link #connectedComplexCourtyardUpperJoinPasses} plus an explicit bridge plate;
+     * {@code sealPortal} drops the deck↔target seam so end-to-end join fails.
+     */
+    private static List<BlockPatch> courtyardBridgeRingPatches(boolean sealPortal) {
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+            if (x <= 2 || x >= 7) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+            } else {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+            }
+        }
+        int[][] hostSteps = {{3, 0}, {4, 1}, {5, 2}, {6, 3}, {7, 4}};
+        for (int[] s : hostSteps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
+        }
+        // Bridge deck (plate spans x=12..23); seal drops the last cells that touch the target
+        for (int x = 12; x <= 24; x++) {
+            if (sealPortal && x >= 22) {
+                continue;
+            }
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+        }
+        for (int x = 25; x <= 36; x++) {
+            for (int z = 3; z <= 7; z++) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
+            }
+            if (x <= 26 || x >= 31) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+            } else {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+            }
+        }
+        for (int x = 26; x <= 35; x++) {
+            for (int z = 5; z <= 9; z++) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, z, "minecraft:oak_planks"));
+            }
+        }
+        // Courtyard void covering fixed sample (25,4,7)
+        patches.removeIf(p -> p.dy() == 4 && p.dx() >= 25 && p.dx() <= 33
+                && p.dz() >= 5 && p.dz() <= 9);
+        if (sealPortal) {
+            // Also remove west-edge L2 cells that could still touch a short deck
+            patches.removeIf(p -> p.dy() == 4 && p.dx() == 25 && (p.dz() == 3 || p.dz() == 4));
+        }
+        int[][] targetSteps = {{27, 0}, {28, 1}, {29, 2}, {30, 3}, {31, 4}};
+        for (int[] s : targetSteps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
+        }
+        return patches;
+    }
 }

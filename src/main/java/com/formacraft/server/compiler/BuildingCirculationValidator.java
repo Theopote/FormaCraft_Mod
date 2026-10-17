@@ -311,43 +311,70 @@ final class BuildingCirculationValidator {
             }
             int plateY = plate.relativePosition().y();
             Vec3i targetOff = slotAnchorOrZero(slotMap, target.get().slotId(), zero);
-            Vec3i goal = shift(BridgeWalkability.interiorFloorCell(target.get(), plateY), targetOff);
-            if (goal == null || !WalkabilityGraph.canStand(occ, goal)) {
-                return incomplete(
-                        "Bridge target interior at plate Y not standable (target_host_id=" + targetId
-                                + ", y=" + plateY + ", precision=" + precision + ")",
-                        "Ensure the target mass has a floor at the bridge connection level.");
+            Vec3i plateOff = slotAnchorOrZero(slotMap, plate.slotId(), zero);
+            RegionGoalSet targetScan = regionGoalsAtY(
+                    occ, target.get(), plateY, slotMap, zero, precision);
+            if (targetScan.gap().isPresent()) {
+                return targetScan.gap();
             }
-            List<Vec3i> startCandidates = bridgeStartEntries(
-                    byId, host.get(), slotMap, zero, occ, complexRoot, scope);
+            List<Vec3i> targetGoals = BridgeWalkability.storeyGoalsPreferringInterior(
+                    occ, target.get(), plateY, targetOff);
+            if (targetGoals.isEmpty()) {
+                return incomplete(
+                        "Bridge target has no standable storey region at plate Y (target_host_id="
+                                + targetId + ", y=" + plateY + ", precision=" + precision + ")",
+                        "Ensure the target mass has a standable floor region at the bridge connection level.");
+            }
+            Vec3i deck = shift(BridgeWalkability.deckFloorCell(plate), plateOff);
+            if (deck == null || !WalkabilityGraph.canStand(occ, deck)) {
+                return incomplete(
+                        "Bridge deck is not a legal standing cell (host_id=" + hostId
+                                + ", target_host_id=" + targetId + ", plateY=" + plateY
+                                + ", precision=" + precision + ")",
+                        "Ensure the bridge plate has a solid walkable deck.");
+            }
+            Optional<CapabilityGap> deckJoin = reachAnyGoal(
+                    occ, List.of(deck), targetGoals, hostId, plateY, precision, scope,
+                    "Bridge deck does not join target storey region (host_id=" + hostId
+                            + ", target_host_id=" + targetId + ", plateY=" + plateY
+                            + ", precision=" + precision + ")",
+                    "Connect the bridge deck into the target mass interior at the connection level.");
+            if (deckJoin.isPresent()) {
+                return rewriteBridgeSearchLimit(deckJoin.get(), hostId, targetId, precision);
+            }
+            List<Vec3i> startCandidates = bridgeStartEntries(byId, host.get(), complexRoot, scope);
             if (startCandidates.isEmpty()) {
                 return incomplete(
                         "Bridge host has no circulation entry (host_id=" + hostId
                                 + ", precision=" + precision + ")",
                         "Ensure the bridge host (or its independent root) has a walkable ground.");
             }
-            Optional<CapabilityGap> bridgeGap = reachFromAnyGround(
-                    occ, startCandidates, goal, hostId, plateY, precision, scope,
+            Optional<CapabilityGap> bridgeGap = reachAnyGoal(
+                    occ, startCandidates, targetGoals, hostId, plateY, precision, scope,
                     "Cannot walk from host entry to target at bridge level (host_id=" + hostId
                             + ", target_host_id=" + targetId + ", plateY=" + plateY
                             + ", precision=" + precision + ")",
                     "Add vertical circulation in the host (or both masses) up to the bridge storey.");
             if (bridgeGap.isPresent()) {
-                // Rewrite search-limit message for bridge context
-                CapabilityGap g = bridgeGap.get();
-                if ("E_WALKABILITY_SEARCH_LIMIT".equals(g.code())) {
-                    return Optional.of(new CapabilityGap(
-                            "E_WALKABILITY_SEARCH_LIMIT",
-                            "Building circulation search exhausted its budget for bridge end-to-end (host_id="
-                                    + hostId + ", target_host_id=" + targetId + ", precision=" + precision + ")",
-                            "components[]",
-                            List.of("Add stairs to the bridge storey or simplify the plan.",
-                                    "This is not a proof that no path exists — only that search stopped early.")));
-                }
-                return bridgeGap;
+                return rewriteBridgeSearchLimit(bridgeGap.get(), hostId, targetId, precision);
             }
         }
         return Optional.empty();
+    }
+
+    private static Optional<CapabilityGap> rewriteBridgeSearchLimit(
+            CapabilityGap gap, String hostId, String targetId, String precision
+    ) {
+        if (!"E_WALKABILITY_SEARCH_LIMIT".equals(gap.code())) {
+            return Optional.of(gap);
+        }
+        return Optional.of(new CapabilityGap(
+                "E_WALKABILITY_SEARCH_LIMIT",
+                "Building circulation search exhausted its budget for bridge end-to-end (host_id="
+                        + hostId + ", target_host_id=" + targetId + ", precision=" + precision + ")",
+                "components[]",
+                List.of("Add stairs to the bridge storey or simplify the plan.",
+                        "This is not a proof that no path exists — only that search stopped early.")));
     }
 
     /** Starts for host-link proof and bridges — attached masses exclude ownGround. */
@@ -388,12 +415,10 @@ final class BuildingCirculationValidator {
         return points;
     }
 
+    /** Resolved circulation entries only — no fixed interiorFloorCell fallback. */
     private static List<Vec3i> bridgeStartEntries(
             Map<String, MassEntry> byId,
             Component host,
-            Map<String, Slot> slotMap,
-            Vec3i zero,
-            PlannedOccupancy occ,
             Vec3i complexRoot,
             CirculationScope scope
     ) {
@@ -403,13 +428,6 @@ final class BuildingCirculationValidator {
         }
         if (scope == CirculationScope.CONNECTED_COMPLEX && complexRoot != null) {
             return List.of(complexRoot);
-        }
-        int hostY = groundStoreyY(host);
-        Vec3i start = shift(
-                BridgeWalkability.interiorFloorCell(host, hostY),
-                slotAnchorOrZero(slotMap, host.slotId(), zero));
-        if (start != null && WalkabilityGraph.canStand(occ, start)) {
-            return List.of(start);
         }
         return List.of();
     }
@@ -566,6 +584,34 @@ final class BuildingCirculationValidator {
         return Optional.empty();
     }
 
+    /** Succeeds if any goal is reachable from any start; otherwise returns the last incomplete gap. */
+    private static Optional<CapabilityGap> reachAnyGoal(
+            PlannedOccupancy occ,
+            List<Vec3i> starts,
+            List<Vec3i> goals,
+            String massId,
+            int storeyY,
+            String precision,
+            CirculationScope scope,
+            String incompleteMessage,
+            String incompleteHint
+    ) {
+        Optional<CapabilityGap> last = Optional.empty();
+        for (Vec3i goal : goals) {
+            Optional<CapabilityGap> gap = reachFromAnyGround(
+                    occ, starts, goal, massId, storeyY, precision, scope,
+                    incompleteMessage, incompleteHint);
+            if (gap.isEmpty()) {
+                return Optional.empty();
+            }
+            last = gap;
+            if ("E_WALKABILITY_SEARCH_LIMIT".equals(gap.get().code())) {
+                return gap;
+            }
+        }
+        return last;
+    }
+
     private static Optional<CapabilityGap> hostLinkBlocked(String parentId, String childId, String precision, String detail) {
         return Optional.of(new CapabilityGap(
                 "E_CIRCULATION_HOST_LINK_BLOCKED",
@@ -628,15 +674,6 @@ final class BuildingCirculationValidator {
                 List.of(hint,
                         "Set design_requirements.circulation=OMITTED if intentional non-circulation.",
                         "precision=BLOCKSTATE/MIXED is plan-geometry, not VoxelShape collision.")));
-    }
-
-    private static int groundStoreyY(Component mass) {
-        int envelope = mass.dimensions() == null ? 1 : Math.max(1, mass.dimensions().height());
-        ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
-        if (!layout.floorYs().isEmpty()) {
-            return layout.floorYs().getFirst();
-        }
-        return mass.relativePosition() == null ? 0 : mass.relativePosition().y();
     }
 
     private static String componentId(Component mass) {

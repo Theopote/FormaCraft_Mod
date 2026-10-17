@@ -4,11 +4,15 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Bridge-specific walkability over final BlockPatches via {@link WalkabilityGraph}:
  * standing nodes (support + feet + head), not air 6-connectivity.
+ * Deck must reach at least one {@link StoreyWalkRegions} representative on each mass at plate Y
+ * (not a fixed AABB interior sample).
  */
 public final class BridgeWalkability {
     public enum BridgeReach {
@@ -145,8 +149,8 @@ public final class BridgeWalkability {
     }
 
     /**
-     * Deck and both mass interiors must be legal standing floors at {@code plateY},
-     * then BFS with step ±1 within the union search bounds.
+     * Deck must be standable at plate Y; BFS must reach at least one standable storey region
+     * on the host and on the target (prefer standable {@link #interiorFloorCell} when present).
      */
     public static BridgeReach evaluateBridge(
             PlannedOccupancy occ,
@@ -172,19 +176,18 @@ public final class BridgeWalkability {
         PlannedOccupancy.WalkabilityPrecision precision = occ == null
                 ? PlannedOccupancy.WalkabilityPrecision.FAST
                 : occ.precision();
-        if (occ == null || plate == null || plate.relativePosition() == null) {
+        if (occ == null || plate == null || plate.relativePosition() == null
+                || host == null || target == null) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
         int plateY = plate.relativePosition().y();
         Vec3i deck = shift(deckFloorCell(plate), plateOffset);
-        Vec3i hostIn = shift(interiorFloorCell(host, plateY), hostOffset);
-        Vec3i targetIn = shift(interiorFloorCell(target, plateY), targetOffset);
-        if (deck == null || hostIn == null || targetIn == null) {
+        if (deck == null || !WalkabilityGraph.canStand(occ, deck)) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
-        if (!WalkabilityGraph.canStand(occ, deck)
-                || !WalkabilityGraph.canStand(occ, hostIn)
-                || !WalkabilityGraph.canStand(occ, targetIn)) {
+        List<Vec3i> hostGoals = storeyGoalsPreferringInterior(occ, host, plateY, hostOffset);
+        List<Vec3i> targetGoals = storeyGoalsPreferringInterior(occ, target, plateY, targetOffset);
+        if (hostGoals.isEmpty() || targetGoals.isEmpty()) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
         var bounds = WalkabilityGraph.searchBounds(
@@ -192,19 +195,72 @@ public final class BridgeWalkability {
                 ComponentFootprintUtil.bounds(host), hostOffset,
                 ComponentFootprintUtil.bounds(target), targetOffset,
                 1);
-        var budgetHost = WalkabilityGraph.adaptiveBudget(deck, hostIn, bounds);
-        var budgetTarget = WalkabilityGraph.adaptiveBudget(deck, targetIn, bounds);
-        var hostOut = WalkabilityGraph.searchDetailed(occ, deck, hostIn, budgetHost, bounds);
-        var targetOut = WalkabilityGraph.searchDetailed(occ, deck, targetIn, budgetTarget, bounds);
-        if (hostOut.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT
-                || targetOut.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT) {
-            return new BridgeWalkOutcome(BridgeReach.SEARCH_LIMIT, precision);
+        boolean hostOk = false;
+        boolean targetOk = false;
+        boolean anyLimit = false;
+        for (Vec3i hostIn : hostGoals) {
+            var budgetHost = WalkabilityGraph.adaptiveBudget(deck, hostIn, bounds);
+            var hostOut = WalkabilityGraph.searchDetailed(occ, deck, hostIn, budgetHost, bounds);
+            if (hostOut.result() == WalkabilityGraph.ReachResult.REACHABLE) {
+                hostOk = true;
+                break;
+            }
+            if (hostOut.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT) {
+                anyLimit = true;
+            }
         }
-        if (hostOut.result() == WalkabilityGraph.ReachResult.REACHABLE
-                && targetOut.result() == WalkabilityGraph.ReachResult.REACHABLE) {
+        for (Vec3i targetIn : targetGoals) {
+            var budgetTarget = WalkabilityGraph.adaptiveBudget(deck, targetIn, bounds);
+            var targetOut = WalkabilityGraph.searchDetailed(occ, deck, targetIn, budgetTarget, bounds);
+            if (targetOut.result() == WalkabilityGraph.ReachResult.REACHABLE) {
+                targetOk = true;
+                break;
+            }
+            if (targetOut.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT) {
+                anyLimit = true;
+            }
+        }
+        if (hostOk && targetOk) {
             return new BridgeWalkOutcome(BridgeReach.CONNECTED, precision);
         }
+        if (anyLimit) {
+            return new BridgeWalkOutcome(BridgeReach.SEARCH_LIMIT, precision);
+        }
         return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
+    }
+
+    /**
+     * Standable goals at {@code plateY}: prefer standable interior sample first, then region reps.
+     * Empty when scan hits limit or no standable region exists.
+     */
+    public static List<Vec3i> storeyGoalsPreferringInterior(
+            PlannedOccupancy occ,
+            Component mass,
+            int plateY,
+            Vec3i massOffset
+    ) {
+        if (occ == null || mass == null) {
+            return List.of();
+        }
+        StoreyWalkRegions.ScanResult scan = StoreyWalkRegions.scan(occ, mass, plateY, massOffset);
+        if (scan.status() == StoreyWalkRegions.Status.SCAN_LIMIT) {
+            return List.of();
+        }
+        List<Vec3i> reps = scan.representatives();
+        if (reps.isEmpty()) {
+            return List.of();
+        }
+        List<Vec3i> ordered = new ArrayList<>(reps.size() + 1);
+        Vec3i preferred = shift(interiorFloorCell(mass, plateY), massOffset);
+        if (preferred != null && WalkabilityGraph.canStand(occ, preferred)) {
+            ordered.add(preferred);
+        }
+        for (Vec3i r : reps) {
+            if (r != null && !ordered.contains(r)) {
+                ordered.add(r);
+            }
+        }
+        return ordered;
     }
 
     /** Compile-path occupancy with registry refinement when available. */
