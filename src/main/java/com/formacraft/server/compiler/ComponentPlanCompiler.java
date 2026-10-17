@@ -1020,6 +1020,7 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_BUILDING_CIRCULATION_INCOMPLETE")) return "E_BUILDING_CIRCULATION_INCOMPLETE";
         if (message.startsWith("E_BUILDING_CIRCULATION_DATA_MISSING")) return "E_BUILDING_CIRCULATION_DATA_MISSING";
         if (message.startsWith("E_CIRCULATION_SCOPE_INVALID")) return "E_CIRCULATION_SCOPE_INVALID";
+        if (message.startsWith("E_CIRCULATION_HOST_CYCLE")) return "E_CIRCULATION_HOST_CYCLE";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 

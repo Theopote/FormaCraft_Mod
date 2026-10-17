@@ -1,9 +1,16 @@
 package com.formacraft.common.generation.component.util;
 
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** Shared host-mass / circulation-mass classification (avoid duplicated type lists). */
@@ -89,6 +96,107 @@ public final class MassComponentKinds {
         return classifyAttachment(component, candidates).kind() == HostAttachment.ATTACHED;
     }
 
+    /**
+     * Detect cycles in the host_id digraph among circulation masses.
+     * Edges only when both ends resolve as circulation masses.
+     */
+    public static Optional<CapabilityGap> validateHostAcyclic(Collection<Component> circulationMasses) {
+        if (circulationMasses == null || circulationMasses.isEmpty()) {
+            return Optional.empty();
+        }
+        Map<String, String> edges = new HashMap<>();
+        for (Component mass : circulationMasses) {
+            if (!isCirculationMass(mass)) {
+                continue;
+            }
+            String id = componentId(mass);
+            if (id == null) {
+                continue;
+            }
+            Attachment att = classifyAttachment(mass, circulationMasses);
+            if (att.kind() != HostAttachment.ATTACHED || att.host() == null) {
+                continue;
+            }
+            String hostCid = componentId(att.host());
+            if (hostCid == null) {
+                continue;
+            }
+            edges.put(id, hostCid);
+        }
+        if (edges.isEmpty()) {
+            return Optional.empty();
+        }
+        Set<String> visited = new HashSet<>();
+        Set<String> stack = new HashSet<>();
+        List<String> path = new ArrayList<>();
+        for (String start : edges.keySet()) {
+            Optional<List<String>> cycle = dfsCycle(start, edges, visited, stack, path);
+            if (cycle.isPresent()) {
+                return Optional.of(new CapabilityGap(
+                        "E_CIRCULATION_HOST_CYCLE",
+                        "host_id cycle among circulation masses: " + String.join(" -> ", cycle.get()),
+                        "components[].params.host_id",
+                        List.of("Break the host_id cycle so each attached mass chains to an independent root.",
+                                "Do not point host_id at a descendant of the same mass.")));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<List<String>> dfsCycle(
+            String node,
+            Map<String, String> edges,
+            Set<String> visited,
+            Set<String> stack,
+            List<String> path
+    ) {
+        if (stack.contains(node)) {
+            int idx = path.indexOf(node);
+            List<String> cycle = new ArrayList<>(path.subList(Math.max(0, idx), path.size()));
+            cycle.add(node);
+            return Optional.of(cycle);
+        }
+        if (visited.contains(node)) {
+            return Optional.empty();
+        }
+        visited.add(node);
+        stack.add(node);
+        path.add(node);
+        String next = edges.get(node);
+        if (next != null) {
+            Optional<List<String>> cycle = dfsCycle(next, edges, visited, stack, path);
+            if (cycle.isPresent()) {
+                return cycle;
+            }
+        }
+        path.remove(path.size() - 1);
+        stack.remove(node);
+        return Optional.empty();
+    }
+
+    /**
+     * Walk host_id to the independent root (no host_id). Call only after {@link #validateHostAcyclic}.
+     * Returns {@code mass} itself when independent; null if the chain cannot be resolved.
+     */
+    public static Component resolveIndependentHost(Component mass, Collection<Component> candidates) {
+        if (mass == null || candidates == null) {
+            return null;
+        }
+        Component cur = mass;
+        int limit = candidates.size() + 1;
+        for (int i = 0; i < limit; i++) {
+            Attachment att = classifyAttachment(cur, candidates);
+            if (att.kind() == HostAttachment.INDEPENDENT) {
+                return cur;
+            }
+            if (att.kind() != HostAttachment.ATTACHED || att.host() == null) {
+                return null;
+            }
+            cur = att.host();
+        }
+        return null;
+    }
+
     public static String hostId(Component component) {
         if (component == null || component.params() == null) {
             return null;
@@ -118,5 +226,17 @@ public final class MassComponentKinds {
             }
         }
         return null;
+    }
+
+    private static String componentId(Component mass) {
+        if (mass == null || mass.params() == null) {
+            return null;
+        }
+        Object id = mass.params().get("component_id");
+        if (id == null) {
+            return null;
+        }
+        String s = String.valueOf(id).trim();
+        return s.isEmpty() ? null : s;
     }
 }

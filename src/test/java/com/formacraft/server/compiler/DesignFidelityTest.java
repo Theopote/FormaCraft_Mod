@@ -724,6 +724,24 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationAerialWingWithoutBridgeFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_aerial_wing_no_bridge.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void circulationHostCycleHardFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_host_cycle.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_CIRCULATION_HOST_CYCLE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void bridgeEndpointLevelMismatchFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
