@@ -6,7 +6,7 @@ import com.formacraft.common.style.ExplicitDesignPolicy;
 
 import java.util.Map;
 
-/** Resolves facade/entrance/roof/crown requirement level from plan and mass params. */
+/** Resolves facade/entrance/roof/crown/circulation requirement level from plan and mass params. */
 public final class DesignRequirementAccess {
     private DesignRequirementAccess() {}
 
@@ -14,6 +14,7 @@ public final class DesignRequirementAccess {
     public static final String ENTRANCE = "entrance";
     public static final String ROOF = "roof";
     public static final String CROWN = "crown";
+    public static final String CIRCULATION = "circulation";
 
     public static DesignRequirement facade(LlmPlan plan, Component mass) {
         DesignRequirement explicit = fromPlanMeta(plan, FACADE);
@@ -73,6 +74,15 @@ public final class DesignRequirementAccess {
             return DesignRequirement.OMITTED;
         }
         return DesignRequirement.UNSPECIFIED;
+    }
+
+    /**
+     * Whole-building walkability after compile. Only {@link DesignRequirement#REQUIRED} enables
+     * {@code BuildingCirculationValidator}; {@link DesignRequirement#UNSPECIFIED} does not fail.
+     */
+    public static DesignRequirement circulation(LlmPlan plan) {
+        DesignRequirement explicit = fromPlanMeta(plan, CIRCULATION);
+        return explicit == null ? DesignRequirement.UNSPECIFIED : explicit;
     }
 
     private static DesignRequirement fromPlanMeta(LlmPlan plan, String key) {

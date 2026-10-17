@@ -32,4 +32,18 @@ class DesignRequirementAccessTest {
         LlmPlan plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
         assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, mass));
     }
+
+    @Test
+    void circulationDefaultsToUnspecified() {
+        LlmPlan plan = LlmPlanTestFixtures.builder().components(List.of()).build();
+        assertEquals(DesignRequirement.UNSPECIFIED, DesignRequirementAccess.circulation(plan));
+    }
+
+    @Test
+    void circulationRequiredFromPlanMeta() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
+                .build();
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.circulation(plan));
+    }
 }

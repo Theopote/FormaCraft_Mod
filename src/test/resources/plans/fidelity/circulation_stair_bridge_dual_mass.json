@@ -8,7 +8,8 @@
       "facade": "OMITTED",
       "entrance": "OMITTED",
       "roof": "OMITTED",
-      "crown": "OMITTED"
+      "crown": "OMITTED",
+      "circulation": "REQUIRED"
     }
   },
   "components": [
@@ -22,7 +23,7 @@
         "component_id": "hall",
         "anchor_mode": "min_corner",
         "wall_thickness": 1,
-        "floor_count": 3,
+        "floor_count": 2,
         "floor_height": 4,
         "roof_type": "none",
         "window_style": "none",
@@ -41,7 +42,7 @@
         "component_id": "wing",
         "anchor_mode": "min_corner",
         "wall_thickness": 1,
-        "floor_count": 3,
+        "floor_count": 2,
         "floor_height": 4,
         "roof_type": "none",
         "window_style": "none",

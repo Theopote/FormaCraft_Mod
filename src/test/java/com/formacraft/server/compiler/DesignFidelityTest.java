@@ -661,27 +661,12 @@ class DesignFidelityTest {
     }
 
     @Test
-    void circulationMissingStairCannotReachWingFromGround() throws Exception {
+    void circulationMissingStairFailsCompileWhenCirculationRequired() throws Exception {
         LlmPlan plan = loadFidelityPlan("circulation_stair_bridge_missing_stair.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertFalse(AssemblyCompileDiagnostics.hasGap(),
-                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
-        assertFalse(patches.isEmpty());
-        Component hall = plan.components().stream()
-                .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
-        Component wing = plan.components().stream()
-                .filter(c -> "wing".equals(c.params().get("component_id"))).findFirst().orElseThrow();
-        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
-                .occupancyFromPatches(patches);
-        Vec3i ground = com.formacraft.common.generation.component.util.BridgeWalkability
-                .interiorFloorCell(hall, 0);
-        Vec3i wingUpper = com.formacraft.common.generation.component.util.BridgeWalkability
-                .interiorFloorCell(wing, 4);
-        assertEquals(
-                com.formacraft.common.generation.component.util.WalkabilityGraph.ReachResult.UNREACHABLE,
-                com.formacraft.common.generation.component.util.WalkabilityGraph.search(
-                        occ, ground, wingUpper, 256, null),
-                "without stair, ground must not reach bridge-storey wing");
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
     }
 
     @Test

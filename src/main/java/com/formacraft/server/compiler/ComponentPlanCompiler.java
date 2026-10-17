@@ -289,6 +289,11 @@ public final class ComponentPlanCompiler {
         if (!validateBridgeWalkability(components, result, slotMap)) {
             return List.of();
         }
+        var circulationGap = BuildingCirculationValidator.validate(plan, components, result, slotMap);
+        if (circulationGap.isPresent()) {
+            AssemblyCompileDiagnostics.set(circulationGap.get());
+            return List.of();
+        }
 
         Set<BlockPos> roofClearance = new HashSet<>();
         for (var flight : circulation) roofClearance.addAll(flight.clearance());
@@ -1012,6 +1017,7 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_BRIDGE_LEVEL_CONFLICT")) return "E_BRIDGE_LEVEL_CONFLICT";
         if (message.startsWith("E_BRIDGE_PATH_BLOCKED")) return "E_BRIDGE_PATH_BLOCKED";
         if (message.startsWith("E_WALKABILITY_SEARCH_LIMIT")) return "E_WALKABILITY_SEARCH_LIMIT";
+        if (message.startsWith("E_BUILDING_CIRCULATION_INCOMPLETE")) return "E_BUILDING_CIRCULATION_INCOMPLETE";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
