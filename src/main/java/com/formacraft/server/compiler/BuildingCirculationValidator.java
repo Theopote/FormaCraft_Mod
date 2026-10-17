@@ -2,8 +2,11 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.BridgeWalkability;
 import com.formacraft.common.generation.component.util.HostedPlateOccupancy;
+import com.formacraft.common.generation.component.util.MassComponentKinds;
+import com.formacraft.common.generation.component.util.PlannedOccupancy;
 import com.formacraft.common.generation.component.util.ResolvedFloorLayout;
 import com.formacraft.common.generation.component.util.WalkabilityGraph;
+import com.formacraft.common.generation.design.CirculationScope;
 import com.formacraft.common.generation.design.DesignRequirement;
 import com.formacraft.common.generation.design.DesignRequirementAccess;
 import com.formacraft.common.llm.dto.CapabilityGap;
@@ -13,15 +16,14 @@ import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * When {@code design_requirements.circulation=REQUIRED}, prove storey and bridge end-to-end
- * reachability on final plan-geometry occupancy. Bridge deck↔interiors remain in
- * {@link ComponentPlanCompiler}'s always-on bridge walkability gate.
+ * When {@code design_requirements.circulation=REQUIRED}, prove storey / complex reachability
+ * per {@link CirculationScope}. Bridge deck↔interiors remain always-on in the compiler.
  */
 final class BuildingCirculationValidator {
     private BuildingCirculationValidator() {}
@@ -35,22 +37,29 @@ final class BuildingCirculationValidator {
         if (DesignRequirementAccess.circulation(plan) != DesignRequirement.REQUIRED) {
             return Optional.empty();
         }
-        if (components == null || patches == null || patches.isEmpty()) {
-            return Optional.empty();
+        if (components == null || components.isEmpty() || patches == null || patches.isEmpty()) {
+            return dataMissing("Circulation REQUIRED but compile produced no components/patches to verify.");
         }
+
+        List<Component> circulationMasses = new ArrayList<>();
+        for (Component c : components) {
+            if (MassComponentKinds.isCirculationMass(c)) {
+                circulationMasses.add(c);
+            }
+        }
+        if (circulationMasses.isEmpty()) {
+            return dataMissing("Circulation REQUIRED but plan has no host mass shells to verify.");
+        }
+
+        CirculationScope scope = DesignRequirementAccess.circulationScope(plan);
         var occ = BridgeWalkability.occupancyFromPatches(patches);
         String precision = String.valueOf(occ.precision());
         Vec3i zero = new Vec3i(0, 0, 0);
 
-        // Multi-source: any MASS_MAIN ground may seed reachability (upper floors via bridge OK).
-        java.util.ArrayList<Vec3i> grounds = new java.util.ArrayList<>();
-        for (Component mass : components) {
-            if (mass == null || !isMassMain(mass)) {
-                continue;
-            }
-            int envelope = mass.dimensions() == null ? 1 : Math.max(1, mass.dimensions().height());
-            ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
-            int groundY = layout.floorYs().isEmpty() ? groundStoreyY(mass) : layout.floorYs().getFirst();
+        record GroundedMass(Component mass, Vec3i ground) {}
+        List<GroundedMass> grounded = new ArrayList<>();
+        for (Component mass : circulationMasses) {
+            int groundY = groundStoreyY(mass);
             Vec3i ground = shift(
                     BridgeWalkability.interiorFloorCell(mass, groundY),
                     slotAnchorOrZero(slotMap, mass.slotId(), zero));
@@ -60,19 +69,36 @@ final class BuildingCirculationValidator {
                                 + componentId(mass) + ", y=" + groundY + ", precision=" + precision + ")",
                         "Add a solid floor with 2-high clearance at the ground storey interior.");
             }
-            grounds.add(ground);
+            grounded.add(new GroundedMass(mass, ground));
         }
 
-        for (Component mass : components) {
-            if (mass == null || !isMassMain(mass)) {
+        Vec3i complexRoot = grounded.getFirst().ground();
+
+        if (scope == CirculationScope.CONNECTED_COMPLEX && grounded.size() >= 2) {
+            // One network seeded from the first mass ground: each other mass must expose
+            // at least one standable storey sample reachable from root (upper-only bridges OK).
+            for (int i = 1; i < grounded.size(); i++) {
+                GroundedMass gm = grounded.get(i);
+                Optional<CapabilityGap> join = massJoinsComplexFromRoot(
+                        occ, complexRoot, gm.mass(), slotMap, zero, precision);
+                if (join.isPresent()) {
+                    return join;
+                }
+            }
+        }
+
+        for (GroundedMass gm : grounded) {
+            Component mass = gm.mass();
+            if (!MassComponentKinds.isStoreyedCirculationMass(mass)) {
                 continue;
             }
-            int envelope = mass.dimensions() == null ? 1 : Math.max(1, mass.dimensions().height());
+            int envelope = Math.max(1, mass.dimensions().height());
             ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
-            if (layout.floorCount() < 2 || layout.floorYs().size() < 2) {
-                continue;
-            }
             Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
+            // LOCAL: own ground. COMPLEX: single complex root (unified network).
+            List<Vec3i> storeyGrounds = scope == CirculationScope.CONNECTED_COMPLEX
+                    ? List.of(complexRoot)
+                    : List.of(gm.ground());
             for (int i = 1; i < layout.floorYs().size(); i++) {
                 int storeyY = layout.floorYs().get(i);
                 Vec3i goal = shift(BridgeWalkability.interiorFloorCell(mass, storeyY), massOff);
@@ -83,7 +109,7 @@ final class BuildingCirculationValidator {
                             "Ensure each design storey has a solid floor and clearance at the interior sample.");
                 }
                 Optional<CapabilityGap> storeyGap = reachFromAnyGround(
-                        occ, grounds, goal, componentId(mass), storeyY, precision);
+                        occ, storeyGrounds, goal, componentId(mass), storeyY, precision, scope);
                 if (storeyGap.isPresent()) {
                     return storeyGap;
                 }
@@ -147,13 +173,67 @@ final class BuildingCirculationValidator {
         return Optional.empty();
     }
 
+    private static Optional<CapabilityGap> massJoinsComplexFromRoot(
+            PlannedOccupancy occ,
+            Vec3i root,
+            Component mass,
+            Map<String, Slot> slotMap,
+            Vec3i zero,
+            String precision
+    ) {
+        int envelope = Math.max(1, mass.dimensions().height());
+        ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
+        List<Integer> ys = layout.floorYs().isEmpty()
+                ? List.of(groundStoreyY(mass))
+                : layout.floorYs();
+        Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
+        boolean anyLimit = false;
+        for (int y : ys) {
+            Vec3i sample = shift(BridgeWalkability.interiorFloorCell(mass, y), massOff);
+            if (sample == null || !WalkabilityGraph.canStand(occ, sample)) {
+                continue;
+            }
+            var budget = WalkabilityGraph.adaptiveBudget(root, sample, null);
+            var outcome = WalkabilityGraph.searchDetailed(occ, root, sample, budget, null);
+            if (outcome.result() == WalkabilityGraph.ReachResult.REACHABLE) {
+                return Optional.empty();
+            }
+            if (outcome.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT) {
+                anyLimit = true;
+            }
+        }
+        if (anyLimit) {
+            return Optional.of(new CapabilityGap(
+                    "E_WALKABILITY_SEARCH_LIMIT",
+                    "Building complex join search exhausted its budget (component_id="
+                            + componentId(mass) + ", scope=CONNECTED_COMPLEX, precision=" + precision + ")",
+                    "components[]",
+                    List.of("Link masses with bridges/corridors or use circulation_scope=BUILDING_LOCAL.",
+                            "This is not a proof that no path exists — only that search stopped early.")));
+        }
+        return incomplete(
+                "Mass does not join the walkable complex from root ground (component_id="
+                        + componentId(mass) + ", scope=CONNECTED_COMPLEX, precision=" + precision + ")",
+                "Connect buildings with bridges/stairs/corridors, or set circulation_scope=BUILDING_LOCAL.");
+    }
+
+    private static Optional<CapabilityGap> dataMissing(String message) {
+        return Optional.of(new CapabilityGap(
+                "E_BUILDING_CIRCULATION_DATA_MISSING",
+                message,
+                "components[]",
+                List.of("Ensure the plan compiles host masses and patches before circulation checks.",
+                        "Or set design_requirements.circulation=OMITTED if circulation is not required.")));
+    }
+
     private static Optional<CapabilityGap> reachFromAnyGround(
-            com.formacraft.common.generation.component.util.PlannedOccupancy occ,
-            java.util.List<Vec3i> grounds,
+            PlannedOccupancy occ,
+            List<Vec3i> grounds,
             Vec3i goal,
             String massId,
             int storeyY,
-            String precision
+            String precision,
+            CirculationScope scope
     ) {
         boolean anyLimit = false;
         for (Vec3i ground : grounds) {
@@ -170,15 +250,18 @@ final class BuildingCirculationValidator {
             return Optional.of(new CapabilityGap(
                     "E_WALKABILITY_SEARCH_LIMIT",
                     "Building circulation search exhausted its budget (component_id="
-                            + massId + ", toY=" + storeyY + ", precision=" + precision + ")",
+                            + massId + ", toY=" + storeyY + ", scope=" + scope
+                            + ", precision=" + precision + ")",
                     "components[]",
                     List.of("Add vertical circulation or shorten the building footprint.",
                             "This is not a proof that no path exists — only that search stopped early.")));
         }
         return incomplete(
-                "Storey not reachable from any mass ground (component_id=" + massId
-                        + ", toY=" + storeyY + ", precision=" + precision + ")",
-                "Add stairs or bridge access so each design storey is reachable from a ground interior.");
+                "Storey not reachable (component_id=" + massId + ", toY=" + storeyY
+                        + ", scope=" + scope + ", precision=" + precision + ")",
+                scope == CirculationScope.BUILDING_LOCAL
+                        ? "Add stairs inside this mass, or use CONNECTED_COMPLEX with linking bridges."
+                        : "Add stairs or bridge access so each design storey joins the complex network.");
     }
 
     private static Optional<CapabilityGap> incomplete(String message, String hint) {
@@ -198,14 +281,6 @@ final class BuildingCirculationValidator {
             return layout.floorYs().getFirst();
         }
         return mass.relativePosition() == null ? 0 : mass.relativePosition().y();
-    }
-
-    private static boolean isMassMain(Component mass) {
-        if (mass == null || mass.componentType() == null) {
-            return false;
-        }
-        String type = mass.componentType().toUpperCase(Locale.ROOT);
-        return "MASS_MAIN".equals(type) || "MAIN_MASS".equals(type);
     }
 
     private static String componentId(Component mass) {

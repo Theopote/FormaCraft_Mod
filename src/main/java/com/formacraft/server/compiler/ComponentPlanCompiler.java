@@ -1018,6 +1018,7 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_BRIDGE_PATH_BLOCKED")) return "E_BRIDGE_PATH_BLOCKED";
         if (message.startsWith("E_WALKABILITY_SEARCH_LIMIT")) return "E_WALKABILITY_SEARCH_LIMIT";
         if (message.startsWith("E_BUILDING_CIRCULATION_INCOMPLETE")) return "E_BUILDING_CIRCULATION_INCOMPLETE";
+        if (message.startsWith("E_BUILDING_CIRCULATION_DATA_MISSING")) return "E_BUILDING_CIRCULATION_DATA_MISSING";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 

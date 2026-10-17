@@ -4,6 +4,7 @@
   "anchor": { "x": 0, "y": 64, "z": 0 },
   "plan_meta": {
     "allow_compiler_satellites": false,
+    "circulation_scope": "CONNECTED_COMPLEX",
     "design_requirements": {
       "facade": "OMITTED",
       "entrance": "OMITTED",

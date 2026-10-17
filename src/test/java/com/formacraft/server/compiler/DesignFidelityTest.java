@@ -670,6 +670,33 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationTwoBuildingsLocalCompiles() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_two_buildings_local.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
+    void circulationTwoBuildingsDisconnectedComplexFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_two_buildings_disconnected_complex.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void circulationTowerStoreysLocalCompiles() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_tower_storeys.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
     void bridgeEndpointLevelMismatchFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

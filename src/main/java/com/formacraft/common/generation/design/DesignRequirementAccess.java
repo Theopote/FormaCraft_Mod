@@ -85,6 +85,18 @@ public final class DesignRequirementAccess {
         return explicit == null ? DesignRequirement.UNSPECIFIED : explicit;
     }
 
+    /**
+     * Connectivity scope when circulation is REQUIRED. Defaults to {@link CirculationScope#BUILDING_LOCAL}.
+     */
+    public static CirculationScope circulationScope(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null) {
+            return CirculationScope.BUILDING_LOCAL;
+        }
+        Object raw = plan.planMeta().get(CirculationScope.META_KEY);
+        CirculationScope parsed = CirculationScope.parse(raw == null ? null : String.valueOf(raw));
+        return parsed == null ? CirculationScope.BUILDING_LOCAL : parsed;
+    }
+
     private static DesignRequirement fromPlanMeta(LlmPlan plan, String key) {
         if (plan == null || plan.planMeta() == null) {
             return null;

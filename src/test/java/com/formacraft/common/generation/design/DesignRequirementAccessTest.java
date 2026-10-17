@@ -46,4 +46,18 @@ class DesignRequirementAccessTest {
                 .build();
         assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.circulation(plan));
     }
+
+    @Test
+    void circulationScopeDefaultsToBuildingLocal() {
+        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        assertEquals(CirculationScope.BUILDING_LOCAL, DesignRequirementAccess.circulationScope(plan));
+    }
+
+    @Test
+    void circulationScopeConnectedComplexFromPlanMeta() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("circulation_scope", "CONNECTED_COMPLEX"))
+                .build();
+        assertEquals(CirculationScope.CONNECTED_COMPLEX, DesignRequirementAccess.circulationScope(plan));
+    }
 }

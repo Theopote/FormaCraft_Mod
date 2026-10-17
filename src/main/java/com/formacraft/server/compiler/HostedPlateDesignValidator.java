@@ -327,9 +327,7 @@ final class HostedPlateDesignValidator {
     }
 
     private static boolean isMassType(String type) {
-        return "MASS_MAIN".equals(type) || "MAIN_MASS".equals(type)
-                || "MASS_SECONDARY".equals(type) || "MASS_WING".equals(type) || "SIDE_WING".equals(type)
-                || "TOWER".equals(type);
+        return com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(type);
     }
 
     private static boolean isAutoInferred(Component component) {
