@@ -756,5 +756,85 @@ class BuildingCirculationValidatorTest {
         var gap = BuildingCirculationValidator.validate(plan, List.of(alpha, beta), patches, Map.of());
         assertTrue(gap.isPresent());
         assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+        assertTrue(gap.get().message().contains("alpha"), () -> gap.get().message());
+        assertTrue(gap.get().message().contains("Standable region not reachable"), () -> gap.get().message());
+        assertTrue(gap.get().message().contains("toY=0"), () -> gap.get().message());
+    }
+
+    @Test
+    void connectedComplexCourtyardUpperJoinPasses() {
+        // Dual-mass L2 bridge (same skeleton as ground-partition case) with beta L2 courtyard void
+        // at interiorFloorCell — ring reps still join the complex.
+        Component alpha = new Component(
+                "MASS_MAIN", "alpha", new Vec3i(0, 0, 0), new Dimensions(14, 8, 10), List.of(),
+                Map.of("component_id", "alpha", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component beta = new Component(
+                "MASS_MAIN", "beta", new Vec3i(24, 0, 0), new Dimensions(14, 14, 10), List.of(),
+                Map.of("component_id", "beta", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Vec3i betaSampleL2 = com.formacraft.common.generation.component.util.BridgeWalkability
+                .interiorFloorCell(beta, 4);
+        assertEquals(new Vec3i(25, 4, 7), betaSampleL2);
+
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+            // Keep L2 deck clear of the stair shaft (x=3..6 at z=4) so step-up body clearance stays open
+            if (x <= 2 || x >= 7) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+            } else {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+            }
+        }
+        int[][] alphaSteps = {{3, 0}, {4, 1}, {5, 2}, {6, 3}, {7, 4}};
+        for (int[] s : alphaSteps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
+        }
+        for (int x = 13; x <= 24; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+        }
+        // Beta ground + L2 corridors; then punch a courtyard hole at the fixed L2 sample
+        for (int x = 25; x <= 36; x++) {
+            for (int z = 3; z <= 7; z++) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
+            }
+            if (x <= 26 || x >= 31) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+            } else {
+                // Bypass corridor beside the stair shaft
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+            }
+        }
+        for (int x = 26; x <= 35; x++) {
+            for (int z = 5; z <= 9; z++) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, z, "minecraft:oak_planks"));
+            }
+        }
+        // Courtyard void covering fixed sample (25,4,7)
+        patches.removeIf(p -> p.dy() == 4 && p.dx() >= 25 && p.dx() <= 33
+                && p.dz() >= 5 && p.dz() <= 9);
+        int[][] betaSteps = {{27, 0}, {28, 1}, {29, 2}, {30, 3}, {31, 4}};
+        for (int[] s : betaSteps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
+        }
+
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
+        assertFalse(
+                com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, betaSampleL2),
+                "L2 fixed interior sample must sit in courtyard void");
+
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(alpha, beta))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "CONNECTED_COMPLEX"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(alpha, beta), patches, Map.of());
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
     }
 }

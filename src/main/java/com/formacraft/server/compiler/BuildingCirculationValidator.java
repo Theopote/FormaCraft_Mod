@@ -164,20 +164,6 @@ final class BuildingCirculationValidator {
             byId.put(componentId(mass), entry);
         }
 
-        if (scope == CirculationScope.CONNECTED_COMPLEX && circulationMasses.size() >= 2) {
-            for (MassEntry entry : entries) {
-                if (entry.ownGroundOrNull() != null && entry.ownGroundOrNull().equals(complexRoot)
-                        && !entry.attached()) {
-                    continue;
-                }
-                Optional<CapabilityGap> join = massJoinsComplexFromRoot(
-                        occ, complexRoot, entry.mass(), slotMap, zero, precision);
-                if (join.isPresent()) {
-                    return join;
-                }
-            }
-        }
-
         // DIRECT first: each parent→child edge from parent's own cells → child regions
         if (hostLinks == CirculationHostLinks.DIRECT) {
             for (MassEntry entry : entries) {
@@ -263,7 +249,7 @@ final class BuildingCirculationValidator {
 
         // Independent masses: every standable region on every design storey (incl. ground).
         // BUILDING_LOCAL starts at ownGround; CONNECTED_COMPLEX at complexRoot (join may be via
-        // bridge level — massJoinsComplexFromRoot is an early complex-join gate only).
+        // bridge level — region reps from StoreyWalkRegions prove complex membership).
         for (MassEntry entry : entries) {
             if (entry.attached()) {
                 continue;
@@ -525,9 +511,14 @@ final class BuildingCirculationValidator {
             String incompleteHint
     ) {
         for (Vec3i goal : goals) {
+            String messageWithY = incompleteMessage.contains("toY=")
+                    ? incompleteMessage
+                    : incompleteMessage.replace(
+                            ", precision=" + precision + ")",
+                            ", toY=" + goal.y() + ", precision=" + precision + ")");
             Optional<CapabilityGap> gap = reachFromAnyGround(
                     occ, starts, goal, massId, goal.y(), precision, scope,
-                    incompleteMessage, incompleteHint);
+                    messageWithY, incompleteHint);
             if (gap.isPresent()) {
                 return gap;
             }
@@ -543,50 +534,6 @@ final class BuildingCirculationValidator {
                 "components[].params.host_id",
                 List.of("Connect child to its direct host_id with a bridge, corridor, or stairs.",
                         "Or set circulation_host_links=ROOT if only root reachability is required.")));
-    }
-
-    private static Optional<CapabilityGap> massJoinsComplexFromRoot(
-            PlannedOccupancy occ,
-            Vec3i root,
-            Component mass,
-            Map<String, Slot> slotMap,
-            Vec3i zero,
-            String precision
-    ) {
-        int envelope = Math.max(1, mass.dimensions().height());
-        ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
-        List<Integer> ys = layout.floorYs().isEmpty()
-                ? List.of(groundStoreyY(mass))
-                : layout.floorYs();
-        Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
-        boolean anyLimit = false;
-        for (int y : ys) {
-            Vec3i sample = shift(BridgeWalkability.interiorFloorCell(mass, y), massOff);
-            if (sample == null || !WalkabilityGraph.canStand(occ, sample)) {
-                continue;
-            }
-            var budget = WalkabilityGraph.adaptiveBudget(root, sample, null);
-            var outcome = WalkabilityGraph.searchDetailed(occ, root, sample, budget, null);
-            if (outcome.result() == WalkabilityGraph.ReachResult.REACHABLE) {
-                return Optional.empty();
-            }
-            if (outcome.result() == WalkabilityGraph.ReachResult.SEARCH_LIMIT) {
-                anyLimit = true;
-            }
-        }
-        if (anyLimit) {
-            return Optional.of(new CapabilityGap(
-                    "E_WALKABILITY_SEARCH_LIMIT",
-                    "Building complex join search exhausted its budget (component_id="
-                            + componentId(mass) + ", scope=CONNECTED_COMPLEX, precision=" + precision + ")",
-                    "components[]",
-                    List.of("Link masses with bridges/corridors or use circulation_scope=BUILDING_LOCAL.",
-                            "This is not a proof that no path exists — only that search stopped early.")));
-        }
-        return incomplete(
-                "Mass does not join the walkable complex from root ground (component_id="
-                        + componentId(mass) + ", scope=CONNECTED_COMPLEX, precision=" + precision + ")",
-                "Connect buildings with bridges/stairs/corridors, or set circulation_scope=BUILDING_LOCAL.");
     }
 
     private static Optional<CapabilityGap> dataMissing(String message) {

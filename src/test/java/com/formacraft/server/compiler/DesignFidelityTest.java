@@ -775,6 +775,28 @@ class DesignFidelityTest {
         assertTrue(patches.isEmpty());
         assertTrue(AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+        String message = AssemblyCompileDiagnostics.get().message();
+        assertTrue(message.contains("alpha"), () -> message);
+        assertTrue(message.contains("Standable region not reachable"), () -> message);
+        assertTrue(message.contains("toY=0"), () -> message);
+    }
+
+    @Test
+    void circulationConnectedComplexMultistoreyGroundOpenCompiles() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_connected_complex_multistorey_ground_open.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
+    void circulationConnectedComplexCourtyardBridgeValidCompiles() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_connected_complex_courtyard_bridge_valid.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
     }
 
     @Test
