@@ -1018,6 +1018,8 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_BUILDING_CIRCULATION_DATA_MISSING")) return "E_BUILDING_CIRCULATION_DATA_MISSING";
         if (message.startsWith("E_CIRCULATION_SCOPE_INVALID")) return "E_CIRCULATION_SCOPE_INVALID";
         if (message.startsWith("E_CIRCULATION_HOST_CYCLE")) return "E_CIRCULATION_HOST_CYCLE";
+        if (message.startsWith("E_CIRCULATION_HOST_LINKS_INVALID")) return "E_CIRCULATION_HOST_LINKS_INVALID";
+        if (message.startsWith("E_CIRCULATION_HOST_LINK_BLOCKED")) return "E_CIRCULATION_HOST_LINK_BLOCKED";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 

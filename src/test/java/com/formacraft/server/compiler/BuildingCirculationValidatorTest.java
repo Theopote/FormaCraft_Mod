@@ -453,4 +453,82 @@ class BuildingCirculationValidatorTest {
         assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
         assertTrue(gap.get().message().toLowerCase().contains("host"));
     }
+
+    @Test
+    void directHostLinkBlockedWhenParentChildDisconnected() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component mid = new Component(
+                "MASS_WING", "mid", new Vec3i(12, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "mid", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        Component tip = new Component(
+                "MASS_WING", "tip", new Vec3i(28, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "tip", "host_id", "mid", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        // hall ↔ mid only; tip has its own floor but no path from mid (or hall)
+        for (int x = 1; x <= 14; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        patches.add(new BlockPatch(BlockPatch.PLACE, 29, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 30, 0, 4, "minecraft:oak_planks"));
+        LlmPlan directPlan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, mid, tip))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL",
+                        "circulation_host_links", "DIRECT"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(directPlan, List.of(hall, mid, tip), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_CIRCULATION_HOST_LINK_BLOCKED", gap.get().code());
+    }
+
+    @Test
+    void dualStandablePocketsOnlyOneReachableFails() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(16, 0, 0), new Dimensions(10, 8, 8), List.of(),
+                Map.of("component_id", "wing", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 18; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        // Near pocket reachable from corridor; far pocket isolated (gap at x=20-21)
+        patches.add(new BlockPatch(BlockPatch.PLACE, 17, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 18, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 19, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 22, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 23, 0, 4, "minecraft:oak_planks"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+    }
+
+    @Test
+    void invalidCirculationHostLinksHardFails() {
+        Component mass = twoStoreyMass();
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(mass))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_host_links", "FOO"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(mass), disconnectedStoreyPatches(), Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_CIRCULATION_HOST_LINKS_INVALID", gap.get().code());
+    }
 }

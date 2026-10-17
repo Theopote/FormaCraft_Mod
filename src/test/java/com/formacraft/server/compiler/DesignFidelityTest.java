@@ -751,6 +751,15 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationHostChainDirectBlockedFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_host_chain_direct_blocked.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_CIRCULATION_HOST_LINK_BLOCKED", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void bridgeEndpointLevelMismatchFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

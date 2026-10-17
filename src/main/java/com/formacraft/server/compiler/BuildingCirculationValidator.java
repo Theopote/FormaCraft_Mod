@@ -6,7 +6,9 @@ import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.generation.component.util.PlannedOccupancy;
 import com.formacraft.common.generation.component.util.ResolvedComponentGeometry;
 import com.formacraft.common.generation.component.util.ResolvedFloorLayout;
+import com.formacraft.common.generation.component.util.StoreyWalkRegions;
 import com.formacraft.common.generation.component.util.WalkabilityGraph;
+import com.formacraft.common.generation.design.CirculationHostLinks;
 import com.formacraft.common.generation.design.CirculationScope;
 import com.formacraft.common.generation.design.DesignRequirement;
 import com.formacraft.common.generation.design.DesignRequirementAccess;
@@ -18,10 +20,12 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * When {@code design_requirements.circulation=REQUIRED}, prove storey / complex / attached
@@ -59,6 +63,10 @@ final class BuildingCirculationValidator {
         if (scopeGap.isPresent()) {
             return scopeGap;
         }
+        Optional<CapabilityGap> hostLinksGap = DesignRequirementAccess.validateCirculationHostLinks(plan);
+        if (hostLinksGap.isPresent()) {
+            return hostLinksGap;
+        }
 
         List<Component> circulationMasses = new ArrayList<>();
         for (Component c : components) {
@@ -76,6 +84,7 @@ final class BuildingCirculationValidator {
         }
 
         CirculationScope scope = DesignRequirementAccess.circulationScope(plan);
+        CirculationHostLinks hostLinks = DesignRequirementAccess.circulationHostLinks(plan);
         var occ = BridgeWalkability.occupancyFromPatches(patches);
         String precision = String.valueOf(occ.precision());
         Vec3i zero = new Vec3i(0, 0, 0);
@@ -96,7 +105,7 @@ final class BuildingCirculationValidator {
             Vec3i ownGround = shift(
                     BridgeWalkability.interiorFloorCell(mass, groundY),
                     slotAnchorOrZero(slotMap, mass.slotId(), zero));
-            boolean ownStandable = ownGround != null && WalkabilityGraph.canStand(occ, ownGround);
+            boolean ownStandable = WalkabilityGraph.canStand(occ, ownGround);
             if (ownStandable) {
                 ownGroundByMass.put(mass, ownGround);
             }
@@ -169,7 +178,49 @@ final class BuildingCirculationValidator {
             }
         }
 
-        // Attached: prove host-root → standable sample (never start from ownGround)
+        // DIRECT first: each parent→child edge from parent's own cells → child regions
+        if (hostLinks == CirculationHostLinks.DIRECT) {
+            for (MassEntry entry : entries) {
+                if (!entry.attached() || entry.hostOrNull() == null) {
+                    continue;
+                }
+                MassEntry parentEntry = byId.get(componentId(entry.hostOrNull()));
+                if (parentEntry == null) {
+                    continue;
+                }
+                List<Vec3i> starts = directParentStarts(occ, parentEntry, slotMap, zero);
+                if (starts.isEmpty()) {
+                    return hostLinkBlocked(
+                            componentId(parentEntry.mass()), componentId(entry.mass()), precision,
+                            "Direct host has no standable entry");
+                }
+                List<Vec3i> childGoals = allStandableRegionGoals(occ, entry.mass(), slotMap, zero);
+                if (childGoals.isEmpty()) {
+                    return hostLinkBlocked(
+                            componentId(parentEntry.mass()), componentId(entry.mass()), precision,
+                            "Attached child has no standable region");
+                }
+                for (Vec3i goal : childGoals) {
+                    Optional<CapabilityGap> edgeGap = reachFromAnyGround(
+                            occ, starts, goal, componentId(entry.mass()), goal.y(), precision, scope,
+                            "Direct host link blocked (parent=" + componentId(parentEntry.mass())
+                                    + ", child=" + componentId(entry.mass())
+                                    + ", toY=" + goal.y() + ", precision=" + precision + ")",
+                            "Connect the child mass to its direct host_id with a bridge, corridor, or stairs.");
+                    if (edgeGap.isPresent()) {
+                        CapabilityGap g = edgeGap.get();
+                        if ("E_WALKABILITY_SEARCH_LIMIT".equals(g.code())) {
+                            return edgeGap;
+                        }
+                        return hostLinkBlocked(
+                                componentId(parentEntry.mass()), componentId(entry.mass()), precision,
+                                g.message());
+                    }
+                }
+            }
+        }
+
+        // Attached: prove host-root → every standable region (never start from ownGround)
         for (MassEntry entry : entries) {
             if (!entry.attached()) {
                 continue;
@@ -180,17 +231,17 @@ final class BuildingCirculationValidator {
                                 + ", precision=" + precision + ")",
                         "Provide a host_id chain to an independent mass with a walkable ground.");
             }
-            Vec3i goal = firstStandableSample(occ, entry.mass(), entry.ownGroundOrNull(), slotMap, zero);
-            if (goal == null) {
+            List<Vec3i> goals = allStandableRegionGoals(occ, entry.mass(), slotMap, zero);
+            if (goals.isEmpty()) {
                 return incomplete(
                         "Attached mass has no standable interior sample (component_id="
                                 + componentId(entry.mass()) + ", precision=" + precision + ")",
                         "Ensure the attached mass has a solid floor with clearance at an interior cell.");
             }
-            Optional<CapabilityGap> attachedGap = reachFromAnyGround(
-                    occ, entry.hostLinkEntries(), goal, componentId(entry.mass()), goal.y(), precision, scope,
+            Optional<CapabilityGap> attachedGap = reachAllGoals(
+                    occ, entry.hostLinkEntries(), goals, componentId(entry.mass()), precision, scope,
                     "Attached mass not reachable from host entry (component_id="
-                            + componentId(entry.mass()) + ", toY=" + goal.y()
+                            + componentId(entry.mass())
                             + ", scope=" + scope + ", precision=" + precision + ")",
                     "Connect the attached mass with a bridge, corridor, or stairs from the host entry.");
             if (attachedGap.isPresent()) {
@@ -205,7 +256,7 @@ final class BuildingCirculationValidator {
             }
             int envelope = Math.max(1, mass.dimensions().height());
             ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
-            Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
+            int originY = mass.relativePosition() == null ? 0 : mass.relativePosition().y();
             List<Vec3i> storeyGrounds = entry.localEntries();
             if (storeyGrounds.isEmpty()) {
                 return incomplete(
@@ -214,17 +265,18 @@ final class BuildingCirculationValidator {
                         "Provide a standable ground or a host_id with a walkable host ground.");
             }
             for (int i = 1; i < layout.floorYs().size(); i++) {
-                int storeyY = layout.floorYs().get(i);
-                Vec3i goal = shift(BridgeWalkability.interiorFloorCell(mass, storeyY), massOff);
-                if (goal == null || !WalkabilityGraph.canStand(occ, goal)) {
+                int relY = layout.floorYs().get(i);
+                int absY = originY + relY;
+                List<Vec3i> goals = regionGoalsAtY(occ, mass, absY, slotMap, zero);
+                if (goals.isEmpty()) {
                     return incomplete(
                             "Mass storey interior is not a legal standing cell (component_id="
-                                    + componentId(mass) + ", y=" + storeyY + ", precision=" + precision + ")",
+                                    + componentId(mass) + ", y=" + absY + ", precision=" + precision + ")",
                             "Ensure each design storey has a solid floor and clearance at the interior sample.");
                 }
-                Optional<CapabilityGap> storeyGap = reachFromAnyGround(
-                        occ, storeyGrounds, goal, componentId(mass), storeyY, precision, scope,
-                        "Storey not reachable (component_id=" + componentId(mass) + ", toY=" + storeyY
+                Optional<CapabilityGap> storeyGap = reachAllGoals(
+                        occ, storeyGrounds, goals, componentId(mass), precision, scope,
+                        "Storey not reachable (component_id=" + componentId(mass) + ", toY=" + absY
                                 + ", scope=" + scope + ", precision=" + precision + ")",
                         scope == CirculationScope.BUILDING_LOCAL
                                 ? "Add stairs inside this mass, attach via host_id, or use CONNECTED_COMPLEX with bridges."
@@ -357,40 +409,102 @@ final class BuildingCirculationValidator {
         return List.of();
     }
 
-    private static Vec3i firstStandableSample(
+    private static List<Integer> absoluteFloorYs(Component mass) {
+        ResolvedComponentGeometry geo = ResolvedComponentGeometry.resolve(mass);
+        if (geo != null && !geo.floorYs().isEmpty()) {
+            return geo.floorYs();
+        }
+        int envelope = mass.dimensions() == null ? 1 : Math.max(1, mass.dimensions().height());
+        ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
+        int base = mass.relativePosition() == null ? 0 : mass.relativePosition().y();
+        if (!layout.floorYs().isEmpty()) {
+            List<Integer> ys = new ArrayList<>();
+            for (int rel : layout.floorYs()) {
+                ys.add(base + rel);
+            }
+            return ys;
+        }
+        return List.of(base);
+    }
+
+    private static List<Vec3i> regionGoalsAtY(
             PlannedOccupancy occ,
             Component mass,
-            Vec3i ownGroundOrNull,
+            int absY,
             Map<String, Slot> slotMap,
             Vec3i zero
     ) {
-        if (ownGroundOrNull != null && WalkabilityGraph.canStand(occ, ownGroundOrNull)) {
-            return ownGroundOrNull;
-        }
         Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
-        ResolvedComponentGeometry geo = ResolvedComponentGeometry.resolve(mass);
-        List<Integer> ys = new ArrayList<>();
-        if (geo != null && !geo.floorYs().isEmpty()) {
-            ys.addAll(geo.floorYs());
-        } else {
-            int envelope = Math.max(1, mass.dimensions().height());
-            ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
-            if (!layout.floorYs().isEmpty()) {
-                int base = mass.relativePosition() == null ? 0 : mass.relativePosition().y();
-                for (int rel : layout.floorYs()) {
-                    ys.add(base + rel);
-                }
-            } else if (mass.relativePosition() != null) {
-                ys.add(mass.relativePosition().y());
+        List<Vec3i> goals = new ArrayList<>();
+        for (Vec3i rep : StoreyWalkRegions.regionRepresentatives(occ, mass, absY)) {
+            Vec3i shifted = shift(rep, massOff);
+            if (shifted != null) {
+                goals.add(shifted);
             }
         }
-        for (int y : ys) {
-            Vec3i sample = shift(BridgeWalkability.interiorFloorCell(mass, y), massOff);
-            if (sample != null && WalkabilityGraph.canStand(occ, sample)) {
-                return sample;
+        return goals;
+    }
+
+    private static List<Vec3i> allStandableRegionGoals(
+            PlannedOccupancy occ,
+            Component mass,
+            Map<String, Slot> slotMap,
+            Vec3i zero
+    ) {
+        Set<Vec3i> goals = new LinkedHashSet<>();
+        for (int y : absoluteFloorYs(mass)) {
+            goals.addAll(regionGoalsAtY(occ, mass, y, slotMap, zero));
+        }
+        return new ArrayList<>(goals);
+    }
+
+    /**
+     * DIRECT edge starts from the parent's own standable cells only (not the independent root),
+     * so a root↔child detour cannot substitute for parent↔child.
+     */
+    private static List<Vec3i> directParentStarts(
+            PlannedOccupancy occ,
+            MassEntry parent,
+            Map<String, Slot> slotMap,
+            Vec3i zero
+    ) {
+        Set<Vec3i> starts = new LinkedHashSet<>();
+        if (parent.ownGroundOrNull() != null) {
+            starts.add(parent.ownGroundOrNull());
+        }
+        starts.addAll(allStandableRegionGoals(occ, parent.mass(), slotMap, zero));
+        return new ArrayList<>(starts);
+    }
+
+    private static Optional<CapabilityGap> reachAllGoals(
+            PlannedOccupancy occ,
+            List<Vec3i> starts,
+            List<Vec3i> goals,
+            String massId,
+            String precision,
+            CirculationScope scope,
+            String incompleteMessage,
+            String incompleteHint
+    ) {
+        for (Vec3i goal : goals) {
+            Optional<CapabilityGap> gap = reachFromAnyGround(
+                    occ, starts, goal, massId, goal.y(), precision, scope,
+                    incompleteMessage, incompleteHint);
+            if (gap.isPresent()) {
+                return gap;
             }
         }
-        return null;
+        return Optional.empty();
+    }
+
+    private static Optional<CapabilityGap> hostLinkBlocked(String parentId, String childId, String precision, String detail) {
+        return Optional.of(new CapabilityGap(
+                "E_CIRCULATION_HOST_LINK_BLOCKED",
+                "Direct host link blocked (parent=" + parentId + ", child=" + childId
+                        + ", precision=" + precision + "): " + detail,
+                "components[].params.host_id",
+                List.of("Connect child to its direct host_id with a bridge, corridor, or stairs.",
+                        "Or set circulation_host_links=ROOT if only root reachability is required.")));
     }
 
     private static Optional<CapabilityGap> massJoinsComplexFromRoot(

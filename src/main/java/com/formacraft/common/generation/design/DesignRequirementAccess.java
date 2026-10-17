@@ -127,6 +127,42 @@ public final class DesignRequirementAccess {
                         "Omit circulation_scope to default to BUILDING_LOCAL.")));
     }
 
+    /**
+     * Attached host-link proof mode. Key absent → {@link CirculationHostLinks#ROOT}.
+     * Call {@link #validateCirculationHostLinks} under REQUIRED before trusting a present key.
+     */
+    public static CirculationHostLinks circulationHostLinks(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null
+                || !plan.planMeta().containsKey(CirculationHostLinks.META_KEY)) {
+            return CirculationHostLinks.ROOT;
+        }
+        Object raw = plan.planMeta().get(CirculationHostLinks.META_KEY);
+        CirculationHostLinks parsed = CirculationHostLinks.parse(raw == null ? null : String.valueOf(raw));
+        return parsed == null ? CirculationHostLinks.ROOT : parsed;
+    }
+
+    /**
+     * When {@code plan_meta.circulation_host_links} is present but not a known enum value,
+     * returns {@code E_CIRCULATION_HOST_LINKS_INVALID}.
+     */
+    public static Optional<CapabilityGap> validateCirculationHostLinks(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null
+                || !plan.planMeta().containsKey(CirculationHostLinks.META_KEY)) {
+            return Optional.empty();
+        }
+        Object raw = plan.planMeta().get(CirculationHostLinks.META_KEY);
+        String text = raw == null ? "" : String.valueOf(raw).trim();
+        if (CirculationHostLinks.parse(text) != null) {
+            return Optional.empty();
+        }
+        return Optional.of(new CapabilityGap(
+                "E_CIRCULATION_HOST_LINKS_INVALID",
+                "Unknown circulation_host_links='" + text + "' (expected ROOT or DIRECT)",
+                "plan_meta.circulation_host_links",
+                List.of("Use ROOT (default) or DIRECT.",
+                        "Omit circulation_host_links to default to ROOT.")));
+    }
+
     private static DesignRequirement fromPlanMeta(LlmPlan plan, String key) {
         if (plan == null || plan.planMeta() == null) {
             return null;

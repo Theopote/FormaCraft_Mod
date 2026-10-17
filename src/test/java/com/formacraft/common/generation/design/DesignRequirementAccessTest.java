@@ -87,4 +87,28 @@ class DesignRequirementAccessTest {
         assertTrue(gap.isPresent());
         assertEquals("E_CIRCULATION_SCOPE_INVALID", gap.get().code());
     }
+
+    @Test
+    void circulationHostLinksDefaultsToRoot() {
+        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        assertEquals(CirculationHostLinks.ROOT, DesignRequirementAccess.circulationHostLinks(plan));
+    }
+
+    @Test
+    void circulationHostLinksDirectFromPlanMeta() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("circulation_host_links", "DIRECT"))
+                .build();
+        assertEquals(CirculationHostLinks.DIRECT, DesignRequirementAccess.circulationHostLinks(plan));
+    }
+
+    @Test
+    void validateCirculationHostLinksRejectsTypo() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("circulation_host_links", "FOO"))
+                .build();
+        var gap = DesignRequirementAccess.validateCirculationHostLinks(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_CIRCULATION_HOST_LINKS_INVALID", gap.get().code());
+    }
 }
