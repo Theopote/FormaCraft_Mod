@@ -11,6 +11,33 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class CompoundRequestRegressions(unittest.TestCase):
+    def test_retest_plans_normalize_and_preserve_explicit_stair_contracts(self):
+        for i in range(1,7):
+            with self.subTest(plan=i):
+                raw = json.loads((FIXTURES / f'oct17_retest_{i}.json').read_text(encoding='utf-8'))
+                text = raw['proportion_hints']['architecture_intent']['original_text']
+                result = normalize_circulation_plan(apply_building_contract(raw,text,finalize=True))
+                self.assertNotIn('capability_gap',result)
+                self.assertEqual(result,normalize_circulation_plan(result))
+                self.assertEqual(result,json.loads((FIXTURES / f'oct17_retest_{i}.normalized.json').read_text(encoding='utf-8')))
+                if i == 4:
+                    stair = next(c for c in result['components'] if c['params']['component_id']=='central_stair')
+                    self.assertEqual('STRUCTURE',stair['component_type'])
+                    self.assertEqual(6,stair['params']['to']['y'])
+                if i == 5:
+                    stair = next(c for c in result['components'] if c['params']['component_id']=='exterior_stair')
+                    self.assertEqual(28,stair['relative_position']['x'])
+    def test_named_residence_floors_are_not_inferred_on_other_bodies(self):
+        from app.services.ai_planner import _normalize_llm_plan_output
+        raw = {'mode':'build','style_profile':'DEFAULT','anchor':{'x':0,'y':64,'z':0},
+               'components':[{'component_type':'MASS_MAIN','relative_position':{'x':0,'y':0,'z':0},
+                              'dimensions':{'width':23,'depth':11,'height':12},
+                              'params':{'component_id':'chapel','anchor_mode':'min_corner'}}]}
+        req = SimpleNamespace(userMessage='礼拜堂高12格。一栋两层居住楼，每层高5格。',selection=None,
+                              brushSelection=None,outline=None,chatHistory=[])
+        result = _normalize_llm_plan_output(raw,req)
+        chapel = next(c for c in result['components'] if c['params']['component_id']=='chapel')
+        self.assertNotEqual(2,chapel['params'].get('floor_count'))
     def test_logged_compounds_keep_part_requirements_off_other_buildings(self):
         for i in (1, 3, 4, 5, 6):
             with self.subTest(plan=i):

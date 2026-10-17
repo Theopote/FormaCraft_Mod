@@ -55,6 +55,9 @@ final class RoofShapeAudit {
         boolean alongDepth=d>=w;
         int across=alongDepth?w:d;
         int length=alongDepth?d:w;
+        int overhang = com.formacraft.common.generation.component.util.ComponentParamParsers.intParam(c.params(),"overhang");
+        int roofRise = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(w,d,c.dimensions().height(),c.params());
+        int expectedEdge = (int)Math.round(Math.min(1.0,overhang/(double)Math.max(1,(across+2*overhang-1)/2))*(roofRise-1));
         // Index final occupied columns once; respect REMOVE and later replacements.
         var tops=new HashMap<Long,Integer>();
         for(var entry:finalBlocks.entrySet()) {
@@ -85,6 +88,19 @@ final class RoofShapeAudit {
             checked++;
             int center=across/2, peak=heights.get(center);
             boolean rise=peak>heights.getFirst() && peak>heights.getLast();
+            if (!rise && overhang > 0 && roofRise > 1 && expectedEdge == roofRise-1
+                    && peak == origin.getY()+roofRise-1 && heights.stream().allMatch(h -> h == peak)) {
+                // On a low, narrow gable the integer ridge plateau can cover
+                // the whole body. Verify its actual lower eaves outside it.
+                var left = new BlockPos(origin.getX()+(alongDepth ? -overhang : section),0,
+                        origin.getZ()+(alongDepth ? section : -overhang));
+                var right = new BlockPos(origin.getX()+(alongDepth ? across-1+overhang : section),0,
+                        origin.getZ()+(alongDepth ? section : across-1+overhang));
+                if (occludedColumns.contains(left) || occludedColumns.contains(right)) { checked--; continue; }
+                Integer lowLeft = tops.get(columnKey(left.getX(),left.getZ()));
+                Integer lowRight = tops.get(columnKey(right.getX(),right.getZ()));
+                rise = lowLeft != null && lowRight != null && peak > lowLeft && peak > lowRight;
+            }
             boolean continuous=true;
             for(int i=1;i<=center;i++) continuous &= heights.get(i)>=heights.get(i-1);
             for(int i=center+1;i<across;i++) continuous &= heights.get(i)<=heights.get(i-1);

@@ -443,7 +443,10 @@ public final class ComponentPlanCompiler {
             }
             for (var p : result) {
                 if (!GeneratedSurfaceCapture.occupied(p) || p.dy() < roof.relativePosition().y()+offset.getY()) continue;
-                var record = auditOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+                PatchOccupancyIndex.PlaceRecord record = null;
+                if (auditOccupancy != null) {
+                    record = auditOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+                }
                 if (record == null || record.owner() == null) continue;
                 var owner = record.owner();
                 if (!(com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(owner)
@@ -768,8 +771,8 @@ public final class ComponentPlanCompiler {
                         boolean bridge = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                                 .isBridgePlate(c.params());
                         if (bridge) {
-                            var hostMass = HostedPlateDesignValidator.findHostMass(host, components);
-                            var targetMass = HostedPlateDesignValidator.findHostMass(target, components);
+                            var hostMass = HostedPlateDesignValidator.findBridgeEndpoint(host, components);
+                            var targetMass = HostedPlateDesignValidator.findBridgeEndpoint(target, components);
                             var portalClearance = new HashSet<BlockPos>();
                             // Preserve a central walking lane across the deck, including where
                             // later hosted railings or enclosures cross the connector.
@@ -1007,8 +1010,8 @@ public final class ComponentPlanCompiler {
             }
             String hostId = getParamString(plate.params(), "host_id", "hostId");
             String targetId = getParamString(plate.params(), "target_host_id", "targetHostId");
-            var host = HostedPlateDesignValidator.findHostMass(hostId, components);
-            var target = HostedPlateDesignValidator.findHostMass(targetId, components);
+            var host = HostedPlateDesignValidator.findBridgeEndpoint(hostId, components);
+            var target = HostedPlateDesignValidator.findBridgeEndpoint(targetId, components);
             if (host.isEmpty() || target.isEmpty()) {
                 continue;
             }
@@ -1056,7 +1059,10 @@ public final class ComponentPlanCompiler {
                             "Ensure bridge Y has solid floors and 2-high clearance into both masses.",
                             "precision=BLOCKSTATE is registry-refined profiles, not VoxelShape collision.")));
             var deckLocal = com.formacraft.common.generation.component.util.BridgeWalkability.deckFloorCell(plate);
-            var deckWorld = new Vec3i(deckLocal.x() + plateOff.x(), deckLocal.y() + plateOff.y(), deckLocal.z() + plateOff.z());
+            Vec3i deckWorld = null;
+            if (deckLocal != null) {
+                deckWorld = new Vec3i(deckLocal.x() + plateOff.x(), deckLocal.y() + plateOff.y(), deckLocal.z() + plateOff.z());
+            }
             FormacraftMod.LOGGER.warn("Bridge blocked: deck={} floor={} head1={} head2={} host={} target={}", deckWorld,
                     occ.profileAt(deckWorld), occ.profileAt(new Vec3i(deckWorld.x(), deckWorld.y()+1, deckWorld.z())),
                     occ.profileAt(new Vec3i(deckWorld.x(), deckWorld.y()+2, deckWorld.z())),
@@ -1875,6 +1881,24 @@ public final class ComponentPlanCompiler {
         }
 
         List<String> features = mergeFeatureLists(template.features(), llmFacade.features());
+        int openingWidth = ComponentParamParsers.intParam(llmFacade.params(),"window_width","windowWidth");
+        int openingHeight = ComponentParamParsers.intParam(llmFacade.params(),"window_height","windowHeight");
+        boolean authoredSingleRow = ComponentParamParsers.intParam(llmFacade.params(),"rows") == 1;
+        if (llmDims != null && llmFacade.relativePosition() != null && openingWidth > 0 && openingHeight > 0
+                && (llmDims.width() == 1 || llmDims.depth() == 1)
+                && (authoredSingleRow || (llmDims.width() == 1 ? llmDims.depth() : llmDims.width()) <= openingWidth+2)
+                && llmDims.height() <= openingHeight+2
+                && llmFacade.relativePosition().y()+openingHeight <= massOrigin.y()+massDims.height()
+                && isFacadeStripOnHost(llmFacade,massOrigin,massDims)) {
+            params.put("localized_window",(llmDims.width() == 1 ? llmDims.depth() : llmDims.width()) <= openingWidth+2);
+            params.put("floor_count",1);
+            params.put("floor_height",llmDims.height());
+            var pos = llmFacade.relativePosition();
+            params.put("localized_face",llmDims.width()==1 && llmDims.depth()>1
+                    ? (pos.x() <= massOrigin.x() ? "EAST" : "WEST")
+                    : (pos.z() <= massOrigin.z() ? "SOUTH" : "NORTH"));
+            return new Component("FACADE_WINDOWS",llmFacade.slotId(),pos,llmDims,features,params);
+        }
         // A thin authored strip identifies a wall and often one floor. Do not
         // expand every strip into the same full-building facade.
         if (llmDims != null && llmFacade.relativePosition() != null

@@ -251,12 +251,45 @@ def _fit_exterior_stairs(plan: dict) -> None:
         run = abs(dx or dz)
         landing = int(p.get('landing_length') or 1)
         clear = int(p.get('clearHeight') or 2)
+        endpoint = {axis: origin[axis]+b[axis] for axis in ('x','y','z')}
+        target_landings = []
+        for part in plan.get('components', []):
+            pp = part.get('params') or {}
+            if part.get('component_type') not in ('TERRACE','BALCONY') or not pp.get('host_id'):
+                continue
+            po = world(part); pd = part.get('dimensions') or {}
+            if (po['y'] == endpoint['y'] and po['x']-width <= endpoint['x'] < po['x']+pd.get('width',0)+width
+                    and po['z']-width <= endpoint['z'] < po['z']+pd.get('depth',0)+width):
+                target_landings.append(part)
+        targets = {(c.get('params') or {}).get('host_id') for c in target_landings}
+        if len(targets) == 1 and p.get('host_id') not in targets and not p.get('target_host_id'):
+            p['target_host_id'] = next(iter(targets))
+            p['circulation_target_source'] = 'landing_contact'
+        def target_landing_fits(shift):
+            if not target_landings: return True
+            for part in target_landings:
+                po = world(part); pd = part['dimensions']
+                extent = pd['width' if side == 'x' else 'depth']
+                center = endpoint[side]+shift
+                if center-width//2 < po[side] or center+width-width//2 > po[side]+extent: continue
+                axis = 'z' if side == 'x' else 'x'
+                length = pd['depth' if side == 'x' else 'width']
+                direction = ((dz>0)-(dz<0)) if side == 'x' else ((dx>0)-(dx<0))
+                if any(po[axis] <= endpoint[axis]+step*direction < po[axis]+length for step in range(landing+1)):
+                    return True
+            return False
         def clips(shift):
             for body in bodies:
                 bp = body.get('params') or {}
-                if bp.get('component_id') == p.get('host_id') or bp.get('host_id') == p.get('host_id'): continue
+                own_body = bp.get('component_id') == p.get('host_id')
+                if bp.get('host_id') == p.get('host_id'): continue
                 bo = world(body); dims = body['dimensions']
                 for step in range(run+landing+1):
+                    # Only the terminal steps may enter the declared host. The
+                    # lower flight still has to clear its own exterior shell.
+                    terminal_host = bp.get('component_id') == p.get('target_host_id') or (
+                        p.get('target_host_id') is not None and bp.get('host_id') == p.get('target_host_id'))
+                    if (own_body or terminal_host) and step >= run-1: continue
                     ratio = min(1,step/max(1,run))
                     point = {axis: origin[axis]+a[axis]+round((b[axis]-a[axis])*ratio) for axis in ('x','y','z')}
                     if step > run:
@@ -269,7 +302,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
                                 and origin['y']+a['y']-1 < bo['y']+dims['height'] and point['y']+clear >= bo['y']):
                             return True
             return False
-        if not clips(0): continue
+        if not clips(0) and target_landing_fits(0): continue
         rise = abs(b['y']-a['y'])
         if run > rise > 0:
             old_a, old_run = dict(a), run
@@ -279,10 +312,13 @@ def _fit_exterior_stairs(plan: dict) -> None:
             a['z'] = b['z']-((dz>0)-(dz<0))*rise
             run = rise
             if not clips(0):
-                p['from'] = a
-                p['circulation_fit'] = 'shorten_exterior_approach'
-                continue
-            a, run = old_a, old_run
+                if target_landing_fits(0):
+                    p['from'] = a
+                    p['circulation_fit'] = 'shorten_exterior_approach'
+                    continue
+                # Keep the shorter approach while trying a lateral adjustment.
+            else:
+                a, run = old_a, old_run
         own_landings = [c for c in landings if (c.get('params') or {}).get('host_id') == p.get('host_id')]
         def reaches_landing(shift):
             if not own_landings: return True
@@ -295,8 +331,9 @@ def _fit_exterior_stairs(plan: dict) -> None:
                         return True
             return False
         for distance in range(1,width+1):
-            candidates = [s for s in (distance,-distance) if not clips(s) and reaches_landing(s)]
+            candidates = [s for s in (distance,-distance) if not clips(s) and reaches_landing(s) and target_landing_fits(s)]
             if candidates:
+                p['from'] = a
                 stair['relative_position'][side] += candidates[0]
                 p['circulation_fit'] = 'avoid_adjacent_body'
                 # A partial platform may need up to two extra edge cells to receive
@@ -329,6 +366,16 @@ def normalize_circulation_plan(plan: dict) -> dict:
     # Convert only executable, floor-bound descriptions; ordinary volumes stay volumes.
     for comp in out.get('components', []):
         p = comp.get('params') or {}
+        if comp.get('component_type') == 'MASS_SECONDARY' and p.get('extrude_mode') == 'stair':
+            host = _host_mass(out,comp)
+            rise, run = p.get('stair_rise'), p.get('stair_run')
+            fh = int((host.get('params') or {}).get('floor_height') or 0) if host else 0
+            if (host and isinstance(rise,int) and isinstance(run,int) and fh > 0
+                    and rise % fh == 0 and 1 <= rise <= run <= 64):
+                base = (comp.get('relative_position') or {}).get('y',0)-_mass_origin(host)['y']
+                if base >= 0 and base % fh == 0:
+                    p.update(stair_type='straight',rise=rise,run=run,from_floor=base//fh+1,
+                             to_floor=(base+rise)//fh+1,headroom=p.get('clearance',2))
         if comp.get('component_type') != 'MASS_SECONDARY' or p.get('stair_type') != 'straight':
             continue
         host = _host_mass(out, comp)

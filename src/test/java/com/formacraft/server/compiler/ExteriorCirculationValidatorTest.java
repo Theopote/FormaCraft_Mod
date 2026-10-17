@@ -12,6 +12,24 @@ import com.formacraft.common.llm.dto.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @Test void publicPavingPermissionStopsAtTheGroundApproach() {
+        var court = new Component("COURTYARD","s",new Vec3i(0,0,0),new Dimensions(8,8,1),List.of(),Map.of("component_id","court"));
+        var wall = new Component("MASS_MAIN","s",court.relativePosition(),new Dimensions(8,8,8),List.of(),Map.of("component_id","other"));
+        var stair = new Component("STRUCTURE","s",court.relativePosition(),new Dimensions(6,2,6),List.of("stair:straight_single_run"),
+                Map.of("host_id","hall","exterior",true,"width",2,
+                        "from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",5,"y",5,"z",0)));
+        var first = new BlockPos(0,0,0);
+        var support = new BlockPos(1,0,0);
+        var beyond = new BlockPos(3,0,0);
+        var foreign = new BlockPos(0,0,-1);
+        var index = new PatchOccupancyIndex();
+        index.commit(court,List.of(stone(first),stone(support),stone(beyond)));
+        index.commit(wall,List.of(stone(foreign)));
+        var access = ExteriorCirculationValidator.connectorAccess(stair,List.of(),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.containsAll(List.of(first,support)));
+        assertFalse(access.contains(beyond));
+        assertFalse(access.contains(foreign));
+    }
     @Test void partialPlatformJoinIncludesItsSupportAndHeadroomOnly() {
         var platform = new Component("MASS_SECONDARY","s",new Vec3i(0,5,0),new Dimensions(5,4,1),List.of(),
                 Map.of("component_id","platform","host_id","hall","extrude_mode","plate",

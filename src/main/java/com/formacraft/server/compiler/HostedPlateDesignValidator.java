@@ -154,7 +154,7 @@ final class HostedPlateDesignValidator {
                         "components[].params.target_host_id",
                         List.of("Point target_host_id at a different mass than host_id.")));
             }
-            if (findHostMass(target.get(), components).isEmpty()) {
+            if (findBridgeEndpoint(target.get(), components).isEmpty()) {
                 return Optional.of(new CapabilityGap(
                         "E_TARGET_HOST_ID_UNRESOLVED",
                         "No host mass with component_id=" + target.get() + " for bridge target_host_id",
@@ -165,7 +165,8 @@ final class HostedPlateDesignValidator {
         if (hostId == null) {
             return Optional.empty();
         }
-        if (findHostMass(hostId, components).isEmpty()) {
+        if ((role == HostedPlateOccupancy.PlateRole.BRIDGE ? findBridgeEndpoint(hostId, components)
+                : findHostMass(hostId, components)).isEmpty()) {
             return Optional.of(new CapabilityGap(
                     "E_HOST_ID_UNRESOLVED",
                     "No host mass with component_id=" + hostId + " for hosted plate",
@@ -186,8 +187,8 @@ final class HostedPlateDesignValidator {
         if (hostId == null || targetId.isEmpty() || plate.dimensions() == null || plate.relativePosition() == null) {
             return Optional.empty();
         }
-        Optional<Component> host = findHostMass(hostId, components);
-        Optional<Component> target = findHostMass(targetId.get(), components);
+        Optional<Component> host = findBridgeEndpoint(hostId, components);
+        Optional<Component> target = findBridgeEndpoint(targetId.get(), components);
         if (host.isEmpty() || target.isEmpty()) {
             return Optional.empty();
         }
@@ -238,7 +239,7 @@ final class HostedPlateDesignValidator {
             return Optional.empty();
         }
         String hostId = paramString(plate.params(), "host_id", "hostId");
-        Optional<Component> host = findHostMass(hostId, components);
+        Optional<Component> host = findBridgeEndpoint(hostId, components);
         if (host.isEmpty()) {
             return Optional.empty();
         }
@@ -300,6 +301,17 @@ final class HostedPlateDesignValidator {
                             "Bridge Y is not limited to a single host envelope.")));
         }
         return Optional.empty();
+    }
+
+    static Optional<Component> findBridgeEndpoint(String hostId, List<Component> components) {
+        var mass = findHostMass(hostId,components);
+        if (mass.isPresent() || hostId == null || components == null) return mass;
+        return components.stream().filter(c -> c != null && c.params() != null && c.dimensions() != null
+                && isMassType(c.componentType())
+                && hostId.equals(paramString(c.params(),"component_id"))
+                && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))
+                && HostedPlateOccupancy.resolveRole(c.params()) == HostedPlateOccupancy.PlateRole.TERRACE
+                && paramString(c.params(),"host_id") == null).findFirst();
     }
 
     static Optional<Component> findHostMass(String hostId, List<Component> components) {

@@ -13,10 +13,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class FacadeWindowsAspectTest {
+    @Test
+    void localWindowPatchKeepsItsOwnRectangleAcrossHostFloorBands() {
+        var params = new HashMap<String,Object>();
+        params.put("localized_window",true);
+        params.put("localized_face","NORTH");
+        params.put("window_width",5);
+        params.put("window_height",4);
+        params.put("floor_count",2);
+        params.put("floor_height",3);
+        var c = new Component("FACADE_WINDOWS","",new Vec3i(9,6,10),new Dimensions(5,1,5),List.of(),params);
+        var slot = new Slot("",new Vec3i(0,0,0),GlobalConstraints.Facing.SOUTH,null,null,null);
+        var patches = new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,null,null,null));
+        assertEquals(20,patches.size());
+        assertEquals(java.util.Set.of(6,7,8,9),patches.stream().map(BlockPatch::dy).collect(java.util.stream.Collectors.toSet()));
+        assertEquals(java.util.Set.of(9,10,11,12,13),patches.stream().map(BlockPatch::dx).collect(java.util.stream.Collectors.toSet()));
+        assertTrue(patches.stream().allMatch(p -> p.dz()==10));
+    }
     @Test
     void singleTallHallDoesNotSplitWindowsAtUnusedFloorHeight() {
         var params = new HashMap<String,Object>();
@@ -28,7 +44,7 @@ class FacadeWindowsAspectTest {
         var c = new Component("FACADE_WINDOWS","",new Vec3i(0,0,0),new Dimensions(23,1,12),List.of(),params);
         var slot = new Slot("",new Vec3i(0,0,0),GlobalConstraints.Facing.SOUTH,null,null,null);
         var patches = new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,null,null,null));
-        assertTrue(!patches.isEmpty());
+        assertFalse(patches.isEmpty());
         assertEquals(java.util.Set.of(3,4,5,6,7),
                 patches.stream().map(BlockPatch::dy).collect(java.util.stream.Collectors.toSet()));
     }
@@ -44,7 +60,7 @@ class FacadeWindowsAspectTest {
                 new Dimensions(24,1,16), List.of(), params);
         var slot = new Slot("", new Vec3i(0,0,0), GlobalConstraints.Facing.SOUTH, null,null,null);
         var patches = new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,null,null,null));
-        assertTrue(!patches.isEmpty());
+        assertFalse(patches.isEmpty());
         assertEquals(java.util.Set.of(2,3,4,5,6,7,10,11,12,13,14,15),
                 patches.stream().map(BlockPatch::dy).collect(java.util.stream.Collectors.toSet()));
     }
@@ -52,7 +68,7 @@ class FacadeWindowsAspectTest {
     @Test
     void verticalStrip_producesNarrowAxisSpan() {
         List<BlockPatch> patches = generateWithAspect("vertical_strip", 20, 8, 1);
-        assertTrue(patches.size() > 0);
+        assertFalse(patches.isEmpty());
         // vertical strips: limited z depth (facade depth=1), varied x
         long distinctX = patches.stream().map(BlockPatch::dx).distinct().count();
         long distinctZ = patches.stream().map(BlockPatch::dz).distinct().count();
@@ -63,7 +79,7 @@ class FacadeWindowsAspectTest {
     @Test
     void horizontalStrip_spansFacadeWidth() {
         List<BlockPatch> patches = generateWithAspect("horizontal_strip", 16, 6, 1);
-        assertTrue(patches.size() > 0);
+        assertFalse(patches.isEmpty());
         long distinctX = patches.stream().map(BlockPatch::dx).distinct().count();
         assertTrue(distinctX >= 10, "horizontal strip should span most of facade width");
     }
@@ -81,8 +97,8 @@ class FacadeWindowsAspectTest {
                 "square", List.of("large", "wide"), 20, 10, 1, 6);
         List<BlockPatch> inferredPunch = generateWithAspectAndFeatures(
                 null, List.of("large", "wide"), 20, 10, 1, 6);
-        assertTrue(explicitSquare.size() > 0);
-        assertTrue(inferredPunch.size() > 0);
+        assertFalse(explicitSquare.isEmpty());
+        assertFalse(inferredPunch.isEmpty());
         // Punch uses a narrower mid-band; explicit square must not collapse to that geometry.
         assertTrue(explicitSquare.size() != inferredPunch.size()
                         || !sameYSpan(explicitSquare, inferredPunch),

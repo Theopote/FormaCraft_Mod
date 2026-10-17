@@ -1151,6 +1151,10 @@ def _normalize_llm_plan_output(
         if req is not None:
             user_text = req.userMessage or ""
             floors_hint = _parse_levels_from_text(user_text)
+            from .building_contract import extract_requirements
+            floor_requirements = [r for r in extract_requirements(user_text) if r['property'] == 'floor_count']
+            if floor_requirements and not any(r['scope'] == 'all_main_masses' for r in floor_requirements):
+                floors_hint = None  # A named residence's floors do not belong to its chapel or workshop.
             t_lower = user_text.lower()
             explicit_courtyard = any(k in t_lower for k in (
                 "courtyard", "中庭", "庭院", "四合院", "院落", "内院"

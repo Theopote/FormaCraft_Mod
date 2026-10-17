@@ -60,15 +60,38 @@ final class ExteriorCirculationValidator {
         int clear = number(stair.params().getOrDefault("clearHeight", 2));
         var rp = stair.relativePosition();
         var result = new HashSet<BlockPos>();
+        // The first exterior tread may replace a flat public paving surface.
+        // This does not authorize a flight through a courtyard wall or building.
+        int run = Math.max(Math.abs(number(to.get("x"))-number(from.get("x"))),
+                Math.abs(number(to.get("z"))-number(from.get("z"))));
+        int rise = number(to.get("y"))-number(from.get("y"));
+        for (int startStep=0;startStep<=run;startStep++) {
+            if (Math.abs(Math.round(rise*(startStep/(double)Math.max(1,run)))) > 1) break;
+            for (int side=-width/2;side<width-width/2;side++) for (int y=-1;y<=0;y++) {
+            var pos = new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*startStep+(dz != 0 ? side : 0),
+                    offset.getY()+rp.y()+number(from.get("y"))+y,
+                    offset.getZ()+rp.z()+number(from.get("z"))+dz*startStep+(dx != 0 ? side : 0));
+            var previous = occupancy.placeAt(pos);
+            if (previous != null && previous.owner() != null && previous.owner().dimensions() != null
+                    && previous.owner().dimensions().height() == 1
+                    && Set.of("COURTYARD","COURTYARD_SPACE","PATH","ROAD","PAVING","PLAZA").contains(previous.writerType()))
+                result.add(pos);
+        }
+        }
         Object stairBuilding = stair.params().get("building_id");
         if (stairBuilding == null) stairBuilding = stair.params().get("host_id");
         for (Component connector : components) {
             if (connector.params() == null) continue;
             boolean enclosure = "DECOR_DETAIL".equals(connector.componentType())
                     && Boolean.TRUE.equals(connector.params().get("corridor_enclosure"));
-            boolean ownPlatform = "partial_platform".equals(connector.params().get("plate_role"))
-                    && stairBuilding != null && stairBuilding.equals(connector.params().get("host_id"));
-            if (!"MASS_SECONDARY".equals(connector.componentType()) && !enclosure) continue;
+            Object platformHost = connector.params().get("host_id");
+            boolean platformRole = com.formacraft.common.generation.component.util.PlateRoleCatalog.TERRACE_TOKENS
+                    .contains(String.valueOf(connector.params().get("plate_role")))
+                    || "gallery".equals(connector.params().get("plate_role"))
+                    || Set.of("TERRACE","BALCONY").contains(connector.componentType());
+            boolean ownPlatform = platformRole && platformHost != null && (platformHost.equals(stairBuilding)
+                    || platformHost.equals(stair.params().get("target_host_id")));
+            if (!Set.of("MASS_SECONDARY","TERRACE","BALCONY").contains(connector.componentType()) && !enclosure) continue;
             if (enclosure) {
                 boolean joinsBuilding = false;
                 for (var bridge : components) {
@@ -107,8 +130,8 @@ final class ExteriorCirculationValidator {
                             && pos.getZ() >= bounds.minZ()+oz && pos.getZ() < bounds.maxZ()+oz
                             && previous != null && previous.owner() != null
                             && (previous.owner() == connector || (ownPlatform && previous.owner().params() != null
-                                && (stairBuilding.equals(previous.owner().params().get("component_id"))
-                                    || stairBuilding.equals(previous.owner().params().get("host_id")))) || (previous.owner().params() != null
+                                && (platformHost.equals(previous.owner().params().get("component_id"))
+                                    || platformHost.equals(previous.owner().params().get("host_id")))) || (previous.owner().params() != null
                                 && java.util.Objects.equals(connector.params().get("component_id"),
                                         previous.owner().params().get("host_id"))))) result.add(pos);
                 }

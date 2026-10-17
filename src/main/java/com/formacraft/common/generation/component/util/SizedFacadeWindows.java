@@ -12,6 +12,24 @@ public final class SizedFacadeWindows {
             boolean wrap,int windowWidth,int windowHeight,int floorHeight,boolean reserveEntrance) {
         var c=semantic.source(); var params=c.params(); var rp=c.relativePosition(); var dims=c.dimensions();
         int width=dims.width(),depth=dims.depth(),height=dims.height();
+        if (Boolean.TRUE.equals(params.get("localized_window"))) {
+            boolean alongZ = width == 1 && depth > 1;
+            int span = alongZ ? depth : width;
+            int count = Math.min(windowWidth,span);
+            int thickness = Math.max(1,ComponentParamParsers.intParam(params,1,"wall_thickness"));
+            String face = String.valueOf(params.get("localized_face"));
+            int ix = "EAST".equals(face) ? 1 : "WEST".equals(face) ? -1 : 0;
+            int iz = "SOUTH".equals(face) ? 1 : "NORTH".equals(face) ? -1 : 0;
+            var out = new ArrayList<BlockPatch>();
+            for (int a=(span-count)/2;a<(span-count)/2+count;a++) for (int y=0;y<Math.min(windowHeight,height);y++) {
+                int x=rp.x()+(alongZ ? 0 : a), z=rp.z()+(alongZ ? a : 0);
+                for (int layer=1;layer<thickness;layer++)
+                    out.add(new BlockPatch(BlockPatch.REMOVE,x+ix*layer,rp.y()+y,z+iz*layer,"minecraft:air"));
+                GeneratedSurfaceCapture.record(x,rp.y()+y,z,GeneratedSurfaceCapture.Role.WINDOW);
+                out.add(new BlockPatch(BlockPatch.PLACE,x,rp.y()+y,z,block));
+            }
+            return out;
+        }
         String wall=String.valueOf(params.getOrDefault("wall",""));
         String excluded=String.valueOf(params.getOrDefault("excluded_window_axis",""));
         Integer floorHint=null;

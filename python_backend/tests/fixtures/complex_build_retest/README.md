@@ -67,3 +67,10 @@ was lost after an invalid optional slot facing. It cannot be faithfully restored
 from this response. A separate schema-repair regression inserts `facing=NONE`
 into a multi-slot logged compound and verifies that all slots and component IDs
 survive normalization without invoking the generic profile fallback.
+
+`oct17_retest_1` through `oct17_retest_6` capture the 21:13–21:24 retry of
+those six prompts. All six normalized plans join the Java replay set (47 total).
+They cover independent quay plate endpoints, hosted gallery and cross-building
+terrace access, ground paving under stair approaches, `extrude_mode=stair`,
+self-host exterior clearance, and locally authored tall window patches/rows.
+The older `oct17_retry_5` snapshot now also clears the stair's own host shell.
