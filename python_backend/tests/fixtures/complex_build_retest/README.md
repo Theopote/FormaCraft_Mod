@@ -39,3 +39,10 @@ coastal inn. The factory and coastal inn normalized snapshots run the production
 building contract and circulation normalizers. They cover missing requested
 office stairs and the length/width axis interpretation respectively. Older
 snapshots now also include the explicitly requested length requirement.
+
+`oct17_evening_1` through `oct17_evening_7` capture the 19:07–19:19 session.
+The hotel and factory have normalized snapshots, covering detached volumes
+mistaken for stacked tiers, incorrect bridge hosts/height units, a short bridge
+and canopy, and its small interior landing. The library covers attached tower
+joins; the courtyard covers the `hip_gable` roof alias. All seven are replayed
+with and without postprocessing alongside the previous 24 plans.

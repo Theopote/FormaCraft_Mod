@@ -330,7 +330,7 @@ public final class PatchOccupancyIndex {
         // Bound structural/detail parts may join their own building. The surface
         // ledger still protects roofs and openings from decoration; REMOVE uses
         // the separate stair/carve rules.
-        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL").contains(writer.componentType().toUpperCase(Locale.ROOT))
+        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER").contains(writer.componentType().toUpperCase(Locale.ROOT))
                 || ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType())
                     && "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode"))));
     }

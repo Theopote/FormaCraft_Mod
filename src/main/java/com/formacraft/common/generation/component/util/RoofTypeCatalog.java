@@ -17,7 +17,7 @@ public final class RoofTypeCatalog {
             "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山",
             "double_gable", "doublegable", "shuangpo", "双坡",
             "hip", "hipped", "chinese_hip",
-            "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山",
+            "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山",
             "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山",
             "pyramid",
             "cone", "conical",
@@ -74,7 +74,7 @@ public final class RoofTypeCatalog {
             if (lower.contains("xuanshan") || lower.contains("xuan_shan") || lower.contains("悬山")) {
                 return Optional.of("xuanshan");
             }
-            if (lower.contains("xieshan") || lower.contains("xie_shan") || lower.contains("hip_and_gable")
+            if (lower.contains("xieshan") || lower.contains("xie_shan") || lower.contains("hip_and_gable") || lower.contains("hip_gable")
                     || lower.contains("歇山")) {
                 return Optional.of("xieshan");
             }
@@ -135,7 +135,7 @@ public final class RoofTypeCatalog {
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;
             case "hip", "hipped", "chinese_hip" -> RoofTypeKind.HIP;
-            case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山" -> RoofTypeKind.XIESHAN;
+            case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山" -> RoofTypeKind.XIESHAN;
             case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofTypeKind.XUANSHAN;
             case "pyramid" -> RoofTypeKind.PYRAMID;
             case "cone", "conical" -> RoofTypeKind.CONE;

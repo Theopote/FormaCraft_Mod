@@ -213,6 +213,14 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                          and (c.get('params') or {}).get('extrude_mode') != 'plate']
         if len(tiers) < 3: continue
         tiers.sort(key=lambda c: c['relative_position']['y'])
+        from .resolved_geometry import mass_origin
+        def contains_tier(lower, upper):
+            a, b = mass_origin(lower), mass_origin(upper)
+            return lower.get('slot_id') == upper.get('slot_id') and all(
+                a[axis] <= b[axis] and b[axis] + upper['dimensions'][size] <= a[axis] + lower['dimensions'][size]
+                for axis, size in (('x', 'width'), ('z', 'depth')))
+        if not all(contains_tier(a, b) for a, b in zip(tiers, tiers[1:])):
+            continue  # Offset wings are separate volumes, not stacked setback storeys.
         for index, tier in enumerate(tiers):
             height = (tiers[index+1]['relative_position']['y'] - tier['relative_position']['y']
                       if index+1 < len(tiers) else int(tier['params'].get('floor_height', 0)))

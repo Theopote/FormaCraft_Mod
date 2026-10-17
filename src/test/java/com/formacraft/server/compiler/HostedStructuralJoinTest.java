@@ -26,6 +26,17 @@ class HostedStructuralJoinTest {
         assertTrue(LlmPlanTestFixtures.builder().build().allowCompilerSatellites());
         assertFalse(LlmPlanTestFixtures.builder().planMeta(Map.of("allow_compiler_satellites",false)).build().allowCompilerSatellites());
     }
+    @Test void attachedTowerMayJoinOnlyItsOwnHostInTheSameFrame() {
+        var index = new PatchOccupancyIndex();
+        index.commit(component("MASS_MAIN",Map.of("component_id","hall")),
+                List.of(new BlockPatch(BlockPatch.PLACE,1,0,1,"minecraft:stone_bricks")));
+        var patch = List.of(new BlockPatch(BlockPatch.PLACE,1,0,1,"minecraft:oak_planks"));
+        assertTrue(index.validate(component("TOWER",Map.of("component_id","tower","host_id","hall")),patch).isEmpty());
+        assertTrue(index.validate(component("TOWER",Map.of("component_id","tower","host_id","other")),patch).isPresent());
+        var foreignFrame = new Component("TOWER","other_slot",new Vec3i(0,0,0),new Dimensions(7,7,24),List.of(),
+                Map.of("component_id","tower","host_id","hall"));
+        assertTrue(index.validate(foreignFrame,patch).isPresent());
+    }
     @Test void tierCanJoinHostTopButCannotOverwriteItsInterior() {
         var index = new PatchOccupancyIndex();
         index.commit(component("MASS_MAIN", Map.of("component_id", "house")),

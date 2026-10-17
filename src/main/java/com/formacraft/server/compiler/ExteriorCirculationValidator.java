@@ -60,9 +60,14 @@ final class ExteriorCirculationValidator {
         int clear = number(stair.params().getOrDefault("clearHeight", 2));
         var rp = stair.relativePosition();
         var result = new HashSet<BlockPos>();
+        Object stairBuilding = stair.params().get("building_id");
+        if (stairBuilding == null) stairBuilding = stair.params().get("host_id");
         for (Component connector : components) {
-            if (!"MASS_SECONDARY".equals(connector.componentType()) || connector.params() == null
-                    || "plate".equals(connector.params().get("extrude_mode"))) continue;
+            if (!"MASS_SECONDARY".equals(connector.componentType()) || connector.params() == null) continue;
+            if ("plate".equals(connector.params().get("extrude_mode"))
+                    && (!com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(connector.params())
+                        || stairBuilding == null || !(stairBuilding.equals(connector.params().get("host_id"))
+                            || stairBuilding.equals(connector.params().get("target_host_id"))))) continue;
             var bounds = ComponentFootprintUtil.bounds(connector);
             if (bounds == null) continue;
             Slot slot = slots.get(connector.slotId());

@@ -212,6 +212,8 @@ def _fit_straight_stairs(plan: dict) -> None:
 
 def normalize_circulation_plan(plan: dict) -> dict:
     out = deepcopy(plan)
+    from .bridge_plan_normalizer import normalize_hosted_connections
+    normalize_hosted_connections(out)
     _complete_requested_stairs(out)
     if (out.get('capability_gap') or {}).get('code') == 'E_STAIR_ENVELOPE_FIT':
         out.pop('capability_gap', None)
