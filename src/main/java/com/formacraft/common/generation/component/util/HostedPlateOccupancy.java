@@ -20,7 +20,8 @@ public final class HostedPlateOccupancy {
     public enum PlateRole {
         INTERIOR,
         TERRACE,
-        BRIDGE
+        BRIDGE,
+        WATER
     }
 
     public static PlateRole resolveRole(Map<String, Object> params) {
@@ -31,7 +32,7 @@ public final class HostedPlateOccupancy {
     }
 
     public static boolean skipsHostFootprintClip(PlateRole role) {
-        return role == PlateRole.TERRACE || role == PlateRole.BRIDGE;
+        return role == PlateRole.TERRACE || role == PlateRole.BRIDGE || role == PlateRole.WATER;
     }
 
     /**
@@ -93,7 +94,7 @@ public final class HostedPlateOccupancy {
         return switch (role == null ? PlateRole.INTERIOR : role) {
             case INTERIOR -> new OptionalIntRange(minY, hostOriginY + hostHeight);
             case TERRACE -> new OptionalIntRange(minY, hostOriginY + hostHeight + 1);
-            case BRIDGE -> null;
+            case BRIDGE, WATER -> null;
         };
     }
 
@@ -170,28 +171,28 @@ public final class HostedPlateOccupancy {
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            carveDepth(out, mb.minX(), 1, 0, depth, mb, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, mb.minX(), 1, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
             return out;
         }
         if (plateEastOfMass) {
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            carveDepth(out, mb.maxX() - 1, -1, 0, depth, mb, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, mb.maxX() - 1, -1, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
             return out;
         }
         if (plateNorthOfMass) {
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            carveDepth(out, mb.minZ(), 0, 1, depth, mb, xStart, xEnd, false, clearY0, clearY1);
+            carveDepth(out, mb.minZ(), 0, 1, depth, mb, mass, xStart, xEnd, false, clearY0, clearY1);
             return out;
         }
         if (plateSouthOfMass) {
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            carveDepth(out, mb.maxZ() - 1, 0, -1, depth, mb, xStart, xEnd, false, clearY0, clearY1);
+            carveDepth(out, mb.maxZ() - 1, 0, -1, depth, mb, mass, xStart, xEnd, false, clearY0, clearY1);
             return out;
         }
         int overlapMinZ = Math.max(pb.minZ(), mb.minZ());
@@ -204,7 +205,7 @@ public final class HostedPlateOccupancy {
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
             int faceX = pb.minX() < mb.minX() + (mb.width() / 2) ? mb.minX() : mb.maxX() - 1;
             int inward = faceX == mb.minX() ? 1 : -1;
-            carveDepth(out, faceX, inward, 0, depth, mb, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, faceX, inward, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
         }
         return out;
     }
@@ -216,16 +217,36 @@ public final class HostedPlateOccupancy {
             int dirZ,
             int depth,
             ComponentFootprintUtil.Bounds mb,
+            Component mass,
             int spanStart,
             int spanEnd,
             boolean spanIsZ,
             int clearY0,
             int clearY1
     ) {
+        var geometry = BuildingGeometryContext.getOrResolve(mass);
         for (int span = spanStart; span <= spanEnd; span++) {
+            int boundary = 0;
+            // Curved hosts do not have a wall at every cell of their AABB face.
+            // Find the actual footprint edge on this portal row before carving inward.
+            if (geometry != null && geometry.geometry().footprint() != null) {
+                var footprint = geometry.geometry().footprint();
+                var layers = geometry.geometry().layers();
+                int localY = clearY0 - ComponentFootprintUtil.resolveMinCornerOrigin(mass).y();
+                while (boundary < Math.max(mb.width(), mb.depth())) {
+                    int x = spanIsZ ? faceCoord + dirX * boundary : span;
+                    int z = spanIsZ ? span : faceCoord + dirZ * boundary;
+                    int lx = x - mb.minX(), lz = z - mb.minZ();
+                    boolean atLayer = "TOWER".equalsIgnoreCase(mass.componentType()) || layers.isEmpty()
+                            || localY < 0 || localY >= layers.size()
+                            || ResolvedFacadeLayers.contains(layers.get(localY), lx, lz);
+                    if (footprint.contains(lx, lz) && atLayer) break;
+                    boundary++;
+                }
+            }
             for (int d = 0; d < depth; d++) {
-                int x = spanIsZ ? faceCoord + dirX * d : span;
-                int z = spanIsZ ? span : faceCoord + dirZ * d;
+                int x = spanIsZ ? faceCoord + dirX * (boundary + d) : span;
+                int z = spanIsZ ? span : faceCoord + dirZ * (boundary + d);
                 if (x < mb.minX() || x >= mb.maxX() || z < mb.minZ() || z >= mb.maxZ()) {
                     continue;
                 }

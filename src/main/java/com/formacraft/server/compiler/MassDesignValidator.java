@@ -289,6 +289,7 @@ final class MassDesignValidator {
             if (parsed.isPresent() && parsed.get() == ResolvedFootprint.PlanPattern.COURTYARD) {
                 return true;
             }
+            if (parsed.isPresent()) return false;
         }
         if (features != null) {
             for (String f : features) {

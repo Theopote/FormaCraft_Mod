@@ -16,7 +16,7 @@ import java.util.Set;
 /** Shared host-mass / circulation-mass classification (avoid duplicated type lists). */
 public final class MassComponentKinds {
     private static final Set<String> HOST_MASS_TYPES = Set.of(
-            "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "TOWER");
+            "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "TOWER", "MASS_ANCILLARY");
     private static final Set<String> PRIMARY_ENTRY_TYPES = Set.of("MASS_MAIN", "MAIN_MASS");
 
     private MassComponentKinds() {}

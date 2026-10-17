@@ -12,7 +12,7 @@ public final class PlateRoleCatalog {
     public static final String[] ROLE_KEYS = {"plate_role", "plateRole"};
 
     public static final Set<String> INTERIOR_TOKENS = Set.of(
-            "interior", "floor", "slab", "internal"
+            "interior", "floor", "slab", "internal", "gallery"
     );
 
     public static final Set<String> TERRACE_TOKENS = Set.of(
@@ -30,6 +30,7 @@ public final class PlateRoleCatalog {
         all.addAll(INTERIOR_TOKENS);
         all.addAll(TERRACE_TOKENS);
         all.addAll(BRIDGE_TOKENS);
+        all.add("water");
         SUPPORTED_TOKENS = Set.copyOf(all);
     }
 
@@ -74,6 +75,7 @@ public final class PlateRoleCatalog {
         if (BRIDGE_TOKENS.contains(v)) {
             return Optional.of(HostedPlateOccupancy.PlateRole.BRIDGE);
         }
+        if ("water".equals(v)) return Optional.of(HostedPlateOccupancy.PlateRole.WATER);
         return Optional.of(HostedPlateOccupancy.PlateRole.INTERIOR);
     }
 }

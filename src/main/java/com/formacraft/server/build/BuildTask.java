@@ -276,10 +276,32 @@ public class BuildTask {
         if (!before.equals(after)) {
             appliedChanges.add(new BlockChange(pos.toImmutable(), before, after));
         }
-        if (!writeResult.isFullSuccess() || !after.equals(target)) {
+        if (!writeResult.changedWorldPossibly() || !matchesForwardTarget(target, after)) {
             failedWrites++;
+            if (failedWrites <= 5) com.formacraft.FormacraftMod.LOGGER.warn(
+                    "BuildTask verification mismatch at {}: result={}, target={}, actual={}",
+                    pos, writeResult, toState, after.state());
         }
         return 1;
+    }
+
+    /** Forward plans specify block state, not the automatically created block entity NBT. */
+    static boolean matchesForwardTarget(BlockSnapshot target, BlockSnapshot after) {
+        if (target.blockEntityNbt() != null) return target.equals(after);
+        var desired = target.state();
+        var actual = after.state();
+        if (desired.getBlock() != actual.getBlock()) return false;
+        boolean stairs = desired.getBlock() instanceof net.minecraft.block.StairsBlock;
+        boolean connected = desired.getBlock() instanceof net.minecraft.block.FenceBlock
+                || desired.getBlock() instanceof net.minecraft.block.PaneBlock
+                || desired.getBlock() instanceof net.minecraft.block.WallBlock;
+        for (var property : desired.getProperties()) {
+            String name = property.getName();
+            if (stairs && "shape".equals(name)) continue;
+            if (connected && java.util.Set.of("north", "south", "east", "west", "up").contains(name)) continue;
+            if (!java.util.Objects.equals(desired.get(property), actual.get(property))) return false;
+        }
+        return true;
     }
 
     private void updateStatusAfterTick() {

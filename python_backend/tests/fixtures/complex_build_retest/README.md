@@ -32,3 +32,10 @@ the original request with the building contract and circulation normalizers.
 a villa with a two-cell-wide covered link and a mountain hotel using the
 `rectangular` plan alias. Java replays both raw responses with and without
 postprocessing to cover the reported wall-fit and unsupported-plan failures.
+
+`oct17_retry_1` through `oct17_retry_7` capture the 18:30–18:41 retry session:
+villa, mountain hotel, Gothic library, stepped house, factory, courtyard and
+coastal inn. The factory and coastal inn normalized snapshots run the production
+building contract and circulation normalizers. They cover missing requested
+office stairs and the length/width axis interpretation respectively. Older
+snapshots now also include the explicitly requested length requirement.

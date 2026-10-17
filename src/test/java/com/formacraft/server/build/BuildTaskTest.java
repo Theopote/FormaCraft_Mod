@@ -18,6 +18,29 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BuildTaskTest {
 
+    @Test
+    void forwardVerificationAllowsGeneratedNbtAndNeighborConnectionsButKeepsFacing() {
+        var chest = Blocks.CHEST.getDefaultState();
+        var nbt = new NbtCompound();
+        nbt.putString("id", "minecraft:chest");
+        assertTrue(BuildTask.matchesForwardTarget(
+                com.formacraft.common.world.BlockSnapshot.of(chest),
+                com.formacraft.common.world.BlockSnapshot.of(chest, nbt)));
+        var stair = Blocks.STONE_BRICK_STAIRS.getDefaultState();
+        var turned = stair.with(net.minecraft.state.property.Properties.STAIR_SHAPE,
+                net.minecraft.block.enums.StairShape.INNER_LEFT);
+        assertTrue(BuildTask.matchesForwardTarget(com.formacraft.common.world.BlockSnapshot.of(stair),
+                com.formacraft.common.world.BlockSnapshot.of(turned)));
+        assertFalse(BuildTask.matchesForwardTarget(com.formacraft.common.world.BlockSnapshot.of(stair),
+                com.formacraft.common.world.BlockSnapshot.of(turned.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING,
+                        stair.get(net.minecraft.state.property.Properties.HORIZONTAL_FACING).getOpposite()))));
+        var bars = Blocks.IRON_BARS.getDefaultState();
+        assertTrue(BuildTask.matchesForwardTarget(com.formacraft.common.world.BlockSnapshot.of(bars),
+                com.formacraft.common.world.BlockSnapshot.of(bars.with(net.minecraft.state.property.Properties.NORTH, true))));
+        assertFalse(BuildTask.matchesForwardTarget(com.formacraft.common.world.BlockSnapshot.of(chest, nbt),
+                com.formacraft.common.world.BlockSnapshot.of(chest)));
+    }
+
     @BeforeAll
     static void initialize() {
         MinecraftRegistryTestBootstrap.initialize();

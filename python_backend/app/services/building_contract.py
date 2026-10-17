@@ -54,6 +54,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
     """Only unambiguous supported expressions; conflicting values remain unscoped, never guessed."""
     result = []
     patterns = {
+        'length': r'(?:长度|长)\s*(\d+)\s*格',
         'width': r'(?:宽度|宽)\s*(\d+)\s*格',
         'depth': r'(?:深度|深)\s*(\d+)\s*格',
         'floor_height': r'每层(?:的)?(?:高度|高)\s*(\d+)\s*格',
@@ -431,11 +432,19 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         key, expected = requirement['property'], requirement['value']
         if key == 'no_complex_decor':
             invalid = [c['params']['component_id'] for c in owned if c.get('component_type') in ('CROWN', 'CUPOLA', 'DOME')]
-        elif key in ('width', 'depth'):
+        elif key in ('width', 'depth', 'length'):
             from .resolved_geometry import multi_mass_geometry
             axis = 'x' if key == 'width' else 'z'
             def envelope_size(component):
                 envelope = multi_mass_geometry(component)['envelope_local']
+                paired = next((r for r in requirements
+                               if key in ('length', 'width') and r['property'] == ('length' if key == 'width' else 'width')
+                               and r['scope'] == scope and isinstance(r['value'], int)), None)
+                if paired is not None:
+                    spans = [envelope['max_x'] - envelope['min_x'], envelope['max_z'] - envelope['min_z']]
+                    return expected if sorted(spans) == sorted([expected, paired['value']]) else None
+                if key == 'length':
+                    return max(envelope['max_x'] - envelope['min_x'], envelope['max_z'] - envelope['min_z'])
                 return envelope['max_' + axis] - envelope['min_' + axis]
             requirement['dimension_subject'] = 'building_envelope'
             invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]

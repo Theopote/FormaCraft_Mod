@@ -28,6 +28,10 @@ final class RoofShapeAudit {
         ));
     }
     static Optional<Result> inspect(SemanticComponent semantic, List<BlockPatch> patches, BlockPos offset) {
+        return inspect(semantic, patches, offset, Set.of());
+    }
+    static Optional<Result> inspect(SemanticComponent semantic, List<BlockPatch> patches, BlockPos offset,
+                                    Set<BlockPos> occludedColumns) {
         Component c=semantic.source();
         if(c==null || !"ROOF".equalsIgnoreCase(c.componentType()) || c.params()==null
                 || c.relativePosition()==null || c.dimensions()==null) return Optional.empty();
@@ -62,6 +66,13 @@ final class RoofShapeAudit {
         int checked=0;
         // End faces may contain style-specific gable ornaments; audit every interior section.
         for(int section=1;section<length-1;section++) {
+            boolean occluded = false;
+            for(int a=0;a<across;a++) {
+                int x=origin.getX()+(alongDepth?a:section);
+                int z=origin.getZ()+(alongDepth?section:a);
+                if(occludedColumns.contains(new BlockPos(x,0,z))) { occluded=true; break; }
+            }
+            if(occluded) continue;
             var heights=new ArrayList<Integer>();
             for(int a=0;a<across;a++) {
                 int x=origin.getX()+(alongDepth?a:section);
@@ -88,7 +99,8 @@ final class RoofShapeAudit {
             }
             last=List.copyOf(heights);
         }
-        return Optional.of(new Result(id,"matched","gable_sections",last,length-2,checked));
+        return Optional.of(new Result(id,checked==0?"not_assessed":"matched",
+                checked==0?"joined_roof_occluded":"gable_sections",last,length-2,checked));
     }
     private static long columnKey(int x,int z) {
         return ((long)x << 32) ^ (z & 0xffffffffL);

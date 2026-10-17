@@ -212,6 +212,7 @@ def _fit_straight_stairs(plan: dict) -> None:
 
 def normalize_circulation_plan(plan: dict) -> dict:
     out = deepcopy(plan)
+    _complete_requested_stairs(out)
     if (out.get('capability_gap') or {}).get('code') == 'E_STAIR_ENVELOPE_FIT':
         out.pop('capability_gap', None)
         if out.get('plan_status') == 'capability_gap': out.pop('plan_status', None)
@@ -323,3 +324,46 @@ def normalize_circulation_plan(plan: dict) -> dict:
                                      "path":"components[].params.assembly","suggestions":["Provide explicit flights and adjacent landings."]}
     out.setdefault('components', []).extend(plates)
     return out
+
+
+def _complete_requested_stairs(plan: dict) -> None:
+    """Supply a bounded straight stairwell when requested access was entirely omitted."""
+    text = (plan.get('proportion_hints', {}).get('architecture_intent', {}).get('original_text') or '')
+    meta = plan.get('plan_meta') or {}
+    if '楼梯' not in text or meta.get('allow_compiler_satellites') is False:
+        return
+    if (meta.get('design_requirements') or {}).get('circulation') == 'OMITTED':
+        return
+    components = plan.setdefault('components', [])
+    additions = []
+    for mass in components:
+        params = mass.get('params') or {}
+        if mass.get('component_type') != 'MASS_MAIN' or params.get('extrude_mode') == 'plate':
+            continue
+        if params.get('shape', 'rectangle') not in ('rectangle', 'rect', 'box'):
+            continue
+        identity = params.get('component_id')
+        count, rise = int(params.get('floor_count') or 1), int(params.get('floor_height') or 0)
+        if not identity or not 2 <= count <= 8 or not 3 <= rise <= 8:
+            continue
+        existing = [c for c in components if (c.get('params') or {}).get('host_id') == identity
+                    and (any('stair' in str(f).lower() for f in c.get('features', []))
+                         or c.get('component_type') in ('STAIRCASE', 'STAIRS', 'STAIR_SYSTEM', 'ASSEMBLY'))]
+        if existing:
+            continue
+        dims = mass.get('dimensions') or {}
+        wall = max(1, int(params.get('wall_thickness') or 1))
+        if dims.get('width', 0) < rise + 2 * wall + 3 or dims.get('depth', 0) < 2 * wall + 4:
+            continue
+        origin = _mass_origin(mass)
+        for level in range(count - 1):
+            additions.append({'component_type': 'STRUCTURE', 'slot_id': mass.get('slot_id'),
+                              'relative_position': _point(origin['x'] + wall + 1, origin['y'] + level * rise, origin['z'] + wall + 1),
+                              'dimensions': {'width': rise + 2, 'depth': 2, 'height': rise + 3},
+                              'features': ['stair:straight_single_run'],
+                              'params': {'component_id': f'{identity}#access_{level + 1}', 'host_id': identity,
+                                         'anchor_mode': 'min_corner', 'from': _point(0, 0, 0), 'to': _point(rise, rise, 0),
+                                         'width': 2, 'clearHeight': 2, 'landing_length': 1, 'support': False,
+                                         'stairs': 'minecraft:stone_brick_stairs', 'floor': params.get('floor_block', 'minecraft:oak_planks'),
+                                         'circulation_source': 'missing_requested_stair'}})
+    components.extend(additions)

@@ -430,7 +430,29 @@ public final class ComponentPlanCompiler {
                         || roofIdentity.equals(getParamString(record.owner() == null ? null : record.owner().params(), "component_id"))
                         || record.writerType().startsWith("POSTPROCESS");
             }).toList();
-            var shapeAudit = RoofShapeAudit.inspect(semantic, roofPatches, offset);
+            var occludedColumns = new HashSet<BlockPos>();
+            String roofHost = getParamString(roof.params(), "host_id");
+            for (var other : roofOccluders(roof, components, slotMap)) {
+                var b = other.bounds();
+                int baseY = roof.relativePosition().y();
+                if (b == null || b.maxY() <= baseY || b.minY() > baseY + roof.dimensions().height()) continue;
+                for (int x=b.minX();x<b.maxX();x++) for (int z=b.minZ();z<b.maxZ();z++) {
+                    if (other.footprint().contains(x-b.minX(),z-b.minZ()))
+                        occludedColumns.add(new BlockPos(x+offset.getX(),0,z+offset.getZ()));
+                }
+            }
+            for (var p : result) {
+                if (!GeneratedSurfaceCapture.occupied(p) || p.dy() < roof.relativePosition().y()+offset.getY()) continue;
+                var record = auditOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+                if (record == null || record.owner() == null) continue;
+                var owner = record.owner();
+                if (!(com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(owner)
+                        || "ROOF".equals(record.writerType()))) continue;
+                if (java.util.Objects.equals(roofHost, getParamString(owner.params(), "component_id"))
+                        || java.util.Objects.equals(roofHost, getParamString(owner.params(), "host_id"))) continue;
+                occludedColumns.add(new BlockPos(p.dx(),0,p.dz()));
+            }
+            var shapeAudit = RoofShapeAudit.inspect(semantic, roofPatches, offset, occludedColumns);
             shapeAudit.ifPresent(audit ->
                     FormacraftMod.LOGGER.info("[RoofShapeAudit] stage=postprocess result={}", audit));
             if (shapeAudit.isPresent()) {
@@ -734,7 +756,7 @@ public final class ComponentPlanCompiler {
                         }
                     }
                     if ("ROOF".equals(normalizedType)) {
-                        trimCollidingRoofOverhang(c, components, flightOffset, patchOccupancy, shiftedPatches);
+                        trimCollidingRoofOverhang(c, components, slotMap, flightOffset, patchOccupancy, shiftedPatches);
                     }
                     if ("MASS_SECONDARY".equals(normalizedType) && c.params() != null
                             && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
@@ -748,6 +770,7 @@ public final class ComponentPlanCompiler {
                         if (bridge) {
                             var hostMass = HostedPlateDesignValidator.findHostMass(host, components);
                             var targetMass = HostedPlateDesignValidator.findHostMass(target, components);
+                            var portalClearance = new HashSet<BlockPos>();
                             // Portal coords are component-relative; shift into the same space as plate patches.
                             java.util.function.Consumer<java.util.List<BlockPatch>> addPortals = portals -> {
                                 for (BlockPatch p : portals) {
@@ -758,6 +781,9 @@ public final class ComponentPlanCompiler {
                                             flightOffset.getY() + p.dy(),
                                             flightOffset.getZ() + p.dz(),
                                             p.targetBlock()));
+                                    surfaceCells.add(new GeneratedSurfaceCapture.Cell(new BlockPos(p.dx(),p.dy(),p.dz()),
+                                            GeneratedSurfaceCapture.Role.DOOR_OPENING));
+                                    portalClearance.add(flightOffset.add(p.dx(),p.dy(),p.dz()));
                                 }
                             };
                             hostMass.ifPresent(m -> addPortals.accept(
@@ -766,6 +792,7 @@ public final class ComponentPlanCompiler {
                             targetMass.ifPresent(m -> addPortals.accept(
                                     com.formacraft.common.generation.component.util.HostedPlateOccupancy
                                             .bridgePortalRemovals(c, inSlotFrame(m, c.slotId(), slotMap))));
+                            if (!portalClearance.isEmpty()) circulation.add(new AssemblyCirculationConstraints.Flight(Set.of(), portalClearance));
                         }
                         shiftedPatches.removeIf(p -> {
                             if (BlockPatch.REMOVE.equals(p.action()) && bridge) {
@@ -789,6 +816,11 @@ public final class ComponentPlanCompiler {
                         if (before != shiftedPatches.size()) AssemblyCompileDiagnostics.addSoftWarning("DECOR_CLIPPED",
                                 "装饰已避让门窗及屋顶，跳过 " + (before - shiftedPatches.size()) + " 条操作",
                                 c.componentType(), paramIdentity(c));
+                    }
+                    if (plan.layout() != null && "COMPOUND".equalsIgnoreCase(String.valueOf(plan.layout().skeletonType()))) {
+                        int shared = patchOccupancy.trimCompoundMassJoin(c, shiftedPatches);
+                        if (shared > 0) AssemblyCompileDiagnostics.addSoftWarning("MASS_JOIN_CLIPPED",
+                                "相邻体块交界处保留已有外壳，跳过冲突操作 " + shared, c.componentType(), paramIdentity(c));
                     }
                     int incompatible = patchOccupancy.trimIncompatibleAttachment(c, shiftedPatches, connectorAccess);
                     if (incompatible > 0) AssemblyCompileDiagnostics.addSoftWarning("ATTACHMENT_JOIN_CLIPPED",
@@ -990,6 +1022,13 @@ public final class ComponentPlanCompiler {
                     List.of("Carve portals through wall_thickness at both contact faces.",
                             "Ensure bridge Y has solid floors and 2-high clearance into both masses.",
                             "precision=BLOCKSTATE is registry-refined profiles, not VoxelShape collision.")));
+            var deckLocal = com.formacraft.common.generation.component.util.BridgeWalkability.deckFloorCell(plate);
+            var deckWorld = new Vec3i(deckLocal.x() + plateOff.x(), deckLocal.y() + plateOff.y(), deckLocal.z() + plateOff.z());
+            FormacraftMod.LOGGER.warn("Bridge blocked: deck={} floor={} head1={} head2={} host={} target={}", deckWorld,
+                    occ.profileAt(deckWorld), occ.profileAt(new Vec3i(deckWorld.x(), deckWorld.y()+1, deckWorld.z())),
+                    occ.profileAt(new Vec3i(deckWorld.x(), deckWorld.y()+2, deckWorld.z())),
+                    com.formacraft.common.generation.component.util.BridgeWalkability.storeyGoalsPreferringInterior(occ, host.get(), deckWorld.y()-hostOff.y(), hostOff),
+                    com.formacraft.common.generation.component.util.BridgeWalkability.storeyGoalsPreferringInterior(occ, target.get(), deckWorld.y()-targetOff.y(), targetOff));
             return false;
         }
         return true;
@@ -1514,7 +1553,8 @@ public final class ComponentPlanCompiler {
             if (assemblyPrimarySlots != null && assemblyPrimarySlots.contains(slotKey(c))) {
                 continue;
             }
-            if (isMassType(normalizeType(c.componentType()))) {
+            if (isMassType(normalizeType(c.componentType()))
+                    && !com.formacraft.common.generation.component.util.MassComponentKinds.isPlate(c)) {
                 massBySlot.putIfAbsent(slotKey(c), c);
             }
         }
@@ -2991,7 +3031,22 @@ public final class ComponentPlanCompiler {
                 || "MAIN_MASS".equals(type);
     }
 
-    private static void trimCollidingRoofOverhang(Component roof, List<Component> components, BlockPos offset,
+    private record RoofOccluder(ComponentFootprintUtil.Bounds bounds,
+            com.formacraft.common.generation.component.util.ResolvedFootprint footprint) {}
+
+    private static List<RoofOccluder> roofOccluders(Component roof, List<Component> components, Map<String, Slot> slotMap) {
+        String host = getParamString(roof.params(), "host_id");
+        if (host == null) return List.of();
+        return components.stream().filter(c ->
+                com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(c)
+                        && !host.equals(getParamString(c.params(), "component_id"))
+                        && !host.equals(getParamString(c.params(), "host_id")))
+                .map(c -> inSlotFrame(c, roof.slotId(), slotMap))
+                .map(c -> new RoofOccluder(ComponentFootprintUtil.bounds(c),
+                        com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(c).footprint())).toList();
+    }
+
+    private static void trimCollidingRoofOverhang(Component roof, List<Component> components, Map<String, Slot> slotMap, BlockPos offset,
                                                   PatchOccupancyIndex occupancy, List<BlockPatch> patches) {
         String host = getParamString(roof.params(), "host_id");
         if (host == null) return;
@@ -2999,7 +3054,14 @@ public final class ComponentPlanCompiler {
                 .findFirst().orElse(null);
         if (body == null || !java.util.Objects.equals(body.slotId(), roof.slotId())) return;
         int before = patches.size();
+        var foreignBodies = roofOccluders(roof, components, slotMap);
         patches.removeIf(p -> {
+            for (var other : foreignBodies) {
+                var b = other.bounds();
+                int x=p.dx()-offset.getX(), y=p.dy()-offset.getY(), z=p.dz()-offset.getZ();
+                if (b != null && x>=b.minX() && x<b.maxX() && y>=b.minY() && y<b.maxY()
+                        && z>=b.minZ() && z<b.maxZ() && other.footprint().contains(x-b.minX(),z-b.minZ())) return true;
+            }
             var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
             return existing != null && existing.owner() != null
                     && !host.equals(getParamString(existing.owner().params(), "component_id"))

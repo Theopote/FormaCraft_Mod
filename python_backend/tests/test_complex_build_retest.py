@@ -14,6 +14,27 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class ComplexBuildRetest(unittest.TestCase):
+    def test_oct17_retry_contract_and_missing_requested_stairs(self):
+        for i in (5, 7):
+            with self.subTest(plan=i):
+                plan = json.loads((FIXTURES / f'oct17_retry_{i}.json').read_text(encoding='utf-8'))
+                text = plan['proportion_hints']['architecture_intent']['original_text']
+                result = normalize_circulation_plan(apply_building_contract(plan, text, finalize=True))
+                self.assertNotIn('capability_gap', result)
+                self.assertEqual(result, normalize_circulation_plan(result))
+                self.assertEqual(result, json.loads((FIXTURES / f'oct17_retry_{i}.normalized.json').read_text(encoding='utf-8')))
+                if i == 5:
+                    stairs = [c for c in result['components'] if c.get('params', {}).get('circulation_source') == 'missing_requested_stair'
+                              and c['params']['host_id'] == 'office_building']
+                    self.assertEqual(2, len(stairs))
+                else:
+                    main = next(c for c in plan['components'] if c.get('params', {}).get('component_id') == 'inn_main')
+                    main['dimensions']['width'] = 20
+                    invalid = apply_building_contract(plan, text, finalize=True)
+                    self.assertEqual('E_BUILDING_CONTRACT', invalid['capability_gap']['code'])
+                    self.assertTrue(any(r['property'] == 'length' and r['status'] == 'mismatch'
+                                        for r in invalid['proportion_hints']['building_contract']['requirements']))
+
     def test_oct16_actual_plans_normalize_without_blocking_gap(self):
         for i in range(1, 6):
             with self.subTest(plan=i):

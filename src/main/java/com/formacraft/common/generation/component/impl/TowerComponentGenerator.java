@@ -45,6 +45,12 @@ public class TowerComponentGenerator implements ComponentGenerator {
         boolean hasStairs = hasFeature(c, "stairs", "stair", "spiral_stairs");
         boolean hasInterior = hasFeature(c, "interior", "rooms", "floors")
                 || (c.params() != null && Boolean.TRUE.equals(c.params().get("hollow")));
+        int floors = com.formacraft.common.generation.component.util.ComponentParamParsers.intParam(c.params(), 1, "floor_count", "floorCount");
+        int floorHeight = com.formacraft.common.generation.component.util.ComponentParamParsers.intParam(c.params(),
+                Math.max(3, height / Math.max(1, floors)), "floor_height", "floorHeight");
+        boolean storeyed = floors > 1 && (c.params() == null || !Boolean.FALSE.equals(c.params().get("hollow")));
+        hasInterior |= storeyed;
+        int wallThickness = com.formacraft.common.generation.component.util.ComponentParamParsers.intParam(c.params(), 2, "wall_thickness", "wallThickness");
         boolean hasBattlements = hasFeature(c, "battlements", "battlement", "crenelation");
         boolean hasRoof = hasFeature(c, "roof", "spire", "dome");
 
@@ -85,7 +91,12 @@ public class TowerComponentGenerator implements ComponentGenerator {
                             continue;
                         }
 
-                        if (hasInterior && y > 0 && isInteriorSpace(x, z, radius)) {
+                        if (hasInterior && y > 0 && isInteriorSpace(x, z, radius, Math.max(1, wallThickness))) {
+                            if (storeyed && floorHeight > 0 && y % floorHeight == 0 && y / floorHeight < floors) {
+                                String floorBlock = c.params() == null ? null : String.valueOf(c.params().getOrDefault("floor_block", "minecraft:stone_bricks"));
+                                out.add(new BlockPatch(BlockPatch.PLACE, rp.x()+x, rp.y()+y, rp.z()+z,
+                                        floorBlock == null ? "minecraft:stone_bricks" : floorBlock));
+                            }
                             continue;
                         }
 
@@ -162,9 +173,11 @@ public class TowerComponentGenerator implements ComponentGenerator {
         return isNearEdge && isStairStep && y < height - 1;
     }
 
-    private boolean isInteriorSpace(int x, int z, int radius) {
-        int distSq = x * x + z * z;
-        return distSq < (radius - 2) * (radius - 2);
+    private boolean isInteriorSpace(int x, int z, int radius, int wall) {
+        return (x-wall)*(x-wall)+z*z <= radius*radius
+                && (x+wall)*(x+wall)+z*z <= radius*radius
+                && x*x+(z-wall)*(z-wall) <= radius*radius
+                && x*x+(z+wall)*(z+wall) <= radius*radius;
     }
 
     private boolean isBattlementPosition(int x, int z, int radius, int y, int height) {

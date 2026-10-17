@@ -52,12 +52,36 @@ public final class PatchOccupancyIndex {
 
     /** Preserve existing geometry when an optional attachment cannot join it. */
     public int trimIncompatibleAttachment(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
-        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "FOUNDATION", "BALCONY", "TERRACE")
+        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "COURTYARD", "FOUNDATION", "BALCONY", "TERRACE")
                 .contains(writer.componentType().toUpperCase(Locale.ROOT))) return 0;
         Map<BlockPos, PlaceRecord> simulation = new HashMap<>(places);
         Set<BlockPos> removed = new HashSet<>(removes);
         int before = patches.size();
         patches.removeIf(p -> apply(writer, List.of(p), simulation, removed, connectorAccess).isPresent());
+        return before - patches.size();
+    }
+
+    /** Mutates formal state; call only after {@link #validate} succeeded. */
+    public int trimCompoundMassJoin(Component writer, List<BlockPatch> patches) {
+        if (!com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(writer)
+                || writer.slotId() == null || patches.isEmpty()) return 0;
+        long occupied = patches.stream().filter(p -> BlockPatch.PLACE.equals(p.action())).count();
+        long overlap = patches.stream().filter(p -> {
+            var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
+            return prev != null && prev.owner() != null
+                    && com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner());
+        }).count();
+        // A small shared edge can be joined; a mostly superimposed building is a layout error.
+        boolean connector = writer.params() != null && Boolean.TRUE.equals(writer.params().get("compiler_connector_body"));
+        if (occupied == 0 || !connector && overlap * 2 >= occupied) return 0;
+        int before = patches.size();
+        patches.removeIf(p -> {
+            var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
+            return prev != null && prev.owner() != null
+                    && !java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
+                    && com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner())
+                    && (!BlockPatch.PLACE.equals(p.action()) || !java.util.Objects.equals(canonical(p.targetBlock()), canonical(prev.targetBlock())));
+        });
         return before - patches.size();
     }
 

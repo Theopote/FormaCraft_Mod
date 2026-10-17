@@ -11,6 +11,9 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoofDelegationSuppressTest {
+    @org.junit.jupiter.api.BeforeEach void clearDiagnostics() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
     @Test
     void explicitRoofSuppressesMassBuiltinRoof() throws Exception {
         Method prepare = ComponentPlanCompiler.class.getDeclaredMethod(

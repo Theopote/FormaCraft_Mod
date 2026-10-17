@@ -8,6 +8,19 @@ import org.junit.jupiter.api.Test;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 class RoofShapeAuditTest {
+    @Test void joinedColumnsAreExcludedButDamageInExposedSectionsStillFails() {
+        var roof=roof(9,11,0);
+        var patches=new ArrayList<>(new RoofGenerator().generate(roof));
+        for(int y=10;y<=20;y++) patches.add(new BlockPatch(BlockPatch.REMOVE,9,y,8,"minecraft:air"));
+        var covered=Set.of(new BlockPos(9,0,8));
+        var joined=RoofShapeAudit.inspect(roof,patches,BlockPos.ORIGIN,covered).orElseThrow();
+        assertEquals("matched",joined.status());
+        assertEquals(8,joined.checkedSections());
+        for(int y=10;y<=20;y++) patches.add(new BlockPatch(BlockPatch.REMOVE,9,y,9,"minecraft:air"));
+        var broken=RoofShapeAudit.inspect(roof,patches,BlockPos.ORIGIN,covered).orElseThrow();
+        assertEquals("missing_slope_column",broken.reason());
+        assertEquals(2,broken.sectionIndex());
+    }
     private SemanticComponent roof(int w,int d,int overhang) {
         var c=new Component("ROOF",null,new Vec3i(5,10,7),new Dimensions(w,d,4),List.of(),
                 Map.of("component_id","roof_a","roof_type","gable","overhang",overhang));

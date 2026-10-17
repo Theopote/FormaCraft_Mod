@@ -16,7 +16,7 @@ public final class RoofTypeCatalog {
             "gable", "gabled", "gable_low_pitch", "low_pitch_gable",
             "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山",
             "double_gable", "doublegable", "shuangpo", "双坡",
-            "hip", "hipped",
+            "hip", "hipped", "chinese_hip",
             "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山",
             "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山",
             "pyramid",
@@ -134,7 +134,7 @@ public final class RoofTypeCatalog {
         return switch (normalized) {
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;
-            case "hip", "hipped" -> RoofTypeKind.HIP;
+            case "hip", "hipped", "chinese_hip" -> RoofTypeKind.HIP;
             case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山" -> RoofTypeKind.XIESHAN;
             case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofTypeKind.XUANSHAN;
             case "pyramid" -> RoofTypeKind.PYRAMID;
