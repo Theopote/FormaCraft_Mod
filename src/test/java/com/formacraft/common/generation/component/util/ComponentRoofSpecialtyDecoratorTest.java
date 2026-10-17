@@ -9,6 +9,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ComponentRoofSpecialtyDecoratorTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
 
     @Test
     void computeMansardRise_isLowAtEdgeAndHigherInCenter() {

@@ -1,0 +1,1573 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#D9C08A",
+    "roof_color": "#E3D3A8",
+    "accent_color": "#4A3222",
+    "wall_material": "minecraft:sandstone",
+    "roof_material": "minecraft:smooth_sandstone",
+    "floor_material": "minecraft:smooth_sandstone",
+    "decorative_elements": [
+      "low_parapet",
+      "cornice_band",
+      "courtyard_columns",
+      "railed_gallery",
+      "shallow_pool",
+      "cross_walkways",
+      "column"
+    ]
+  },
+  "distinguishing_features": [
+    "open central courtyard with shallow pool and four crossing walkways",
+    "two-storey main block (5-block floors) with flat roof and low parapet",
+    "single-storey guest wings whose roofs are accessible terraces",
+    "detached entrance gatehouse kept separate from the main block by open courtyard",
+    "second-floor railed gallery along the courtyard side with a gap at the stair landing",
+    "external 3-wide staircase with bottom and top landings reaching the upper floor",
+    "four simple columns at the courtyard corners",
+    "sandstone / smooth sandstone / dark oak material palette",
+    "column"
+  ],
+  "anchor": {
+    "x": 101,
+    "y": 63,
+    "z": -140
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "caravanserai",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "courtyard",
+      "composition": "compound",
+      "axis": "east_west",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "masonry",
+      "massiveness": 0.72,
+      "voidRatio": 0.3,
+      "supports": "load_bearing_walls"
+    },
+    "form": {
+      "repetition": "rhythmic",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "courtyard",
+      "flat_roof",
+      "parapet",
+      "gallery",
+      "external_stair",
+      "pool",
+      "walkway"
+    ],
+    "materials": {
+      "primary": "sandstone",
+      "secondary": "smooth_sandstone",
+      "accent": "dark_oak",
+      "textureBias": "warm",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "middle_east",
+      "era": "medieval",
+      "keywords": [
+        "caravanserai",
+        "desert",
+        "courtyard",
+        "sandstone",
+        "arcade"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 12,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "courtyard",
+        "courtyard_columns",
+        "external_stair",
+        "roof_terrace",
+        "railed_gallery"
+      ],
+      "avoid": [
+        "stadium_bowl",
+        "radial_ring",
+        "landmark_module"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "courtyard_compound",
+    "height_to_width": 0.38,
+    "depth_to_width": 0.86,
+    "roof_to_body_height": 0.1,
+    "courtyard_to_footprint": 0.24,
+    "notes": "29x25 footprint; main block 2x5 floors + 1 parapet; wings 5 + 1 parapet; gatehouse ~9 tall; courtyard open to sky.",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width_element_scope",
+          "property": "width",
+          "value": 3,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽3格"
+          ],
+          "scope": "element_scope",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        },
+        {
+          "id": "req_floor_height_named_main_body",
+          "property": "floor_height",
+          "value": 5,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高5格"
+          ],
+          "scope": "named_main_body",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "main_block"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_main_body",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层"
+          ],
+          "scope": "named_main_body",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "main_block"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_type",
+          "property": "roof_type",
+          "value": "flat",
+          "source": "user_explicit",
+          "source_text": [
+            "平屋顶"
+          ],
+          "scope": "named_main_body",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "main_block"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "main_block"
+        ],
+        "named_gatehouse": [
+          "gatehouse"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_block",
+          "slot_id": "main",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": -14,
+            "y": 0,
+            "z": -9
+          },
+          "dimensions": {
+            "width": 10,
+            "depth": 18,
+            "height": 10
+          },
+          "floor_ys_local": [
+            0,
+            5
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_block",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 10,
+                  "depth": 18,
+                  "height": 10
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 10,
+              "max_z": 18,
+              "min_y": 0,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 10,
+                "start": 0,
+                "end": 18
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 10
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 18,
+                "start": 0,
+                "end": 10
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 18
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "north_wing",
+          "slot_id": "north_wing",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": -5,
+            "y": 0,
+            "z": -12
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 6,
+            "height": 5
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 4,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "north_wing",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 6,
+                  "height": 5
+                },
+                "roof_y_local": 4
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 13,
+              "max_z": 6,
+              "min_y": 0,
+              "max_y": 5
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 13,
+                "start": 0,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 13
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": 0,
+                "end": 13
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "south_wing",
+          "slot_id": "south_wing",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": -5,
+            "y": 0,
+            "z": 6
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 6,
+            "height": 5
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 4,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "south_wing",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 6,
+                  "height": 5
+                },
+                "roof_y_local": 4
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 13,
+              "max_z": 6,
+              "min_y": 0,
+              "max_y": 5
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 13,
+                "start": 0,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 13
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": 0,
+                "end": 13
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "gatehouse",
+          "slot_id": "gatehouse",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": 8,
+            "y": 0,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 7,
+            "depth": 9,
+            "height": 9
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 8,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "gatehouse",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 7,
+                  "depth": 9,
+                  "height": 9
+                },
+                "roof_y_local": 8
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 7,
+              "max_z": 9,
+              "min_y": 0,
+              "max_y": 9
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": 0,
+                "end": 9
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 9,
+                "start": 0,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 9
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座沙漠风格的商队驿站， 占地约29×25格，以砂岩、 平滑砂岩和深色木材为主要材料 。 建筑围绕一个露天中央庭院布置 ，包含两层主楼、 两侧单层客房和一座独立入口门楼。主楼每层高5格， 使用平屋顶和矮女儿墙； 客房屋顶作为可到达的露台。 庭院设置浅水池和四条步道， 四角布置简洁立柱。 主楼二层通过一段外部楼梯抵达 ，楼梯宽3格，设置上下平台， 保证净空。 入口门楼与主楼之间保持开敞庭院，不用屋顶覆盖。 二层沿庭院一侧设置带栏杆的走廊，在楼梯落点留出通行缺口。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座沙漠风格的商队驿站，\n占地约29×25格，以砂岩、\n平滑砂岩和深色木材为主要材料\n。\n建筑围绕一个露天中央庭院布置\n，包含两层主楼、\n两侧单层客房和一座独立入口门楼。主楼每层高5格，\n使用平屋顶和矮女儿墙；\n客房屋顶作为可到达的露台。\n庭院设置浅水池和四条步道，\n四角布置简洁立柱。\n主楼二层通过一段外部楼梯抵达\n，楼梯宽3格，设置上下平台，\n保证净空。\n入口门楼与主楼之间保持开敞庭院，不用屋顶覆盖。\n二层沿庭院一侧设置带栏杆的走廊，在楼梯落点留出通行缺口。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "main_block",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "north_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "south_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "gatehouse",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "main",
+        "anchor": {
+          "x": -14,
+          "y": 0,
+          "z": -9
+        },
+        "facing": "EAST"
+      },
+      {
+        "slot_id": "north_wing",
+        "anchor": {
+          "x": -5,
+          "y": 0,
+          "z": -12
+        },
+        "facing": "SOUTH"
+      },
+      {
+        "slot_id": "south_wing",
+        "anchor": {
+          "x": -5,
+          "y": 0,
+          "z": 6
+        },
+        "facing": "NORTH"
+      },
+      {
+        "slot_id": "gatehouse",
+        "anchor": {
+          "x": 8,
+          "y": 0,
+          "z": -4
+        },
+        "facing": "EAST"
+      },
+      {
+        "slot_id": "courtyard",
+        "anchor": {
+          "x": -4,
+          "y": 0,
+          "z": -6
+        },
+        "facing": "EAST"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 18,
+        "height": 10
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "main_block",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.25,
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 5,
+        "roof_type": "flat",
+        "parapet_height": 1,
+        "facade_profile": "vertical_pilasters",
+        "base_plinth": true,
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:smooth_sandstone",
+        "requirement_scope": "named_main_body",
+        "window_ratio": 0.35,
+        "wall_pattern": "gradient",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_foundation",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:sandstone",
+        "plinth": true,
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "main_floor_upper",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "material": "minecraft:smooth_sandstone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.3,
+        "floor_height": 3,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 10,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "main_roof",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet_height": 1,
+        "parapet_thickness": 1,
+        "roof_block": "minecraft:smooth_sandstone",
+        "terrace_access": false,
+        "roof_height": 2,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -1,
+        "y": 9,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_cornice",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "decor_type": "cornice_band",
+        "material": "minecraft:cut_sandstone",
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_entry",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "entrance_type": "arched",
+        "material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 6,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 14,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_windows_east",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "window_style": "rectangular",
+        "spacing": 3,
+        "material": "minecraft:dark_oak_planks",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 14,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_windows_west",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "facing": "WEST",
+        "window_style": "rectangular",
+        "spacing": 3,
+        "material": "minecraft:dark_oak_planks",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 5,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "gallery_deck",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_height": 1,
+        "railing_sides": [
+          "east"
+        ],
+        "railing_gap_for_stair": true,
+        "deck_block": "minecraft:smooth_sandstone",
+        "railing_block": "minecraft:dark_oak_fence",
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 10,
+        "y": 0,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "column"
+      ],
+      "params": {
+        "component_id": "external_stair",
+        "host_id": "main_block",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 5
+        },
+        "to": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        },
+        "width": 3,
+        "stairs": "minecraft:sandstone_stairs",
+        "floor": "minecraft:smooth_sandstone",
+        "clearHeight": 2,
+        "landing_length": 2,
+        "exterior": true,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "main_block"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "north_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "north_wing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.3,
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 5,
+        "roof_type": "flat",
+        "parapet_height": 1,
+        "facade_profile": "vertical_pilasters",
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:smooth_sandstone",
+        "window_ratio": 0.35,
+        "wall_pattern": "gradient",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "north_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "north_wing_terrace_roof",
+        "host_id": "north_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet_height": 1,
+        "parapet_thickness": 1,
+        "terrace_access": true,
+        "roof_block": "minecraft:smooth_sandstone",
+        "roof_height": 2,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "north_wing",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "north_wing_door",
+        "host_id": "north_wing",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "entrance_type": "rectangular",
+        "material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "north_wing",
+      "relative_position": {
+        "x": 1,
+        "y": 1,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "north_wing_windows",
+        "host_id": "north_wing",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "window_style": "rectangular",
+        "spacing": 3,
+        "material": "minecraft:dark_oak_planks",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "south_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "south_wing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.3,
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 5,
+        "roof_type": "flat",
+        "parapet_height": 1,
+        "facade_profile": "vertical_pilasters",
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:smooth_sandstone",
+        "window_ratio": 0.35,
+        "wall_pattern": "gradient",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "south_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "south_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "south_wing_terrace_roof",
+        "host_id": "south_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet_height": 1,
+        "parapet_thickness": 1,
+        "terrace_access": true,
+        "roof_block": "minecraft:smooth_sandstone",
+        "roof_height": 2,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "south_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "south_wing",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "south_wing_door",
+        "host_id": "south_wing",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "rectangular",
+        "material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "south_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "south_wing",
+      "relative_position": {
+        "x": 1,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "south_wing_windows",
+        "host_id": "south_wing",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "window_style": "rectangular",
+        "spacing": 3,
+        "material": "minecraft:dark_oak_planks",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "south_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "gatehouse",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 9,
+        "height": 9
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "gatehouse",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.35,
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "flat",
+        "parapet_height": 1,
+        "facade_profile": "vertical_pilasters",
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:smooth_sandstone",
+        "window_ratio": 0.35,
+        "wall_pattern": "gradient",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "gatehouse"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "gatehouse",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "gatehouse_foundation",
+        "host_id": "gatehouse",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:sandstone",
+        "plinth": true,
+        "building_id": "gatehouse"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gatehouse",
+      "relative_position": {
+        "x": 0,
+        "y": 9,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "column"
+      ],
+      "params": {
+        "component_id": "gatehouse_roof",
+        "host_id": "gatehouse",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet_height": 1,
+        "parapet_thickness": 1,
+        "roof_block": "minecraft:smooth_sandstone",
+        "roof_height": 2,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "gatehouse"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gatehouse",
+      "relative_position": {
+        "x": 6,
+        "y": 0,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "gatehouse_gate_east",
+        "host_id": "gatehouse",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "entrance_type": "arched",
+        "material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gatehouse"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gatehouse",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "gatehouse_gate_west",
+        "host_id": "gatehouse",
+        "anchor_mode": "min_corner",
+        "facing": "WEST",
+        "entrance_type": "arched",
+        "material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gatehouse"
+      }
+    },
+    {
+      "component_type": "COURTYARD",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "open_to_sky": true,
+        "ground_block": "minecraft:smooth_sandstone",
+        "border_block": "minecraft:sandstone",
+        "building_id": "central_courtyard"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "courtyard_pool",
+        "host_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "decor_type": "shallow_pool",
+        "depth": 1,
+        "material": "minecraft:water",
+        "rim_block": "minecraft:cut_sandstone",
+        "building_id": "central_courtyard"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "walkway_east_west",
+        "host_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:cut_sandstone",
+        "allow_stairs": true
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "walkway_north_south",
+        "host_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:cut_sandstone",
+        "allow_stairs": true
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "courtyard_column_nw",
+        "host_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "decor_type": "column",
+        "material": "minecraft:cut_sandstone",
+        "cap_block": "minecraft:smooth_sandstone",
+        "building_id": "central_courtyard"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 11,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "courtyard_column_ne",
+        "host_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "decor_type": "column",
+        "material": "minecraft:cut_sandstone",
+        "cap_block": "minecraft:smooth_sandstone",
+        "building_id": "central_courtyard"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "courtyard_column_sw",
+        "host_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "decor_type": "column",
+        "material": "minecraft:cut_sandstone",
+        "cap_block": "minecraft:smooth_sandstone",
+        "building_id": "central_courtyard"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 11,
+        "y": 0,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "courtyard_column_se",
+        "host_id": "central_courtyard",
+        "anchor_mode": "min_corner",
+        "decor_type": "column",
+        "material": "minecraft:cut_sandstone",
+        "cap_block": "minecraft:smooth_sandstone",
+        "building_id": "central_courtyard"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「沙漠风格的商队驿站」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

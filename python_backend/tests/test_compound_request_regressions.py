@@ -11,6 +11,47 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class CompoundRequestRegressions(unittest.TestCase):
+    def test_oct18_retry_live_plans_keep_the_full_compounds(self):
+        for i in range(1,7):
+            with self.subTest(plan=i):
+                raw=json.loads((FIXTURES/f'oct18_retry_{i}.json').read_text(encoding='utf-8'))
+                text=raw['proportion_hints']['architecture_intent']['original_text']
+                result=normalize_circulation_plan(apply_building_contract(raw,text,finalize=True))
+                self.assertNotIn('capability_gap',result)
+                self.assertEqual(result,normalize_circulation_plan(result))
+                self.assertEqual(result,json.loads((FIXTURES/f'oct18_retry_{i}.normalized.json').read_text(encoding='utf-8')))
+                parts={c['params']['component_id']:c for c in result['components']}
+                self.assertTrue({c['params']['component_id'] for c in raw['components']
+                                 if c['params'].get('circulation_source')!='missing_requested_stair'}.issubset(parts))
+                if i==2:
+                    self.assertEqual(12,parts['external_stair']['relative_position']['x'])
+                    self.assertEqual(5,parts['gallery_deck']['dimensions']['width'])
+                if i==4:
+                    req=next(r for r in result['proportion_hints']['building_contract']['requirements'] if r['scope']=='named_wing')
+                    self.assertEqual(['townhall_wing_north','townhall_wing_south'],req['target_components'])
+                    self.assertEqual('STRUCTURE',parts['townhall_main_interior_stair']['component_type'])
+                    self.assertEqual(6,parts['townhall_main_interior_stair']['params']['to']['y'])
+                    self.assertNotIn('townhall_main#access_1',parts)
+
+    def test_wing_token_does_not_match_swing_buildings(self):
+        raw=json.loads((FIXTURES/'oct18_retry_4.json').read_text(encoding='utf-8'))
+        text=raw['proportion_hints']['architecture_intent']['original_text']
+        for part in raw['components']:
+            for key in ('component_id','host_id','building_id'):
+                value=part['params'].get(key)
+                if isinstance(value,str): part['params'][key]=value.replace('townhall_wing_','townhall_swing_')
+        result=apply_building_contract(raw,text,finalize=True)
+        self.assertTrue(any(d['code']=='E_REQUIREMENT_SCOPE' and d['scope']=='named_wing'
+                            for d in result['proportion_hints']['building_contract']['diagnostics']))
+
+    def test_gallery_repair_does_not_extend_a_platform_without_bound(self):
+        raw=json.loads((FIXTURES/'oct18_retry_2.json').read_text(encoding='utf-8'))
+        next(c for c in raw['components'] if c['params']['component_id']=='gallery_deck')['dimensions']['width']=1
+        result=normalize_circulation_plan(raw)
+        parts={c['params']['component_id']:c for c in result['components']}
+        self.assertEqual(1,parts['gallery_deck']['dimensions']['width'])
+        self.assertEqual(10,parts['external_stair']['relative_position']['x'])
+
     def test_oct18_live_plans_normalize_idempotently(self):
         for i in range(1,7):
             with self.subTest(plan=i):

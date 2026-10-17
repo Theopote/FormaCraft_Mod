@@ -1826,7 +1826,7 @@ public final class ComponentPlanCompiler {
                         : ComponentParamParsers.intParam(params, 0, ComponentParamParsers.keysFor("overhang"));
                 // Some model roofs include eaves around the unretreated host.
                 // Accept that exact representation without counting style setbacks as eaves.
-                if (existing > 0 && llmDims.width() == mass.dimensions().width() + 2 * existing
+                if (existing >= 0 && llmDims.width() == mass.dimensions().width() + 2 * existing
                         && llmDims.depth() == mass.dimensions().depth() + 2 * existing) {
                     bboxOverhang = existing;
                 }
@@ -1946,6 +1946,16 @@ public final class ComponentPlanCompiler {
         int hostFloorCount = ComponentParamParsers.intParam(mass.params(), "floor_count", "floorCount");
         if (hostFloorHeight > 0) params.put("floor_height", hostFloorHeight);
         if (hostFloorCount > 0) params.put("floor_count", hostFloorCount);
+        // A height-only slit hint may exceed the clear wall band of a short
+        // storey. Fit that hint; full explicit rectangles and locked dimensions
+        // remain authoritative, as do locally authored tall openings above.
+        if (openingWidth <= 0 && openingHeight >= hostFloorHeight && hostFloorHeight > 1 && hostFloorCount > 1
+                && com.formacraft.common.generation.design.DesignProvenance.canMutateParam(plan,params,"window_height")) {
+            params.put("window_height",hostFloorHeight-1);
+            AssemblyCompileDiagnostics.addSoftWarning("WINDOW_HEIGHT_FITTED",
+                    "窗高提示已适配楼层净空："+openingHeight+" -> "+(hostFloorHeight-1),
+                    "FACADE_WINDOWS",paramIdentity(llmFacade));
+        }
 
         int width;
         int depth;

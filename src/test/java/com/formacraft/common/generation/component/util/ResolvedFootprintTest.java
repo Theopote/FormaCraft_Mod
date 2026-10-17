@@ -15,6 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResolvedFootprintTest {
+    @Test void squareTowerShapeUsesItsAuthoredRectangularBounds() {
+        var tower=new Component("TOWER","tower",new Vec3i(0,0,0),new Dimensions(7,7,14),List.of(),Map.of("shape","square"));
+        var footprint=ResolvedFootprint.resolve(tower,7,7);
+        assertEquals(ResolvedFootprint.FootprintShape.RECTANGLE,footprint.shape());
+        for(int x=0;x<7;x++) for(int z=0;z<7;z++) assertTrue(footprint.contains(x,z));
+        assertFalse(footprint.contains(7,3));
+    }
 
     @Test
     void thickWallCourtyardHoleSharedByMaskAndResolve() {

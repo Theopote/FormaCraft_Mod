@@ -20,6 +20,8 @@ class PlateRoleCatalogTest {
     @Test
     void knownAliasesMap() {
         assertEquals(HostedPlateOccupancy.PlateRole.TERRACE,
+                PlateRoleCatalog.parseSupported("landing").orElseThrow());
+        assertEquals(HostedPlateOccupancy.PlateRole.TERRACE,
                 PlateRoleCatalog.parseSupported("cantilever").orElseThrow());
         assertEquals(HostedPlateOccupancy.PlateRole.BRIDGE,
                 PlateRoleCatalog.parseSupported("link").orElseThrow());

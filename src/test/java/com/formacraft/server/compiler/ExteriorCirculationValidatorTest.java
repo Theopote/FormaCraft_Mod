@@ -12,6 +12,20 @@ import com.formacraft.common.llm.dto.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @Test void elevatedTerraceOnlyAllowsFlatApproachContact() {
+        var stair = new Component("STRUCTURE","s",new Vec3i(0,0,0),new Dimensions(6,3,6),List.of("stair:straight_single_run"),
+                Map.of("exterior",true,"width",3,"from",Map.of("x",0,"y",4,"z",0),"to",Map.of("x",5,"y",9,"z",0)));
+        var start = new BlockPos(0,4,0);
+        var beyond = new BlockPos(3,4,0);
+        for (int height : List.of(1,3)) {
+            var terrace = new Component("TERRACE","s",new Vec3i(0,4,0),new Dimensions(8,8,height),List.of(),Map.of());
+            var index = new PatchOccupancyIndex();
+            index.commit(terrace,List.of(stone(start),stone(beyond)));
+            var access = ExteriorCirculationValidator.connectorAccess(stair,List.of(),Map.of(),BlockPos.ORIGIN,index);
+            assertEquals(height == 1, access.contains(start));
+            assertFalse(access.contains(beyond));
+        }
+    }
     @Test void publicPavingPermissionStopsAtTheGroundApproach() {
         var court = new Component("COURTYARD","s",new Vec3i(0,0,0),new Dimensions(8,8,1),List.of(),Map.of("component_id","court"));
         var wall = new Component("MASS_MAIN","s",court.relativePosition(),new Dimensions(8,8,8),List.of(),Map.of("component_id","other"));

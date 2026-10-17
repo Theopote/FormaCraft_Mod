@@ -14,7 +14,7 @@ public final class FootprintShapeCatalog {
     };
 
     public static final Set<String> RECTANGLE_TOKENS = Set.of(
-            "rectangle", "rect", "box"
+            "rectangle", "rect", "box", "square"
     );
 
     public static final Set<String> CIRCLE_TOKENS = Set.of(

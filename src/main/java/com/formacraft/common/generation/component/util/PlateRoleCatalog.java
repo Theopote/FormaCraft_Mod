@@ -16,7 +16,7 @@ public final class PlateRoleCatalog {
     );
 
     public static final Set<String> TERRACE_TOKENS = Set.of(
-            "terrace", "balcony", "deck", "cantilever", "platform", "partial_platform", "roof", "canopy"
+            "terrace", "balcony", "deck", "cantilever", "platform", "partial_platform", "roof", "canopy", "landing"
     );
 
     public static final Set<String> BRIDGE_TOKENS = Set.of(

@@ -454,6 +454,9 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         for key, names in NAMED_BUILDINGS.items():
             if any(name in identity for name in names):
                 bindings.setdefault('named_' + key, []).append(mass)
+            elif key == 'wing' and re.search(r'(?:^|[_\s-])wing(?:$|[_\s-])',identity):
+                targets = bindings.setdefault('named_wing', [])
+                if mass not in targets: targets.append(mass)
     if len(masses) == 1:
         bindings.setdefault('named_main_body', masses)
     for tower in owners:

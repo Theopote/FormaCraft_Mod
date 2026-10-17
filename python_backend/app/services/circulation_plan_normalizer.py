@@ -275,7 +275,8 @@ def _fit_exterior_stairs(plan: dict) -> None:
     bodies = [c for c in plan.get('components', []) if c.get('component_type') in
               ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'FOUNDATION', 'DECOR_DETAIL') and c.get('dimensions')
               and (c.get('component_type') != 'DECOR_DETAIL'
-                   or 'cornice' in str((c.get('params') or {}).get('component_id','')).lower())]
+                   or 'cornice' in str((c.get('params') or {}).get('component_id','')).lower()
+                   or (c.get('params') or {}).get('decor_type') in ('column','pillar'))]
     def world(c):
         o = _mass_origin(c); off = slots.get(c.get('slot_id'), {})
         cp = c.get('params') or {}
@@ -334,17 +335,22 @@ def _fit_exterior_stairs(plan: dict) -> None:
         if len(targets) == 1 and p.get('host_id') not in targets and not p.get('target_host_id'):
             p['target_host_id'] = next(iter(targets))
             p['circulation_target_source'] = 'landing_contact'
-        def target_landing_fits(shift):
+        def target_landing_fits(shift, commit=False):
             if not target_landings: return True
             for part in target_landings:
                 po = world(part); pd = part['dimensions']
                 extent = pd['width' if side == 'x' else 'depth']
                 center = endpoint[side]+shift
-                if center-width//2 < po[side] or center+width-width//2 > po[side]+max(extent,width): continue
+                extra = max(0,center+width-width//2-(po[side]+extent))
+                if center-width//2 < po[side] or extra > min(2,width-1): continue
                 axis = 'z' if side == 'x' else 'x'
                 length = pd['depth' if side == 'x' else 'width']
                 direction = ((dz>0)-(dz<0)) if side == 'x' else ((dx>0)-(dx<0))
                 if any(po[axis] <= endpoint[axis]+step*direction < po[axis]+length for step in range(landing+1)):
+                    if commit and extra:
+                        pd['width' if side == 'x' else 'depth'] += extra
+                        pp = part.setdefault('params',{})
+                        pp['circulation_fit'] = 'receive_full_stair_width'
                     return True
             return False
         def clips(shift):
@@ -374,7 +380,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
                             if _stair_door_contact(plan, body, x, point['y'], z, clear): continue
                             return True
             return False
-        if not clips(0) and target_landing_fits(0): continue
+        if not clips(0) and target_landing_fits(0,True): continue
         rise = abs(b['y']-a['y'])
         if run > rise > 0:
             old_a, old_run = dict(a), run
@@ -384,7 +390,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
             a['z'] = b['z']-((dz>0)-(dz<0))*rise
             run = rise
             if not clips(0):
-                if target_landing_fits(0):
+                if target_landing_fits(0,True):
                     p['from'] = a
                     p['circulation_fit'] = 'shorten_exterior_approach'
                     continue
@@ -404,6 +410,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
         for distance in range(1,width+1):
             candidates = [s for s in (distance,-distance) if not clips(s) and reaches_landing(s) and target_landing_fits(s)]
             if candidates:
+                target_landing_fits(candidates[0],True)
                 p['from'] = a
                 stair['relative_position'][side] += candidates[0]
                 p['circulation_fit'] = 'avoid_adjacent_body'
@@ -441,13 +448,9 @@ def _fit_exterior_stairs(plan: dict) -> None:
                 dx, dz, run, landing = b['x']-a['x'], b['z']-a['z'], rise, 1
                 for shift in (0, *[s for distance in range(1,width+1) for s in (distance,-distance)]):
                     if clips(shift) or not target_landing_fits(shift): continue
+                    target_landing_fits(shift,True)
                     p.update({'from':a, 'landing_length':1, 'circulation_fit':'reverse_gallery_approach'})
                     stair['relative_position'][side] += shift
-                    for part in target_landings:
-                        dimension = 'width' if side == 'x' else 'depth'
-                        if part['dimensions'][dimension] < width:
-                            part['dimensions'][dimension] = width
-                            part['params']['circulation_fit'] = 'receive_full_stair_width'
                     break
                 else:
                     a, dx, dz, run, landing = old_a, old_dx, old_dz, old_run, old_landing
@@ -459,6 +462,9 @@ def normalize_circulation_plan(plan: dict) -> dict:
     # Convert only executable, floor-bound descriptions; ordinary volumes stay volumes.
     for comp in out.get('components', []):
         p = comp.get('params') or {}
+        if (comp.get('component_type') == 'MASS_SECONDARY' and p.get('shape') == 'stair'
+                and all(isinstance(p.get(k),int) for k in ('rise','run'))):
+            p.update(extrude_mode='stair',stair_rise=p['rise'],stair_run=p['run'])
         if comp.get('component_type') == 'STRUCTURE' and any(str(f).startswith('stair:') for f in comp.get('features', [])):
             for key in ('from', 'to'):
                 point = p.get(key)
@@ -497,6 +503,25 @@ def normalize_circulation_plan(plan: dict) -> dict:
                   'stairs': _material(p.get('material'), True), 'floor': _material(p.get('material')),
                   'clearHeight': max(2,int(p.get('headroom') or 2)), 'support': False,
                   'landing_length': 1, 'circulation_source': 'legacy_secondary_stair'})
+        if p.get('shape') == 'stair':
+            direction = str(p.get('stair_direction','south')).lower()
+            end = {'east':_point(run,rise,0),'west':_point(-run,rise,0),
+                   'north':_point(0,rise,-run),'south':_point(0,rise,run)}.get(direction)
+            if end is not None: p['to'] = end
+            p['landing_length'] = max(1,min(16,int(p.get('landing_depth') or 1)))
+            p.pop('shape')
+    # Older responses inserted a default flight before recognizing the authored
+    # secondary stair. Drop only defaults serving the same exact pair of levels.
+    explicit_levels = set()
+    for c in out.get('components', []):
+        cp = c.get('params') or {}
+        if cp.get('circulation_source') != 'legacy_secondary_stair': continue
+        y = c['relative_position']['y']
+        explicit_levels.add((cp.get('host_id'),y+cp['from']['y'],y+cp['to']['y']))
+    out['components'] = [c for c in out.get('components', []) if not (
+        (c.get('params') or {}).get('circulation_source') == 'missing_requested_stair'
+        and (c['params'].get('host_id'),c['relative_position']['y']+c['params']['from']['y'],
+             c['relative_position']['y']+c['params']['to']['y']) in explicit_levels)]
     from .bridge_plan_normalizer import normalize_hosted_connections
     normalize_hosted_connections(out)
     _complete_requested_stairs(out)

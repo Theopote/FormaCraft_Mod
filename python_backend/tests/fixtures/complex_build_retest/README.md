@@ -89,3 +89,12 @@ Separate Java assertions check final upper-door headroom, receiving platforms,
 the chapel ridge/riser/gable, a hollow attic and an open shared courtyard.
 Roof continuity tests deliberately remove joining risers and north-light roof
 columns. These are offline geometry regressions, not in-game visual approval.
+
+`oct18_retry_1` through `oct18_retry_6` capture the 00:56–01:05 retry
+(three failures and three completed builds), bringing the replay set to 59.
+They cover bounded gallery widening plus courtyard-column clearance,
+polyhedral dome names and facet counts, zero overhang on a retreated host,
+token-boundary wing aliases, `shape=stair` conversion with duplicate inferred
+flight removal, square tower footprints, and height-only window hints that
+otherwise produce empty facade geometry on short storeys. Explicit rectangle
+sizes and provenance-locked window dimensions retain their authority.

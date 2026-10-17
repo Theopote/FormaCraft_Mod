@@ -154,4 +154,26 @@ class ExplicitWindowSizeFeedbackTest {
         assertTrue(cells.stream().allMatch(p->p.getY()>=5));
         assertEquals(8,cells.size());
     }
+    @Test void heightOnlyHintFitsShortStoreyButExplicitOrLockedRectanglesDoNotShrink() throws Exception {
+        var mass=new Component("MASS_MAIN","tower",new Vec3i(0,0,0),new Dimensions(9,9,12),List.of(),
+                Map.of("component_id","tower","anchor_mode","min_corner","floor_count",4,"floor_height",3));
+        var method=ComponentPlanCompiler.class.getDeclaredMethod("alignFacadeToMass",Component.class,Component.class,LlmPlan.class,GlobalConstraints.Facing.class);
+        method.setAccessible(true);
+        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).build();
+        for(String mode:List.of("hint","explicit","locked")) {
+            var params=new HashMap<String,Object>();
+            params.put("component_id","windows"); params.put("host_id","tower");
+            params.put("window_height",3); params.put("glass_block","minecraft:glass");
+            if("explicit".equals(mode)) params.put("window_width",1);
+            if("locked".equals(mode)) params.put("design_sources",Map.of("window_height","USER_EXPLICIT"));
+            var windows=new Component("FACADE_WINDOWS","tower",new Vec3i(0,0,0),new Dimensions(9,9,12),List.of(),params);
+            var aligned=(Component)method.invoke(null,windows,mass,plan,GlobalConstraints.Facing.SOUTH);
+            assertEquals("hint".equals(mode)?2:3,aligned.params().get("window_height"));
+            if("hint".equals(mode)) {
+                var output=new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",null,aligned));
+                assertFalse(output.isEmpty());
+                assertTrue(output.stream().allMatch(p->p.dy()%3!=0),"Window fitting must preserve floor courses");
+            }
+        }
+    }
 }

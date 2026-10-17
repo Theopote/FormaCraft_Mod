@@ -1,0 +1,1188 @@
+{
+  "mode": "build",
+  "style_profile": "Medieval_Watermill",
+  "style_attributes": {
+    "wall_color": "#d8d0c0",
+    "roof_color": "#3b2a1a",
+    "accent_color": "#6b4a2b",
+    "wall_material": null,
+    "roof_material": null,
+    "floor_material": null,
+    "decorative_elements": [
+      "timber_frame",
+      "stone_brick_base",
+      "water_wheel",
+      "external_bridge",
+      "water_channel",
+      "gabled_roof",
+      "column",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "two-story watermill",
+    "separate small warehouse",
+    "decorative 7-block water wheel",
+    "shallow water channel",
+    "wooden bridge at north entrance",
+    "stone slab connector path",
+    "stone brick base",
+    "spruce timber framing",
+    "light plaster walls",
+    "dark gabled roofs",
+    "column",
+    "ornament"
+  ],
+  "anchor": {
+    "x": 79,
+    "y": 64,
+    "z": -200
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "medieval_watermill_compound",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "compound",
+      "composition": "two_buildings_with_water_works",
+      "axis": "Z",
+      "levels": "two_storey_plus_annex"
+    },
+    "structure": {
+      "type": "timber_frame_on_stone",
+      "massiveness": 0.55,
+      "voidRatio": 0.22,
+      "supports": "load_bearing_walls_and_posts"
+    },
+    "form": {
+      "repetition": "paired",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "gable_roof",
+      "windows",
+      "interior_stairs",
+      "water_wheel",
+      "bridge",
+      "water_channel",
+      "stone_path"
+    ],
+    "materials": {
+      "primary": "minecraft:stone_bricks",
+      "secondary": "minecraft:spruce_log",
+      "accent": "minecraft:white_terracotta",
+      "textureBias": "weathered",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "watermill",
+        "timber_frame",
+        "gable_roof",
+        "mill_channel",
+        "stone_brick_base"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "preserve separate buildings",
+        "keep water wheel, channel and bridge relationship",
+        "internal stairs with 2-block headroom"
+      ],
+      "avoid": [
+        "merge mill and warehouse into one volume",
+        "stadium/elliptical forms"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "mill_slot",
+        "anchor": {
+          "x": -9,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "role": "main_mill"
+      },
+      {
+        "slot_id": "warehouse_slot",
+        "anchor": {
+          "x": 6,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "role": "small_warehouse"
+      },
+      {
+        "slot_id": "path_slot",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "role": "stone_connector_path"
+      },
+      {
+        "slot_id": "channel_slot",
+        "anchor": {
+          "x": -9,
+          "y": 0,
+          "z": -11
+        },
+        "facing": "NORTH",
+        "role": "water_channel"
+      },
+      {
+        "slot_id": "bridge_slot",
+        "anchor": {
+          "x": -9,
+          "y": 0,
+          "z": -14
+        },
+        "facing": "NORTH",
+        "role": "wooden_bridge"
+      },
+      {
+        "slot_id": "bridgehead_slot",
+        "anchor": {
+          "x": -9,
+          "y": 0,
+          "z": -16
+        },
+        "facing": "NORTH",
+        "role": "north_bank_bridgehead"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 17,
+        "height": 10
+      },
+      "features": [
+        "medieval_watermill",
+        "two_storey",
+        "stone_brick_base",
+        "spruce_timber_frame",
+        "light_plaster_wall",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "mill_body",
+        "requirement_scope": "named_mill",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 5,
+        "wall_block": "minecraft:white_terracotta",
+        "base_block": "minecraft:stone_bricks",
+        "beam_block": "minecraft:spruce_log",
+        "floor_block": "minecraft:spruce_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_type": "gable",
+        "window_style": "timber_frame",
+        "entrance_type": "door",
+        "void_ratio": 0.22,
+        "facade_profile": "vertical_pilasters_with_base_plinth",
+        "wall_pattern": "timber_frame_light_plaster",
+        "symmetry": "NONE",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -6,
+        "y": -1,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [
+        "stone_brick_plinth"
+      ],
+      "params": {
+        "component_id": "mill_foundation",
+        "host_id": "mill_body",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "foundation_type": "stone_brick_plinth",
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -7,
+        "y": 10,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 19,
+        "height": 5
+      },
+      "features": [
+        "dark_gabled_roof",
+        "overhang",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "mill_roof",
+        "host_id": "mill_body",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "roof_block": "minecraft:dark_oak_planks",
+        "overhang": 1,
+        "ridge_axis": "Z",
+        "roof_height": 5,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -5,
+        "y": 5,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "upper_floor_plate",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "mill_floor_upper",
+        "host_id": "mill_body",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "floor_block": "minecraft:spruce_planks",
+        "floor_index": 1,
+        "clear_height": 5,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "mill_stairs",
+        "host_id": "mill_body",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 0,
+          "y": 5,
+          "z": 6
+        },
+        "width": 3,
+        "stairs": "minecraft:spruce_stairs",
+        "floor": "minecraft:spruce_planks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "exterior": false,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "main_entrance",
+        "bridge_landing"
+      ],
+      "params": {
+        "component_id": "mill_entrance",
+        "host_id": "mill_body",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "door_block": "minecraft:spruce_door",
+        "facing": "NORTH",
+        "bridge_connection": "mill_bridge",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -5,
+        "y": 2,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 15,
+        "height": 2
+      },
+      "features": [
+        "timber_frame_windows",
+        "rhythmic_window_band"
+      ],
+      "params": {
+        "component_id": "mill_windows",
+        "host_id": "mill_body",
+        "anchor_mode": "min_corner",
+        "window_style": "timber_frame",
+        "window_block": "minecraft:glass_pane",
+        "spacing": 3,
+        "facade": "all",
+        "floor_levels": [
+          1,
+          2
+        ],
+        "rhythm": "regular",
+        "window_ratio": 0.35,
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -6,
+        "y": 9,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [
+        "timber_cornice"
+      ],
+      "params": {
+        "component_id": "mill_cornice",
+        "host_id": "mill_body",
+        "anchor_mode": "min_corner",
+        "element_type": "cornice_band",
+        "material": "minecraft:spruce_planks",
+        "placement": "top_of_walls",
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -8,
+        "y": 2,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 7,
+        "height": 7
+      },
+      "features": [
+        "decorative_water_wheel",
+        "diameter_7"
+      ],
+      "params": {
+        "component_id": "mill_water_wheel",
+        "host_id": "mill_body",
+        "anchor_mode": "min_corner",
+        "element_type": "water_wheel",
+        "diameter": 7,
+        "material": "minecraft:spruce_planks",
+        "hub_material": "minecraft:spruce_log",
+        "orientation": "vertical_plane_parallel_to_west_wall",
+        "animated": true,
+        "building_id": "mill_body"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "warehouse_slot",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 5
+      },
+      "features": [
+        "separate_warehouse",
+        "small_annex",
+        "stone_brick_base",
+        "timber_frame",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "warehouse_body",
+        "requirement_scope": "small_warehouse",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 1,
+        "floor_height": 5,
+        "wall_block": "minecraft:white_terracotta",
+        "base_block": "minecraft:stone_bricks",
+        "beam_block": "minecraft:spruce_log",
+        "floor_block": "minecraft:spruce_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_type": "gable",
+        "window_style": "timber_frame",
+        "entrance_type": "door",
+        "void_ratio": 0.18,
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "warehouse_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "warehouse_slot",
+      "relative_position": {
+        "x": -3,
+        "y": -1,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "stone_brick_plinth"
+      ],
+      "params": {
+        "component_id": "warehouse_foundation",
+        "host_id": "warehouse_body",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "foundation_type": "stone_brick_plinth",
+        "building_id": "warehouse_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "warehouse_slot",
+      "relative_position": {
+        "x": -4,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 3
+      },
+      "features": [
+        "dark_gabled_roof",
+        "overhang",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "warehouse_roof",
+        "host_id": "warehouse_body",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "roof_block": "minecraft:dark_oak_planks",
+        "overhang": 1,
+        "ridge_axis": "Z",
+        "roof_height": 3,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "warehouse_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "warehouse_slot",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "warehouse_door",
+        "path_connection"
+      ],
+      "params": {
+        "component_id": "warehouse_entrance",
+        "host_id": "warehouse_body",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "door_block": "minecraft:spruce_door",
+        "facing": "WEST",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "warehouse_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "warehouse_slot",
+      "relative_position": {
+        "x": -2,
+        "y": 2,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [
+        "small_timber_frame_windows"
+      ],
+      "params": {
+        "component_id": "warehouse_windows",
+        "host_id": "warehouse_body",
+        "anchor_mode": "min_corner",
+        "window_style": "timber_frame",
+        "window_block": "minecraft:glass_pane",
+        "spacing": 2,
+        "floor_levels": [
+          1
+        ],
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "warehouse_body"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "path_slot",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "stone_path_connector"
+      ],
+      "params": {
+        "component_id": "path_stone",
+        "anchor_mode": "min_corner",
+        "path_type": "stone_slab_path",
+        "surface_block": "minecraft:stone_bricks",
+        "width": 3,
+        "from_host_id": "mill_body",
+        "to_host_id": "warehouse_body"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "channel_slot",
+      "relative_position": {
+        "x": -8,
+        "y": -2,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "shallow_water_channel"
+      ],
+      "params": {
+        "component_id": "channel_water",
+        "anchor_mode": "min_corner",
+        "path_type": "water_channel",
+        "surface_block": "minecraft:water",
+        "edge_block": "minecraft:stone_bricks",
+        "shallow": true,
+        "water_depth": 1
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "mill_slot",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "wooden_bridge",
+        "width_3",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "bridge_deck",
+        "host_id": "mill_body",
+        "target_host_id": "bridge_landing",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "bridge",
+        "bridge_material": "minecraft:spruce_planks",
+        "rail_block": "minecraft:spruce_fence",
+        "width": 3,
+        "connection_level": 0,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "mill_body",
+        "slot_id": "mill_slot",
+        "coordinate_frame_rebased": true
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "bridgehead_slot",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "stone_bridgehead"
+      ],
+      "params": {
+        "component_id": "bridge_landing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "material": "minecraft:stone_bricks",
+        "purpose": "north_bank_bridgehead",
+        "building_id": "bridge_landing"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_length_named_mill",
+          "property": "length",
+          "value": 17,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "长17格"
+          ],
+          "scope": "named_mill",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "mill_body"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_width_named_mill",
+          "property": "width",
+          "value": 13,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽13格"
+          ],
+          "scope": "named_mill",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "mill_body"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_width_element_scope",
+          "property": "width",
+          "value": 3,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽3格"
+          ],
+          "scope": "element_scope",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        },
+        {
+          "id": "req_floor_height_named_mill",
+          "property": "floor_height",
+          "value": 5,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高5格"
+          ],
+          "scope": "named_mill",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mill_body"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_mill",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层"
+          ],
+          "scope": "named_mill",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mill_body"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_gable",
+          "property": "roof_type",
+          "value": "gable",
+          "source": "user_explicit",
+          "source_text": [
+            "双坡屋顶"
+          ],
+          "scope": "named_mill",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mill_body"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_mill": [
+          "mill_body",
+          "mill_body"
+        ],
+        "small_warehouse": [
+          "warehouse_body"
+        ],
+        "named_warehouse": [
+          "warehouse_body"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "mill_body",
+          "slot_id": "mill_slot",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -8
+          },
+          "plan_origin": {
+            "x": -15,
+            "y": 0,
+            "z": -8
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 17,
+            "height": 10
+          },
+          "floor_ys_local": [
+            0,
+            5
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mill_body",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -8
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 17,
+                  "height": 10
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -8,
+              "max_x": 7,
+              "max_z": 9,
+              "min_y": 0,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -8,
+                "end": 9
+              },
+              {
+                "direction": "NORTH",
+                "plane": -8,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 9,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -8,
+                "end": 9
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "warehouse_body",
+          "slot_id": "warehouse_slot",
+          "local_origin": {
+            "x": -3,
+            "y": 0,
+            "z": -3
+          },
+          "plan_origin": {
+            "x": 3,
+            "y": 0,
+            "z": -3
+          },
+          "dimensions": {
+            "width": 7,
+            "depth": 7,
+            "height": 5
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 4,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "warehouse_body",
+                "local_origin": {
+                  "x": -3,
+                  "y": 0,
+                  "z": -3
+                },
+                "dimensions": {
+                  "width": 7,
+                  "depth": 7,
+                  "height": 5
+                },
+                "roof_y_local": 4
+              }
+            ],
+            "envelope_local": {
+              "min_x": -3,
+              "min_z": -3,
+              "max_x": 4,
+              "max_z": 4,
+              "min_y": 0,
+              "max_y": 5
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -3,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -3,
+                "start": -3,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Medieval_Castle",
+          "identity_id": "Medieval_Castle",
+          "status": "canonical",
+          "profile_id": "Medieval_Castle"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座中世纪风格的水岸磨坊建筑群， 包含一座两层磨坊和一座独立的小仓库。磨坊约长17格、 宽13格，每层高5格， 使用石砖基座、 云杉木梁柱和浅色墙面， 覆盖深色双坡屋顶。 磨坊一层设置工作区， 二层设置储物区， 使用内部楼梯连接， 并为楼梯保留至少2格高净空。 一侧设置直径约7格的装饰水车 ，水车旁建造浅水渠。 一层入口通过宽3格的木桥跨过水渠。小仓库放在磨坊另一侧， 与主楼间隔5格， 通过地面石板路连接。 保留水车、 水渠和木桥的空间关系， 不要把两个建筑合并成一个体块 。",
+          "purposes": [
+            {
+              "id": "industrial",
+              "phrase": "仓库",
+              "start": 34,
+              "status": "requested",
+              "part": "building"
+            },
+            {
+              "id": "industrial",
+              "phrase": "仓库",
+              "start": 177,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Medieval_Castle",
+              "phrase": "中世纪风格",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座中世纪风格的水岸磨坊建筑群，\n包含一座两层磨坊和一座独立的小仓库。磨坊约长17格、\n宽13格，每层高5格，\n使用石砖基座、\n云杉木梁柱和浅色墙面，\n覆盖深色双坡屋顶。\n磨坊一层设置工作区，\n二层设置储物区，\n使用内部楼梯连接，\n并为楼梯保留至少2格高净空。\n一侧设置直径约7格的装饰水车\n，水车旁建造浅水渠。\n一层入口通过宽3格的木桥跨过水渠。小仓库放在磨坊另一侧，\n与主楼间隔5格，\n通过地面石板路连接。\n保留水车、\n水渠和木桥的空间关系，\n不要把两个建筑合并成一个体块\n。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "mill_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Watermill",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "warehouse_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Watermill",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    },
+    "connection_repairs": [
+      {
+        "component_id": "bridge_deck",
+        "reason": "ground_bridge_floor_datum"
+      }
+    ]
+  },
+  "player_fidelity_notice_zh": "组合式生成「筑群」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

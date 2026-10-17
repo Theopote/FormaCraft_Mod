@@ -1,0 +1,1409 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#8a8a8a",
+    "roof_color": "#3b2a1e",
+    "accent_color": "#5a5a5a",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:andesite",
+    "decorative_elements": [
+      "cornice_band",
+      "pilaster_strips",
+      "clock_face",
+      "stone_balustrade",
+      "planter_boxes"
+    ]
+  },
+  "distinguishing_features": [
+    "symmetric two-storey central hall flanked by single-storey wings",
+    "square rear clock tower with four simplified clock faces near the top",
+    "balcony three blocks wide above the main entrance with a railed door opening",
+    "gable roof on the hall and lower gables on the wings",
+    "pyramidal four-sided spire on the clock tower",
+    "interior stair connecting ground and upper floors",
+    "small civic plaza with steps, path and two planters only"
+  ],
+  "anchor": {
+    "x": 220,
+    "y": 117,
+    "z": -141
+  },
+  "proportion_hints": {
+    "typology": "civic_hall_compound",
+    "height_to_width": 0.63,
+    "depth_to_width": 0.79,
+    "roof_to_body_height": 0.42,
+    "tower_height_to_base": 3.14,
+    "balcony_width_to_door": 1.0,
+    "window_wall_ratio": 0.24,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_height_named_main_hall",
+          "property": "floor_height",
+          "value": 6,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高6格"
+          ],
+          "scope": "named_main_hall",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "townhall_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_main_hall",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层",
+            "二层的"
+          ],
+          "scope": "named_main_hall",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "townhall_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_wing",
+          "property": "floor_count",
+          "value": 1,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "一层"
+          ],
+          "scope": "named_wing",
+          "priority": "hard",
+          "status": "unresolved_binding"
+        },
+        {
+          "id": "req_roof_gable",
+          "property": "roof_type",
+          "value": "gable",
+          "source": "user_explicit",
+          "source_text": [
+            "双坡屋顶"
+          ],
+          "scope": "named_main_hall",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "townhall_main"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": "E_REQUIREMENT_SCOPE",
+          "scope": "named_wing",
+          "requirement_id": "req_floor_count_named_wing"
+        }
+      ],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_hall": [
+          "townhall_main"
+        ],
+        "named_tower": [
+          "townhall_clock_tower"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "townhall_main",
+          "slot_id": "slot_0",
+          "local_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -7
+          },
+          "plan_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -7
+          },
+          "dimensions": {
+            "width": 19,
+            "depth": 15,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            6
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "townhall_main",
+                "local_origin": {
+                  "x": -9,
+                  "y": 0,
+                  "z": -7
+                },
+                "dimensions": {
+                  "width": 19,
+                  "depth": 15,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -9,
+              "min_z": -7,
+              "max_x": 10,
+              "max_z": 8,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 10,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": -7,
+                "start": -9,
+                "end": 10
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": -9,
+                "end": 10
+              },
+              {
+                "direction": "WEST",
+                "plane": -9,
+                "start": -7,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "townhall_wing_north",
+          "slot_id": "slot_1",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -16
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 9,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "townhall_wing_north",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 9,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -4,
+              "max_x": 7,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -4,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "townhall_wing_south",
+          "slot_id": "slot_2",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 0,
+            "z": 8
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 9,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "townhall_wing_south",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 9,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -4,
+              "max_x": 7,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -4,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座对称布局的小镇市政厅 ，包含两层中央大厅、 左右两座较低的侧翼， 以及一座位于中央大厅后方的方形钟楼。中央大厅约19×15格， 每层高6格；侧翼各约9×13格， 只有一层，高6格； 钟楼约7×7格，总高22格。 使用石砖、安山岩和深色木材， 中央大厅采用双坡屋顶， 侧翼采用较低的双坡屋顶， 钟楼采用四坡尖顶。 主入口朝向广场， 入口上方设置三格宽的阳台， 阳台栏杆必须给门留出开口。 中央大厅内部设置连接二层的楼梯。 钟楼四面在接近顶部的位置设置简化钟面。 屋顶在钟楼穿入的位置收口， 避免穿过钟楼室内。 广场只设置台阶、 步道和两处花坛， 不要添加其他大型建筑。",
+          "purposes": [
+            {
+              "id": "civic_hall",
+              "phrase": "市政厅",
+              "start": 11,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方形钟楼。中央大厅约19×15格，\n每层高6格；侧翼各约9×13格，\n只有一层，高6格；\n钟楼约7×7格，总高22格。\n使用石砖、安山岩和深色木材，\n中央大厅采用双坡屋顶，\n侧翼采用较低的双坡屋顶，\n钟楼采用四坡尖顶。\n主入口朝向广场，\n入口上方设置三格宽的阳台，\n阳台栏杆必须给门留出开口。\n中央大厅内部设置连接二层的楼梯。\n钟楼四面在接近顶部的位置设置简化钟面。\n屋顶在钟楼穿入的位置收口，\n避免穿过钟楼室内。\n广场只设置台阶、\n步道和两处花坛，\n不要添加其他大型建筑。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "townhall_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "townhall_wing_north",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "townhall_wing_south",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "civic_town_hall",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "rectangular_symmetric_compound",
+      "composition": "central_hall_with_flanking_wings_and_rear_tower",
+      "axis": "east_west",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "load_bearing_stone",
+      "massiveness": 0.72,
+      "voidRatio": 0.2,
+      "supports": "perimeter_walls_and_tower"
+    },
+    "form": {
+      "repetition": "paired_wings",
+      "progression": "symmetrical",
+      "curvature": "straight",
+      "rhythm": "regular_bays"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "gable_roof",
+      "clock_tower",
+      "balcony",
+      "facade_windows",
+      "interior_stair"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "dark_wood",
+      "accent": "andesite",
+      "textureBias": "masonry",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european_town",
+      "era": "early_modern",
+      "keywords": [
+        "municipal",
+        "civic",
+        "clock_tower",
+        "symmetrical"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 24,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "symmetry",
+        "clock_tower",
+        "balcony_railing_gap"
+      ],
+      "avoid": [
+        "extra_large_buildings",
+        "roof_through_tower_interior"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "notes": "two-storey central hall, entrance facing east plaza",
+        "slot_id": "slot_0"
+      },
+      {
+        "id": "wing_north",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -12
+        },
+        "notes": "lower single-storey north wing",
+        "slot_id": "slot_1"
+      },
+      {
+        "id": "wing_south",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 12
+        },
+        "notes": "lower single-storey south wing",
+        "slot_id": "slot_2"
+      },
+      {
+        "id": "tower",
+        "anchor": {
+          "x": -13,
+          "y": 0,
+          "z": 0
+        },
+        "notes": "square clock tower behind the hall, terminating the rear roof",
+        "slot_id": "slot_3"
+      },
+      {
+        "id": "plaza",
+        "anchor": {
+          "x": 14,
+          "y": 0,
+          "z": 0
+        },
+        "notes": "civic plaza east of the entrance with steps, path and two planters",
+        "slot_id": "slot_4"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 15,
+        "height": 12
+      },
+      "params": {
+        "component_id": "townhall_main",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "anchor_mode": "center",
+        "floor_count": 2,
+        "floor_height": 6,
+        "hollow": true,
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped_andesite_bands",
+        "void_ratio": 0.22,
+        "window_style": "tall_rectangular",
+        "entrance_type": "double_wood_door",
+        "base_plinth": true,
+        "window_ratio": 0.35,
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -10,
+        "y": -1,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 17,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_main_foundation",
+        "host_id": "townhall_main",
+        "plinth": true,
+        "material": "minecraft:andesite",
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -11,
+        "y": 12,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 17,
+        "height": 5
+      },
+      "params": {
+        "component_id": "townhall_main_roof",
+        "host_id": "townhall_main",
+        "roof_type": "gable",
+        "ridge_axis": "z",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "gable_end_west": "abut_tower",
+        "gable_end_east": "gable_wall",
+        "roof_height": 5,
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 8,
+        "y": 1,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 14,
+        "height": 9
+      },
+      "params": {
+        "component_id": "townhall_main_windows_east",
+        "host_id": "townhall_main",
+        "window_ratio": 0.26,
+        "rows": 2,
+        "window_aspect": "vertical_rectangular",
+        "window_style": "timber_framed",
+        "sill_block": "minecraft:andesite",
+        "rhythm": "regular_bays",
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -9,
+        "y": 1,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 14,
+        "height": 9
+      },
+      "params": {
+        "component_id": "townhall_main_windows_west",
+        "host_id": "townhall_main",
+        "window_ratio": 0.22,
+        "rows": 2,
+        "window_aspect": "vertical_rectangular",
+        "window_style": "timber_framed",
+        "sill_block": "minecraft:andesite",
+        "rhythm": "regular_bays",
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 4
+      },
+      "params": {
+        "component_id": "townhall_main_entrance",
+        "host_id": "townhall_main",
+        "entrance_type": "double_wood_door",
+        "facing": "WEST",
+        "world_facing": "EAST",
+        "frame_material": "minecraft:andesite",
+        "door_material": "minecraft:dark_oak_planks",
+        "steps": 1,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "townhall_main"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"double\", \"wooden\", \"civic\", \"timber_framed\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 4, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"dark_wood_and_stone\"}, \"constraints\": {\"mustHave\": [\"double_leaf\", \"opening\"], \"forbiddenTags\": [\"metal_gate\", \"modern_glass\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 9,
+        "y": 6,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_main_balcony",
+        "host_id": "townhall_main",
+        "width": 3,
+        "railing": true,
+        "railing_gap": true,
+        "gap_width": 1,
+        "railing_material": "minecraft:andesite",
+        "floor_material": "minecraft:stone_bricks",
+        "supported_by_brackets": true,
+        "building_id": "townhall_main",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -10,
+        "y": 11,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 17,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_main_cornice",
+        "host_id": "townhall_main",
+        "detail_type": "cornice_band",
+        "material": "minecraft:andesite",
+        "protrusion": 1,
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -9,
+        "y": 6,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_main_upper_floor_plate",
+        "host_id": "townhall_main",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:dark_oak_planks",
+        "opening": {
+          "x": -4,
+          "z": -1,
+          "width": 8,
+          "depth": 4
+        },
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.2,
+        "floor_height": 3,
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 3,
+        "height": 6
+      },
+      "params": {
+        "component_id": "townhall_main_interior_stair",
+        "host_id": "townhall_main",
+        "shape": "stair",
+        "exterior": false,
+        "rise": 6,
+        "run": 7,
+        "width": 3,
+        "stair_direction": "east",
+        "landing": true,
+        "landing_depth": 2,
+        "material": "minecraft:dark_oak_planks",
+        "railing": true,
+        "window_ratio": 0.35,
+        "void_ratio": 0.2,
+        "floor_height": 3,
+        "building_id": "townhall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 9,
+        "height": 6
+      },
+      "params": {
+        "component_id": "townhall_wing_north",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "anchor_mode": "center",
+        "floor_count": 1,
+        "floor_height": 6,
+        "hollow": true,
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:andesite",
+        "roof_block": "minecraft:dark_oak_planks",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped_andesite_bands",
+        "void_ratio": 0.2,
+        "window_style": "tall_rectangular",
+        "window_ratio": 0.35,
+        "building_id": "townhall_wing_north"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -7,
+        "y": -1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 11,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_wing_north_foundation",
+        "host_id": "townhall_wing_north",
+        "material": "minecraft:andesite",
+        "building_id": "townhall_wing_north"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -7,
+        "y": 6,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 11,
+        "height": 3
+      },
+      "params": {
+        "component_id": "townhall_wing_north_roof",
+        "host_id": "townhall_wing_north",
+        "roof_type": "gable",
+        "ridge_axis": "x",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_height": 3,
+        "building_id": "townhall_wing_north"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 5,
+        "y": 1,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 8,
+        "height": 4
+      },
+      "params": {
+        "component_id": "townhall_wing_north_windows",
+        "host_id": "townhall_wing_north",
+        "window_ratio": 0.24,
+        "rows": 1,
+        "window_aspect": "vertical_rectangular",
+        "window_style": "timber_framed",
+        "rhythm": "regular_bays",
+        "building_id": "townhall_wing_north"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_2",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 9,
+        "height": 6
+      },
+      "params": {
+        "component_id": "townhall_wing_south",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "anchor_mode": "center",
+        "floor_count": 1,
+        "floor_height": 6,
+        "hollow": true,
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:andesite",
+        "roof_block": "minecraft:dark_oak_planks",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped_andesite_bands",
+        "void_ratio": 0.2,
+        "window_style": "tall_rectangular",
+        "window_ratio": 0.35,
+        "building_id": "townhall_wing_south"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_2",
+      "relative_position": {
+        "x": -7,
+        "y": -1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 11,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_wing_south_foundation",
+        "host_id": "townhall_wing_south",
+        "material": "minecraft:andesite",
+        "building_id": "townhall_wing_south"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_2",
+      "relative_position": {
+        "x": -7,
+        "y": 6,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 11,
+        "height": 3
+      },
+      "params": {
+        "component_id": "townhall_wing_south_roof",
+        "host_id": "townhall_wing_south",
+        "roof_type": "gable",
+        "ridge_axis": "x",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_height": 3,
+        "building_id": "townhall_wing_south"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_2",
+      "relative_position": {
+        "x": 5,
+        "y": 1,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 8,
+        "height": 4
+      },
+      "params": {
+        "component_id": "townhall_wing_south_windows",
+        "host_id": "townhall_wing_south",
+        "window_ratio": 0.24,
+        "rows": 1,
+        "window_aspect": "vertical_rectangular",
+        "window_style": "timber_framed",
+        "rhythm": "regular_bays",
+        "building_id": "townhall_wing_south"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 14
+      },
+      "params": {
+        "component_id": "townhall_clock_tower",
+        "shape": "square",
+        "anchor_mode": "center",
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "accent_block": "minecraft:andesite",
+        "corner_quoins": true,
+        "hollow": true,
+        "clock_band_height": 11,
+        "adjacent_roof_trim": true,
+        "roof_penetration_trim": true,
+        "building_id": "townhall_clock_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": -4,
+        "y": 14,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 8
+      },
+      "params": {
+        "component_id": "townhall_clock_tower_spire",
+        "host_id": "townhall_clock_tower",
+        "roof_type": "pyramid",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "ridge_block": "minecraft:andesite",
+        "finial": true,
+        "roof_height": 8,
+        "building_id": "townhall_clock_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": 3,
+        "y": 11,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "params": {
+        "component_id": "townhall_clock_face_east",
+        "host_id": "townhall_clock_tower",
+        "detail_type": "clock_face",
+        "face_direction": "east",
+        "material": "minecraft:andesite",
+        "dial_material": "minecraft:dark_oak_planks",
+        "simplified": true,
+        "building_id": "townhall_clock_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": -4,
+        "y": 11,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "params": {
+        "component_id": "townhall_clock_face_west",
+        "host_id": "townhall_clock_tower",
+        "detail_type": "clock_face",
+        "face_direction": "west",
+        "material": "minecraft:andesite",
+        "dial_material": "minecraft:dark_oak_planks",
+        "simplified": true,
+        "building_id": "townhall_clock_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": -1,
+        "y": 11,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "params": {
+        "component_id": "townhall_clock_face_north",
+        "host_id": "townhall_clock_tower",
+        "detail_type": "clock_face",
+        "face_direction": "north",
+        "material": "minecraft:andesite",
+        "dial_material": "minecraft:dark_oak_planks",
+        "simplified": true,
+        "building_id": "townhall_clock_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": -1,
+        "y": 11,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "params": {
+        "component_id": "townhall_clock_face_south",
+        "host_id": "townhall_clock_tower",
+        "detail_type": "clock_face",
+        "face_direction": "south",
+        "material": "minecraft:andesite",
+        "dial_material": "minecraft:dark_oak_planks",
+        "simplified": true,
+        "building_id": "townhall_clock_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "PLAZA",
+      "slot_id": "slot_4",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 20,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_plaza",
+        "surface_material": "minecraft:stone_bricks",
+        "border_material": "minecraft:andesite",
+        "no_other_buildings": true
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_4",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_plaza_steps",
+        "step_count": 3,
+        "step_material": "minecraft:andesite",
+        "step_depth": 1,
+        "connects_to_entrance": true,
+        "building_id": "townhall_plaza_steps",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_4",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_plaza_path",
+        "path_material": "minecraft:andesite",
+        "edge_material": "minecraft:stone_bricks",
+        "straight": true
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_4",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_planter_north",
+        "detail_type": "planter",
+        "material": "minecraft:stone_bricks",
+        "soil_material": "minecraft:coarse_dirt",
+        "flowers": true
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_4",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "townhall_planter_south",
+        "detail_type": "planter",
+        "material": "minecraft:stone_bricks",
+        "soil_material": "minecraft:coarse_dirt",
+        "flowers": true
+      },
+      "features": []
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 2,
+        "height": 9
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "townhall_main#access_1",
+        "host_id": "townhall_main",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 6,
+          "y": 6,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:dark_oak_planks",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "townhall_main"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方\n形钟楼。中央大厅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "plan_status": "capability_gap",
+  "capability_gap": {
+    "code": "E_BUILDING_CONTRACT",
+    "message": "建筑方案未满足明确要求或主体引用无效",
+    "path": "proportion_hints.building_contract",
+    "suggestions": [
+      "{'code': 'E_REQUIREMENT_SCOPE', 'scope': 'named_wing', 'requirement_id': 'req_floor_count_named_wing'}"
+    ]
+  },
+  "kind": "llmplan"
+}

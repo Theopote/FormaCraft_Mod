@@ -52,7 +52,7 @@ public final class PatchOccupancyIndex {
 
     /** Preserve existing geometry when an optional attachment cannot join it. */
     public int trimIncompatibleAttachment(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
-        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "COURTYARD", "FOUNDATION", "BALCONY", "TERRACE")
+        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "FOUNDATION", "BALCONY", "TERRACE")
                 .contains(writer.componentType().toUpperCase(Locale.ROOT))) return 0;
         Map<BlockPos, PlaceRecord> simulation = new HashMap<>(places);
         Set<BlockPos> removed = new HashSet<>(removes);

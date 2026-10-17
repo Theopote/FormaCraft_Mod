@@ -74,7 +74,7 @@ final class ExteriorCirculationValidator {
             var previous = occupancy.placeAt(pos);
             if (previous != null && previous.owner() != null && previous.owner().dimensions() != null
                     && previous.owner().dimensions().height() == 1
-                    && Set.of("COURTYARD","COURTYARD_SPACE","PATH","ROAD","PAVING","PLAZA").contains(previous.writerType()))
+                    && Set.of("COURTYARD","COURTYARD_SPACE","PATH","ROAD","PAVING","PLAZA","TERRACE","BALCONY").contains(previous.writerType()))
                 result.add(pos);
             if (previous != null && "FOUNDATION".equals(previous.writerType()) && previous.owner()!=null && y==-1) {
                 var fb=ComponentFootprintUtil.bounds(previous.owner());

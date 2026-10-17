@@ -1,0 +1,1372 @@
+{
+  "mode": "build",
+  "style_profile": "Medieval_Monastery",
+  "style_attributes": {
+    "wall_color": null,
+    "roof_color": null,
+    "accent_color": null,
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:dark_oak_planks",
+    "decorative_elements": [
+      "stained_glass",
+      "colonnade",
+      "stone_well",
+      "terrace_railing",
+      "cornice_band",
+      "column",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "steep chapel gable",
+    "narrow tall stained-glass chapel windows",
+    "decorative window above chapel entrance",
+    "two-storey residence with internal stair",
+    "L-shaped cloister with continuous columns",
+    "central stone well in open courtyard",
+    "seaside terrace with railing",
+    "3-wide path connecting courtyard to terrace",
+    "column",
+    "ornament"
+  ],
+  "anchor": {
+    "x": 204,
+    "y": 116,
+    "z": -167
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "monastery_compound",
+      "confidence": 0.8
+    },
+    "topology": {
+      "layout": "courtyard_compound",
+      "composition": "cluster",
+      "axis": "east_west",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "stone_masonry",
+      "massiveness": 0.7,
+      "voidRatio": 0.22,
+      "supports": "load_bearing_walls"
+    },
+    "form": {
+      "repetition": "colonnade",
+      "progression": "hierarchical",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "chapel",
+      "residence",
+      "cloister",
+      "courtyard",
+      "terrace",
+      "well"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "dark_oak_wood",
+      "accent": "stained_glass",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "europe",
+      "era": "medieval",
+      "keywords": [
+        "monastery",
+        "cliffside",
+        "cloister",
+        "chapel"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 20,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "roof hierarchy",
+        "courtyard enclosure",
+        "colonnade rhythm"
+      ],
+      "avoid": [
+        "stadium typology",
+        "radial plan",
+        "solid room fill"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "monastery_compound",
+    "height_to_width": 0.57,
+    "depth_to_width": 0.83,
+    "roof_to_body_height": 0.55,
+    "chapel_roof_to_body_height": 0.67,
+    "residence_roof_to_body_height": 0.5,
+    "cloister_roof_to_body_height": 0.67,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width_element_scope",
+          "property": "width",
+          "value": null,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽4格",
+            "宽3格"
+          ],
+          "scope": "unresolved",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        },
+        {
+          "id": "req_floor_height_named_residence",
+          "property": "floor_height",
+          "value": 5,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高5格"
+          ],
+          "scope": "named_residence",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "residence_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_residence",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层"
+          ],
+          "scope": "named_residence",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "residence_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_gable",
+          "property": "roof_type",
+          "value": "gable",
+          "source": "user_explicit",
+          "source_text": [
+            "双坡屋顶"
+          ],
+          "scope": "named_chapel",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "chapel_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_glass_windows",
+          "property": "glass_block",
+          "value": "minecraft:glass",
+          "source": "user_explicit",
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "chapel_main",
+            "residence_main"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_chapel": [
+          "chapel_main",
+          "chapel_main"
+        ],
+        "named_residence": [
+          "residence_main",
+          "residence_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "chapel_main",
+          "slot_id": "slot_0",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": -17,
+            "y": 0,
+            "z": -14
+          },
+          "dimensions": {
+            "width": 23,
+            "depth": 11,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "chapel_main",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 23,
+                  "depth": 11,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 23,
+              "max_z": 11,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 23,
+                "start": 0,
+                "end": 11
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 23
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 11,
+                "start": 0,
+                "end": 23
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 11
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "residence_main",
+          "slot_id": "slot_1",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": 1,
+            "y": 0,
+            "z": -1
+          },
+          "dimensions": {
+            "width": 17,
+            "depth": 9,
+            "height": 10
+          },
+          "floor_ys_local": [
+            0,
+            5
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "residence_main",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 17,
+                  "depth": 9,
+                  "height": 10
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 17,
+              "max_z": 9,
+              "min_y": 0,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 17,
+                "start": 0,
+                "end": 9
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 17
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 9,
+                "start": 0,
+                "end": 17
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 9
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座海崖上的小型修道院建筑群，占地约35×29格。 主体由一座狭长礼拜堂、 一栋两层居住楼和两段单层有顶回廊组成， 围合出一个露天庭院。 礼拜堂约23×11格， 墙高12格，采用陡峭双坡屋顶， 侧墙设置窄而高的彩色玻璃窗； 入口上方设置一扇较大的装饰窗 。居住楼约17×9格， 每层高5格， 通过内部楼梯连接。 两段回廊宽4格， 采用连续立柱和较低屋顶， 在转角处连通， 但不得封住礼拜堂和居住楼入口 。庭院中央设置小型石质水井， 海崖一侧设置带栏杆的观景平台 ，通过宽3格步道接入庭院。 使用石砖、苔石、 深色木屋顶和少量彩色玻璃， 明确区分礼拜堂高屋顶、 居住楼中等屋顶和回廊低屋顶。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座海崖上的小型修道院建筑群，占地约35×29格。\n主体由一座狭长礼拜堂、\n一栋两层居住楼和两段单层有顶回廊组成，\n围合出一个露天庭院。\n礼拜堂约23×11格，\n墙高12格，采用陡峭双坡屋顶，\n侧墙设置窄而高的彩色玻璃窗；\n入口上方设置一扇较大的装饰窗\n。居住楼约17×9格，\n每层高5格，\n通过内部楼梯连接。\n两段回廊宽4格，\n采用连续立柱和较低屋顶，\n在转角处连通，\n但不得封住礼拜堂和居住楼入口\n。庭院中央设置小型石质水井，\n海崖一侧设置带栏杆的观景平台\n，通过宽3格步道接入庭院。\n使用石砖、苔石、\n深色木屋顶和少量彩色玻璃，\n明确区分礼拜堂高屋顶、\n居住楼中等屋顶和回廊低屋顶。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "chapel_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Monastery",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "residence_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Monastery",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "slot_chapel",
+        "anchor": {
+          "x": -17,
+          "y": 0,
+          "z": -14
+        },
+        "facing": "SOUTH",
+        "slot_id": "slot_0"
+      },
+      {
+        "id": "slot_residence",
+        "anchor": {
+          "x": 1,
+          "y": 0,
+          "z": -1
+        },
+        "facing": "WEST",
+        "slot_id": "slot_1"
+      },
+      {
+        "id": "slot_cloister_west",
+        "anchor": {
+          "x": -13,
+          "y": 0,
+          "z": -3
+        },
+        "facing": "EAST",
+        "slot_id": "slot_2"
+      },
+      {
+        "id": "slot_cloister_south",
+        "anchor": {
+          "x": -13,
+          "y": 0,
+          "z": 8
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_3"
+      },
+      {
+        "id": "slot_courtyard",
+        "anchor": {
+          "x": -9,
+          "y": 0,
+          "z": -3
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_4"
+      },
+      {
+        "id": "slot_path",
+        "anchor": {
+          "x": 2,
+          "y": 0,
+          "z": 8
+        },
+        "facing": "SOUTH",
+        "slot_id": "slot_5"
+      },
+      {
+        "id": "slot_terrace",
+        "anchor": {
+          "x": 2,
+          "y": 0,
+          "z": 12
+        },
+        "facing": "SOUTH",
+        "slot_id": "slot_6"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 11,
+        "height": 12
+      },
+      "features": [
+        "chapel",
+        "steep_gable",
+        "stained_glass",
+        "decorative_entry_window",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "chapel_main",
+        "requirement_scope": "named_chapel",
+        "anchor_mode": "min_corner",
+        "floor_count": 1,
+        "floor_height": 12,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass",
+        "accent_glass_block": "minecraft:light_blue_stained_glass",
+        "roof_type": "gable",
+        "roof_pitch": "steep",
+        "void_ratio": 0.18,
+        "wall_pattern": "mossy_stone_coursed",
+        "facade_profile": "buttressed_narrow_tall_windows",
+        "roof_to_body_height": 0.67,
+        "shape": "rectangle",
+        "window_ratio": 0.6,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "chapel_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -1,
+        "y": 12,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 13,
+        "height": 8
+      },
+      "features": [
+        "gable",
+        "steep",
+        "overhang",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "chapel_roof",
+        "host_id": "chapel_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "roof_pitch": "steep",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_height": 8,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "chapel_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 10,
+        "y": 0,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "arched_double_door",
+        "chapel_entry"
+      ],
+      "params": {
+        "component_id": "chapel_entrance",
+        "host_id": "chapel_main",
+        "anchor_mode": "min_corner",
+        "entrance_type": "arched_double_door",
+        "door_block": "minecraft:dark_oak_door",
+        "material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "chapel_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 9,
+        "y": 5,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "decorative_round_window",
+        "above_entrance",
+        "stained_glass"
+      ],
+      "params": {
+        "component_id": "chapel_entry_window",
+        "host_id": "chapel_main",
+        "anchor_mode": "min_corner",
+        "window_style": "decorative_round",
+        "units": 1,
+        "glass_block": "minecraft:glass",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "chapel_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 3,
+        "y": 3,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "narrow_tall",
+        "stained_glass",
+        "side_wall_rhythm"
+      ],
+      "params": {
+        "component_id": "chapel_side_windows",
+        "host_id": "chapel_main",
+        "anchor_mode": "min_corner",
+        "window_style": "narrow_tall_stained_glass",
+        "sides": [
+          "north",
+          "south"
+        ],
+        "repeat_count": 5,
+        "spacing": 3,
+        "window_width": 1,
+        "window_height": 6,
+        "glass_block": "minecraft:glass",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "chapel_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 0,
+        "y": 11,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "cornice_band"
+      ],
+      "params": {
+        "component_id": "chapel_cornice",
+        "host_id": "chapel_main",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "feature": "cornice_band",
+        "building_id": "chapel_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 13,
+        "height": 1
+      },
+      "features": [
+        "plinth"
+      ],
+      "params": {
+        "component_id": "chapel_foundation",
+        "host_id": "chapel_main",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:mossy_cobblestone",
+        "building_id": "chapel_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 9,
+        "height": 10
+      },
+      "features": [
+        "two_storey_residence",
+        "internal_stair",
+        "medium_gable",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "residence_main",
+        "requirement_scope": "named_residence",
+        "anchor_mode": "min_corner",
+        "floor_count": 2,
+        "floor_height": 5,
+        "height": 10,
+        "wall_block": "minecraft:stone_bricks",
+        "accent_wall_block": "minecraft:mossy_cobblestone",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass",
+        "roof_type": "gable",
+        "roof_pitch": "medium",
+        "void_ratio": 0.22,
+        "residential": true,
+        "facade_profile": "regular_coursed_windows",
+        "wall_pattern": "stone_with_mossy_courses",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -1,
+        "y": 10,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 11,
+        "height": 5
+      },
+      "features": [
+        "gable",
+        "medium",
+        "overhang",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "residence_roof",
+        "host_id": "residence_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "roof_pitch": "medium",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_height": 5,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "floor_plate",
+        "second_floor",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "residence_floor_2",
+        "host_id": "residence_main",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "material": "minecraft:dark_oak_planks",
+        "stair_opening": {
+          "x": 2,
+          "y": 5,
+          "z": 2,
+          "w": 5,
+          "d": 3
+        },
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 2,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "residence_stair",
+        "host_id": "residence_main",
+        "from": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "to": {
+          "x": 4,
+          "y": 5,
+          "z": 0
+        },
+        "width": 3,
+        "stairs": "minecraft:dark_oak_stairs",
+        "floor": "minecraft:dark_oak_planks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "exterior": false,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 5
+      },
+      "features": [
+        "wooden_door_with_frame"
+      ],
+      "params": {
+        "component_id": "residence_entrance",
+        "host_id": "residence_main",
+        "anchor_mode": "min_corner",
+        "entrance_type": "wooden_door_with_frame",
+        "door_block": "minecraft:dark_oak_door",
+        "material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 0,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 9,
+        "height": 3
+      },
+      "features": [
+        "regular_rhythm",
+        "simple_windows"
+      ],
+      "params": {
+        "component_id": "residence_windows",
+        "host_id": "residence_main",
+        "anchor_mode": "min_corner",
+        "wall_face": "west",
+        "window_style": "simple_rectangular",
+        "repeat_count": 3,
+        "spacing": 2,
+        "window_width": 1,
+        "window_height": 2,
+        "glass_block": "minecraft:glass",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 0,
+        "y": 9,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "cornice_band"
+      ],
+      "params": {
+        "component_id": "residence_cornice",
+        "host_id": "residence_main",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "feature": "cornice_band",
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "plinth"
+      ],
+      "params": {
+        "component_id": "residence_foundation",
+        "host_id": "residence_main",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:mossy_cobblestone",
+        "building_id": "residence_main"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "slot_2",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 11,
+        "height": 3
+      },
+      "features": [
+        "covered_cloister",
+        "colonnade",
+        "low_roof"
+      ],
+      "params": {
+        "component_id": "cloister_west",
+        "anchor_mode": "min_corner",
+        "floor_count": 1,
+        "floor_height": 3,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:mossy_cobblestone",
+        "roof_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass",
+        "roof_type": "gable",
+        "roof_pitch": "low",
+        "colonnade": true,
+        "void_ratio": 0.35,
+        "building_id": "cloister_west"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_2",
+      "relative_position": {
+        "x": -1,
+        "y": 3,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 13,
+        "height": 2
+      },
+      "features": [
+        "low_gable",
+        "overhang",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "cloister_west_roof",
+        "host_id": "cloister_west",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "roof_pitch": "low",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_height": 2,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "cloister_west"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_2",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "continuous_columns"
+      ],
+      "params": {
+        "component_id": "cloister_west_columns",
+        "host_id": "cloister_west",
+        "anchor_mode": "min_corner",
+        "feature": "colonnade",
+        "repeat_count": 5,
+        "repeat_axis": "z",
+        "column_block": "minecraft:stone_bricks",
+        "building_id": "cloister_west"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 4,
+        "height": 3
+      },
+      "features": [
+        "covered_cloister",
+        "colonnade",
+        "low_roof"
+      ],
+      "params": {
+        "component_id": "cloister_south",
+        "anchor_mode": "min_corner",
+        "floor_count": 1,
+        "floor_height": 3,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:mossy_cobblestone",
+        "roof_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass",
+        "roof_type": "gable",
+        "roof_pitch": "low",
+        "colonnade": true,
+        "void_ratio": 0.35,
+        "building_id": "cloister_south"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": -1,
+        "y": 3,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 6,
+        "height": 2
+      },
+      "features": [
+        "low_gable",
+        "overhang",
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "cloister_south_roof",
+        "host_id": "cloister_south",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "roof_pitch": "low",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_height": 2,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "cloister_south"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_3",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "continuous_columns"
+      ],
+      "params": {
+        "component_id": "cloister_south_columns",
+        "host_id": "cloister_south",
+        "anchor_mode": "min_corner",
+        "feature": "colonnade",
+        "repeat_count": 5,
+        "repeat_axis": "x",
+        "column_block": "minecraft:stone_bricks",
+        "building_id": "cloister_south"
+      }
+    },
+    {
+      "component_type": "COURTYARD",
+      "slot_id": "slot_4",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "open_courtyard",
+        "mossy_stone_paving"
+      ],
+      "params": {
+        "component_id": "courtyard_paving",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:mossy_cobblestone",
+        "open": true,
+        "courtyard_ratio": 0.12,
+        "building_id": "courtyard_paving"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_4",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "stone_well"
+      ],
+      "params": {
+        "component_id": "courtyard_well",
+        "host_id": "courtyard_paving",
+        "anchor_mode": "min_corner",
+        "feature": "stone_well",
+        "material": "minecraft:stone_bricks",
+        "water_block": "minecraft:water",
+        "building_id": "courtyard_paving"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_5",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [
+        "courtyard_to_terrace_path",
+        "wide_walkway"
+      ],
+      "params": {
+        "component_id": "courtyard_to_terrace_path",
+        "anchor_mode": "min_corner",
+        "path_width": 3,
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_6",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "seaside_terrace",
+        "viewing_platform"
+      ],
+      "params": {
+        "component_id": "seaside_terrace",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "edge": "seaside",
+        "has_railing": true,
+        "building_id": "seaside_terrace"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_6",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "terrace_railing"
+      ],
+      "params": {
+        "component_id": "terrace_railing",
+        "host_id": "seaside_terrace",
+        "anchor_mode": "min_corner",
+        "feature": "railing",
+        "fence_block": "minecraft:dark_oak_fence",
+        "gap_width": 2,
+        "building_id": "seaside_terrace"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「筑群」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

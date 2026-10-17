@@ -22,7 +22,7 @@ public final class RoofTypeCatalog {
             "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山",
             "pyramid",
             "cone", "conical",
-            "dome", "domed", "curved",
+            "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome",
             "mansard", "mansard_roof", "baroque_roof",
             "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿",
             "none"
@@ -141,7 +141,7 @@ public final class RoofTypeCatalog {
             case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofTypeKind.XUANSHAN;
             case "pyramid" -> RoofTypeKind.PYRAMID;
             case "cone", "conical" -> RoofTypeKind.CONE;
-            case "dome", "domed", "curved" -> RoofTypeKind.DOME;
+            case "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome" -> RoofTypeKind.DOME;
             case "mansard", "mansard_roof", "baroque_roof" -> RoofTypeKind.MANSARD;
             case "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿" -> RoofTypeKind.SAWTOOTH;
             default -> RoofTypeKind.FLAT;

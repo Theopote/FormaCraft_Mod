@@ -84,6 +84,17 @@ class SteppedRoofAttachmentTest {
         assertTrue(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_ROOF_OVERHANG_CONFLICT", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
     }
+    @Test void zeroOverhangUsesRetreatedHostTopWithoutTreatingSetbacksAsEaves() throws Exception {
+        var authored=new Component("ROOF","house",new Vec3i(0,0,0),new Dimensions(15,13,4),List.of(),
+                Map.of("host_id","house","roof_type","flat","overhang",0));
+        var components=prepared(LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
+                .components(List.of(body("rectangle"),authored)).build());
+        assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
+        var roof=components.stream().filter(c->"ROOF".equals(c.componentType())).findFirst().orElseThrow();
+        assertEquals(new Vec3i(23,11,32),roof.relativePosition());
+        assertEquals(new Dimensions(9,8,4),roof.dimensions());
+        assertEquals(0,roof.params().get("overhang"));
+    }
     @Test void curvedFootprintIsNotRebasedIntoSmallerMask() throws Exception {
         var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("circle"))).build();
         var roof = prepared(plan).stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();

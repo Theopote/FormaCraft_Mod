@@ -485,6 +485,10 @@ public class RoofGenerator implements ComponentGenerator {
         double cx = (width - 1) / 2.0;
         double cz = (depth - 1) / 2.0;
         double radius = Math.max(1.0, Math.min(width, depth) / 2.0);
+        String authoredType = getParamString(semantic.source().params(), "roof_type", "roofType");
+        boolean faceted = dome && authoredType != null && java.util.Set.of("polyhedral_dome","faceted_dome","polygonal_dome")
+                .contains(authoredType.toLowerCase(java.util.Locale.ROOT));
+        int facets = Math.max(4,Math.min(32,ComponentParamParsers.intParam(semantic.source().params(),8,"segments","dome_segments")));
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
@@ -493,6 +497,14 @@ public class RoofGenerator implements ComponentGenerator {
                 double dx = x - cx;
                 double dz = z - cz;
                 double dist = Math.sqrt(dx * dx + dz * dz);
+                if (faceted) {
+                    double plane = 0;
+                    for (int face=0;face<facets;face++) {
+                        double angle=2*Math.PI*face/facets;
+                        plane=Math.max(plane,dx*Math.cos(angle)+dz*Math.sin(angle));
+                    }
+                    dist=plane/Math.cos(Math.PI/facets);
+                }
                 if (dist > radius + 0.25) {
                     continue;
                 }
