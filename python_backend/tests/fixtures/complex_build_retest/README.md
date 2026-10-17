@@ -53,3 +53,17 @@ Normalized variants 1, 2 and 4 cover bridge level datum, tower floor hosts,
 and explicit workshop clear height with a small bridge landing. All five
 are replayed with and without postprocessing; the library and factory also
 exercise oversized sill offsets and clearance across hosted railings.
+
+`oct17_new_1` through `oct17_new_6` capture the 20:23–20:40 session:
+mill, caravanserai, observatory, town hall, railway workshop and monastery.
+Variants 1, 3, 4, 5 and 6 run the production contract and circulation repairs
+and are replayed by Java, bringing the real-plan total to 41. They cover
+part-vs-building requirement scopes, ground bridge datum, floor-bound legacy
+stairs, neighboring foundations, partial platforms, shed roofs and tall hall
+windows. Older normalized snapshots update contract metadata only.
+
+Plan 2 is the already degraded generic profile fallback: the original compound
+was lost after an invalid optional slot facing. It cannot be faithfully restored
+from this response. A separate schema-repair regression inserts `facing=NONE`
+into a multi-slot logged compound and verifies that all slots and component IDs
+survive normalization without invoking the generic profile fallback.

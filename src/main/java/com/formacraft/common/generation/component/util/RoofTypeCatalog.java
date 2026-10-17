@@ -13,6 +13,7 @@ public final class RoofTypeCatalog {
 
     public static final Set<String> SUPPORTED_TOKENS = Set.of(
             "flat",
+            "shed", "lean_to", "single_slope",
             "gable", "gabled", "gable_low_pitch", "low_pitch_gable",
             "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山",
             "double_gable", "doublegable", "shuangpo", "双坡",
@@ -132,6 +133,7 @@ public final class RoofTypeCatalog {
 
     private static RoofTypeKind mapToken(String normalized) {
         return switch (normalized) {
+            case "shed", "lean_to", "single_slope" -> RoofTypeKind.SHED;
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;
             case "hip", "hipped", "chinese_hip" -> RoofTypeKind.HIP;

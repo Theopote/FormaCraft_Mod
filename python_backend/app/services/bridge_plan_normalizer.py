@@ -138,6 +138,12 @@ def normalize_hosted_connections(plan: dict) -> None:
         pl, ph = bounds(plate); hl, hh = bounds(host); tl, th = bounds(target)
         level = p.get('connection_level')
         rise = int(host.get('params', {}).get('floor_height') or 0)
+        if (level == 0 and hl['y']-pl['y'] == 1 and tl['y'] == pl['y']
+                and target['dimensions']['height'] == 1):
+            plate['relative_position']['y'] += 1
+            target['relative_position']['y'] += 1
+            pl, ph = bounds(plate); tl, th = bounds(target)
+            record(plate, 'ground_bridge_floor_datum')
         if isinstance(level, int) and rise > 0 and touches(plate, host) and touches(plate, target):
             if hl['y']+level*rise != pl['y'] and level*rise == pl['y'] and (pl['y']-hl['y']) % rise == 0:
                 p['legacy_plan_connection_level'] = level

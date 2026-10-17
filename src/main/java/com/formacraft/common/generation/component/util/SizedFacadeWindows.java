@@ -16,6 +16,8 @@ public final class SizedFacadeWindows {
         String excluded=String.valueOf(params.getOrDefault("excluded_window_axis",""));
         Integer floorHint=null;
         int fc=ComponentParamParsers.intParam(params,0,"floor_count","floorCount");
+        // A single tall hall has no intermediate floor limiting its windows.
+        if (fc == 1) floorHeight = height;
         if(fc>0) floorHint=fc;
         FacadeScope scope=FacadeScope.parseStrict(params,floorHint);
         var faces=new LinkedHashSet<Facing>();

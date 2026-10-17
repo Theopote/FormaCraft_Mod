@@ -12,6 +12,27 @@ import com.formacraft.common.llm.dto.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @Test void partialPlatformJoinIncludesItsSupportAndHeadroomOnly() {
+        var platform = new Component("MASS_SECONDARY","s",new Vec3i(0,5,0),new Dimensions(5,4,1),List.of(),
+                Map.of("component_id","platform","host_id","hall","extrude_mode","plate",
+                        "plate_role","partial_platform","anchor_mode","min_corner"));
+        var hall = new Component("MASS_MAIN","s",new Vec3i(0,0,0),new Dimensions(8,8,12),List.of(),Map.of("component_id","hall"));
+        var foreign = new Component("MASS_MAIN","s",hall.relativePosition(),hall.dimensions(),List.of(),Map.of("component_id","other"));
+        var stair = new Component("STRUCTURE","s",new Vec3i(2,0,0),new Dimensions(3,6,6),List.of("stair:straight_single_run"),
+                Map.of("host_id","hall","building_id","hall","exterior",true,"width",3,"clearHeight",2,
+                        "from",Map.of("x",0,"y",0,"z",-5),"to",Map.of("x",0,"y",5,"z",0)));
+        var support = new BlockPos(2,4,0);
+        var head = new BlockPos(2,7,0);
+        var unrelated = new BlockPos(3,5,0);
+        var outside = new BlockPos(2,4,-2);
+        var index = new PatchOccupancyIndex();
+        index.commit(hall,List.of(stone(support),stone(head),stone(outside)));
+        index.commit(foreign,List.of(stone(unrelated)));
+        var access = ExteriorCirculationValidator.connectorAccess(stair,List.of(platform),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.containsAll(List.of(support,head)));
+        assertFalse(access.contains(unrelated));
+        assertFalse(access.contains(outside));
+    }
     @Test void declaredBridgeEnclosureAllowsTerminalHeadroomButNotUnrelatedSurfaces() {
         var bridge = new Component("MASS_SECONDARY","s",new Vec3i(0,4,0),new Dimensions(4,8,1),List.of(),
                 Map.of("component_id","bridge","host_id","office","target_host_id","workshop",

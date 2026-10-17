@@ -210,8 +210,145 @@ def _fit_straight_stairs(plan: dict) -> None:
                                       'path': 'components[].params', 'suggestions': ['Use a switchback stair or enlarge the interior.']}
 
 
+def _fit_exterior_stairs(plan: dict) -> None:
+    """Try a small sideways shift when an exterior flight clips another building."""
+    if (plan.get('plan_meta') or {}).get('allow_compiler_satellites') is False:
+        return
+    slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
+    bodies = [c for c in plan.get('components', []) if c.get('component_type') in
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'FOUNDATION') and c.get('dimensions')]
+    def world(c):
+        o = _mass_origin(c); off = slots.get(c.get('slot_id'), {})
+        return {a: o[a]+int(off.get(a,0)) for a in ('x','y','z')}
+    landings = []
+    for comp in plan.get('components', []):
+        p = comp.get('params') or {}
+        if comp.get('component_type') == 'TERRACE' and p.get('landing') is True:
+            host = _host_mass(plan,comp)
+            landing_height = comp.get('dimensions',{}).get('height',0)
+            if (host is not None and landing_height > 1
+                    and _mass_origin(comp)['y']+landing_height == _mass_origin(host)['y']):
+                # Legacy landing boxes encode the rise in their height. The deck
+                # belongs at the destination floor, rather than at the box base.
+                comp['relative_position']['y'] = _mass_origin(host)['y']
+                comp['dimensions']['height'] = 1
+                comp['component_type'] = 'MASS_SECONDARY'
+                p.update(extrude_mode='plate',plate_role='terrace',anchor_mode='min_corner')
+            landings.append(comp)
+    for stair in plan.get('components', []):
+        p = stair.get('params') or {}
+        if stair.get('component_type') != 'STRUCTURE' or p.get('exterior') is not True:
+            continue
+        a, b = p.get('from'), p.get('to')
+        if not isinstance(a,dict) or not isinstance(b,dict): continue
+        dx, dz = b['x']-a['x'], b['z']-a['z']
+        if bool(dx) == bool(dz): continue
+        side = 'x' if dz else 'z'
+        off = slots.get(stair.get('slot_id'), {})
+        rp = stair.get('relative_position') or _point(0,0,0)
+        origin = {axis: rp[axis]+int(off.get(axis,0)) for axis in ('x','y','z')}
+        width = int(p.get('width') or 1)
+        run = abs(dx or dz)
+        landing = int(p.get('landing_length') or 1)
+        clear = int(p.get('clearHeight') or 2)
+        def clips(shift):
+            for body in bodies:
+                bp = body.get('params') or {}
+                if bp.get('component_id') == p.get('host_id') or bp.get('host_id') == p.get('host_id'): continue
+                bo = world(body); dims = body['dimensions']
+                for step in range(run+landing+1):
+                    ratio = min(1,step/max(1,run))
+                    point = {axis: origin[axis]+a[axis]+round((b[axis]-a[axis])*ratio) for axis in ('x','y','z')}
+                    if step > run:
+                        point['x'] += (step-run)*((dx>0)-(dx<0))
+                        point['z'] += (step-run)*((dz>0)-(dz<0))
+                    point[side] += shift
+                    for lateral in range(-(width//2), width-width//2):
+                        x, z = point['x']+(lateral if side=='x' else 0), point['z']+(lateral if side=='z' else 0)
+                        if (bo['x'] <= x < bo['x']+dims['width'] and bo['z'] <= z < bo['z']+dims['depth']
+                                and origin['y']+a['y']-1 < bo['y']+dims['height'] and point['y']+clear >= bo['y']):
+                            return True
+            return False
+        if not clips(0): continue
+        rise = abs(b['y']-a['y'])
+        if run > rise > 0:
+            old_a, old_run = dict(a), run
+            # Remove surplus ground-level approach before relocating a flight.
+            a = dict(a)
+            a['x'] = b['x']-((dx>0)-(dx<0))*rise
+            a['z'] = b['z']-((dz>0)-(dz<0))*rise
+            run = rise
+            if not clips(0):
+                p['from'] = a
+                p['circulation_fit'] = 'shorten_exterior_approach'
+                continue
+            a, run = old_a, old_run
+        own_landings = [c for c in landings if (c.get('params') or {}).get('host_id') == p.get('host_id')]
+        def reaches_landing(shift):
+            if not own_landings: return True
+            for landing_body in own_landings:
+                lo = world(landing_body); dims = landing_body['dimensions']
+                for step in range(landing+1):
+                    x = origin['x']+b['x']+step*((dx>0)-(dx<0))+(shift if side=='x' else 0)
+                    z = origin['z']+b['z']+step*((dz>0)-(dz<0))+(shift if side=='z' else 0)
+                    if lo['x'] <= x < lo['x']+dims['width'] and lo['z'] <= z < lo['z']+dims['depth']:
+                        return True
+            return False
+        for distance in range(1,width+1):
+            candidates = [s for s in (distance,-distance) if not clips(s) and reaches_landing(s)]
+            if candidates:
+                stair['relative_position'][side] += candidates[0]
+                p['circulation_fit'] = 'avoid_adjacent_body'
+                # A partial platform may need up to two extra edge cells to receive
+                # the entire shifted stair width. Never enlarge the hall floor.
+                for platform in plan.get('components', []):
+                    pp = platform.get('params') or {}
+                    if pp.get('plate_role') != 'partial_platform' or pp.get('host_id') != p.get('host_id'):
+                        continue
+                    po = world(platform); pd = platform['dimensions']
+                    end = {axis: origin[axis]+b[axis] for axis in ('x','y','z')}
+                    end[side] += candidates[0]
+                    axis = 'z' if side == 'x' else 'x'
+                    dimension = 'width' if side == 'x' else 'depth'
+                    length = 'depth' if side == 'x' else 'width'
+                    if not (abs(po['y']-end['y']) <= 1 and po[axis]-landing <= end[axis] <= po[axis]+pd[length]+landing):
+                        continue
+                    low, high = end[side]-width//2, end[side]+width-width//2
+                    if po[side] <= low < po[side]+pd[dimension] and 0 < high-(po[side]+pd[dimension]) <= min(2,width-1):
+                        host = _host_mass(plan,stair)
+                        ho = world(host) if host is not None else None
+                        if ho is not None and high <= ho[side]+host['dimensions'][dimension]:
+                            pd[dimension] = high-po[side]
+                            pp['circulation_fit'] = 'receive_shifted_stair'
+                break
+
+
 def normalize_circulation_plan(plan: dict) -> dict:
     out = deepcopy(plan)
+    # Some providers label a fully specified straight stair as a secondary mass.
+    # Convert only executable, floor-bound descriptions; ordinary volumes stay volumes.
+    for comp in out.get('components', []):
+        p = comp.get('params') or {}
+        if comp.get('component_type') != 'MASS_SECONDARY' or p.get('stair_type') != 'straight':
+            continue
+        host = _host_mass(out, comp)
+        if host is None or not all(isinstance(p.get(k), int) for k in ('from_floor', 'to_floor', 'rise', 'run')):
+            continue
+        rise, run = p['rise'], p['run']
+        hp = host.get('params') or {}
+        fh = int(hp.get('floor_height') or 0)
+        if not (1 <= p['from_floor'] < p['to_floor'] <= int(hp.get('floor_count') or 1)
+                and rise == (p['to_floor']-p['from_floor'])*fh and 1 <= rise <= run <= 64):
+            continue
+        origin = _mass_origin(host)
+        rp = comp.get('relative_position') or _point(0,0,0)
+        comp['relative_position'] = _point(rp['x'], origin['y']+(p['from_floor']-1)*fh, rp['z'])
+        comp['component_type'] = 'STRUCTURE'
+        comp['features'] = ['stair:straight_single_run']
+        p.update({'anchor_mode': 'min_corner', 'from': _point(0,0,0), 'to': _point(0,rise,run),
+                  'stairs': _material(p.get('material'), True), 'floor': _material(p.get('material')),
+                  'clearHeight': max(2,int(p.get('headroom') or 2)), 'support': False,
+                  'landing_length': 1, 'circulation_source': 'legacy_secondary_stair'})
     from .bridge_plan_normalizer import normalize_hosted_connections
     normalize_hosted_connections(out)
     _complete_requested_stairs(out)
@@ -219,6 +356,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
         out.pop('capability_gap', None)
         if out.get('plan_status') == 'capability_gap': out.pop('plan_status', None)
     _fit_straight_stairs(out)
+    _fit_exterior_stairs(out)
     # Narrow towers cannot accommodate independently rotated flights whose
     # supports fill the previous flight's headroom. Repeat the fitted stairwell
     # at each floor instead, preserving floor elevations and materials.

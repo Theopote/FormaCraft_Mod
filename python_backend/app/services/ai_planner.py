@@ -943,6 +943,16 @@ def _sanitize_layout_slots(layout: Any) -> Any:
         if not isinstance(slot, dict):
             continue
         s = dict(slot)
+        if s.get("facing") is not None:
+            facing = str(s["facing"]).strip().upper()
+            facing = {"N": "NORTH", "S": "SOUTH", "E": "EAST", "W": "WEST",
+                      "北": "NORTH", "南": "SOUTH", "东": "EAST", "西": "WEST"}.get(facing, facing)
+            if facing in ("NORTH", "SOUTH", "EAST", "WEST"):
+                s["facing"] = facing
+            else:
+                # Facing is optional. A courtyard's NONE/ANY must not discard
+                # the entire compound in favor of a generic profile building.
+                s.pop("facing", None)
         slot_id = str(s.get("slot_id") or "").strip()
         if not slot_id:
             s["slot_id"] = f"slot_{i}"

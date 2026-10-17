@@ -890,6 +890,21 @@ public final class ComponentPlanCompiler {
 
                     // Commit boundary: patches + ledgers + protected sets together.
                     result.addAll(shiftedPatches);
+                    if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)) {
+                        // An authorized connector opening supersedes the window cells
+                        // it replaces with a landing/support or carved passage.
+                        for (var patch : shiftedPatches) {
+                            var pos = new BlockPos(patch.dx(),patch.dy(),patch.dz());
+                            var expected = openingExpectations.get(pos);
+                            if (!connectorAccess.contains(pos) || expected == null
+                                    || expected.role() != GeneratedSurfaceCapture.Role.WINDOW) continue;
+                            if (BlockPatch.REMOVE.equals(patch.action())) {
+                                openingExpectations.put(pos,new OpeningMaterialAudit.Expectation(paramIdentity(c),
+                                        GeneratedSurfaceCapture.Role.DOOR_OPENING,null));
+                                generatedSurfaces.remove(pos);
+                            } else openingExpectations.remove(pos);
+                        }
+                    }
                     OpeningMaterialAudit.capture(openingExpectations, c, surfaceCells, flightOffset);
                     for (var cell : surfaceCells) if (cell.requiresBlock())
                         generatedSurfaces.add(cell.shift(flightOffset).position());

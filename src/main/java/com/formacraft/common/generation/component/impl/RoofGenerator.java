@@ -89,6 +89,8 @@ public class RoofGenerator implements ComponentGenerator {
                     footprint, appliedOverhang);
         } else {
             switch (roofType) {
+                case SHED -> generateShedRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
+                        palette, footprint, appliedOverhang);
                 case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         palette, footprint, appliedOverhang);
                 case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -210,6 +212,20 @@ public class RoofGenerator implements ComponentGenerator {
     private static boolean allowsRoofCell(ComponentFootprintMask footprint, int overhang, int localX, int localZ,
                                           int fpOffsetX, int fpOffsetZ) {
         return footprint == null || footprint.shouldPlaceRoof(localX + fpOffsetX, localZ + fpOffsetZ, overhang);
+    }
+
+    private void generateShedRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                  int width, int depth, int height, Palette palette,
+                                  ComponentFootprintMask footprint, int overhang) {
+        boolean acrossX = width <= depth;
+        int span = acrossX ? width : depth;
+        for (int x=0; x<width; x++) for (int z=0; z<depth; z++) {
+            if (!allowsRoofCell(footprint, overhang, x-overhang, z-overhang)) continue;
+            int axis = acrossX ? x : z;
+            int rise = axis * Math.max(0,height-1) / Math.max(1,span-1);
+            out.add(new BlockPatch(BlockPatch.PLACE,baseX+x,baseY+rise,baseZ+z,
+                    getBlockForPart(semantic,palette,SemanticPart.ROOF)));
+        }
     }
 
     private void generateSawtoothRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,

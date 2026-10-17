@@ -12,15 +12,24 @@ HOSTED = {'ROOF', 'ROOF_STRUCTURE', 'FOUNDATION', 'FACADE_WINDOWS', 'FACADE', 'E
           'CROWN', 'CUPOLA', 'DOME', 'MASS_SECONDARY', 'DECOR_DETAIL', 'BALCONY', 'TERRACE', 'STRUCTURE', 'ASSEMBLY'}
 
 NAMED_BUILDINGS = {
-    'main_body': ('主楼', 'main_body'),
-    'tower': ('塔楼', 'tower'),
+    'main_body': ('主楼', 'main_body', 'main_building'),
+    'tower': ('塔楼', '钟楼', 'tower'),
     'office': ('办公楼', 'office'),
-    'workshop': ('主车间', 'workshop'),
+    'workshop': ('主车间', '维修车间', 'workshop'),
     'boiler': ('锅炉房', 'boiler'),
-    'main_hall': ('正厅', 'main_hall'),
-    'wing': ('厢房', 'east_wing', 'west_wing'),
+    'main_hall': ('正厅', '中央大厅', 'main_hall', 'townhall_main'),
+    'wing': ('厢房', '侧翼', 'east_wing', 'west_wing'),
     'gatehouse': ('门楼', 'gatehouse'),
+    'mill': ('磨坊', 'mill'),
+    'warehouse': ('仓库', 'warehouse'),
+    'reception': ('接待楼', 'reception'),
+    'research': ('研究楼', 'research'),
+    'dispatch': ('调度楼', 'dispatch'),
+    'residence': ('居住楼', 'residence'),
+    'chapel': ('礼拜堂', 'chapel'),
 }
+
+ELEMENT_SUBJECTS = ('楼梯', '步道', '走道', '连廊', '木桥', '水渠', '栏杆', '阳台', '回廊', '窗口', '窗户', '入口')
 
 
 def _numeric_subject(text: str, match: re.Match) -> str:
@@ -28,8 +37,20 @@ def _numeric_subject(text: str, match: re.Match) -> str:
     # the compound. Carry the subject across commas, but not sentence boundaries.
     start = max(text.rfind(s, 0, match.start()) for s in ('。', '；', ';')) + 1
     prefix = text[start:match.start()]
+    suffix = re.split(r'[，。；;,]', text[match.end():match.end()+12])[0]
+    if re.match(r'(?:宽度|宽|长度|长|深度|深)', match[0]) and any(name in suffix for name in ELEMENT_SUBJECTS):
+        return 'element_scope'
+    if re.match(r'[一二两三四五六七八九十\d]+\s*层', match[0]):
+        for key, names in NAMED_BUILDINGS.items():
+            if any(suffix.startswith(name) or suffix.startswith('的'+name) for name in names):
+                return 'named_' + key
     candidates = [(m.start(), key) for key, names in NAMED_BUILDINGS.items()
                   for m in re.finditer('|'.join(map(re.escape, names)), prefix)]
+    elements = [m.start() for name in ELEMENT_SUBJECTS for m in re.finditer(name, prefix)]
+    if elements and (not candidates or max(elements) > max(candidates)[0]):
+        # A stair/path width is a part constraint, never a building envelope width.
+        if re.match(r'(?:宽度|宽|长度|长|深度|深)', match[0]):
+            return 'element_scope'
     if candidates:
         return 'named_' + max(candidates)[1]
     # Chinese declarations also put the noun after the count (两层正厅).
@@ -59,10 +80,12 @@ def _extract_global_requirements(text: str) -> list[dict]:
         'depth': r'(?:深度|深)\s*(\d+)\s*格',
         'floor_height': r'每层(?:的)?(?:高度|高)\s*(\d+)\s*格',
         'net_height': r'室内净高\s*(\d+)\s*格',
-        'floor_count': r'(?<![\d每])([一二两三四五六七八九十]|\d+)\s*层(?:的)?(?:[^，。；\n]{0,10})?(?:住宅|建筑|大厅|塔楼|民居|房屋|别墅|高|，|、|。)',
+        'floor_count': r'(?<![\d每])([一二两三四五六七八九十]|\d+)\s*层(?!地面|地板|楼板)(?:的)?(?=[^，。；\n]{0,10}(?:住宅|建筑|大厅|塔楼|民居|房屋|别墅|主楼|办公楼|调度楼|居住楼|磨坊|高|，|、|。))',
     }
     for key, pattern in patterns.items():
         matches = [m for m in re.finditer(pattern, text) if _positive_match(text, m)]
+        if key == 'floor_count':
+            matches = [m for m in matches if not re.match(r'(?:入口|设置|通过|沿|使用|抵达|地面|地板|楼板|沿庭院)', text[m.end():])]
         if not matches: continue
         groups = {}
         for match in matches:
@@ -72,13 +95,19 @@ def _extract_global_requirements(text: str) -> list[dict]:
             result.append({'id': f'req_{key}' + ('_' + subject if subject != 'all_main_masses' else ''), 'property': key, 'value': next(iter(values)) if len(values) == 1 else None,
                        'unit': 'floors' if key == 'floor_count' else 'blocks', 'source': 'user_explicit',
                        'source_text': [m[0] for m in group], 'scope': subject if len(values) == 1 else 'unresolved',
-                       'priority': 'hard', 'status': 'pending' if len(values) == 1 else 'unsupported_scope'})
+                       'priority': 'hard', 'status': 'pending' if len(values) == 1 and subject != 'element_scope' else 'unsupported_scope'})
     if any(_positive_match(text, m) for m in re.finditer(r'双坡屋\s*顶|山墙屋\s*顶', text)):
         result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
                        'source_text': ['双坡屋顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     if any(_positive_match(text, m) for m in re.finditer(r'平屋顶|平顶', text)):
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
                        'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+    for requirement in result:
+        if requirement['property'] == 'roof_type':
+            token = requirement['source_text'][0]
+            hit = re.search(re.escape(token), text)
+            if hit:
+                requirement['scope'] = _numeric_subject(text, hit)
     if re.search(r'山墙[^。；\n]{0,15}(?:不要|不需要|不设|不开|无)[^。；\n]{0,6}(?:窗|开口)|(?:不要|不需要|不设|不开)[^。；\n]{0,6}山墙[^。；\n]{0,6}窗|(?:普通)?封闭山墙', text):
         result.append({'id': 'req_gable_windows', 'property': 'gable_windows', 'value': False,
                        'source': 'user_explicit', 'source_text': ['山墙禁窗或封闭山墙'],
@@ -279,7 +308,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     # Towers and wings own their attached roofs/windows too. Keep requirement
     # targets separate: a main-building width must not be imposed on its towers.
     owners = [c for c in components if c.get('component_type') in
-              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'TERRACE')]
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'TERRACE', 'COURTYARD', 'COURTYARD_SPACE')]
     ids = {c['params']['component_id']: c for c in owners}
     # Global attributes cannot encode different materials for separate buildings.
     attrs = out.get('style_attributes') or {}
@@ -418,6 +447,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         for key, names in NAMED_BUILDINGS.items():
             if any(name in identity for name in names):
                 bindings.setdefault('named_' + key, []).append(mass)
+    if len(masses) == 1:
+        bindings.setdefault('named_main_body', masses)
     for tower in owners:
         if tower.get('component_type') == 'TOWER':
             bindings.setdefault('named_tower', []).append(tower)
@@ -426,7 +457,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     slots = {slot.get('slot_id'): slot for slot in (out.get('layout') or {}).get('slots', []) if isinstance(slot, dict)}
     for requirement in requirements:
         scope = requirement['scope']
-        if scope == 'unresolved':
+        if scope in ('unresolved', 'element_scope'):
             continue
         targets = masses if scope in ('all_main_masses', 'plan') else bindings.get(scope, [])
         if not targets or (scope.startswith('building_') and len(targets) != 1):
@@ -489,7 +520,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             contract['diagnostics'].append({'code': 'E_FLOOR_ENVELOPE', 'component_id': building['component_id']})
     failures = [r for r in requirements if r['status'] == 'mismatch']
     previous_gap = out.get('capability_gap') or {}
-    if not failures and not contract['diagnostics'] and previous_gap.get('code') == 'E_BUILDING_CONTRACT' \
+    if previous_gap.get('code') == 'E_BUILDING_CONTRACT' \
             and previous_gap.get('path') == 'proportion_hints.building_contract':
         out.pop('capability_gap', None)
         out.pop('plan_status', None)

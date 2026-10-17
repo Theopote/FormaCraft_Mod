@@ -66,6 +66,8 @@ final class ExteriorCirculationValidator {
             if (connector.params() == null) continue;
             boolean enclosure = "DECOR_DETAIL".equals(connector.componentType())
                     && Boolean.TRUE.equals(connector.params().get("corridor_enclosure"));
+            boolean ownPlatform = "partial_platform".equals(connector.params().get("plate_role"))
+                    && stairBuilding != null && stairBuilding.equals(connector.params().get("host_id"));
             if (!"MASS_SECONDARY".equals(connector.componentType()) && !enclosure) continue;
             if (enclosure) {
                 boolean joinsBuilding = false;
@@ -84,7 +86,7 @@ final class ExteriorCirculationValidator {
                 }
                 if (!joinsBuilding) continue;
             }
-            if ("plate".equals(connector.params().get("extrude_mode"))
+            if (!ownPlatform && "plate".equals(connector.params().get("extrude_mode"))
                     && (!com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(connector.params())
                         || stairBuilding == null || !(stairBuilding.equals(connector.params().get("host_id"))
                             || stairBuilding.equals(connector.params().get("target_host_id"))))) continue;
@@ -100,10 +102,13 @@ final class ExteriorCirculationValidator {
                             offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx != 0 ? side : 0));
                     var previous = occupancy.placeAt(pos);
                     if (pos.getX() >= bounds.minX()+ox && pos.getX() < bounds.maxX()+ox
-                            && pos.getY() >= bounds.minY()+oy && pos.getY() < bounds.maxY()+oy
+                            && pos.getY() >= bounds.minY()+oy-(ownPlatform ? 1 : 0)
+                            && pos.getY() < bounds.maxY()+oy+(ownPlatform ? clear : 0)
                             && pos.getZ() >= bounds.minZ()+oz && pos.getZ() < bounds.maxZ()+oz
                             && previous != null && previous.owner() != null
-                            && (previous.owner() == connector || (previous.owner().params() != null
+                            && (previous.owner() == connector || (ownPlatform && previous.owner().params() != null
+                                && (stairBuilding.equals(previous.owner().params().get("component_id"))
+                                    || stairBuilding.equals(previous.owner().params().get("host_id")))) || (previous.owner().params() != null
                                 && java.util.Objects.equals(connector.params().get("component_id"),
                                         previous.owner().params().get("host_id"))))) result.add(pos);
                 }
