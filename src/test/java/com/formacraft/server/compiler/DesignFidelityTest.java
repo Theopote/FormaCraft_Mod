@@ -849,6 +849,27 @@ class DesignFidelityTest {
     }
 
     @Test
+    void bridgeRegionScanLimitFailsCompileWithContext() throws Exception {
+        LlmPlan plan = loadFidelityPlan("bridge_region_scan_limit.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(AssemblyCompileDiagnostics.hasGap(),
+                () -> "expected gap, patches=" + patches.size()
+                        + " diag=" + AssemblyCompileDiagnostics.get());
+        assertTrue(patches.isEmpty(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertEquals("E_CIRCULATION_REGION_SCAN_LIMIT", AssemblyCompileDiagnostics.get().code(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertNotEquals("E_BRIDGE_PATH_BLOCKED", AssemblyCompileDiagnostics.get().code());
+        String message = AssemblyCompileDiagnostics.get().message();
+        assertTrue(message.contains("component_id=target"), () -> message);
+        assertTrue(message.contains("storeyY="), () -> message);
+        assertTrue(message.contains("area="), () -> message);
+        assertTrue(message.contains("max="
+                        + com.formacraft.common.generation.component.util.StoreyWalkRegions.MAX_CELLS),
+                () -> message);
+    }
+
+    @Test
     void circulationCourtyardGroundRingLocalCompiles() throws Exception {
         LlmPlan plan = loadFidelityPlan("circulation_courtyard_ground_ring_local.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

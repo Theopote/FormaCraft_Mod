@@ -296,7 +296,8 @@ public final class BridgeWalkability {
         if (occ == null || mass == null) {
             return new StoreyGoals(StoreyWalkRegions.Status.EMPTY, List.of(), 0L);
         }
-        StoreyWalkRegions.ScanResult scan = StoreyWalkRegions.scan(occ, mass, plateY, massOffset);
+        StoreyWalkRegions.ScanResult scan =
+                CirculationAnalysisContext.scanStorey(occ, mass, plateY, massOffset);
         if (scan.status() == StoreyWalkRegions.Status.SCAN_LIMIT) {
             return new StoreyGoals(StoreyWalkRegions.Status.SCAN_LIMIT, List.of(), scan.areaCells());
         }

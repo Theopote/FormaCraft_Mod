@@ -85,7 +85,10 @@ final class BuildingCirculationValidator {
 
         CirculationScope scope = DesignRequirementAccess.circulationScope(plan);
         CirculationHostLinks hostLinks = DesignRequirementAccess.circulationHostLinks(plan);
-        var occ = BridgeWalkability.occupancyFromPatches(patches);
+        var occ = com.formacraft.common.generation.component.util.CirculationAnalysisContext.occupancy();
+        if (occ == null) {
+            occ = BridgeWalkability.occupancyFromPatches(patches);
+        }
         String precision = String.valueOf(occ.precision());
         Vec3i zero = new Vec3i(0, 0, 0);
 
@@ -493,7 +496,8 @@ final class BuildingCirculationValidator {
     ) {
         Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
         StoreyWalkRegions.ScanResult scan =
-                StoreyWalkRegions.scan(occ, mass, localStoreyY, massOff);
+                com.formacraft.common.generation.component.util.CirculationAnalysisContext
+                        .scanStorey(occ, mass, localStoreyY, massOff);
         if (scan.status() == StoreyWalkRegions.Status.SCAN_LIMIT) {
             return new RegionGoalSet(List.of(), regionScanLimit(
                     componentId(mass), localStoreyY, scan.areaCells(), precision));

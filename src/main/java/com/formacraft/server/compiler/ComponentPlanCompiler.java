@@ -286,13 +286,18 @@ public final class ComponentPlanCompiler {
             TypologyPatchBridge.clearPlanWorldAnchor();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
-        if (!validateBridgeWalkability(components, result, slotMap)) {
-            return List.of();
-        }
-        var circulationGap = BuildingCirculationValidator.validate(plan, components, result, slotMap);
-        if (circulationGap.isPresent()) {
-            AssemblyCompileDiagnostics.set(circulationGap.get());
-            return List.of();
+        com.formacraft.common.generation.component.util.CirculationAnalysisContext.begin(result);
+        try {
+            if (!validateBridgeWalkability(components, result, slotMap)) {
+                return List.of();
+            }
+            var circulationGap = BuildingCirculationValidator.validate(plan, components, result, slotMap);
+            if (circulationGap.isPresent()) {
+                AssemblyCompileDiagnostics.set(circulationGap.get());
+                return List.of();
+            }
+        } finally {
+            com.formacraft.common.generation.component.util.CirculationAnalysisContext.end();
         }
 
         Set<BlockPos> roofClearance = new HashSet<>();
@@ -923,7 +928,10 @@ public final class ComponentPlanCompiler {
         if (components == null || result == null || result.isEmpty()) {
             return true;
         }
-        var occ = com.formacraft.common.generation.component.util.BridgeWalkability.occupancyFromPatches(result);
+        var occ = com.formacraft.common.generation.component.util.CirculationAnalysisContext.occupancy();
+        if (occ == null) {
+            occ = com.formacraft.common.generation.component.util.BridgeWalkability.occupancyFromPatches(result);
+        }
         Vec3i zero = new Vec3i(0, 0, 0);
         for (Component plate : components) {
             if (plate == null || plate.params() == null) {
