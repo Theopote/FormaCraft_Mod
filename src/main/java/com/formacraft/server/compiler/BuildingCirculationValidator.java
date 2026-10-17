@@ -188,13 +188,21 @@ final class BuildingCirculationValidator {
                 if (parentEntry == null) {
                     continue;
                 }
-                List<Vec3i> starts = directParentStarts(occ, parentEntry, slotMap, zero);
+                var startsOrGap = directParentStarts(occ, parentEntry, slotMap, zero, precision);
+                if (startsOrGap.gap().isPresent()) {
+                    return startsOrGap.gap();
+                }
+                List<Vec3i> starts = startsOrGap.goals();
                 if (starts.isEmpty()) {
                     return hostLinkBlocked(
                             componentId(parentEntry.mass()), componentId(entry.mass()), precision,
                             "Direct host has no standable entry");
                 }
-                List<Vec3i> childGoals = allStandableRegionGoals(occ, entry.mass(), slotMap, zero);
+                var childOrGap = allStandableRegionGoals(occ, entry.mass(), slotMap, zero, precision);
+                if (childOrGap.gap().isPresent()) {
+                    return childOrGap.gap();
+                }
+                List<Vec3i> childGoals = childOrGap.goals();
                 if (childGoals.isEmpty()) {
                     return hostLinkBlocked(
                             componentId(parentEntry.mass()), componentId(entry.mass()), precision,
@@ -231,7 +239,11 @@ final class BuildingCirculationValidator {
                                 + ", precision=" + precision + ")",
                         "Provide a host_id chain to an independent mass with a walkable ground.");
             }
-            List<Vec3i> goals = allStandableRegionGoals(occ, entry.mass(), slotMap, zero);
+            var goalsOrGap = allStandableRegionGoals(occ, entry.mass(), slotMap, zero, precision);
+            if (goalsOrGap.gap().isPresent()) {
+                return goalsOrGap.gap();
+            }
+            List<Vec3i> goals = goalsOrGap.goals();
             if (goals.isEmpty()) {
                 return incomplete(
                         "Attached mass has no standable interior sample (component_id="
@@ -267,7 +279,11 @@ final class BuildingCirculationValidator {
             for (int i = 1; i < layout.floorYs().size(); i++) {
                 int relY = layout.floorYs().get(i);
                 int absY = originY + relY;
-                List<Vec3i> goals = regionGoalsAtY(occ, mass, absY, slotMap, zero);
+                var goalsOrGap = regionGoalsAtY(occ, mass, absY, slotMap, zero, precision);
+                if (goalsOrGap.gap().isPresent()) {
+                    return goalsOrGap.gap();
+                }
+                List<Vec3i> goals = goalsOrGap.goals();
                 if (goals.isEmpty()) {
                     return incomplete(
                             "Mass storey interior is not a legal standing cell (component_id="
@@ -427,53 +443,79 @@ final class BuildingCirculationValidator {
         return List.of(base);
     }
 
-    private static List<Vec3i> regionGoalsAtY(
+    private record RegionGoalSet(List<Vec3i> goals, Optional<CapabilityGap> gap) {}
+
+    private static RegionGoalSet regionGoalsAtY(
             PlannedOccupancy occ,
             Component mass,
-            int absY,
+            int localStoreyY,
             Map<String, Slot> slotMap,
-            Vec3i zero
+            Vec3i zero,
+            String precision
     ) {
         Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
-        List<Vec3i> goals = new ArrayList<>();
-        for (Vec3i rep : StoreyWalkRegions.regionRepresentatives(occ, mass, absY)) {
-            Vec3i shifted = shift(rep, massOff);
-            if (shifted != null) {
-                goals.add(shifted);
-            }
+        StoreyWalkRegions.ScanResult scan =
+                StoreyWalkRegions.scan(occ, mass, localStoreyY, massOff);
+        if (scan.status() == StoreyWalkRegions.Status.SCAN_LIMIT) {
+            return new RegionGoalSet(List.of(), regionScanLimit(
+                    componentId(mass), localStoreyY, scan.areaCells(), precision));
         }
-        return goals;
+        return new RegionGoalSet(scan.representatives(), Optional.empty());
     }
 
-    private static List<Vec3i> allStandableRegionGoals(
+    private static RegionGoalSet allStandableRegionGoals(
             PlannedOccupancy occ,
             Component mass,
             Map<String, Slot> slotMap,
-            Vec3i zero
+            Vec3i zero,
+            String precision
     ) {
         Set<Vec3i> goals = new LinkedHashSet<>();
         for (int y : absoluteFloorYs(mass)) {
-            goals.addAll(regionGoalsAtY(occ, mass, y, slotMap, zero));
+            RegionGoalSet atY = regionGoalsAtY(occ, mass, y, slotMap, zero, precision);
+            if (atY.gap().isPresent()) {
+                return atY;
+            }
+            goals.addAll(atY.goals());
         }
-        return new ArrayList<>(goals);
+        return new RegionGoalSet(new ArrayList<>(goals), Optional.empty());
     }
 
     /**
      * DIRECT edge starts from the parent's own standable cells only (not the independent root),
      * so a root↔child detour cannot substitute for parent↔child.
      */
-    private static List<Vec3i> directParentStarts(
+    private static RegionGoalSet directParentStarts(
             PlannedOccupancy occ,
             MassEntry parent,
             Map<String, Slot> slotMap,
-            Vec3i zero
+            Vec3i zero,
+            String precision
     ) {
         Set<Vec3i> starts = new LinkedHashSet<>();
         if (parent.ownGroundOrNull() != null) {
             starts.add(parent.ownGroundOrNull());
         }
-        starts.addAll(allStandableRegionGoals(occ, parent.mass(), slotMap, zero));
-        return new ArrayList<>(starts);
+        RegionGoalSet regions = allStandableRegionGoals(occ, parent.mass(), slotMap, zero, precision);
+        if (regions.gap().isPresent()) {
+            return regions;
+        }
+        starts.addAll(regions.goals());
+        return new RegionGoalSet(new ArrayList<>(starts), Optional.empty());
+    }
+
+    private static Optional<CapabilityGap> regionScanLimit(
+            String massId, int storeyY, long area, String precision
+    ) {
+        return Optional.of(new CapabilityGap(
+                "E_CIRCULATION_REGION_SCAN_LIMIT",
+                "Storey region scan exceeds budget (component_id=" + massId
+                        + ", storeyY=" + storeyY + ", area=" + area
+                        + ", max=" + StoreyWalkRegions.MAX_CELLS
+                        + ", precision=" + precision + ")",
+                "components[]",
+                List.of("Reduce mass footprint or split the building.",
+                        "This is not a proof that walkable regions are connected — scan stopped by budget.")));
     }
 
     private static Optional<CapabilityGap> reachAllGoals(

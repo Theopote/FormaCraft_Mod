@@ -531,4 +531,126 @@ class BuildingCirculationValidatorTest {
         assertTrue(gap.isPresent());
         assertEquals("E_CIRCULATION_HOST_LINKS_INVALID", gap.get().code());
     }
+
+    @Test
+    void nonzeroSlotAnchorRegionScanFindsWorldFloors() {
+        // Local geometry at origin; wing world pose comes only from slot.anchor=(5,2,3)
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "wing", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        // Hall ground corridor (lateral — stacked Y on same XZ would block headroom)
+        for (int x = 1; x <= 4; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        // Lateral stairs + Z approach into wing world: local (1,0,4)+(5,2,3)=(6,2,7)
+        int[][] steps = {
+                {4, 0, 4}, {5, 1, 4}, {6, 2, 4},
+                {6, 2, 5}, {6, 2, 6}, {6, 2, 7}, {7, 2, 7}
+        };
+        for (int[] s : steps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], s[2], "minecraft:oak_planks"));
+        }
+        Map<String, com.formacraft.common.llm.dto.Slot> slots = Map.of(
+                "hall", new com.formacraft.common.llm.dto.Slot(
+                        "hall", new Vec3i(0, 0, 0), null, null, null, null),
+                "wing", new com.formacraft.common.llm.dto.Slot(
+                        "wing", new Vec3i(5, 2, 3), null, null, null, null));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, slots);
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
+    }
+
+    @Test
+    void nonzeroSlotFailsWhenFloorOnlyAtUnshiftedCoords() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "wing", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 2, 0, 4, "minecraft:oak_planks"));
+        // Wing floor only at unshifted local interior — wrong once slot=(5,2,3) is applied
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 2, 0, 4, "minecraft:oak_planks"));
+        Map<String, com.formacraft.common.llm.dto.Slot> slots = Map.of(
+                "hall", new com.formacraft.common.llm.dto.Slot(
+                        "hall", new Vec3i(0, 0, 0), null, null, null, null),
+                "wing", new com.formacraft.common.llm.dto.Slot(
+                        "wing", new Vec3i(5, 2, 3), null, null, null, null));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, slots);
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+    }
+
+    @Test
+    void oversizedStoreyRegionScanReturnsScanLimit() {
+        Component tower = new Component(
+                "MASS_MAIN", "tower", new Vec3i(0, 0, 0), new Dimensions(80, 80, 12), List.of(),
+                Map.of("component_id", "tower", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 40, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 4, 40, "minecraft:oak_planks"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(tower))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(tower), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_CIRCULATION_REGION_SCAN_LIMIT", gap.get().code());
+    }
+
+    @Test
+    void traverseSplitRegionsOnlyOneReachableIsIncomplete() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(12, 0, 0), new Dimensions(12, 8, 8), List.of(),
+                Map.of("component_id", "wing", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        // Path hall → near wing pocket only; far pocket adjacent in footprint but isolated
+        for (int x = 1; x <= 14; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        patches.add(new BlockPatch(BlockPatch.PLACE, 13, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 14, 0, 4, "minecraft:oak_planks"));
+        // Far pocket: standable but not edge-connected (gap) — two region reps, entry hits one
+        patches.add(new BlockPatch(BlockPatch.PLACE, 20, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 21, 0, 4, "minecraft:oak_planks"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+    }
 }

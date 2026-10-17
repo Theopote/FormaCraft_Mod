@@ -13,25 +13,67 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * Standable connected components on one storey of a mass footprint (plan-geometry).
- * Large footprints fall back to a single {@link BridgeWalkability#interiorFloorCell}.
+ * Standable walk-regions on one storey, scanned in occupancy (compiled patch) space.
+ * Apply {@code slotOffset} before querying; returned representatives are already world-frame.
  */
 public final class StoreyWalkRegions {
-    static final int MAX_CELLS = 4096;
+    /** Max inset footprint cells (width×depth) scanned per storey. */
+    public static final int MAX_CELLS = 4096;
+
+    public enum Status {
+        OK,
+        EMPTY,
+        SCAN_LIMIT
+    }
+
+    public record ScanResult(Status status, List<Vec3i> representatives, long areaCells) {
+        public static ScanResult ok(List<Vec3i> reps, long area) {
+            return new ScanResult(Status.OK, List.copyOf(reps), area);
+        }
+
+        public static ScanResult empty(long area) {
+            return new ScanResult(Status.EMPTY, List.of(), area);
+        }
+
+        public static ScanResult limit(long area) {
+            return new ScanResult(Status.SCAN_LIMIT, List.of(), area);
+        }
+    }
 
     private StoreyWalkRegions() {}
 
     /**
-     * One representative per 4-connected standable component at {@code storeyY}
-     * inside the mass footprint inset by {@code wall_thickness}. Empty if none.
+     * Package-visible test hook: when non-null, replaces {@link WalkabilityGraph#canTraverse}
+     * during region flood. Production code leaves this null.
      */
-    public static List<Vec3i> regionRepresentatives(PlannedOccupancy occ, Component mass, int storeyY) {
-        if (occ == null || mass == null) {
-            return List.of();
+    static java.util.function.BiPredicate<Vec3i, Vec3i> traverseEdgeOverride = null;
+
+    private static boolean openEdge(PlannedOccupancy occ, Vec3i from, Vec3i to) {
+        if (traverseEdgeOverride != null) {
+            return traverseEdgeOverride.test(from, to);
         }
+        return WalkabilityGraph.canTraverse(occ, from, to);
+    }
+
+    /**
+     * Scan standable cells in the mass footprint at {@code localStoreyY}, translated by
+     * {@code slotOffset} into occupancy space. Representatives are occupancy coordinates.
+     * Area above {@link #MAX_CELLS} returns {@link Status#SCAN_LIMIT} (incomplete — not a
+     * proof that walkable regions are connected).
+     */
+    public static ScanResult scan(
+            PlannedOccupancy occ,
+            Component mass,
+            int localStoreyY,
+            Vec3i slotOffset
+    ) {
+        if (occ == null || mass == null) {
+            return ScanResult.empty(0);
+        }
+        Vec3i off = slotOffset == null ? new Vec3i(0, 0, 0) : slotOffset;
         var bounds = ComponentFootprintUtil.bounds(mass);
         if (bounds == null) {
-            return List.of();
+            return ScanResult.empty(0);
         }
         int thickness = Math.max(1, ComponentParamParsers.intParam(
                 mass.params(), 1, "wall_thickness", "wallThickness"));
@@ -47,35 +89,36 @@ public final class StoreyWalkRegions {
         }
         long area = (long) Math.max(0, maxX - minX) * Math.max(0, maxZ - minZ);
         if (area <= 0) {
-            return List.of();
+            return ScanResult.empty(0);
         }
         if (area > MAX_CELLS) {
-            Vec3i fallback = BridgeWalkability.interiorFloorCell(mass, storeyY);
-            if (fallback != null && WalkabilityGraph.canStand(occ, fallback)) {
-                return List.of(fallback);
-            }
-            return List.of();
+            return ScanResult.limit(area);
         }
 
+        int worldY = localStoreyY + off.y();
+        int wMinX = minX + off.x();
+        int wMaxX = maxX + off.x();
+        int wMinZ = minZ + off.z();
+        int wMaxZ = maxZ + off.z();
+
         List<Vec3i> standable = new ArrayList<>();
-        for (int x = minX; x < maxX; x++) {
-            for (int z = minZ; z < maxZ; z++) {
-                if (WalkabilityGraph.canStand(occ, x, storeyY, z)) {
-                    standable.add(new Vec3i(x, storeyY, z));
+        for (int x = wMinX; x < wMaxX; x++) {
+            for (int z = wMinZ; z < wMaxZ; z++) {
+                if (WalkabilityGraph.canStand(occ, x, worldY, z)) {
+                    standable.add(new Vec3i(x, worldY, z));
                 }
             }
         }
         if (standable.isEmpty()) {
-            return List.of();
+            return ScanResult.empty(area);
         }
 
         Set<Long> remaining = new HashSet<>();
-        for (Vec3i c : standable) {
-            remaining.add(pack(c.x(), c.z()));
-        }
         Map<Long, Vec3i> byKey = new HashMap<>();
         for (Vec3i c : standable) {
-            byKey.put(pack(c.x(), c.z()), c);
+            long k = pack(c.x(), c.z());
+            remaining.add(k);
+            byKey.put(k, c);
         }
 
         List<Vec3i> reps = new ArrayList<>();
@@ -93,18 +136,22 @@ public final class StoreyWalkRegions {
                     continue;
                 }
                 component.add(cell);
-                int cx = cell.x();
-                int cz = cell.z();
                 for (int[] d : dirs) {
-                    long nk = pack(cx + d[0], cz + d[1]);
-                    if (remaining.remove(nk)) {
-                        q.add(nk);
+                    long nk = pack(cell.x() + d[0], cell.z() + d[1]);
+                    if (!remaining.contains(nk)) {
+                        continue;
                     }
+                    Vec3i next = byKey.get(nk);
+                    if (next == null || !openEdge(occ, cell, next)) {
+                        continue;
+                    }
+                    remaining.remove(nk);
+                    q.add(nk);
                 }
             }
             reps.add(centroidNearest(component));
         }
-        return List.copyOf(reps);
+        return ScanResult.ok(reps, area);
     }
 
     private static Vec3i centroidNearest(List<Vec3i> component) {

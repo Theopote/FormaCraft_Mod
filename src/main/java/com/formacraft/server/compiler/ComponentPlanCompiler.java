@@ -1020,6 +1020,7 @@ public final class ComponentPlanCompiler {
         if (message.startsWith("E_CIRCULATION_HOST_CYCLE")) return "E_CIRCULATION_HOST_CYCLE";
         if (message.startsWith("E_CIRCULATION_HOST_LINKS_INVALID")) return "E_CIRCULATION_HOST_LINKS_INVALID";
         if (message.startsWith("E_CIRCULATION_HOST_LINK_BLOCKED")) return "E_CIRCULATION_HOST_LINK_BLOCKED";
+        if (message.startsWith("E_CIRCULATION_REGION_SCAN_LIMIT")) return "E_CIRCULATION_REGION_SCAN_LIMIT";
         return "E_COMPONENT_GENERATION_FAILED";
     }
 
