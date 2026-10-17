@@ -667,6 +667,13 @@ class DesignFidelityTest {
         assertTrue(patches.isEmpty());
         assertTrue(AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+        String message = AssemblyCompileDiagnostics.get().message();
+        assertTrue(
+                message.contains("host entry")
+                        || message.contains("bridge level")
+                        || message.contains("Standable region not reachable")
+                        || message.toLowerCase().contains("stair"),
+                () -> message);
     }
 
     @Test
@@ -776,9 +783,9 @@ class DesignFidelityTest {
         assertTrue(AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
         String message = AssemblyCompileDiagnostics.get().message();
-        assertTrue(message.contains("alpha"), () -> message);
-        assertTrue(message.contains("Standable region not reachable"), () -> message);
-        assertTrue(message.contains("toY=0"), () -> message);
+        assertTrue(message.contains("alpha"), message);
+        assertTrue(message.contains("Standable region not reachable"), message);
+        assertTrue(message.contains("toY=0"), message);
     }
 
     @Test
@@ -811,10 +818,13 @@ class DesignFidelityTest {
         Component court = plan.components().stream()
                 .filter(c -> "court".equals(c.params().get("component_id"))).findFirst().orElseThrow();
         Component plate = plan.components().stream()
-                .filter(c -> c != null && "plate".equalsIgnoreCase(String.valueOf(
-                        c.params() == null ? null : c.params().get("extrude_mode")))
-                        && "bridge".equalsIgnoreCase(String.valueOf(
-                        c.params().get("plate_role"))))
+                .filter(c -> {
+                    if (c == null || !"plate".equalsIgnoreCase(String.valueOf(
+                            c.params() == null ? null : c.params().get("extrude_mode")))) return false;
+                    assertNotNull(c.params());
+                    return "bridge".equalsIgnoreCase(String.valueOf(
+                    c.params().get("plate_role")));
+                })
                 .findFirst().orElseThrow();
         Component hall = plan.components().stream()
                 .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
@@ -834,10 +844,8 @@ class DesignFidelityTest {
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
         assertTrue(patches.isEmpty());
         assertTrue(AssemblyCompileDiagnostics.hasGap());
-        String code = AssemblyCompileDiagnostics.get().code();
-        assertTrue(
-                "E_BRIDGE_PATH_BLOCKED".equals(code) || "E_BUILDING_CIRCULATION_INCOMPLETE".equals(code),
-                () -> "expected bridge/circulation failure, got " + code);
+        assertEquals("E_BRIDGE_PATH_BLOCKED", AssemblyCompileDiagnostics.get().code(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
     }
 
     @Test

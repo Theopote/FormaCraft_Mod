@@ -913,7 +913,7 @@ public final class ComponentPlanCompiler {
 
     /**
      * After all patches commit, require bridge decks to BFS-reach both mass interiors
-     * through portal clearances ({@code E_BRIDGE_PATH_BLOCKED} on failure).
+     * through portal clearances. Distinguishes path blocked, BFS search limit, and region scan limit.
      */
     private static boolean validateBridgeWalkability(
             List<Component> components,
@@ -948,6 +948,20 @@ public final class ComponentPlanCompiler {
             String precisionNote = ", precision=" + outcome.precision();
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED) {
                 continue;
+            }
+            if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.REGION_SCAN_LIMIT) {
+                String massId = outcome.limitedMassId() == null ? "unknown" : outcome.limitedMassId();
+                AssemblyCompileDiagnostics.set(new CapabilityGap(
+                        "E_CIRCULATION_REGION_SCAN_LIMIT",
+                        "Storey region scan exceeds budget (component_id=" + massId
+                                + ", storeyY=" + outcome.storeyY()
+                                + ", area=" + outcome.areaCells()
+                                + ", max=" + com.formacraft.common.generation.component.util.StoreyWalkRegions.MAX_CELLS
+                                + precisionNote + ")",
+                        "components[]",
+                        List.of("Reduce mass footprint or split the building.",
+                                "This is not a proof that the bridge path is blocked — scan stopped by budget.")));
+                return false;
             }
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.SEARCH_LIMIT) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap(

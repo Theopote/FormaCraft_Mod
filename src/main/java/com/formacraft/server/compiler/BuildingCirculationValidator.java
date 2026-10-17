@@ -312,13 +312,11 @@ final class BuildingCirculationValidator {
             int plateY = plate.relativePosition().y();
             Vec3i targetOff = slotAnchorOrZero(slotMap, target.get().slotId(), zero);
             Vec3i plateOff = slotAnchorOrZero(slotMap, plate.slotId(), zero);
-            RegionGoalSet targetScan = regionGoalsAtY(
-                    occ, target.get(), plateY, slotMap, zero, precision);
-            if (targetScan.gap().isPresent()) {
-                return targetScan.gap();
-            }
-            List<Vec3i> targetGoals = BridgeWalkability.storeyGoalsPreferringInterior(
+            BridgeWalkability.StoreyGoals targetGoals = BridgeWalkability.storeyGoalsPreferringInterior(
                     occ, target.get(), plateY, targetOff);
+            if (targetGoals.scanLimited()) {
+                return regionScanLimit(targetId, plateY, targetGoals.areaCells(), precision);
+            }
             if (targetGoals.isEmpty()) {
                 return incomplete(
                         "Bridge target has no standable storey region at plate Y (target_host_id="
@@ -334,7 +332,7 @@ final class BuildingCirculationValidator {
                         "Ensure the bridge plate has a solid walkable deck.");
             }
             Optional<CapabilityGap> deckJoin = reachAnyGoal(
-                    occ, List.of(deck), targetGoals, hostId, plateY, precision, scope,
+                    occ, List.of(deck), targetGoals.goals(), hostId, plateY, precision, scope,
                     "Bridge deck does not join target storey region (host_id=" + hostId
                             + ", target_host_id=" + targetId + ", plateY=" + plateY
                             + ", precision=" + precision + ")",
@@ -350,7 +348,7 @@ final class BuildingCirculationValidator {
                         "Ensure the bridge host (or its independent root) has a walkable ground.");
             }
             Optional<CapabilityGap> bridgeGap = reachAnyGoal(
-                    occ, startCandidates, targetGoals, hostId, plateY, precision, scope,
+                    occ, startCandidates, targetGoals.goals(), hostId, plateY, precision, scope,
                     "Cannot walk from host entry to target at bridge level (host_id=" + hostId
                             + ", target_host_id=" + targetId + ", plateY=" + plateY
                             + ", precision=" + precision + ")",

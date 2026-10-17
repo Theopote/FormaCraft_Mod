@@ -983,6 +983,101 @@ class BuildingCirculationValidatorTest {
                 () -> gap.get().message());
     }
 
+    @Test
+    void bridgeRegionScanLimitIsNotPathBlocked() {
+        // Target footprint AABB > MAX_CELLS; scan budget must surface as REGION_SCAN_LIMIT.
+        Component host = new Component(
+                "MASS_MAIN", "host", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "host", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component target = new Component(
+                "MASS_MAIN", "target", new Vec3i(12, 0, 0), new Dimensions(80, 80, 8), List.of(),
+                Map.of("component_id", "target", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component bridge = new Component(
+                "MASS_SECONDARY", "host", new Vec3i(6, 0, 3), new Dimensions(6, 2, 1), List.of(),
+                Map.of("component_id", "sky_link", "host_id", "host", "target_host_id", "target",
+                        "extrude_mode", "plate", "plate_role", "bridge", "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 7; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        for (int x = 6; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        patches.add(new BlockPatch(BlockPatch.PLACE, 13, 0, 4, "minecraft:oak_planks"));
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
+        var zero = new Vec3i(0, 0, 0);
+        var outcome = com.formacraft.common.generation.component.util.BridgeWalkability
+                .evaluateBridgeDetailed(occ, bridge, zero, host, zero, target, zero);
+        assertEquals(
+                com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.REGION_SCAN_LIMIT,
+                outcome.reach(),
+                () -> "expected REGION_SCAN_LIMIT, got " + outcome);
+        assertNotEquals(
+                com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.PATH_BLOCKED,
+                outcome.reach());
+        assertEquals("target", outcome.limitedMassId());
+        assertTrue(outcome.areaCells() > com.formacraft.common.generation.component.util.StoreyWalkRegions.MAX_CELLS);
+    }
+
+    @Test
+    void bridgeHostMissingStairToBridgeLevelIsIncomplete() {
+        // Deck joins target at L2, but host has no vertical path from ground → bridge storey.
+        // Bridge plate starts at x=10 (outside host footprint 0..10) so L2 deck is not a host region.
+        Component host = new Component(
+                "MASS_MAIN", "host", new Vec3i(0, 0, 0), new Dimensions(10, 8, 10), List.of(),
+                Map.of("component_id", "host", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component target = new Component(
+                "MASS_MAIN", "target", new Vec3i(18, 0, 0), new Dimensions(10, 8, 10), List.of(),
+                Map.of("component_id", "target", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component bridge = new Component(
+                "MASS_SECONDARY", "host", new Vec3i(10, 4, 3), new Dimensions(8, 2, 1), List.of(),
+                Map.of("component_id", "sky_link", "host_id", "host", "target_host_id", "target",
+                        "extrude_mode", "plate", "plate_role", "bridge", "anchor_mode", "min_corner",
+                        "connection_level", 1));
+        List<BlockPatch> patches = new ArrayList<>();
+        // Host ground only — no stairs / no host L2
+        for (int x = 1; x <= 8; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        // Bridge deck (x>=10) → target L2; keep z=3 as bypass beside stair shaft at z=4
+        for (int x = 10; x <= 26; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+            if (x <= 20 || x >= 26) {
+                patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+            }
+        }
+        // Target ground + stairs so BUILDING_LOCAL target proof passes
+        for (int x = 19; x <= 26; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        int[][] targetSteps = {{21, 0}, {22, 1}, {23, 2}, {24, 3}, {25, 4}};
+        for (int[] s : targetSteps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
+        }
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(host, target, bridge))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(
+                plan, List.of(host, target, bridge), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+        assertTrue(
+                gap.get().message().contains("host entry")
+                        || gap.get().message().contains("bridge level"),
+                () -> gap.get().message());
+    }
+
     /**
      * Same skeleton as {@link #connectedComplexCourtyardUpperJoinPasses} plus an explicit bridge plate;
      * {@code sealPortal} drops the deck↔target seam so end-to-end join fails.

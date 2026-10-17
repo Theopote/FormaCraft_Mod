@@ -18,11 +18,23 @@ public final class BridgeWalkability {
     public enum BridgeReach {
         CONNECTED,
         PATH_BLOCKED,
-        SEARCH_LIMIT
+        SEARCH_LIMIT,
+        /** Storey region scan hit {@link StoreyWalkRegions#MAX_CELLS} — not a path proof. */
+        REGION_SCAN_LIMIT
     }
 
-    /** Bridge reach plus occupancy precision ({@code BLOCKSTATE} ≠ VoxelShape). */
-    public record BridgeWalkOutcome(BridgeReach reach, PlannedOccupancy.WalkabilityPrecision precision) {
+    /**
+     * Bridge reach plus occupancy precision ({@code BLOCKSTATE} ≠ VoxelShape).
+     * When {@code reach == REGION_SCAN_LIMIT}, {@code limitedMassId} / {@code storeyY} / {@code areaCells}
+     * identify which mass storey exceeded the scan budget.
+     */
+    public record BridgeWalkOutcome(
+            BridgeReach reach,
+            PlannedOccupancy.WalkabilityPrecision precision,
+            String limitedMassId,
+            int storeyY,
+            long areaCells
+    ) {
         public BridgeWalkOutcome {
             if (reach == null) {
                 reach = BridgeReach.PATH_BLOCKED;
@@ -30,6 +42,40 @@ public final class BridgeWalkability {
             if (precision == null) {
                 precision = PlannedOccupancy.WalkabilityPrecision.FAST;
             }
+        }
+
+        public BridgeWalkOutcome(BridgeReach reach, PlannedOccupancy.WalkabilityPrecision precision) {
+            this(reach, precision, null, 0, 0L);
+        }
+
+        public static BridgeWalkOutcome regionScanLimit(
+                PlannedOccupancy.WalkabilityPrecision precision,
+                String massId,
+                int storeyY,
+                long areaCells
+        ) {
+            return new BridgeWalkOutcome(
+                    BridgeReach.REGION_SCAN_LIMIT, precision, massId, storeyY, areaCells);
+        }
+    }
+
+    /** Goals at one storey for bridge endpoints; preserves {@link StoreyWalkRegions.Status}. */
+    public record StoreyGoals(
+            StoreyWalkRegions.Status status,
+            List<Vec3i> goals,
+            long areaCells
+    ) {
+        public StoreyGoals {
+            status = status == null ? StoreyWalkRegions.Status.EMPTY : status;
+            goals = goals == null ? List.of() : List.copyOf(goals);
+        }
+
+        public boolean scanLimited() {
+            return status == StoreyWalkRegions.Status.SCAN_LIMIT;
+        }
+
+        public boolean isEmpty() {
+            return goals.isEmpty();
         }
     }
 
@@ -185,8 +231,16 @@ public final class BridgeWalkability {
         if (deck == null || !WalkabilityGraph.canStand(occ, deck)) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
-        List<Vec3i> hostGoals = storeyGoalsPreferringInterior(occ, host, plateY, hostOffset);
-        List<Vec3i> targetGoals = storeyGoalsPreferringInterior(occ, target, plateY, targetOffset);
+        StoreyGoals hostGoals = storeyGoalsPreferringInterior(occ, host, plateY, hostOffset);
+        if (hostGoals.scanLimited()) {
+            return BridgeWalkOutcome.regionScanLimit(
+                    precision, componentId(host), plateY, hostGoals.areaCells());
+        }
+        StoreyGoals targetGoals = storeyGoalsPreferringInterior(occ, target, plateY, targetOffset);
+        if (targetGoals.scanLimited()) {
+            return BridgeWalkOutcome.regionScanLimit(
+                    precision, componentId(target), plateY, targetGoals.areaCells());
+        }
         if (hostGoals.isEmpty() || targetGoals.isEmpty()) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
@@ -198,7 +252,7 @@ public final class BridgeWalkability {
         boolean hostOk = false;
         boolean targetOk = false;
         boolean anyLimit = false;
-        for (Vec3i hostIn : hostGoals) {
+        for (Vec3i hostIn : hostGoals.goals()) {
             var budgetHost = WalkabilityGraph.adaptiveBudget(deck, hostIn, bounds);
             var hostOut = WalkabilityGraph.searchDetailed(occ, deck, hostIn, budgetHost, bounds);
             if (hostOut.result() == WalkabilityGraph.ReachResult.REACHABLE) {
@@ -209,7 +263,7 @@ public final class BridgeWalkability {
                 anyLimit = true;
             }
         }
-        for (Vec3i targetIn : targetGoals) {
+        for (Vec3i targetIn : targetGoals.goals()) {
             var budgetTarget = WalkabilityGraph.adaptiveBudget(deck, targetIn, bounds);
             var targetOut = WalkabilityGraph.searchDetailed(occ, deck, targetIn, budgetTarget, bounds);
             if (targetOut.result() == WalkabilityGraph.ReachResult.REACHABLE) {
@@ -231,24 +285,24 @@ public final class BridgeWalkability {
 
     /**
      * Standable goals at {@code plateY}: prefer standable interior sample first, then region reps.
-     * Empty when scan hits limit or no standable region exists.
+     * {@link StoreyWalkRegions.Status#SCAN_LIMIT} is preserved — not collapsed to empty goals.
      */
-    public static List<Vec3i> storeyGoalsPreferringInterior(
+    public static StoreyGoals storeyGoalsPreferringInterior(
             PlannedOccupancy occ,
             Component mass,
             int plateY,
             Vec3i massOffset
     ) {
         if (occ == null || mass == null) {
-            return List.of();
+            return new StoreyGoals(StoreyWalkRegions.Status.EMPTY, List.of(), 0L);
         }
         StoreyWalkRegions.ScanResult scan = StoreyWalkRegions.scan(occ, mass, plateY, massOffset);
         if (scan.status() == StoreyWalkRegions.Status.SCAN_LIMIT) {
-            return List.of();
+            return new StoreyGoals(StoreyWalkRegions.Status.SCAN_LIMIT, List.of(), scan.areaCells());
         }
         List<Vec3i> reps = scan.representatives();
         if (reps.isEmpty()) {
-            return List.of();
+            return new StoreyGoals(scan.status(), List.of(), scan.areaCells());
         }
         List<Vec3i> ordered = new ArrayList<>(reps.size() + 1);
         Vec3i preferred = shift(interiorFloorCell(mass, plateY), massOffset);
@@ -260,7 +314,15 @@ public final class BridgeWalkability {
                 ordered.add(r);
             }
         }
-        return ordered;
+        return new StoreyGoals(StoreyWalkRegions.Status.OK, ordered, scan.areaCells());
+    }
+
+    private static String componentId(Component mass) {
+        if (mass == null || mass.params() == null) {
+            return "unknown";
+        }
+        Object id = mass.params().get("component_id");
+        return id == null ? "unknown" : String.valueOf(id);
     }
 
     /** Compile-path occupancy with registry refinement when available. */
