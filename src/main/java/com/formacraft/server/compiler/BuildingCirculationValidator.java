@@ -89,7 +89,8 @@ final class BuildingCirculationValidator {
         String precision = String.valueOf(occ.precision());
         Vec3i zero = new Vec3i(0, 0, 0);
 
-        // First pass: own grounds + complex root (independent only)
+        // First pass: internal ground starts (region reps) + complex root (independent only).
+        // This is an internal circulation start — not proof of exterior doorway access.
         Map<Component, Vec3i> ownGroundByMass = new HashMap<>();
         Vec3i complexRoot = null;
         for (Component mass : circulationMasses) {
@@ -101,22 +102,25 @@ final class BuildingCirculationValidator {
                         "Point host_id at a circulation mass component_id, or omit host_id for an independent unit.");
             }
             boolean attached = attachment.kind() == MassComponentKinds.HostAttachment.ATTACHED;
-            int groundY = groundStoreyY(mass);
-            Vec3i ownGround = shift(
-                    BridgeWalkability.interiorFloorCell(mass, groundY),
-                    slotAnchorOrZero(slotMap, mass.slotId(), zero));
-            boolean ownStandable = WalkabilityGraph.canStand(occ, ownGround);
-            if (ownStandable) {
+            InternalGroundStart resolved = resolveInternalGroundStart(
+                    occ, mass, slotMap, zero, precision);
+            if (resolved.gap().isPresent()) {
+                return resolved.gap();
+            }
+            Vec3i ownGround = resolved.startOrNull();
+            if (ownGround != null) {
                 ownGroundByMass.put(mass, ownGround);
             }
-            if (!attached && !ownStandable) {
+            if (!attached && ownGround == null) {
+                int groundY = absoluteFloorYs(mass).getFirst();
                 return incomplete(
-                        "Mass ground interior is not a legal standing cell (component_id="
+                        "No standable ground region for internal circulation start (component_id="
                                 + componentId(mass) + ", y=" + groundY + ", precision=" + precision + ")",
-                        "Add a solid floor with 2-high clearance at the ground storey interior, "
-                                + "or set host_id if this is an attached aerial mass.");
+                        "Ensure the ground storey has a standable interior region (courtyard rings OK). "
+                                + "This does not verify exterior doorways. "
+                                + "Or set host_id if this is an attached aerial mass.");
             }
-            if (!attached && ownStandable && complexRoot == null) {
+            if (!attached && ownGround != null && complexRoot == null) {
                 complexRoot = ownGround;
             }
         }
@@ -144,16 +148,19 @@ final class BuildingCirculationValidator {
                 }
                 rootGround = ownGroundByMass.get(root);
                 if (rootGround == null) {
-                    int rootY = groundStoreyY(root);
-                    rootGround = shift(
-                            BridgeWalkability.interiorFloorCell(root, rootY),
-                            slotAnchorOrZero(slotMap, root.slotId(), zero));
+                    InternalGroundStart rootStart = resolveInternalGroundStart(
+                            occ, root, slotMap, zero, precision);
+                    if (rootStart.gap().isPresent()) {
+                        return rootStart.gap();
+                    }
+                    rootGround = rootStart.startOrNull();
                 }
                 if (rootGround == null || !WalkabilityGraph.canStand(occ, rootGround)) {
                     return incomplete(
-                            "Attached mass root ground is not standable (component_id=" + componentId(mass)
-                                    + ", root_id=" + componentId(root) + ", precision=" + precision + ")",
-                            "Ensure the independent host mass has a walkable ground interior.");
+                            "Attached mass root has no standable ground region (component_id="
+                                    + componentId(mass) + ", root_id=" + componentId(root)
+                                    + ", precision=" + precision + ")",
+                            "Ensure the independent host mass has a walkable ground interior region.");
                 }
             }
             List<Vec3i> hostLink = buildHostLinkEntries(scope, attached, rootGround, ownGround, complexRoot);
@@ -426,6 +433,39 @@ final class BuildingCirculationValidator {
     }
 
     private record RegionGoalSet(List<Vec3i> goals, Optional<CapabilityGap> gap) {}
+
+    /**
+     * Internal circulation start on the ground storey from {@link StoreyWalkRegions} reps.
+     * Prefer a standable {@link BridgeWalkability#interiorFloorCell} when present for stability;
+     * otherwise the first region representative. Not an exterior doorway proof.
+     */
+    private record InternalGroundStart(Vec3i startOrNull, Optional<CapabilityGap> gap) {}
+
+    private static InternalGroundStart resolveInternalGroundStart(
+            PlannedOccupancy occ,
+            Component mass,
+            Map<String, Slot> slotMap,
+            Vec3i zero,
+            String precision
+    ) {
+        List<Integer> ys = absoluteFloorYs(mass);
+        int groundAbsY = ys.getFirst();
+        RegionGoalSet atY = regionGoalsAtY(occ, mass, groundAbsY, slotMap, zero, precision);
+        if (atY.gap().isPresent()) {
+            return new InternalGroundStart(null, atY.gap());
+        }
+        List<Vec3i> reps = atY.goals();
+        if (reps.isEmpty()) {
+            return new InternalGroundStart(null, Optional.empty());
+        }
+        Vec3i preferred = shift(
+                BridgeWalkability.interiorFloorCell(mass, groundAbsY),
+                slotAnchorOrZero(slotMap, mass.slotId(), zero));
+        if (preferred != null && WalkabilityGraph.canStand(occ, preferred)) {
+            return new InternalGroundStart(preferred, Optional.empty());
+        }
+        return new InternalGroundStart(reps.getFirst(), Optional.empty());
+    }
 
     private static RegionGoalSet regionGoalsAtY(
             PlannedOccupancy occ,

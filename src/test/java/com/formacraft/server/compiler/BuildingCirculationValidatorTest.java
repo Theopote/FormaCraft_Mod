@@ -407,7 +407,35 @@ class BuildingCirculationValidatorTest {
     }
 
     @Test
-    void aerialWingWithoutHostRequiresOwnGround() {
+    void aerialWingWithoutHostAndNoStandableRegionFails() {
+        // Elevated independent with no standable cells at its design ground storey (abs y=4).
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(12, 4, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "wing", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
+        // No wing floor — internal ground start must fail (not the old relative-y=0 fixed sample).
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+        assertTrue(gap.get().message().contains("wing")
+                || gap.get().message().contains("internal circulation start")
+                || gap.get().message().contains("ground"), () -> gap.get().message());
+    }
+
+    @Test
+    void aerialWingWithoutHostElevatedStoreyPassesLocal() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
                 Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
@@ -426,9 +454,7 @@ class BuildingCirculationValidatorTest {
                         "circulation_scope", "BUILDING_LOCAL"))
                 .build();
         var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, Map.of());
-        assertTrue(gap.isPresent());
-        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
-        assertTrue(gap.get().message().contains("wing") || gap.get().message().contains("ground"));
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
     }
 
     @Test
@@ -835,6 +861,45 @@ class BuildingCirculationValidatorTest {
                         "circulation_scope", "CONNECTED_COMPLEX"))
                 .build();
         var gap = BuildingCirculationValidator.validate(plan, List.of(alpha, beta), patches, Map.of());
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
+    }
+
+    @Test
+    void courtyardGroundFixedSampleVoidStillPassesLocal() {
+        // Ring corridor on ground; fixed interiorFloorCell sits in the courtyard void.
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(14, 14, 6), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Vec3i fixed = com.formacraft.common.generation.component.util.BridgeWalkability
+                .interiorFloorCell(hall, 0);
+        assertEquals(new Vec3i(1, 0, 7), fixed);
+
+        List<BlockPatch> patches = new ArrayList<>();
+        // Outer ring only — omit interior including fixed sample (1,0,7)
+        for (int x = 1; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 1, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 12, "minecraft:oak_planks"));
+        }
+        for (int z = 1; z <= 12; z++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, z, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, 12, 0, z, "minecraft:oak_planks"));
+        }
+        patches.removeIf(p -> p.dy() == 0 && p.dx() == 1 && p.dz() >= 3 && p.dz() <= 10);
+
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
+        assertFalse(
+                com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, fixed),
+                "fixed interior sample must sit in courtyard void");
+
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall), patches, Map.of());
         assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
     }
 }

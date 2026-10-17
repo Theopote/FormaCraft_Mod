@@ -1,0 +1,39 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "circulation_scope": "BUILDING_LOCAL",
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED",
+      "circulation": "REQUIRED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "court",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 20, "depth": 20, "height": 6 },
+      "features": ["courtyard"],
+      "params": {
+        "component_id": "court",
+        "anchor_mode": "min_corner",
+        "plan_type": "courtyard",
+        "courtyard_ratio": 0.5,
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    }
+  ]
+}
