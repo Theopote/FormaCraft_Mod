@@ -37,7 +37,7 @@ Invalid `generation_authority` strings are rejected at **Java parse** ([`LlmPlan
 | `allow_compiler_satellites` | boolean | **Transition only:** if true, Java may infer FACADE/ENTRANCE/ROOF/CROWN (tagged COMPILER_INFERRED) |
 | `design_requirements` | object | Keys `facade` / `entrance` / `roof` / `crown` / `circulation` → `REQUIRED` \| `OPTIONAL` \| `OMITTED` \| `UNSPECIFIED`. `circulation=REQUIRED` enables [BuildingCirculationValidator](../../src/main/java/com/formacraft/server/compiler/BuildingCirculationValidator.java). |
 | `circulation_scope` | string | With circulation REQUIRED: omit → `BUILDING_LOCAL`; present must be `BUILDING_LOCAL` or `CONNECTED_COMPLEX` else `E_CIRCULATION_SCOPE_INVALID`. See [CirculationScope](../../src/main/java/com/formacraft/common/generation/design/CirculationScope.java). |
-| `circulation_host_links` | string | With circulation REQUIRED: omit/`ROOT` → attached masses prove walk from independent root entry to each standable region (R26/R28). `DIRECT` → also each direct `host_id` edge must walk from the **parent's own** standable cells to each child region (`E_CIRCULATION_HOST_LINK_BLOCKED` on failure). Illegal token → `E_CIRCULATION_HOST_LINKS_INVALID`. See [CirculationHostLinks](../../src/main/java/com/formacraft/common/generation/design/CirculationHostLinks.java). |
+| `circulation_host_links` | string | With circulation REQUIRED: omit/`ROOT` → attached masses prove walk from independent root entry to each standable region (R26/R29). `DIRECT` → also each direct `host_id` edge must walk from the **parent's own** standable cells to each child region (`E_CIRCULATION_HOST_LINK_BLOCKED` on failure). Illegal token → `E_CIRCULATION_HOST_LINKS_INVALID`. See [CirculationHostLinks](../../src/main/java/com/formacraft/common/generation/design/CirculationHostLinks.java). |
 | `capability_report` | object | See below |
 
 **Fallback policy** ([GenerationFallbackPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackPolicy.java), matrix in [GenerationFallbackMatrix.java](../../src/main/java/com/formacraft/common/generation/routing/GenerationFallbackMatrix.java)): authority controls empty-base typology/structure fallback separately from typology *replace*. Default `COMPONENTS`: registry priming only — no typology or structure empty fill unless `allow_typology_empty_fallback` / `allow_structure_empty_fallback`. **Those explicit flags apply only under `COMPONENTS`**; `TYPOLOGY` / `CAPTURED_LIBRARY` / `ASSEMBLY` / `SKELETON` ignore them and follow policy only. Non-empty typology replace under `COMPONENTS` still requires `allow_typology_override` on the component. Dedicated authorities must not silently fall back to another executor; mismatch → `E_GENERATION_AUTHORITY_CONFLICT`.
@@ -129,14 +129,14 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 | `plate_role` terrace/bridge | yes (R11–R15) | skip clip+inset; role Y envelopes |
 | explicit plate Y | yes (R12/R14/R15) | snap only INTERIOR+inferred; bridge level conflict |
 | plate `host_id` | yes (R12) | unresolved / missing geometry → `E_*` |
-| bridge `target_host_id` | yes (R14–R28) | required; bridge gate always; starts from `hostLinkEntries` |
-| `design_requirements.circulation` | yes (R22–R28) | `REQUIRED` enables validator; else skip |
-| `circulation_scope` | yes (R23–R28) | omit → LOCAL; illegal → `E_CIRCULATION_SCOPE_INVALID` |
-| `circulation_host_links` | yes (R27–R28) | omit/`ROOT` vs `DIRECT`; illegal → `E_CIRCULATION_HOST_LINKS_INVALID` |
-| attached `host_id` entry | yes (R24–R28) | root host-link + region reps; DIRECT parent-own edges |
-| storey walk regions | yes (R27–R28) | `StoreyWalkRegions` multi-rep in **occupancy/world frame** (`slot.anchor` applied before `canStand`/`canTraverse`); flood merges only via `WalkabilityGraph.canTraverse` (not mere mutual standability). Footprint area > `MAX_CELLS` (4096) → `E_CIRCULATION_REGION_SCAN_LIMIT` (hard fail; not a silent single-point “proof”) |
-| `host_id` cycle | yes (R25–R28) | digraph cycle → `E_CIRCULATION_HOST_CYCLE` |
-| host mass kinds | yes (R23–R28) | `MassComponentKinds` + attachment / acyclic / resolveIndependentHost |
+| bridge `target_host_id` | yes (R14–R29) | required; bridge gate always; starts from `hostLinkEntries` |
+| `design_requirements.circulation` | yes (R22–R29) | `REQUIRED` enables validator; else skip |
+| `circulation_scope` | yes (R23–R29) | omit → LOCAL; illegal → `E_CIRCULATION_SCOPE_INVALID` |
+| `circulation_host_links` | yes (R27–R29) | omit/`ROOT` vs `DIRECT`; illegal → `E_CIRCULATION_HOST_LINKS_INVALID` |
+| attached `host_id` entry | yes (R24–R29) | root host-link + region reps; DIRECT parent-own edges |
+| storey walk regions | yes (R27–R29) | `StoreyWalkRegions` multi-rep in **occupancy/world frame** (`slot.anchor` applied before `canStand`/`canTraverse`); flood merges only via `WalkabilityGraph.canTraverse`. **Independent** under `BUILDING_LOCAL` (incl. single-storey) must reach every standable region from local entry (R29). `CONNECTED_COMPLEX` storeyed independents still prove upper storeys from complex root (grounds may join only via bridge level). Attached covered by host-link region goals. Footprint AABB area > `MAX_CELLS` (4096) → `E_CIRCULATION_REGION_SCAN_LIMIT` (rectangular budget; sparse scan is future work) |
+| `host_id` cycle | yes (R25–R29) | digraph cycle → `E_CIRCULATION_HOST_CYCLE` |
+| host mass kinds | yes (R23–R29) | `MassComponentKinds` + attachment / acyclic / resolveIndependentHost |
 | unique `component_id` | yes (R13) | `E_DUPLICATE_COMPONENT_ID` |
 | `overhang` vs roof bbox | yes (R8) | conflict, not silent max |
 | `arm_width` / `l_cut` / `corner_cut` | yes (R8) | unfit when explicit > footprint−2 |

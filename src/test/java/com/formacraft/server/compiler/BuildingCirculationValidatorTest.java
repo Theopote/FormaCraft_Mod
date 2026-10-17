@@ -653,4 +653,52 @@ class BuildingCirculationValidatorTest {
         assertTrue(gap.isPresent());
         assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
     }
+
+    @Test
+    void singleStoreyIndependentMassDisconnectedRegionsFails() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(14, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        // Left room (includes interior sample ~1,0,4)
+        for (int x = 1; x <= 4; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+        }
+        // Gap / partition at x=5..8 — right room unreachable
+        for (int x = 9; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+        }
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+    }
+
+    @Test
+    void singleStoreyIndependentMassConnectedRegionsPass() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(14, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall), patches, Map.of());
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
+    }
 }

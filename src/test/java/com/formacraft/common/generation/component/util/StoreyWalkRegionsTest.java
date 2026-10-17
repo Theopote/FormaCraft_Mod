@@ -102,15 +102,9 @@ class StoreyWalkRegionsTest {
         PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
         assertTrue(WalkabilityGraph.canStand(occ, 1, 0, 4));
         assertTrue(WalkabilityGraph.canStand(occ, 2, 0, 4));
-        // Same-Y full floors are traversable in production; override simulates support-height
-        // / clearance rejection on the shared edge.
-        StoreyWalkRegions.traverseEdgeOverride = (a, b) -> false;
-        try {
-            var scan = StoreyWalkRegions.scan(occ, mass, 0, null);
-            assertEquals(StoreyWalkRegions.Status.OK, scan.status());
-            assertEquals(2, scan.representatives().size());
-        } finally {
-            StoreyWalkRegions.traverseEdgeOverride = null;
-        }
+        // Same-Y full floors are traversable in production; predicate simulates blocked edge.
+        var scan = StoreyWalkRegions.scan(occ, mass, 0, null, (a, b) -> false);
+        assertEquals(StoreyWalkRegions.Status.OK, scan.status());
+        assertEquals(2, scan.representatives().size());
     }
 }

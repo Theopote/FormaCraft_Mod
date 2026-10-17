@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 /**
  * Standable walk-regions on one storey, scanned in occupancy (compiled patch) space.
@@ -43,19 +44,6 @@ public final class StoreyWalkRegions {
     private StoreyWalkRegions() {}
 
     /**
-     * Package-visible test hook: when non-null, replaces {@link WalkabilityGraph#canTraverse}
-     * during region flood. Production code leaves this null.
-     */
-    static java.util.function.BiPredicate<Vec3i, Vec3i> traverseEdgeOverride = null;
-
-    private static boolean openEdge(PlannedOccupancy occ, Vec3i from, Vec3i to) {
-        if (traverseEdgeOverride != null) {
-            return traverseEdgeOverride.test(from, to);
-        }
-        return WalkabilityGraph.canTraverse(occ, from, to);
-    }
-
-    /**
      * Scan standable cells in the mass footprint at {@code localStoreyY}, translated by
      * {@code slotOffset} into occupancy space. Representatives are occupancy coordinates.
      * Area above {@link #MAX_CELLS} returns {@link Status#SCAN_LIMIT} (incomplete — not a
@@ -66,6 +54,20 @@ public final class StoreyWalkRegions {
             Component mass,
             int localStoreyY,
             Vec3i slotOffset
+    ) {
+        return scan(occ, mass, localStoreyY, slotOffset, null);
+    }
+
+    /**
+     * Package-visible overload: {@code edgeOpen} replaces {@link WalkabilityGraph#canTraverse}
+     * during flood when non-null (tests only).
+     */
+    static ScanResult scan(
+            PlannedOccupancy occ,
+            Component mass,
+            int localStoreyY,
+            Vec3i slotOffset,
+            BiPredicate<Vec3i, Vec3i> edgeOpen
     ) {
         if (occ == null || mass == null) {
             return ScanResult.empty(0);
@@ -142,7 +144,13 @@ public final class StoreyWalkRegions {
                         continue;
                     }
                     Vec3i next = byKey.get(nk);
-                    if (next == null || !openEdge(occ, cell, next)) {
+                    if (next == null) {
+                        continue;
+                    }
+                    boolean open = edgeOpen != null
+                            ? edgeOpen.test(cell, next)
+                            : WalkabilityGraph.canTraverse(occ, cell, next);
+                    if (!open) {
                         continue;
                     }
                     remaining.remove(nk);

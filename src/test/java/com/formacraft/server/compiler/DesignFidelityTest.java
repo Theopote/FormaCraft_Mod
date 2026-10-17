@@ -760,6 +760,15 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationSingleStoreyPartitionFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_single_storey_partition.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void bridgeEndpointLevelMismatchFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

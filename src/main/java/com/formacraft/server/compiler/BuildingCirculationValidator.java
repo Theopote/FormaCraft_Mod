@@ -261,21 +261,50 @@ final class BuildingCirculationValidator {
             }
         }
 
+        // Independent masses: full region proof under BUILDING_LOCAL (incl. single-storey ground).
+        // CONNECTED_COMPLEX storeyed masses keep upper-only checks — join may be bridge-at-level
+        // while grounds stay separate (massJoinsComplexFromRoot already proved some storey joins).
         for (MassEntry entry : entries) {
+            if (entry.attached()) {
+                continue;
+            }
             Component mass = entry.mass();
-            if (!MassComponentKinds.isStoreyedCirculationMass(mass)) {
+            List<Vec3i> starts = entry.localEntries();
+            if (starts.isEmpty()) {
+                return incomplete(
+                        "No circulation entry for independent mass (component_id=" + componentId(mass)
+                                + ", precision=" + precision + ")",
+                        "Provide a standable ground interior for this mass.");
+            }
+            boolean storeyed = MassComponentKinds.isStoreyedCirculationMass(mass);
+            boolean fullRegionProof = scope == CirculationScope.BUILDING_LOCAL || !storeyed;
+            if (fullRegionProof) {
+                var goalsOrGap = allStandableRegionGoals(occ, mass, slotMap, zero, precision);
+                if (goalsOrGap.gap().isPresent()) {
+                    return goalsOrGap.gap();
+                }
+                List<Vec3i> goals = goalsOrGap.goals();
+                if (goals.isEmpty()) {
+                    return incomplete(
+                            "Independent mass has no standable region (component_id="
+                                    + componentId(mass) + ", precision=" + precision + ")",
+                            "Ensure each design storey has a solid floor and clearance at interior cells.");
+                }
+                Optional<CapabilityGap> regionGap = reachAllGoals(
+                        occ, starts, goals, componentId(mass), precision, scope,
+                        "Standable region not reachable from mass entry (component_id="
+                                + componentId(mass) + ", scope=" + scope + ", precision=" + precision + ")",
+                        scope == CirculationScope.BUILDING_LOCAL
+                                ? "Connect interior rooms with openings/corridors/stairs, or set circulation=OMITTED."
+                                : "Join each standable region to the complex network with stairs or bridges.");
+                if (regionGap.isPresent()) {
+                    return regionGap;
+                }
                 continue;
             }
             int envelope = Math.max(1, mass.dimensions().height());
             ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
             int originY = mass.relativePosition() == null ? 0 : mass.relativePosition().y();
-            List<Vec3i> storeyGrounds = entry.localEntries();
-            if (storeyGrounds.isEmpty()) {
-                return incomplete(
-                        "No circulation entry for storeyed mass (component_id=" + componentId(mass)
-                                + ", precision=" + precision + ")",
-                        "Provide a standable ground or a host_id with a walkable host ground.");
-            }
             for (int i = 1; i < layout.floorYs().size(); i++) {
                 int relY = layout.floorYs().get(i);
                 int absY = originY + relY;
@@ -291,12 +320,10 @@ final class BuildingCirculationValidator {
                             "Ensure each design storey has a solid floor and clearance at the interior sample.");
                 }
                 Optional<CapabilityGap> storeyGap = reachAllGoals(
-                        occ, storeyGrounds, goals, componentId(mass), precision, scope,
+                        occ, starts, goals, componentId(mass), precision, scope,
                         "Storey not reachable (component_id=" + componentId(mass) + ", toY=" + absY
                                 + ", scope=" + scope + ", precision=" + precision + ")",
-                        scope == CirculationScope.BUILDING_LOCAL
-                                ? "Add stairs inside this mass, attach via host_id, or use CONNECTED_COMPLEX with bridges."
-                                : "Add stairs or bridge access so each design storey joins the complex network.");
+                        "Add stairs or bridge access so each design storey joins the complex network.");
                 if (storeyGap.isPresent()) {
                     return storeyGap;
                 }
