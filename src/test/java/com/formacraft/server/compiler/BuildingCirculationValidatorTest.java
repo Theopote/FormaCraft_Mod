@@ -1,20 +1,69 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.CirculationAnalysisContext;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class BuildingCirculationValidatorTest {
+
+    @BeforeAll
+    static void bootstrap() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
+
+    @AfterEach
+    void tearDownCirculationContext() {
+        CirculationAnalysisContext.end();
+    }
+
+    /** Gap code when present; empty when validation passes. Cached vs uncached must match. */
+    static Optional<String> validateCode(
+            LlmPlan plan,
+            List<Component> masses,
+            List<BlockPatch> patches,
+            Map<String, Slot> slots,
+            boolean useCache
+    ) {
+        if (useCache) {
+            CirculationAnalysisContext.begin(patches);
+        }
+        try {
+            return BuildingCirculationValidator.validate(plan, masses, patches, slots)
+                    .map(CapabilityGap::code);
+        } finally {
+            if (useCache) {
+                CirculationAnalysisContext.end();
+            }
+        }
+    }
+
+    static void assertCachedEqualsUncached(
+            LlmPlan plan,
+            List<Component> masses,
+            List<BlockPatch> patches,
+            Map<String, Slot> slots
+    ) {
+        Optional<String> cached = validateCode(plan, masses, patches, slots, true);
+        Optional<String> uncached = validateCode(plan, masses, patches, slots, false);
+        assertEquals(uncached, cached, "cached and uncached circulation codes must match");
+    }
 
     @Test
     void bridgeSamplesSameWorldFloorAcrossSlotsWithDifferentHeights() {
@@ -919,6 +968,66 @@ class BuildingCirculationValidatorTest {
                 .build();
         var gap = BuildingCirculationValidator.validate(plan, List.of(hall), patches, Map.of());
         assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
+    }
+
+    @Test
+    void courtyardGroundCachedEqualsUncached() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(14, 14, 6), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 1, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 12, "minecraft:oak_planks"));
+        }
+        for (int z = 1; z <= 12; z++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, z, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, 12, 0, z, "minecraft:oak_planks"));
+        }
+        patches.removeIf(p -> p.dy() == 0 && p.dx() == 1 && p.dz() >= 3 && p.dz() <= 10);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        assertCachedEqualsUncached(plan, List.of(hall), patches, Map.of());
+        assertTrue(validateCode(plan, List.of(hall), patches, Map.of(), true).isEmpty());
+    }
+
+    @Test
+    void nonzeroSlotCachedEqualsUncached() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "wing", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 4; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        int[][] steps = {
+                {4, 0, 4}, {5, 1, 4}, {6, 2, 4},
+                {6, 2, 5}, {6, 2, 6}, {6, 2, 7}, {7, 2, 7}
+        };
+        for (int[] s : steps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], s[2], "minecraft:oak_planks"));
+        }
+        Map<String, Slot> slots = Map.of(
+                "hall", new Slot("hall", new Vec3i(0, 0, 0), null, null, null, null),
+                "wing", new Slot("wing", new Vec3i(5, 2, 3), null, null, null, null));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        assertCachedEqualsUncached(plan, List.of(hall, wing), patches, slots);
+        assertTrue(validateCode(plan, List.of(hall, wing), patches, slots, true).isEmpty());
     }
 
     /**

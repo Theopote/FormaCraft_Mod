@@ -64,9 +64,15 @@ public final class CirculationAnalysisContext {
 
     public static void begin(Iterable<BlockPatch> patches) {
         end();
-        ACTIVE.set(true);
-        OCCUPANCY.set(BridgeWalkability.occupancyFromPatches(patches));
-        SCANS.get().clear();
+        try {
+            PlannedOccupancy occ = BridgeWalkability.occupancyFromPatches(patches);
+            OCCUPANCY.set(occ);
+            SCANS.get().clear();
+            ACTIVE.set(true);
+        } catch (RuntimeException e) {
+            end();
+            throw e;
+        }
     }
 
     public static void end() {

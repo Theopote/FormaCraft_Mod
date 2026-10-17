@@ -4,10 +4,13 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -17,8 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class CirculationAnalysisContextTest {
+
+    @BeforeAll
+    static void bootstrap() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
 
     @AfterEach
     void tearDown() {
@@ -124,6 +133,25 @@ class CirculationAnalysisContextTest {
         var b = CirculationAnalysisContext.scanStorey(occ, hall, 0, new Vec3i(0, 0, 0));
         assertNotNull(a);
         assertNotNull(b);
+        assertEquals(0, CirculationAnalysisContext.cachedScanCount());
+    }
+
+    @Test
+    void beginThrowsLeavesContextInactive() {
+        Iterable<BlockPatch> throwing = () -> new Iterator<>() {
+            @Override
+            public boolean hasNext() {
+                return true;
+            }
+
+            @Override
+            public BlockPatch next() {
+                throw new IllegalStateException("boom");
+            }
+        };
+        assertThrows(IllegalStateException.class, () -> CirculationAnalysisContext.begin(throwing));
+        assertFalse(CirculationAnalysisContext.isActive());
+        assertNull(CirculationAnalysisContext.occupancy());
         assertEquals(0, CirculationAnalysisContext.cachedScanCount());
     }
 }

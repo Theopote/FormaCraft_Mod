@@ -1,11 +1,14 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.CirculationAnalysisContext;
 import com.formacraft.common.generation.routing.GenerationAuthority;
 import com.formacraft.common.generation.routing.PlanMetaAccess;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.patch.BlockPatch;
@@ -23,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,6 +44,7 @@ class DesignFidelityTest {
     @AfterEach
     void clearDiagnostics() {
         AssemblyCompileDiagnostics.clear();
+        CirculationAnalysisContext.end();
     }
 
     @Test
@@ -881,6 +886,54 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationStairBridgeDualMassCachedEqualsUncached() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_stair_bridge_dual_mass.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Map<String, Slot> slots = Map.of();
+        Optional<String> cached = validateCirculationCode(plan, plan.components(), patches, slots, true);
+        Optional<String> uncached = validateCirculationCode(plan, plan.components(), patches, slots, false);
+        assertEquals(uncached, cached);
+        assertTrue(cached.isEmpty());
+    }
+
+    @Test
+    void circulationSingleStoreyPartitionCachedEqualsUncached() throws Exception {
+        LlmPlan required = loadFidelityPlan("circulation_single_storey_partition.json");
+        LlmPlan omitted = withCirculationOmitted(required);
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(omitted, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty(), "OMITTED compile must yield patches for equivalence re-validate");
+        Map<String, Slot> slots = Map.of();
+        Optional<String> cached = validateCirculationCode(required, required.components(), patches, slots, true);
+        Optional<String> uncached = validateCirculationCode(required, required.components(), patches, slots, false);
+        assertEquals(uncached, cached);
+        assertEquals(Optional.of("E_BUILDING_CIRCULATION_INCOMPLETE"), cached);
+    }
+
+    @Test
+    void consecutiveCompileFailThenPassLeavesContextInactive() throws Exception {
+        LlmPlan fail = loadFidelityPlan("circulation_single_storey_partition.json");
+        List<BlockPatch> failPatches = ComponentPlanCompiler.compile(fail, BlockPos.ORIGIN, null, null, false);
+        assertTrue(failPatches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+        assertFalse(CirculationAnalysisContext.isActive());
+
+        AssemblyCompileDiagnostics.clear();
+        LlmPlan pass = loadFidelityPlan("circulation_courtyard_ground_ring_local.json");
+        List<BlockPatch> passPatches = ComponentPlanCompiler.compile(pass, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(passPatches.isEmpty());
+        assertFalse(CirculationAnalysisContext.isActive());
+        assertNull(CirculationAnalysisContext.occupancy());
+    }
+
+    @Test
     void bridgeEndpointLevelMismatchFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
@@ -1058,5 +1111,65 @@ class DesignFidelityTest {
             String json = new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8);
             return LlmPlanParser.parseAndValidate(json);
         }
+    }
+
+    private static Optional<String> validateCirculationCode(
+            LlmPlan plan,
+            List<Component> masses,
+            List<BlockPatch> patches,
+            Map<String, Slot> slots,
+            boolean useCache
+    ) {
+        if (useCache) {
+            CirculationAnalysisContext.begin(patches);
+        }
+        try {
+            return BuildingCirculationValidator.validate(plan, masses, patches, slots)
+                    .map(CapabilityGap::code);
+        } finally {
+            if (useCache) {
+                CirculationAnalysisContext.end();
+            }
+        }
+    }
+
+    private static LlmPlan withCirculationOmitted(LlmPlan plan) {
+        Map<String, Object> meta = new HashMap<>();
+        if (plan.planMeta() != null) {
+            meta.putAll(plan.planMeta());
+        }
+        Map<String, Object> designReqs = new HashMap<>();
+        Object rawReqs = meta.get("design_requirements");
+        if (rawReqs instanceof Map<?, ?> existing) {
+            for (Map.Entry<?, ?> e : existing.entrySet()) {
+                designReqs.put(String.valueOf(e.getKey()), e.getValue());
+            }
+        }
+        designReqs.put("circulation", "OMITTED");
+        meta.put("design_requirements", designReqs);
+        return new LlmPlan(
+                plan.mode(),
+                plan.styleProfile(),
+                plan.anchor(),
+                plan.globalConstraints(),
+                plan.layout(),
+                plan.components(),
+                plan.genome(),
+                plan.styleAttributes(),
+                plan.proportionHints(),
+                plan.alignmentAndSymmetry(),
+                plan.targetSlotId(),
+                plan.allowedArea(),
+                plan.patch(),
+                plan.planProgram(),
+                plan.planSkeleton(),
+                plan.planStatus(),
+                plan.error(),
+                plan.capabilityGap(),
+                plan.playerFidelityNoticeZh(),
+                plan.distinguishingFeatures(),
+                plan.enrichmentGuard(),
+                meta,
+                plan.designSources());
     }
 }

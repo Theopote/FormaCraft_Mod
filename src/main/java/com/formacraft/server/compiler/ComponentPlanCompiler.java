@@ -286,8 +286,8 @@ public final class ComponentPlanCompiler {
             TypologyPatchBridge.clearPlanWorldAnchor();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
-        com.formacraft.common.generation.component.util.CirculationAnalysisContext.begin(result);
         try {
+            com.formacraft.common.generation.component.util.CirculationAnalysisContext.begin(result);
             if (!validateBridgeWalkability(components, result, slotMap)) {
                 return List.of();
             }
