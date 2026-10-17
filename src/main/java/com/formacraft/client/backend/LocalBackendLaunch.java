@@ -22,7 +22,8 @@ final class LocalBackendLaunch {
 
     static List<String> command(String python, File workDir, int port) {
         var cmd = new ArrayList<>(List.of(python, "-m", "uvicorn", "app.main:app",
-                "--host", "127.0.0.1", "--port", Integer.toString(port), "--log-level", "info"));
+                "--host", "127.0.0.1", "--port", Integer.toString(port), "--log-level", "info",
+                "--loop", "app.server_runtime:loop_factory"));
         if (new File(workDir, ".env").isFile()) cmd.addAll(List.of("--env-file", ".env"));
         return cmd;
     }

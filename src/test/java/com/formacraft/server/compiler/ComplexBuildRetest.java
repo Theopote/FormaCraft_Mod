@@ -13,7 +13,8 @@ class ComplexBuildRetest {
         return Stream.of("2","3.normalized","4.normalized","5.normalized",
                 "latest_1.normalized", "latest_2.normalized", "latest_3.normalized",
                 "latest_4.normalized", "latest_5.normalized", "latest_6.normalized",
-                "oct16_1.normalized", "oct16_2.normalized", "oct16_3.normalized", "oct16_4.normalized", "oct16_5.normalized").map(n -> DynamicTest.dynamicTest("logged plan " + n, () -> {
+                "oct16_1.normalized", "oct16_2.normalized", "oct16_3.normalized", "oct16_4.normalized", "oct16_5.normalized",
+                "oct17_1", "oct17_2").map(n -> DynamicTest.dynamicTest("logged plan " + n, () -> {
             var json = Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/" + n + ".json"));
             var plan = LlmPlanParser.parse(json);
             for (boolean postProcess : new boolean[]{false, true}) {

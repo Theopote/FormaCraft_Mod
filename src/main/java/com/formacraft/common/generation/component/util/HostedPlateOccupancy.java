@@ -70,6 +70,18 @@ public final class HostedPlateOccupancy {
         return Optional.of(level);
     }
 
+    /** Keep the authored deck when a legacy height is impossible as a storey index. */
+    public static int connectionY(Component plate, Component host, int floorHeight) {
+        int originY = ComponentFootprintUtil.resolveMinCornerOrigin(host).y();
+        int level = connectionLevel(plate.params()).orElse(0);
+        int storeyY = originY + level * floorHeight;
+        if (plate.relativePosition() != null && !endpointLevelMatches(storeyY, host)
+                && endpointLevelMatches(plate.relativePosition().y(), host)) {
+            return plate.relativePosition().y();
+        }
+        return storeyY;
+    }
+
     /**
      * Role-specific vertical envelope relative to host min-corner origin and height.
      * Bridge does not use a single-host height envelope (endpoints validated geometrically).

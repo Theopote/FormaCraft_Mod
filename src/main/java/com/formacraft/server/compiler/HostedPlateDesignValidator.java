@@ -46,7 +46,7 @@ final class HostedPlateDesignValidator {
             if (level.isPresent()) {
                 return level;
             }
-            Optional<CapabilityGap> endpoints = checkBridgeEndpoints(component, components);
+            Optional<CapabilityGap> endpoints = checkBridgeEndpoints(component, components, plan);
             if (endpoints.isPresent()) {
                 return endpoints;
             }
@@ -176,7 +176,7 @@ final class HostedPlateDesignValidator {
         return Optional.empty();
     }
 
-    private static Optional<CapabilityGap> checkBridgeEndpoints(Component plate, List<Component> components) {
+    private static Optional<CapabilityGap> checkBridgeEndpoints(Component plate, List<Component> components, LlmPlan plan) {
         var role = HostedPlateOccupancy.resolveRole(plate.params());
         if (role != HostedPlateOccupancy.PlateRole.BRIDGE) {
             return Optional.empty();
@@ -191,6 +191,12 @@ final class HostedPlateDesignValidator {
         if (host.isEmpty() || target.isEmpty()) {
             return Optional.empty();
         }
+        Map<String, com.formacraft.common.llm.dto.Slot> slots = new java.util.HashMap<>();
+        if (plan != null && plan.layout() != null && plan.layout().slots() != null) {
+            for (var slot : plan.layout().slots()) if (slot != null) slots.put(slot.slotId(), slot);
+        }
+        host = Optional.of(ComponentPlanCompiler.inSlotFrame(host.get(), plate.slotId(), slots));
+        target = Optional.of(ComponentPlanCompiler.inSlotFrame(target.get(), plate.slotId(), slots));
         var plateBounds = ComponentFootprintUtil.bounds(plate);
         var hostBounds = ComponentFootprintUtil.bounds(host.get());
         var targetBounds = ComponentFootprintUtil.bounds(target.get());
@@ -242,7 +248,7 @@ final class HostedPlateDesignValidator {
         if (origin == null || fh <= 0) {
             return Optional.empty();
         }
-        int expected = origin.y() + level.get() * fh;
+        int expected = HostedPlateOccupancy.connectionY(plate, host.get(), fh);
         if (plate.relativePosition().y() != expected) {
             return Optional.of(new CapabilityGap(
                     "E_BRIDGE_LEVEL_CONFLICT",
@@ -278,7 +284,7 @@ final class HostedPlateDesignValidator {
             return Optional.empty();
         }
         var envelope = HostedPlateOccupancy.levelEnvelope(
-                role, origin.y(), host.get().dimensions().height());
+                role, origin.y(), hostedEnvelopeHeight(host.get(), components));
         if (envelope == null) {
             return Optional.empty();
         }
@@ -319,11 +325,29 @@ final class HostedPlateDesignValidator {
         return Optional.empty();
     }
 
+    /** A stepped building's upper tiers extend the named root's interior envelope. */
+    static int hostedEnvelopeHeight(Component host, List<Component> components) {
+        int height = host.dimensions().height();
+        String id = paramString(host.params(), "component_id");
+        Vec3i origin = ComponentFootprintUtil.resolveMinCornerOrigin(host);
+        for (Component tier : components) {
+            if (tier == null || tier.dimensions() == null || tier.params() == null
+                    || !com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(tier)
+                    || !tier.params().containsKey("tier_index")
+                    || !java.util.Objects.equals(host.slotId(), tier.slotId())
+                    || !java.util.Objects.equals(id, paramString(tier.params(), "host_id"))) continue;
+            Vec3i tierOrigin = ComponentFootprintUtil.resolveMinCornerOrigin(tier);
+            if (tierOrigin != null) height = Math.max(height, tierOrigin.y() + tier.dimensions().height() - origin.y());
+        }
+        return height;
+    }
+
     private static boolean isHostedPlate(Component component) {
         if (component == null || component.params() == null) {
             return false;
         }
-        return "plate".equalsIgnoreCase(String.valueOf(component.params().get("extrude_mode")));
+        return com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(component)
+                && "plate".equalsIgnoreCase(String.valueOf(component.params().get("extrude_mode")));
     }
 
     private static boolean isMassType(String type) {

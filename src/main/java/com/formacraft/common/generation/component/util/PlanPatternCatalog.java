@@ -17,7 +17,7 @@ public final class PlanPatternCatalog {
 
     /** Tokens that resolve to {@link ResolvedFootprint.PlanPattern#NONE}. */
     public static final Set<String> NONE_TOKENS = Set.of(
-            "none", "rectangle", "rect", "box", "default"
+            "none", "rectangle", "rectangular", "rect", "box", "default"
     );
 
     public static final Set<String> CROSS_TOKENS = Set.of(

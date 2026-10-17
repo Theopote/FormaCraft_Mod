@@ -231,15 +231,18 @@ public final class BridgeWalkability {
         if (deck == null || !WalkabilityGraph.canStand(occ, deck)) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
-        StoreyGoals hostGoals = storeyGoalsPreferringInterior(occ, host, plateY, hostOffset);
+        int worldY = plateY + (plateOffset == null ? 0 : plateOffset.y());
+        int hostY = worldY - (hostOffset == null ? 0 : hostOffset.y());
+        int targetY = worldY - (targetOffset == null ? 0 : targetOffset.y());
+        StoreyGoals hostGoals = storeyGoalsPreferringInterior(occ, host, hostY, hostOffset);
         if (hostGoals.scanLimited()) {
             return BridgeWalkOutcome.regionScanLimit(
-                    precision, componentId(host), plateY, hostGoals.areaCells());
+                    precision, componentId(host), hostY, hostGoals.areaCells());
         }
-        StoreyGoals targetGoals = storeyGoalsPreferringInterior(occ, target, plateY, targetOffset);
+        StoreyGoals targetGoals = storeyGoalsPreferringInterior(occ, target, targetY, targetOffset);
         if (targetGoals.scanLimited()) {
             return BridgeWalkOutcome.regionScanLimit(
-                    precision, componentId(target), plateY, targetGoals.areaCells());
+                    precision, componentId(target), targetY, targetGoals.areaCells());
         }
         if (hostGoals.isEmpty() || targetGoals.isEmpty()) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);

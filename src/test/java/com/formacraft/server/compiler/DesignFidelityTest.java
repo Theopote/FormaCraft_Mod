@@ -713,12 +713,14 @@ class DesignFidelityTest {
     }
 
     @Test
-    void circulationAerialWingWithoutHostFails() throws Exception {
+    void circulationAerialWingWithoutHostPassesBuildingLocal() throws Exception {
         LlmPlan plan = loadFidelityPlan("circulation_aerial_wing_no_host.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+        // BUILDING_LOCAL starts at each independent mass's own ground storey,
+        // including elevated units (BuildingCirculationValidatorTest covers this policy).
+        assertFalse(patches.isEmpty());
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
     }
 
     @Test

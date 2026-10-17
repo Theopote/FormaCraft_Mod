@@ -22,6 +22,7 @@ final class SurfaceOwnershipLedger {
     boolean isProtectedFromWindows(Component writer, BlockPos position) {
         Surface surface = surfaces.get(position);
         return surface != null && (surface.role() == GeneratedSurfaceCapture.Role.ROOF
+                || surface.role() == GeneratedSurfaceCapture.Role.WALL && !buildingOwner(writer).equals(surface.owner())
                 || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
                 || surface.role() == GeneratedSurfaceCapture.Role.WINDOW && !surface.source().equals(surface.owner()));
     }

@@ -316,7 +316,7 @@ final class BuildingCirculationValidator {
             Vec3i targetOff = slotAnchorOrZero(slotMap, target.get().slotId(), zero);
             Vec3i plateOff = slotAnchorOrZero(slotMap, plate.slotId(), zero);
             BridgeWalkability.StoreyGoals targetGoals = BridgeWalkability.storeyGoalsPreferringInterior(
-                    occ, target.get(), plateY, targetOff);
+                    occ, target.get(), plateY + plateOff.y() - targetOff.y(), targetOff);
             if (targetGoals.scanLimited()) {
                 return regionScanLimit(targetId, plateY, targetGoals.areaCells(), precision);
             }

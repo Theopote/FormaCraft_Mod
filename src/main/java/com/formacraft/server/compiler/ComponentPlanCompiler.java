@@ -267,7 +267,7 @@ public final class ComponentPlanCompiler {
         PatchOccupancyIndex patchOccupancy;
         try {
             for (Component mass : components) {
-                if (mass != null && isMassType(normalizeType(mass.componentType()))) {
+                if (com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(mass)) {
                     com.formacraft.common.generation.component.util.BuildingGeometryContext.putMass(mass);
                 }
             }
@@ -762,10 +762,10 @@ public final class ComponentPlanCompiler {
                             };
                             hostMass.ifPresent(m -> addPortals.accept(
                                     com.formacraft.common.generation.component.util.HostedPlateOccupancy
-                                            .bridgePortalRemovals(c, m)));
+                                            .bridgePortalRemovals(c, inSlotFrame(m, c.slotId(), slotMap))));
                             targetMass.ifPresent(m -> addPortals.accept(
                                     com.formacraft.common.generation.component.util.HostedPlateOccupancy
-                                            .bridgePortalRemovals(c, m)));
+                                            .bridgePortalRemovals(c, inSlotFrame(m, c.slotId(), slotMap))));
                         }
                         shiftedPatches.removeIf(p -> {
                             if (BlockPatch.REMOVE.equals(p.action()) && bridge) {
@@ -995,6 +995,18 @@ public final class ComponentPlanCompiler {
         return true;
     }
 
+    static Component inSlotFrame(Component component, String slotId, Map<String, Slot> slotMap) {
+        Vec3i zero = new Vec3i(0, 0, 0);
+        Vec3i source = slotAnchorOrZero(slotMap, component.slotId(), zero);
+        Vec3i destination = slotAnchorOrZero(slotMap, slotId, zero);
+        Vec3i position = component.relativePosition();
+        if (position == null) return component;
+        return new Component(component.componentType(), slotId,
+                new Vec3i(position.x() + source.x() - destination.x(),
+                        position.y() + source.y() - destination.y(), position.z() + source.z() - destination.z()),
+                component.dimensions(), component.features(), component.params());
+    }
+
     private static Vec3i slotAnchorOrZero(Map<String, Slot> slotMap, String slotId, Vec3i zero) {
         if (slotMap == null || slotId == null) {
             return zero;
@@ -1193,6 +1205,7 @@ public final class ComponentPlanCompiler {
         components = AlignmentContractEnforcer.apply(plan, components);
         for (int i = 0; i < components.size(); i++) {
             Component slab = components.get(i);
+            if (!com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(slab)) continue;
             if (!"plate".equalsIgnoreCase(getParamString(slab.params(), "extrude_mode"))) continue;
             String host = getParamString(slab.params(), "host_id");
             for (Component body : components) {
@@ -1216,7 +1229,7 @@ public final class ComponentPlanCompiler {
                     plateY = origin.y() + level * fh;
                 } else if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.BRIDGE
                         && connectionLevel.isPresent()) {
-                    int expectedY = origin.y() + connectionLevel.get() * fh;
+                    int expectedY = com.formacraft.common.generation.component.util.HostedPlateOccupancy.connectionY(slab, body, fh);
                     if (isAutoInferred(slab)) {
                         plateY = expectedY;
                     } else if (pos.y() != expectedY) {
@@ -1232,7 +1245,7 @@ public final class ComponentPlanCompiler {
                     }
                 } else if (!isAutoInferred(slab)) {
                     var envelope = com.formacraft.common.generation.component.util.HostedPlateOccupancy
-                            .levelEnvelope(plateRole, origin.y(), body.dimensions().height());
+                            .levelEnvelope(plateRole, origin.y(), HostedPlateDesignValidator.hostedEnvelopeHeight(body, components));
                     if (envelope != null && !envelope.contains(plateY)) {
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
                                 "E_HOSTED_PLATE_LEVEL_CONFLICT",
@@ -1727,6 +1740,12 @@ public final class ComponentPlanCompiler {
             if (overhangExplicit) {
                 int existing = explicitOverhang != null ? explicitOverhang
                         : ComponentParamParsers.intParam(params, 0, ComponentParamParsers.keysFor("overhang"));
+                // Some model roofs include eaves around the unretreated host.
+                // Accept that exact representation without counting style setbacks as eaves.
+                if (existing > 0 && llmDims.width() == mass.dimensions().width() + 2 * existing
+                        && llmDims.depth() == mass.dimensions().depth() + 2 * existing) {
+                    bboxOverhang = existing;
+                }
                 if (bboxOverhang > 0 && existing != bboxOverhang) {
                     AssemblyCompileDiagnostics.set(new CapabilityGap(
                             "E_ROOF_OVERHANG_CONFLICT",
@@ -2772,8 +2791,16 @@ public final class ComponentPlanCompiler {
             params.put("compiler_connector_body", true);
             params.putIfAbsent("wall_thickness", 1);
             params.put("plan_type", "none");
+            // Unspecified-width covered links need one walkable cell between
+            // their walls. Do not let a two-cell model default seal the link.
+            Dimensions linkDims = component.dimensions();
+            int linkWall = ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness");
+            if (linkDims != null && linkWall > 0) {
+                linkDims = new Dimensions(Math.max(linkDims.width(), 2*linkWall+1),
+                        Math.max(linkDims.depth(), 2*linkWall+1), linkDims.height());
+            }
             component = new Component("MASS_SECONDARY", component.slotId(), component.relativePosition(),
-                    component.dimensions(), component.features(), params);
+                    linkDims, component.features(), params);
         }
         // allowUnknown：component_request/group_request，或显式地标/模块路由提示，
         // 都应保留原始 type（交由 UnifiedGeneratorRouter 的扩展/整栋回退处理）。

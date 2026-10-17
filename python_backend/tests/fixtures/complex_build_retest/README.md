@@ -27,3 +27,8 @@ and compiler. These are offline regressions, not in-game visual validation.
 Chinese villa, mountain hotel, stepped house, factory and coastal inn.
 The two provider timeouts produced no plan to replay. Normalized variants use
 the original request with the building contract and circulation normalizers.
+
+`oct17_1.json` and `oct17_2.json` are the Oct 17 18:02–18:03 responses:
+a villa with a two-cell-wide covered link and a mountain hotel using the
+`rectangular` plan alias. Java replays both raw responses with and without
+postprocessing to cover the reported wall-fit and unsupported-plan failures.

@@ -27,6 +27,7 @@ class LocalBackendLaunchTest {
         var cmd=LocalBackendLaunch.command("C:/Python folder/python.exe",directory.toFile(),8000);
         assertEquals("C:/Python folder/python.exe",cmd.getFirst());
         assertEquals("-m",cmd.get(1)); assertEquals("uvicorn",cmd.get(2));
+        assertEquals("app.server_runtime:loop_factory", cmd.get(cmd.indexOf("--loop")+1));
         assertFalse(cmd.contains("cmd")); assertFalse(cmd.contains("powershell"));
         assertFalse(cmd.contains("--env-file")); assertFalse(cmd.contains("--reload"));
     }
