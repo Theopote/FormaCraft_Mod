@@ -697,6 +697,33 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationAerialWingAttachedCompiles() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_aerial_wing_attached.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
+    void circulationAerialWingWithoutHostFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_aerial_wing_no_host.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void circulationScopeInvalidHardFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_scope_invalid.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_CIRCULATION_SCOPE_INVALID", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void bridgeEndpointLevelMismatchFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

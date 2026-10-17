@@ -1,10 +1,13 @@
 package com.formacraft.common.generation.design;
 
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.style.ExplicitDesignPolicy;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** Resolves facade/entrance/roof/crown/circulation requirement level from plan and mass params. */
 public final class DesignRequirementAccess {
@@ -86,15 +89,42 @@ public final class DesignRequirementAccess {
     }
 
     /**
-     * Connectivity scope when circulation is REQUIRED. Defaults to {@link CirculationScope#BUILDING_LOCAL}.
+     * Connectivity scope when circulation is REQUIRED.
+     * Key absent → {@link CirculationScope#BUILDING_LOCAL}. Key present must be valid
+     * (call {@link #validateCirculationScope} before trusting this under REQUIRED).
      */
     public static CirculationScope circulationScope(LlmPlan plan) {
         if (plan == null || plan.planMeta() == null) {
             return CirculationScope.BUILDING_LOCAL;
         }
+        if (!plan.planMeta().containsKey(CirculationScope.META_KEY)) {
+            return CirculationScope.BUILDING_LOCAL;
+        }
         Object raw = plan.planMeta().get(CirculationScope.META_KEY);
         CirculationScope parsed = CirculationScope.parse(raw == null ? null : String.valueOf(raw));
         return parsed == null ? CirculationScope.BUILDING_LOCAL : parsed;
+    }
+
+    /**
+     * When {@code plan_meta.circulation_scope} is present but not a known enum value,
+     * returns {@code E_CIRCULATION_SCOPE_INVALID} (no silent downgrade).
+     */
+    public static Optional<CapabilityGap> validateCirculationScope(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null
+                || !plan.planMeta().containsKey(CirculationScope.META_KEY)) {
+            return Optional.empty();
+        }
+        Object raw = plan.planMeta().get(CirculationScope.META_KEY);
+        String text = raw == null ? "" : String.valueOf(raw).trim();
+        if (CirculationScope.parse(text) != null) {
+            return Optional.empty();
+        }
+        return Optional.of(new CapabilityGap(
+                "E_CIRCULATION_SCOPE_INVALID",
+                "Unknown circulation_scope='" + text + "' (expected BUILDING_LOCAL or CONNECTED_COMPLEX)",
+                "plan_meta.circulation_scope",
+                List.of("Use BUILDING_LOCAL or CONNECTED_COMPLEX.",
+                        "Omit circulation_scope to default to BUILDING_LOCAL.")));
     }
 
     private static DesignRequirement fromPlanMeta(LlmPlan plan, String key) {

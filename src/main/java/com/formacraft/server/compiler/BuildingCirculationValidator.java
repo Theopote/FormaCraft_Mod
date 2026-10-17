@@ -23,10 +23,18 @@ import java.util.Optional;
 
 /**
  * When {@code design_requirements.circulation=REQUIRED}, prove storey / complex reachability
- * per {@link CirculationScope}. Bridge deck↔interiors remain always-on in the compiler.
+ * per {@link CirculationScope}. Attached masses ({@code host_id}) use the host ground as entry.
  */
 final class BuildingCirculationValidator {
     private BuildingCirculationValidator() {}
+
+    private record MassEntry(
+            Component mass,
+            Vec3i ownGroundOrNull,
+            Component hostOrNull,
+            Vec3i hostGroundOrNull,
+            boolean attached
+    ) {}
 
     static Optional<CapabilityGap> validate(
             LlmPlan plan,
@@ -39,6 +47,11 @@ final class BuildingCirculationValidator {
         }
         if (components == null || components.isEmpty() || patches == null || patches.isEmpty()) {
             return dataMissing("Circulation REQUIRED but compile produced no components/patches to verify.");
+        }
+
+        Optional<CapabilityGap> scopeGap = DesignRequirementAccess.validateCirculationScope(plan);
+        if (scopeGap.isPresent()) {
+            return scopeGap;
         }
 
         List<Component> circulationMasses = new ArrayList<>();
@@ -56,49 +69,90 @@ final class BuildingCirculationValidator {
         String precision = String.valueOf(occ.precision());
         Vec3i zero = new Vec3i(0, 0, 0);
 
-        record GroundedMass(Component mass, Vec3i ground) {}
-        List<GroundedMass> grounded = new ArrayList<>();
+        List<MassEntry> entries = new ArrayList<>();
+        Vec3i complexRoot = null;
+
         for (Component mass : circulationMasses) {
+            var attachment = MassComponentKinds.classifyAttachment(mass, circulationMasses);
+            if (attachment.kind() == MassComponentKinds.HostAttachment.UNRESOLVED_HOST) {
+                return incomplete(
+                        "Circulation mass host_id unresolved (component_id=" + componentId(mass)
+                                + ", host_id=" + MassComponentKinds.hostId(mass) + ", precision=" + precision + ")",
+                        "Point host_id at a circulation mass component_id, or omit host_id for an independent unit.");
+            }
+            boolean attached = attachment.kind() == MassComponentKinds.HostAttachment.ATTACHED;
             int groundY = groundStoreyY(mass);
-            Vec3i ground = shift(
+            Vec3i ownGround = shift(
                     BridgeWalkability.interiorFloorCell(mass, groundY),
                     slotAnchorOrZero(slotMap, mass.slotId(), zero));
-            if (ground == null || !WalkabilityGraph.canStand(occ, ground)) {
+            boolean ownStandable = ownGround != null && WalkabilityGraph.canStand(occ, ownGround);
+
+            Vec3i hostGround = null;
+            Component host = attachment.host();
+            if (attached) {
+                int hostY = groundStoreyY(host);
+                hostGround = shift(
+                        BridgeWalkability.interiorFloorCell(host, hostY),
+                        slotAnchorOrZero(slotMap, host.slotId(), zero));
+                if (hostGround == null || !WalkabilityGraph.canStand(occ, hostGround)) {
+                    return incomplete(
+                            "Attached mass host ground is not standable (component_id=" + componentId(mass)
+                                    + ", host_id=" + componentId(host) + ", precision=" + precision + ")",
+                            "Ensure the host mass has a walkable ground interior.");
+                }
+            } else if (!ownStandable) {
                 return incomplete(
                         "Mass ground interior is not a legal standing cell (component_id="
                                 + componentId(mass) + ", y=" + groundY + ", precision=" + precision + ")",
-                        "Add a solid floor with 2-high clearance at the ground storey interior.");
+                        "Add a solid floor with 2-high clearance at the ground storey interior, "
+                                + "or set host_id if this is an attached aerial mass.");
             }
-            grounded.add(new GroundedMass(mass, ground));
+
+            if (!attached && ownStandable && complexRoot == null) {
+                complexRoot = ownGround;
+            }
+            entries.add(new MassEntry(
+                    mass,
+                    ownStandable ? ownGround : null,
+                    host,
+                    hostGround,
+                    attached));
         }
 
-        Vec3i complexRoot = grounded.getFirst().ground();
+        if (complexRoot == null) {
+            return dataMissing(
+                    "Circulation REQUIRED but no independent mass has a standable ground entry.");
+        }
 
-        if (scope == CirculationScope.CONNECTED_COMPLEX && grounded.size() >= 2) {
-            // One network seeded from the first mass ground: each other mass must expose
-            // at least one standable storey sample reachable from root (upper-only bridges OK).
-            for (int i = 1; i < grounded.size(); i++) {
-                GroundedMass gm = grounded.get(i);
+        if (scope == CirculationScope.CONNECTED_COMPLEX && circulationMasses.size() >= 2) {
+            for (MassEntry entry : entries) {
+                if (entry.ownGroundOrNull() != null && entry.ownGroundOrNull().equals(complexRoot)
+                        && !entry.attached()) {
+                    continue;
+                }
                 Optional<CapabilityGap> join = massJoinsComplexFromRoot(
-                        occ, complexRoot, gm.mass(), slotMap, zero, precision);
+                        occ, complexRoot, entry.mass(), slotMap, zero, precision);
                 if (join.isPresent()) {
                     return join;
                 }
             }
         }
 
-        for (GroundedMass gm : grounded) {
-            Component mass = gm.mass();
+        for (MassEntry entry : entries) {
+            Component mass = entry.mass();
             if (!MassComponentKinds.isStoreyedCirculationMass(mass)) {
                 continue;
             }
             int envelope = Math.max(1, mass.dimensions().height());
             ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
             Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
-            // LOCAL: own ground. COMPLEX: single complex root (unified network).
-            List<Vec3i> storeyGrounds = scope == CirculationScope.CONNECTED_COMPLEX
-                    ? List.of(complexRoot)
-                    : List.of(gm.ground());
+            List<Vec3i> storeyGrounds = storeyEntryPoints(scope, entry, complexRoot);
+            if (storeyGrounds.isEmpty()) {
+                return incomplete(
+                        "No circulation entry for storeyed mass (component_id=" + componentId(mass)
+                                + ", precision=" + precision + ")",
+                        "Provide a standable ground or a host_id with a walkable host ground.");
+            }
             for (int i = 1; i < layout.floorYs().size(); i++) {
                 int storeyY = layout.floorYs().get(i);
                 Vec3i goal = shift(BridgeWalkability.interiorFloorCell(mass, storeyY), massOff);
@@ -171,6 +225,20 @@ final class BuildingCirculationValidator {
             }
         }
         return Optional.empty();
+    }
+
+    private static List<Vec3i> storeyEntryPoints(CirculationScope scope, MassEntry entry, Vec3i complexRoot) {
+        if (scope == CirculationScope.CONNECTED_COMPLEX) {
+            return List.of(complexRoot);
+        }
+        List<Vec3i> entries = new ArrayList<>();
+        if (entry.attached() && entry.hostGroundOrNull() != null) {
+            entries.add(entry.hostGroundOrNull());
+        }
+        if (entry.ownGroundOrNull() != null) {
+            entries.add(entry.ownGroundOrNull());
+        }
+        return entries;
     }
 
     private static Optional<CapabilityGap> massJoinsComplexFromRoot(
@@ -260,7 +328,7 @@ final class BuildingCirculationValidator {
                 "Storey not reachable (component_id=" + massId + ", toY=" + storeyY
                         + ", scope=" + scope + ", precision=" + precision + ")",
                 scope == CirculationScope.BUILDING_LOCAL
-                        ? "Add stairs inside this mass, or use CONNECTED_COMPLEX with linking bridges."
+                        ? "Add stairs inside this mass, attach via host_id, or use CONNECTED_COMPLEX with bridges."
                         : "Add stairs or bridge access so each design storey joins the complex network.");
     }
 

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DesignRequirementAccessTest {
 
@@ -59,5 +60,31 @@ class DesignRequirementAccessTest {
                 .planMeta(Map.of("circulation_scope", "CONNECTED_COMPLEX"))
                 .build();
         assertEquals(CirculationScope.CONNECTED_COMPLEX, DesignRequirementAccess.circulationScope(plan));
+    }
+
+    @Test
+    void validateCirculationScopeRejectsTypo() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("circulation_scope", "CONNECTED_COMPLES"))
+                .build();
+        var gap = DesignRequirementAccess.validateCirculationScope(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_CIRCULATION_SCOPE_INVALID", gap.get().code());
+    }
+
+    @Test
+    void validateCirculationScopeAllowsAbsentKey() {
+        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        assertTrue(DesignRequirementAccess.validateCirculationScope(plan).isEmpty());
+    }
+
+    @Test
+    void validateCirculationScopeRejectsBlank() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("circulation_scope", "  "))
+                .build();
+        var gap = DesignRequirementAccess.validateCirculationScope(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_CIRCULATION_SCOPE_INVALID", gap.get().code());
     }
 }
