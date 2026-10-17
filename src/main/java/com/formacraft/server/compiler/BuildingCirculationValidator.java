@@ -36,7 +36,10 @@ final class BuildingCirculationValidator {
             Component hostOrNull,
             Vec3i rootGroundOrNull,
             boolean attached,
-            List<Vec3i> entries
+            /** Host-link / bridge starts — never includes ownGround for attached masses. */
+            List<Vec3i> hostLinkEntries,
+            /** Internal storey checks — root + own when standable. */
+            List<Vec3i> localEntries
     ) {}
 
     static Optional<CapabilityGap> validate(
@@ -144,8 +147,10 @@ final class BuildingCirculationValidator {
                             "Ensure the independent host mass has a walkable ground interior.");
                 }
             }
-            List<Vec3i> entryPoints = buildEntryPoints(scope, attached, rootGround, ownGround, complexRoot);
-            MassEntry entry = new MassEntry(mass, ownGround, directHost, rootGround, attached, entryPoints);
+            List<Vec3i> hostLink = buildHostLinkEntries(scope, attached, rootGround, ownGround, complexRoot);
+            List<Vec3i> local = buildLocalEntries(scope, attached, rootGround, ownGround, complexRoot);
+            MassEntry entry = new MassEntry(
+                    mass, ownGround, directHost, rootGround, attached, hostLink, local);
             entries.add(entry);
             byId.put(componentId(mass), entry);
         }
@@ -164,12 +169,12 @@ final class BuildingCirculationValidator {
             }
         }
 
-        // Attached masses (incl. single-storey): prove path from entries to a standable sample
+        // Attached: prove host-root → standable sample (never start from ownGround)
         for (MassEntry entry : entries) {
             if (!entry.attached()) {
                 continue;
             }
-            if (entry.entries().isEmpty()) {
+            if (entry.hostLinkEntries().isEmpty()) {
                 return incomplete(
                         "No circulation entry for attached mass (component_id=" + componentId(entry.mass())
                                 + ", precision=" + precision + ")",
@@ -183,7 +188,7 @@ final class BuildingCirculationValidator {
                         "Ensure the attached mass has a solid floor with clearance at an interior cell.");
             }
             Optional<CapabilityGap> attachedGap = reachFromAnyGround(
-                    occ, entry.entries(), goal, componentId(entry.mass()), goal.y(), precision, scope,
+                    occ, entry.hostLinkEntries(), goal, componentId(entry.mass()), goal.y(), precision, scope,
                     "Attached mass not reachable from host entry (component_id="
                             + componentId(entry.mass()) + ", toY=" + goal.y()
                             + ", scope=" + scope + ", precision=" + precision + ")",
@@ -201,7 +206,7 @@ final class BuildingCirculationValidator {
             int envelope = Math.max(1, mass.dimensions().height());
             ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
             Vec3i massOff = slotAnchorOrZero(slotMap, mass.slotId(), zero);
-            List<Vec3i> storeyGrounds = entry.entries();
+            List<Vec3i> storeyGrounds = entry.localEntries();
             if (storeyGrounds.isEmpty()) {
                 return incomplete(
                         "No circulation entry for storeyed mass (component_id=" + componentId(mass)
@@ -288,7 +293,25 @@ final class BuildingCirculationValidator {
         return Optional.empty();
     }
 
-    private static List<Vec3i> buildEntryPoints(
+    /** Starts for host-link proof and bridges — attached masses exclude ownGround. */
+    private static List<Vec3i> buildHostLinkEntries(
+            CirculationScope scope,
+            boolean attached,
+            Vec3i rootGround,
+            Vec3i ownGround,
+            Vec3i complexRoot
+    ) {
+        if (scope == CirculationScope.CONNECTED_COMPLEX) {
+            return List.of(complexRoot);
+        }
+        if (attached) {
+            return rootGround == null ? List.of() : List.of(rootGround);
+        }
+        return ownGround == null ? List.of() : List.of(ownGround);
+    }
+
+    /** Starts for internal storey checks after host-link is proven. */
+    private static List<Vec3i> buildLocalEntries(
             CirculationScope scope,
             boolean attached,
             Vec3i rootGround,
@@ -318,8 +341,8 @@ final class BuildingCirculationValidator {
             CirculationScope scope
     ) {
         MassEntry hostEntry = byId.get(componentId(host));
-        if (hostEntry != null && !hostEntry.entries().isEmpty()) {
-            return hostEntry.entries();
+        if (hostEntry != null && !hostEntry.hostLinkEntries().isEmpty()) {
+            return hostEntry.hostLinkEntries();
         }
         if (scope == CirculationScope.CONNECTED_COMPLEX && complexRoot != null) {
             return List.of(complexRoot);

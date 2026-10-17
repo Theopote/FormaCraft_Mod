@@ -775,10 +775,7 @@ public final class ComponentPlanCompiler {
                             if (host != null && (host.equals(ownerId) || host.equals(ownerHost))) {
                                 return false;
                             }
-                            if (bridge && target != null && (target.equals(ownerId) || target.equals(ownerHost))) {
-                                return false;
-                            }
-                            return true;
+                            return !bridge || target == null || (!target.equals(ownerId) && !target.equals(ownerHost));
                         });
                     }
                     if ("DECOR_DETAIL".equals(normalizedType)) {

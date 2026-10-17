@@ -169,7 +169,7 @@ public final class MassComponentKinds {
                 return cycle;
             }
         }
-        path.remove(path.size() - 1);
+        path.removeLast();
         stack.remove(node);
         return Optional.empty();
     }

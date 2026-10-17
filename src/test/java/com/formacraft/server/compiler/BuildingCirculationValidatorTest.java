@@ -258,6 +258,155 @@ class BuildingCirculationValidatorTest {
     }
 
     @Test
+    void attachedWingOwnGroundButDisconnectedFails() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(20, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "wing", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        // Both have standable grounds; no corridor between them
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 2, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 21, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 22, 0, 4, "minecraft:oak_planks"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+        assertTrue(gap.get().message().toLowerCase().contains("attached")
+                || gap.get().message().contains("wing"));
+    }
+
+    @Test
+    void attachedWingOwnGroundConnectedPasses() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_WING", "wing", new Vec3i(20, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "wing", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 22; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, wing), patches, Map.of());
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
+    }
+
+    @Test
+    void hostIdTriangleCycleHardFails() {
+        Component a = new Component(
+                "MASS_MAIN", "a", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "a", "host_id", "b", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        Component b = new Component(
+                "MASS_MAIN", "b", new Vec3i(16, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "b", "host_id", "c", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        Component c = new Component(
+                "MASS_MAIN", "c", new Vec3i(32, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "c", "host_id", "a", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 17, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 33, 0, 4, "minecraft:oak_planks"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(a, b, c))
+                .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(a, b, c), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_CIRCULATION_HOST_CYCLE", gap.get().code());
+    }
+
+    @Test
+    void hostIdSelfReferenceIsUnresolved() {
+        Component a = new Component(
+                "MASS_MAIN", "a", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "a", "host_id", "a", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(a))
+                .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(a), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+        assertTrue(gap.get().message().toLowerCase().contains("host"));
+    }
+
+    @Test
+    void hostIdChainConnectedPasses() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component mid = new Component(
+                "MASS_WING", "mid", new Vec3i(12, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "mid", "host_id", "hall", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        Component tip = new Component(
+                "MASS_WING", "tip", new Vec3i(24, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "tip", "host_id", "mid", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        for (int x = 1; x <= 26; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, mid, tip))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "BUILDING_LOCAL"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, mid, tip), patches, Map.of());
+        assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
+    }
+
+    @Test
+    void hostIdChainMidUnresolvedFails() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "hall", "wall_thickness", 1, "floor_count", 1, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component tip = new Component(
+                "MASS_WING", "tip", new Vec3i(24, 0, 0), new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "tip", "host_id", "missing_mid", "wall_thickness", 1,
+                        "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
+        patches.add(new BlockPatch(BlockPatch.PLACE, 25, 0, 4, "minecraft:oak_planks"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(hall, tip))
+                .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(hall, tip), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+        assertTrue(gap.get().message().toLowerCase().contains("host"));
+    }
+
+    @Test
     void aerialWingWithoutHostRequiresOwnGround() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(8, 8, 8), List.of(),
