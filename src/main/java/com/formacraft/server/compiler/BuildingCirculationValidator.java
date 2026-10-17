@@ -261,9 +261,9 @@ final class BuildingCirculationValidator {
             }
         }
 
-        // Independent masses: full region proof under BUILDING_LOCAL (incl. single-storey ground).
-        // CONNECTED_COMPLEX storeyed masses keep upper-only checks — join may be bridge-at-level
-        // while grounds stay separate (massJoinsComplexFromRoot already proved some storey joins).
+        // Independent masses: every standable region on every design storey (incl. ground).
+        // BUILDING_LOCAL starts at ownGround; CONNECTED_COMPLEX at complexRoot (join may be via
+        // bridge level — massJoinsComplexFromRoot is an early complex-join gate only).
         for (MassEntry entry : entries) {
             if (entry.attached()) {
                 continue;
@@ -276,57 +276,26 @@ final class BuildingCirculationValidator {
                                 + ", precision=" + precision + ")",
                         "Provide a standable ground interior for this mass.");
             }
-            boolean storeyed = MassComponentKinds.isStoreyedCirculationMass(mass);
-            boolean fullRegionProof = scope == CirculationScope.BUILDING_LOCAL || !storeyed;
-            if (fullRegionProof) {
-                var goalsOrGap = allStandableRegionGoals(occ, mass, slotMap, zero, precision);
-                if (goalsOrGap.gap().isPresent()) {
-                    return goalsOrGap.gap();
-                }
-                List<Vec3i> goals = goalsOrGap.goals();
-                if (goals.isEmpty()) {
-                    return incomplete(
-                            "Independent mass has no standable region (component_id="
-                                    + componentId(mass) + ", precision=" + precision + ")",
-                            "Ensure each design storey has a solid floor and clearance at interior cells.");
-                }
-                Optional<CapabilityGap> regionGap = reachAllGoals(
-                        occ, starts, goals, componentId(mass), precision, scope,
-                        "Standable region not reachable from mass entry (component_id="
-                                + componentId(mass) + ", scope=" + scope + ", precision=" + precision + ")",
-                        scope == CirculationScope.BUILDING_LOCAL
-                                ? "Connect interior rooms with openings/corridors/stairs, or set circulation=OMITTED."
-                                : "Join each standable region to the complex network with stairs or bridges.");
-                if (regionGap.isPresent()) {
-                    return regionGap;
-                }
-                continue;
+            var goalsOrGap = allStandableRegionGoals(occ, mass, slotMap, zero, precision);
+            if (goalsOrGap.gap().isPresent()) {
+                return goalsOrGap.gap();
             }
-            int envelope = Math.max(1, mass.dimensions().height());
-            ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, envelope);
-            int originY = mass.relativePosition() == null ? 0 : mass.relativePosition().y();
-            for (int i = 1; i < layout.floorYs().size(); i++) {
-                int relY = layout.floorYs().get(i);
-                int absY = originY + relY;
-                var goalsOrGap = regionGoalsAtY(occ, mass, absY, slotMap, zero, precision);
-                if (goalsOrGap.gap().isPresent()) {
-                    return goalsOrGap.gap();
-                }
-                List<Vec3i> goals = goalsOrGap.goals();
-                if (goals.isEmpty()) {
-                    return incomplete(
-                            "Mass storey interior is not a legal standing cell (component_id="
-                                    + componentId(mass) + ", y=" + absY + ", precision=" + precision + ")",
-                            "Ensure each design storey has a solid floor and clearance at the interior sample.");
-                }
-                Optional<CapabilityGap> storeyGap = reachAllGoals(
-                        occ, starts, goals, componentId(mass), precision, scope,
-                        "Storey not reachable (component_id=" + componentId(mass) + ", toY=" + absY
-                                + ", scope=" + scope + ", precision=" + precision + ")",
-                        "Add stairs or bridge access so each design storey joins the complex network.");
-                if (storeyGap.isPresent()) {
-                    return storeyGap;
-                }
+            List<Vec3i> goals = goalsOrGap.goals();
+            if (goals.isEmpty()) {
+                return incomplete(
+                        "Independent mass has no standable region (component_id="
+                                + componentId(mass) + ", precision=" + precision + ")",
+                        "Ensure each design storey has a solid floor and clearance at interior cells.");
+            }
+            Optional<CapabilityGap> regionGap = reachAllGoals(
+                    occ, starts, goals, componentId(mass), precision, scope,
+                    "Standable region not reachable from mass entry (component_id="
+                            + componentId(mass) + ", scope=" + scope + ", precision=" + precision + ")",
+                    scope == CirculationScope.BUILDING_LOCAL
+                            ? "Connect interior rooms with openings/corridors/stairs, or set circulation=OMITTED."
+                            : "Join each standable region to the complex network with stairs or bridges.");
+            if (regionGap.isPresent()) {
+                return regionGap;
             }
         }
 

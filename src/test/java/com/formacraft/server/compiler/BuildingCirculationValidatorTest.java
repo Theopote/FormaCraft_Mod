@@ -701,4 +701,60 @@ class BuildingCirculationValidatorTest {
         var gap = BuildingCirculationValidator.validate(plan, List.of(hall), patches, Map.of());
         assertTrue(gap.isEmpty(), () -> gap.map(Object::toString).orElse(""));
     }
+
+    @Test
+    void connectedComplexMultistoreyGroundPartitionFails() {
+        // Two 2-storey independents joined at L2; alpha ground has an isolated pocket.
+        Component alpha = new Component(
+                "MASS_MAIN", "alpha", new Vec3i(0, 0, 0), new Dimensions(14, 8, 10), List.of(),
+                Map.of("component_id", "alpha", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        Component beta = new Component(
+                "MASS_MAIN", "beta", new Vec3i(24, 0, 0), new Dimensions(10, 8, 10), List.of(),
+                Map.of("component_id", "beta", "wall_thickness", 1, "floor_count", 2, "floor_height", 4,
+                        "anchor_mode", "min_corner"));
+        List<BlockPatch> patches = new ArrayList<>();
+        // Alpha ground left room (entry + stair) — gap x=5..8 — right pocket unreachable
+        for (int x = 1; x <= 4; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        for (int x = 9; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        // Alpha stairs left room → L2
+        int[][] alphaSteps = {{3, 0}, {4, 1}, {5, 2}, {6, 3}, {7, 4}};
+        for (int[] s : alphaSteps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
+        }
+        // Alpha L2 floor (connected) + bridge to beta L2
+        for (int x = 1; x <= 12; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+        }
+        for (int x = 13; x <= 24; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+        }
+        // Beta L2 + ground + stairs
+        for (int x = 25; x <= 32; x++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 4, 4, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
+        }
+        int[][] betaSteps = {{27, 0}, {28, 1}, {29, 2}, {30, 3}, {31, 4}};
+        for (int[] s : betaSteps) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
+        }
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(alpha, beta))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of("circulation", "REQUIRED"),
+                        "circulation_scope", "CONNECTED_COMPLEX"))
+                .build();
+        var gap = BuildingCirculationValidator.validate(plan, List.of(alpha, beta), patches, Map.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", gap.get().code());
+    }
 }

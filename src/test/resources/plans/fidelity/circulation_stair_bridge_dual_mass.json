@@ -37,7 +37,7 @@
       "component_type": "MASS_MAIN",
       "slot_id": "wing",
       "relative_position": { "x": 12, "y": 0, "z": 0 },
-      "dimensions": { "width": 8, "depth": 8, "height": 12 },
+      "dimensions": { "width": 10, "depth": 8, "height": 12 },
       "features": [],
       "params": {
         "component_id": "wing",
@@ -61,6 +61,24 @@
       "params": {
         "component_id": "hall_stair",
         "host_id": "hall",
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 4, "y": 4, "z": 0 },
+        "width": 2,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 3,
+        "landing_length": 2
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "wing",
+      "relative_position": { "x": 14, "y": 0, "z": 3 },
+      "dimensions": { "width": 6, "depth": 2, "height": 6 },
+      "features": ["stair:straight_single_run"],
+      "params": {
+        "component_id": "wing_stair",
+        "host_id": "wing",
         "from": { "x": 0, "y": 0, "z": 0 },
         "to": { "x": 4, "y": 4, "z": 0 },
         "width": 2,
