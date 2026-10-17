@@ -75,4 +75,83 @@ class BuildingCirculationWalkTest {
                 WalkabilityGraph.search(
                         occ, new Vec3i(0, 0, 0), new Vec3i(12, 1, 0), 64, null));
     }
+
+    @Test
+    void lShapedUpperCorridorIsReachable() {
+        List<BlockPatch> patches = new ArrayList<>();
+        placeFloor(patches, 0, 3, 1, 0, "minecraft:oak_planks");
+        for (int z = 1; z <= 3; z++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, 3, 1, z, "minecraft:oak_planks"));
+        }
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE,
+                WalkabilityGraph.search(
+                        occ, new Vec3i(0, 1, 0), new Vec3i(3, 1, 3), 32, null));
+    }
+
+    @Test
+    void blockedLTurnCornerIsUnreachable() {
+        List<BlockPatch> patches = new ArrayList<>();
+        placeFloor(patches, 0, 3, 1, 0, "minecraft:oak_planks");
+        for (int z = 1; z <= 3; z++) {
+            patches.add(new BlockPatch(BlockPatch.PLACE, 3, 1, z, "minecraft:oak_planks"));
+        }
+        // Remove corner pivot (3,1,0) so arms do not meet
+        patches.removeIf(p -> p.dx() == 3 && p.dy() == 1 && p.dz() == 0);
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertEquals(WalkabilityGraph.ReachResult.UNREACHABLE,
+                WalkabilityGraph.search(
+                        occ, new Vec3i(0, 1, 0), new Vec3i(3, 1, 3), 32, null));
+    }
+
+    @Test
+    void slabBottomToFullFloorSplitLevelConnects() {
+        List<BlockPatch> patches = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_slab[half=bottom]"),
+                new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:oak_planks")
+        );
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE,
+                WalkabilityGraph.search(
+                        occ, new Vec3i(0, 0, 0), new Vec3i(1, 0, 0), 8, null));
+    }
+
+    @Test
+    void twoBlockDropWithoutMidStepIsUnreachable() {
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 2, 0, "minecraft:oak_planks"),
+                new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:oak_planks")
+        ));
+        assertEquals(WalkabilityGraph.ReachResult.UNREACHABLE,
+                WalkabilityGraph.search(
+                        occ, new Vec3i(0, 2, 0), new Vec3i(1, 0, 0), 16, null));
+    }
+
+    @Test
+    void multiStoreyStairChainIsReachable() {
+        List<BlockPatch> patches = new ArrayList<>();
+        placeFloor(patches, 0, 1, 0, 0, "minecraft:oak_planks");
+        patches.add(new BlockPatch(BlockPatch.PLACE, 2, 0, 0, "minecraft:oak_stairs[facing=east,half=bottom]"));
+        placeFloor(patches, 3, 4, 1, 0, "minecraft:oak_planks");
+        patches.add(new BlockPatch(BlockPatch.PLACE, 5, 1, 0, "minecraft:oak_stairs[facing=east,half=bottom]"));
+        placeFloor(patches, 6, 7, 2, 0, "minecraft:oak_planks");
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE,
+                WalkabilityGraph.search(
+                        occ, new Vec3i(0, 0, 0), new Vec3i(7, 2, 0), 64, null));
+    }
+
+    @Test
+    void multiStoreyMissingMidFloorIsUnreachable() {
+        List<BlockPatch> patches = new ArrayList<>();
+        placeFloor(patches, 0, 1, 0, 0, "minecraft:oak_planks");
+        patches.add(new BlockPatch(BlockPatch.PLACE, 2, 0, 0, "minecraft:oak_stairs[facing=east,half=bottom]"));
+        // Skip y=1 corridor — jump to y=2 only
+        patches.add(new BlockPatch(BlockPatch.PLACE, 5, 1, 0, "minecraft:oak_stairs[facing=east,half=bottom]"));
+        placeFloor(patches, 6, 7, 2, 0, "minecraft:oak_planks");
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches);
+        assertEquals(WalkabilityGraph.ReachResult.UNREACHABLE,
+                WalkabilityGraph.search(
+                        occ, new Vec3i(0, 0, 0), new Vec3i(7, 2, 0), 64, null));
+    }
 }

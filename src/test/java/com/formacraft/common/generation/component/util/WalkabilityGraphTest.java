@@ -309,12 +309,75 @@ class WalkabilityGraphTest {
     }
 
     @Test
-    void searchDetailedCarriesBlockStatePrecision() {
+    void adaptiveBudgetClampsHugeManhattanAndVolume() {
+        Vec3i start = new Vec3i(0, 0, 0);
+        Vec3i goal = new Vec3i(1_000_000, 500_000, 1_000_000);
+        var bounds = new ComponentFootprintUtil.Bounds(
+                0, 0, 0, 100_000, 100_000, 100_000);
+        var budget = WalkabilityGraph.adaptiveBudget(start, goal, bounds);
+        assertTrue(budget.maxDepth() > 0);
+        assertTrue(budget.maxVisits() > 0);
+        assertEquals(WalkabilityGraph.GLOBAL_MAX_DEPTH, budget.maxDepth());
+        // 4 * GLOBAL_MAX_DEPTH = 32768 < GLOBAL_MAX_VISITS; must not int-wrap to a tiny value
+        assertEquals(4 * WalkabilityGraph.GLOBAL_MAX_DEPTH, budget.maxVisits());
+        assertTrue(budget.maxVisits() <= WalkabilityGraph.GLOBAL_MAX_VISITS);
+    }
+
+    @Test
+    void adaptiveBudgetKeepsSmallSpanFloors() {
+        var budget = WalkabilityGraph.adaptiveBudget(
+                new Vec3i(0, 4, 0), new Vec3i(12, 4, 0), null);
+        assertTrue(budget.maxDepth() >= 512);
+        assertTrue(budget.maxVisits() >= 4096);
+        assertTrue(budget.maxDepth() <= WalkabilityGraph.GLOBAL_MAX_DEPTH);
+        assertTrue(budget.maxVisits() <= WalkabilityGraph.GLOBAL_MAX_VISITS);
+    }
+
+    @Test
+    void ofDepthClampsToGlobalMax() {
+        var budget = WalkabilityGraph.SearchBudget.ofDepth(Integer.MAX_VALUE);
+        assertEquals(WalkabilityGraph.GLOBAL_MAX_DEPTH, budget.maxDepth());
+        assertEquals(4 * WalkabilityGraph.GLOBAL_MAX_DEPTH, budget.maxVisits());
+    }
+
+    @Test
+    void searchBudgetConstructorClampsExplicitVisits() {
+        var budget = new WalkabilityGraph.SearchBudget(
+                WalkabilityGraph.GLOBAL_MAX_DEPTH + 999,
+                WalkabilityGraph.GLOBAL_MAX_VISITS + 999);
+        assertEquals(WalkabilityGraph.GLOBAL_MAX_DEPTH, budget.maxDepth());
+        assertEquals(WalkabilityGraph.GLOBAL_MAX_VISITS, budget.maxVisits());
+    }
+
+    @Test
+    void preferRegistryFalseIsFastPrecision() {
+        List<BlockPatch> patches = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_planks")
+        );
+        assertEquals(PlannedOccupancy.WalkabilityPrecision.FAST,
+                PlannedOccupancy.fromPatches(patches, false).precision());
+    }
+
+    @Test
+    void preferRegistryWithUnparseableIdIsMixed() {
+        List<BlockPatch> patches = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_planks"),
+                new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "formacraft:not_a_real_block_zzz")
+        );
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
+        assertEquals(PlannedOccupancy.WalkabilityPrecision.MIXED, occ.precision(),
+                "registry fallback must not claim BLOCKSTATE");
+    }
+
+    @Test
+    void preferRegistryAllParsedIsBlockStateWhenRegistryLive() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
         List<BlockPatch> patches = List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_planks"),
                 new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:oak_planks")
         );
         PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
+        assertEquals(PlannedOccupancy.WalkabilityPrecision.BLOCKSTATE, occ.precision());
         var outcome = WalkabilityGraph.searchDetailed(
                 occ, new Vec3i(0, 0, 0), new Vec3i(1, 0, 0),
                 new WalkabilityGraph.SearchBudget(8, 16), null);

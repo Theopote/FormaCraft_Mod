@@ -628,6 +628,63 @@ class DesignFidelityTest {
     }
 
     @Test
+    void circulationStairBridgeDualMassReachesWingFromGround() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_stair_bridge_dual_mass.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Component plate = plan.components().stream()
+                .filter(c -> c != null && "plate".equalsIgnoreCase(String.valueOf(
+                        c.params() == null ? null : c.params().get("extrude_mode"))))
+                .findFirst().orElseThrow();
+        Component hall = plan.components().stream()
+                .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        Component wing = plan.components().stream()
+                .filter(c -> "wing".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
+        assertTrue(com.formacraft.common.generation.component.util.BridgeWalkability
+                        .bridgeConnectsInteriors(occ, plate, hall, wing),
+                "bridge deck must still connect both interiors");
+        Vec3i ground = com.formacraft.common.generation.component.util.BridgeWalkability
+                .interiorFloorCell(hall, 0);
+        Vec3i wingUpper = com.formacraft.common.generation.component.util.BridgeWalkability
+                .interiorFloorCell(wing, 4);
+        assertNotNull(ground);
+        assertNotNull(wingUpper);
+        assertEquals(
+                com.formacraft.common.generation.component.util.WalkabilityGraph.ReachResult.REACHABLE,
+                com.formacraft.common.generation.component.util.WalkabilityGraph.search(
+                        occ, ground, wingUpper, 256, null),
+                "compiled stair + bridge must walk hall ground → wing bridge storey");
+    }
+
+    @Test
+    void circulationMissingStairCannotReachWingFromGround() throws Exception {
+        LlmPlan plan = loadFidelityPlan("circulation_stair_bridge_missing_stair.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Component hall = plan.components().stream()
+                .filter(c -> "hall".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        Component wing = plan.components().stream()
+                .filter(c -> "wing".equals(c.params().get("component_id"))).findFirst().orElseThrow();
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(patches);
+        Vec3i ground = com.formacraft.common.generation.component.util.BridgeWalkability
+                .interiorFloorCell(hall, 0);
+        Vec3i wingUpper = com.formacraft.common.generation.component.util.BridgeWalkability
+                .interiorFloorCell(wing, 4);
+        assertEquals(
+                com.formacraft.common.generation.component.util.WalkabilityGraph.ReachResult.UNREACHABLE,
+                com.formacraft.common.generation.component.util.WalkabilityGraph.search(
+                        occ, ground, wingUpper, 256, null),
+                "without stair, ground must not reach bridge-storey wing");
+    }
+
+    @Test
     void bridgeEndpointLevelMismatchFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("bridge_endpoint_level_mismatch.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

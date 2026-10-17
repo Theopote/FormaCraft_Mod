@@ -76,12 +76,14 @@ public final class PlannedOccupancy {
 
     /**
      * Fast = string/type profiles + height table.
-     * BlockState = registry-refined classification (compile).
-     * Neither is VoxelShape / player-AABB collision proof.
+     * BlockState = every PLACE cell resolved via registry BlockState.
+     * Mixed = preferRegistry path with at least one string-heuristic fallback.
+     * None is VoxelShape / player-AABB collision proof.
      */
     public enum WalkabilityPrecision {
         FAST,
-        BLOCKSTATE
+        BLOCKSTATE,
+        MIXED
     }
 
     /**
@@ -128,24 +130,64 @@ public final class PlannedOccupancy {
 
     public static PlannedOccupancy fromPatches(Iterable<BlockPatch> patches, boolean preferRegistry) {
         Map<Vec3i, CollisionProfile> cells = new HashMap<>();
-        WalkabilityPrecision precision = preferRegistry
-                ? WalkabilityPrecision.BLOCKSTATE
-                : WalkabilityPrecision.FAST;
-        if (patches == null) {
-            return new PlannedOccupancy(cells, precision);
-        }
-        for (BlockPatch patch : patches) {
-            if (patch == null) {
-                continue;
+        if (!preferRegistry) {
+            if (patches != null) {
+                for (BlockPatch patch : patches) {
+                    if (patch == null) {
+                        continue;
+                    }
+                    Vec3i pos = new Vec3i(patch.dx(), patch.dy(), patch.dz());
+                    if (BlockPatch.REMOVE.equals(patch.action()) || isAirId(patch.targetBlock())) {
+                        cells.put(pos, CollisionProfile.AIR);
+                    } else {
+                        cells.put(pos, classifyString(patch.targetBlock()));
+                    }
+                }
             }
-            Vec3i pos = new Vec3i(patch.dx(), patch.dy(), patch.dz());
-            if (BlockPatch.REMOVE.equals(patch.action()) || isAirId(patch.targetBlock())) {
-                cells.put(pos, CollisionProfile.AIR);
-            } else {
-                cells.put(pos, classify(patch.targetBlock(), preferRegistry));
+            return new PlannedOccupancy(cells, WalkabilityPrecision.FAST);
+        }
+        boolean anyFallback = false;
+        if (patches != null) {
+            for (BlockPatch patch : patches) {
+                if (patch == null) {
+                    continue;
+                }
+                Vec3i pos = new Vec3i(patch.dx(), patch.dy(), patch.dz());
+                if (BlockPatch.REMOVE.equals(patch.action()) || isAirId(patch.targetBlock())) {
+                    cells.put(pos, CollisionProfile.AIR);
+                    continue;
+                }
+                Classified classified = classifyDetailed(patch.targetBlock(), true);
+                cells.put(pos, classified.profile());
+                if (!classified.usedBlockState()) {
+                    anyFallback = true;
+                }
             }
         }
+        // Zero PLACE / all AIR with preferRegistry and no fallback → BLOCKSTATE (intent, no downgrade).
+        WalkabilityPrecision precision = anyFallback
+                ? WalkabilityPrecision.MIXED
+                : WalkabilityPrecision.BLOCKSTATE;
         return new PlannedOccupancy(cells, precision);
+    }
+
+    private record Classified(CollisionProfile profile, boolean usedBlockState) {}
+
+    private static Classified classifyDetailed(String blockId, boolean preferRegistry) {
+        if (blockId == null || blockId.isBlank() || isAirId(blockId)) {
+            return new Classified(CollisionProfile.AIR, preferRegistry);
+        }
+        if (preferRegistry) {
+            try {
+                BlockState state = BlockPatchTargetResolver.parse(blockId.trim());
+                if (state != null) {
+                    return new Classified(classifyState(state, blockId), true);
+                }
+            } catch (Throwable ignored) {
+                // Fall through to string heuristics — do not sticky-poison Registries.
+            }
+        }
+        return new Classified(classifyString(blockId), false);
     }
 
     public static PlannedOccupancy ofProfiles(Map<Vec3i, CollisionProfile> cells) {
@@ -218,20 +260,7 @@ public final class PlannedOccupancy {
     }
 
     public static CollisionProfile classify(String blockId, boolean preferRegistry) {
-        if (blockId == null || blockId.isBlank() || isAirId(blockId)) {
-            return CollisionProfile.AIR;
-        }
-        if (preferRegistry) {
-            try {
-                BlockState state = BlockPatchTargetResolver.parse(blockId.trim());
-                if (state != null) {
-                    return classifyState(state, blockId);
-                }
-            } catch (Throwable ignored) {
-                // Fall through to string heuristics — do not sticky-poison Registries.
-            }
-        }
-        return classifyString(blockId);
+        return classifyDetailed(blockId, preferRegistry).profile();
     }
 
     static CollisionProfile classifyState(BlockState state, String fallbackId) {

@@ -13,6 +13,10 @@ import java.util.Set;
  * Not a live-world / VoxelShape pathfinding proof.
  */
 public final class WalkabilityGraph {
+    /** Hard ceiling for adaptive / ofDepth budgets — prevents city-scale verification hangs. */
+    public static final int GLOBAL_MAX_DEPTH = 8192;
+    public static final int GLOBAL_MAX_VISITS = 65536;
+
     public enum ReachResult {
         REACHABLE,
         UNREACHABLE,
@@ -24,15 +28,22 @@ public final class WalkabilityGraph {
         public SearchBudget {
             if (maxDepth < 0) {
                 maxDepth = 0;
+            } else if (maxDepth > GLOBAL_MAX_DEPTH) {
+                maxDepth = GLOBAL_MAX_DEPTH;
             }
             if (maxVisits < 0) {
                 maxVisits = 0;
+            } else if (maxVisits > GLOBAL_MAX_VISITS) {
+                maxVisits = GLOBAL_MAX_VISITS;
             }
         }
 
         public static SearchBudget ofDepth(int maxDepth) {
-            int d = Math.max(0, maxDepth);
-            return new SearchBudget(d, Math.max(4096, 4 * Math.max(1, d)));
+            long d = Math.max(0, maxDepth);
+            d = Math.min(d, GLOBAL_MAX_DEPTH);
+            long visits = Math.max(4096L, 4L * Math.max(1L, d));
+            visits = Math.min(visits, GLOBAL_MAX_VISITS);
+            return new SearchBudget((int) d, (int) visits);
         }
     }
 
@@ -123,21 +134,24 @@ public final class WalkabilityGraph {
     }
 
     public static SearchBudget adaptiveBudget(Vec3i start, Vec3i goal, ComponentFootprintUtil.Bounds bounds) {
-        int manhattan = 0;
+        long manhattan = 0;
         if (start != null && goal != null) {
-            manhattan = Math.abs(goal.x() - start.x())
-                    + Math.abs(goal.y() - start.y())
-                    + Math.abs(goal.z() - start.z());
+            manhattan = Math.abs((long) goal.x() - start.x())
+                    + Math.abs((long) goal.y() - start.y())
+                    + Math.abs((long) goal.z() - start.z());
         }
-        int volumeTerm = 0;
+        long volumeTerm = 0;
         if (bounds != null) {
             long vol = (long) Math.max(1, bounds.width())
                     * Math.max(1, bounds.height())
                     * Math.max(1, bounds.depth());
-            volumeTerm = (int) Math.min(Integer.MAX_VALUE / 2, vol / 64);
+            volumeTerm = Math.min((long) Integer.MAX_VALUE / 2, vol / 64L);
         }
-        int maxDepth = Math.max(512, 8 * manhattan + volumeTerm);
-        return new SearchBudget(maxDepth, Math.max(4096, 4 * maxDepth));
+        long depth = Math.max(512L, 8L * manhattan + volumeTerm);
+        depth = Math.min(depth, GLOBAL_MAX_DEPTH);
+        long visits = Math.max(4096L, 4L * depth);
+        visits = Math.min(visits, GLOBAL_MAX_VISITS);
+        return new SearchBudget((int) depth, (int) visits);
     }
 
     public static boolean canReach(
