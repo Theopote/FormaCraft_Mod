@@ -34,6 +34,36 @@ def normalize_hosted_connections(plan: dict) -> None:
         if entry not in repairs:
             repairs.append(entry)
 
+    for body in bodies:
+        p = body.get('params') or {}
+        clear = p.get('clear_height')
+        height = body['dimensions']['height']
+        if (p.get('interior_open') is True and isinstance(clear, (int, float))
+                and clear >= height-2 and int(p.get('floor_count') or 1) > 1
+                and clear > int(p.get('floor_height') or height)):
+            p['floor_count'] = 1
+            p['floor_height'] = height
+            record(body, 'preserve_explicit_clear_height')
+
+    for plate in components:
+        p = plate.get('params') or {}
+        if p.get('extrude_mode') != 'plate' or p.get('plate_role') != 'tower_floor':
+            continue
+        candidates = [b for b in bodies if b.get('component_type') == 'TOWER'
+                      and overlap(plate, b) >= plate['dimensions']['width'] * plate['dimensions']['depth'] * 0.9
+                      and bounds(b)[0]['y'] <= bounds(plate)[0]['y'] <= bounds(b)[1]['y']]
+        if len(candidates) == 1:
+            tower = candidates[0]
+            root = by_id.get(p.get('host_id'))
+            tp = tower['params']
+            if root is not None and root is not tower and not tp.get('host_id') and overlap(root, tower) > 0:
+                tp['host_id'] = root['params']['component_id']
+                record(tower, 'integrated_tower_host')
+            p['host_id'] = tp['component_id']
+            p['building_id'] = tp.get('building_id', tp['component_id'])
+            p['plate_role'] = 'interior'
+            record(plate, 'tower_floor_host')
+
     # Older contract versions shortened detached tier-indexed wings. Their authored
     # floor plates provide explicit evidence of the lost storeys and intended host.
     detached = []
@@ -109,6 +139,10 @@ def normalize_hosted_connections(plan: dict) -> None:
         level = p.get('connection_level')
         rise = int(host.get('params', {}).get('floor_height') or 0)
         if isinstance(level, int) and rise > 0 and touches(plate, host) and touches(plate, target):
+            if hl['y']+level*rise != pl['y'] and level*rise == pl['y'] and (pl['y']-hl['y']) % rise == 0:
+                p['legacy_plan_connection_level'] = level
+                p['connection_level'] = (pl['y']-hl['y']) // rise
+                record(plate, 'connection_level_plan_datum')
             if level in (plate['relative_position']['y'], pl['y']) and hl['y']+level*rise > hh['y']:
                 p['legacy_connection_height'] = p.pop('connection_level')
                 record(plate, 'connection_height_in_blocks')
@@ -159,6 +193,37 @@ def normalize_hosted_connections(plan: dict) -> None:
                 components.append(landing)
                 record(landing, 'bridge_target_landing')
             break
+
+    # Existing, correctly spanned bridges also need a landing in a tall open hall.
+    for plate in list(components):
+        p = plate.get('params') or {}
+        if p.get('extrude_mode') != 'plate' or p.get('plate_role') not in ('bridge', 'link', 'connector'):
+            continue
+        target = by_id.get(p.get('target_host_id'))
+        if target is None or not touches(plate, target):
+            continue
+        tp = target.get('params') or {}
+        pl, ph = bounds(plate); tl, th = bounds(target)
+        landing_id = str(p.get('component_id', 'bridge')) + '#target_landing'
+        if (int(tp.get('floor_count') or 1) != 1 or not tl['y'] < pl['y'] < th['y']-2
+                or any((c.get('params') or {}).get('component_id') == landing_id for c in components)
+                or min(target['dimensions']['width'], target['dimensions']['depth']) < 5):
+            continue
+        axis, transverse = ('z', 'x') if plate['dimensions']['depth'] >= plate['dimensions']['width'] else ('x', 'z')
+        origin = dict(tl)
+        origin[axis] = tl[axis] if pl[axis] < tl[axis] else th[axis]-3
+        origin[transverse] = max(tl[transverse], min((pl[transverse]+ph[transverse])//2-1, th[transverse]-3))
+        origin['y'] = pl['y']
+        offset = slots.get(target.get('slot_id'), {})
+        landing = {'component_type': 'MASS_SECONDARY', 'slot_id': target.get('slot_id'),
+                   'relative_position': {a: origin[a]-int(offset.get(a, 0)) for a in ('x', 'y', 'z')},
+                   'dimensions': {'width': 3, 'depth': 3, 'height': 1}, 'features': ['bridge_landing'],
+                   'params': {'component_id': landing_id, 'host_id': tp['component_id'],
+                              'building_id': tp.get('building_id', tp['component_id']),
+                              'anchor_mode': 'min_corner', 'extrude_mode': 'plate', 'plate_role': 'interior',
+                              'material': tp.get('floor_block', 'minecraft:stone_bricks')}}
+        components.append(landing)
+        record(landing, 'bridge_target_landing')
 
     for plate in components:
         p = plate.get('params') or {}

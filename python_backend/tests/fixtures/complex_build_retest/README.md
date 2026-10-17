@@ -46,3 +46,10 @@ mistaken for stacked tiers, incorrect bridge hosts/height units, a short bridge
 and canopy, and its small interior landing. The library covers attached tower
 joins; the courtyard covers the `hip_gable` roof alias. All seven are replayed
 with and without postprocessing alongside the previous 24 plans.
+
+`oct17_late_1` through `oct17_late_5` capture the 19:44–19:58 session:
+mountain hotel, Gothic library, stepped house, factory and courtyard.
+Normalized variants 1, 2 and 4 cover bridge level datum, tower floor hosts,
+and explicit workshop clear height with a small bridge landing. All five
+are replayed with and without postprocessing; the library and factory also
+exercise oversized sill offsets and clearance across hosted railings.

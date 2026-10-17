@@ -34,6 +34,8 @@ public final class SizedFacadeWindows {
             faces.removeIf(f -> !scope.faceNames().contains(f.name()));
         }
         int sill=Math.max(1,ComponentParamParsers.intParam(params,1,"sill_offset","window_sill","sill_height"));
+        // Keep authored opening dimensions when only the sill offset exceeds the storey.
+        if (windowHeight < floorHeight) sill = Math.min(sill, floorHeight-windowHeight);
         int thickness=Math.max(1,ComponentParamParsers.intParam(params,1,"wall_thickness","wallThickness"));
         boolean explicitCount=hasExplicitCount(params);
         var out=new ArrayList<BlockPatch>();

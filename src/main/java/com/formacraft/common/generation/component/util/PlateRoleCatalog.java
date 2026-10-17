@@ -12,7 +12,7 @@ public final class PlateRoleCatalog {
     public static final String[] ROLE_KEYS = {"plate_role", "plateRole"};
 
     public static final Set<String> INTERIOR_TOKENS = Set.of(
-            "interior", "floor", "slab", "internal", "gallery"
+            "interior", "floor", "slab", "internal", "gallery", "tower_floor"
     );
 
     public static final Set<String> TERRACE_TOKENS = Set.of(

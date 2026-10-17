@@ -63,7 +63,27 @@ final class ExteriorCirculationValidator {
         Object stairBuilding = stair.params().get("building_id");
         if (stairBuilding == null) stairBuilding = stair.params().get("host_id");
         for (Component connector : components) {
-            if (!"MASS_SECONDARY".equals(connector.componentType()) || connector.params() == null) continue;
+            if (connector.params() == null) continue;
+            boolean enclosure = "DECOR_DETAIL".equals(connector.componentType())
+                    && Boolean.TRUE.equals(connector.params().get("corridor_enclosure"));
+            if (!"MASS_SECONDARY".equals(connector.componentType()) && !enclosure) continue;
+            if (enclosure) {
+                boolean joinsBuilding = false;
+                for (var bridge : components) {
+                    if (bridge.params() == null || !"plate".equals(bridge.params().get("extrude_mode"))
+                            || !com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(bridge.params())) continue;
+                    Object owner = connector.params().get("host_id");
+                    if (owner != null && owner.equals(bridge.params().get("host_id"))
+                            && stairBuilding != null && stairBuilding.equals(bridge.params().get("target_host_id"))) {
+                        var a = ComponentPlanCompiler.inSlotFrame(connector, bridge.slotId(), slots);
+                        var cb = ComponentFootprintUtil.bounds(a);
+                        var bb = ComponentFootprintUtil.bounds(bridge);
+                        if (cb != null && bb != null && cb.minX() >= bb.minX() && cb.maxX() <= bb.maxX()
+                                && cb.minZ() >= bb.minZ() && cb.maxZ() <= bb.maxZ()) joinsBuilding = true;
+                    }
+                }
+                if (!joinsBuilding) continue;
+            }
             if ("plate".equals(connector.params().get("extrude_mode"))
                     && (!com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(connector.params())
                         || stairBuilding == null || !(stairBuilding.equals(connector.params().get("host_id"))
@@ -73,7 +93,7 @@ final class ExteriorCirculationValidator {
             Slot slot = slots.get(connector.slotId());
             var anchor = slot == null ? null : slot.anchor();
             int ox = anchor == null ? 0 : anchor.x(), oy = anchor == null ? 0 : anchor.y(), oz = anchor == null ? 0 : anchor.z();
-            for (int step = -1; step <= landing; step++) for (int side = -width/2; side < width-width/2; side++)
+            for (int step = enclosure ? -clear : -1; step <= landing; step++) for (int side = -width/2; side < width-width/2; side++)
                 for (int y = -1; y <= clear; y++) {
                     var pos = new BlockPos(offset.getX()+rp.x()+number(to.get("x"))+dx*step+(dz != 0 ? side : 0),
                             offset.getY()+rp.y()+number(to.get("y"))+y,

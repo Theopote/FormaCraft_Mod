@@ -771,6 +771,24 @@ public final class ComponentPlanCompiler {
                             var hostMass = HostedPlateDesignValidator.findHostMass(host, components);
                             var targetMass = HostedPlateDesignValidator.findHostMass(target, components);
                             var portalClearance = new HashSet<BlockPos>();
+                            // Preserve a central walking lane across the deck, including where
+                            // later hosted railings or enclosures cross the connector.
+                            var deckBounds = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(c);
+                            if (deckBounds != null) {
+                                boolean alongZ = deckBounds.depth() >= deckBounds.width();
+                                int spanMin = alongZ ? deckBounds.minX() : deckBounds.minZ();
+                                int spanMax = alongZ ? deckBounds.maxX() : deckBounds.maxZ();
+                                int mid = (spanMin + spanMax) / 2;
+                                int laneMin = Math.max(spanMin+1, mid-1);
+                                int laneMax = Math.min(spanMax-2, mid);
+                                for (int a=laneMin; a<=laneMax; a++)
+                                    for (int b=alongZ ? deckBounds.minZ() : deckBounds.minX();
+                                         b<(alongZ ? deckBounds.maxZ() : deckBounds.maxX()); b++)
+                                        for (int y=c.relativePosition().y()+1; y<=c.relativePosition().y()+2; y++) {
+                                            var pos = new BlockPos(alongZ ? a : b, y, alongZ ? b : a);
+                                            surfaceLedger.reserveClearance(pos.add(flightOffset));
+                                        }
+                            }
                             // Portal coords are component-relative; shift into the same space as plate patches.
                             java.util.function.Consumer<java.util.List<BlockPatch>> addPortals = portals -> {
                                 for (BlockPatch p : portals) {
@@ -3040,7 +3058,8 @@ public final class ComponentPlanCompiler {
         return components.stream().filter(c ->
                 com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(c)
                         && !host.equals(getParamString(c.params(), "component_id"))
-                        && !host.equals(getParamString(c.params(), "host_id")))
+                        && (!host.equals(getParamString(c.params(), "host_id"))
+                            || "TOWER".equalsIgnoreCase(c.componentType())))
                 .map(c -> inSlotFrame(c, roof.slotId(), slotMap))
                 .map(c -> new RoofOccluder(ComponentFootprintUtil.bounds(c),
                         com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(c).footprint())).toList();

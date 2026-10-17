@@ -17,6 +17,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FacadeWindowsAspectTest {
+    @Test
+    void tallWindowKeepsItsHeightWhenSillWouldExceedStorey() {
+        var params = new HashMap<String,Object>();
+        params.put("window_width", 2);
+        params.put("window_height", 6);
+        params.put("sill_height", 3);
+        params.put("floor_height", 8);
+        params.put("floor_count", 2);
+        var c = new Component("FACADE_WINDOWS", "", new Vec3i(0,0,0),
+                new Dimensions(24,1,16), List.of(), params);
+        var slot = new Slot("", new Vec3i(0,0,0), GlobalConstraints.Facing.SOUTH, null,null,null);
+        var patches = new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,null,null,null));
+        assertTrue(!patches.isEmpty());
+        assertEquals(java.util.Set.of(2,3,4,5,6,7,10,11,12,13,14,15),
+                patches.stream().map(BlockPatch::dy).collect(java.util.stream.Collectors.toSet()));
+    }
 
     @Test
     void verticalStrip_producesNarrowAxisSpan() {

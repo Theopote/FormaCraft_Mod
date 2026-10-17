@@ -11,6 +11,42 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class BridgePlanNormalizerTest(unittest.TestCase):
+    def test_open_workshop_keeps_clear_height_and_receives_bridge_landing(self):
+        plan = json.loads((FIXTURES / 'oct17_late_4.json').read_text(encoding='utf-8'))
+        result = self.normalize(plan)
+        by_id = {c['params']['component_id']: c for c in result['components']}
+        self.assertEqual(1, by_id['workshop']['params']['floor_count'])
+        self.assertEqual(12, by_id['workshop']['params']['floor_height'])
+        landing = by_id['office_corridor#target_landing']
+        self.assertEqual('workshop', landing['params']['host_id'])
+        self.assertEqual(4, landing['relative_position']['y'])
+        self.assertEqual({'width': 3, 'depth': 3, 'height': 1}, landing['dimensions'])
+        self.assertEqual(result, normalize_circulation_plan(result))
+        self.assertEqual(result, json.loads((FIXTURES / 'oct17_late_4.normalized.json').read_text(encoding='utf-8')))
+
+    def test_plan_based_level_is_rebased_without_moving_the_bridge(self):
+        plan = json.loads((FIXTURES / 'oct17_late_1.json').read_text(encoding='utf-8'))
+        result = self.normalize(plan)
+        bridge = next(c for c in result['components'] if c['params'].get('component_id') == 'connector_middle_high')
+        self.assertEqual(8, bridge['relative_position']['y'])
+        self.assertEqual(1, bridge['params']['connection_level'])
+        self.assertEqual(2, bridge['params']['legacy_plan_connection_level'])
+        self.assertEqual(result, normalize_circulation_plan(result))
+        self.assertEqual(result, json.loads((FIXTURES / 'oct17_late_1.normalized.json').read_text(encoding='utf-8')))
+
+    def test_tower_floors_bind_to_their_actual_tower(self):
+        plan = json.loads((FIXTURES / 'oct17_late_2.json').read_text(encoding='utf-8'))
+        result = self.normalize(plan)
+        by_id = {c['params']['component_id']: c for c in result['components']}
+        for side in ('north', 'south'):
+            for y in (8, 16):
+                params = by_id[f'{side}_tower_floor_{y}']['params']
+                self.assertEqual(f'{side}_tower', params['host_id'])
+                self.assertEqual('interior', params['plate_role'])
+            self.assertEqual('library_main', by_id[f'{side}_tower']['params']['host_id'])
+        self.assertEqual(result, normalize_circulation_plan(result))
+        self.assertEqual(result, json.loads((FIXTURES / 'oct17_late_2.normalized.json').read_text(encoding='utf-8')))
+
     def load(self, i):
         return json.loads((FIXTURES / f'oct17_evening_{i}.json').read_text(encoding='utf-8'))
 

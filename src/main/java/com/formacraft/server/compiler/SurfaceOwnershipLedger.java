@@ -18,8 +18,14 @@ final class SurfaceOwnershipLedger {
 
     private final Map<BlockPos, Surface> surfaces = new HashMap<>();
     private final Map<BlockPos, BlockPatch> finalPatches = new HashMap<>();
+    private final Set<BlockPos> circulationClearance = new HashSet<>();
+
+    void reserveClearance(BlockPos position) {
+        circulationClearance.add(position.toImmutable());
+    }
 
     boolean isProtectedFromWindows(Component writer, BlockPos position) {
+        if (circulationClearance.contains(position)) return true;
         Surface surface = surfaces.get(position);
         return surface != null && (surface.role() == GeneratedSurfaceCapture.Role.ROOF
                 || surface.role() == GeneratedSurfaceCapture.Role.WALL && !buildingOwner(writer).equals(surface.owner())
@@ -28,6 +34,7 @@ final class SurfaceOwnershipLedger {
     }
 
     boolean isProtectedFromEntrance(Component writer, BlockPos position) {
+        if (circulationClearance.contains(position)) return true;
         Surface surface = surfaces.get(position);
         return surface != null && (surface.role() == GeneratedSurfaceCapture.Role.ROOF
                 || surface.role() == GeneratedSurfaceCapture.Role.WALL && !buildingOwner(writer).equals(surface.owner())
@@ -35,6 +42,7 @@ final class SurfaceOwnershipLedger {
     }
 
     boolean isProtectedFromDecoration(BlockPos position) {
+        if (circulationClearance.contains(position)) return true;
         Surface surface = surfaces.get(position);
         return surface != null && Set.of(GeneratedSurfaceCapture.Role.WINDOW,
                 GeneratedSurfaceCapture.Role.DOOR_OPENING, GeneratedSurfaceCapture.Role.ROOF).contains(surface.role());

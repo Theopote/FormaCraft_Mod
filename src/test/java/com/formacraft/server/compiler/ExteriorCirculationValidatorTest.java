@@ -8,9 +8,30 @@ import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 import java.util.*;
+import com.formacraft.common.llm.dto.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @Test void declaredBridgeEnclosureAllowsTerminalHeadroomButNotUnrelatedSurfaces() {
+        var bridge = new Component("MASS_SECONDARY","s",new Vec3i(0,4,0),new Dimensions(4,8,1),List.of(),
+                Map.of("component_id","bridge","host_id","office","target_host_id","workshop",
+                        "extrude_mode","plate","plate_role","bridge","anchor_mode","min_corner"));
+        var enclosure = new Component("DECOR_DETAIL","s",new Vec3i(0,4,0),new Dimensions(4,4,3),List.of(),
+                Map.of("component_id","enclosure","host_id","office","corridor_enclosure",true,"anchor_mode","min_corner"));
+        var stair = new Component("STRUCTURE","s",new Vec3i(2,0,-2),new Dimensions(2,5,5),List.of("stair:straight_single_run"),
+                Map.of("host_id","workshop","building_id","workshop","exterior",true,"clearHeight",2,
+                        "from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",0,"y",4,"z",4),"width",2));
+        var foreign = new Component("MASS_MAIN","s",new Vec3i(0,0,0),new Dimensions(4,4,8),List.of(),Map.of("component_id","foreign"));
+        var head = new BlockPos(2,4,0);
+        var other = new BlockPos(1,4,0);
+        var index = new PatchOccupancyIndex();
+        index.commit(enclosure,List.of(stone(head)));
+        index.commit(foreign,List.of(stone(other)));
+        var access = ExteriorCirculationValidator.connectorAccess(stair,List.of(bridge,enclosure),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.contains(head));
+        assertFalse(access.contains(other));
+        assertTrue(ExteriorCirculationValidator.connectorAccess(stair,List.of(enclosure),Map.of(),BlockPos.ORIGIN,index).isEmpty());
+    }
     @Test void externalLandingPermissionIsLimitedToItsConnectorAndEndpoint() {
         MinecraftRegistryTestBootstrap.initialize();
         var corridor = new com.formacraft.common.llm.dto.Component("MASS_SECONDARY", "s",
