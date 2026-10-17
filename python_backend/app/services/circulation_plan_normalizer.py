@@ -127,6 +127,63 @@ def _host_mass(plan: dict, component: dict) -> dict | None:
     return min(masses, key=distance)
 
 
+def _stair_door_contact(plan: dict, body: dict, x: int, y: int, z: int, clear: int) -> bool:
+    """Only a declared, stair-bound doorway may exempt an exterior shell cell."""
+    slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
+    identity = (body.get('params') or {}).get('component_id')
+    for door in plan.get('components', []):
+        p = door.get('params') or {}
+        if door.get('component_type') != 'ENTRANCE' or p.get('host_id') != identity or not p.get('stair_connection'):
+            continue
+        rp = door['relative_position']; off = slots.get(door.get('slot_id'), {})
+        xx, yy, zz = (rp[a]+off.get(a,0) for a in ('x','y','z'))
+        width = int(p.get('door_width') or 2)
+        if yy <= y and y+clear < yy+int(p.get('door_height') or 3):
+            if p.get('facing') in ('EAST','WEST'):
+                if abs(x-xx) <= 1 and zz <= z < zz+width: return True
+            elif abs(z-zz) <= 1 and xx <= x < xx+width: return True
+    return False
+
+
+def _bind_exterior_stair_doors(plan: dict) -> None:
+    if (plan.get('plan_meta') or {}).get('allow_compiler_satellites') is False: return
+    components = plan.get('components', [])
+    slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
+    for stair in components:
+        p = stair.get('params') or {}
+        if stair.get('component_type') != 'STRUCTURE' or p.get('exterior') is not True: continue
+        if p.get('host_source') != 'legacy_geometry_inference': continue
+        width, clear = int(p.get('width') or 3), int(p.get('clearHeight') or 2)
+        rp = stair['relative_position']; off = slots.get(stair.get('slot_id'), {})
+        for endpoint, key in (('from','host_id'),('to','target_host_id')):
+            point = p.get(endpoint)
+            if not isinstance(point,dict): continue
+            end = {a:rp[a]+off.get(a,0)+point[a] for a in ('x','y','z')}
+            candidates = []
+            for door in components:
+                dp = door.get('params') or {}
+                if door.get('component_type') != 'ENTRANCE' or not dp.get('host_id'): continue
+                pos = door['relative_position']; anchor = slots.get(door.get('slot_id'), {})
+                world = {a:pos[a]+anchor.get(a,0) for a in ('x','y','z')}
+                if world['y'] != end['y']: continue
+                distance = abs(world['x']-end['x'])+abs(world['z']-end['z'])
+                if distance <= width+1: candidates.append((distance,door))
+            candidates.sort(key=lambda item:item[0])
+            if not candidates or len(candidates)>1 and candidates[0][0]==candidates[1][0]: continue
+            door = candidates[0][1]; dp = door['params']
+            # A real explicit host remains authoritative. Legacy nearest-mass
+            # inference used the component origin rather than the raised flight.
+            if key == 'host_id' and p.get('host_id') and p.get('host_source') != 'legacy_geometry_inference': continue
+            if key == 'target_host_id' and p.get(key) and p[key] != dp['host_id']: continue
+            p[key] = dp['host_id']
+            if key == 'host_id':
+                p['building_id'] = dp['host_id']
+            dp['stair_connection'] = p.get('component_id')
+            dp['door_width'] = max(width,int(dp.get('door_width') or 2))
+            dp['door_height'] = max(clear+1,int(dp.get('door_height') or 3))
+        p['host_source'] = 'entrance_elevation'
+
+
 def _fit_straight_stairs(plan: dict) -> None:
     for comp in plan.get('components', []):
         params = comp.get('params') or {}
@@ -216,13 +273,25 @@ def _fit_exterior_stairs(plan: dict) -> None:
         return
     slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
     bodies = [c for c in plan.get('components', []) if c.get('component_type') in
-              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'FOUNDATION') and c.get('dimensions')]
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'FOUNDATION', 'DECOR_DETAIL') and c.get('dimensions')
+              and (c.get('component_type') != 'DECOR_DETAIL'
+                   or 'cornice' in str((c.get('params') or {}).get('component_id','')).lower())]
     def world(c):
         o = _mass_origin(c); off = slots.get(c.get('slot_id'), {})
+        cp = c.get('params') or {}
+        if c.get('component_type') == 'DECOR_DETAIL' and not cp.get('anchor_mode'):
+            o = dict(c['relative_position'])
+        if c.get('component_type') == 'FOUNDATION' and 'corner' not in str(cp.get('anchor_mode', '')):
+            host = _host_mass(plan,c)
+            if host is not None:
+                ho = _mass_origin(host)
+                for axis in ('x','z'): o[axis] = ho[axis]
         return {a: o[a]+int(off.get(a,0)) for a in ('x','y','z')}
     landings = []
     for comp in plan.get('components', []):
         p = comp.get('params') or {}
+        if comp.get('component_type') in ('BALCONY', 'TERRACE'):
+            p.setdefault('anchor_mode', 'min_corner')
         if comp.get('component_type') == 'TERRACE' and p.get('landing') is True:
             host = _host_mass(plan,comp)
             landing_height = comp.get('dimensions',{}).get('height',0)
@@ -271,7 +340,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
                 po = world(part); pd = part['dimensions']
                 extent = pd['width' if side == 'x' else 'depth']
                 center = endpoint[side]+shift
-                if center-width//2 < po[side] or center+width-width//2 > po[side]+extent: continue
+                if center-width//2 < po[side] or center+width-width//2 > po[side]+max(extent,width): continue
                 axis = 'z' if side == 'x' else 'x'
                 length = pd['depth' if side == 'x' else 'width']
                 direction = ((dz>0)-(dz<0)) if side == 'x' else ((dx>0)-(dx<0))
@@ -284,14 +353,16 @@ def _fit_exterior_stairs(plan: dict) -> None:
                 own_body = bp.get('component_id') == p.get('host_id')
                 if bp.get('host_id') == p.get('host_id'): continue
                 bo = world(body); dims = body['dimensions']
-                for step in range(run+landing+1):
+                if body.get('component_type') == 'FOUNDATION' and bo['y']+dims['height'] <= origin['y']+a['y']:
+                    continue
+                for step in range(run+(landing if landing > 1 else 0)+1):
                     # Only the terminal steps may enter the declared host. The
                     # lower flight still has to clear its own exterior shell.
                     terminal_host = bp.get('component_id') == p.get('target_host_id') or (
                         p.get('target_host_id') is not None and bp.get('host_id') == p.get('target_host_id'))
                     if (own_body or terminal_host) and step >= run-1: continue
                     ratio = min(1,step/max(1,run))
-                    point = {axis: origin[axis]+a[axis]+round((b[axis]-a[axis])*ratio) for axis in ('x','y','z')}
+                    point = {axis: origin[axis]+floor(a[axis]+(b[axis]-a[axis])*ratio+0.5) for axis in ('x','y','z')}
                     if step > run:
                         point['x'] += (step-run)*((dx>0)-(dx<0))
                         point['z'] += (step-run)*((dz>0)-(dz<0))
@@ -299,7 +370,8 @@ def _fit_exterior_stairs(plan: dict) -> None:
                     for lateral in range(-(width//2), width-width//2):
                         x, z = point['x']+(lateral if side=='x' else 0), point['z']+(lateral if side=='z' else 0)
                         if (bo['x'] <= x < bo['x']+dims['width'] and bo['z'] <= z < bo['z']+dims['depth']
-                                and origin['y']+a['y']-1 < bo['y']+dims['height'] and point['y']+clear >= bo['y']):
+                                and point['y']-1 < bo['y']+dims['height'] and point['y']+clear >= bo['y']):
+                            if _stair_door_contact(plan, body, x, point['y'], z, clear): continue
                             return True
             return False
         if not clips(0) and target_landing_fits(0): continue
@@ -317,8 +389,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
                     p['circulation_fit'] = 'shorten_exterior_approach'
                     continue
                 # Keep the shorter approach while trying a lateral adjustment.
-            else:
-                a, run = old_a, old_run
+            # Try the shorter approach together with a lateral adjustment too.
         own_landings = [c for c in landings if (c.get('params') or {}).get('host_id') == p.get('host_id')]
         def reaches_landing(shift):
             if not own_landings: return True
@@ -358,6 +429,28 @@ def _fit_exterior_stairs(plan: dict) -> None:
                             pd[dimension] = high-po[side]
                             pp['circulation_fit'] = 'receive_shifted_stair'
                 break
+        else:
+            # An authored gallery can be approached from the opposite courtyard
+            # side when the original bottom runs through an adjacent guest wing.
+            if target_landings and rise > 0:
+                old_a, old_dx, old_dz, old_run, old_landing = a, dx, dz, run, landing
+                a = dict(b)
+                a['y'] = old_a['y']
+                a['x'] = b['x'] + ((dx>0)-(dx<0))*rise
+                a['z'] = b['z'] + ((dz>0)-(dz<0))*rise
+                dx, dz, run, landing = b['x']-a['x'], b['z']-a['z'], rise, 1
+                for shift in (0, *[s for distance in range(1,width+1) for s in (distance,-distance)]):
+                    if clips(shift) or not target_landing_fits(shift): continue
+                    p.update({'from':a, 'landing_length':1, 'circulation_fit':'reverse_gallery_approach'})
+                    stair['relative_position'][side] += shift
+                    for part in target_landings:
+                        dimension = 'width' if side == 'x' else 'depth'
+                        if part['dimensions'][dimension] < width:
+                            part['dimensions'][dimension] = width
+                            part['params']['circulation_fit'] = 'receive_full_stair_width'
+                    break
+                else:
+                    a, dx, dz, run, landing = old_a, old_dx, old_dz, old_run, old_landing
 
 
 def normalize_circulation_plan(plan: dict) -> dict:
@@ -366,6 +459,14 @@ def normalize_circulation_plan(plan: dict) -> dict:
     # Convert only executable, floor-bound descriptions; ordinary volumes stay volumes.
     for comp in out.get('components', []):
         p = comp.get('params') or {}
+        if comp.get('component_type') == 'STRUCTURE' and any(str(f).startswith('stair:') for f in comp.get('features', [])):
+            for key in ('from', 'to'):
+                point = p.get(key)
+                if isinstance(point, dict):
+                    for axis in ('x', 'y', 'z'):
+                        value = point.get(axis)
+                        if isinstance(value, (int, float)) and not isinstance(value, bool):
+                            point[axis] = floor(value + 0.5)
         if comp.get('component_type') == 'MASS_SECONDARY' and p.get('extrude_mode') == 'stair':
             host = _host_mass(out,comp)
             rise, run = p.get('stair_rise'), p.get('stair_run')
@@ -403,7 +504,10 @@ def normalize_circulation_plan(plan: dict) -> dict:
         out.pop('capability_gap', None)
         if out.get('plan_status') == 'capability_gap': out.pop('plan_status', None)
     _fit_straight_stairs(out)
+    _normalize_bridge_levels(out)
+    _bind_exterior_stair_doors(out)
     _fit_exterior_stairs(out)
+    _complete_stair_door_landings(out)
     # Narrow towers cannot accommodate independently rotated flights whose
     # supports fill the previous flight's headroom. Repeat the fitted stairwell
     # at each floor instead, preserving floor elevations and materials.
@@ -511,6 +615,98 @@ def normalize_circulation_plan(plan: dict) -> dict:
                                      "path":"components[].params.assembly","suggestions":["Provide explicit flights and adjacent landings."]}
     out.setdefault('components', []).extend(plates)
     return out
+
+
+def _normalize_bridge_levels(plan: dict) -> None:
+    """Translate legacy one-based storeys only when the authored deck proves it.
+
+    Runtime connection_level is zero-based. Arbitrary height disagreements remain
+    validation failures; this does not move bridges to an unrelated upper floor.
+    """
+    if (plan.get('plan_meta') or {}).get('allow_compiler_satellites') is False: return
+    from .resolved_geometry import mass_origin
+    slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
+    components = plan.get('components', [])
+    ids = {(c.get('params') or {}).get('component_id'): c for c in components}
+    for c in components:
+        p = c.get('params') or {}
+        level = p.get('connection_level')
+        if p.get('plate_role') not in ('bridge', 'link', 'connector') or not isinstance(level, int) or level < 0:
+            continue
+        host, target = ids.get(p.get('host_id')), ids.get(p.get('target_host_id'))
+        if not host or not target: continue
+        fh = (host.get('params') or {}).get('floor_height')
+        if not isinstance(fh, int) or fh <= 0: continue
+        def elevation(part):
+            return mass_origin(part)['y'] + slots.get(part.get('slot_id'), {}).get('y', 0)
+        deck_y, host_y, target_y = elevation(c), elevation(host), elevation(target)
+        tp = target.get('params') or {}
+        if (target['dimensions']['height'] == 1 and tp.get('extrude_mode') == 'plate'
+                and not tp.get('host_id') and target_y+1 == deck_y):
+            target['relative_position']['y'] += 1
+            tp['connection_datum_source'] = 'bridge_deck_surface'
+            target_y = deck_y
+        if (level > 0 and p.get('connection_level_basis') != 'zero_based'
+                and deck_y == host_y+(level-1)*fh
+                and target_y <= deck_y <= target_y+target['dimensions']['height']):
+            p.update(connection_level=level-1, connection_level_basis='zero_based',
+                     connection_level_source='authored_deck_one_based_storey')
+
+
+def _complete_stair_door_landings(plan: dict) -> None:
+    """Bridge a small lateral gap between an exterior flight and its named door."""
+    if (plan.get('plan_meta') or {}).get('allow_compiler_satellites') is False: return
+    components = plan.get('components', [])
+    slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
+    ids = {(c.get('params') or {}).get('component_id') for c in components}
+    additions = []
+    for stair in components:
+        p = stair.get('params') or {}
+        if stair.get('component_type') != 'STRUCTURE' or p.get('exterior') is not True: continue
+        identity = str(p.get('component_id'))+'#door_landing'
+        if identity in ids or not p.get('target_host_id'): continue
+        doors = [c for c in components if c.get('component_type') == 'ENTRANCE'
+                 and (c.get('params') or {}).get('stair_connection') == p.get('component_id')
+                 and c['params'].get('host_id') == p['target_host_id']]
+        if len(doors) != 1: continue
+        door = doors[0]; dp = door['params']
+        host = next((c for c in components if (c.get('params') or {}).get('component_id') == p['target_host_id']),None)
+        if host is None: continue
+        off = slots.get(stair.get('slot_id'), {})
+        end = {a:stair['relative_position'][a]+off.get(a,0)+p['to'][a] for a in ('x','y','z')}
+        ho = _mass_origin(host); hd = host['dimensions']; anchor = slots.get(host.get('slot_id'), {})
+        ho = {a:ho[a]+anchor.get(a,0) for a in ('x','y','z')}
+        side = dp.get('facing') in ('EAST','WEST')
+        axis, across = ('x','z') if side else ('z','x')
+        face = (ho[axis] if dp.get('facing') in ('EAST','SOUTH')
+                else ho[axis]+hd['width' if side else 'depth']-1)
+        gap = abs(end[axis]-face)
+        if gap <= 1 or gap > int(p.get('width',3))+1: continue
+        door_off = slots.get(door.get('slot_id'), {})
+        center = door['relative_position'][across]+door_off.get(across,0)
+        center += door['dimensions']['depth' if side else 'width']//2
+        width = int(p.get('width',3))
+        low = {axis:min(end[axis],face), across:min(end[across],center)-width//2, 'y':end['y']}
+        high = {axis:max(end[axis],face)+1, across:max(end[across],center)+width-width//2}
+        if max(high[a]-low[a] for a in ('x','z')) > width+4: continue
+        blocked = False
+        for body in components:
+            if body is host or body.get('component_type') not in ('MASS_MAIN','MASS_WING','SIDE_WING','TOWER','MASS_ANCILLARY'): continue
+            bo = _mass_origin(body); ba = slots.get(body.get('slot_id'), {}); bd = body['dimensions']
+            bo = {a:bo[a]+ba.get(a,0) for a in ('x','y','z')}
+            if (bo['y'] <= end['y'] < bo['y']+bd['height'] and low['x'] < bo['x']+bd['width']
+                    and high['x'] > bo['x'] and low['z'] < bo['z']+bd['depth'] and high['z'] > bo['z']):
+                blocked = True; break
+        if blocked: continue
+        additions.append({'component_type':'MASS_SECONDARY','slot_id':host.get('slot_id'),
+                          'relative_position':{a:low[a]-anchor.get(a,0) for a in ('x','y','z')},
+                          'dimensions':{'width':high['x']-low['x'],'depth':high['z']-low['z'],'height':1},
+                          'features':['stair_door_landing'],
+                          'params':{'component_id':identity,'host_id':p['target_host_id'],'building_id':p['target_host_id'],
+                                    'extrude_mode':'plate','plate_role':'terrace','anchor_mode':'min_corner',
+                                    'material':p.get('floor','minecraft:stone_bricks'),
+                                    'circulation_source':'bounded_door_landing'}})
+    components.extend(additions)
 
 
 def _complete_requested_stairs(plan: dict) -> None:

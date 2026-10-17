@@ -411,7 +411,7 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
                 params["plan_type"] = plan_alias
             else:
                 plan_type = None
-                if feat_contains("courtyard") or feat_contains("siheyuan") or "courtyard" in (genome.get("modules") or []):
+                if feat_contains("courtyard") or feat_contains("siheyuan"):
                     plan_type = "courtyard"
                 elif feat_contains("gothic") or feat_contains("cathedral") or feat_contains("cruciform"):
                     plan_type = "cross"

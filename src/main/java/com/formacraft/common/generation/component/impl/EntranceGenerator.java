@@ -40,6 +40,12 @@ public class EntranceGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
         Map<String, Object> params = c.params();
+        com.formacraft.common.llm.dto.GlobalConstraints.Facing facing =
+                (semantic.slot() != null && semantic.slot().facing() != null)
+                        ? semantic.slot().facing()
+                        : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
+        if (params != null && params.containsKey("stair_connection") && params.get("facing") != null)
+            facing = com.formacraft.common.llm.dto.GlobalConstraints.Facing.valueOf(String.valueOf(params.get("facing")));
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
@@ -53,8 +59,8 @@ public class EntranceGenerator implements ComponentGenerator {
                 && (params.containsKey("door_width") || params.containsKey("doorWidth"));
         int requestedDoorWidth = ComponentParamParsers.intParam(params, Math.max(2, width - 2), "door_width", "doorWidth");
         int doorHeight = ComponentParamParsers.intParam(params, Math.max(2, height - 1), "door_height", "doorHeight");
-        int openingSpan = semantic.slot() != null && (semantic.slot().facing() == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
-                || semantic.slot().facing() == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST) ? depth : width;
+        int openingSpan = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST ? depth : width;
 
         int doorWidth;
         if (explicitDoorWidth) {
@@ -84,11 +90,6 @@ public class EntranceGenerator implements ComponentGenerator {
         if (canopyDepth > 0) {
             hasOverhang = true;
         }
-        com.formacraft.common.llm.dto.GlobalConstraints.Facing facing =
-                (semantic.slot() != null && semantic.slot().facing() != null)
-                        ? semantic.slot().facing()
-                        : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
-
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {

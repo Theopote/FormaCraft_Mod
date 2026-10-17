@@ -11,6 +11,58 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class CompoundRequestRegressions(unittest.TestCase):
+    def test_oct18_live_plans_normalize_idempotently(self):
+        for i in range(1,7):
+            with self.subTest(plan=i):
+                raw=json.loads((FIXTURES/f'oct18_{i}.json').read_text(encoding='utf-8'))
+                text=raw['proportion_hints']['architecture_intent']['original_text']
+                result=normalize_circulation_plan(apply_building_contract(raw,text,finalize=True))
+                self.assertNotIn('capability_gap',result)
+                self.assertEqual(result,normalize_circulation_plan(result))
+                self.assertEqual(result,json.loads((FIXTURES/f'oct18_{i}.normalized.json').read_text(encoding='utf-8')))
+                parts={c['params']['component_id']:c for c in result['components']}
+                if i==1:
+                    self.assertEqual(0,parts['mill_bridge']['params']['connection_level'])
+                    self.assertEqual(1,parts['east_bank_landing']['relative_position']['y'])
+                if i==2:
+                    self.assertEqual('reverse_gallery_approach',parts['ext_stair']['params']['circulation_fit'])
+                    self.assertEqual(3,parts['gallery_south']['dimensions']['width'])
+                if i==3:
+                    stair=parts['stair_research_tower']['params']
+                    self.assertEqual('research_main',stair['host_id'])
+                    self.assertEqual('tower_main',stair['target_host_id'])
+                    self.assertTrue(all(isinstance(v,int) for point in (stair['from'],stair['to']) for v in point.values()))
+                if i==4:
+                    req=next(r for r in result['proportion_hints']['building_contract']['requirements'] if r['scope']=='named_wing')
+                    self.assertEqual(['townhall_wing_left','townhall_wing_right'],req['target_components'])
+                if i==6:
+                    self.assertEqual('none',parts['chapel_mass']['params']['plan_type'])
+                    self.assertEqual('none',parts['residence_mass']['params']['plan_type'])
+
+    def test_compound_courtyard_module_does_not_cut_holes_in_individual_bodies(self):
+        from app.services.ai_planner import _fill_component_params
+        params={'shape':'rectangle'}
+        _fill_component_params(params,{'component_type':'MASS_MAIN','features':[],
+                                      'dimensions':{'width':23,'depth':11,'height':12}},
+                               {'modules':['chapel','residence','courtyard']})
+        self.assertNotIn('plan_type',params)
+        explicit={'plan_type':'courtyard','courtyard_ratio':0.4}
+        _fill_component_params(explicit,{'component_type':'MASS_MAIN'}, {'modules':['courtyard']})
+        self.assertEqual('courtyard',explicit['plan_type'])
+
+    def test_invalid_bridge_height_and_wrong_wing_count_remain_errors(self):
+        raw=json.loads((FIXTURES/'oct18_1.json').read_text(encoding='utf-8'))
+        bridge=next(c for c in raw['components'] if c['params']['component_id']=='mill_bridge')
+        bridge['relative_position']['y']=3
+        result=normalize_circulation_plan(raw)
+        fixed=next(c for c in result['components'] if c['params']['component_id']=='mill_bridge')
+        self.assertEqual(1,fixed['params']['connection_level'])
+        self.assertEqual(3,fixed['relative_position']['y'])
+        raw=json.loads((FIXTURES/'oct18_4.json').read_text(encoding='utf-8'))
+        text=raw['proportion_hints']['architecture_intent']['original_text']
+        next(c for c in raw['components'] if c['params']['component_id']=='townhall_wing_left')['params']['floor_count']=2
+        self.assertEqual('E_BUILDING_CONTRACT',apply_building_contract(raw,text,finalize=True)['capability_gap']['code'])
+
     def test_retest_plans_normalize_and_preserve_explicit_stair_contracts(self):
         for i in range(1,7):
             with self.subTest(plan=i):

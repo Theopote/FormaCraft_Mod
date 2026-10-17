@@ -456,6 +456,11 @@ public final class ComponentPlanCompiler {
                 occludedColumns.add(new BlockPos(p.dx(),0,p.dz()));
             }
             var shapeAudit = RoofShapeAudit.inspect(semantic, roofPatches, offset, occludedColumns);
+            var continuityGap = RoofSurfaceContinuityAudit.inspect(semantic, roofPatches, offset, occludedColumns);
+            if (continuityGap.isPresent()) {
+                AssemblyCompileDiagnostics.set(continuityGap.get());
+                return List.of();
+            }
             shapeAudit.ifPresent(audit ->
                     FormacraftMod.LOGGER.info("[RoofShapeAudit] stage=postprocess result={}", audit));
             if (shapeAudit.isPresent()) {
@@ -2082,6 +2087,9 @@ public final class ComponentPlanCompiler {
 
     private static Component alignEntranceToMass(Component llmEntrance, Component mass, LlmPlan plan,
                                                  GlobalConstraints.Facing facing) {
+        if (llmEntrance.params() != null && llmEntrance.params().containsKey("stair_connection")) {
+            return alignStairEntrance(llmEntrance, mass);
+        }
         Component template = makeEntranceComponent(plan, mass, mass.slotId(), facing);
         if (template == null) {
             return llmEntrance;
@@ -2106,6 +2114,29 @@ public final class ComponentPlanCompiler {
                 mergeFeatureLists(template.features(), llmEntrance.features()),
                 params
         );
+    }
+
+    /** Preserve a flight's actual entrance, including upper-floor Y and wall side. */
+    private static Component alignStairEntrance(Component door, Component mass) {
+        var params = new HashMap<String,Object>(door.params());
+        var origin = resolveMassOrigin(mass);
+        var rp = door.relativePosition();
+        var dims = door.dimensions();
+        if (origin == null || rp == null || dims == null) return door;
+        String face = String.valueOf(params.getOrDefault("facing", "SOUTH"));
+        boolean side = Set.of("EAST", "WEST").contains(face);
+        int width = ComponentParamParsers.intParam(params, 3, "door_width");
+        int height = ComponentParamParsers.intParam(params, 3, "door_height");
+        int thickness = Math.max(1, ComponentParamParsers.intParam(mass.params(),1,"wall_thickness"));
+        int center = side ? rp.z()+dims.depth()/2 : rp.x()+dims.width()/2;
+        int start = center-(width+2)/2;
+        int x = side ? ("EAST".equals(face) ? origin.x() : origin.x()+mass.dimensions().width()-thickness) : start;
+        int z = side ? start : ("SOUTH".equals(face) ? origin.z() : origin.z()+mass.dimensions().depth()-thickness);
+        params.put("anchor_mode","min_corner");
+        params.put("canopy_depth",0);
+        return new Component("ENTRANCE",door.slotId(),new Vec3i(x,rp.y(),z),
+                new Dimensions(side ? thickness : width+2,side ? width+2 : thickness,height+1),
+                door.features(),params);
     }
 
     private static Dimensions entranceDimensions(Dimensions dims, Map<String, Object> params, GlobalConstraints.Facing facing) {

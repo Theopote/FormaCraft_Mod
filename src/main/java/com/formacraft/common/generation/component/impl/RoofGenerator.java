@@ -112,6 +112,7 @@ public class RoofGenerator implements ComponentGenerator {
             }
         }
 
+        if (!doubleEave && roofType != RoofTypeKind.FLAT && roofType != RoofTypeKind.SAWTOOTH) sealSlopeRisers(out);
         List<BlockPatch> roofShell = List.copyOf(out);
         if (ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c)
                 && width >= 7) {
@@ -143,6 +144,28 @@ public class RoofGenerator implements ComponentGenerator {
                 emitHorseHeadWalls(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette);
         }
         return out;
+    }
+
+    /** Quantized steep slopes need vertical risers, otherwise roof rows float apart. */
+    private static void sealSlopeRisers(List<BlockPatch> out) {
+        var tops = new java.util.HashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
+        for (var p : out) if (GeneratedSurfaceCapture.occupied(p)) {
+            var key = new net.minecraft.util.math.BlockPos(p.dx(), 0, p.dz());
+            var old = tops.get(key);
+            if (old == null || p.dy() > old.dy()) tops.put(key, p);
+        }
+        var additions = new ArrayList<BlockPatch>();
+        for (var entry : tops.entrySet()) {
+            var top = entry.getValue();
+            int bottom = top.dy();
+            for (var neighbor : List.of(entry.getKey().east(), entry.getKey().west(), entry.getKey().north(), entry.getKey().south())) {
+                var lower = tops.get(neighbor);
+                if (lower != null) bottom = Math.min(bottom, lower.dy());
+            }
+            for (int y = bottom; y < top.dy(); y++)
+                additions.add(new BlockPatch(BlockPatch.PLACE, top.dx(), y, top.dz(), top.targetBlock()));
+        }
+        out.addAll(additions);
     }
 
     /** Close the two body-end planes, leaving overhangs and the attic interior hollow. */
@@ -231,18 +254,39 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateSawtoothRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                       int width, int depth, int height, Palette palette,
                                       ComponentFootprintMask footprint, int overhang) {
-        int bay = Math.max(3, Math.min(depth, ComponentParamParsers.intParam(semantic.source().params(), 5,
+        var params = semantic.source().params();
+        boolean acrossX = "x".equalsIgnoreCase(getParamString(params, "sawtooth_axis"));
+        int span = acrossX ? width : depth;
+        int count = ComponentParamParsers.intParam(params, 0, "sawtooth_count");
+        int bay = Math.max(3, Math.min(span, ComponentParamParsers.intParam(params, 5,
                 "sawtooth_bay_depth", "bay_depth")));
+        count = Math.max(1, Math.min(span / 2, count > 0 ? count : (span + bay - 1) / bay));
+        String glass = getParamString(params, "glazing_block");
+        if (glass == null) glass = "minecraft:glass";
+        else if (!glass.contains(":")) glass = "minecraft:" + glass;
         for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++) {
             if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
-            int rise = (z % bay) * Math.max(1, height - 1) / Math.max(1, bay - 1);
+            int axis = acrossX ? x : z;
+            int index = Math.min(count-1, axis * count / span);
+            int start = (index * span + count - 1) / count;
+            int end = ((index + 1) * span + count - 1) / count - 1;
+            int rise = (axis-start) * Math.max(1, height-1) / Math.max(1,end-start);
             out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+rise, baseZ+z,
                     getBlockForPart(semantic, palette, SemanticPart.ROOF)));
-            // Glazed vertical face closes each north-light bay and the end wall.
-            if (z % bay == 0 || z == depth - 1) {
-                for (int y = 1; y < height; y++) if (y != rise)
-                    out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+y, baseZ+z, "minecraft:glass"));
+            // Close the rising step as well as the vertical north-light return.
+            int previous = (axis-start-1) * Math.max(1,height-1) / Math.max(1,end-start);
+            if (axis > start) for (int y=Math.max(0,previous);y<rise;y++)
+                out.add(new BlockPatch(BlockPatch.PLACE,baseX+x,baseY+y,baseZ+z,
+                        getBlockForPart(semantic,palette,SemanticPart.ROOF)));
+            if (axis == start || axis == span - 1) {
+                for (int y = rise+1; y < height; y++)
+                    out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+y, baseZ+z, glass));
             }
+            // Seal the two gable-end profiles above the supporting wall.
+            if (acrossX ? (z == overhang || z == depth-overhang-1) : (x == overhang || x == width-overhang-1))
+                for (int y=0;y<rise;y++)
+                    out.add(new BlockPatch(BlockPatch.PLACE,baseX+x,baseY+y,baseZ+z,
+                            getBlockForPart(semantic,palette,SemanticPart.WALL)));
         }
     }
 

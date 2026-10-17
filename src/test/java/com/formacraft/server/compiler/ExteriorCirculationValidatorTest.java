@@ -99,6 +99,20 @@ class ExteriorCirculationValidatorTest {
     private final List<BuildingVolume> volumes = List.of(
             new BuildingVolume("house", new Bounds(10, 2, 20, 16, 10, 26), 4),
             new BuildingVolume("house", new Bounds(16, 2, 22, 20, 7, 26), 4));
+    @Test void stairMayTrimOptionalEavesButCannotOverwriteAnotherRoofCore() {
+        var host=new Component("MASS_MAIN","s",new Vec3i(0,0,0),new Dimensions(5,5,5),List.of(),
+                Map.of("component_id","other","anchor_mode","min_corner"));
+        var roof=new Component("ROOF","s",new Vec3i(0,4,0),new Dimensions(5,5,2),List.of(),
+                Map.of("component_id","roof","host_id","other","anchor_mode","min_corner"));
+        var stair=new Component("STRUCTURE","s",new Vec3i(0,0,0),new Dimensions(3,7,5),List.of("stair:straight_single_run"),
+                Map.of("component_id","stair","host_id","own","exterior",true,"width",3,
+                        "from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",0,"y",4,"z",6)));
+        var core=new BlockPos(0,4,4); var eave=new BlockPos(-1,4,4);
+        var index=new PatchOccupancyIndex(); index.commit(roof,List.of(stone(core),stone(eave)));
+        var access=ExteriorCirculationValidator.connectorAccess(stair,List.of(host,roof),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.contains(eave));
+        assertFalse(access.contains(core));
+    }
     private BlockPatch stone(BlockPos p) {
         return new BlockPatch(BlockPatch.PLACE, p.getX(), p.getY(), p.getZ(), "minecraft:stone_bricks");
     }

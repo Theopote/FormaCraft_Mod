@@ -74,3 +74,18 @@ They cover independent quay plate endpoints, hosted gallery and cross-building
 terrace access, ground paving under stair approaches, `extrude_mode=stair`,
 self-host exterior clearance, and locally authored tall window patches/rows.
 The older `oct17_retry_5` snapshot now also clears the stair's own host shell.
+
+`oct18_1` through `oct18_6` capture the 00:09–00:18 session (four failures,
+two completed buildings with roof defects). Their normalized variants bring
+the Java replay set to 53 plans, each tested with and without postprocessing.
+They exercise one-based bridge storeys and landing surface elevation, reversed
+gallery approaches, raised doorway ownership, integer stair endpoints,
+explicit ancillary-wing requirement scopes, and legacy courtyard inheritance.
+The original responses remain unchanged. Older normalized snapshots are
+regenerated only through the same contract/circulation entry points as their
+tests; some gain corrected balcony anchors or improved stair clearance.
+
+Separate Java assertions check final upper-door headroom, receiving platforms,
+the chapel ridge/riser/gable, a hollow attic and an open shared courtyard.
+Roof continuity tests deliberately remove joining risers and north-light roof
+columns. These are offline geometry regressions, not in-game visual approval.

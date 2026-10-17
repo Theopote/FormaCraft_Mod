@@ -13,6 +13,12 @@ def normalize_hosted_connections(plan: dict) -> None:
     by_id = {(c.get('params') or {}).get('component_id'): c for c in bodies}
     all_by_id = {(c.get('params') or {}).get('component_id'): c for c in components}
 
+    # A one-block standalone landing is a terrace plate, not a miniature house.
+    for body in bodies:
+        p = body.get('params') or {}
+        if p.get('plate_role') == 'landing' and body['dimensions']['height'] == 1 and not p.get('host_id'):
+            p.update(extrude_mode='plate', plate_role='terrace', anchor_mode='min_corner')
+
     def bounds(c):
         origin = mass_origin(c)
         offset = slots.get(c.get('slot_id'), {})

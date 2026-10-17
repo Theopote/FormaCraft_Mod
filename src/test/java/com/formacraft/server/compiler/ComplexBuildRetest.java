@@ -21,7 +21,9 @@ class ComplexBuildRetest {
                 "oct17_late_1.normalized", "oct17_late_2.normalized", "oct17_late_3", "oct17_late_4.normalized", "oct17_late_5",
                 "oct17_new_1.normalized", "oct17_new_3.normalized", "oct17_new_4.normalized", "oct17_new_5.normalized", "oct17_new_6.normalized",
                 "oct17_retest_1.normalized", "oct17_retest_2.normalized", "oct17_retest_3.normalized", "oct17_retest_4.normalized",
-                "oct17_retest_5.normalized", "oct17_retest_6.normalized").map(n -> DynamicTest.dynamicTest("logged plan " + n, () -> {
+                "oct17_retest_5.normalized", "oct17_retest_6.normalized",
+                "oct18_1.normalized", "oct18_2.normalized", "oct18_3.normalized", "oct18_4.normalized",
+                "oct18_5.normalized", "oct18_6.normalized").map(n -> DynamicTest.dynamicTest("logged plan " + n, () -> {
             var json = Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/" + n + ".json"));
             var plan = LlmPlanParser.parse(json);
             for (boolean postProcess : new boolean[]{false, true}) {

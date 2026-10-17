@@ -309,6 +309,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     # targets separate: a main-building width must not be imposed on its towers.
     owners = [c for c in components if c.get('component_type') in
               ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'TERRACE', 'COURTYARD', 'COURTYARD_SPACE')]
+    _repair_compound_courtyard_inheritance(out, components)
     ids = {c['params']['component_id']: c for c in owners}
     # Global attributes cannot encode different materials for separate buildings.
     attrs = out.get('style_attributes') or {}
@@ -317,6 +318,12 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if isinstance(value, str) and '/' in value and 'building_' in value and masses and all(
                 isinstance(m['params'].get(role + '_block'), str) and m['params'][role + '_block'] for m in masses):
             attrs.pop(role + '_material', None)
+    requirement_masses = [c for c in owners if c.get('component_type') in
+                          ('MASS_MAIN', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY')
+                          and (c.get('component_type') != 'MASS_ANCILLARY'
+                               or str((c.get('params') or {}).get('requirement_scope', '')).startswith('named_'))
+                          and (c.get('params') or {}).get('extrude_mode') != 'plate'
+                          and c.get('dimensions', {}).get('height', 0) > 1]
     for mass in masses:
         params = mass['params']
         own = [r for r in requirements if r['scope'] in ('all_main_masses', 'plan', params.get('requirement_scope'))]
@@ -439,7 +446,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             mass['params']['floor_height'] = clear + 1
             mass['dimensions']['height'] = max(mass['dimensions'].get('height', 0), floors * (clear + 1) + 1)
     bindings = {}
-    for mass in masses:
+    for mass in requirement_masses:
         scope = mass['params'].get('requirement_scope')
         if isinstance(scope, str):
             bindings.setdefault(scope, []).append(mass)
@@ -543,3 +550,40 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     from .chinese_material_contract import apply_chinese_material_contract
     apply_chinese_material_contract(out, text)
     return out
+
+
+def _repair_compound_courtyard_inheritance(plan: dict, components: list[dict]) -> None:
+    """Repair legacy genome defaults only where a separate site court proves ownership.
+
+    An authored ring surrounding its courtyard overlaps that courtyard's AABB;
+    independent wings outside it must not each acquire another central hole.
+    """
+    if 'courtyard' not in (plan.get('genome') or {}).get('modules', []):
+        return
+    slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
+    from .resolved_geometry import mass_origin
+    def bounds(c):
+        o = (dict(c['relative_position']) if c.get('component_type') in ('COURTYARD','COURTYARD_SPACE')
+             and not (c.get('params') or {}).get('anchor_mode') else mass_origin(c))
+        off = slots.get(c.get('slot_id'), {})
+        x, z = o['x']+off.get('x', 0), o['z']+off.get('z', 0)
+        d = c['dimensions']
+        return x, z, x+d['width'], z+d['depth']
+    courts = [bounds(c) for c in components if c.get('component_type') in ('COURTYARD', 'COURTYARD_SPACE')
+              and c.get('dimensions')]
+    if not courts:
+        return
+    for c in components:
+        p = c.get('params') or {}
+        if c.get('component_type') not in ('MASS_MAIN', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY'):
+            continue
+        if p.get('plan_type') != 'courtyard' or p.get('courtyard_ratio') != p.get('void_ratio'):
+            continue
+        if any('courtyard' in str(f).lower() or 'siheyuan' in str(f).lower() for f in c.get('features', [])):
+            continue
+        x0, z0, x1, z1 = bounds(c)
+        if any(x0 < b[2] and b[0] < x1 and z0 < b[3] and b[1] < z1 for b in courts):
+            continue
+        p['plan_type'] = 'none'
+        p.pop('courtyard_ratio', None)
+        p['plan_type_source'] = 'separate_site_courtyard'

@@ -76,10 +76,61 @@ final class ExteriorCirculationValidator {
                     && previous.owner().dimensions().height() == 1
                     && Set.of("COURTYARD","COURTYARD_SPACE","PATH","ROAD","PAVING","PLAZA").contains(previous.writerType()))
                 result.add(pos);
+            if (previous != null && "FOUNDATION".equals(previous.writerType()) && previous.owner()!=null && y==-1) {
+                var fb=ComponentFootprintUtil.bounds(previous.owner());
+                var fs=slots.get(previous.owner().slotId()); var fa=fs==null?null:fs.anchor();
+                int fy=fa==null?0:fa.y();
+                if(fb!=null && fb.maxY()+fy==pos.getY()+1) result.add(pos);
+            }
         }
         }
         Object stairBuilding = stair.params().get("building_id");
         if (stairBuilding == null) stairBuilding = stair.params().get("host_id");
+        // Optional eaves outside another building's core yield to an explicit
+        // flight. Its core roof and walls retain the existing collision rules.
+        for (int sample=0;sample<=run+(landing>1?landing:0);sample++) {
+            int stepY = number(from.get("y"))+(int)Math.round(rise*(Math.min(run,sample)/(double)Math.max(1,run)));
+            for (int side=-width/2;side<width-width/2;side++) for (int y=-1;y<=clear;y++) {
+                var pos = new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*sample+(dz!=0?side:0),
+                        offset.getY()+rp.y()+stepY+y,
+                        offset.getZ()+rp.z()+number(from.get("z"))+dz*sample+(dx!=0?side:0));
+                var previous = occupancy.placeAt(pos);
+                if (previous == null || !"ROOF".equals(previous.writerType()) || previous.owner() == null
+                        || previous.owner().params() == null) continue;
+                Object hostId = previous.owner().params().get("host_id");
+                var host = components.stream().filter(c -> c.params()!=null && hostId!=null
+                        && hostId.equals(c.params().get("component_id"))).findFirst();
+                if (host.isEmpty()) continue;
+                var core = ComponentFootprintUtil.bounds(host.get());
+                var hostSlot = slots.get(host.get().slotId());
+                var ha = hostSlot == null ? null : hostSlot.anchor();
+                int hx=ha==null?0:ha.x(), hz=ha==null?0:ha.z();
+                if (core!=null && (pos.getX()<core.minX()+hx || pos.getX()>=core.maxX()+hx
+                        || pos.getZ()<core.minZ()+hz || pos.getZ()>=core.maxZ()+hz)) result.add(pos);
+            }
+        }
+        // Supports just below a declared destination doorway may join that
+        // destination's foundation, bounded to the actual portal footprint.
+        for (var door : components) {
+            if (!"ENTRANCE".equals(door.componentType()) || door.params()==null
+                    || !Objects.equals(stair.params().get("component_id"),door.params().get("stair_connection"))
+                    || !Objects.equals(stair.params().get("target_host_id"),door.params().get("host_id"))) continue;
+            var db = ComponentFootprintUtil.bounds(door);
+            var ds = slots.get(door.slotId()); var da=ds==null?null:ds.anchor();
+            int ox=da==null?0:da.x(), oz=da==null?0:da.z();
+            if (db==null) continue;
+            for(int step=0;step<=(landing>1?landing:0);step++) for(int side=-width/2;side<width-width/2;side++) {
+                var pos = new BlockPos(offset.getX()+rp.x()+number(to.get("x"))+dx*step+(dz!=0?side:0),
+                        offset.getY()+rp.y()+number(to.get("y"))-1,
+                        offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx!=0?side:0));
+                var previous=occupancy.placeAt(pos);
+                if(pos.getX()>=db.minX()+ox-Math.abs(dx)*landing && pos.getX()<db.maxX()+ox+Math.abs(dx)*landing
+                        && pos.getZ()>=db.minZ()+oz-Math.abs(dz)*landing && pos.getZ()<db.maxZ()+oz+Math.abs(dz)*landing
+                        && previous!=null && "FOUNDATION".equals(previous.writerType()) && previous.owner()!=null
+                        && previous.owner().params()!=null && Objects.equals(door.params().get("host_id"),previous.owner().params().get("host_id")))
+                    result.add(pos);
+            }
+        }
         for (Component connector : components) {
             if (connector.params() == null) continue;
             boolean enclosure = "DECOR_DETAIL".equals(connector.componentType())
