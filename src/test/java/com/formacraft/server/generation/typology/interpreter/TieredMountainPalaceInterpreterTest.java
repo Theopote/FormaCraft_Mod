@@ -38,19 +38,26 @@ class TieredMountainPalaceInterpreterTest {
         params.put("forceFailCirculation", true);
         var result = TieredMountainPalaceBuilder.generateDetailed(
                 params, new BlockPos(0, 64, 0), null, null);
-        assertFalse(result.success());
+        assertTrue(result.failed());
         assertTrue(result.structure().getBlocks().isEmpty());
         assertTrue(result.structure().getDescription().contains("status=FAILED"));
         assertTrue(result.diagnostics().stream().anyMatch(d -> d.code().startsWith("STAIR_GAP")));
     }
 
     @Test
+    void generateThrowsOnFailedResult() {
+        assertThrows(TypologyGenerationException.class, () ->
+                TieredMountainPalaceBuilder.generate(
+                        baseParamsWithForceFail(), new BlockPos(100, 64, 200), null, null));
+    }
+
+    @Test
     void failedResultMapsToTypologyGenerationExceptionContract() {
         var result = TieredMountainPalaceBuilder.generateDetailed(
                 baseParamsWithForceFail(), new BlockPos(100, 64, 200), null, null);
-        assertFalse(result.success());
+        assertTrue(result.failed());
         TypologyGenerationException ex = assertThrows(TypologyGenerationException.class, () -> {
-            if (!result.success()) {
+            if (result.failed()) {
                 throw new TypologyGenerationException(
                         TieredMountainPalaceBuilder.TYPOLOGY_ID,
                         "CIRCULATION_FAILED",
@@ -97,6 +104,7 @@ class TieredMountainPalaceInterpreterTest {
         extras.put("tierHeight", 5);
         extras.put("platformHeight", 3);
         extras.put("facing", "SOUTH");
+        extras.put("schematicFlatTerrain", true);
         return extras;
     }
 

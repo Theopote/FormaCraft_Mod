@@ -30,16 +30,29 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
             return List.of();
         }
         Map<String, Object> params = TypologyParamResolver.merge(typologyId(), semantic.source());
+        // Real-world interpret never uses schematic flat; require live terrain snapshot.
+        params.remove("schematicFlatTerrain");
+        if ("schematic_flat".equalsIgnoreCase(String.valueOf(params.getOrDefault("terrainMode", "")))) {
+            params.remove("terrainMode");
+        }
         TieredMountainPalaceBuilder.PalaceGenerateResult result =
                 TieredMountainPalaceBuilder.generateDetailed(params, origin, world, null);
-        if (!result.success()) {
-            List<String> diags = result.diagnostics().stream()
-                    .map(TieredMountainPalaceBuilder.BuildDiagnostic::toString)
-                    .toList();
+        List<String> diags = result.diagnostics().stream()
+                .map(TieredMountainPalaceBuilder.BuildDiagnostic::toString)
+                .toList();
+        if (result.failed()) {
             throw new TypologyGenerationException(
                     typologyId(),
                     "CIRCULATION_FAILED",
                     "tiered_mountain_palace generation failed: " + String.join("; ", diags),
+                    diags
+            );
+        }
+        if (!result.executable()) {
+            throw new TypologyGenerationException(
+                    typologyId(),
+                    "SCHEMATIC_PREVIEW_NOT_EXECUTABLE",
+                    "schematic flat preview cannot be applied to a real world",
                     diags
             );
         }

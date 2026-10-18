@@ -179,22 +179,41 @@ final class ComponentGenerationPipeline {
                 && plan.isStepEligible(ComponentPipelineStepId.STRUCTURE_ADAPTOR)
                 && world != null
                 && UnifiedGeneratorRouter.shouldUseStructureFallbackForRouting(semantic)) {
-            List<BlockPatch> structurePatches = StructureGeneratorAdaptor.tryGenerate(semantic, world);
-            if (!structurePatches.isEmpty()) {
-                FormacraftMod.LOGGER.debug("ComponentGenerationPipeline: structure adaptor for {}", componentType);
+            try {
+                List<BlockPatch> structurePatches = StructureGeneratorAdaptor.tryGenerate(semantic, world);
+                if (!structurePatches.isEmpty()) {
+                    FormacraftMod.LOGGER.debug("ComponentGenerationPipeline: structure adaptor for {}", componentType);
+                    String routeReason = authority + ":" + ComponentPipelineStepId.STRUCTURE_ADAPTOR.name();
+                    TypologyRoutingMetrics.recordExecutorHit(
+                            ComponentExecutorId.COMPONENT_PIPELINE.name(),
+                            routeReason,
+                            componentType);
+                    return UnifiedGeneratorRouter.withDiagnostics(
+                            RoutedGenerationResult.success(
+                                    structurePatches,
+                                    ComponentExecutorId.COMPONENT_PIPELINE,
+                                    ComponentPipelineStepId.STRUCTURE_ADAPTOR,
+                                    authority,
+                                    ComponentPipelineStepId.STRUCTURE_ADAPTOR.name()),
+                            routeDiagnostics);
+                }
+            } catch (com.formacraft.common.typology.TypologyGenerationException e) {
                 String routeReason = authority + ":" + ComponentPipelineStepId.STRUCTURE_ADAPTOR.name();
-                TypologyRoutingMetrics.recordExecutorHit(
-                        ComponentExecutorId.COMPONENT_PIPELINE.name(),
-                        routeReason,
-                        componentType);
-                return UnifiedGeneratorRouter.withDiagnostics(
-                        RoutedGenerationResult.success(
-                                structurePatches,
-                                ComponentExecutorId.COMPONENT_PIPELINE,
-                                ComponentPipelineStepId.STRUCTURE_ADAPTOR,
-                                authority,
-                                ComponentPipelineStepId.STRUCTURE_ADAPTOR.name()),
-                        routeDiagnostics);
+                List<com.formacraft.common.component.GenerationDiagnostic> failDiags =
+                        new ArrayList<>(routeDiagnostics);
+                failDiags.add(new com.formacraft.common.component.GenerationDiagnostic(
+                        e.code(), e.getMessage() == null ? e.code() : e.getMessage()));
+                for (String d : e.diagnostics()) {
+                    failDiags.add(new com.formacraft.common.component.GenerationDiagnostic("TYPOLOGY_DIAG", d));
+                }
+                return new RoutedGenerationResult(
+                        ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                        List.of(),
+                        failDiags,
+                        ComponentExecutorId.COMPONENT_PIPELINE,
+                        ComponentPipelineStepId.STRUCTURE_ADAPTOR,
+                        authority,
+                        routeReason);
             }
         }
 

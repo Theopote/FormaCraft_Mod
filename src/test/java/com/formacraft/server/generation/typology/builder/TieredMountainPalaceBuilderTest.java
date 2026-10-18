@@ -177,7 +177,7 @@ class TieredMountainPalaceBuilderTest {
                         .anyMatch(d -> d.code().equals("CONNECTIVITY_BYPASS_DENIED")),
                 "diags=" + result.diagnostics());
         // Valid geometry still succeeds under enforced connectivity
-        assertTrue(result.success(), result.structure().getDescription());
+        assertTrue(result.hasGeometry(), result.structure().getDescription());
         assertFalse(result.structure().getBlocks().isEmpty());
     }
 
@@ -206,9 +206,65 @@ class TieredMountainPalaceBuilderTest {
         extras.put("platformHeight", 3);
         TieredMountainPalaceBuilder.PalaceGenerateResult ok =
                 TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
-        assertTrue(ok.success());
-        assertTrue(TieredMountainPalaceBuilder.parseOk(ok.structure().getDescription()));
+        assertTrue(ok.hasGeometry());
+        assertEquals(TieredMountainPalaceBuilder.GenerateStatus.SCHEMATIC_ONLY, ok.status());
+        assertFalse(ok.executable());
+        assertTrue(TieredMountainPalaceBuilder.parseSchematicOnly(ok.structure().getDescription()));
         assertFalse(ok.structure().getBlocks().isEmpty());
+    }
+
+    @Test
+    void missingTerrainContextFailsWithoutSchematicFlag() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.remove("schematicFlatTerrain");
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21);
+        extras.put("tiers", 3);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        TieredMountainPalaceBuilder.PalaceGenerateResult result =
+                TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
+        assertTrue(result.failed());
+        assertTrue(result.diagnostics().stream()
+                .anyMatch(d -> d.code().equals("TERRAIN_CONTEXT_MISSING")));
+        assertThrows(com.formacraft.common.typology.TypologyGenerationException.class,
+                () -> TieredMountainPalaceBuilder.generate(extras, ORIGIN, null, specOf(extras)));
+    }
+
+    @Test
+    void structureGeneratorRejectsSchematicOnly() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21);
+        extras.put("tiers", 3);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        BuildingSpec spec = specOf(extras);
+        spec.getExtra().put("typology_id", TieredMountainPalaceBuilder.TYPOLOGY_ID);
+        var gen = new com.formacraft.server.generation.structure.TypologyBackedStructureGenerator(
+                TieredMountainPalaceBuilder.TYPOLOGY_ID);
+        var ex = assertThrows(com.formacraft.common.typology.TypologyGenerationException.class,
+                () -> gen.generate(spec, ORIGIN, null));
+        assertEquals("SCHEMATIC_PREVIEW_NOT_EXECUTABLE", ex.code());
+    }
+
+    @Test
+    void staleTerrainFingerprintFails() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21);
+        extras.put("tiers", 3);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        TieredMountainPalaceBuilder.PalaceGenerateResult first =
+                TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
+        assertTrue(first.hasGeometry());
+        assertFalse(first.terrainFingerprint().isBlank());
+        extras.put("terrainFingerprint", "deadbeefdeadbeef");
+        TieredMountainPalaceBuilder.PalaceGenerateResult stale =
+                TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
+        assertTrue(stale.failed());
+        assertTrue(stale.diagnostics().stream().anyMatch(d -> d.code().equals("TERRAIN_STALE")));
     }
 
     private static BuildingSpec specOf(Map<String, Object> extras) {
@@ -367,6 +423,8 @@ class TieredMountainPalaceBuilderTest {
         extras.put("tierHeight", 6);
         extras.put("platformHeight", 4);
         extras.put("facing", "SOUTH");
+        // Unit tests without ServerWorld use explicit schematic flat terrain (non-executable).
+        extras.put("schematicFlatTerrain", true);
         if (potala) {
             extras.put("reference_landmark", TieredMountainPalaceBuilder.LANDMARK_POTALA);
         }

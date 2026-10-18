@@ -146,6 +146,16 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
             var bridged = StructurePatchBridge.convert(structure, worldAnchor, flights);
             AssemblyCirculationConstraints.publish(bridged.circulation());
             return bridged.patches();
+        } catch (com.formacraft.common.typology.TypologyGenerationException e) {
+            FormacraftMod.LOGGER.warn(
+                    "StructureGeneratorAdaptor: typology hard-fail code={} diags={}",
+                    e.code(), e.diagnostics());
+            com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(
+                    e.code(),
+                    e.getMessage() == null ? e.code() : e.getMessage(),
+                    "components[]",
+                    List.of("Fix palace circulation/terrain, or refresh preview after terrain changes.")));
+            throw e;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("StructureGeneratorAdaptor: error generating structure", e);
             com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(

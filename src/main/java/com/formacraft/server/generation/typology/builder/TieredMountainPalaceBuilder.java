@@ -12,6 +12,7 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.common.typology.TypologyGenerationException;
 import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyPatchBridge;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
@@ -23,7 +24,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.world.Heightmap;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -57,25 +58,58 @@ public final class TieredMountainPalaceBuilder {
     /** Structured generation diagnostic (stair gaps, walkability, openings). */
     public record BuildDiagnostic(String code, String detail) {
         @Override
-        public String toString() {
+        public @NotNull String toString() {
             return code + (detail == null || detail.isBlank() ? "" : ":" + detail);
         }
     }
 
+    public enum GenerateStatus {
+        /** Executable Preview/Apply result with real (or validated) terrain. */
+        SUCCESS,
+        /** Explicit schematic flat preview — not executable against a real world. */
+        SCHEMATIC_ONLY,
+        /** Circulation / terrain / validation failure. */
+        FAILED
+    }
+
     /**
      * Structured generate outcome for interpreters/compilers.
-     * {@code success=false} means circulation/terrain acceptance failed — not an empty OK build.
+     * Only {@link GenerateStatus#SUCCESS} may enter Apply; {@link GenerateStatus#SCHEMATIC_ONLY}
+     * is a non-executable schematic preview.
      */
     public record PalaceGenerateResult(
-            boolean success,
+            GenerateStatus status,
             GeneratedStructure structure,
-            List<BuildDiagnostic> diagnostics
+            List<BuildDiagnostic> diagnostics,
+            String terrainFingerprint
     ) {
         public PalaceGenerateResult {
+            status = status == null ? GenerateStatus.FAILED : status;
             structure = structure == null
                     ? new GeneratedStructure(null, BlockPos.ORIGIN, "null", List.of())
                     : structure;
             diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
+            terrainFingerprint = terrainFingerprint == null ? "" : terrainFingerprint;
+        }
+
+        /** Blocks were produced (SUCCESS or SCHEMATIC_ONLY). */
+        public boolean hasGeometry() {
+            return status == GenerateStatus.SUCCESS || status == GenerateStatus.SCHEMATIC_ONLY;
+        }
+
+        /** Safe to Apply in a real world. */
+        public boolean executable() {
+            return status == GenerateStatus.SUCCESS;
+        }
+
+        public boolean failed() {
+            return status == GenerateStatus.FAILED;
+        }
+
+        /** @deprecated use {@link #executable()} / {@link #hasGeometry()} */
+        @Deprecated
+        public boolean success() {
+            return hasGeometry();
         }
     }
 
@@ -137,19 +171,27 @@ public final class TieredMountainPalaceBuilder {
     }
 
     public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
-        return generate(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
+        return requireNotFailed(fromBuildingSpecDetailed(spec, origin, world));
     }
 
+    public static PalaceGenerateResult fromBuildingSpecDetailed(
+            BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        return generateDetailed(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
+    }
+
+    /**
+     * Legacy entry: returns geometry for SUCCESS/SCHEMATIC_ONLY; throws {@link TypologyGenerationException} on FAILED.
+     */
     public static GeneratedStructure generate(
             Map<String, Object> params,
             BlockPos origin,
             ServerWorld world,
             BuildingSpec specHint
     ) {
-        return generateDetailed(params, origin, world, specHint).structure();
+        return requireNotFailed(generateDetailed(params, origin, world, specHint));
     }
 
-    /** Preferred entry for interpreters: exposes success vs FAILED without parsing description strings. */
+    /** Preferred entry for interpreters: exposes status without parsing description strings. */
     public static PalaceGenerateResult generateDetailed(
             Map<String, Object> params,
             BlockPos origin,
@@ -165,13 +207,24 @@ public final class TieredMountainPalaceBuilder {
             merged.putAll(params);
         }
         spec.setExtra(merged);
-        GeneratedStructure structure = generateFromSpec(spec, origin, world);
-        List<BuildDiagnostic> diags = lastDiagnostics();
-        boolean ok = structure != null && !parseFailed(structure.getDescription());
-        return new PalaceGenerateResult(ok, structure, diags);
+        return generateFromSpec(spec, origin, world);
     }
 
-    private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+    private static GeneratedStructure requireNotFailed(PalaceGenerateResult result) {
+        if (result == null || result.failed()) {
+            List<String> diags = result == null ? List.of() : result.diagnostics().stream()
+                    .map(BuildDiagnostic::toString).toList();
+            throw new TypologyGenerationException(
+                    TYPOLOGY_ID,
+                    "CIRCULATION_FAILED",
+                    "tiered_mountain_palace generation failed: " + String.join("; ", diags),
+                    diags
+            );
+        }
+        return result.structure();
+    }
+
+    private static PalaceGenerateResult generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         LAST_DIAGNOSTICS.get().clear();
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
@@ -194,6 +247,8 @@ public final class TieredMountainPalaceBuilder {
         int tierInset = clamp(getIntExtra(spec, "tierInset", 3), 2, 6);
         int tierHeight = clamp(getIntExtra(spec, "tierHeight", 6), 4, 12);
         int platformH = clamp(getIntExtra(spec, "platformHeight", 4), 2, 10);
+        boolean schematicFlat = getBoolExtra(spec, "schematicFlatTerrain", false)
+                || "schematic_flat".equalsIgnoreCase(getStringExtra(spec, "terrainMode", ""));
 
         BlockState foundation = Blocks.STONE_BRICKS.getDefaultState();
         BlockState wall = Blocks.WHITE_TERRACOTTA.getDefaultState();
@@ -242,11 +297,21 @@ public final class TieredMountainPalaceBuilder {
                     floor, upperWall, trim, accent);
         }
 
+        PalaceTerrainSnapshot terrainSnapshot = null;
+        String mode = potala ? "potala" : "generic";
+
         if (!keepTiers.isEmpty()) {
-            TierRect base = keepTiers.get(0);
+            TierRect base = keepTiers.getFirst();
             doorMx = (base.x0() + base.x1()) / 2;
+            int pathStartZ = base.z1() + MAX_APPROACH_DEPTH;
+            terrainSnapshot = resolveTerrainSnapshot(
+                    spec, world, origin, entrance, doorMx, pathStartZ, platformH, diagnostics);
+            if (terrainSnapshot == null) {
+                return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
+                        voxels.airCount(), diagnostics, "");
+            }
             carveEntrance(voxels, base, platformH, foundation, floor);
-            placeEntranceApproach(voxels, world, origin, entrance, doorMx, base.z1(), platformH,
+            placeEntranceApproach(voxels, terrainSnapshot, doorMx, base.z1(), platformH,
                     foundation, floor, stair, diagnostics);
             placeWindows(voxels, keepTiers, window);
             placeInterTierStairs(voxels, keepTiers, stair, floor, diagnostics, emittedFlights);
@@ -255,6 +320,11 @@ public final class TieredMountainPalaceBuilder {
             roofs.add(new RoofUnit(
                     top.x0(), top.z0(), top.x1(), top.z1(),
                     top.y1() + 1, top.width() >= 7 ? 2 : 1, accent, trim));
+        } else if (schematicFlat || world != null) {
+            // no tiers — still OK to continue empty-ish
+        } else if (!schematicFlat) {
+            diagnostics.add(new BuildDiagnostic("TERRAIN_CONTEXT_MISSING", "no_tiers_and_no_world"));
+            return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, 0, 0, diagnostics, "");
         }
 
         for (RoofUnit roof : roofs) {
@@ -266,12 +336,15 @@ public final class TieredMountainPalaceBuilder {
             diagnostics.add(new BuildDiagnostic("STAIR_GAP", "forced_test_failure"));
         }
 
-        String mode = potala ? "potala" : "generic";
+        String terrainFp = terrainSnapshot != null ? terrainSnapshot.fingerprint() : "";
         boolean stairFailed = diagnostics.stream().anyMatch(d -> d.code().startsWith("STAIR_GAP"));
         boolean approachFailed = diagnostics.stream().anyMatch(d -> d.code().startsWith("APPROACH_"));
-        if (requireConnectivity && ((actualTiers >= 2 && stairFailed) || approachFailed)) {
-            return failStructure(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
-                    voxels.airCount(), diagnostics);
+        // TERRAIN_SCHEMATIC is informational; only missing/stale terrain hard-fails.
+        boolean terrainFailed = diagnostics.stream().anyMatch(d ->
+                d.code().equals("TERRAIN_CONTEXT_MISSING") || d.code().equals("TERRAIN_STALE"));
+        if (requireConnectivity && ((actualTiers >= 2 && stairFailed) || approachFailed || terrainFailed)) {
+            return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
+                    voxels.airCount(), diagnostics, terrainFp);
         }
 
         List<PlannedBlock> blocks = voxels.emit(origin, entrance);
@@ -282,27 +355,63 @@ public final class TieredMountainPalaceBuilder {
         diagnostics.addAll(occupancyIssues);
 
         if (requireConnectivity && !occupancyIssues.isEmpty()) {
-            return failStructure(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
-                    voxels.airCount(), diagnostics);
+            return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
+                    voxels.airCount(), diagnostics, terrainFp);
         }
 
+        boolean schematic = terrainSnapshot != null && terrainSnapshot.schematicFlat();
+        GenerateStatus status = schematic ? GenerateStatus.SCHEMATIC_ONLY : GenerateStatus.SUCCESS;
+        String statusTag = schematic ? "SCHEMATIC" : "OK";
         String diagSuffix = diagnostics.isEmpty() ? "" : ", diagnostics=" + formatDiagnostics(diagnostics);
         String desc = String.format(
-                "Tiered Mountain Palace (tiered_mountain_palace, status=OK, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d%s)",
-                mode, bw, bd, requestedTiers, actualTiers, roofs.size(), voxels.airCount(), diagSuffix
+                "Tiered Mountain Palace (tiered_mountain_palace, status=%s, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, terrainFp=%s%s)",
+                statusTag, mode, bw, bd, requestedTiers, actualTiers, roofs.size(), voxels.airCount(),
+                terrainFp, diagSuffix
         );
-        return new GeneratedStructure(null, origin, desc, blocks);
+        return new PalaceGenerateResult(status, new GeneratedStructure(null, origin, desc, blocks),
+                diagnostics, terrainFp);
     }
 
-    private static GeneratedStructure failStructure(
+    private static PalaceTerrainSnapshot resolveTerrainSnapshot(
+            BuildingSpec spec, ServerWorld world, BlockPos origin, Direction entrance,
+            int mx, int pathStartZ, int padY, List<BuildDiagnostic> diagnostics) {
+        boolean schematicFlat = getBoolExtra(spec, "schematicFlatTerrain", false)
+                || "schematic_flat".equalsIgnoreCase(getStringExtra(spec, "terrainMode", ""));
+        PalaceTerrainSnapshot snap;
+        if (schematicFlat) {
+            snap = PalaceTerrainSnapshot.schematicFlat(mx, pathStartZ, padY, MAX_APPROACH_DROP);
+            diagnostics.add(new BuildDiagnostic("TERRAIN_SCHEMATIC", "fingerprint=" + snap.fingerprint()));
+        } else if (world == null || origin == null) {
+            diagnostics.add(new BuildDiagnostic("TERRAIN_CONTEXT_MISSING",
+                    "world_required_unless_schematicFlatTerrain"));
+            return null;
+        } else {
+            snap = PalaceTerrainSnapshot.capture(
+                    world, origin, entrance, mx, pathStartZ, padY, MAX_APPROACH_DROP,
+                    TieredMountainPalaceBuilder::local);
+        }
+        String expected = getStringExtra(spec, "terrainFingerprint", null);
+        if (expected != null && !expected.isBlank() && !expected.equals(snap.fingerprint())) {
+            diagnostics.add(new BuildDiagnostic("TERRAIN_STALE",
+                    "expected=" + expected + "_got=" + snap.fingerprint()));
+            return null;
+        }
+        return snap;
+    }
+
+    private static PalaceGenerateResult failResult(
             BlockPos origin, String mode, int bw, int bd, int requestedTiers, int actualTiers,
-            int roofs, int air, List<BuildDiagnostic> diagnostics) {
+            int roofs, int air, List<BuildDiagnostic> diagnostics, String terrainFp) {
         LOG.warn("tiered_mountain_palace FAILED: {}", formatDiagnostics(diagnostics));
         String desc = String.format(
-                "Tiered Mountain Palace (tiered_mountain_palace, status=FAILED, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, diagnostics=%s)",
-                mode, bw, bd, requestedTiers, actualTiers, roofs, air, formatDiagnostics(diagnostics)
+                "Tiered Mountain Palace (tiered_mountain_palace, status=FAILED, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, terrainFp=%s, diagnostics=%s)",
+                mode, bw, bd, requestedTiers, actualTiers, roofs, air, terrainFp, formatDiagnostics(diagnostics)
         );
-        return new GeneratedStructure(null, origin, desc, List.of());
+        return new PalaceGenerateResult(
+                GenerateStatus.FAILED,
+                new GeneratedStructure(null, origin, desc, List.of()),
+                diagnostics,
+                terrainFp == null ? "" : terrainFp);
     }
 
     private static String formatDiagnostics(List<BuildDiagnostic> diagnostics) {
@@ -488,16 +597,12 @@ public final class TieredMountainPalaceBuilder {
         voxels.put(mx, y0 - 1, zFront, foundation);
     }
 
-    /** One cell along an approach column (local Z beyond the facade). */
-    private record TerrainSample(int localX, int localZ, int groundLocalY, boolean water, boolean sampled) {}
-
     /**
-     * Exterior pad + profile-planned descending stairs.
-     * Samples the full expected stair path (not only the pad edge). When {@code world == null},
-     * uses a deterministic flat profile at pad height so preview matches flat-world apply.
+     * Exterior pad + profile-planned descending stairs from an immutable {@link PalaceTerrainSnapshot}.
+     * All three approach columns share one drop length; mismatched columns fail together.
      */
     private static void placeEntranceApproach(
-            VoxelMap voxels, ServerWorld world, BlockPos origin, Direction entrance,
+            VoxelMap voxels, PalaceTerrainSnapshot snapshot,
             int mx, int zFront, int platformH,
             BlockState foundation, BlockState floor, BlockState stairBase,
             List<BuildDiagnostic> diagnostics) {
@@ -520,16 +625,29 @@ public final class TieredMountainPalaceBuilder {
         }
 
         int pathStartZ = zFront + depth;
-        boolean flatPreview = (world == null || origin == null);
+        List<ApproachPlan> columnPlans = new ArrayList<>(3);
         for (int dx = -1; dx <= 1; dx++) {
             int lx = mx + dx;
-            List<TerrainSample> profile = sampleApproachProfile(
-                    world, origin, entrance, lx, pathStartZ, padY, flatPreview);
-            ApproachPlan plan = planApproachFromProfile(lx, pathStartZ, padY, profile);
+            List<PalaceTerrainSnapshot.Sample> profile = profileFromSnapshot(snapshot, lx, pathStartZ);
+            columnPlans.add(planApproachFromProfile(lx, pathStartZ, padY, profile));
+        }
+
+        // Align columns: require same drop count (within 0); any failure fails the bay.
+        int drop0 = columnPlans.get(0).ok() ? columnPlans.get(0).steps().size() : -1;
+        for (int i = 0; i < columnPlans.size(); i++) {
+            ApproachPlan plan = columnPlans.get(i);
             if (!plan.ok()) {
                 diagnostics.add(new BuildDiagnostic(plan.failCode(), plan.failDetail()));
-                continue;
+                return;
             }
+            if (plan.steps().size() != drop0) {
+                diagnostics.add(new BuildDiagnostic("APPROACH_COLUMN_MISMATCH",
+                        "col" + i + "_steps=" + plan.steps().size() + "_expected=" + drop0));
+                return;
+            }
+        }
+
+        for (ApproachPlan plan : columnPlans) {
             for (ApproachStep step : plan.steps()) {
                 BlockState st = stairBase.with(Properties.HORIZONTAL_FACING, Direction.SOUTH);
                 voxels.put(step.x(), step.y(), step.z(), st);
@@ -540,17 +658,26 @@ public final class TieredMountainPalaceBuilder {
                     }
                 }
             }
-            // Landing pad at final ground if we descended
             if (!plan.steps().isEmpty()) {
                 ApproachStep last = plan.steps().get(plan.steps().size() - 1);
                 int landZ = last.z() + 1;
                 int landY = last.y() - 1;
                 if (landY >= 0) {
-                    voxels.put(lx, landY, landZ, floor);
-                    clearHeadroom(voxels, lx, landY, landZ);
+                    voxels.put(last.x(), landY, landZ, floor);
+                    clearHeadroom(voxels, last.x(), landY, landZ);
                 }
             }
         }
+    }
+
+    private static List<PalaceTerrainSnapshot.Sample> profileFromSnapshot(
+            PalaceTerrainSnapshot snapshot, int lx, int pathStartZ) {
+        List<PalaceTerrainSnapshot.Sample> out = new ArrayList<>(MAX_APPROACH_DROP + 1);
+        for (int s = 0; s <= MAX_APPROACH_DROP; s++) {
+            PalaceTerrainSnapshot.Sample sample = snapshot.get(lx, pathStartZ + s);
+            out.add(sample);
+        }
+        return out;
     }
 
     private record ApproachStep(int x, int y, int z) {}
@@ -565,53 +692,18 @@ public final class TieredMountainPalaceBuilder {
         }
     }
 
-    private static List<TerrainSample> sampleApproachProfile(
-            ServerWorld world, BlockPos origin, Direction entrance,
-            int localX, int pathStartZ, int padY, boolean flatPreview) {
-        List<TerrainSample> out = new ArrayList<>(MAX_APPROACH_DROP + 1);
-        for (int s = 0; s <= MAX_APPROACH_DROP; s++) {
-            int lz = pathStartZ + s;
-            if (flatPreview) {
-                out.add(new TerrainSample(localX, lz, padY, false, true));
-                continue;
-            }
-            BlockPos worldPos = local(origin, entrance, localX, padY, lz);
-            int groundWorldY;
-            boolean water = false;
-            try {
-                groundWorldY = world.getTopY(
-                        Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, worldPos.getX(), worldPos.getZ());
-                BlockPos below = new BlockPos(worldPos.getX(), Math.max(world.getBottomY(), groundWorldY - 1),
-                        worldPos.getZ());
-                var state = world.getBlockState(below);
-                water = state != null && (state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA));
-            } catch (Throwable t) {
-                LOG.debug("approach profile sample failed at {}", worldPos, t);
-                out.add(new TerrainSample(localX, lz, padY, false, false));
-                continue;
-            }
-            int groundLocalY = groundWorldY - origin.getY();
-            out.add(new TerrainSample(localX, lz, groundLocalY, water, true));
-        }
-        return out;
-    }
-
-    /**
-     * Plan one-block vertical steps along the profile. Rejects cliffs, water, and unsampled gaps.
-     */
     private static ApproachPlan planApproachFromProfile(
-            int lx, int pathStartZ, int padY, List<TerrainSample> profile) {
+            int lx, int pathStartZ, int padY, List<PalaceTerrainSnapshot.Sample> profile) {
         if (profile == null || profile.isEmpty()) {
             return ApproachPlan.fail("APPROACH_NO_PROFILE", "x=" + lx);
         }
-        TerrainSample edge = profile.get(0);
-        if (!edge.sampled()) {
+        PalaceTerrainSnapshot.Sample edge = profile.getFirst();
+        if (edge == null) {
             return ApproachPlan.fail("APPROACH_SAMPLE_FAILED", "x=" + lx + "_z=" + pathStartZ);
         }
         if (edge.water()) {
             return ApproachPlan.fail("APPROACH_WATER", "x=" + lx + "_z=" + pathStartZ);
         }
-        // Flat or ascending terrain at pad edge: pad alone is enough
         if (edge.groundLocalY() >= padY) {
             return ApproachPlan.success(List.of());
         }
@@ -627,36 +719,28 @@ public final class TieredMountainPalaceBuilder {
             if (s >= profile.size()) {
                 return ApproachPlan.fail("APPROACH_PROFILE_SHORT", "x=" + lx + "_need=" + totalDrop);
             }
-            TerrainSample cell = profile.get(s);
-            if (!cell.sampled()) {
+            PalaceTerrainSnapshot.Sample cell = profile.get(s);
+            if (cell == null) {
                 return ApproachPlan.fail("APPROACH_SAMPLE_FAILED", "x=" + lx + "_s=" + s);
             }
             if (cell.water()) {
                 return ApproachPlan.fail("APPROACH_WATER", "x=" + lx + "_s=" + s);
             }
             int stepY = padY - s;
-            // Ground along the path must not jump more than 1 relative to the planned stair, and
-            // must not sit more than 1 above the tread (buried) or more than 1 below (floating).
             int g = cell.groundLocalY();
-            if (Math.abs(g - stepY) > 1 && Math.abs(g - (stepY - 1)) > 1) {
-                // Allow ground to be at landing level under the tread
-                if (g < stepY - 1) {
-                    // Will fill foundation under tread — OK if within drop budget
-                    if (stepY - g > 3) {
-                        return ApproachPlan.fail("APPROACH_FLOATING",
-                                "x=" + lx + "_s=" + s + "_ground=" + g + "_step=" + stepY);
-                    }
-                } else if (g > stepY + 1) {
-                    return ApproachPlan.fail("APPROACH_COLLISION",
-                            "x=" + lx + "_s=" + s + "_ground=" + g + "_step=" + stepY);
-                }
+            if (g < stepY - 1 && stepY - g > 3) {
+                return ApproachPlan.fail("APPROACH_FLOATING",
+                        "x=" + lx + "_s=" + s + "_ground=" + g + "_step=" + stepY);
+            }
+            if (g > stepY + 1) {
+                return ApproachPlan.fail("APPROACH_COLLISION",
+                        "x=" + lx + "_s=" + s + "_ground=" + g + "_step=" + stepY);
             }
             expectedY = stepY;
             steps.add(new ApproachStep(lx, stepY, pathStartZ + s));
         }
-        // Verify terminal ground matches last tread ±1
-        TerrainSample terminus = profile.get(Math.min(totalDrop, profile.size() - 1));
-        if (terminus.sampled() && Math.abs(terminus.groundLocalY() - expectedY) > 1
+        PalaceTerrainSnapshot.Sample terminus = profile.get(Math.min(totalDrop, profile.size() - 1));
+        if (terminus != null && Math.abs(terminus.groundLocalY() - expectedY) > 1
                 && Math.abs(terminus.groundLocalY() - (expectedY - 1)) > 1) {
             return ApproachPlan.fail("APPROACH_TERMINUS_MISMATCH",
                     "x=" + lx + "_ground=" + terminus.groundLocalY() + "_end=" + expectedY);
@@ -669,7 +753,7 @@ public final class TieredMountainPalaceBuilder {
             int y = t.y0() + 2;
             if (y >= t.y1()) continue;
             for (int x = t.x0() + 2; x <= t.x1() - 2; x += 5) {
-                if (t == tiers.get(0) && Math.abs(x - (t.x0() + t.x1()) / 2) <= 2) continue;
+                if (t == tiers.getFirst() && Math.abs(x - (t.x0() + t.x1()) / 2) <= 2) continue;
                 voxels.put(x, y, t.z1(), window);
                 voxels.put(x, y + 1, t.z1(), window);
             }
@@ -1167,7 +1251,12 @@ public final class TieredMountainPalaceBuilder {
     }
 
     static boolean parseOk(String description) {
-        return description != null && description.contains("status=OK");
+        return description != null
+                && (description.contains("status=OK") || description.contains("status=SCHEMATIC"));
+    }
+
+    static boolean parseSchematicOnly(String description) {
+        return description != null && description.contains("status=SCHEMATIC");
     }
 
     /** True if description or last diagnostics report a stair-gap failure. */
