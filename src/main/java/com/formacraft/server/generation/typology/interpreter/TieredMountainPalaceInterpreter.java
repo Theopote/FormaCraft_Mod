@@ -8,7 +8,7 @@ import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
 import com.formacraft.server.preview.ConfirmedPlanRegistry;
-import com.formacraft.server.preview.GenerationRequestIds;
+import com.formacraft.server.preview.GenerationRequestContext;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -20,7 +20,7 @@ import java.util.UUID;
 /**
  * Native typology interpreter for {@code tiered_mountain_palace}.
  * Registers a frozen {@link PalacePreviewPlan} under the active
- * {@link GenerationRequestIds} — never by patchHash alone.
+ * {@link GenerationRequestContext} — never by patchHash or planId alone.
  */
 public final class TieredMountainPalaceInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
 
@@ -67,12 +67,24 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
             );
         }
         PalacePreviewPlan plan = TieredMountainPalaceBuilder.createPreviewPlan(result, origin, world, spec);
-        UUID requestId = GenerationRequestIds.currentOrCreate();
-        ConfirmedPlanRegistry.putPending(
-                requestId,
-                PalacePreviewPlan.worldKeyOf(world),
-                origin,
-                plan);
+        String worldKey = PalacePreviewPlan.worldKeyOf(world);
+        GenerationRequestContext.Scope scope = GenerationRequestContext.current();
+        if (scope != null) {
+            ConfirmedPlanRegistry.putPending(
+                    scope.requestId(),
+                    scope.playerId(),
+                    worldKey,
+                    origin,
+                    plan);
+        } else {
+            // No active request scope (unit tests / schematic): bind by ephemeral requestId only.
+            ConfirmedPlanRegistry.putPending(
+                    UUID.randomUUID(),
+                    null,
+                    worldKey,
+                    origin,
+                    plan);
+        }
         return plan.patches();
     }
 }

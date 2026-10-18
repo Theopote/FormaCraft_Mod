@@ -34,6 +34,15 @@ public final class FormaCraftServerNetworking {
         // 服务端也需要注册 S2C payload types（用于编码回包）。否则可能出现“服务端处理了但发不出包”，客户端只能超时。
         FormaCraftNetworking.registerPayloadTypesS2C();
 
+        // Player disconnect: drop tickets + bound plans for that player only.
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
+                (handler, server) -> {
+                    ServerPlayerEntity player = handler.getPlayer();
+                    if (player != null) {
+                        com.formacraft.server.patch.PatchPreviewService.cancelAll(player);
+                    }
+                });
+
         // Patch Undo/Redo（服务端执行）
         FormaCraftNetworking.registerPayloadTypesC2S();
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchUndoPayload.ID, (payload, context) -> context.server().execute(() -> {
@@ -80,7 +89,9 @@ public final class FormaCraftServerNetworking {
             BlockPos origin = payload.origin();
             if (origin == null) return;
 
-            com.formacraft.server.preview.GenerationRequestIds.begin();
+            String worldKey = com.formacraft.server.generation.typology.builder.PalacePreviewPlan.worldKeyOf(sw);
+            com.formacraft.server.preview.GenerationRequestContext.begin(
+                    player.getUuid(), worldKey, origin);
             try {
                 List<BlockPatch> rawPatches;
                 String componentId = payload.componentId();
@@ -133,7 +144,7 @@ public final class FormaCraftServerNetworking {
                     com.formacraft.server.patch.PatchPreviewService.confirm(player, ticket.id());
                 }
             } finally {
-                com.formacraft.server.preview.GenerationRequestIds.clear();
+                com.formacraft.server.preview.GenerationRequestContext.clear();
             }
         }));
 

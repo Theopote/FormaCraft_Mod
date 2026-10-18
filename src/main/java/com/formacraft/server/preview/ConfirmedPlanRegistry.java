@@ -8,21 +8,31 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Confirmed typology PreviewPlans indexed by {@code generationRequestId},
- * bound to player / world / origin — not by patchHash alone.
+ * Confirmed typology PreviewPlans.
+ * <p>
+ * Lifecycle keys:
+ * <ul>
+ *   <li>{@code requestId} — pending bind before a Ticket exists</li>
+ *   <li>{@code ticketId} — confirmed instance (unique per preview); NOT planId</li>
+ *   <li>{@code planId} — content identity only (may repeat across players/tickets)</li>
+ * </ul>
  */
 public final class ConfirmedPlanRegistry {
     private ConfirmedPlanRegistry() {}
 
     private static final long DEFAULT_TTL_MS = 5L * 60L * 1000L;
-    private static final Map<String, Entry> BY_PLAN_ID = new ConcurrentHashMap<>();
+    /** ticketId → bound plan instance */
+    private static final Map<UUID, BoundEntry> BY_TICKET_ID = new ConcurrentHashMap<>();
+    /** requestId → pending plan awaiting ticket issue */
     private static final Map<UUID, Pending> BY_REQUEST_ID = new ConcurrentHashMap<>();
 
-    public record Entry(
+    public record BoundEntry(
+            UUID ticketId,
             UUID playerId,
             UUID requestId,
             String worldKey,
             BlockPos origin,
+            String planId,
             PalacePreviewPlan plan,
             long expiresAtMillis
     ) {
@@ -33,6 +43,7 @@ public final class ConfirmedPlanRegistry {
 
     public record Pending(
             UUID requestId,
+            UUID playerId,
             String worldKey,
             BlockPos origin,
             PalacePreviewPlan plan,
@@ -43,11 +54,14 @@ public final class ConfirmedPlanRegistry {
         }
     }
 
-    /**
-     * Register a plan produced during compile/interpret for a specific generation request.
-     */
+    public static void putPending(GenerationRequestContext.Scope scope, PalacePreviewPlan plan) {
+        if (scope == null || plan == null) return;
+        putPending(scope.requestId(), scope.playerId(), scope.worldKey(), scope.origin(), plan);
+    }
+
     public static void putPending(
             UUID requestId,
+            UUID playerId,
             String worldKey,
             BlockPos origin,
             PalacePreviewPlan plan
@@ -57,6 +71,7 @@ public final class ConfirmedPlanRegistry {
         long exp = System.currentTimeMillis() + DEFAULT_TTL_MS;
         BY_REQUEST_ID.put(requestId, new Pending(
                 requestId,
+                playerId,
                 worldKey == null ? "unknown" : worldKey,
                 origin.toImmutable(),
                 plan,
@@ -64,8 +79,16 @@ public final class ConfirmedPlanRegistry {
     }
 
     /**
-     * Take pending plan for this request only if world/origin match.
-     * Does not transfer ownership across players via content hash.
+     * @deprecated use overload with playerId
+     */
+    @Deprecated
+    public static void putPending(UUID requestId, String worldKey, BlockPos origin, PalacePreviewPlan plan) {
+        putPending(requestId, null, worldKey, origin, plan);
+    }
+
+    /**
+     * Claim pending for this request. Validates player ownership when the pending
+     * entry recorded a non-null playerId.
      */
     public static PalacePreviewPlan takePending(
             UUID requestId,
@@ -75,53 +98,61 @@ public final class ConfirmedPlanRegistry {
     ) {
         if (requestId == null || origin == null) return null;
         purgeExpired();
-        Pending p = BY_REQUEST_ID.remove(requestId);
+        Pending p = BY_REQUEST_ID.get(requestId);
         if (p == null || p.isExpired(System.currentTimeMillis())) {
+            if (p != null) BY_REQUEST_ID.remove(requestId, p);
             return null;
         }
         String wk = worldKey == null ? "unknown" : worldKey;
         if (!wk.equals(p.worldKey()) || !origin.equals(p.origin())) {
-            // Put back — wrong bind attempt should not steal the pending slot silently.
-            BY_REQUEST_ID.putIfAbsent(requestId, p);
+            return null;
+        }
+        if (p.playerId() != null) {
+            if (playerId == null || !p.playerId().equals(playerId)) {
+                return null; // ownership mismatch — do not remove
+            }
+        }
+        if (!BY_REQUEST_ID.remove(requestId, p)) {
             return null;
         }
         return p.plan();
     }
 
-    public static void put(UUID playerId, UUID requestId, String worldKey, BlockPos origin,
-                           PalacePreviewPlan plan, long ttlMs) {
-        if (playerId == null || plan == null || plan.planId() == null || plan.planId().isBlank()) {
-            return;
-        }
+    /** Bind a plan instance to a specific preview ticket (unique). */
+    public static void putForTicket(
+            UUID ticketId,
+            UUID playerId,
+            UUID requestId,
+            String worldKey,
+            BlockPos origin,
+            PalacePreviewPlan plan,
+            long ttlMs
+    ) {
+        if (ticketId == null || playerId == null || plan == null) return;
         purgeExpired();
         long exp = System.currentTimeMillis() + Math.max(1_000L, ttlMs);
-        BY_PLAN_ID.put(plan.planId(), new Entry(
+        BY_TICKET_ID.put(ticketId, new BoundEntry(
+                ticketId,
                 playerId,
                 requestId,
                 worldKey == null ? "unknown" : worldKey,
                 origin == null ? BlockPos.ORIGIN : origin.toImmutable(),
+                plan.planId(),
                 plan,
                 exp));
     }
 
-    /** @deprecated use {@link #put(UUID, UUID, String, BlockPos, PalacePreviewPlan, long)} */
-    @Deprecated
-    public static void put(UUID playerId, PalacePreviewPlan plan, long ttlMs) {
-        put(playerId, null, plan == null ? null : plan.context().worldKey(),
-                plan == null ? null : plan.context().origin(), plan, ttlMs);
-    }
-
-    public static PalacePreviewPlan get(String planId, UUID playerId) {
-        Entry e = getEntry(planId, playerId);
+    public static PalacePreviewPlan getByTicket(UUID ticketId, UUID playerId) {
+        BoundEntry e = getEntryByTicket(ticketId, playerId);
         return e == null ? null : e.plan();
     }
 
-    public static Entry getEntry(String planId, UUID playerId) {
-        if (planId == null || planId.isBlank()) return null;
+    public static BoundEntry getEntryByTicket(UUID ticketId, UUID playerId) {
+        if (ticketId == null) return null;
         purgeExpired();
-        Entry e = BY_PLAN_ID.get(planId);
+        BoundEntry e = BY_TICKET_ID.get(ticketId);
         if (e == null || e.isExpired(System.currentTimeMillis())) {
-            if (e != null) BY_PLAN_ID.remove(planId, e);
+            if (e != null) BY_TICKET_ID.remove(ticketId, e);
             return null;
         }
         if (playerId != null && !playerId.equals(e.playerId())) {
@@ -130,34 +161,43 @@ public final class ConfirmedPlanRegistry {
         return e;
     }
 
-    public static PalacePreviewPlan remove(String planId, UUID playerId) {
-        if (planId == null || planId.isBlank() || playerId == null) return null;
+    public static PalacePreviewPlan removeByTicket(UUID ticketId, UUID playerId) {
+        if (ticketId == null || playerId == null) return null;
         purgeExpired();
-        Entry e = BY_PLAN_ID.get(planId);
+        BoundEntry e = BY_TICKET_ID.get(ticketId);
         if (e == null) return null;
         if (!playerId.equals(e.playerId())) return null;
-        if (!BY_PLAN_ID.remove(planId, e)) return null;
+        if (!BY_TICKET_ID.remove(ticketId, e)) return null;
         return e.plan();
+    }
+
+    /** Drop pending for a request (cancel / failed issue). */
+    public static void dropPending(UUID requestId) {
+        if (requestId == null) return;
+        BY_REQUEST_ID.remove(requestId);
     }
 
     public static void clearPlayer(UUID playerId) {
         if (playerId == null) return;
-        BY_PLAN_ID.entrySet().removeIf(e ->
+        BY_TICKET_ID.entrySet().removeIf(e ->
                 e.getValue() != null && playerId.equals(e.getValue().playerId()));
+        BY_REQUEST_ID.entrySet().removeIf(e ->
+                e.getValue() != null
+                        && e.getValue().playerId() != null
+                        && playerId.equals(e.getValue().playerId()));
     }
 
     public static void purgeExpired() {
         long now = System.currentTimeMillis();
-        BY_PLAN_ID.entrySet().removeIf(e -> e.getValue() == null || e.getValue().isExpired(now));
+        BY_TICKET_ID.entrySet().removeIf(e -> e.getValue() == null || e.getValue().isExpired(now));
         BY_REQUEST_ID.entrySet().removeIf(e -> e.getValue() == null || e.getValue().isExpired(now));
     }
 
     public static void clearAllForTest() {
-        BY_PLAN_ID.clear();
+        BY_TICKET_ID.clear();
         BY_REQUEST_ID.clear();
     }
 
-    /** Test helper: peek pending without removing. */
     public static Pending peekPendingForTest(UUID requestId) {
         if (requestId == null) return null;
         purgeExpired();
@@ -169,5 +209,32 @@ public final class ConfirmedPlanRegistry {
     public static int pendingCountForTest() {
         purgeExpired();
         return BY_REQUEST_ID.size();
+    }
+
+    public static int boundTicketCountForTest() {
+        purgeExpired();
+        return BY_TICKET_ID.size();
+    }
+
+    // --- deprecated planId-keyed API (removed behavior; kept to catch call sites) ---
+
+    /** @deprecated use {@link #putForTicket} */
+    @Deprecated
+    public static void put(UUID playerId, UUID requestId, String worldKey, BlockPos origin,
+                           PalacePreviewPlan plan, long ttlMs) {
+        // No-op without ticketId — callers must migrate.
+        throw new UnsupportedOperationException("use putForTicket(ticketId, ...)");
+    }
+
+    /** @deprecated use {@link #getByTicket} */
+    @Deprecated
+    public static PalacePreviewPlan get(String planId, UUID playerId) {
+        throw new UnsupportedOperationException("use getByTicket(ticketId, playerId)");
+    }
+
+    /** @deprecated use {@link #removeByTicket} */
+    @Deprecated
+    public static PalacePreviewPlan remove(String planId, UUID playerId) {
+        throw new UnsupportedOperationException("use removeByTicket(ticketId, playerId)");
     }
 }

@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 内存中的 Patch 预览票据存储（按 ticketId 索引）。
+ * 过期 / 取消 / 玩家清理时同步释放 {@link ConfirmedPlanRegistry} 中同 ticket 的计划实例。
  */
 public final class PreviewTicketStorage {
     private PreviewTicketStorage() {}
@@ -59,7 +60,6 @@ public final class PreviewTicketStorage {
                 null, "", Map.of(), false, null);
     }
 
-    /** Compatibility overload used by Round 49 callers. */
     public static PreviewTicket create(
             UUID playerId,
             Identifier dimension,
@@ -118,7 +118,9 @@ public final class PreviewTicketStorage {
         purgeExpired();
         PreviewTicket ticket = TICKETS.get(ticketId);
         if (ticket == null || ticket.isExpired(System.currentTimeMillis())) {
-            if (ticket != null) TICKETS.remove(ticketId, ticket);
+            if (ticket != null) {
+                releaseTicket(ticket);
+            }
             return null;
         }
         return ticket;
@@ -130,7 +132,7 @@ public final class PreviewTicketStorage {
         PreviewTicket ticket = TICKETS.get(ticketId);
         if (ticket == null) return null;
         if (ticket.isExpired(System.currentTimeMillis())) {
-            TICKETS.remove(ticketId, ticket);
+            releaseTicket(ticket);
             return null;
         }
         if (!playerId.equals(ticket.playerId())) {
@@ -142,6 +144,17 @@ public final class PreviewTicketStorage {
         return ticket;
     }
 
+    /** Cancel / discard a ticket without applying; clears bound plan for this ticket only. */
+    public static boolean cancel(UUID ticketId, UUID playerId) {
+        PreviewTicket ticket = consume(ticketId, playerId);
+        if (ticket == null) return false;
+        ConfirmedPlanRegistry.removeByTicket(ticket.id(), playerId);
+        if (ticket.generationRequestId() != null) {
+            ConfirmedPlanRegistry.dropPending(ticket.generationRequestId());
+        }
+        return true;
+    }
+
     public static void purgeExpired() {
         long now = System.currentTimeMillis();
         Iterator<Map.Entry<UUID, PreviewTicket>> it = TICKETS.entrySet().iterator();
@@ -150,13 +163,42 @@ public final class PreviewTicketStorage {
             PreviewTicket t = e.getValue();
             if (t == null || t.isExpired(now)) {
                 it.remove();
+                if (t != null) {
+                    ConfirmedPlanRegistry.removeByTicket(t.id(), t.playerId());
+                    if (t.generationRequestId() != null) {
+                        ConfirmedPlanRegistry.dropPending(t.generationRequestId());
+                    }
+                }
             }
         }
+        ConfirmedPlanRegistry.purgeExpired();
     }
 
     public static void clearPlayer(UUID playerId) {
         if (playerId == null) return;
-        TICKETS.entrySet().removeIf(e -> e.getValue() != null && playerId.equals(e.getValue().playerId()));
+        Iterator<Map.Entry<UUID, PreviewTicket>> it = TICKETS.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, PreviewTicket> e = it.next();
+            PreviewTicket t = e.getValue();
+            if (t != null && playerId.equals(t.playerId())) {
+                it.remove();
+                ConfirmedPlanRegistry.removeByTicket(t.id(), playerId);
+            }
+        }
         ConfirmedPlanRegistry.clearPlayer(playerId);
+    }
+
+    /** Test-only full reset of ticket storage. */
+    public static void clearAllForTest() {
+        TICKETS.clear();
+        ConfirmedPlanRegistry.clearAllForTest();
+    }
+
+    private static void releaseTicket(PreviewTicket ticket) {
+        TICKETS.remove(ticket.id(), ticket);
+        ConfirmedPlanRegistry.removeByTicket(ticket.id(), ticket.playerId());
+        if (ticket.generationRequestId() != null) {
+            ConfirmedPlanRegistry.dropPending(ticket.generationRequestId());
+        }
     }
 }

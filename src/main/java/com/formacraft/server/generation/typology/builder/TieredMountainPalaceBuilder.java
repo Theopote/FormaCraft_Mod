@@ -766,7 +766,7 @@ public final class TieredMountainPalaceBuilder {
         }
 
         // Align columns: require same drop count (within 0); any failure fails the bay.
-        int drop0 = columnPlans.get(0).ok() ? columnPlans.get(0).steps().size() : -1;
+        int drop0 = columnPlans.getFirst().ok() ? columnPlans.getFirst().steps().size() : -1;
         for (int i = 0; i < columnPlans.size(); i++) {
             ApproachPlan plan = columnPlans.get(i);
             if (!plan.ok()) {
@@ -792,7 +792,7 @@ public final class TieredMountainPalaceBuilder {
                 }
             }
             if (!plan.steps().isEmpty()) {
-                ApproachStep last = plan.steps().get(plan.steps().size() - 1);
+                ApproachStep last = plan.steps().getLast();
                 int landZ = last.z() + 1;
                 int landY = last.y() - 1;
                 if (landY >= 0) {

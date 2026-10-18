@@ -41,7 +41,8 @@ class PreviewPlanApplyE2ETest {
 
     @BeforeEach
     void clearRegistry() {
-        ConfirmedPlanRegistry.clearAllForTest();
+        PreviewTicketStorage.clearAllForTest();
+        GenerationRequestContext.clear();
     }
 
     @Test
@@ -157,7 +158,7 @@ class PreviewPlanApplyE2ETest {
     }
 
     @Test
-    void pendingPlanBindsByRequestId() {
+    void pendingPlanBindsByRequestIdAndOwner() {
         Map<String, Object> extras = schematicExtras();
         BuildingSpec spec = specOf(extras);
         var result = TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, spec);
@@ -169,13 +170,17 @@ class PreviewPlanApplyE2ETest {
                 schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop());
         assertTrue(plan.executable());
         UUID requestId = UUID.randomUUID();
-        ConfirmedPlanRegistry.putPending(requestId, "schematic", ORIGIN, plan);
+        UUID owner = UUID.randomUUID();
+        ConfirmedPlanRegistry.putPending(requestId, owner, "schematic", ORIGIN, plan);
+        assertNull(ConfirmedPlanRegistry.takePending(
+                requestId, UUID.randomUUID(), "schematic", ORIGIN),
+                "wrong player must not claim pending");
         PalacePreviewPlan taken = ConfirmedPlanRegistry.takePending(
-                requestId, UUID.randomUUID(), "schematic", ORIGIN);
+                requestId, owner, "schematic", ORIGIN);
         assertNotNull(taken);
         assertEquals(plan.planId(), taken.planId());
         assertNull(ConfirmedPlanRegistry.takePending(
-                requestId, UUID.randomUUID(), "schematic", ORIGIN));
+                requestId, owner, "schematic", ORIGIN));
     }
 
     @Test
@@ -187,8 +192,28 @@ class PreviewPlanApplyE2ETest {
                 player, null, ORIGIN, frozen, null, 60_000L,
                 "gone-plan", "ctx", Map.of(), true, UUID.randomUUID());
         assertTrue(ticket.requiresConfirmedPlan());
-        assertNull(ConfirmedPlanRegistry.get(ticket.planId(), player),
+        assertNull(ConfirmedPlanRegistry.getByTicket(ticket.id(), player),
                 "PLAN_MISSING must block confirm — no silent degrade");
+    }
+
+    @Test
+    void ticketBoundPlanSurvivesSiblingPlanIdRemoval() {
+        Map<String, Object> extras = schematicExtras();
+        BuildingSpec spec = specOf(extras);
+        var result = TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, spec);
+        PalacePreviewPlan schematic = TieredMountainPalaceBuilder.createPreviewPlan(result, ORIGIN, null, spec);
+        PalacePreviewPlan plan = new PalacePreviewPlan(
+                TieredMountainPalaceBuilder.GenerateStatus.SUCCESS,
+                schematic.patches(), schematic.context(), schematic.diagnostics(),
+                schematic.paramsSnapshot(), schematic.paletteId(),
+                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop());
+        UUID player = UUID.randomUUID();
+        UUID t1 = UUID.randomUUID();
+        UUID t2 = UUID.randomUUID();
+        ConfirmedPlanRegistry.putForTicket(t1, player, UUID.randomUUID(), "schematic", ORIGIN, plan, 60_000L);
+        ConfirmedPlanRegistry.putForTicket(t2, player, UUID.randomUUID(), "schematic", ORIGIN, plan, 60_000L);
+        ConfirmedPlanRegistry.removeByTicket(t1, player);
+        assertNotNull(ConfirmedPlanRegistry.getByTicket(t2, player));
     }
 
     private static Map<String, Object> schematicExtras() {

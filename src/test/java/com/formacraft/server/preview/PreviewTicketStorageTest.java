@@ -14,7 +14,7 @@ class PreviewTicketStorageTest {
 
     @BeforeEach
     void clear() {
-        PreviewTicketStorage.clearPlayer(UUID.randomUUID());
+        PreviewTicketStorage.clearAllForTest();
     }
 
     @Test

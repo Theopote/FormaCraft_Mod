@@ -17,7 +17,7 @@ import com.formacraft.server.build.quality.PatchQualityChecker;
 import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.server.preview.ConfirmedPlanRegistry;
-import com.formacraft.server.preview.GenerationRequestIds;
+import com.formacraft.server.preview.GenerationRequestContext;
 import com.formacraft.server.preview.PreviewStorage;
 import com.formacraft.server.preview.PreviewTicket;
 import com.formacraft.server.preview.PreviewTicketStorage;
@@ -35,8 +35,8 @@ import java.util.UUID;
 /**
  * 签发 Patch 预览票据并在确认时应用（服务端权威）。
  * <p>
- * 已绑定宫殿计划的 Ticket（{@code requiresConfirmedPlan}）找不到计划时拒绝，
- * 不得降级为普通 Patch 确认；Confirm 同时校验地形快照与 expectedStates。
+ * 绑定计划按 {@code ticketId} 索引（planId 仅作内容身份）。
+ * Confirm 消费一张 Ticket 只清理该 Ticket 的计划实例。
  */
 public final class PatchPreviewService {
     private PatchPreviewService() {}
@@ -96,30 +96,20 @@ public final class PatchPreviewService {
         String ctx = "";
         String explicitPlanId = null;
         boolean requiresPlan = false;
-        UUID requestId = GenerationRequestIds.current();
         String worldKey = PalacePreviewPlan.worldKeyOf(sw);
+        GenerationRequestContext.Scope scope = GenerationRequestContext.current();
+        UUID requestId = scope == null ? null : scope.requestId();
 
-        if (confirmedPlan == null && requestId != null) {
-            confirmedPlan = ConfirmedPlanRegistry.takePending(
-                    requestId, player.getUuid(), worldKey, origin);
-        }
-
+        // Defer takePending until after filter succeeds so failed issue does not steal pending.
         if (confirmedPlan != null) {
             if (!confirmedPlan.executable()) {
-                if (deliverToClient) {
-                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                            "预览计划不可执行（示意预览或生成失败），请重新预览。"
-                    ));
-                }
+                reject(player, deliverToClient, "预览计划不可执行（示意预览或生成失败），请重新预览。");
                 return null;
             }
             sourcePatches = confirmedPlan.patches();
             ctx = confirmedPlan.contextHash();
             explicitPlanId = confirmedPlan.planId();
             requiresPlan = true;
-            if (requestId == null) {
-                requestId = GenerationRequestIds.currentOrCreate();
-            }
         }
         if (sourcePatches == null || sourcePatches.isEmpty()) {
             return null;
@@ -136,6 +126,7 @@ public final class PatchPreviewService {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(quality.summaryZh()));
             }
             PreviewStorage.storeQualityReport(player, quality);
+            if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
             return null;
         }
 
@@ -156,11 +147,32 @@ public final class PatchPreviewService {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(quality.summaryZh()));
             }
             PreviewStorage.storeQualityReport(player, quality);
+            if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
             return null;
         }
 
         List<BlockPatch> acceptedFinal = ConfirmedPlanIdentity.toFinalPatches(filtered.accepted);
-        if (confirmedPlan != null) {
+
+        // Bind pending typology plan only after we know the ticket will be issued.
+        if (confirmedPlan == null && requestId != null) {
+            confirmedPlan = ConfirmedPlanRegistry.takePending(
+                    requestId, player.getUuid(), worldKey, origin);
+            if (confirmedPlan != null) {
+                if (!confirmedPlan.executable()) {
+                    reject(player, deliverToClient, "预览计划不可执行，请重新预览。");
+                    return null;
+                }
+                String acceptedHash = ConfirmedPlanIdentity.patchHash(acceptedFinal);
+                if (!acceptedHash.equals(confirmedPlan.patchHash())) {
+                    // Patches came from a different source (merged compile) — keep as ordinary ticket.
+                    confirmedPlan = null;
+                } else {
+                    ctx = confirmedPlan.contextHash();
+                    explicitPlanId = confirmedPlan.planId();
+                    requiresPlan = true;
+                }
+            }
+        } else if (confirmedPlan != null) {
             String acceptedHash = ConfirmedPlanIdentity.patchHash(acceptedFinal);
             if (!acceptedHash.equals(confirmedPlan.patchHash())) {
                 quality.add(BuildQualitySeverity.FATAL, "PLAN_PATCH_FILTERED",
@@ -171,6 +183,7 @@ public final class PatchPreviewService {
                     ));
                 }
                 PreviewStorage.storeQualityReport(player, quality);
+                if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
                 return null;
             }
         }
@@ -182,14 +195,17 @@ public final class PatchPreviewService {
                 player.getUuid(), dimension, origin, acceptedFinal, qualitySnap,
                 PLAN_TTL_MS, explicitPlanId, ctx, expected, requiresPlan, requestId);
         if (ticket == null) {
+            if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
             return null;
         }
 
-        if (confirmedPlan != null) {
-            ConfirmedPlanRegistry.put(
-                    player.getUuid(), requestId, worldKey, origin, confirmedPlan, PLAN_TTL_MS);
+        if (confirmedPlan != null && requiresPlan) {
+            ConfirmedPlanRegistry.putForTicket(
+                    ticket.id(), player.getUuid(), requestId, worldKey, origin,
+                    confirmedPlan, PLAN_TTL_MS);
             quality.add(BuildQualitySeverity.INFO, "CONFIRMED_PLAN",
-                    "planId=" + confirmedPlan.planId() + " requestId=" + requestId);
+                    "ticketId=" + ticket.id() + " planId=" + confirmedPlan.planId()
+                            + " requestId=" + requestId);
         }
 
         PreviewStorage.storeQualityReport(player, quality);
@@ -244,7 +260,8 @@ public final class PatchPreviewService {
             return false;
         }
 
-        PalacePreviewPlan bound = ConfirmedPlanRegistry.get(pending.planId(), player.getUuid());
+        // Lookup by ticketId — planId may be shared across players/tickets.
+        PalacePreviewPlan bound = ConfirmedPlanRegistry.getByTicket(pending.id(), player.getUuid());
         if (pending.requiresConfirmedPlan()) {
             if (bound == null) {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
@@ -264,20 +281,10 @@ public final class PatchPreviewService {
                 ));
                 return false;
             }
-            // Terrain + build-context validation (not replaceable by expectedStates).
             PalacePreviewPlan.ApplyValidation terrain = bound.validateLiveTerrainAndContext(sw);
             if (!terrain.ok()) {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "地形或建造上下文校验失败：" + terrain.reason() + " " + terrain.detail()
-                ));
-                return false;
-            }
-        } else if (bound != null) {
-            // Soft bind (legacy): still verify hashes if a plan happens to be present.
-            if (!bound.patchHash().equals(pending.patchHash())
-                    || !bound.contextHash().equals(pending.contextHash())) {
-                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                        "预览计划与票据不一致，请重新预览。"
                 ));
                 return false;
             }
@@ -318,16 +325,18 @@ public final class PatchPreviewService {
 
         conflict = PreviewWorldStateCapture.conflictDetail(access, ticket.expectedStates());
         if (conflict != null) {
+            // Ticket consumed — still drop this ticket's plan only.
+            ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "建造区域在确认瞬间被修改，已拒绝写入。请重新预览。"
             ));
             return false;
         }
 
-        // Re-validate terrain after consume for require-bound tickets (TOCTOU).
         if (ticket.requiresConfirmedPlan() && bound != null) {
             PalacePreviewPlan.ApplyValidation terrain = bound.validateLiveTerrainAndContext(sw);
             if (!terrain.ok()) {
+                ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "确认瞬间地形校验失败：" + terrain.reason() + " " + terrain.detail()
                 ));
@@ -336,11 +345,13 @@ public final class PatchPreviewService {
         }
 
         List<BlockPatch> patches = ticket.patches();
-        if (patches == null || patches.isEmpty()) return false;
-
-        if (bound != null) {
-            ConfirmedPlanRegistry.remove(bound.planId(), player.getUuid());
+        if (patches == null || patches.isEmpty()) {
+            ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
+            return false;
         }
+
+        // Clear only this ticket's plan — other tickets with same planId stay valid.
+        ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
 
         var applyResult = PatchHistoryManager.applyWithHistory(
                 sw, player.getUuid(), ticket.origin(), patches);
@@ -352,6 +363,24 @@ public final class PatchPreviewService {
         }
         PreviewStorage.clearQualityReport(player);
         return true;
+    }
+
+    /** Cancel a patch preview ticket (and only its bound plan). */
+    public static boolean cancel(ServerPlayerEntity player, UUID ticketId) {
+        if (player == null || ticketId == null) return false;
+        return PreviewTicketStorage.cancel(ticketId, player.getUuid());
+    }
+
+    /** Cancel all patch tickets for a player (disconnect / forma_cancel). */
+    public static void cancelAll(ServerPlayerEntity player) {
+        if (player == null) return;
+        PreviewTicketStorage.clearPlayer(player.getUuid());
+    }
+
+    private static void reject(ServerPlayerEntity player, boolean deliver, String msg) {
+        if (deliver && player != null) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg));
+        }
     }
 
     private static boolean isPlayerNear(ServerPlayerEntity player, BlockPos origin) {

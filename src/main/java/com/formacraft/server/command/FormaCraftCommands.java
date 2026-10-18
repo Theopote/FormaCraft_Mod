@@ -164,10 +164,11 @@ public class FormaCraftCommands {
                         return 0;
                     }
 
-                    // 清除预览
+                    // 清除预览 + 该玩家所有 Patch Ticket / 绑定计划
                     FormaCraftServerNetworking.sendClearOutline(player);
                     PreviewStorage.setPreview(player, false);
                     PreviewStorage.clear(player);
+                    com.formacraft.server.patch.PatchPreviewService.cancelAll(player);
 
                     ctx.getSource().sendFeedback(
                             () -> Text.translatable("formacraft.command.preview.canceled"),

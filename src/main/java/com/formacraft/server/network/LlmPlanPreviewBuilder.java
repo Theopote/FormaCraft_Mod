@@ -90,7 +90,9 @@ public final class LlmPlanPreviewBuilder {
             return false;
         }
 
-        com.formacraft.server.preview.GenerationRequestIds.begin();
+        String worldKey = com.formacraft.server.generation.typology.builder.PalacePreviewPlan.worldKeyOf(serverWorld);
+        com.formacraft.server.preview.GenerationRequestContext.begin(
+                player.getUuid(), worldKey, origin);
         try {
             // patch.blocks 专用：走 PreviewTicket（增量 Patch 预览 + ticket 确认）
             if (llmPlan.mode() == LlmPlan.Mode.patch
@@ -612,9 +614,11 @@ public final class LlmPlanPreviewBuilder {
             }
 
             if (!pipeline.delivered() || pipeline.structure() == null) {
-                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                        pipeline.report().summaryZh()
-                ));
+                if (pipeline.report() != null) {
+                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                            pipeline.report().summaryZh()
+                    ));
+                }
                 hbAlive.set(false);
                 LlmPlanRoutingMetrics.recordError(player, req, "quality:" + pipeline.report().summaryZh());
                 return true;
@@ -632,9 +636,11 @@ public final class LlmPlanPreviewBuilder {
             player.sendMessage(net.minecraft.text.Text.translatable(
                             "formacraft.preview.ready.building"),
                     false);
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                    pipeline.report().summaryZh()
-            ));
+            if (pipeline.report() != null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                        pipeline.report().summaryZh()
+                ));
+            }
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                     "LlmPlan preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
             ));
@@ -651,7 +657,7 @@ public final class LlmPlanPreviewBuilder {
             ));
             return true;
         } finally {
-            com.formacraft.server.preview.GenerationRequestIds.clear();
+            com.formacraft.server.preview.GenerationRequestContext.clear();
         }
     }
 
