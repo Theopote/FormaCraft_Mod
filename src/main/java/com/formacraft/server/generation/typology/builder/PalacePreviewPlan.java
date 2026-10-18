@@ -1,15 +1,19 @@
 package com.formacraft.server.generation.typology.builder;
 
+import com.formacraft.common.generation.component.util.PlannedOccupancy;
+import com.formacraft.common.generation.component.util.WalkabilityGraph;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.common.patch.WorldPatchTransaction;
 import com.formacraft.common.typology.TypologyGenerationException;
 import com.formacraft.common.world.BlockMutationAccess;
+import com.formacraft.common.llm.dto.Vec3i;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -115,8 +119,14 @@ public final class PalacePreviewPlan {
     }
 
     /**
+     * One overwritten plan cell: same (dx,dy,dz), different action/target.
+     */
+    public record CellOverwrite(BlockPatch original, BlockPatch merged) {}
+
+    /**
      * Bind accepted compile/filter patches to this frozen plan.
-     * Exact hash → this; legal merge (all plan cells present) → {@link #freezeMerged};
+     * Exact hash → this; cell keys preserved → re-freeze then
+     * {@link #validateMergedIntegrity} on the <em>full</em> final patch set;
      * otherwise null (caller must refuse — never silently degrade).
      */
     public PalacePreviewPlan resolveForAcceptedPatches(List<BlockPatch> acceptedFinal) {
@@ -130,13 +140,23 @@ public final class PalacePreviewPlan {
         if (!cellsPreservedIn(acceptedFinal)) {
             return null;
         }
-        return freezeMerged(acceptedFinal);
+        PalacePreviewPlan merged = freezeMerged(acceptedFinal);
+        if (merged == null) {
+            return null;
+        }
+        List<TieredMountainPalaceBuilder.BuildDiagnostic> issues =
+                merged.validateMergedIntegrity(this);
+        if (!issues.isEmpty()) {
+            return null;
+        }
+        return merged;
     }
 
     /**
      * Re-freeze a legally merged compile result: new patches, same terrain/context/params.
      * Returns null if this plan is not executable or {@code mergedPatches} is empty.
      * Produces a new {@code planId}/{@code patchHash}; {@code contextHash} is preserved.
+     * Callers must run {@link #validateMergedIntegrity} before issuing a ticket.
      */
     public PalacePreviewPlan freezeMerged(List<BlockPatch> mergedPatches) {
         if (!executable() || mergedPatches == null || mergedPatches.isEmpty()) {
@@ -161,7 +181,8 @@ public final class PalacePreviewPlan {
 
     /**
      * True when every cell in this plan appears in {@code candidate} (final-set keys).
-     * Target blocks may differ (merge overwrite); missing cells mean integrity failure.
+     * Missing cells mean integrity failure. Target changes are reported via
+     * {@link #planCellOverwrites} and validated by {@link #validateMergedIntegrity}.
      */
     public boolean cellsPreservedIn(List<BlockPatch> candidate) {
         List<BlockPatch> planFinal = this.patches;
@@ -177,6 +198,233 @@ public final class PalacePreviewPlan {
             }
         }
         return true;
+    }
+
+    /** Plan cells whose action/target changed in {@code candidate}. */
+    public List<CellOverwrite> planCellOverwrites(List<BlockPatch> candidate) {
+        Map<Long, BlockPatch> candByCell = indexByCell(ConfirmedPlanIdentity.toFinalPatches(candidate));
+        List<CellOverwrite> out = new ArrayList<>();
+        for (BlockPatch orig : this.patches) {
+            BlockPatch merged = candByCell.get(packCell(orig.dx(), orig.dy(), orig.dz()));
+            if (merged == null) continue;
+            if (!samePatchIdentity(orig, merged)) {
+                out.add(new CellOverwrite(orig, merged));
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * Final-structure gate for a re-frozen merge against {@code baseline}.
+     * Rejects stair/door/clearance loss and broken entrance↔floor reachability.
+     * Unrelated wall overwrites are allowed only when occupancy still passes.
+     */
+    public List<TieredMountainPalaceBuilder.BuildDiagnostic> validateMergedIntegrity(
+            PalacePreviewPlan baseline
+    ) {
+        List<TieredMountainPalaceBuilder.BuildDiagnostic> issues = new ArrayList<>();
+        if (baseline == null || !executable()) {
+            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                    "MERGE_BASELINE", "missing_baseline_or_not_executable"));
+            return issues;
+        }
+
+        List<CellOverwrite> overwrites = baseline.planCellOverwrites(this.patches);
+        for (CellOverwrite ow : overwrites) {
+            if (isStructuralProtected(ow.original()) && !samePatchIdentity(ow.original(), ow.merged())) {
+                // Structural overwrite is not an automatic reject — occupancy decides —
+                // but door/stair/clearance identity loss is flagged when counts drop.
+                if (isDoorPatch(ow.original()) && !isDoorPatch(ow.merged())) {
+                    issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                            "DOOR_OVERWRITE",
+                            "cell=" + ow.original().dx() + "," + ow.original().dy() + "," + ow.original().dz()));
+                }
+                if (isStairPatch(ow.original()) && !isStairPatch(ow.merged())) {
+                    issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                            "STAIR_OVERWRITE",
+                            "cell=" + ow.original().dx() + "," + ow.original().dy() + "," + ow.original().dz()));
+                }
+                if (isClearancePatch(ow.original()) && !isClearancePatch(ow.merged())) {
+                    issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                            "CLEARANCE_OVERWRITE",
+                            "cell=" + ow.original().dx() + "," + ow.original().dy() + "," + ow.original().dz()));
+                }
+            }
+        }
+
+        long baseStairs = countStairs(baseline.patches());
+        long mergedStairs = countStairs(this.patches);
+        if (baseStairs > 0 && mergedStairs < baseStairs) {
+            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                    "FLIGHT_TREAD_MISMATCH",
+                    "expected>=" + baseStairs + "_got=" + mergedStairs));
+        }
+
+        long baseDoors = countDoors(baseline.patches());
+        long mergedDoors = countDoors(this.patches);
+        if (baseDoors > 0 && mergedDoors < baseDoors) {
+            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                    "DOOR_MISSING",
+                    "expected>=" + baseDoors + "_got=" + mergedDoors));
+        }
+
+        // Hard structural overwrite of stairs/doors/clearance already recorded — refuse early.
+        if (!issues.isEmpty()) {
+            return issues;
+        }
+
+        issues.addAll(validateFinalVoxelCirculation());
+        return issues;
+    }
+
+    /**
+     * Voxel circulation over <em>this</em> plan's full patch set (entrance → each tier).
+     */
+    public List<TieredMountainPalaceBuilder.BuildDiagnostic> validateFinalVoxelCirculation() {
+        List<TieredMountainPalaceBuilder.BuildDiagnostic> issues = new ArrayList<>();
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, false);
+
+        Vec3i doorRel = findLowerDoorRel();
+        if (doorRel == null) {
+            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                    "DOOR_MISSING", "lower_leaf_not_found"));
+            return issues;
+        }
+
+        Vec3i start = findStandableNear(occ, doorRel.y(), doorRel.x(), doorRel.z(), 6);
+        if (start == null) {
+            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                    "ENTRANCE_UNSTANDABLE", "no_stand_near_door"));
+            return issues;
+        }
+
+        Direction face = context.facing() == null ? Direction.SOUTH : context.facing();
+        BlockPos out = new BlockPos(doorRel.x(), doorRel.y(), doorRel.z()).offset(face);
+        int platformH = intParam("platformHeight", padY > 0 ? padY : 3);
+        if (!WalkabilityGraph.canStand(occ, out.getX(), out.getY(), out.getZ())
+                && !WalkabilityGraph.canStand(occ, out.getX(), platformH, out.getZ())) {
+            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                    "APPROACH_UNSTANDABLE",
+                    "out=" + out.getX() + "," + out.getY() + "," + out.getZ()));
+        }
+
+        int tiers = Math.max(1, intParam("tiers", 3));
+        int tierHeight = Math.max(1, intParam("tierHeight", 5));
+        for (int i = 0; i < tiers; i++) {
+            int floorY = platformH + i * tierHeight;
+            Vec3i goal = findStandableNear(occ, floorY, doorRel.x(), doorRel.z(), 20);
+            if (goal == null) {
+                issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                        "FLOOR_NO_STAND", "tier" + i + "_y" + floorY));
+                continue;
+            }
+            WalkabilityGraph.ReachResult r = WalkabilityGraph.search(occ, start, goal, 2048, null);
+            if (r != WalkabilityGraph.ReachResult.REACHABLE) {
+                issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                        "FLOOR_UNREACHABLE", "tier" + i + "_" + r.name()));
+            }
+        }
+        return issues;
+    }
+
+    public static boolean isStructuralProtected(BlockPatch p) {
+        return isDoorPatch(p) || isStairPatch(p) || isClearancePatch(p);
+    }
+
+    public static boolean isDoorPatch(BlockPatch p) {
+        if (p == null || p.targetBlock() == null) return false;
+        return p.targetBlock().toLowerCase(Locale.ROOT).contains("door");
+    }
+
+    public static boolean isStairPatch(BlockPatch p) {
+        if (p == null || p.targetBlock() == null) return false;
+        return p.targetBlock().toLowerCase(Locale.ROOT).contains("stairs");
+    }
+
+    public static boolean isClearancePatch(BlockPatch p) {
+        if (p == null) return false;
+        if (BlockPatch.REMOVE.equals(p.action())) return true;
+        return PlannedOccupancy.isAirId(p.targetBlock());
+    }
+
+    private static long countStairs(List<BlockPatch> list) {
+        long n = 0;
+        for (BlockPatch p : list) {
+            if (isStairPatch(p)) n++;
+        }
+        return n;
+    }
+
+    private static long countDoors(List<BlockPatch> list) {
+        long n = 0;
+        for (BlockPatch p : list) {
+            if (isDoorPatch(p)) n++;
+        }
+        return n;
+    }
+
+    private Vec3i findLowerDoorRel() {
+        Vec3i best = null;
+        for (BlockPatch p : patches) {
+            if (!isDoorPatch(p)) continue;
+            Vec3i cand = new Vec3i(p.dx(), p.dy(), p.dz());
+            if (best == null
+                    || cand.y() < best.y()
+                    || (cand.y() == best.y()
+                    && (Math.abs(cand.x()) + Math.abs(cand.z())
+                    < Math.abs(best.x()) + Math.abs(best.z())))) {
+                best = cand;
+            }
+        }
+        return best;
+    }
+
+    private static Vec3i findStandableNear(PlannedOccupancy occ, int floorY, int nearX, int nearZ, int radius) {
+        for (int r = 0; r <= radius; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.abs(dx) != r && Math.abs(dz) != r && r > 0) continue;
+                    if (WalkabilityGraph.canStand(occ, nearX + dx, floorY, nearZ + dz)) {
+                        return new Vec3i(nearX + dx, floorY, nearZ + dz);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private int intParam(String key, int def) {
+        if (paramsSnapshot == null) return def;
+        Object v = paramsSnapshot.get(key);
+        if (v instanceof Number n) return n.intValue();
+        if (v != null) {
+            try {
+                return Integer.parseInt(String.valueOf(v).trim());
+            } catch (NumberFormatException ignored) {
+                return def;
+            }
+        }
+        return def;
+    }
+
+    private static Map<Long, BlockPatch> indexByCell(List<BlockPatch> list) {
+        Map<Long, BlockPatch> map = new HashMap<>();
+        if (list == null) return map;
+        for (BlockPatch p : list) {
+            if (p == null) continue;
+            map.put(packCell(p.dx(), p.dy(), p.dz()), p);
+        }
+        return map;
+    }
+
+    private static boolean samePatchIdentity(BlockPatch a, BlockPatch b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        String aa = a.action() == null ? "" : a.action().toLowerCase(Locale.ROOT);
+        String ba = b.action() == null ? "" : b.action().toLowerCase(Locale.ROOT);
+        String at = a.targetBlock() == null ? "" : a.targetBlock().toLowerCase(Locale.ROOT);
+        String bt = b.targetBlock() == null ? "" : b.targetBlock().toLowerCase(Locale.ROOT);
+        return aa.equals(ba) && at.equals(bt);
     }
 
     private static long packCell(int dx, int dy, int dz) {

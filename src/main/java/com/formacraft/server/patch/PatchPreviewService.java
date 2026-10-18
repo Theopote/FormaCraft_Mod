@@ -92,6 +92,8 @@ public final class PatchPreviewService {
             return null;
         }
 
+        // Contract: compile → filter → normalize → freeze/merge → quality → issue ticket.
+        // Quality report, ticket patches, client preview, and Apply share the same final set.
         List<BlockPatch> sourcePatches = rawPatches;
         String ctx = "";
         String explicitPlanId = null;
@@ -100,7 +102,7 @@ public final class PatchPreviewService {
         GenerationRequestContext.Scope scope = GenerationRequestContext.current();
         UUID requestId = scope == null ? null : scope.requestId();
 
-        // Defer takePending until after filter succeeds so failed issue does not steal pending.
+        // Defer takePending until after filter so failed issue does not steal pending.
         if (confirmedPlan != null) {
             if (!confirmedPlan.executable()) {
                 reject(player, deliverToClient, "预览计划不可执行（示意预览或生成失败），请重新预览。");
@@ -118,44 +120,33 @@ public final class PatchPreviewService {
             return null;
         }
 
-        BuildQualityReport quality = PatchQualityChecker.check(sw, origin, sourcePatches);
-        quality.logIssues("patch-preview");
-
-        if (!quality.allowPreview()) {
-            if (deliverToClient) {
-                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(quality.summaryZh()));
-            }
-            PreviewStorage.storeQualityReport(player, quality);
-            if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
-            return null;
-        }
-
         PatchFilterResult filtered = ServerPatchFilter.filter(
                 origin, sourcePatches, protectedZones, outline,
                 restrictToSelection, selectionMin, selectionMax);
 
-        if (filtered.rejected != null && !filtered.rejected.isEmpty()) {
-            quality.stats().rejectedPatches = filtered.rejected.size();
-            quality.add(BuildQualitySeverity.INFO, "PATCH_FILTERED",
-                    "过滤 " + filtered.rejected.size() + " 个越界 Patch 操作");
-        }
-
         if (filtered.accepted.isEmpty()) {
-            quality.add(BuildQualitySeverity.FATAL, "PATCH_ALL_REJECTED",
+            BuildQualityReport empty = new BuildQualityReport();
+            empty.add(BuildQualitySeverity.FATAL, "PATCH_ALL_REJECTED",
                     "所有 Patch 均被约束过滤，无法预览");
             if (deliverToClient) {
-                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(quality.summaryZh()));
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(empty.summaryZh()));
             }
-            PreviewStorage.storeQualityReport(player, quality);
+            PreviewStorage.storeQualityReport(player, empty);
             if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
             return null;
         }
 
         List<BlockPatch> acceptedFinal = ConfirmedPlanIdentity.toFinalPatches(filtered.accepted);
 
-        // Bind pending typology plan only after we know the ticket will be issued.
-        // A pending plan means this request declared frozen-plan constraints — never
-        // silently degrade to an ordinary ticket on hash mismatch.
+        // Scratch report for bind diagnostics; replaced by final quality on acceptedFinal.
+        BuildQualityReport quality = new BuildQualityReport();
+        if (filtered.rejected != null && !filtered.rejected.isEmpty()) {
+            quality.stats().rejectedPatches = filtered.rejected.size();
+            quality.add(BuildQualitySeverity.INFO, "PATCH_FILTERED",
+                    "过滤 " + filtered.rejected.size() + " 个越界 Patch 操作");
+        }
+
+        // Bind pending typology plan after filter/normalize. Never silent-downgrade.
         if (confirmedPlan == null && requestId != null) {
             confirmedPlan = ConfirmedPlanRegistry.takePending(
                     requestId, player.getUuid(), worldKey, origin);
@@ -169,7 +160,6 @@ public final class PatchPreviewService {
                 ctx = confirmedPlan.contextHash();
                 explicitPlanId = confirmedPlan.planId();
                 requiresPlan = true;
-                // Re-frozen merge: ticket patches must equal the new plan's final set.
                 acceptedFinal = List.copyOf(confirmedPlan.patches());
             }
         } else if (confirmedPlan != null) {
@@ -183,6 +173,24 @@ public final class PatchPreviewService {
             explicitPlanId = confirmedPlan.planId();
             requiresPlan = true;
             acceptedFinal = List.copyOf(confirmedPlan.patches());
+        }
+
+        // Final quality gate on the exact patches that will be previewed / applied.
+        BuildQualityReport finalQuality = PatchQualityChecker.check(sw, origin, acceptedFinal);
+        finalQuality.merge(quality);
+        if (filtered.rejected != null && !filtered.rejected.isEmpty()) {
+            finalQuality.stats().rejectedPatches = filtered.rejected.size();
+        }
+        finalQuality.logIssues("patch-preview");
+        quality = finalQuality;
+
+        if (!quality.allowPreview()) {
+            if (deliverToClient) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(quality.summaryZh()));
+            }
+            PreviewStorage.storeQualityReport(player, quality);
+            if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
+            return null;
         }
 
         Identifier dimension = sw.getRegistryKey().getValue();
@@ -356,11 +364,16 @@ public final class PatchPreviewService {
 
         var applyResult = PatchHistoryManager.applyWithHistory(
                 sw, player.getUuid(), ticket.origin(), patches);
-        if (applyResult != null) {
-            FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
-            if (applyResult.status() != BuildExecutionStatus.SUCCESS) {
-                return false;
-            }
+        // null is never success — applyWithHistory must return an explicit status.
+        if (applyResult == null) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "建造执行未返回结果（APPLY_NULL），已拒绝视为成功。"
+            ));
+            return false;
+        }
+        FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
+        if (applyResult.status() != BuildExecutionStatus.SUCCESS) {
+            return false;
         }
         PreviewStorage.clearQualityReport(player);
         return true;
@@ -406,11 +419,24 @@ public final class PatchPreviewService {
         }
         PalacePreviewPlan resolved = plan.resolveForAcceptedPatches(acceptedFinal);
         if (resolved == null) {
-            quality.add(BuildQualitySeverity.FATAL, "PLAN_PATCH_MISMATCH",
-                    "冻结计划与编译/过滤结果不一致，拒绝签发预览（不得降级）");
+            // Distinguish missing cells vs merge integrity (stairs/doors/clearance/circulation).
+            String code = "PLAN_PATCH_MISMATCH";
+            String detail = "冻结计划与编译/过滤结果不一致，拒绝签发预览（不得降级）";
+            if (plan.cellsPreservedIn(acceptedFinal)) {
+                PalacePreviewPlan trial = plan.freezeMerged(acceptedFinal);
+                if (trial != null) {
+                    var issues = trial.validateMergedIntegrity(plan);
+                    if (!issues.isEmpty()) {
+                        code = "PLAN_MERGE_INTEGRITY";
+                        detail = "合并后建筑完整性失败：" + issues.getFirst()
+                                + (issues.size() > 1 ? " (+" + (issues.size() - 1) + ")" : "");
+                    }
+                }
+            }
+            quality.add(BuildQualitySeverity.FATAL, code, detail);
             if (deliverToClient) {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                        "预览计划与编译/过滤结果不一致，已拒绝签发（不得降级为普通票据）。请重新预览。"
+                        detail + "。请重新预览。"
                 ));
             }
             PreviewStorage.storeQualityReport(player, quality);

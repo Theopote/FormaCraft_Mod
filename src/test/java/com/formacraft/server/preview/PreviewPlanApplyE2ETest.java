@@ -218,6 +218,15 @@ class PreviewPlanApplyE2ETest {
     }
 
     @Test
+    void applyWithHistoryNullArgsIsNotSuccess() {
+        var result = com.formacraft.server.build.PatchHistoryManager.applyWithHistory(
+                null, UUID.randomUUID(), ORIGIN, List.of(
+                        new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:stone")));
+        assertNotNull(result, "must never return null");
+        assertNotEquals(BuildExecutionStatus.SUCCESS, result.status());
+    }
+
+    @Test
     void ticketBoundPlanSurvivesSiblingPlanIdRemoval() {
         Map<String, Object> extras = schematicExtras();
         BuildingSpec spec = specOf(extras);

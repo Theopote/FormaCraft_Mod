@@ -104,8 +104,11 @@ public final class PatchHistoryManager {
      */
     public static WorldPatchTransaction.Result applyWithHistory(
             ServerWorld world, UUID playerId, BlockPos origin, List<BlockPatch> patches) {
-        if (world == null || playerId == null) return null;
-        if (origin == null || patches == null || patches.isEmpty()) return null;
+        // Non-null contract: callers must never treat null as success.
+        if (world == null || playerId == null
+                || origin == null || patches == null || patches.isEmpty()) {
+            return WorldPatchTransaction.Result.preflightRejected(null);
+        }
 
         BlockMutationAccess access = BlockMutationAccess.forWorld(world);
         Set<BlockPos> affected = collectAffected(origin, patches);

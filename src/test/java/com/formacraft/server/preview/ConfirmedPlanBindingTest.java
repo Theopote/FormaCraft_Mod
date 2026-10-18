@@ -242,6 +242,76 @@ class ConfirmedPlanBindingTest {
         assertEquals(plan.contextHash(), resolved.contextHash(), "terrain/context must be preserved");
         assertEquals(ConfirmedPlanIdentity.patchHash(merged), resolved.patchHash());
         assertTrue(resolved.executable());
+        assertTrue(resolved.validateMergedIntegrity(plan).isEmpty());
+    }
+
+    @Test
+    void mergeDeletingStairsIsRejected() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        BlockPatch stair = plan.patches().stream()
+                .filter(PalacePreviewPlan::isStairPatch)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("palace plan must contain stairs"));
+        List<BlockPatch> merged = new java.util.ArrayList<>();
+        for (BlockPatch p : plan.patches()) {
+            if (p.dx() == stair.dx() && p.dy() == stair.dy() && p.dz() == stair.dz()) {
+                merged.add(new BlockPatch(BlockPatch.PLACE, p.dx(), p.dy(), p.dz(), "minecraft:dirt"));
+            } else {
+                merged.add(p);
+            }
+        }
+        assertNull(plan.resolveForAcceptedPatches(merged),
+                "overwriting necessary stairs must refuse freeze");
+        PalacePreviewPlan trial = plan.freezeMerged(merged);
+        assertNotNull(trial);
+        assertFalse(trial.validateMergedIntegrity(plan).isEmpty());
+    }
+
+    @Test
+    void mergeOverwritingEntranceClearanceIsRejected() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        BlockPatch clearance = plan.patches().stream()
+                .filter(PalacePreviewPlan::isClearancePatch)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("palace plan must contain clearance/REMOVE"));
+        List<BlockPatch> merged = new java.util.ArrayList<>();
+        for (BlockPatch p : plan.patches()) {
+            if (p.dx() == clearance.dx() && p.dy() == clearance.dy() && p.dz() == clearance.dz()) {
+                merged.add(new BlockPatch(BlockPatch.PLACE, p.dx(), p.dy(), p.dz(), "minecraft:stone"));
+            } else {
+                merged.add(p);
+            }
+        }
+        assertNull(plan.resolveForAcceptedPatches(merged),
+                "overwriting entrance clearance must refuse freeze");
+    }
+
+    @Test
+    void mergeModifyingUnrelatedWallMayPassWhenCirculationHolds() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        BlockPatch wall = plan.patches().stream()
+                .filter(p -> p.targetBlock() != null
+                        && p.targetBlock().contains("stone_bricks")
+                        && !PalacePreviewPlan.isStairPatch(p)
+                        && !PalacePreviewPlan.isDoorPatch(p)
+                        && !PalacePreviewPlan.isClearancePatch(p)
+                        && p.dy() >= 8)
+                .findFirst()
+                .orElse(null);
+        if (wall == null) {
+            // Schematic palace may not expose a high wall cell — skip soft policy case.
+            return;
+        }
+        List<BlockPatch> merged = new java.util.ArrayList<>();
+        for (BlockPatch p : plan.patches()) {
+            if (p.dx() == wall.dx() && p.dy() == wall.dy() && p.dz() == wall.dz()) {
+                merged.add(new BlockPatch(BlockPatch.PLACE, p.dx(), p.dy(), p.dz(), "minecraft:cobblestone"));
+            } else {
+                merged.add(p);
+            }
+        }
+        PalacePreviewPlan resolved = plan.resolveForAcceptedPatches(merged);
+        assertNotNull(resolved, "unrelated wall overwrite allowed when circulation intact");
     }
 
     @Test
