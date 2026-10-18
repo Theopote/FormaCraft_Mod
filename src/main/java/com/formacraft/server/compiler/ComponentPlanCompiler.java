@@ -458,8 +458,11 @@ public final class ComponentPlanCompiler {
                 if (!roofPenetration && (java.util.Objects.equals(roofHost, getParamString(owner.params(), "component_id"))
                         || java.util.Objects.equals(roofHost, getParamString(owner.params(), "host_id")))) continue;
                 if (roofPenetration) {
+                    // Authored chimneys often bind host_id to the ROOF component_id, not the mass.
                     String penetrationHost = getParamString(owner.params(), "host_id");
-                    if (penetrationHost != null && !java.util.Objects.equals(roofHost, penetrationHost)) continue;
+                    if (penetrationHost != null
+                            && !java.util.Objects.equals(roofHost, penetrationHost)
+                            && !java.util.Objects.equals(roofIdentity, penetrationHost)) continue;
                 }
                 occludedColumns.add(new BlockPos(p.dx(),0,p.dz()));
             }

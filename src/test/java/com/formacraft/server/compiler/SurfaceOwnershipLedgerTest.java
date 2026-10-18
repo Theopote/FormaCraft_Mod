@@ -45,6 +45,36 @@ class SurfaceOwnershipLedgerTest {
     }
 
     @Test
+    void facadeWindowsCanCarveSameHostFlatRoofEdge() {
+        var ledger = new SurfaceOwnershipLedger();
+        var roof = component("ROOF", "roof1", Map.of(
+                "component_id", "roof1", "host_id", "b1", "building_id", "b1", "roof_type", "flat"));
+        ledger.accept(roof,
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 6, 0, "minecraft:smooth_stone")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(0, 6, 0), GeneratedSurfaceCapture.Role.ROOF)),
+                BlockPos.ORIGIN);
+
+        var windows = component("FACADE_WINDOWS", "win1", Map.of("component_id", "win1", "host_id", "b1", "building_id", "b1"));
+        assertFalse(ledger.isProtectedFromWindows(windows, new BlockPos(0, 6, 0)));
+        assertTrue(ledger.check(windows, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 6, 0, "minecraft:glass"))).isEmpty());
+
+        var foreign = component("FACADE_WINDOWS", "win2", Map.of("component_id", "win2", "host_id", "other"));
+        assertTrue(ledger.isProtectedFromWindows(foreign, new BlockPos(0, 6, 0)));
+        assertTrue(ledger.check(foreign, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 6, 0, "minecraft:glass"))).isPresent());
+
+        var pitched = new SurfaceOwnershipLedger();
+        var gable = component("ROOF", "gable1", Map.of(
+                "component_id", "gable1", "host_id", "b1", "building_id", "b1", "roof_type", "gable"));
+        pitched.accept(gable,
+                List.of(new BlockPatch(BlockPatch.PLACE, 1, 6, 0, "minecraft:oak_stairs")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(1, 6, 0), GeneratedSurfaceCapture.Role.ROOF)),
+                BlockPos.ORIGIN);
+        assertTrue(pitched.isProtectedFromWindows(windows, new BlockPos(1, 6, 0)));
+    }
+
+    @Test
     void decorCannotEraseOccupiedSurface() {
         var ledger = new SurfaceOwnershipLedger();
         var mass = component("MASS_MAIN", "mass1", Map.of("component_id", "mass1"));

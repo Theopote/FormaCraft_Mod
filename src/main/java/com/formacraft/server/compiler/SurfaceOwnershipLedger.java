@@ -13,7 +13,11 @@ import java.util.*;
 final class SurfaceOwnershipLedger {
     enum Op { ERASE, REPLACE, CARVE_OPENING, DECORATE }
 
-    record Surface(String owner, String source, GeneratedSurfaceCapture.Role role) {}
+    record Surface(String owner, String source, GeneratedSurfaceCapture.Role role, boolean openingCarvable) {
+        Surface(String owner, String source, GeneratedSurfaceCapture.Role role) {
+            this(owner, source, role, false);
+        }
+    }
     record Conflict(BlockPos position, Surface surface, String writer, String reason) {}
 
     private final Map<BlockPos, Surface> surfaces = new HashMap<>();
@@ -27,10 +31,15 @@ final class SurfaceOwnershipLedger {
     boolean isProtectedFromWindows(Component writer, BlockPos position) {
         if (circulationClearance.contains(position)) return true;
         Surface surface = surfaces.get(position);
-        return surface != null && (surface.role() == GeneratedSurfaceCapture.Role.ROOF
-                || surface.role() == GeneratedSurfaceCapture.Role.WALL && !buildingOwner(writer).equals(surface.owner())
+        if (surface == null) return false;
+        String host = buildingOwner(writer);
+        // Flat roofs attach at host maxY-1; same-host facade windows may carve that edge.
+        // Pitched roofs stay protected so slope audits are not punctured.
+        return surface.role() == GeneratedSurfaceCapture.Role.ROOF
+                && !(host.equals(surface.owner()) && surface.openingCarvable())
+                || surface.role() == GeneratedSurfaceCapture.Role.WALL && !host.equals(surface.owner())
                 || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
-                || surface.role() == GeneratedSurfaceCapture.Role.WINDOW && !surface.source().equals(surface.owner()));
+                || surface.role() == GeneratedSurfaceCapture.Role.WINDOW && !surface.source().equals(surface.owner());
     }
 
     boolean isProtectedFromEntrance(Component writer, BlockPos position) {
@@ -85,6 +94,7 @@ final class SurfaceOwnershipLedger {
     void accept(Component component, List<BlockPatch> patches, List<GeneratedSurfaceCapture.Cell> cells, BlockPos offset) {
         finalPatches.putAll(index(patches));
         String owner = buildingOwner(component);
+        boolean openingCarvable = isFlatRoof(component);
         if ("ENTRANCE".equalsIgnoreCase(component.componentType())) {
             // Entrance generators can emit a carved hole without capture cells.
             // Reserve both its opening and frame before placing facade windows.
@@ -95,9 +105,18 @@ final class SurfaceOwnershipLedger {
             BlockPos position = cell.shift(offset).position();
             if (cell.requiresBlock() || cell.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
                     || cell.role() == GeneratedSurfaceCapture.Role.FACADE_OPENING) {
-                surfaces.put(position, new Surface(owner, identity(component), cell.role()));
+                boolean carvable = cell.role() == GeneratedSurfaceCapture.Role.ROOF && openingCarvable;
+                surfaces.put(position, new Surface(owner, identity(component), cell.role(), carvable));
             }
         }
+    }
+
+    private static boolean isFlatRoof(Component component) {
+        if (component == null || !"ROOF".equalsIgnoreCase(component.componentType()) || component.params() == null) {
+            return false;
+        }
+        Object type = component.params().getOrDefault("roof_type", component.params().get("roofType"));
+        return "flat".equalsIgnoreCase(String.valueOf(type));
     }
 
     private static String buildingOwner(Component component) {
@@ -112,12 +131,12 @@ final class SurfaceOwnershipLedger {
         boolean writeOccupied = GeneratedSurfaceCapture.occupied(write);
         boolean existingOccupied = GeneratedSurfaceCapture.occupied(existing);
         if (!writeOccupied && existingOccupied) {
-            if (openingWriter && surface != null && surface.role() == GeneratedSurfaceCapture.Role.WALL)
+            if (openingWriter && surface != null && carvableByOpening(surface))
                 return Op.CARVE_OPENING;
             return Op.ERASE;
         }
         if (writeOccupied && existingOccupied) {
-            if (openingWriter && surface != null && surface.role() == GeneratedSurfaceCapture.Role.WALL
+            if (openingWriter && surface != null && carvableByOpening(surface)
                     && isOpeningInstall(write))
                 return Op.CARVE_OPENING;
             if (decorWriter) return Op.DECORATE;
@@ -159,21 +178,29 @@ final class SurfaceOwnershipLedger {
                 if (opening && (role == GeneratedSurfaceCapture.Role.WINDOW
                         || role == GeneratedSurfaceCapture.Role.DOOR_OPENING) && !sameSource)
                     yield "opening cannot replace another's " + role + " surface";
-                if (opening && role == GeneratedSurfaceCapture.Role.ROOF)
+                if (opening && role == GeneratedSurfaceCapture.Role.ROOF
+                        && !(sameHost && surface.openingCarvable()))
                     yield "opening cannot replace roof";
                 yield null;
             }
             case CARVE_OPENING -> {
-                if (role == GeneratedSurfaceCapture.Role.ROOF) yield "opening cannot carve roof";
+                if (role == GeneratedSurfaceCapture.Role.ROOF
+                        && !(sameHost && surface.openingCarvable()))
+                    yield "opening cannot carve roof";
                 if (host != null && !sameHost && role == GeneratedSurfaceCapture.Role.WALL)
                     yield "opening host_id does not own surface";
                 if ((role == GeneratedSurfaceCapture.Role.WINDOW
                         || role == GeneratedSurfaceCapture.Role.DOOR_OPENING) && !sameSource)
                     yield "opening cannot overwrite another's " + role;
-                // WALL carve / install by ENTRANCE / FACADE_WINDOWS / FACADE allowed when host matches or unset
+                // WALL / same-host flat-roof edge carve by ENTRANCE / FACADE_WINDOWS / FACADE
                 yield null;
             }
         };
+    }
+
+    private static boolean carvableByOpening(Surface surface) {
+        return surface.role() == GeneratedSurfaceCapture.Role.WALL
+                || surface.role() == GeneratedSurfaceCapture.Role.ROOF && surface.openingCarvable();
     }
 
     private static boolean isOpeningInstall(BlockPatch patch) {
