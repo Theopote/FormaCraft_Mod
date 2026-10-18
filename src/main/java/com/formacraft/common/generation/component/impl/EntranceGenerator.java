@@ -44,7 +44,7 @@ public class EntranceGenerator implements ComponentGenerator {
                 (semantic.slot() != null && semantic.slot().facing() != null)
                         ? semantic.slot().facing()
                         : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
-        if (params != null && params.containsKey("stair_connection") && params.get("facing") != null)
+        if (params != null && params.get("facing") != null)
             facing = com.formacraft.common.llm.dto.GlobalConstraints.Facing.valueOf(String.valueOf(params.get("facing")));
 
         String styleProfile = getStyleProfile(semantic);

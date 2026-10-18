@@ -2132,13 +2132,16 @@ public final class ComponentPlanCompiler {
 
     private static Component alignEntranceToMass(Component llmEntrance, Component mass, LlmPlan plan,
                                                  GlobalConstraints.Facing facing) {
-        if (llmEntrance.params() != null && llmEntrance.params().containsKey("stair_connection")) {
+        if (llmEntrance.params() != null && (llmEntrance.params().containsKey("stair_connection")
+                || llmEntrance.params().containsKey("facing"))) {
             return alignStairEntrance(llmEntrance, mass);
         }
         Component template = makeEntranceComponent(plan, mass, mass.slotId(), facing);
         if (template == null) {
             return llmEntrance;
         }
+        if (template.params().get("facing") != null)
+            facing = GlobalConstraints.Facing.valueOf(String.valueOf(template.params().get("facing")));
 
         Map<String, Object> params = new HashMap<>();
         if (template.params() != null) {
@@ -2185,7 +2188,8 @@ public final class ComponentPlanCompiler {
         int z = side ? start : ("SOUTH".equals(face) ? origin.z() : origin.z()+mass.dimensions().depth()-thickness);
         params.put("anchor_mode","min_corner");
         params.put("canopy_depth",0);
-        return new Component("ENTRANCE",door.slotId(),new Vec3i(x,rp.y(),z),
+        int openingY = rp.y() + (Boolean.TRUE.equals(params.get("entrance_at_deck_level")) ? 1 : 0);
+        return new Component("ENTRANCE",door.slotId(),new Vec3i(x,openingY,z),
                 new Dimensions(side ? thickness : width+2,side ? width+2 : thickness,height+1),
                 door.features(),params);
     }
@@ -2351,6 +2355,8 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component makeEntranceComponent(LlmPlan plan, Component base, String slotId, GlobalConstraints.Facing facing) {
+        GlobalConstraints.Facing courtyardFacing = courtyardEntranceFacing(plan, base);
+        if (courtyardFacing != null) facing = courtyardFacing;
         Dimensions dims = base.dimensions();
         Vec3i rp = resolveMassOrigin(base);
         if (dims == null || rp == null) {
@@ -2443,6 +2449,10 @@ public final class ComponentPlanCompiler {
 
         Map<String, Object> params = new HashMap<>();
         params.put("door_width", doorWidth);
+        if (courtyardFacing != null) {
+            params.put("facing", facing.name());
+            params.put("entrance_orientation_source", "enclosed_courtyard");
+        }
         bindDerived(params, base, "entrance");
         params.put("door_height", Math.max(2, Math.min(entranceHeight - 1, entranceHeight)));
         params.put("canopy_depth", paramCanopy > 0 ? paramCanopy : 1);
@@ -2471,6 +2481,49 @@ public final class ComponentPlanCompiler {
                 features,
                 params
         );
+    }
+
+    /** Use the inward side only for a uniquely identified courtyard enclosed on at least three sides. */
+    private static GlobalConstraints.Facing courtyardEntranceFacing(LlmPlan plan, Component base) {
+        if (plan.components() == null || base.params() != null &&
+                (base.params().containsKey("facing") || base.params().containsKey("entrance_facing"))) return null;
+        var slots = indexSlots(plan);
+        GlobalConstraints.Facing result = null;
+        for (Component court : plan.components()) {
+            if (!Set.of("COURTYARD", "COURTYARD_SPACE").contains(normalizeType(court.componentType()))
+                    || court.dimensions() == null || court.relativePosition() == null) continue;
+            Component local = inSlotFrame(court, base.slotId(), slots);
+            Vec3i co = resolveMassOrigin(local), bo = resolveMassOrigin(base);
+            if (co == null || bo == null || base.dimensions() == null) continue;
+            Set<GlobalConstraints.Facing> sides = new HashSet<>();
+            for (Component body : plan.components()) {
+                if (!Set.of("MASS_MAIN","MASS_SECONDARY","MASS_ANCILLARY","TOWER","MASS_WING","SIDE_WING")
+                        .contains(normalizeType(body.componentType())) || body.dimensions() == null
+                        || body.relativePosition() == null || "plate".equals(getParamString(body.params(),"extrude_mode"))) continue;
+                var side = courtyardSide(inSlotFrame(body, base.slotId(), slots), local);
+                if (side != null) sides.add(side);
+            }
+            if (sides.size() < 3) continue;
+            var side = courtyardSide(base, local);
+            if (side == null) continue;
+            if (result != null) return null; // Multiple courts require an authored choice.
+            result = side;
+        }
+        return result;
+    }
+
+    private static GlobalConstraints.Facing courtyardSide(Component body, Component court) {
+        Vec3i b = resolveMassOrigin(body), c = resolveMassOrigin(court);
+        if (b == null || c == null) return null;
+        Dimensions bd = body.dimensions(), cd = court.dimensions();
+        int gapLimit = 4;
+        boolean overlapX = b.x() < c.x()+cd.width() && b.x()+bd.width() > c.x();
+        boolean overlapZ = b.z() < c.z()+cd.depth() && b.z()+bd.depth() > c.z();
+        if (overlapX && c.z() >= b.z()+bd.depth() && c.z()-b.z()-bd.depth() <= gapLimit) return GlobalConstraints.Facing.NORTH;
+        if (overlapX && b.z() >= c.z()+cd.depth() && b.z()-c.z()-cd.depth() <= gapLimit) return GlobalConstraints.Facing.SOUTH;
+        if (overlapZ && c.x() >= b.x()+bd.width() && c.x()-b.x()-bd.width() <= gapLimit) return GlobalConstraints.Facing.WEST;
+        if (overlapZ && b.x() >= c.x()+cd.width() && b.x()-c.x()-cd.width() <= gapLimit) return GlobalConstraints.Facing.EAST;
+        return null;
     }
 
     private static Component makeRoofComponent(LlmPlan plan, Component base, String slotId) {

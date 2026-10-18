@@ -556,6 +556,14 @@ def normalize_circulation_plan(plan: dict) -> dict:
     # Convert only executable, floor-bound descriptions; ordinary volumes stay volumes.
     for comp in out.get('components', []):
         p = comp.get('params') or {}
+        if p.get('plate_role') == 'maintenance_platform':
+            p['plate_role'] = 'partial_platform'
+        if (comp.get('component_type') in ('MASS_ANCILLARY', 'MASS_SECONDARY')
+                and p.get('stair') is True and p.get('interior') is True
+                and all(type(p.get(k)) is int for k in ('rise', 'run'))):
+            comp['component_type'] = 'MASS_SECONDARY'
+            p.update(extrude_mode='stairs', step_material=p.get('stair_block', p.get('material')),
+                     width=(comp.get('dimensions') or {}).get('width', 3))
         if comp.get('component_type') == 'STRUCTURE' and isinstance(p.get('features'),list):
             comp['features'] = list(dict.fromkeys([*comp.get('features',[]),*p['features']]))
         if (comp.get('component_type') == 'MASS_SECONDARY' and (p.get('shape') == 'stair' or p.get('role') == 'interior_stair' or p.get('extrude_mode') == 'stairs')
@@ -766,12 +774,31 @@ def _complete_exterior_target_doors(plan: dict) -> None:
                  (abs(end['z']-ho['z']),'z',ho['z'],'SOUTH'),(abs(end['z']-(ho['z']+hd['depth']-1)),'z',ho['z']+hd['depth']-1,'NORTH')]
         distance,axis,face,facing=min(choices)
         across='z' if axis=='x' else 'x'; dimension='depth' if axis=='x' else 'width'
-        if distance>1 or not ho[across]+1 <= end[across]-width//2 or end[across]+width-width//2 > ho[across]+hd[dimension]-1: continue
+        deck = None
+        if distance > 1:
+            # A receiving deck may separate the flight from the wall. Require a
+            # continuous, explicitly hosted flat platform all the way to the door.
+            deck = None
+            for platform in components:
+                pp = platform.get('params') or {}; pd = platform.get('dimensions') or {}
+                if pp.get('host_id') != p['target_host_id'] or pd.get('height') != 1: continue
+                if platform.get('component_type') not in ('TERRACE','BALCONY') and pp.get('plate_role') not in ('terrace','platform','partial_platform','landing','deck'): continue
+                po = _mass_origin(platform); pa = slots.get(platform.get('slot_id'),{})
+                po = {a:po[a]+pa.get(a,0)-anchor.get(a,0) for a in ('x','y','z')}
+                if po['y'] != end['y']: continue
+                size = {'x':pd['width'],'z':pd['depth']}
+                if (po[axis] <= min(end[axis],face)+1 and po[axis]+size[axis] >= max(end[axis],face)
+                        and po[across] <= end[across]-width//2
+                        and end[across]+width-width//2 <= po[across]+size[across]):
+                    deck = platform; break
+            if deck is None: continue
+        if not ho[across]+1 <= end[across]-width//2 or end[across]+width-width//2 > ho[across]+hd[dimension]-1: continue
         pos=dict(end); pos[axis]=face; pos[across]-=width//2
         additions.append({'component_type':'ENTRANCE','slot_id':target.get('slot_id'),'relative_position':pos,
             'dimensions':{'width':1 if axis=='x' else width,'depth':width if axis=='x' else 1,'height':clear+1},'features':[],
             'params':{'component_id':identity,'host_id':p['target_host_id'],'anchor_mode':'min_corner','facing':facing,
                       'door_width':width,'door_height':clear+1,'entrance_type':'door','stair_connection':p.get('component_id'),
+                      **({'platform_connection':deck['params']['component_id'], 'entrance_at_deck_level':True} if deck else {}),
                       'circulation_source':'explicit_stair_wall_contact'}})
     components.extend(additions)
 
@@ -829,6 +856,7 @@ def _complete_stair_door_landings(plan: dict) -> None:
                  and c['params'].get('host_id') == p['target_host_id']]
         if len(doors) != 1: continue
         door = doors[0]; dp = door['params']
+        if dp.get('platform_connection'): continue  # Existing receiving deck already spans this connection.
         host = next((c for c in components if (c.get('params') or {}).get('component_id') == p['target_host_id']),None)
         if host is None: continue
         off = slots.get(stair.get('slot_id'), {})
