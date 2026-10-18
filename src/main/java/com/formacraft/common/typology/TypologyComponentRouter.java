@@ -43,6 +43,12 @@ public final class TypologyComponentRouter {
                 );
                 return patches;
             }
+        } catch (TypologyGenerationException e) {
+            // Explicit typology failure — must not be degraded to empty success / structure fallback.
+            FormacraftMod.LOGGER.warn(
+                    "TypologyComponentRouter: typology={} generation failed code={} diags={}",
+                    typologyId, e.code(), e.diagnostics());
+            throw e;
         } catch (Exception e) {
             FormacraftMod.LOGGER.warn("TypologyComponentRouter: interpreter failed for {}", typologyId, e);
         }

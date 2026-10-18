@@ -162,9 +162,30 @@ class TieredMountainPalaceBuilderTest {
     }
 
     @Test
-    void finalOccupancyRejectsWhenConnectivityDisabledStillBuilds() {
+    void connectivityBypassAloneIsIgnoredForFullBuilds() {
         Map<String, Object> extras = defaultExtras(false);
         extras.put("requireFloorConnectivity", false);
+        // Missing allowIncompleteCirculation → bypass denied; connectivity still enforced
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21);
+        extras.put("tiers", 3);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        TieredMountainPalaceBuilder.PalaceGenerateResult result =
+                TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
+        assertTrue(result.diagnostics().stream()
+                        .anyMatch(d -> d.code().equals("CONNECTIVITY_BYPASS_DENIED")),
+                "diags=" + result.diagnostics());
+        // Valid geometry still succeeds under enforced connectivity
+        assertTrue(result.success(), result.structure().getDescription());
+        assertFalse(result.structure().getBlocks().isEmpty());
+    }
+
+    @Test
+    void connectivityBypassRequiresExplicitAllowFlag() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.put("requireFloorConnectivity", false);
+        extras.put("allowIncompleteCirculation", true);
         extras.put("baseWidth", 25);
         extras.put("baseDepth", 21);
         extras.put("tiers", 3);
@@ -172,6 +193,28 @@ class TieredMountainPalaceBuilderTest {
         extras.put("platformHeight", 3);
         GeneratedStructure structure = generate(extras);
         assertFalse(structure.getBlocks().isEmpty());
+    }
+
+    @Test
+    void generateDetailedDistinguishesFailedFromSuccess() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21);
+        extras.put("tiers", 3);
+        extras.put("tierInset", 2);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        TieredMountainPalaceBuilder.PalaceGenerateResult ok =
+                TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
+        assertTrue(ok.success());
+        assertTrue(TieredMountainPalaceBuilder.parseOk(ok.structure().getDescription()));
+        assertFalse(ok.structure().getBlocks().isEmpty());
+    }
+
+    private static BuildingSpec specOf(Map<String, Object> extras) {
+        BuildingSpec spec = new BuildingSpec();
+        spec.setExtra(new HashMap<>(extras));
+        return spec;
     }
 
     @Test

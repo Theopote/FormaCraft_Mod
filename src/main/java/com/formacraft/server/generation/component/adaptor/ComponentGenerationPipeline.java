@@ -109,25 +109,48 @@ final class ComponentGenerationPipeline {
                 && world != null
                 && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)
                 && (base.isEmpty() ? canTypologyFillEmpty : canReplace)) {
-            List<BlockPatch> typologyPatches = com.formacraft.common.typology.TypologyComponentRouter
-                    .tryGenerate(semantic, world);
-            if (!typologyPatches.isEmpty()) {
-                FormacraftMod.LOGGER.debug(
-                        "ComponentGenerationPipeline: typology for {} authority={} replace={}",
-                        componentType, authority, !base.isEmpty());
+            try {
+                List<BlockPatch> typologyPatches = com.formacraft.common.typology.TypologyComponentRouter
+                        .tryGenerate(semantic, world);
+                if (!typologyPatches.isEmpty()) {
+                    FormacraftMod.LOGGER.debug(
+                            "ComponentGenerationPipeline: typology for {} authority={} replace={}",
+                            componentType, authority, !base.isEmpty());
+                    String routeReason = authority + ":" + ComponentPipelineStepId.TYPOLOGY.name();
+                    TypologyRoutingMetrics.recordExecutorHit(
+                            ComponentExecutorId.COMPONENT_PIPELINE.name(),
+                            routeReason,
+                            componentType);
+                    return UnifiedGeneratorRouter.withDiagnostics(
+                            RoutedGenerationResult.success(
+                                    typologyPatches,
+                                    ComponentExecutorId.COMPONENT_PIPELINE,
+                                    ComponentPipelineStepId.TYPOLOGY,
+                                    authority,
+                                    ComponentPipelineStepId.TYPOLOGY.name()),
+                            routeDiagnostics);
+                }
+            } catch (com.formacraft.common.typology.TypologyGenerationException e) {
                 String routeReason = authority + ":" + ComponentPipelineStepId.TYPOLOGY.name();
-                TypologyRoutingMetrics.recordExecutorHit(
-                        ComponentExecutorId.COMPONENT_PIPELINE.name(),
-                        routeReason,
-                        componentType);
-                return UnifiedGeneratorRouter.withDiagnostics(
-                        RoutedGenerationResult.success(
-                                typologyPatches,
-                                ComponentExecutorId.COMPONENT_PIPELINE,
-                                ComponentPipelineStepId.TYPOLOGY,
-                                authority,
-                                ComponentPipelineStepId.TYPOLOGY.name()),
-                        routeDiagnostics);
+                List<com.formacraft.common.component.GenerationDiagnostic> failDiags =
+                        new java.util.ArrayList<>(routeDiagnostics);
+                failDiags.add(new com.formacraft.common.component.GenerationDiagnostic(
+                        e.code(), e.getMessage() == null ? e.code() : e.getMessage()));
+                for (String d : e.diagnostics()) {
+                    failDiags.add(new com.formacraft.common.component.GenerationDiagnostic(
+                            "TYPOLOGY_DIAG", d));
+                }
+                FormacraftMod.LOGGER.warn(
+                        "ComponentGenerationPipeline: typology hard-fail type={} code={}",
+                        componentType, e.code());
+                return new RoutedGenerationResult(
+                        ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
+                        List.of(),
+                        failDiags,
+                        ComponentExecutorId.COMPONENT_PIPELINE,
+                        ComponentPipelineStepId.TYPOLOGY,
+                        authority,
+                        routeReason);
             }
         }
 

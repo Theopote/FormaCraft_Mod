@@ -1,8 +1,8 @@
 package com.formacraft.server.generation.typology.interpreter;
 
-import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.typology.TypologyGenerationException;
 import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyPatchBridge;
 import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
@@ -30,7 +30,19 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
             return List.of();
         }
         Map<String, Object> params = TypologyParamResolver.merge(typologyId(), semantic.source());
-        GeneratedStructure structure = TieredMountainPalaceBuilder.generate(params, origin, world, null);
-        return TypologyPatchBridge.toBlockPatches(structure, origin);
+        TieredMountainPalaceBuilder.PalaceGenerateResult result =
+                TieredMountainPalaceBuilder.generateDetailed(params, origin, world, null);
+        if (!result.success()) {
+            List<String> diags = result.diagnostics().stream()
+                    .map(TieredMountainPalaceBuilder.BuildDiagnostic::toString)
+                    .toList();
+            throw new TypologyGenerationException(
+                    typologyId(),
+                    "CIRCULATION_FAILED",
+                    "tiered_mountain_palace generation failed: " + String.join("; ", diags),
+                    diags
+            );
+        }
+        return TypologyPatchBridge.toBlockPatches(result.structure(), origin);
     }
 }
