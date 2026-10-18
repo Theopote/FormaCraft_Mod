@@ -1,22 +1,27 @@
 package com.formacraft.server.generation.typology.builder;
 
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Round 54: circulation contract from actual Builder emit — floors, wings, flights.
+ * Round 54–55: circulation contract from actual Builder emit —
+ * region-bounded floors/wings, per-flight continuity, strict BlockState.
  */
 class PalaceCirculationContractTest {
 
@@ -33,13 +38,13 @@ class PalaceCirculationContractTest {
         assertNotNull(plan.circulation(), "Builder must emit CirculationContract");
         assertTrue(plan.circulation().hasAnchors());
         assertEquals(plan.circulation().actualTier(), plan.circulation().floors().size());
-        // Anchors come from emitted tiers — floorY matches preferredAnchor.y
         for (var floor : plan.circulation().floors()) {
             assertEquals(floor.floorY(), floor.preferredAnchor().y());
+            assertNotNull(floor.interior());
+            assertTrue(floor.interior().contains(floor.preferredAnchor().x(), floor.floorY(),
+                            floor.preferredAnchor().z()),
+                    "preferred anchor must lie inside floor interior region");
         }
-        assertFalse(plan.validateFinalVoxelCirculation().isEmpty()
-                        && !plan.circulation().hasAnchors(),
-                "sanity");
         assertTrue(plan.validateFinalVoxelCirculation().isEmpty(),
                 "intact potala plan must pass shared circulation validator: "
                         + plan.validateFinalVoxelCirculation());
@@ -49,34 +54,25 @@ class PalaceCirculationContractTest {
     void wingBlockageRejectedWhenPotala() {
         PalacePreviewPlan plan = potalaPlan();
         assertNotNull(plan.circulation());
-        assertTrue(plan.circulation().potala(),
-                "reference_landmark=potala_palace must set potala on contract");
-        assertFalse(plan.circulation().wings().isEmpty(),
-                "potala emit must include wing anchors; wings=" + plan.circulation().wings().size());
+        assertTrue(plan.circulation().potala());
+        assertFalse(plan.circulation().wings().isEmpty());
 
         var wing = plan.circulation().wings().getFirst();
         List<BlockPatch> merged = new ArrayList<>(plan.patches());
-        // Seal a volume around the wing anchor with solid blocks (body clearance).
-        for (int dy = 0; dy <= 3; dy++) {
-            for (int dx = -2; dx <= 2; dx++) {
-                for (int dz = -2; dz <= 2; dz++) {
+        // Seal the wing interior volume only (not link mouth / exterior terrace).
+        for (int y = wing.interior().minY(); y <= wing.interior().maxY() + 2; y++) {
+            for (int x = wing.interior().minX(); x <= wing.interior().maxX(); x++) {
+                for (int z = wing.interior().minZ(); z <= wing.interior().maxZ(); z++) {
                     merged.add(new BlockPatch(
-                            BlockPatch.PLACE,
-                            wing.relativeAnchor().x() + dx,
-                            wing.relativeAnchor().y() + dy,
-                            wing.relativeAnchor().z() + dz,
-                            "minecraft:stone_bricks"));
+                            BlockPatch.PLACE, x, y, z, "minecraft:stone_bricks"));
                 }
             }
         }
-        // Seal may overwrite wing link clearance and/or break wing reachability —
-        // either class of diagnostic is a valid refuse.
         assertNull(plan.resolveForAcceptedPatches(merged),
-                "blocking potala wing must refuse merge");
+                "blocking potala wing interior must refuse merge");
         PalacePreviewPlan trial = plan.freezeMerged(merged);
         assertNotNull(trial);
         var issues = trial.validateMergedIntegrity(plan);
-        assertFalse(issues.isEmpty(), "expected integrity diagnostics, got none");
         assertTrue(issues.stream().anyMatch(d ->
                         d.code().startsWith("WING_")
                                 || d.code().startsWith("CLEARANCE_")
@@ -86,26 +82,50 @@ class PalaceCirculationContractTest {
     }
 
     @Test
+    void wingTerraceReachableButInteriorSealedRejected() {
+        PalacePreviewPlan plan = potalaPlan();
+        var wing = plan.circulation().wings().getFirst();
+        List<BlockPatch> merged = new ArrayList<>(plan.patches());
+        // Fill only interior floor slab cells so no standable point remains inside region,
+        // while roof/terrace cells outside the region stay untouched.
+        for (int x = wing.interior().minX(); x <= wing.interior().maxX(); x++) {
+            for (int z = wing.interior().minZ(); z <= wing.interior().maxZ(); z++) {
+                merged.add(new BlockPatch(
+                        BlockPatch.PLACE, x, wing.relativeAnchor().y() + 1, z,
+                        "minecraft:stone_bricks"));
+                merged.add(new BlockPatch(
+                        BlockPatch.PLACE, x, wing.relativeAnchor().y() + 2, z,
+                        "minecraft:stone_bricks"));
+            }
+        }
+        assertNull(plan.resolveForAcceptedPatches(merged),
+                "wing terrace must not substitute for sealed wing interior");
+        PalacePreviewPlan trial = plan.freezeMerged(merged);
+        var issues = trial.validateMergedIntegrity(plan);
+        assertTrue(issues.stream().anyMatch(d ->
+                        d.code().equals("WING_NO_STAND") || d.code().equals("WING_UNREACHABLE")
+                                || d.code().startsWith("CLEARANCE_")),
+                "expected WING_* for sealed interior: " + issues);
+    }
+
+    @Test
     void topFloorBlockageRejected() {
         PalacePreviewPlan plan = potalaPlan();
         var floors = plan.circulation().floors();
         assertTrue(floors.size() >= 2);
         var top = floors.get(floors.size() - 1);
         List<BlockPatch> merged = new ArrayList<>(plan.patches());
-        for (int dy = 0; dy <= 3; dy++) {
-            for (int dx = -2; dx <= 2; dx++) {
-                for (int dz = -2; dz <= 2; dz++) {
+        for (int x = top.interior().minX(); x <= top.interior().maxX(); x++) {
+            for (int z = top.interior().minZ(); z <= top.interior().maxZ(); z++) {
+                for (int dy = 1; dy <= 3; dy++) {
                     merged.add(new BlockPatch(
-                            BlockPatch.PLACE,
-                            top.preferredAnchor().x() + dx,
-                            top.floorY() + dy,
-                            top.preferredAnchor().z() + dz,
+                            BlockPatch.PLACE, x, top.floorY() + dy, z,
                             "minecraft:stone_bricks"));
                 }
             }
         }
         assertNull(plan.resolveForAcceptedPatches(merged),
-                "sealing top floor must refuse merge");
+                "sealing top floor interior must refuse merge");
     }
 
     @Test
@@ -115,10 +135,8 @@ class PalaceCirculationContractTest {
         var flight = plan.circulation().flights().getFirst();
         assertFalse(flight.treadCells().isEmpty());
 
-        // Move every tread one cell sideways — count of stairs may stay similar if we also
-        // place stairs at new cells, but contract tread cells are overwritten with dirt.
         List<BlockPatch> merged = new ArrayList<>();
-        java.util.HashSet<Long> treadKeys = new java.util.HashSet<>();
+        Set<Long> treadKeys = new HashSet<>();
         for (var t : flight.treadCells()) {
             treadKeys.add(pack(t.x(), t.y(), t.z()));
         }
@@ -126,16 +144,120 @@ class PalaceCirculationContractTest {
             long key = pack(p.dx(), p.dy(), p.dz());
             if (treadKeys.contains(key) && PalacePreviewPlan.isStairPatch(p)) {
                 merged.add(new BlockPatch(BlockPatch.PLACE, p.dx(), p.dy(), p.dz(), "minecraft:dirt"));
-                // Compensate count with a stair elsewhere (wrong layout).
                 merged.add(new BlockPatch(
                         BlockPatch.PLACE, p.dx() + 5, p.dy(), p.dz() + 5,
-                        "minecraft:stone_brick_stairs"));
+                        "minecraft:stone_brick_stairs[facing=south,half=bottom]"));
             } else {
                 merged.add(p);
             }
         }
         assertNull(plan.resolveForAcceptedPatches(merged),
                 "wrong stair layout must refuse even if stair count similar");
+    }
+
+    @Test
+    void damagedFlightRejectedEvenWhenAnotherFlightBypasses() {
+        PalacePreviewPlan plan = potalaPlan();
+        assertTrue(plan.circulation().flights().size() >= 1);
+        var flight = plan.circulation().flights().getFirst();
+        assertTrue(flight.treadCells().size() >= 2);
+
+        // Destroy only the middle of this flight — leave other flights intact.
+        List<BlockPatch> merged = new ArrayList<>();
+        Set<Long> kill = new HashSet<>();
+        int mid = flight.treadCells().size() / 2;
+        var tread = flight.treadCells().get(mid);
+        kill.add(pack(tread.x(), tread.y(), tread.z()));
+        for (BlockPatch p : plan.patches()) {
+            long key = pack(p.dx(), p.dy(), p.dz());
+            if (kill.contains(key)) {
+                merged.add(new BlockPatch(BlockPatch.PLACE, p.dx(), p.dy(), p.dz(),
+                        "minecraft:stone_bricks"));
+            } else {
+                merged.add(p);
+            }
+        }
+        PalacePreviewPlan trial = plan.freezeMerged(merged);
+        assertNotNull(trial);
+        var issues = trial.validateFinalVoxelCirculation();
+        assertTrue(issues.stream().anyMatch(d ->
+                        d.code().startsWith("FLIGHT_") || d.code().startsWith("BLOCKSTATE_")),
+                "damaged flight must fail even if another path may connect floors: " + issues);
+        assertNull(plan.resolveForAcceptedPatches(merged));
+    }
+
+    @Test
+    void stairFacingCorruptionRejected() {
+        PalacePreviewPlan plan = potalaPlan();
+        var flight = plan.circulation().flights().getFirst();
+        Direction expected = flight.treadFacings().getFirst();
+        Direction wrong = expected.getOpposite();
+        Vec3i tread = flight.treadCells().getFirst();
+
+        List<BlockPatch> merged = new ArrayList<>();
+        long key = pack(tread.x(), tread.y(), tread.z());
+        for (BlockPatch p : plan.patches()) {
+            if (pack(p.dx(), p.dy(), p.dz()) == key) {
+                merged.add(new BlockPatch(
+                        BlockPatch.PLACE, p.dx(), p.dy(), p.dz(),
+                        "minecraft:stone_brick_stairs[facing="
+                                + wrong.asString() + ",half=bottom]"));
+            } else {
+                merged.add(p);
+            }
+        }
+        var issues = plan.freezeMerged(merged).validateFinalVoxelCirculation();
+        assertTrue(issues.stream().anyMatch(d -> d.code().equals("FLIGHT_TREAD_FACING")),
+                "wrong tread facing must yield FLIGHT_TREAD_FACING: " + issues);
+    }
+
+    @Test
+    void doorHalfCorruptionRejected() {
+        PalacePreviewPlan plan = potalaPlan();
+        var door = plan.circulation().lowerDoorRel();
+        List<BlockPatch> merged = new ArrayList<>();
+        long key = pack(door.x(), door.y(), door.z());
+        for (BlockPatch p : plan.patches()) {
+            if (pack(p.dx(), p.dy(), p.dz()) == key) {
+                merged.add(new BlockPatch(
+                        BlockPatch.PLACE, p.dx(), p.dy(), p.dz(),
+                        "minecraft:dark_oak_door[facing=south,half=upper,hinge=left,open=false,powered=false]"));
+            } else {
+                merged.add(p);
+            }
+        }
+        var issues = plan.freezeMerged(merged).validateFinalVoxelCirculation();
+        assertTrue(issues.stream().anyMatch(d ->
+                        d.code().equals("DOOR_HALF") || d.code().equals("DOOR_STATE")),
+                "wrong door half must be rejected: " + issues);
+        assertNull(plan.resolveForAcceptedPatches(merged));
+    }
+
+    @Test
+    void invalidBlockStateRejected() {
+        PalacePreviewPlan plan = potalaPlan();
+        var flight = plan.circulation().flights().getFirst();
+        Vec3i tread = flight.treadCells().getFirst();
+        List<BlockPatch> merged = new ArrayList<>();
+        long key = pack(tread.x(), tread.y(), tread.z());
+        for (BlockPatch p : plan.patches()) {
+            if (pack(p.dx(), p.dy(), p.dz()) == key) {
+                merged.add(new BlockPatch(
+                        BlockPatch.PLACE, p.dx(), p.dy(), p.dz(),
+                        "minecraft:stone_brick_stairs[facing=north,half=bogus]"));
+            } else {
+                merged.add(p);
+            }
+        }
+        var issues = plan.freezeMerged(merged).validateFinalVoxelCirculation();
+        assertTrue(issues.stream().anyMatch(d -> d.code().equals("BLOCKSTATE_INVALID")),
+                "illegal stair props must yield BLOCKSTATE_INVALID: " + issues);
+        // String contains("stairs") must NOT make it pass as a stair under strict mode.
+        BlockPatch bogus = new BlockPatch(
+                BlockPatch.PLACE, 0, 0, 0,
+                "minecraft:stone_brick_stairs[facing=north,half=bogus]");
+        assertFalse(PalaceCirculationValidator.isStairPatch(bogus));
+        assertTrue(PalaceCirculationValidator.looksLikeStairHint(bogus));
     }
 
     @Test
@@ -161,7 +283,6 @@ class PalaceCirculationContractTest {
         var result = TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, spec);
         assertTrue(result.hasGeometry(), "large schematic should emit geometry");
         PalacePreviewPlan plan = TieredMountainPalaceBuilder.createPreviewPlan(result, ORIGIN, null, spec);
-        // Force SUCCESS wrapper with contract for merge validation.
         PalacePreviewPlan exec = new PalacePreviewPlan(
                 TieredMountainPalaceBuilder.GenerateStatus.SUCCESS,
                 plan.patches(), plan.context(), plan.diagnostics(),

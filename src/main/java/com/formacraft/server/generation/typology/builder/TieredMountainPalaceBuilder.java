@@ -146,6 +146,9 @@ public final class TieredMountainPalaceBuilder {
         int depth() { return z1 - z0 + 1; }
     }
 
+    /** Local-axis Potala wing emit: interior shell + keep-link mouth for circulation contract. */
+    private record WingLocal(TierRect rect, int ax, int ay, int az, int linkX, int linkY, int linkZ) {}
+
     /** Multi-block roof plate (never a single-column finial). */
     private record RoofUnit(int x0, int z0, int x1, int z1, int y, int rise, BlockState fill, BlockState ridge) {
         int footprint() { return Math.max(0, x1 - x0 + 1) * Math.max(0, z1 - z0 + 1); }
@@ -300,7 +303,7 @@ public final class TieredMountainPalaceBuilder {
         VoxelMap voxels = new VoxelMap();
         List<RoofUnit> roofs = new ArrayList<>();
         List<BuildDiagnostic> diagnostics = LAST_DIAGNOSTICS.get();
-        List<Vec3i> wingSamples = new ArrayList<>();
+        List<WingLocal> wingLocals = new ArrayList<>();
         List<FlightPlan> emittedFlights = new ArrayList<>();
         int doorMx = -1;
 
@@ -315,7 +318,7 @@ public final class TieredMountainPalaceBuilder {
         }
 
         if (potala && actualTiers >= 2) {
-            placePotalaWings(voxels, roofs, wingSamples, bw, bd, platformH, tierHeight, actualTiers,
+            placePotalaWings(voxels, roofs, wingLocals, bw, bd, platformH, tierHeight, actualTiers,
                     floor, upperWall, trim, accent);
         }
 
@@ -385,7 +388,7 @@ public final class TieredMountainPalaceBuilder {
         List<PlannedBlock> blocks = voxels.emit(origin, entrance);
         GeneratedStructure candidate = new GeneratedStructure(null, origin, "pending", blocks);
         PalaceCirculationContract circulation = buildCirculationContract(
-                candidate, origin, entrance, keepTiers, platformH, tierHeight, potala, wingSamples,
+                candidate, origin, entrance, keepTiers, platformH, tierHeight, potala, wingLocals,
                 emittedFlights);
         List<BuildDiagnostic> occupancyIssues = validateFinalOccupancy(candidate, origin, circulation);
         diagnostics.addAll(occupancyIssues);
@@ -650,7 +653,7 @@ public final class TieredMountainPalaceBuilder {
      * Coords stay non-negative for {@link VoxelMap} packing.
      */
     private static void placePotalaWings(
-            VoxelMap voxels, List<RoofUnit> roofs, List<Vec3i> wingSamples,
+            VoxelMap voxels, List<RoofUnit> roofs, List<WingLocal> wingLocals,
             int bw, int bd, int platformH, int tierHeight, int actualTiers,
             BlockState floor, BlockState upperWall, BlockState trim, BlockState accent) {
         int maxWing = Math.max(6, (bw - MIN_SPAN) / 2);
@@ -671,7 +674,9 @@ public final class TieredMountainPalaceBuilder {
             roofs.add(new RoofUnit(left.x0(), left.z0(), left.x1(), left.z1(),
                     left.y1() + 1, 1, accent, trim));
             placeWingWindows(voxels, left, windowOrBars(upperWall), upperWall);
-            wingSamples.add(new Vec3i((lx0 + lx1) / 2, platformH, linkZ));
+            int ax = (lx0 + lx1) / 2;
+            int az = (frontZ0 + bd - 1) / 2;
+            wingLocals.add(new WingLocal(left, ax, platformH, az, lx1, platformH, linkZ));
         }
 
         int rx1 = bw - 1;
@@ -683,7 +688,9 @@ public final class TieredMountainPalaceBuilder {
             roofs.add(new RoofUnit(right.x0(), right.z0(), right.x1(), right.z1(),
                     right.y1() + 1, 1, accent, trim));
             placeWingWindows(voxels, right, windowOrBars(upperWall), upperWall);
-            wingSamples.add(new Vec3i((rx0 + rx1) / 2, platformH, linkZ));
+            int ax = (rx0 + rx1) / 2;
+            int az = (frontZ0 + bd - 1) / 2;
+            wingLocals.add(new WingLocal(right, ax, platformH, az, rx0, platformH, linkZ));
         }
     }
 
@@ -1093,7 +1100,7 @@ public final class TieredMountainPalaceBuilder {
     private static PalaceCirculationContract buildCirculationContract(
             GeneratedStructure structure, BlockPos origin, Direction entrance,
             List<TierRect> tiers, int platformH, int tierHeight, boolean potala,
-            List<Vec3i> wingSamplesLocal, List<FlightPlan> flights
+            List<WingLocal> wingLocals, List<FlightPlan> flights
     ) {
         if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()
                 || tiers == null || tiers.isEmpty()) {
@@ -1124,23 +1131,31 @@ public final class TieredMountainPalaceBuilder {
         for (int i = 0; i < tiers.size(); i++) {
             TierRect t = tiers.get(i);
             int floorY = platformH + i * tierHeight;
-            // Preferred anchor at tier footprint center (local → origin-relative).
             int lx = (t.x0() + t.x1()) / 2;
             int lz = (t.z0() + t.z1()) / 2;
             BlockPos world = local(origin, face, lx, floorY, lz);
             BlockPos rel = world.subtract(origin);
+            PalaceCirculationContract.GoalRegion interior = localInteriorRegion(
+                    origin, face, t, floorY, floorY);
             floors.add(new PalaceCirculationContract.FloorGoal(
-                    i, floorY, new Vec3i(rel.getX(), rel.getY(), rel.getZ())));
+                    i, floorY, new Vec3i(rel.getX(), rel.getY(), rel.getZ()), interior));
         }
 
         List<PalaceCirculationContract.WingGoal> wings = new ArrayList<>();
-        if (potala && wingSamplesLocal != null) {
-            for (int w = 0; w < wingSamplesLocal.size(); w++) {
-                Vec3i localSample = wingSamplesLocal.get(w);
-                BlockPos world = local(origin, face, localSample.x(), localSample.y(), localSample.z());
+        if (potala && wingLocals != null) {
+            for (int w = 0; w < wingLocals.size(); w++) {
+                WingLocal wl = wingLocals.get(w);
+                BlockPos world = local(origin, face, wl.ax(), wl.ay(), wl.az());
                 BlockPos rel = world.subtract(origin);
+                BlockPos linkW = local(origin, face, wl.linkX(), wl.linkY(), wl.linkZ());
+                BlockPos linkR = linkW.subtract(origin);
+                PalaceCirculationContract.GoalRegion interior = localInteriorRegion(
+                        origin, face, wl.rect(), wl.ay(), wl.ay());
                 wings.add(new PalaceCirculationContract.WingGoal(
-                        w, new Vec3i(rel.getX(), rel.getY(), rel.getZ())));
+                        w,
+                        new Vec3i(rel.getX(), rel.getY(), rel.getZ()),
+                        interior,
+                        new Vec3i(linkR.getX(), linkR.getY(), linkR.getZ())));
             }
         }
 
@@ -1151,15 +1166,16 @@ public final class TieredMountainPalaceBuilder {
                 FlightPlan fp = flights.get(fi);
                 if (fp == null || fp.steps() == null || fp.steps().isEmpty()) continue;
                 List<Vec3i> treads = new ArrayList<>();
+                List<Direction> facings = new ArrayList<>();
                 for (FlightStep s : fp.steps()) {
                     BlockPos world = local(origin, face, s.x(), s.y(), s.z());
                     BlockPos rel = world.subtract(origin);
                     treads.add(new Vec3i(rel.getX(), rel.getY(), rel.getZ()));
+                    facings.add(rotateDir(s.facing(), face));
                 }
                 FlightStep first = fp.steps().getFirst();
                 BlockPos lowerW = local(origin, face, first.x(), first.y(), first.z());
                 BlockPos lowerR = lowerW.subtract(origin);
-                // Prefer pad landing as upper end when present.
                 BlockPos padW = local(origin, face, fp.padX(), fp.shaftY(), fp.padZ());
                 BlockPos padR = padW.subtract(origin);
                 expectedTreads += fp.steps().size();
@@ -1168,13 +1184,53 @@ public final class TieredMountainPalaceBuilder {
                         new Vec3i(lowerR.getX(), lowerR.getY(), lowerR.getZ()),
                         new Vec3i(padR.getX(), padR.getY(), padR.getZ()),
                         fp.steps().size(),
-                        treads));
+                        treads,
+                        facings));
             }
         }
 
         return new PalaceCirculationContract(
                 face, doorRel, approach, floors, wings, flightAnchors,
                 Math.max(2, doorLeaves), expectedTreads, potala, tiers.size());
+    }
+
+    /**
+     * Map a local mass shell interior (walls inset by 1) to an origin-relative inclusive AABB.
+     * Standing goals must resolve inside this volume — not roofs or exterior terraces.
+     */
+    private static PalaceCirculationContract.GoalRegion localInteriorRegion(
+            BlockPos origin, Direction face, TierRect t, int y0, int y1
+    ) {
+        int ix0 = t.width() >= 3 ? t.x0() + 1 : t.x0();
+        int ix1 = t.width() >= 3 ? t.x1() - 1 : t.x1();
+        int iz0 = t.depth() >= 3 ? t.z0() + 1 : t.z0();
+        int iz1 = t.depth() >= 3 ? t.z1() - 1 : t.z1();
+        return localAabbRegion(origin, face, ix0, y0, iz0, ix1, y1, iz1);
+    }
+
+    private static PalaceCirculationContract.GoalRegion localAabbRegion(
+            BlockPos origin, Direction face,
+            int lx0, int ly0, int lz0, int lx1, int ly1, int lz1
+    ) {
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        int[] xs = {lx0, lx1};
+        int[] ys = {ly0, ly1};
+        int[] zs = {lz0, lz1};
+        for (int x : xs) {
+            for (int y : ys) {
+                for (int z : zs) {
+                    BlockPos rel = local(origin, face, x, y, z).subtract(origin);
+                    minX = Math.min(minX, rel.getX());
+                    minY = Math.min(minY, rel.getY());
+                    minZ = Math.min(minZ, rel.getZ());
+                    maxX = Math.max(maxX, rel.getX());
+                    maxY = Math.max(maxY, rel.getY());
+                    maxZ = Math.max(maxZ, rel.getZ());
+                }
+            }
+        }
+        return new PalaceCirculationContract.GoalRegion(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     /**

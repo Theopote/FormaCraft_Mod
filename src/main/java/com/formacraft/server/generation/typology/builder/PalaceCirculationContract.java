@@ -15,22 +15,53 @@ import java.util.Objects;
  */
 public final class PalaceCirculationContract {
 
-    /** Origin-relative standable goal on an actually generated floor. */
-    public record FloorGoal(int tierIndex, int floorY, Vec3i preferredAnchor) {
-        public FloorGoal {
-            preferredAnchor = Objects.requireNonNull(preferredAnchor, "preferredAnchor");
+    /**
+     * Inclusive origin-relative AABB for a functional space (floor interior / wing interior).
+     * Standing goals must resolve inside this region — not on nearby roofs or terraces.
+     */
+    public record GoalRegion(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        public GoalRegion {
+            if (maxX < minX || maxY < minY || maxZ < minZ) {
+                throw new IllegalArgumentException("empty GoalRegion");
+            }
+        }
+
+        public boolean contains(int x, int y, int z) {
+            return x >= minX && x <= maxX
+                    && y >= minY && y <= maxY
+                    && z >= minZ && z <= maxZ;
+        }
+
+        public boolean contains(Vec3i p) {
+            return p != null && contains(p.x(), p.y(), p.z());
+        }
+
+        public boolean containsXZ(int x, int z) {
+            return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
         }
     }
 
-    /** Origin-relative wing sample (Potala side halls). */
-    public record WingGoal(int wingIndex, Vec3i relativeAnchor) {
-        public WingGoal {
-            relativeAnchor = Objects.requireNonNull(relativeAnchor, "relativeAnchor");
+    /** Origin-relative standable goal on an actually generated floor interior. */
+    public record FloorGoal(int tierIndex, int floorY, Vec3i preferredAnchor, GoalRegion interior) {
+        public FloorGoal {
+            preferredAnchor = Objects.requireNonNull(preferredAnchor, "preferredAnchor");
+            interior = Objects.requireNonNull(interior, "interior");
         }
     }
 
     /**
-     * One inter-tier flight as emitted: lower start, upper end, expected tread cells.
+     * Origin-relative wing sample (Potala side halls) with interior region and keep-link mouth.
+     */
+    public record WingGoal(int wingIndex, Vec3i relativeAnchor, GoalRegion interior, Vec3i linkMouth) {
+        public WingGoal {
+            relativeAnchor = Objects.requireNonNull(relativeAnchor, "relativeAnchor");
+            interior = Objects.requireNonNull(interior, "interior");
+            linkMouth = Objects.requireNonNull(linkMouth, "linkMouth");
+        }
+    }
+
+    /**
+     * One inter-tier flight as emitted: lower start, upper end, ordered tread cells + facings.
      * Coordinates are origin-relative (after entrance rotation into world frame of patches).
      */
     public record FlightAnchor(
@@ -39,12 +70,14 @@ public final class PalaceCirculationContract {
             Vec3i lowerStart,
             Vec3i upperEnd,
             int expectedTreads,
-            List<Vec3i> treadCells
+            List<Vec3i> treadCells,
+            List<Direction> treadFacings
     ) {
         public FlightAnchor {
             lowerStart = Objects.requireNonNull(lowerStart, "lowerStart");
             upperEnd = Objects.requireNonNull(upperEnd, "upperEnd");
             treadCells = treadCells == null ? List.of() : List.copyOf(treadCells);
+            treadFacings = treadFacings == null ? List.of() : List.copyOf(treadFacings);
         }
     }
 
