@@ -10,6 +10,21 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExplicitWindowSizeFeedbackTest {
+    @Test void localizedTallWindowRowRetainsCountAndSixBlockHeight() throws Exception {
+        var mass=new Component("MASS_MAIN","chapel",new Vec3i(0,0,0),new Dimensions(23,11,12),List.of(),
+                Map.of("component_id","chapel","anchor_mode","min_corner","floor_height",3));
+        var windows=new Component("FACADE_WINDOWS","chapel",new Vec3i(0,4,2),new Dimensions(1,7,8),List.of(),
+                Map.of("host_id","chapel","window_width",1,"window_height",6,"window_count",3,"glass_block","minecraft:glass"));
+        var method=ComponentPlanCompiler.class.getDeclaredMethod("alignFacadeToMass",Component.class,Component.class,LlmPlan.class,GlobalConstraints.Facing.class);
+        method.setAccessible(true);
+        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).build();
+        var aligned=(Component)method.invoke(null,windows,mass,plan,GlobalConstraints.Facing.SOUTH);
+        var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",null,aligned)));
+        assertEquals(18,cells.size());
+        assertEquals(3,cells.stream().map(BlockPos::getZ).distinct().count());
+        assertEquals(Set.of(4,5,6,7,8,9),cells.stream().map(BlockPos::getY).collect(java.util.stream.Collectors.toSet()));
+        assertTrue(cells.stream().allMatch(p->p.getX()==0));
+    }
     @org.junit.jupiter.api.BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     private Component facade(String wall) {
         return new Component("FACADE_WINDOWS","house",new Vec3i(0,0,0),new Dimensions(15,13,10),List.of("wrap"),

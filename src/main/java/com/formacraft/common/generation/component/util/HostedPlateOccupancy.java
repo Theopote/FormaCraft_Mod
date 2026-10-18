@@ -165,6 +165,17 @@ public final class HostedPlateOccupancy {
         boolean plateEastOfMass = pb.minX() >= mb.maxX() - 1 || (pb.minX() >= mb.maxX() - 2 && pb.maxX() > mb.maxX());
         boolean plateNorthOfMass = pb.maxZ() <= mb.minZ() + 1 || (pb.maxZ() <= mb.minZ() + 2 && pb.minZ() < mb.minZ());
         boolean plateSouthOfMass = pb.minZ() >= mb.maxZ() - 1 || (pb.minZ() >= mb.maxZ() - 2 && pb.maxZ() > mb.maxZ());
+        // A deck may extend several cells into its receiving floor. Follow the
+        // face it actually crosses instead of falling back to an unrelated X wall.
+        if (!plateWestOfMass && !plateEastOfMass && !plateNorthOfMass && !plateSouthOfMass) {
+            if (pb.depth() > pb.width()) {
+                plateNorthOfMass |= pb.minZ() < mb.minZ() && pb.maxZ() > mb.minZ();
+                plateSouthOfMass |= pb.maxZ() > mb.maxZ() && pb.minZ() < mb.maxZ();
+            } else if (pb.width() > pb.depth()) {
+                plateWestOfMass |= pb.minX() < mb.minX() && pb.maxX() > mb.minX();
+                plateEastOfMass |= pb.maxX() > mb.maxX() && pb.minX() < mb.maxX();
+            }
+        }
 
         if (plateWestOfMass || (!plateEastOfMass && !plateNorthOfMass && !plateSouthOfMass
                 && pb.maxX() > mb.minX() && pb.minX() < mb.minX() + 2)) {

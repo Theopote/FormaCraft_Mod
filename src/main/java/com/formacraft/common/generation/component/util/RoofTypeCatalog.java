@@ -33,7 +33,7 @@ public final class RoofTypeCatalog {
      * advertising them as general-purpose explicit plan tokens.
      */
     private static final Set<String> GENERATION_TOKENS = Set.of(
-            "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿"
+            "sawtooth", "saw_tooth", "sawtooth_skylight", "northlight", "锯齿形", "锯齿"
     );
 
     public static Optional<RoofTypeKind> parseExplicit(String raw) {
@@ -166,7 +166,7 @@ public final class RoofTypeCatalog {
             case "cone", "conical" -> RoofTypeKind.CONE;
             case "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome" -> RoofTypeKind.DOME;
             case "mansard", "mansard_roof", "baroque_roof" -> RoofTypeKind.MANSARD;
-            case "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿" -> RoofTypeKind.SAWTOOTH;
+            case "sawtooth", "saw_tooth", "sawtooth_skylight", "northlight", "锯齿形", "锯齿" -> RoofTypeKind.SAWTOOTH;
             default -> RoofTypeKind.FLAT;
         };
     }

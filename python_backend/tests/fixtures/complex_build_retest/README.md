@@ -98,3 +98,12 @@ token-boundary wing aliases, `shape=stair` conversion with duplicate inferred
 flight removal, square tower footprints, and height-only window hints that
 otherwise produce empty facade geometry on short storeys. Explicit rectangle
 sizes and provenance-locked window dimensions retain their authority.
+
+`oct18_evening_1` through `oct18_evening_6` capture the 18:36–18:45 run
+(six failures), bringing the replay set to 65. Raw responses remain unchanged.
+Coverage includes independent footbridges over channels, bounded stair landing
+lengths and railing openings, source and destination portals across real slots,
+legacy interior stair roles and nested features, omitted layout references,
+counted tall local windows, corner-coordinate floor evidence and inferred stairs
+that must yield to an existing bridge. Missing or ambiguous slot identities are
+not assigned by component order, and existing explicit slot references survive.

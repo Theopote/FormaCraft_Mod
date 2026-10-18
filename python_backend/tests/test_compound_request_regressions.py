@@ -11,6 +11,55 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class CompoundRequestRegressions(unittest.TestCase):
+    def test_corner_floor_evidence_is_order_independent_and_keeps_explicit_anchors(self):
+        from copy import deepcopy
+        from app.services.bridge_plan_normalizer import normalize_hosted_connections
+        raw=json.loads((FIXTURES/'oct18_evening_5.json').read_text(encoding='utf-8'))
+        forward=deepcopy(raw); backward=deepcopy(raw)
+        backward['components'].reverse()
+        for plan in (forward,backward):
+            bridge=next(c for c in plan['components'] if c['params']['component_id']=='bridge_walkway')
+            bridge['params']['anchor_mode']='center'
+            normalize_hosted_connections(plan)
+            self.assertEqual('center',bridge['params']['anchor_mode'])
+        a={c['params']['component_id']:c for c in forward['components']}
+        b={c['params']['component_id']:c for c in backward['components']}
+        self.assertEqual(a['dispatch_floor_2'],b['dispatch_floor_2'])
+        self.assertEqual('min_corner',a['dispatch_floor_2']['params']['anchor_mode'])
+
+    def test_missing_slot_recovery_keeps_ambiguous_and_explicit_frames(self):
+        from app.services.plan_coordinate_normalizer import recover_slot_bindings
+        plan={'layout':{'slots':[{'slot_id':'a','id':'slot_hall'},{'slot_id':'b','id':'hall'}]},
+              'components':[{'params':{'component_id':'hall_mass'}},{'slot_id':'custom','params':{'component_id':'hall_roof'}}]}
+        recover_slot_bindings(plan)
+        self.assertNotIn('slot_id',plan['components'][0])
+        self.assertEqual('custom',plan['components'][1]['slot_id'])
+
+    def test_oct18_evening_live_plans_preserve_frames_and_connections(self):
+        for i in range(1,7):
+            with self.subTest(plan=i):
+                raw=json.loads((FIXTURES/f'oct18_evening_{i}.json').read_text(encoding='utf-8'))
+                result=normalize_circulation_plan(apply_building_contract(raw,raw['proportion_hints']['architecture_intent']['original_text'],finalize=True))
+                self.assertNotIn('capability_gap',result)
+                self.assertEqual(result,normalize_circulation_plan(result))
+                self.assertEqual(result,json.loads((FIXTURES/f'oct18_evening_{i}.normalized.json').read_text(encoding='utf-8')))
+                parts={c['params']['component_id']:c for c in result['components']}
+                if i==1:
+                    self.assertEqual('standalone_channel_crossing',parts['mill_bridge']['params']['connection_source'])
+                    self.assertEqual(raw['components'][0]['dimensions'],parts['mill_mass']['dimensions'])
+                if i==2:
+                    self.assertLessEqual(parts['external_stair']['params']['landing_length'],2)
+                if i==3:
+                    self.assertEqual('reception_main',parts['stair_reception_research']['params']['host_id'])
+                if i==4:
+                    self.assertEqual('STRUCTURE',parts['stair_main']['component_type'])
+                    self.assertEqual('minecraft:andesite_stairs',parts['stair_main']['params']['stairs'])
+                    self.assertNotIn('main_hall#access_1',parts)
+                if i==6:
+                    self.assertTrue(all(c.get('slot_id') for c in result['components']))
+                    self.assertNotEqual(parts['chapel_mass']['slot_id'],parts['residence_mass']['slot_id'])
+                    self.assertEqual(parts['residence_mass']['slot_id'],parts['residence_stair']['slot_id'])
+
     def test_oct18_retry_live_plans_keep_the_full_compounds(self):
         for i in range(1,7):
             with self.subTest(plan=i):

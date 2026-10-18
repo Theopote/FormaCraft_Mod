@@ -955,7 +955,7 @@ def _sanitize_layout_slots(layout: Any) -> Any:
                 s.pop("facing", None)
         slot_id = str(s.get("slot_id") or "").strip()
         if not slot_id:
-            s["slot_id"] = f"slot_{i}"
+            s["slot_id"] = str(s.get("id") or f"slot_{i}").strip()
         anchor = s.get("anchor")
         if not isinstance(anchor, dict):
             s["anchor"] = {"x": 0, "y": 0, "z": 0}

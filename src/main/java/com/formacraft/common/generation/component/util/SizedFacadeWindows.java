@@ -16,12 +16,16 @@ public final class SizedFacadeWindows {
             boolean alongZ = width == 1 && depth > 1;
             int span = alongZ ? depth : width;
             int count = Math.min(windowWidth,span);
+            int authoredCount = ComponentParamParsers.intParam(params,0,"window_count");
+            var starts = authoredCount > 0
+                    ? FacadeLayoutPlan.solve(span,count,authoredCount,-1,false,0,0,true).windowStarts()
+                    : List.of((span-count)/2);
             int thickness = Math.max(1,ComponentParamParsers.intParam(params,1,"wall_thickness"));
             String face = String.valueOf(params.get("localized_face"));
             int ix = "EAST".equals(face) ? 1 : "WEST".equals(face) ? -1 : 0;
             int iz = "SOUTH".equals(face) ? 1 : "NORTH".equals(face) ? -1 : 0;
             var out = new ArrayList<BlockPatch>();
-            for (int a=(span-count)/2;a<(span-count)/2+count;a++) for (int y=0;y<Math.min(windowHeight,height);y++) {
+            for (int start:starts) for (int a=start;a<start+count;a++) for (int y=0;y<Math.min(windowHeight,height);y++) {
                 int x=rp.x()+(alongZ ? 0 : a), z=rp.z()+(alongZ ? a : 0);
                 for (int layer=1;layer<thickness;layer++)
                     out.add(new BlockPatch(BlockPatch.REMOVE,x+ix*layer,rp.y()+y,z+iz*layer,"minecraft:air"));

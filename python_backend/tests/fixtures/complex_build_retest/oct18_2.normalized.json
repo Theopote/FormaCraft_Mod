@@ -703,7 +703,9 @@
           "column"
         ],
         "building_id": "main_body",
-        "plan_type_source": "separate_site_courtyard"
+        "plan_type_source": "separate_site_courtyard",
+        "anchor_mode": "min_corner",
+        "coordinate_frame_source": "full_floor_corner_evidence"
       }
     },
     {

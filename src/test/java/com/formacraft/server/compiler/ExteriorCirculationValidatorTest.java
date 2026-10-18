@@ -12,6 +12,20 @@ import com.formacraft.common.llm.dto.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @Test void sourcePortalAccessCannotCarveBeyondDoorOrForeignWalls() {
+        var stair=new Component("STRUCTURE","flight",new Vec3i(0,0,0),new Dimensions(5,3,5),List.of("stair:straight_single_run"),
+                Map.of("component_id","stair","host_id","hall","exterior",true,"width",3,
+                        "from",Map.of("x",0,"y",0,"z",2),"to",Map.of("x",4,"y",4,"z",2)));
+        var door=new Component("ENTRANCE","hall",new Vec3i(0,0,1),new Dimensions(1,3,3),List.of(),
+                Map.of("host_id","hall","stair_connection","stair","anchor_mode","min_corner"));
+        var host=new Component("MASS_MAIN","hall",new Vec3i(0,0,0),new Dimensions(8,8,8),List.of(),Map.of("component_id","hall"));
+        var foreign=new Component("MASS_MAIN","other",host.relativePosition(),host.dimensions(),List.of(),Map.of("component_id","foreign"));
+        var start=new BlockPos(0,0,2); var beyond=new BlockPos(1,1,2); var other=new BlockPos(0,1,1);
+        var index=new PatchOccupancyIndex(); index.commit(host,List.of(stone(start),stone(beyond))); index.commit(foreign,List.of(stone(other)));
+        var access=ExteriorCirculationValidator.connectorAccess(stair,List.of(door),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.contains(start)); assertFalse(access.contains(beyond)); assertFalse(access.contains(other));
+        assertTrue(ExteriorCirculationValidator.connectorAccess(stair,List.of(),Map.of(),BlockPos.ORIGIN,index).isEmpty());
+    }
     @Test void elevatedTerraceOnlyAllowsFlatApproachContact() {
         var stair = new Component("STRUCTURE","s",new Vec3i(0,0,0),new Dimensions(6,3,6),List.of("stair:straight_single_run"),
                 Map.of("exterior",true,"width",3,"from",Map.of("x",0,"y",4,"z",0),"to",Map.of("x",5,"y",9,"z",0)));

@@ -102,6 +102,29 @@ final class ExteriorCirculationValidator {
         }
         Object stairBuilding = stair.params().get("building_id");
         if (stairBuilding == null) stairBuilding = stair.params().get("host_id");
+        // A source doorway can receive the first tread and its support. Bound
+        // this permission to the authored portal and the first approach row.
+        for (var door:components) {
+            if (!"ENTRANCE".equals(door.componentType()) || door.params()==null
+                    || !Objects.equals(stair.params().get("component_id"),door.params().get("stair_connection"))
+                    || !Objects.equals(stair.params().get("host_id"),door.params().get("host_id"))) continue;
+            var db=ComponentFootprintUtil.bounds(door);
+            var ds=slots.get(door.slotId()); var da=ds==null?null:ds.anchor();
+            int ox=da==null?0:da.x(),oy=da==null?0:da.y(),oz=da==null?0:da.z();
+            if(db==null) continue;
+            for(int side=-width/2;side<width-width/2;side++) for(int y=-1;y<=clear;y++) {
+                var pos=new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+(dz!=0?side:0),
+                        offset.getY()+rp.y()+number(from.get("y"))+y,
+                        offset.getZ()+rp.z()+number(from.get("z"))+(dx!=0?side:0));
+                var previous=occupancy.placeAt(pos);
+                if(pos.getX()>=db.minX()+ox && pos.getX()<db.maxX()+ox
+                        && pos.getZ()>=db.minZ()+oz && pos.getZ()<db.maxZ()+oz
+                        && pos.getY()>=db.minY()+oy-1 && pos.getY()<db.maxY()+oy
+                        && previous!=null && previous.owner()!=null && previous.owner().params()!=null
+                        && (Objects.equals(stair.params().get("host_id"),previous.owner().params().get("component_id"))
+                            || Objects.equals(stair.params().get("host_id"),previous.owner().params().get("host_id")))) result.add(pos);
+            }
+        }
         // Optional eaves outside another building's core yield to an explicit
         // flight. Its core roof and walls retain the existing collision rules.
         for (int sample=0;sample<=run+(landing>1?landing:0);sample++) {
@@ -205,6 +228,13 @@ final class ExteriorCirculationValidator {
                             offset.getY()+rp.y()+number(to.get("y"))+y,
                             offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx != 0 ? side : 0));
                     var previous = occupancy.placeAt(pos);
+                    boolean railing = previous != null && "DECOR_DETAIL".equals(previous.writerType())
+                            && previous.owner()!=null && previous.owner().params()!=null
+                            && "railing".equals(previous.owner().params().get("role"))
+                            && Objects.equals(connector.params().get("component_id"),previous.owner().params().get("attachment_host_id"));
+                    if (ownPlatform && railing && pos.getX()>=bounds.minX()+ox-1 && pos.getX()<=bounds.maxX()+ox
+                            && pos.getZ()>=bounds.minZ()+oz-1 && pos.getZ()<=bounds.maxZ()+oz
+                            && pos.getY()>=bounds.minY()+oy && pos.getY()<bounds.maxY()+oy+clear) result.add(pos);
                     if (previous == null || previous.owner() == null) continue;
                     boolean inConnector = pos.getX() >= bounds.minX()+ox && pos.getX() < bounds.maxX()+ox
                             && pos.getY() >= bounds.minY()+oy-(ownPlatform ? 1 : 0)

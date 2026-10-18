@@ -1166,7 +1166,8 @@
           "ornament"
         ],
         "target_host_id": "mass_research",
-        "circulation_target_source": "landing_contact"
+        "circulation_target_source": "landing_contact",
+        "host_source": "entrance_elevation"
       }
     },
     {
@@ -1213,7 +1214,8 @@
         ],
         "target_host_id": "mass_tower",
         "circulation_target_source": "landing_contact",
-        "circulation_fit": "avoid_adjacent_body"
+        "circulation_fit": "avoid_adjacent_body",
+        "host_source": "entrance_elevation"
       }
     },
     {

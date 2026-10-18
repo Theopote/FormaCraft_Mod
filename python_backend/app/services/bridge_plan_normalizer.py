@@ -12,6 +12,30 @@ def normalize_hosted_connections(plan: dict) -> None:
               and (c.get('params') or {}).get('extrude_mode') != 'plate' and c.get('dimensions')]
     by_id = {(c.get('params') or {}).get('component_id'): c for c in bodies}
     all_by_id = {(c.get('params') or {}).get('component_id'): c for c in components}
+    # A full-size floor starting exactly at its corner-anchored host is evidence
+    # of the planner's local corner convention, rather than a centered slab.
+    corner_frames = set()
+    for c in components:
+        p=c.get('params') or {}; host=by_id.get(p.get('host_id'))
+        if p.get('extrude_mode')!='plate' or not host or p.get('anchor_mode'): continue
+        if 'corner' not in str((host.get('params') or {}).get('anchor_mode','')): continue
+        if all(c['dimensions'][a]==host['dimensions'][a] for a in ('width','depth')) and all(
+                c['relative_position'][a]==mass_origin(host)[a] for a in ('x','z')):
+            corner_frames.add(c.get('slot_id'))
+    for _ in range(len(components)):
+        previous=set(corner_frames)
+        for c in components:
+            p=c.get('params') or {}; target=by_id.get(p.get('target_host_id'))
+            if (p.get('extrude_mode')=='plate' and not p.get('anchor_mode') and target
+                    and target.get('slot_id') in corner_frames): corner_frames.add(c.get('slot_id'))
+        if previous==corner_frames: break
+    for c in components:
+        p=c.get('params') or {}
+        if p.get('extrude_mode')!='plate' or p.get('anchor_mode'): continue
+        target=by_id.get(p.get('target_host_id'))
+        if c.get('slot_id') in corner_frames or target and target.get('slot_id') in corner_frames:
+            p['anchor_mode']='min_corner'
+            p['coordinate_frame_source']='full_floor_corner_evidence'
 
     # A one-block standalone landing is a terrace plate, not a miniature house.
     for body in bodies:
@@ -132,6 +156,12 @@ def normalize_hosted_connections(plan: dict) -> None:
         if p.get('extrude_mode') != 'plate' or p.get('plate_role') not in ('bridge', 'link', 'connector'):
             continue
         host, target = by_id.get(p.get('host_id')), by_id.get(p.get('target_host_id'))
+        if target is None and not p.get('target_host_id') and 'bridge_over_channel' in plate.get('features', []):
+            # A footbridge crossing water has no second building endpoint.
+            p['plate_role'] = 'terrace'
+            p['connection_source'] = 'standalone_channel_crossing'
+            if 'connection_level' in p: p['legacy_connection_level'] = p.pop('connection_level')
+            continue
         if host is None or target is None:
             continue
         if not touches(plate, host):
@@ -144,6 +174,10 @@ def normalize_hosted_connections(plan: dict) -> None:
         pl, ph = bounds(plate); hl, hh = bounds(host); tl, th = bounds(target)
         level = p.get('connection_level')
         rise = int(host.get('params', {}).get('floor_height') or 0)
+        if isinstance(level,int) and rise > 0 and level in (plate['relative_position']['y'],pl['y']) and hl['y']+level*rise > hh['y']:
+            p['legacy_connection_height'] = p.pop('connection_level')
+            record(plate, 'connection_height_in_blocks')
+            level = None
         if (level == 0 and hl['y']-pl['y'] == 1 and tl['y'] == pl['y']
                 and target['dimensions']['height'] == 1):
             plate['relative_position']['y'] += 1

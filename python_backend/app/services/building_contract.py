@@ -215,6 +215,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     if not isinstance(plan, dict) or str(plan.get('mode', 'build')).lower() == 'patch': return plan
     text = _normalize_request_text(text)
     out = deepcopy(plan)
+    from .plan_coordinate_normalizer import recover_slot_bindings
+    recover_slot_bindings(out)
     from .gothic_building_contract import repair_gothic_route
     repair_gothic_route(out, text)
     hints = out.setdefault('proportion_hints', {})

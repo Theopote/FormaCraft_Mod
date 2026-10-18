@@ -1,0 +1,1578 @@
+{
+  "mode": "build",
+  "style_profile": "Medieval_Town_Civic",
+  "style_attributes": {
+    "wall_color": "grey",
+    "roof_color": "dark_brown",
+    "accent_color": "light_grey",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:polished_andesite",
+    "decorative_elements": [
+      "andesite_cornice_band",
+      "stone_brick_plinth",
+      "dark_oak_eaves",
+      "clock_faces",
+      "balcony_railing"
+    ]
+  },
+  "distinguishing_features": [
+    "对称布局：中央大厅居中，左右各一座较低的单层侧翼",
+    "中央大厅 19x15、层高6、共两层，双坡屋顶",
+    "侧翼各 9x13、单层高6，较低的双坡屋顶",
+    "方形钟楼 7x7 位于中央大厅后方，总高22，四坡尖顶",
+    "主入口朝向广场，入口上方三格宽阳台，栏杆为门留出开口",
+    "中央大厅内部楼梯连接二层",
+    "钟楼四面近顶部设置简化钟面",
+    "主屋顶在钟楼穿入处收口，不穿过钟楼室内",
+    "广场仅含台阶、步道与两处花坛，无其他大型建筑"
+  ],
+  "anchor": {
+    "x": 243,
+    "y": 111,
+    "z": -79
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "civic_town_hall",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "symmetrical_compound",
+      "composition": "central_hall_with_two_wings_and_rear_tower",
+      "axis": "z",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "masonry",
+      "massiveness": 0.66,
+      "voidRatio": 0.22,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "mirrored_wings",
+      "progression": "tower_above_wings",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "mirror",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "entrance",
+      "windows",
+      "roof",
+      "balcony",
+      "tower",
+      "interior_stair",
+      "clock",
+      "plaza"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "andesite",
+      "accent": "dark_oak",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "late_medieval",
+      "keywords": [
+        "town hall",
+        "civic",
+        "symmetrical",
+        "gable roof",
+        "clock tower"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 22,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "symmetry",
+        "dimensions",
+        "material_palette",
+        "roof_termination_at_tower"
+      ],
+      "avoid": [
+        "castle_curtain_wall",
+        "moat",
+        "asymmetric_additions",
+        "extra_large_plaza_structures"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "civic_symmetrical_hall",
+    "height_to_width": 0.89,
+    "depth_to_width": 0.79,
+    "roof_to_body_height": 0.42,
+    "tower_height_to_width": 3.14,
+    "wing_height_to_main_height": 0.5,
+    "balcony_width_to_entrance_width": 1.0,
+    "symmetry_axis": "x",
+    "notes": "User-specified dimensions (main 19x15/2x6, wings 9x13/1x6, tower 7x7 total 22) override any retrieved castle-typology ratios; castle ratio card was out of scope for this civic request.",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_height_named_main_hall",
+          "property": "floor_height",
+          "value": 6,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高6格"
+          ],
+          "scope": "named_main_hall",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "main_hall"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_main_hall",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层",
+            "二层的"
+          ],
+          "scope": "named_main_hall",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "main_hall"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_wing",
+          "property": "floor_count",
+          "value": 1,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "一层"
+          ],
+          "scope": "named_wing",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "wing_left",
+            "wing_right"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_gable",
+          "property": "roof_type",
+          "value": "gable",
+          "source": "user_explicit",
+          "source_text": [
+            "双坡屋顶"
+          ],
+          "scope": "named_main_hall",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "main_hall"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_hall": [
+          "main_hall",
+          "main_hall"
+        ],
+        "named_wing": [
+          "wing_left",
+          "wing_right"
+        ],
+        "named_tower": [
+          "clock_tower"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_hall",
+          "slot_id": "slot_main_hall",
+          "local_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -7
+          },
+          "plan_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -7
+          },
+          "dimensions": {
+            "width": 19,
+            "depth": 15,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            6
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_hall",
+                "local_origin": {
+                  "x": -9,
+                  "y": 0,
+                  "z": -7
+                },
+                "dimensions": {
+                  "width": 19,
+                  "depth": 15,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -9,
+              "min_z": -7,
+              "max_x": 10,
+              "max_z": 8,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 10,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": -7,
+                "start": -9,
+                "end": 10
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": -9,
+                "end": 10
+              },
+              {
+                "direction": "WEST",
+                "plane": -9,
+                "start": -7,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "wing_left",
+          "slot_id": "slot_wing_left",
+          "local_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -18,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 9,
+            "depth": 13,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "wing_left",
+                "local_origin": {
+                  "x": -4,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 9,
+                  "depth": 13,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -6,
+              "max_x": 5,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 5,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -6,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "wing_right",
+          "slot_id": "slot_wing_right",
+          "local_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": 10,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 9,
+            "depth": 13,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "wing_right",
+                "local_origin": {
+                  "x": -4,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 9,
+                  "depth": 13,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -6,
+              "max_x": 5,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 5,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -6,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座对称布局的小镇市政厅 ，包含两层中央大厅、 左右两座较低的侧翼， 以及一座位于中央大厅后方的方形钟楼。中央大厅约19×15格， 每层高6格；侧翼各约9×13格， 只有一层，高6格； 钟楼约7×7格，总高22格。 使用石砖、安山岩和深色木材， 中央大厅采用双坡屋顶， 侧翼采用较低的双坡屋顶， 钟楼采用四坡尖顶。 主入口朝向广场， 入口上方设置三格宽的阳台， 阳台栏杆必须给门留出开口。 中央大厅内部设置连接二层的楼梯。 钟楼四面在接近顶部的位置设置简化钟面。 屋顶在钟楼穿入的位置收口， 避免穿过钟楼室内。 广场只设置台阶、 步道和两处花坛， 不要添加其他大型建筑。",
+          "purposes": [
+            {
+              "id": "civic_hall",
+              "phrase": "市政厅",
+              "start": 11,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方形钟楼。中央大厅约19×15格，\n每层高6格；侧翼各约9×13格，\n只有一层，高6格；\n钟楼约7×7格，总高22格。\n使用石砖、安山岩和深色木材，\n中央大厅采用双坡屋顶，\n侧翼采用较低的双坡屋顶，\n钟楼采用四坡尖顶。\n主入口朝向广场，\n入口上方设置三格宽的阳台，\n阳台栏杆必须给门留出开口。\n中央大厅内部设置连接二层的楼梯。\n钟楼四面在接近顶部的位置设置简化钟面。\n屋顶在钟楼穿入的位置收口，\n避免穿过钟楼室内。\n广场只设置台阶、\n步道和两处花坛，\n不要添加其他大型建筑。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "main_hall",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Town_Civic",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "wing_left",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Town_Civic",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "wing_right",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Town_Civic",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "slot_main_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "role": "central_hall",
+        "preset": "MASS_MAIN"
+      },
+      {
+        "slot_id": "slot_wing_left",
+        "anchor": {
+          "x": -14,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "role": "left_wing",
+        "preset": "MASS_MAIN"
+      },
+      {
+        "slot_id": "slot_wing_right",
+        "anchor": {
+          "x": 14,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "role": "right_wing",
+        "preset": "MASS_MAIN"
+      },
+      {
+        "slot_id": "slot_clock_tower",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -11
+        },
+        "facing": "SOUTH",
+        "role": "rear_clock_tower",
+        "preset": "TOWER"
+      },
+      {
+        "slot_id": "slot_plaza",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 16
+        },
+        "facing": "SOUTH",
+        "role": "front_plaza",
+        "preset": "PLAZA"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "foundation_main",
+        "host_id": "main_hall",
+        "anchor_mode": "center",
+        "plinth": true,
+        "material": "minecraft:stone_bricks",
+        "border_material": "minecraft:andesite",
+        "extends_beyond_walls": 1,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 15,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_hall",
+        "requirement_scope": "named_main_hall",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "anchor_mode": "center",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 6,
+        "wall_height": 12,
+        "roof_type": "gable",
+        "roof_pitch": "medium",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "base_plinth",
+        "void_ratio": 0.22,
+        "window_style": "tall_rectangular",
+        "entrance_type": "double_door",
+        "wall_block": "minecraft:stone_bricks",
+        "accent_block": "minecraft:andesite",
+        "trim_block": "minecraft:dark_oak_planks",
+        "floor_block": "minecraft:polished_andesite",
+        "interior_stair": true,
+        "interior_stair_id": "stair_main",
+        "window_ratio": 0.35,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -10,
+        "y": 12,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 17,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_main",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "x",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "ridge_block": "minecraft:andesite",
+        "eave_block": "minecraft:andesite",
+        "gable_end_block": "minecraft:stone_bricks",
+        "gable_trim": true,
+        "cutouts": [
+          {
+            "against": "clock_tower",
+            "side": "north",
+            "mode": "flush",
+            "prevent_interior_penetration": true
+          }
+        ],
+        "roof_height": 5,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 15,
+        "height": 12
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"tall\", \"rectangular\", \"stone_surround\", \"repeating\", \"civic\"], \"importance\": [\"role\", \"style\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Town_Civic\", \"materialTone\": \"stone_with_dark_wood\"}, \"constraints\": {\"mustHave\": [\"repeating\", \"vertical\"], \"forbiddenTags\": [\"glass_wall\", \"modern_curtain\", \"arrow_slit\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "windows_main",
+        "host_id": "main_hall",
+        "anchor_mode": "center",
+        "facade_sides": [
+          "south",
+          "east",
+          "west",
+          "north"
+        ],
+        "rows": 2,
+        "row_offsets": [
+          2,
+          8
+        ],
+        "window_width": 2,
+        "window_height": 3,
+        "spacing": 4,
+        "window_style": "tall_rectangular",
+        "sill_material": "minecraft:andesite",
+        "frame_material": "minecraft:andesite",
+        "shutter_material": "minecraft:dark_oak_planks",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"double\", \"civic\", \"heavy\", \"dark_wood\", \"framed\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 4, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Town_Civic\", \"materialTone\": \"dark_wood_on_stone\"}, \"constraints\": {\"mustHave\": [\"exterior\", \"double_leaf\"], \"forbiddenTags\": [\"garage\", \"automatic\", \"glass_panel_wall\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "entrance_main",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "entrance_type": "double_door",
+        "facing": "NORTH",
+        "world_facing": "SOUTH",
+        "frame_material": "minecraft:andesite",
+        "door_material": "minecraft:dark_oak_planks",
+        "threshold_steps": 1,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 6,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"single\", \"balcony_access\", \"dark_wood\", \"upper_floor\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Town_Civic\", \"materialTone\": \"dark_wood_on_stone\"}, \"constraints\": {\"mustHave\": [\"exterior\"], \"forbiddenTags\": [\"garage\", \"double_leaf\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "entrance_upper_balcony",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "level": 2,
+        "facing": "NORTH",
+        "world_facing": "SOUTH",
+        "frame_material": "minecraft:andesite",
+        "door_material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 6,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"stone\", \"low\", \"balcony\", \"with_gap\", \"civic\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Town_Civic\", \"materialTone\": \"andesite\"}, \"constraints\": {\"mustHave\": [\"edge_mountable\", \"gap_for_door\"], \"forbiddenTags\": [\"solid_wall\", \"full_panel\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "balcony_main",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "level": 2,
+        "balcony_width": 3,
+        "balcony_depth": 2,
+        "railing": true,
+        "railing_gap_width": 2,
+        "railing_gap_side": "front",
+        "railing_gap_aligned_to": "entrance_upper_balcony",
+        "do_not_block_doorway": true,
+        "floor_block": "minecraft:andesite",
+        "railing_block": "minecraft:andesite",
+        "support_brackets": true,
+        "support_material": "minecraft:dark_oak_planks",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 8,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "stair_main",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "role": "interior_stair",
+        "stair_type": "straight",
+        "axis": "z",
+        "ascending": "positive_z",
+        "rise": 6,
+        "run": 8,
+        "width": 3,
+        "exterior": false,
+        "head_clearance": 2,
+        "start_level": 0,
+        "end_level": 6,
+        "step_material": "minecraft:andesite",
+        "inside_host_walls": true,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_wing_left",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "wing_left",
+        "requirement_scope": "named_wing",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "anchor_mode": "center",
+        "hollow": true,
+        "floor_count": 1,
+        "floor_height": 6,
+        "wall_height": 6,
+        "roof_type": "gable",
+        "roof_pitch": "low",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "void_ratio": 0.22,
+        "window_style": "tall_rectangular",
+        "entrance_type": "single_door",
+        "wall_block": "minecraft:stone_bricks",
+        "accent_block": "minecraft:andesite",
+        "trim_block": "minecraft:dark_oak_planks",
+        "floor_block": "minecraft:polished_andesite",
+        "mirror_group": "wings",
+        "mirror_of": null,
+        "window_ratio": 0.35,
+        "building_id": "wing_left"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_wing_left",
+      "relative_position": {
+        "x": -5,
+        "y": 6,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 15,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_wing_left",
+        "host_id": "wing_left",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "z",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "ridge_block": "minecraft:andesite",
+        "eave_block": "minecraft:andesite",
+        "gable_end_block": "minecraft:stone_bricks",
+        "height_relative_to_main": "lower",
+        "roof_height": 3,
+        "building_id": "wing_left"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_wing_left",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "windows_wing_left",
+        "host_id": "wing_left",
+        "anchor_mode": "center",
+        "facade_sides": [
+          "south",
+          "east",
+          "west",
+          "north"
+        ],
+        "rows": 1,
+        "row_offsets": [
+          2
+        ],
+        "window_width": 2,
+        "window_height": 3,
+        "spacing": 3,
+        "window_style": "tall_rectangular",
+        "sill_material": "minecraft:andesite",
+        "frame_material": "minecraft:andesite",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "wing_left"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_wing_left",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "entrance_wing_left",
+        "host_id": "wing_left",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "facing": "NORTH",
+        "world_facing": "SOUTH",
+        "frame_material": "minecraft:andesite",
+        "door_material": "minecraft:dark_oak_planks",
+        "threshold_steps": 1,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "wing_left"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_wing_right",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "wing_right",
+        "requirement_scope": "named_wing",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "anchor_mode": "center",
+        "hollow": true,
+        "floor_count": 1,
+        "floor_height": 6,
+        "wall_height": 6,
+        "roof_type": "gable",
+        "roof_pitch": "low",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "void_ratio": 0.22,
+        "window_style": "tall_rectangular",
+        "entrance_type": "single_door",
+        "wall_block": "minecraft:stone_bricks",
+        "accent_block": "minecraft:andesite",
+        "trim_block": "minecraft:dark_oak_planks",
+        "floor_block": "minecraft:polished_andesite",
+        "mirror_group": "wings",
+        "mirror_of": "wing_left",
+        "window_ratio": 0.35,
+        "building_id": "wing_right"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_wing_right",
+      "relative_position": {
+        "x": -5,
+        "y": 6,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 15,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_wing_right",
+        "host_id": "wing_right",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "z",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "ridge_block": "minecraft:andesite",
+        "eave_block": "minecraft:andesite",
+        "gable_end_block": "minecraft:stone_bricks",
+        "height_relative_to_main": "lower",
+        "mirror_of": "roof_wing_left",
+        "roof_height": 3,
+        "building_id": "wing_right"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_wing_right",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "windows_wing_right",
+        "host_id": "wing_right",
+        "anchor_mode": "center",
+        "facade_sides": [
+          "south",
+          "east",
+          "west",
+          "north"
+        ],
+        "rows": 1,
+        "row_offsets": [
+          2
+        ],
+        "window_width": 2,
+        "window_height": 3,
+        "spacing": 3,
+        "window_style": "tall_rectangular",
+        "sill_material": "minecraft:andesite",
+        "frame_material": "minecraft:andesite",
+        "mirror_of": "windows_wing_left",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "wing_right"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_wing_right",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "entrance_wing_right",
+        "host_id": "wing_right",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "facing": "NORTH",
+        "world_facing": "SOUTH",
+        "frame_material": "minecraft:andesite",
+        "door_material": "minecraft:dark_oak_planks",
+        "threshold_steps": 1,
+        "mirror_of": "entrance_wing_left",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "wing_right"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_clock_tower",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "foundation_tower",
+        "host_id": "clock_tower",
+        "anchor_mode": "center",
+        "plinth": true,
+        "material": "minecraft:stone_bricks",
+        "border_material": "minecraft:andesite",
+        "extends_beyond_walls": 1,
+        "building_id": "clock_tower"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_clock_tower",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 17
+      },
+      "features": [],
+      "params": {
+        "component_id": "clock_tower",
+        "requirement_scope": "named_tower",
+        "anchor_mode": "center",
+        "tower_shape": "square",
+        "body_height": 17,
+        "total_height": 22,
+        "floor_count": 3,
+        "floor_height": 5,
+        "roof_type": "pyramid",
+        "roof_height": 5,
+        "clock_face_count": 4,
+        "clock_face_level": 14,
+        "belfry_openings": true,
+        "buttress_corners": true,
+        "wall_block": "minecraft:stone_bricks",
+        "accent_block": "minecraft:andesite",
+        "trim_block": "minecraft:dark_oak_planks",
+        "attached_to": "main_hall",
+        "attachment_side": "north",
+        "do_not_pierce_host_roof": true,
+        "building_id": "clock_tower"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_clock_tower",
+      "relative_position": {
+        "x": -4,
+        "y": 17,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_tower",
+        "host_id": "clock_tower",
+        "anchor_mode": "min_corner",
+        "roof_type": "pyramid",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "ridge_block": "minecraft:andesite",
+        "eave_block": "minecraft:andesite",
+        "finial": true,
+        "finial_material": "minecraft:andesite",
+        "steepness": 0.6,
+        "roof_height": 5,
+        "building_id": "clock_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_clock_tower",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "entrance_tower",
+        "host_id": "clock_tower",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "facing": "SOUTH",
+        "world_facing": "NORTH",
+        "frame_material": "minecraft:andesite",
+        "door_material": "minecraft:dark_oak_planks",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "clock_tower"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_clock_tower",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 17
+      },
+      "features": [],
+      "params": {
+        "component_id": "windows_tower",
+        "host_id": "clock_tower",
+        "anchor_mode": "center",
+        "facade_sides": [
+          "south",
+          "east",
+          "west",
+          "north"
+        ],
+        "rows": 2,
+        "row_offsets": [
+          5,
+          9
+        ],
+        "window_width": 1,
+        "window_height": 2,
+        "spacing": 6,
+        "window_style": "narrow_slit",
+        "sill_material": "minecraft:andesite",
+        "frame_material": "minecraft:andesite",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "clock_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_clock_tower",
+      "relative_position": {
+        "x": 0,
+        "y": 13,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"clock_face\", \"simplified\", \"four_sides\", \"stone_ring\", \"civic\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"roof\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 0, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Town_Civic\", \"materialTone\": \"andesite_and_dark_wood\"}, \"constraints\": {\"mustHave\": [\"flat_mountable\", \"symmetric\"], \"forbiddenTags\": [\"lit_display\", \"hologram\", \"glass\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "clock_faces",
+        "host_id": "clock_tower",
+        "anchor_mode": "center",
+        "kind": "clock_face",
+        "sides": [
+          "north",
+          "south",
+          "east",
+          "west"
+        ],
+        "face_size": 3,
+        "face_block": "minecraft:andesite",
+        "ring_block": "minecraft:stone_bricks",
+        "hand_block": "minecraft:dark_oak_planks",
+        "simplified": true,
+        "near_tower_top": true,
+        "building_id": "clock_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -10,
+        "y": 11,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "cornice_main",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "kind": "cornice_band",
+        "profile": "stepped",
+        "material": "minecraft:andesite",
+        "continuous": true,
+        "below_eaves": true,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "PLAZA",
+      "slot_id": "slot_plaza",
+      "relative_position": {
+        "x": -16,
+        "y": 0,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 33,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "plaza_main",
+        "anchor_mode": "min_corner",
+        "surface_block": "minecraft:stone_bricks",
+        "border_block": "minecraft:andesite",
+        "allowed_elements": [
+          "steps",
+          "paths",
+          "flower_beds"
+        ],
+        "no_large_structures": true,
+        "no_extra_buildings": true,
+        "flower_bed_count": 2
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_plaza",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "plaza_steps",
+        "anchor_mode": "min_corner",
+        "kind": "steps",
+        "step_count": 2,
+        "step_block": "minecraft:andesite",
+        "leads_to": "entrance_main",
+        "width": 8,
+        "building_id": "plaza_steps"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_plaza",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 16,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "plaza_walk",
+        "anchor_mode": "min_corner",
+        "path_width": 3,
+        "material": "minecraft:stone_bricks",
+        "border_material": "minecraft:andesite",
+        "pattern": "straight",
+        "connects": [
+          "plaza_steps",
+          "plaza_south_edge"
+        ]
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_plaza",
+      "relative_position": {
+        "x": -13,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "flower_bed_left",
+        "anchor_mode": "min_corner",
+        "kind": "flower_bed",
+        "edging_block": "minecraft:andesite",
+        "soil_block": "minecraft:coarse_dirt",
+        "planting": "mixed_flowers",
+        "raised": false
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_plaza",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "flower_bed_right",
+        "anchor_mode": "min_corner",
+        "kind": "flower_bed",
+        "edging_block": "minecraft:andesite",
+        "soil_block": "minecraft:coarse_dirt",
+        "planting": "mixed_flowers",
+        "raised": false,
+        "mirror_of": "flower_bed_left"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 2,
+        "height": 9
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "main_hall#access_1",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 6,
+          "y": 6,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:polished_andesite",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "main_hall"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方\n形钟楼。中央大厅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

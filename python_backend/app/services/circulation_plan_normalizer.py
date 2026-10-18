@@ -16,10 +16,13 @@ def _integer(value: Any, name: str, minimum: int, maximum: int) -> int:
 
 def _material(value: Any, stairs: bool = False) -> str:
     name = str(value or "stone_bricks")
+    if name.startswith('minecraft:'): name = name[len('minecraft:'):]
     name = {"stone_brick": "stone_bricks", "deepslate_brick": "deepslate_bricks"}.get(name, name)
     if stairs:
         name = name.replace("_planks", "_stairs").replace("_bricks", "_brick_stairs")
         if name == "smooth_stone": name = "stone_brick_stairs"
+        if name in ('andesite','polished_andesite','diorite','polished_diorite','granite','polished_granite','stone','cobblestone','sandstone','smooth_sandstone','polished_blackstone'):
+            name += '_stairs'
         if not name.endswith("_stairs"): raise ValueError("stair material must have a stair variant")
     return name if ":" in name else "minecraft:" + name
 
@@ -152,7 +155,8 @@ def _bind_exterior_stair_doors(plan: dict) -> None:
     for stair in components:
         p = stair.get('params') or {}
         if stair.get('component_type') != 'STRUCTURE' or p.get('exterior') is not True: continue
-        if p.get('host_source') != 'legacy_geometry_inference': continue
+        if p.get('host_source') == 'entrance_elevation': continue
+        if p.get('host_id') and p.get('host_source') != 'legacy_geometry_inference': continue
         width, clear = int(p.get('width') or 3), int(p.get('clearHeight') or 2)
         rp = stair['relative_position']; off = slots.get(stair.get('slot_id'), {})
         for endpoint, key in (('from','host_id'),('to','target_host_id')):
@@ -240,6 +244,31 @@ def _fit_straight_stairs(plan: dict) -> None:
                     if low > high: break
                     bounds[axis] = max(low, min(rp[axis], high))
                 if len(bounds) != 2: continue
+                if params.get('circulation_source') == 'missing_requested_stair':
+                    slots={s.get('slot_id'):s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots',[])}
+                    off=slots.get(comp.get('slot_id'),{})
+                    ranges={}
+                    for axis,dimension in (('x','width'),('z','depth')):
+                        lateral=(axis=='x' and dz!=0) or (axis=='z' and dx!=0)
+                        lo=min(p[axis] for p in ends)-(width//2 if lateral else 0)
+                        hi=max(p[axis] for p in ends)+(width-1-width//2 if lateral else 0)
+                        ranges[axis]=(origin[axis]+wall-lo,origin[axis]+int(dims[dimension])-1-wall-hi,lo,hi)
+                    candidates=sorted(((x,z) for x in range(ranges['x'][0],ranges['x'][1]+1)
+                                       for z in range(ranges['z'][0],ranges['z'][1]+1)),
+                                      key=lambda v:abs(v[0]-bounds['x'])+abs(v[1]-bounds['z']))
+                    def blocks_bridge(x,z):
+                        for bridge in plan.get('components',[]):
+                            bp=bridge.get('params') or {}
+                            if bp.get('plate_role') not in ('bridge','link','connector') or params.get('host_id') not in (bp.get('host_id'),bp.get('target_host_id')): continue
+                            bo=_mass_origin(bridge); ba=slots.get(bridge.get('slot_id'),{}); bd=bridge['dimensions']
+                            bo={a:bo[a]+ba.get(a,0) for a in ('x','y','z')}
+                            if not rp['y']+off.get('y',0)+aa['y'] <= bo['y'] <= rp['y']+off.get('y',0)+bb['y']+2: continue
+                            if (x+off.get('x',0)+ranges['x'][2] < bo['x']+bd['width'] and x+off.get('x',0)+ranges['x'][3]>=bo['x']
+                                    and z+off.get('z',0)+ranges['z'][2] < bo['z']+bd['depth'] and z+off.get('z',0)+ranges['z'][3]>=bo['z']): return True
+                        return False
+                    available=next(((x,z) for x,z in candidates if not blocks_bridge(x,z)),None)
+                    if available is None: continue
+                    bounds.update(x=available[0],z=available[1])
                 if (mass.get('params') or {}).get('shape') in ('circle', 'cylinder', 'circular', 'round'):
                     cx, cz = origin['x']+(int(dims['width'])-1)/2, origin['z']+(int(dims['depth'])-1)/2
                     rx, rz = int(dims['width'])/2-wall, int(dims['depth'])/2-wall
@@ -328,10 +357,27 @@ def _fit_exterior_stairs(plan: dict) -> None:
             if part.get('component_type') not in ('TERRACE','BALCONY') or not pp.get('host_id'):
                 continue
             po = world(part); pd = part.get('dimensions') or {}
+            extent = pd.get('width' if side == 'x' else 'depth',0)
             if (po['y'] == endpoint['y'] and po['x']-width <= endpoint['x'] < po['x']+pd.get('width',0)+width
                     and po['z']-width <= endpoint['z'] < po['z']+pd.get('depth',0)+width):
                 target_landings.append(part)
+        direct = [c for c in target_landings if endpoint[side]+width-width//2 > world(c)[side]
+                  and endpoint[side]-width//2 < world(c)[side]+c['dimensions']['width' if side=='x' else 'depth']]
+        if direct: target_landings = direct
         targets = {(c.get('params') or {}).get('host_id') for c in target_landings}
+        # Stop the landing inside the receiving deck rather than extending its
+        # last rows through the wall behind that deck.
+        axis = 'z' if side == 'x' else 'x'
+        direction = ((dz>0)-(dz<0)) if side == 'x' else ((dx>0)-(dx<0))
+        lengths = []
+        for part in target_landings:
+            po = world(part); pd = part['dimensions']
+            extent = pd['depth' if axis == 'z' else 'width']
+            if po[axis] <= endpoint[axis] < po[axis]+extent:
+                lengths.append(po[axis]+extent-1-endpoint[axis] if direction > 0 else endpoint[axis]-po[axis])
+        if lengths and 1 <= max(lengths) < landing:
+            landing = max(lengths)
+            p['landing_length'] = landing
         if len(targets) == 1 and p.get('host_id') not in targets and not p.get('target_host_id'):
             p['target_host_id'] = next(iter(targets))
             p['circulation_target_source'] = 'landing_contact'
@@ -357,7 +403,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
             for body in bodies:
                 bp = body.get('params') or {}
                 own_body = bp.get('component_id') == p.get('host_id')
-                if bp.get('host_id') == p.get('host_id'): continue
+                if p.get('host_id') and bp.get('host_id') == p.get('host_id'): continue
                 bo = world(body); dims = body['dimensions']
                 if body.get('component_type') == 'FOUNDATION' and bo['y']+dims['height'] <= origin['y']+a['y']:
                     continue
@@ -462,7 +508,9 @@ def normalize_circulation_plan(plan: dict) -> dict:
     # Convert only executable, floor-bound descriptions; ordinary volumes stay volumes.
     for comp in out.get('components', []):
         p = comp.get('params') or {}
-        if (comp.get('component_type') == 'MASS_SECONDARY' and p.get('shape') == 'stair'
+        if comp.get('component_type') == 'STRUCTURE' and isinstance(p.get('features'),list):
+            comp['features'] = list(dict.fromkeys([*comp.get('features',[]),*p['features']]))
+        if (comp.get('component_type') == 'MASS_SECONDARY' and (p.get('shape') == 'stair' or p.get('role') == 'interior_stair')
                 and all(isinstance(p.get(k),int) for k in ('rise','run'))):
             p.update(extrude_mode='stair',stair_rise=p['rise'],stair_run=p['run'])
         if comp.get('component_type') == 'STRUCTURE' and any(str(f).startswith('stair:') for f in comp.get('features', [])):
@@ -482,7 +530,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
                 base = (comp.get('relative_position') or {}).get('y',0)-_mass_origin(host)['y']
                 if base >= 0 and base % fh == 0:
                     p.update(stair_type='straight',rise=rise,run=run,from_floor=base//fh+1,
-                             to_floor=(base+rise)//fh+1,headroom=p.get('clearance',2))
+                             to_floor=(base+rise)//fh+1,headroom=p.get('head_clearance',p.get('clearance',2)))
         if comp.get('component_type') != 'MASS_SECONDARY' or p.get('stair_type') != 'straight':
             continue
         host = _host_mass(out, comp)
@@ -500,7 +548,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
         comp['component_type'] = 'STRUCTURE'
         comp['features'] = ['stair:straight_single_run']
         p.update({'anchor_mode': 'min_corner', 'from': _point(0,0,0), 'to': _point(0,rise,run),
-                  'stairs': _material(p.get('material'), True), 'floor': _material(p.get('material')),
+                  'stairs': _material(p.get('step_material',p.get('material')), True), 'floor': _material(p.get('step_material',p.get('material'))),
                   'clearHeight': max(2,int(p.get('headroom') or 2)), 'support': False,
                   'landing_length': 1, 'circulation_source': 'legacy_secondary_stair'})
         if p.get('shape') == 'stair':
@@ -515,7 +563,9 @@ def normalize_circulation_plan(plan: dict) -> dict:
     explicit_levels = set()
     for c in out.get('components', []):
         cp = c.get('params') or {}
-        if cp.get('circulation_source') != 'legacy_secondary_stair': continue
+        if (c.get('component_type') != 'STRUCTURE' or 'stair:straight_single_run' not in c.get('features',[])
+                or cp.get('circulation_source') == 'missing_requested_stair'
+                or not isinstance(cp.get('from'),dict) or not isinstance(cp.get('to'),dict)): continue
         y = c['relative_position']['y']
         explicit_levels.add((cp.get('host_id'),y+cp['from']['y'],y+cp['to']['y']))
     out['components'] = [c for c in out.get('components', []) if not (
@@ -532,6 +582,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
     _normalize_bridge_levels(out)
     _bind_exterior_stair_doors(out)
     _fit_exterior_stairs(out)
+    _complete_exterior_target_doors(out)
     _complete_stair_door_landings(out)
     # Narrow towers cannot accommodate independently rotated flights whose
     # supports fill the previous flight's headroom. Repeat the fitted stairwell
@@ -640,6 +691,38 @@ def normalize_circulation_plan(plan: dict) -> dict:
                                      "path":"components[].params.assembly","suggestions":["Provide explicit flights and adjacent landings."]}
     out.setdefault('components', []).extend(plates)
     return out
+
+
+def _complete_exterior_target_doors(plan: dict) -> None:
+    """Open a bounded portal where an explicitly connected stair meets a wall."""
+    if (plan.get('plan_meta') or {}).get('allow_compiler_satellites') is False: return
+    slots = {s.get('slot_id'):s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots',[])}
+    components=plan.get('components',[])
+    ids={(c.get('params') or {}).get('component_id'):c for c in components}
+    additions=[]
+    for c in components:
+        p=c.get('params') or {}; target=ids.get(p.get('target_host_id'))
+        if c.get('component_type')!='STRUCTURE' or p.get('exterior') is not True or not target: continue
+        identity=str(p.get('component_id'))+'#target_door'
+        if identity in ids or not isinstance(p.get('to'),dict): continue
+        if any(d.get('component_type')=='ENTRANCE' and (d.get('params') or {}).get('stair_connection')==p.get('component_id')
+               and d['params'].get('host_id')==p['target_host_id'] for d in components): continue
+        off=slots.get(c.get('slot_id'),{}); anchor=slots.get(target.get('slot_id'),{})
+        end={a:c['relative_position'][a]+off.get(a,0)+p['to'][a]-anchor.get(a,0) for a in ('x','y','z')}
+        ho=_mass_origin(target); hd=target['dimensions']; width=int(p.get('width',3)); clear=int(p.get('clearHeight',2))
+        if end['y'] < ho['y'] or end['y']+clear+1 > ho['y']+hd['height']: continue
+        choices=[(abs(end['x']-ho['x']),'x',ho['x'],'EAST'),(abs(end['x']-(ho['x']+hd['width']-1)),'x',ho['x']+hd['width']-1,'WEST'),
+                 (abs(end['z']-ho['z']),'z',ho['z'],'SOUTH'),(abs(end['z']-(ho['z']+hd['depth']-1)),'z',ho['z']+hd['depth']-1,'NORTH')]
+        distance,axis,face,facing=min(choices)
+        across='z' if axis=='x' else 'x'; dimension='depth' if axis=='x' else 'width'
+        if distance>1 or not ho[across]+1 <= end[across]-width//2 or end[across]+width-width//2 > ho[across]+hd[dimension]-1: continue
+        pos=dict(end); pos[axis]=face; pos[across]-=width//2
+        additions.append({'component_type':'ENTRANCE','slot_id':target.get('slot_id'),'relative_position':pos,
+            'dimensions':{'width':1 if axis=='x' else width,'depth':width if axis=='x' else 1,'height':clear+1},'features':[],
+            'params':{'component_id':identity,'host_id':p['target_host_id'],'anchor_mode':'min_corner','facing':facing,
+                      'door_width':width,'door_height':clear+1,'entrance_type':'door','stair_connection':p.get('component_id'),
+                      'circulation_source':'explicit_stair_wall_contact'}})
+    components.extend(additions)
 
 
 def _normalize_bridge_levels(plan: dict) -> None:

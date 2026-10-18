@@ -1913,14 +1913,15 @@ public final class ComponentPlanCompiler {
         List<String> features = mergeFeatureLists(template.features(), llmFacade.features());
         int openingWidth = ComponentParamParsers.intParam(llmFacade.params(),"window_width","windowWidth");
         int openingHeight = ComponentParamParsers.intParam(llmFacade.params(),"window_height","windowHeight");
-        boolean authoredSingleRow = ComponentParamParsers.intParam(llmFacade.params(),"rows") == 1;
+        int authoredCount = ComponentParamParsers.intParam(llmFacade.params(),"window_count");
+        boolean authoredSingleRow = ComponentParamParsers.intParam(llmFacade.params(),"rows") == 1 || authoredCount > 0;
         if (llmDims != null && llmFacade.relativePosition() != null && openingWidth > 0 && openingHeight > 0
                 && (llmDims.width() == 1 || llmDims.depth() == 1)
                 && (authoredSingleRow || (llmDims.width() == 1 ? llmDims.depth() : llmDims.width()) <= openingWidth+2)
                 && llmDims.height() <= openingHeight+2
                 && llmFacade.relativePosition().y()+openingHeight <= massOrigin.y()+massDims.height()
                 && isFacadeStripOnHost(llmFacade,massOrigin,massDims)) {
-            params.put("localized_window",(llmDims.width() == 1 ? llmDims.depth() : llmDims.width()) <= openingWidth+2);
+            params.put("localized_window",authoredCount > 0 || (llmDims.width() == 1 ? llmDims.depth() : llmDims.width()) <= openingWidth+2);
             params.put("floor_count",1);
             params.put("floor_height",llmDims.height());
             var pos = llmFacade.relativePosition();
