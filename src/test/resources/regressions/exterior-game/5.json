@@ -1,6 +1,7 @@
 {
   "mode": "build",
   "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
   "style_attributes": {
     "wall_color": "#9a9a94",
     "roof_color": "#5c6068",

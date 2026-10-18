@@ -2,13 +2,37 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
-import org.junit.jupiter.api.*;
-import java.nio.file.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.stream.Stream;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComplexBuildRetest {
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
+
+    /** Stronger usability sample on the controlled fidelity fixture (not patch-count alone). */
+    @Test void fidelityInteriorStairLandingWalkableSample() throws Exception {
+        var json = Files.readString(Path.of("src/test/resources/plans/fidelity/stair_upper_landing_walkable.json"));
+        var plan = LlmPlanParser.parse(json);
+        var compilation = ComponentPlanCompiler.compileWithCirculation(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false);
+        assertFalse(compilation.patches().isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(AssemblyCompileDiagnostics.hasGap(), String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(compilation.circulation().isEmpty(), "interior stair must publish a flight");
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(compilation.patches());
+        var landing = new com.formacraft.common.llm.dto.Vec3i(7, 4, 3);
+        assertTrue(com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, landing),
+                "upper landing must be standable");
+        assertTrue(compilation.circulation().getFirst().clearance().stream().anyMatch(p -> p.getY() == 4),
+                "flight must open the upper floor band");
+    }
+
     @TestFactory Stream<DynamicTest> loggedJavaCompilerFailures() {
         return Stream.of("2","3.normalized","4.normalized","5.normalized",
                 "latest_1.normalized", "latest_2.normalized", "latest_3.normalized",

@@ -167,19 +167,41 @@ class ExteriorCirculationValidatorTest {
             assertEquals(clear ? "clearance" : "tread/support", collision.get().role());
         }
     }
-    @Test void allowsDoorwayLastWriteAirAndInteriorFloorOpening() {
+    @Test void allowsDoorwayLastWriteAirAndInteriorFloorOpeningForInteriorFlights() {
         MinecraftRegistryTestBootstrap.initialize();
         var door = new BlockPos(10, 3, 23);
         var removal = new BlockPatch(BlockPatch.REMOVE, 10, 3, 23, "minecraft:air");
         assertTrue(ExteriorCirculationValidator.findCollision(List.of(stone(door), removal), flight(door, true), volumes).isEmpty());
         assertTrue(ExteriorCirculationValidator.findCollision(List.of(), flight(door, false), volumes).isEmpty());
+        // Interior flights still skip deep-interior solids (host floor carve).
         var inside = new BlockPos(12, 6, 23);
-        assertTrue(ExteriorCirculationValidator.findCollision(List.of(stone(inside)), flight(inside, true), volumes).isEmpty());
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(inside)), flight(inside, true), volumes, Set.of(), false).isEmpty());
     }
+
+    @Test void exteriorFlightsRejectInteriorPartitionAndColumnSolids() {
+        MinecraftRegistryTestBootstrap.initialize();
+        var partition = new BlockPos(12, 4, 23);
+        var column = new BlockPos(13, 5, 24);
+        assertEquals(partition, ExteriorCirculationValidator.findCollision(
+                List.of(stone(partition)), flight(partition, false), volumes, Set.of(), true)
+                .orElseThrow().position());
+        assertEquals(column, ExteriorCirculationValidator.findCollision(
+                List.of(stone(column)), flight(column, true), volumes, Set.of(), true)
+                .orElseThrow().position());
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(partition)), flight(partition, false), volumes, Set.of(partition), true).isEmpty());
+    }
+
     @Test void usesHeightAwareUnionAndShiftedFlightCoordinates() {
         MinecraftRegistryTestBootstrap.initialize();
         var shared = new BlockPos(15, 4, 23);
-        assertTrue(ExteriorCirculationValidator.findCollision(List.of(stone(shared)), flight(shared, true), volumes).isEmpty());
+        // Deep-interior: ignored for interior flights, rejected for exterior flights.
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(shared)), flight(shared, true), volumes, Set.of(), false).isEmpty());
+        assertEquals(shared, ExteriorCirculationValidator.findCollision(
+                List.of(stone(shared)), flight(shared, true), volumes, Set.of(), true)
+                .orElseThrow().position());
         var upper = new BlockPos(15, 8, 23);
         var local = new AssemblyCirculationConstraints.Flight(Set.of(new BlockPos(5, 6, 3)), Set.of());
         var shifted = AssemblyCirculationConstraints.shift(local, new BlockPos(10, 2, 20));

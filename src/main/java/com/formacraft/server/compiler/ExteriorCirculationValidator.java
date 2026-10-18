@@ -16,11 +16,23 @@ final class ExteriorCirculationValidator {
 
     static Optional<Collision> findCollision(List<BlockPatch> shell, List<Flight> flights,
                                              List<BuildingVolume> volumes) {
-        return findCollision(shell, flights, volumes, Set.of());
+        return findCollision(shell, flights, volumes, Set.of(), false);
     }
 
     static Optional<Collision> findCollision(List<BlockPatch> shell, List<Flight> flights,
                                              List<BuildingVolume> volumes, Set<BlockPos> connectorAccess) {
+        return findCollision(shell, flights, volumes, connectorAccess, false);
+    }
+
+    /**
+     * @param rejectInteriorSolids when true (exterior stairs), collide with solid prior patches
+     *        anywhere inside a {@link BuildingVolume}, including deep interior partitions/columns.
+     *        when false (interior stairs), keep surface-oriented checks so host floor openings
+     *        can still be cut without treating every interior cell as an exterior wall.
+     */
+    static Optional<Collision> findCollision(List<BlockPatch> shell, List<Flight> flights,
+                                             List<BuildingVolume> volumes, Set<BlockPos> connectorAccess,
+                                             boolean rejectInteriorSolids) {
         if (flights.isEmpty() || volumes.isEmpty()) return Optional.empty();
         var relevant = new LinkedHashMap<BlockPos, String>();
         for (var flight : flights) {
@@ -36,8 +48,12 @@ final class ExteriorCirculationValidator {
         for (var entry : relevant.entrySet()) {
             BlockPos p = entry.getKey();
             if (connectorAccess.contains(p)) continue;
-            if (!contains(p, volumes) || (contains(p.east(), volumes) && contains(p.west(), volumes)
-                    && contains(p.north(), volumes) && contains(p.south(), volumes))) continue;
+            if (!contains(p, volumes)) continue;
+            boolean deepInterior = contains(p.east(), volumes) && contains(p.west(), volumes)
+                    && contains(p.north(), volumes) && contains(p.south(), volumes);
+            // Interior flights: only surface/envelope cells (legacy). Exterior flights: all
+            // in-volume solids — closes the partition/column blind spot.
+            if (deepInterior && !rejectInteriorSolids) continue;
             var patch = finalShell.get(p);
             if (patch == null) continue; // Authored doorway or other absent surface.
             var state = BlockPatchTargetResolver.resolve(patch);

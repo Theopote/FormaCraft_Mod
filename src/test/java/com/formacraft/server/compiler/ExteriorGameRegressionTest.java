@@ -99,22 +99,27 @@ class ExteriorGameRegressionTest {
     }
     @Test void decoratedRetestRejectsWallCrossingLandingAndAcceptsInteriorLanding() throws Exception {
         MinecraftRegistryTestBootstrap.initialize();
-        try (var input = getClass().getResourceAsStream("/regressions/exterior-retest/4.json")) {
-            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            var json = mapper.readTree(new String(Objects.requireNonNull(input).readAllBytes(), StandardCharsets.UTF_8));
-            var plan = LlmPlanParser.parse(json.toString());
+        // Reject: exterior flight midsection through a foreign mass wall (controlled fidelity fixture).
+        try (var input = getClass().getResourceAsStream("/plans/fidelity/exterior_stair_midsection_foreign_wall.json")) {
+            var plan = LlmPlanParser.parse(new String(Objects.requireNonNull(input).readAllBytes(), StandardCharsets.UTF_8));
             assertTrue(ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty());
             assertEquals("E_CIRCULATION_EXTERIOR_CONFLICT",
                     com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code(),
                     String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
-            // Logged endpoint z=9 plus a three-block landing reaches the exterior wall z=12.
-            // Move the endpoint inward while preserving the requested landing length and width.
-            for (var component : json.get("components")) {
-                if ("STRUCTURE".equals(component.path("component_type").asText()))
-                    ((com.fasterxml.jackson.databind.node.ObjectNode) component.get("params").get("to")).put("z", 8);
+        }
+        // Accept: same geometry with the foreign blocker removed so the flight reaches the terrace.
+        try (var input = getClass().getResourceAsStream("/plans/fidelity/exterior_stair_midsection_foreign_wall.json")) {
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var json = mapper.readTree(new String(Objects.requireNonNull(input).readAllBytes(), StandardCharsets.UTF_8));
+            var components = (com.fasterxml.jackson.databind.node.ArrayNode) json.get("components");
+            for (int i = components.size() - 1; i >= 0; i--) {
+                if ("blocker".equals(components.get(i).path("params").path("component_id").asText())) {
+                    components.remove(i);
+                }
             }
-            assertFalse(ComponentPlanCompiler.compile(LlmPlanParser.parse(json.toString()), net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty(),
-                String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+            assertFalse(ComponentPlanCompiler.compile(LlmPlanParser.parse(json.toString()),
+                            net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty(),
+                    String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         }
     }
     private List<Component> components(int index) throws Exception {

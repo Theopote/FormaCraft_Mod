@@ -723,7 +723,9 @@ public final class ComponentPlanCompiler {
                             .map(flight -> AssemblyCirculationConstraints.shift(flight, flightOffset)).toList();
                     // Read-only against prior components' result; do not mutate ledgers yet.
                     var connectorAccess = ExteriorCirculationValidator.connectorAccess(c, components, slotMap, flightOffset, patchOccupancy);
-                    var exteriorCollision = ExteriorCirculationValidator.findCollision(result, shiftedFlights, buildingVolumes, connectorAccess);
+                    boolean exteriorStair = c.params() != null && Boolean.TRUE.equals(c.params().get("exterior"));
+                    var exteriorCollision = ExteriorCirculationValidator.findCollision(
+                            result, shiftedFlights, buildingVolumes, connectorAccess, exteriorStair);
                     if (exteriorCollision.isPresent()) {
                         var collision = exteriorCollision.get();
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_CIRCULATION_EXTERIOR_CONFLICT",
@@ -1172,9 +1174,9 @@ public final class ComponentPlanCompiler {
     }
 
     private static int compilationPriority(Component c) {
-        if (c == null) return 5;
+        if (c == null) return 6;
         if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
-                || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 6;
+                || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 7;
         String type = normalizeType(c.componentType());
         if ("MASS_SECONDARY".equals(type) && c.params() != null
                 && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) return 1;
@@ -1184,14 +1186,17 @@ public final class ComponentPlanCompiler {
             case "ROOF", "ROOF_STRUCTURE" -> {
                 return 2;
             }
-            case "FACADE", "ENTRANCE", "DOOR" -> {
+            case "FACADE" -> {
                 return 3;
             }
-            case "FACADE_WINDOWS", "FACADE_OPENING", "WINDOW" -> {
+            case "ENTRANCE", "DOOR" -> {
                 return 4;
             }
+            case "FACADE_WINDOWS", "FACADE_OPENING", "WINDOW" -> {
+                return 5;
+            }
         }
-        return 5;
+        return 6;
     }
 
     private static boolean isStructureFloorType(String type) {

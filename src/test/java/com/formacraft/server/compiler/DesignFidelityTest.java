@@ -756,6 +756,52 @@ class DesignFidelityTest {
     }
 
     @Test
+    void exteriorStairMidsectionThroughForeignPartitionFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("exterior_stair_midsection_foreign_partition.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        String code = AssemblyCompileDiagnostics.get().code();
+        assertTrue(code.equals("E_CIRCULATION_EXTERIOR_CONFLICT") || code.equals("E_PATCH_CONFLICT"),
+                () -> "expected exterior or patch conflict, got " + AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void exteriorStairMidsectionThroughForeignColumnFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("exterior_stair_midsection_foreign_column.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        String code = AssemblyCompileDiagnostics.get().code();
+        assertTrue(code.equals("E_CIRCULATION_EXTERIOR_CONFLICT") || code.equals("E_PATCH_CONFLICT"),
+                () -> "expected exterior or patch conflict, got " + AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void interiorStairUpperLandingIsStandableAndOpensFloor() throws Exception {
+        LlmPlan plan = loadFidelityPlan("stair_upper_landing_walkable.json");
+        var compilation = ComponentPlanCompiler.compileWithCirculation(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(compilation.patches().isEmpty());
+        assertFalse(compilation.circulation().isEmpty());
+        var occ = com.formacraft.common.generation.component.util.BridgeWalkability
+                .occupancyFromPatches(compilation.patches());
+        // Authored to at local (4,4,0) with stair rp (3,0,3) → world (7,4,3)
+        var landing = new com.formacraft.common.llm.dto.Vec3i(7, 4, 3);
+        assertTrue(com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, landing),
+                "upper landing must be standable after compile");
+        var flight = compilation.circulation().getFirst();
+        assertTrue(flight.clearance().stream().anyMatch(p -> p.getY() == 4),
+                "stair must open clearance through the upper floor band");
+        // Occupied tread under the landing must also stand — proves floor cut + deck meet.
+        assertTrue(flight.occupied().stream().anyMatch(p ->
+                        p.getY() == 4 && com.formacraft.common.generation.component.util.WalkabilityGraph
+                                .canStand(occ, p.getX(), p.getY(), p.getZ())),
+                "at least one upper-storey tread/landing cell must be standable");
+    }
+
+    @Test
     void circulationHostCycleHardFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("circulation_host_cycle.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);

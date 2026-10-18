@@ -1,6 +1,7 @@
 {
   "mode": "build",
   "style_profile": "Classical_European",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
   "style_attributes": {
     "wall_color": "#8F8B83",
     "roof_color": "#4A4A52",

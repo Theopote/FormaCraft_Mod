@@ -12,21 +12,33 @@ import static org.junit.jupiter.api.Assertions.*;
 class HousePromptRegressionTest {
     @Test void explicitFlightExecutesAfterLaterFloorAndKeepsExactEvenWidth() {
         MinecraftRegistryTestBootstrap.initialize();
-        var stair = new com.formacraft.common.llm.dto.Component("STRUCTURE", null,
-            new com.formacraft.common.llm.dto.Vec3i(1, 0, 1), new com.formacraft.common.llm.dto.Dimensions(5, 2, 4),
-            List.of("stair:straight_single_run"), Map.of("from", Map.of("x",0,"y",0,"z",0),
+        var hall = new com.formacraft.common.llm.dto.Component("MASS_MAIN", "hall",
+            new com.formacraft.common.llm.dto.Vec3i(0, 0, 0), new com.formacraft.common.llm.dto.Dimensions(10, 8, 8),
+            List.of(), Map.of("component_id","hall","anchor_mode","min_corner","wall_thickness",1,
+                "hollow",true,"roof_type","none","suppress_windows",true,"suppress_doors",true,
+                "entrance_type","none","window_style","none"));
+        // Keep the flight inside the hollow shell (away from envelope faces) so surface
+        // exterior-collision checks do not treat host floor cut as an exterior-wall hit.
+        var stair = new com.formacraft.common.llm.dto.Component("STRUCTURE", "hall",
+            new com.formacraft.common.llm.dto.Vec3i(2, 0, 3), new com.formacraft.common.llm.dto.Dimensions(5, 2, 4),
+            List.of("stair:straight_single_run"), Map.of(
+                "component_id", "hall_stair", "host_id", "hall",
+                "from", Map.of("x",0,"y",0,"z",0),
                 "to",Map.of("x",3,"y",3,"z",0),"width",2,"stairs","minecraft:oak_stairs",
                 "floor","minecraft:oak_planks","landing_length",2));
-        var plate = new com.formacraft.common.llm.dto.Component("MASS_SECONDARY", null,
-            new com.formacraft.common.llm.dto.Vec3i(0, 3, 0), new com.formacraft.common.llm.dto.Dimensions(8, 5, 6),
-            List.of(), Map.of("anchor_mode","min_corner","extrude_mode","plate","material","oak_planks"));
+        var plate = new com.formacraft.common.llm.dto.Component("MASS_SECONDARY", "hall",
+            new com.formacraft.common.llm.dto.Vec3i(0, 3, 0), new com.formacraft.common.llm.dto.Dimensions(10, 8, 1),
+            List.of(), Map.of("component_id","upper_plate","host_id","hall",
+                "anchor_mode","min_corner","extrude_mode","plate","material","oak_planks"));
         var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
-            .components(List.of(stair, plate)).build();
+            .components(List.of(hall, stair, plate)).build();
         var result = ComponentPlanCompiler.compileWithCirculation(plan, null, null, null, false);
         assertFalse(result.patches().isEmpty(), String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get())); assertEquals(1, result.circulation().size());
         var flight = result.circulation().getFirst();
-        assertEquals(Set.of(0,1), flight.clearance().stream().map(BlockPos::getZ).collect(java.util.stream.Collectors.toSet()));
-        assertTrue(flight.clearance().contains(new BlockPos(3,3,1)), "Later slab must be carved");
+        // width=2 centered on run axis → clearance spans z=2..3 with stair rp.z=3
+        assertEquals(Set.of(2, 3), flight.clearance().stream().map(BlockPos::getZ).collect(java.util.stream.Collectors.toSet()));
+        assertTrue(flight.clearance().stream().anyMatch(p -> p.getY() == 3 && (p.getZ() == 2 || p.getZ() == 3)),
+                "Later slab at y=3 must be carved by clearance; clearance=" + flight.clearance());
     }
     @Test void unsupportedNarrativeStairRejectsWholePlan() {
         var c = new com.formacraft.common.llm.dto.Component("STRUCTURE", null,

@@ -1,0 +1,55 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED",
+      "circulation": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "hall",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 12, "depth": 10, "height": 10 },
+      "features": [],
+      "params": {
+        "component_id": "hall",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 4,
+        "hollow": true,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "hall",
+      "relative_position": { "x": 3, "y": 0, "z": 3 },
+      "dimensions": { "width": 6, "depth": 3, "height": 6 },
+      "features": ["stair:straight_single_run"],
+      "params": {
+        "component_id": "hall_stair",
+        "host_id": "hall",
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 4, "y": 4, "z": 0 },
+        "width": 2,
+        "landing_length": 2,
+        "clearHeight": 2,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks"
+      }
+    }
+  ]
+}
