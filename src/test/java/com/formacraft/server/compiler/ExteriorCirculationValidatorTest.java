@@ -65,6 +65,30 @@ class ExteriorCirculationValidatorTest {
         assertFalse(access.contains(unrelated));
         assertFalse(access.contains(outside));
     }
+
+    @Test void midsectionForeignWallNotPermittedWhenEndpointPlatformIs() {
+        // Legal to-neighborhood on own terrace; mid-run foreign mass wall must stay unauthorized.
+        var platform = new Component("MASS_SECONDARY","hall",new Vec3i(14,5,2),new Dimensions(4,4,1),List.of(),
+                Map.of("component_id","hall_terrace","host_id","hall","extrude_mode","plate",
+                        "plate_role","terrace","anchor_mode","min_corner"));
+        var hall = new Component("MASS_MAIN","hall",new Vec3i(16,0,0),new Dimensions(10,8,10),List.of(),
+                Map.of("component_id","hall","anchor_mode","min_corner"));
+        var blocker = new Component("MASS_MAIN","blocker",new Vec3i(4,0,0),new Dimensions(6,8,10),List.of(),
+                Map.of("component_id","blocker","anchor_mode","min_corner"));
+        var stair = new Component("STRUCTURE","hall",new Vec3i(0,0,3),new Dimensions(3,16,8),List.of("stair:straight_single_run"),
+                Map.of("component_id","approach_stair","host_id","hall","building_id","hall","exterior",true,
+                        "width",2,"clearHeight",2,"landing_length",1,
+                        "from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",15,"y",5,"z",0)));
+        var endpoint = new BlockPos(15,5,3);
+        var midForeign = new BlockPos(7,2,3);
+        var index = new PatchOccupancyIndex();
+        index.commit(platform,List.of(stone(endpoint),stone(new BlockPos(15,4,3))));
+        index.commit(blocker,List.of(stone(midForeign)));
+        var access = ExteriorCirculationValidator.connectorAccess(
+                stair, List.of(hall, platform, blocker), Map.of(), BlockPos.ORIGIN, index);
+        assertTrue(access.contains(endpoint), "own terrace at to must be connector-accessible");
+        assertFalse(access.contains(midForeign), "mid-run foreign wall must not get connectorAccess");
+    }
     @Test void declaredBridgeEnclosureAllowsTerminalHeadroomButNotUnrelatedSurfaces() {
         var bridge = new Component("MASS_SECONDARY","s",new Vec3i(0,4,0),new Dimensions(4,8,1),List.of(),
                 Map.of("component_id","bridge","host_id","office","target_host_id","workshop",

@@ -1,3 +1,4 @@
+import copy
 import json
 import unittest
 from pathlib import Path
@@ -96,6 +97,93 @@ class CirculationNormalizerTest(unittest.TestCase):
     def test_canonical_ring_contract_has_no_shell_preset(self):
         ops = ring_ops({}, {'radius':6,'height':15,'floorLevels':[5,10]})
         self.assertEqual(self.load('ring-stair-ops'), {'ops':ops})
+
+    def test_envelope_adapt_keeps_upper_floor_connection(self):
+        """Interior fit may translate the stair, but floor rise and upper plate contact must hold."""
+        source = {
+            'mode': 'build',
+            'style_profile': 'DEFAULT',
+            'anchor': {'x': 0, 'y': 64, 'z': 0},
+            'plan_meta': {'allow_compiler_satellites': True},
+            'components': [
+                {
+                    'component_type': 'MASS_MAIN',
+                    'slot_id': 'hall',
+                    'relative_position': {'x': 0, 'y': 0, 'z': 0},
+                    'dimensions': {'width': 12, 'depth': 10, 'height': 10},
+                    'features': [],
+                    'params': {
+                        'component_id': 'hall',
+                        'anchor_mode': 'min_corner',
+                        'wall_thickness': 1,
+                        'floor_count': 2,
+                        'floor_height': 4,
+                        'hollow': True,
+                    },
+                },
+                {
+                    'component_type': 'MASS_SECONDARY',
+                    'slot_id': 'hall',
+                    'relative_position': {'x': 0, 'y': 4, 'z': 0},
+                    'dimensions': {'width': 12, 'depth': 10, 'height': 1},
+                    'features': [],
+                    'params': {
+                        'component_id': 'upper_floor',
+                        'host_id': 'hall',
+                        'extrude_mode': 'plate',
+                        'anchor_mode': 'min_corner',
+                        'role': 'upper_floor_plate',
+                    },
+                },
+                {
+                    'component_type': 'STRUCTURE',
+                    'slot_id': 'hall',
+                    # z=0 with width=3 clips the south wall — fit must translate inward.
+                    'relative_position': {'x': 3, 'y': 0, 'z': 0},
+                    'dimensions': {'width': 6, 'depth': 3, 'height': 6},
+                    'features': ['stair:straight_single_run'],
+                    'params': {
+                        'component_id': 'hall_stair',
+                        'host_id': 'hall',
+                        'from': {'x': 0, 'y': 0, 'z': 0},
+                        'to': {'x': 4, 'y': 4, 'z': 0},
+                        'width': 3,
+                        'landing_length': 2,
+                        'clearHeight': 2,
+                        'stairs': 'minecraft:oak_stairs',
+                        'floor': 'minecraft:oak_planks',
+                    },
+                },
+            ],
+        }
+        before = copy.deepcopy(source)
+        result = normalize_circulation_plan(source)
+        self.assertNotEqual('capability_gap', result.get('plan_status'))
+        self.assertNotIn('capability_gap', result)
+        before_stair = next(c for c in before['components'] if c['params']['component_id'] == 'hall_stair')
+        stair = next(c for c in result['components'] if c['params']['component_id'] == 'hall_stair')
+        plate = next(c for c in result['components'] if c['params']['component_id'] == 'upper_floor')
+        self.assertNotEqual(stair['relative_position'], before_stair['relative_position'],
+                            'envelope fit must move the authored stair')
+        self.assertGreater(stair['relative_position']['z'], before_stair['relative_position']['z'])
+        self.assertEqual(4, stair['params']['to']['y'], 'floor rise to upper storey must be preserved')
+        self.assertEqual(0, stair['params']['from']['y'])
+        # Top landing cells (to + landing run) must still sit on the upper floor plate.
+        landing = int(stair['params'].get('landing_length') or 1)
+        extra = landing if landing > 1 else 0
+        rp, a, b = stair['relative_position'], stair['params']['from'], stair['params']['to']
+        sx = (1 if b['x'] > a['x'] else -1) if b['x'] != a['x'] else 0
+        sz = (1 if b['z'] > a['z'] else -1) if b['z'] != a['z'] else 0
+        for step in range(extra + 1):
+            wx = rp['x'] + b['x'] + sx * step
+            wz = rp['z'] + b['z'] + sz * step
+            wy = rp['y'] + b['y']
+            self.assertEqual(plate['relative_position']['y'], wy)
+            self.assertGreaterEqual(wx, plate['relative_position']['x'])
+            self.assertLess(wx, plate['relative_position']['x'] + plate['dimensions']['width'])
+            self.assertGreaterEqual(wz, plate['relative_position']['z'])
+            self.assertLess(wz, plate['relative_position']['z'] + plate['dimensions']['depth'])
+        self.assertEqual(result, normalize_circulation_plan(copy.deepcopy(result)))
 
 
 if __name__ == '__main__': unittest.main()

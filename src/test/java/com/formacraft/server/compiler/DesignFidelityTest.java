@@ -747,6 +747,15 @@ class DesignFidelityTest {
     }
 
     @Test
+    void exteriorStairMidsectionThroughForeignWallFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("exterior_stair_midsection_foreign_wall.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_CIRCULATION_EXTERIOR_CONFLICT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void circulationHostCycleHardFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("circulation_host_cycle.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
