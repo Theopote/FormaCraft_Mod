@@ -50,15 +50,16 @@ class DesignParameterRegistryTest {
     }
 
     @Test
-    void removeIfAllowedDoesNotDeleteLockedSiblingAlias() {
+    void removeIfAllowedRemovesUnlockedAliasIndependentlyOfLockedSibling() {
         Map<String, Object> params = new HashMap<>();
         params.put("door_width", 2);
         params.put("doorWidth", 2);
         params.put("design_sources", Map.of("doorWidth", "AI_PLANNED"));
         LlmPlan plan = LlmPlanTestFixtures.builder().build();
 
-        assertFalse(DesignProvenance.removeIfAllowed(plan, params, "door_width"));
-        assertEquals(2, params.get("door_width"));
+        // Exact-key removal: unlocked door_width may clear while locked doorWidth stays.
+        assertTrue(DesignProvenance.removeIfAllowed(plan, params, "door_width"));
+        assertFalse(params.containsKey("door_width"));
         assertEquals(2, params.get("doorWidth"));
     }
 }

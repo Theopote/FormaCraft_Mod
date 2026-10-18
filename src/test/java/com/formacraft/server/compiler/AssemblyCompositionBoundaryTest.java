@@ -57,8 +57,8 @@ class AssemblyCompositionBoundaryTest {
                 "门洞应允许切除宿主墙面");
         ledger.accept(door, List.of(remove(5, 1, 0)), List.of(), BlockPos.ORIGIN);
 
-        // 已接受门洞后，装饰性 remove 不应再报冲突（洞口已合法）
-        assertTrue(ledger.check(componentDecor(), List.of(remove(5, 1, 0))).isEmpty(),
+        // 已接受门洞后，装饰性 remove 不应再报冲突（洞口已合法为空）
+        assertTrue(ledger.check(componentDecor("nave"), List.of(remove(5, 1, 0))).isEmpty(),
                 "已接受门洞后，后续装饰不应把洞口报为非法破坏");
         assertTrue(ledger.check(roof("nave_roof", "nave"),
                 List.of(place(5, 8, 0, "minecraft:oak_stairs"))).isEmpty());
@@ -67,18 +67,57 @@ class AssemblyCompositionBoundaryTest {
     @Test
     void ribVaultAndShell_decorationCannotDestroyWallSurface() {
         var ledger = new SurfaceOwnershipLedger();
-        // surface 键与 patch 相对坐标对齐（见 SurfaceOwnershipLedger.index）
         ledger.accept(mass("choir"), List.of(place(3, 4, 5, "minecraft:stone_bricks")),
                 List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(3, 4, 5), GeneratedSurfaceCapture.Role.WALL)),
                 BlockPos.ORIGIN);
 
-        var decor = componentDecor();
-        assertTrue(ledger.check(decor, List.of(remove(3, 4, 5))).isPresent(),
+        var unbound = componentDecor(null);
+        assertTrue(ledger.check(unbound, List.of(remove(3, 4, 5))).isPresent(),
                 "装饰不得删除已登记墙面（肋拱/薄壳场景的覆盖防护）");
-        assertTrue(ledger.check(decor, List.of(
+        // Host-matched remove+place is intentional material replace (DECORATE).
+        assertTrue(ledger.check(componentDecor("choir"), List.of(
                 remove(3, 4, 5),
                 place(3, 4, 5, "minecraft:chiseled_stone_bricks")
-        )).isEmpty(), "允许同位置 remove+place 材质替换");
+        )).isEmpty(), "允许同位置 remove+place 材质替换（须绑定宿主）");
+    }
+
+    @Test
+    void decorationReplaceRequiresMatchingHost() {
+        var ledger = new SurfaceOwnershipLedger();
+        ledger.accept(mass("choir"), List.of(place(3, 4, 5, "minecraft:stone_bricks")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(3, 4, 5), GeneratedSurfaceCapture.Role.WALL)),
+                BlockPos.ORIGIN);
+
+        assertTrue(ledger.check(componentDecor("other_building"), List.of(
+                remove(3, 4, 5),
+                place(3, 4, 5, "minecraft:chiseled_stone_bricks")
+        )).isPresent(), "错宿主不得替换墙面材质");
+        assertTrue(ledger.check(componentDecor(null), List.of(
+                remove(3, 4, 5),
+                place(3, 4, 5, "minecraft:chiseled_stone_bricks")
+        )).isPresent(), "无 host_id 的装饰不得替换已登记墙面");
+    }
+
+    @Test
+    void decorationCannotReplaceDoorWindowOrRoofSurfaces() {
+        var ledger = new SurfaceOwnershipLedger();
+        ledger.accept(mass("hall"), List.of(place(1, 1, 0, "minecraft:oak_door")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(1, 1, 0), GeneratedSurfaceCapture.Role.DOOR_OPENING)),
+                BlockPos.ORIGIN);
+        ledger.accept(mass("hall"), List.of(place(2, 2, 0, "minecraft:glass")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(2, 2, 0), GeneratedSurfaceCapture.Role.WINDOW)),
+                BlockPos.ORIGIN);
+        ledger.accept(roof("hall_roof", "hall"), List.of(place(0, 8, 0, "minecraft:oak_stairs")),
+                List.of(new GeneratedSurfaceCapture.Cell(new BlockPos(0, 8, 0), GeneratedSurfaceCapture.Role.ROOF)),
+                BlockPos.ORIGIN);
+
+        var decor = componentDecor("hall");
+        assertTrue(ledger.check(decor, List.of(
+                remove(1, 1, 0), place(1, 1, 0, "minecraft:stone_bricks"))).isPresent());
+        assertTrue(ledger.check(decor, List.of(
+                remove(2, 2, 0), place(2, 2, 0, "minecraft:stone_bricks"))).isPresent());
+        assertTrue(ledger.check(decor, List.of(
+                remove(0, 8, 0), place(0, 8, 0, "minecraft:stone_bricks"))).isPresent());
     }
 
     @Test
@@ -98,8 +137,13 @@ class AssemblyCompositionBoundaryTest {
         }
     }
 
-    private Component componentDecor() {
+    /** Decor with optional host_id — null means unbound (identity falls back to component_id). */
+    private Component componentDecor(String hostId) {
+        if (hostId == null) {
+            return new Component("DECOR_DETAIL", "main", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1),
+                    List.of(), Map.of("component_id", "trim"));
+        }
         return new Component("DECOR_DETAIL", "main", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1),
-                List.of(), Map.of("component_id", "trim"));
+                List.of(), Map.of("component_id", "trim", "host_id", hostId));
     }
 }

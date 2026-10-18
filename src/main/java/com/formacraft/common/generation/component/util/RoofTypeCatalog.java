@@ -11,6 +11,7 @@ import java.util.Set;
 public final class RoofTypeCatalog {
     private RoofTypeCatalog() {}
 
+    /** Tokens accepted as explicit plan-level roof_type (LLM / design validation). */
     public static final Set<String> SUPPORTED_TOKENS = Set.of(
             "flat",
             "shed", "lean_to", "single_slope",
@@ -24,8 +25,15 @@ public final class RoofTypeCatalog {
             "cone", "conical",
             "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome",
             "mansard", "mansard_roof", "baroque_roof",
-            "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿",
             "none"
+    );
+
+    /**
+     * Extra tokens the generator can execute (industrial specialty roofs) without
+     * advertising them as general-purpose explicit plan tokens.
+     */
+    private static final Set<String> GENERATION_TOKENS = Set.of(
+            "sawtooth", "saw_tooth", "northlight", "锯齿形", "锯齿"
     );
 
     public static Optional<RoofTypeKind> parseExplicit(String raw) {
@@ -36,7 +44,7 @@ public final class RoofTypeCatalog {
         if ("none".equals(normalized)) {
             return Optional.empty();
         }
-        if (!SUPPORTED_TOKENS.contains(normalized)) {
+        if (!SUPPORTED_TOKENS.contains(normalized) && !GENERATION_TOKENS.contains(normalized)) {
             return Optional.empty();
         }
         return Optional.of(mapToken(normalized));
@@ -129,6 +137,21 @@ public final class RoofTypeCatalog {
             return true;
         }
         return SUPPORTED_TOKENS.contains(normalized);
+    }
+
+    /**
+     * True when the generator can execute the token (plan-supported or specialty generation).
+     * Use this in compile validation; {@link #isSupportedExplicit} stays the advertised plan set.
+     */
+    public static boolean isExecutableExplicit(String raw) {
+        if (isSupportedExplicit(raw)) {
+            return true;
+        }
+        if (raw == null || raw.isBlank()) {
+            return true;
+        }
+        String normalized = raw.trim().toLowerCase(Locale.ROOT);
+        return GENERATION_TOKENS.contains(normalized);
     }
 
     private static RoofTypeKind mapToken(String normalized) {

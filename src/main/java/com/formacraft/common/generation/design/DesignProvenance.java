@@ -79,6 +79,8 @@ public final class DesignProvenance {
 
     /**
      * Removes each key independently when provenance allows mutation of that key.
+     * Unlike {@link #putIfAllowed}, alias lock groups are not shared — a locked
+     * {@code crownTemplate} must not block removal of unlocked {@code crown_template}.
      */
     public static boolean removeIfAllowed(LlmPlan plan, Map<String, Object> params, String... paramKeys) {
         if (params == null || paramKeys == null || paramKeys.length == 0) {
@@ -86,7 +88,7 @@ public final class DesignProvenance {
         }
         boolean removed = false;
         for (String key : paramKeys) {
-            if (key != null && canMutateParam(plan, params, key) && params.remove(key) != null) {
+            if (key != null && canMutateParamByExactKey(plan, params, key) && params.remove(key) != null) {
                 removed = true;
             }
         }

@@ -3,6 +3,7 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -12,6 +13,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OpeningDelegationPrepareTest {
+    @BeforeEach
     @AfterEach
     void clear() {
         AssemblyCompileDiagnostics.clear();

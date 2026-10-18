@@ -358,7 +358,7 @@
         "material": "stone_bricks",
         "detail_level": "medium",
         "roof_height": 2,
-        "overhang": 2,
+        "overhang": 1,
         "distinctive_features": [
           "ornament"
         ]

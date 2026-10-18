@@ -675,10 +675,10 @@ public class RoofGenerator implements ComponentGenerator {
         var explicitType = RoofTypeCatalog.extractExplicitType(c, params);
         if (explicitType.isPresent()) {
             String type = explicitType.get();
-            if (!RoofTypeCatalog.isSupportedExplicit(type)) {
-                throw new IllegalArgumentException("roof_type_unsupported:" + type);
-            }
-            return RoofTypeCatalog.parseExplicit(type).orElse(RoofTypeKind.GABLE);
+            // parseExplicit covers both plan-supported tokens and generator specialty roofs
+            // (e.g. sawtooth) that are intentionally outside isSupportedExplicit.
+            return RoofTypeCatalog.parseExplicit(type).orElseThrow(
+                    () -> new IllegalArgumentException("roof_type_unsupported:" + type));
         }
         String type = null;
         if (semantic != null && semantic.genome() != null && semantic.genome().form != null) {

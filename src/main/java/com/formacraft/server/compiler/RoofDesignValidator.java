@@ -32,7 +32,7 @@ final class RoofDesignValidator {
             }
             Map<String, Object> params = component.params() == null ? Map.of() : component.params();
             Optional<String> explicitType = RoofTypeCatalog.extractExplicitType(component, params);
-            if (explicitType.isPresent() && !RoofTypeCatalog.isSupportedExplicit(explicitType.get())) {
+            if (explicitType.isPresent() && !RoofTypeCatalog.isExecutableExplicit(explicitType.get())) {
                 return Optional.of(new CapabilityGap(
                         "E_ROOF_TYPE_UNSUPPORTED",
                         "Unsupported roof_type: " + explicitType.get(),

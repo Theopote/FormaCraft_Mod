@@ -778,6 +778,30 @@ class DesignFidelityTest {
     }
 
     @Test
+    void exteriorStairWidthExceedingColumnGapFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("exterior_stair_width_exceeds_column_gap.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        String code = AssemblyCompileDiagnostics.get().code();
+        assertTrue(code.equals("E_CIRCULATION_EXTERIOR_CONFLICT") || code.equals("E_PATCH_CONFLICT"),
+                () -> "expected exterior or patch conflict for over-wide stair, got "
+                        + AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void exteriorStairTerraceClearHeightBlockedByEaveFails() throws Exception {
+        LlmPlan plan = loadFidelityPlan("exterior_stair_terrace_clearheight_blocked.json");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertTrue(patches.isEmpty());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        String code = AssemblyCompileDiagnostics.get().code();
+        assertTrue(code.equals("E_CIRCULATION_EXTERIOR_CONFLICT") || code.equals("E_PATCH_CONFLICT"),
+                () -> "expected exterior or patch conflict for blocked clearHeight, got "
+                        + AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
     void interiorStairUpperLandingIsStandableAndOpensFloor() throws Exception {
         LlmPlan plan = loadFidelityPlan("stair_upper_landing_walkable.json");
         var compilation = ComponentPlanCompiler.compileWithCirculation(plan, BlockPos.ORIGIN, null, null, false);

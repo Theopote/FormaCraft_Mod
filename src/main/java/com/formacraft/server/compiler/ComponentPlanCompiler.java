@@ -2736,6 +2736,11 @@ public final class ComponentPlanCompiler {
             if (candidate == null || !isMassType(normalizeType(candidate.componentType()))
                     || !slotKey(candidate).equals(slotKey(mass)) || candidate.dimensions() == null
                     || candidate.relativePosition() == null) continue;
+            // Floor plates are not host shells for entrance/window/roof binding.
+            if (candidate.params() != null
+                    && "plate".equalsIgnoreCase(String.valueOf(candidate.params().get("extrude_mode")))) {
+                continue;
+            }
             if (satellite.relativePosition() == null) continue;
             // Use declared relativePosition (not ResolvedComponentGeometry) for stable host binding.
             Vec3i origin = candidate.relativePosition();

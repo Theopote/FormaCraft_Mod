@@ -153,7 +153,8 @@ final class SurfaceOwnershipLedger {
                         || role == GeneratedSurfaceCapture.Role.DOOR_OPENING
                         || role == GeneratedSurfaceCapture.Role.ROOF))
                     yield "decoration cannot replace " + role + " surface";
-                if (decor && role == GeneratedSurfaceCapture.Role.WALL && !sameHost && host != null)
+                // Wall material replace requires an explicit matching host_id/building_id.
+                if (decor && role == GeneratedSurfaceCapture.Role.WALL && !sameHost)
                     yield "decoration host_id does not own wall surface";
                 if (opening && (role == GeneratedSurfaceCapture.Role.WINDOW
                         || role == GeneratedSurfaceCapture.Role.DOOR_OPENING) && !sameSource)

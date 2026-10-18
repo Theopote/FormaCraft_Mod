@@ -992,7 +992,13 @@ public class MassMainGenerator implements ComponentGenerator {
                 ? null
                 : String.valueOf(massParams.get("component_id")).trim();
         var cached = com.formacraft.common.generation.component.util.BuildingGeometryContext.get(componentId);
-        if (cached != null && cached.geometry() != null) {
+        // Nested masses share the host component_id in parent params; only reuse cache when the
+        // requested envelope matches (otherwise annexes inherit the primary  footprint).
+        if (cached != null && cached.geometry() != null
+                && cached.geometry().footprint() != null
+                && cached.geometry().footprint().width() == width
+                && cached.geometry().footprint().depth() == depth
+                && cached.geometry().layers().size() == height) {
             return cached.geometry();
         }
         var geom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(

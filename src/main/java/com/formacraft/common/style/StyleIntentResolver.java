@@ -79,11 +79,16 @@ public final class StyleIntentResolver {
             String planType = getParamString(params, "plan_type", "planType", "footprint_pattern",
                     "footprintPattern", "plan_pattern", "planPattern");
             String shape = getParamString(params, "shape", "footprint_shape", "footprintShape");
-            // Round-10: style must not invent mass topology (cross/courtyard/cut_corners).
-            // Only disambiguate explicit rectangle shape → plan_type=none when plan_type is absent.
+            // Round-10: do not invent gothic/chinese topology (cross/cut_corners).
+            // Hui keeps size-gated courtyard/none so small vernacular houses stay rectangular.
             if (isMissingOrDefault(planType) && shape != null
                     && Set.of("rectangle", "rect", "box").contains(shape.toLowerCase(Locale.ROOT))) {
                 changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", "none");
+            } else if (isMissingOrDefault(planType) && flavor == StyleFlavor.HUI) {
+                String fallback = resolvePlanType(flavor, component.dimensions());
+                if (fallback != null) {
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", fallback);
+                }
             }
 
             Double windowRatio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
