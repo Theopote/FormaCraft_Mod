@@ -83,7 +83,8 @@ public final class TieredMountainPalaceBuilder {
             GeneratedStructure structure,
             List<BuildDiagnostic> diagnostics,
             String terrainContentHash,
-            String buildContextHash
+            String buildContextHash,
+            PalaceCirculationContract circulation
     ) {
         public PalaceGenerateResult {
             status = status == null ? GenerateStatus.FAILED : status;
@@ -93,6 +94,18 @@ public final class TieredMountainPalaceBuilder {
             diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
             terrainContentHash = terrainContentHash == null ? "" : terrainContentHash;
             buildContextHash = buildContextHash == null ? "" : buildContextHash;
+            // circulation may be null on FAILED / incomplete emits
+        }
+
+        /** Backward-compatible constructor without circulation anchors. */
+        public PalaceGenerateResult(
+                GenerateStatus status,
+                GeneratedStructure structure,
+                List<BuildDiagnostic> diagnostics,
+                String terrainContentHash,
+                String buildContextHash
+        ) {
+            this(status, structure, diagnostics, terrainContentHash, buildContextHash, null);
         }
 
         /** @deprecated use {@link #terrainContentHash()} */
@@ -371,9 +384,10 @@ public final class TieredMountainPalaceBuilder {
 
         List<PlannedBlock> blocks = voxels.emit(origin, entrance);
         GeneratedStructure candidate = new GeneratedStructure(null, origin, "pending", blocks);
-        List<BuildDiagnostic> occupancyIssues = validateFinalOccupancy(
+        PalaceCirculationContract circulation = buildCirculationContract(
                 candidate, origin, entrance, keepTiers, platformH, tierHeight, potala, wingSamples,
-                emittedFlights, doorMx);
+                emittedFlights);
+        List<BuildDiagnostic> occupancyIssues = validateFinalOccupancy(candidate, origin, circulation);
         diagnostics.addAll(occupancyIssues);
 
         if (requireConnectivity && !occupancyIssues.isEmpty()) {
@@ -391,7 +405,7 @@ public final class TieredMountainPalaceBuilder {
                 terrainContentHash, buildContextHash, diagSuffix
         );
         return new PalaceGenerateResult(status, new GeneratedStructure(null, origin, desc, blocks),
-                diagnostics, terrainContentHash, buildContextHash);
+                diagnostics, terrainContentHash, buildContextHash, circulation);
     }
 
     /**
@@ -444,7 +458,8 @@ public final class TieredMountainPalaceBuilder {
         int[] corridor = approachCorridorParams(spec);
         return PalacePreviewPlan.fromGenerateResult(
                 result, patches, ctx, paramsSnap, paletteId,
-                corridor[0], corridor[1], corridor[2], corridor[3]);
+                corridor[0], corridor[1], corridor[2], corridor[3],
+                result.circulation());
     }
 
     /** Public local→world transform for Confirm-time terrain re-sampling. */
@@ -1072,121 +1087,113 @@ public final class TieredMountainPalaceBuilder {
     }
 
     /**
-     * Final occupancy gate over emitted patches (same data preview/apply use).
-     * Checks entrance→each tier, entrance→wings, door survival, flight tread counts, exterior pad.
+     * Build immutable circulation anchors from the actually emitted structure.
+     * Coordinates are origin-relative in the same frame as PreviewPlan patches.
      */
-    private static List<BuildDiagnostic> validateFinalOccupancy(
+    private static PalaceCirculationContract buildCirculationContract(
             GeneratedStructure structure, BlockPos origin, Direction entrance,
             List<TierRect> tiers, int platformH, int tierHeight, boolean potala,
-            List<Vec3i> wingSamplesLocal, List<FlightPlan> flights, int doorMx) {
-        List<BuildDiagnostic> issues = new ArrayList<>();
-        if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()) {
-            issues.add(new BuildDiagnostic("EMPTY_BLOCKS", "no_blocks_emitted"));
-            return issues;
+            List<Vec3i> wingSamplesLocal, List<FlightPlan> flights
+    ) {
+        if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()
+                || tiers == null || tiers.isEmpty()) {
+            return null;
         }
-
-        long doors = structure.getBlocks().stream()
-                .filter(b -> b.getTargetState() != null && b.getTargetState().isOf(Blocks.DARK_OAK_DOOR))
-                .count();
-        if (doors < 2) {
-            issues.add(new BuildDiagnostic("DOOR_MISSING", "door_leaves=" + doors));
-        }
-
-        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, origin);
-        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
-
         Vec3i doorRel = null;
+        int doorLeaves = 0;
         for (PlannedBlock b : structure.getBlocks()) {
-            if (b.getTargetState() != null && b.getTargetState().isOf(Blocks.DARK_OAK_DOOR)
-                    && b.getTargetState().contains(Properties.DOUBLE_BLOCK_HALF)
-                    && b.getTargetState().get(Properties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER) {
-                BlockPos rel = b.getPos().subtract(origin);
-                doorRel = new Vec3i(rel.getX(), rel.getY(), rel.getZ());
-                break;
+            if (b.getTargetState() == null) continue;
+            if (b.getTargetState().isOf(Blocks.DARK_OAK_DOOR)) {
+                doorLeaves++;
+                if (doorRel == null
+                        && b.getTargetState().contains(Properties.DOUBLE_BLOCK_HALF)
+                        && b.getTargetState().get(Properties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER) {
+                    BlockPos rel = b.getPos().subtract(origin);
+                    doorRel = new Vec3i(rel.getX(), rel.getY(), rel.getZ());
+                }
             }
         }
         if (doorRel == null) {
-            issues.add(new BuildDiagnostic("DOOR_MISSING", "lower_leaf_not_found"));
-            return issues;
+            return null;
         }
+        Direction face = entrance == null ? Direction.SOUTH : entrance;
+        BlockPos out = new BlockPos(doorRel.x(), doorRel.y(), doorRel.z()).offset(face);
+        Vec3i approach = new Vec3i(out.getX(), out.getY(), out.getZ());
 
-        Vec3i start = findStandableNearDoor(occ, doorRel);
-        if (start == null) {
-            issues.add(new BuildDiagnostic("ENTRANCE_UNSTANDABLE", "no_stand_near_door"));
-            return issues;
-        }
-
-        // Exterior approach pad: one step outward along facing must be standable (pad floor)
-        BlockPos out = new BlockPos(doorRel.x(), doorRel.y(), doorRel.z()).offset(entrance);
-        if (!WalkabilityGraph.canStand(occ, out.getX(), out.getY(), out.getZ())
-                && !WalkabilityGraph.canStand(occ, out.getX(), platformH, out.getZ())) {
-            issues.add(new BuildDiagnostic("APPROACH_UNSTANDABLE",
-                    "out=" + out.getX() + "," + out.getY() + "," + out.getZ()));
-        }
-
+        List<PalaceCirculationContract.FloorGoal> floors = new ArrayList<>();
         for (int i = 0; i < tiers.size(); i++) {
+            TierRect t = tiers.get(i);
             int floorY = platformH + i * tierHeight;
-            Vec3i goal = findStandableNear(occ, floorY, doorRel.x(), doorRel.z(), 20);
-            if (goal == null) {
-                issues.add(new BuildDiagnostic("FLOOR_NO_STAND", "tier" + i + "_y" + floorY));
-                continue;
-            }
-            WalkabilityGraph.ReachResult r = WalkabilityGraph.search(occ, start, goal, 2048, null);
-            if (r != WalkabilityGraph.ReachResult.REACHABLE) {
-                issues.add(new BuildDiagnostic("FLOOR_UNREACHABLE", "tier" + i + "_" + r.name()));
-            }
+            // Preferred anchor at tier footprint center (local → origin-relative).
+            int lx = (t.x0() + t.x1()) / 2;
+            int lz = (t.z0() + t.z1()) / 2;
+            BlockPos world = local(origin, face, lx, floorY, lz);
+            BlockPos rel = world.subtract(origin);
+            floors.add(new PalaceCirculationContract.FloorGoal(
+                    i, floorY, new Vec3i(rel.getX(), rel.getY(), rel.getZ())));
         }
 
-        if (potala) {
+        List<PalaceCirculationContract.WingGoal> wings = new ArrayList<>();
+        if (potala && wingSamplesLocal != null) {
             for (int w = 0; w < wingSamplesLocal.size(); w++) {
-                Vec3i local = wingSamplesLocal.get(w);
-                BlockPos world = local(origin, entrance, local.x(), local.y(), local.z());
+                Vec3i localSample = wingSamplesLocal.get(w);
+                BlockPos world = local(origin, face, localSample.x(), localSample.y(), localSample.z());
                 BlockPos rel = world.subtract(origin);
-                Vec3i wingGoal = findStandableNear(occ, rel.getY(), rel.getX(), rel.getZ(), 8);
-                if (wingGoal == null) {
-                    issues.add(new BuildDiagnostic("WING_NO_STAND", "wing" + w));
-                    continue;
+                wings.add(new PalaceCirculationContract.WingGoal(
+                        w, new Vec3i(rel.getX(), rel.getY(), rel.getZ())));
+            }
+        }
+
+        List<PalaceCirculationContract.FlightAnchor> flightAnchors = new ArrayList<>();
+        int expectedTreads = 0;
+        if (flights != null) {
+            for (int fi = 0; fi < flights.size(); fi++) {
+                FlightPlan fp = flights.get(fi);
+                if (fp == null || fp.steps() == null || fp.steps().isEmpty()) continue;
+                List<Vec3i> treads = new ArrayList<>();
+                for (FlightStep s : fp.steps()) {
+                    BlockPos world = local(origin, face, s.x(), s.y(), s.z());
+                    BlockPos rel = world.subtract(origin);
+                    treads.add(new Vec3i(rel.getX(), rel.getY(), rel.getZ()));
                 }
-                WalkabilityGraph.ReachResult r = WalkabilityGraph.search(occ, start, wingGoal, 2048, null);
-                if (r != WalkabilityGraph.ReachResult.REACHABLE) {
-                    issues.add(new BuildDiagnostic("WING_UNREACHABLE", "wing" + w + "_" + r.name()));
-                }
+                FlightStep first = fp.steps().getFirst();
+                BlockPos lowerW = local(origin, face, first.x(), first.y(), first.z());
+                BlockPos lowerR = lowerW.subtract(origin);
+                // Prefer pad landing as upper end when present.
+                BlockPos padW = local(origin, face, fp.padX(), fp.shaftY(), fp.padZ());
+                BlockPos padR = padW.subtract(origin);
+                expectedTreads += fp.steps().size();
+                flightAnchors.add(new PalaceCirculationContract.FlightAnchor(
+                        fi, fi + 1,
+                        new Vec3i(lowerR.getX(), lowerR.getY(), lowerR.getZ()),
+                        new Vec3i(padR.getX(), padR.getY(), padR.getZ()),
+                        fp.steps().size(),
+                        treads));
             }
         }
 
-        for (FlightPlan flight : flights) {
-            if (flight.steps() == null || flight.steps().isEmpty()) {
-                issues.add(new BuildDiagnostic("FLIGHT_EMPTY", "empty_steps"));
-                continue;
-            }
-            long stairCells = structure.getBlocks().stream()
-                    .filter(b -> b.getTargetState() != null
-                            && b.getTargetState().contains(Properties.HORIZONTAL_FACING)
-                            && b.getTargetState().getBlock().getTranslationKey().contains("stairs"))
-                    .count();
-            if (stairCells < flight.steps().size()) {
-                // Soft: other flights share pool — only flag if total stairs below sum of steps
-            }
-        }
-        int expectedTreads = flights.stream().mapToInt(f -> f.steps().size()).sum();
-        long stairBlocks = structure.getBlocks().stream()
-                .filter(b -> b.getTargetState() != null && b.getTargetState().isOf(Blocks.STONE_BRICK_STAIRS))
-                .count();
-        if (expectedTreads > 0 && stairBlocks < expectedTreads) {
-            issues.add(new BuildDiagnostic("FLIGHT_TREAD_MISMATCH",
-                    "expected=" + expectedTreads + "_got=" + stairBlocks));
-        }
+        return new PalaceCirculationContract(
+                face, doorRel, approach, floors, wings, flightAnchors,
+                Math.max(2, doorLeaves), expectedTreads, potala, tiers.size());
+    }
 
-        // Patch consistency: AIR cells must be REMOVE actions
-        for (BlockPatch p : patches) {
-            if (p.targetBlock() != null && PlannedOccupancy.isAirId(p.targetBlock())
-                    && !BlockPatch.REMOVE.equals(p.action())) {
-                issues.add(new BuildDiagnostic("AIR_ACTION", "expected_REMOVE"));
-                break;
-            }
+    /**
+     * Final occupancy gate — delegates to {@link PalaceCirculationValidator}
+     * so merge-time PreviewPlan checks share the same semantics.
+     */
+    private static List<BuildDiagnostic> validateFinalOccupancy(
+            GeneratedStructure structure,
+            BlockPos origin,
+            PalaceCirculationContract circulation
+    ) {
+        if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()) {
+            return List.of(new BuildDiagnostic("EMPTY_BLOCKS", "no_blocks_emitted"));
         }
-
-        return issues;
+        if (circulation == null) {
+            return List.of(new BuildDiagnostic("CIRCULATION_CONTRACT_MISSING", "build_failed"));
+        }
+        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, origin);
+        return PalaceCirculationValidator.validate(patches, circulation);
     }
 
     private static Vec3i findStandableNearDoor(PlannedOccupancy occ, Vec3i door) {

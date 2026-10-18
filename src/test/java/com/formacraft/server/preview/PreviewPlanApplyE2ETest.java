@@ -167,7 +167,8 @@ class PreviewPlanApplyE2ETest {
                 TieredMountainPalaceBuilder.GenerateStatus.SUCCESS,
                 schematic.patches(), schematic.context(), schematic.diagnostics(),
                 schematic.paramsSnapshot(), schematic.paletteId(),
-                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop());
+                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop(),
+                schematic.circulation());
         assertTrue(plan.executable());
         UUID requestId = UUID.randomUUID();
         UUID owner = UUID.randomUUID();
@@ -209,7 +210,8 @@ class PreviewPlanApplyE2ETest {
                 TieredMountainPalaceBuilder.GenerateStatus.SUCCESS,
                 schematic.patches(), schematic.context(), schematic.diagnostics(),
                 schematic.paramsSnapshot(), schematic.paletteId(),
-                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop());
+                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop(),
+                schematic.circulation());
         List<BlockPatch> unrelated = List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:gold_block"));
         assertNull(plan.resolveForAcceptedPatches(unrelated));
@@ -236,7 +238,8 @@ class PreviewPlanApplyE2ETest {
                 TieredMountainPalaceBuilder.GenerateStatus.SUCCESS,
                 schematic.patches(), schematic.context(), schematic.diagnostics(),
                 schematic.paramsSnapshot(), schematic.paletteId(),
-                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop());
+                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop(),
+                schematic.circulation());
         UUID player = UUID.randomUUID();
         UUID t1 = UUID.randomUUID();
         UUID t2 = UUID.randomUUID();

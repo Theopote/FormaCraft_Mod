@@ -397,6 +397,7 @@ class ConfirmedPlanBindingTest {
                 schematic.corridorMx(),
                 schematic.pathStartZ(),
                 schematic.padY(),
-                schematic.maxDrop());
+                schematic.maxDrop(),
+                schematic.circulation());
     }
 }

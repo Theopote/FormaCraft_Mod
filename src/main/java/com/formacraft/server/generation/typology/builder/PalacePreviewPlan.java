@@ -1,13 +1,10 @@
 package com.formacraft.server.generation.typology.builder;
 
-import com.formacraft.common.generation.component.util.PlannedOccupancy;
-import com.formacraft.common.generation.component.util.WalkabilityGraph;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.common.patch.WorldPatchTransaction;
 import com.formacraft.common.typology.TypologyGenerationException;
 import com.formacraft.common.world.BlockMutationAccess;
-import com.formacraft.common.llm.dto.Vec3i;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -57,6 +54,7 @@ public final class PalacePreviewPlan {
     private final int pathStartZ;
     private final int padY;
     private final int maxDrop;
+    private final PalaceCirculationContract circulation;
     private final String patchHash;
     private final String planId;
 
@@ -68,7 +66,7 @@ public final class PalacePreviewPlan {
     ) {
         this(status, patches, context, diagnostics, Map.of(), null,
                 0, TieredMountainPalaceBuilder.MAX_APPROACH_DEPTH,
-                4, TieredMountainPalaceBuilder.MAX_APPROACH_DROP);
+                4, TieredMountainPalaceBuilder.MAX_APPROACH_DROP, null);
     }
 
     public PalacePreviewPlan(
@@ -83,6 +81,23 @@ public final class PalacePreviewPlan {
             int padY,
             int maxDrop
     ) {
+        this(status, patches, context, diagnostics, paramsSnapshot, paletteId,
+                corridorMx, pathStartZ, padY, maxDrop, null);
+    }
+
+    public PalacePreviewPlan(
+            TieredMountainPalaceBuilder.GenerateStatus status,
+            List<BlockPatch> patches,
+            PalaceBuildContextFingerprint context,
+            List<TieredMountainPalaceBuilder.BuildDiagnostic> diagnostics,
+            Map<String, Object> paramsSnapshot,
+            String paletteId,
+            int corridorMx,
+            int pathStartZ,
+            int padY,
+            int maxDrop,
+            PalaceCirculationContract circulation
+    ) {
         this.status = status == null ? TieredMountainPalaceBuilder.GenerateStatus.FAILED : status;
         this.patches = List.copyOf(ConfirmedPlanIdentity.toFinalPatches(patches));
         this.context = Objects.requireNonNull(context, "context");
@@ -95,6 +110,7 @@ public final class PalacePreviewPlan {
         this.pathStartZ = pathStartZ;
         this.padY = padY;
         this.maxDrop = maxDrop;
+        this.circulation = circulation;
         this.patchHash = ConfirmedPlanIdentity.patchHash(this.patches);
         this.planId = ConfirmedPlanIdentity.planId(
                 GENERATOR_VERSION, context.contextHash(), this.patchHash);
@@ -110,6 +126,7 @@ public final class PalacePreviewPlan {
     public int pathStartZ() { return pathStartZ; }
     public int padY() { return padY; }
     public int maxDrop() { return maxDrop; }
+    public PalaceCirculationContract circulation() { return circulation; }
     public String patchHash() { return patchHash; }
     public String planId() { return planId; }
     public String contextHash() { return context.contextHash(); }
@@ -166,6 +183,7 @@ public final class PalacePreviewPlan {
         if (finalMerged.isEmpty()) {
             return null;
         }
+        // Preserve Builder-emitted circulation anchors across re-freeze.
         return new PalacePreviewPlan(
                 status,
                 finalMerged,
@@ -176,7 +194,8 @@ public final class PalacePreviewPlan {
                 corridorMx,
                 pathStartZ,
                 padY,
-                maxDrop);
+                maxDrop,
+                circulation);
     }
 
     /**
@@ -216,8 +235,7 @@ public final class PalacePreviewPlan {
 
     /**
      * Final-structure gate for a re-frozen merge against {@code baseline}.
-     * Rejects stair/door/clearance loss and broken entrance↔floor reachability.
-     * Unrelated wall overwrites are allowed only when occupancy still passes.
+     * Uses {@link PalaceCirculationContract} from the baseline Builder emit when present.
      */
     public List<TieredMountainPalaceBuilder.BuildDiagnostic> validateMergedIntegrity(
             PalacePreviewPlan baseline
@@ -232,8 +250,6 @@ public final class PalacePreviewPlan {
         List<CellOverwrite> overwrites = baseline.planCellOverwrites(this.patches);
         for (CellOverwrite ow : overwrites) {
             if (isStructuralProtected(ow.original()) && !samePatchIdentity(ow.original(), ow.merged())) {
-                // Structural overwrite is not an automatic reject — occupancy decides —
-                // but door/stair/clearance identity loss is flagged when counts drop.
                 if (isDoorPatch(ow.original()) && !isDoorPatch(ow.merged())) {
                     issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
                             "DOOR_OVERWRITE",
@@ -251,160 +267,43 @@ public final class PalacePreviewPlan {
                 }
             }
         }
-
-        long baseStairs = countStairs(baseline.patches());
-        long mergedStairs = countStairs(this.patches);
-        if (baseStairs > 0 && mergedStairs < baseStairs) {
-            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
-                    "FLIGHT_TREAD_MISMATCH",
-                    "expected>=" + baseStairs + "_got=" + mergedStairs));
-        }
-
-        long baseDoors = countDoors(baseline.patches());
-        long mergedDoors = countDoors(this.patches);
-        if (baseDoors > 0 && mergedDoors < baseDoors) {
-            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
-                    "DOOR_MISSING",
-                    "expected>=" + baseDoors + "_got=" + mergedDoors));
-        }
-
-        // Hard structural overwrite of stairs/doors/clearance already recorded — refuse early.
         if (!issues.isEmpty()) {
             return issues;
         }
 
+        // Full shared circulation check on the final merged patch set.
         issues.addAll(validateFinalVoxelCirculation());
         return issues;
     }
 
     /**
-     * Voxel circulation over <em>this</em> plan's full patch set (entrance → each tier).
+     * Voxel circulation over this plan's full patch set using Builder-emitted anchors
+     * when available ({@link #circulation}).
      */
     public List<TieredMountainPalaceBuilder.BuildDiagnostic> validateFinalVoxelCirculation() {
-        List<TieredMountainPalaceBuilder.BuildDiagnostic> issues = new ArrayList<>();
-        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, false);
-
-        Vec3i doorRel = findLowerDoorRel();
-        if (doorRel == null) {
-            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
-                    "DOOR_MISSING", "lower_leaf_not_found"));
-            return issues;
+        PalaceCirculationContract contract = this.circulation;
+        if (contract == null || !contract.hasAnchors()) {
+            return List.of(new TieredMountainPalaceBuilder.BuildDiagnostic(
+                    "CIRCULATION_CONTRACT_MISSING",
+                    "plan_lacks_builder_anchors"));
         }
-
-        Vec3i start = findStandableNear(occ, doorRel.y(), doorRel.x(), doorRel.z(), 6);
-        if (start == null) {
-            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
-                    "ENTRANCE_UNSTANDABLE", "no_stand_near_door"));
-            return issues;
-        }
-
-        Direction face = context.facing() == null ? Direction.SOUTH : context.facing();
-        BlockPos out = new BlockPos(doorRel.x(), doorRel.y(), doorRel.z()).offset(face);
-        int platformH = intParam("platformHeight", padY > 0 ? padY : 3);
-        if (!WalkabilityGraph.canStand(occ, out.getX(), out.getY(), out.getZ())
-                && !WalkabilityGraph.canStand(occ, out.getX(), platformH, out.getZ())) {
-            issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
-                    "APPROACH_UNSTANDABLE",
-                    "out=" + out.getX() + "," + out.getY() + "," + out.getZ()));
-        }
-
-        int tiers = Math.max(1, intParam("tiers", 3));
-        int tierHeight = Math.max(1, intParam("tierHeight", 5));
-        for (int i = 0; i < tiers; i++) {
-            int floorY = platformH + i * tierHeight;
-            Vec3i goal = findStandableNear(occ, floorY, doorRel.x(), doorRel.z(), 20);
-            if (goal == null) {
-                issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
-                        "FLOOR_NO_STAND", "tier" + i + "_y" + floorY));
-                continue;
-            }
-            WalkabilityGraph.ReachResult r = WalkabilityGraph.search(occ, start, goal, 2048, null);
-            if (r != WalkabilityGraph.ReachResult.REACHABLE) {
-                issues.add(new TieredMountainPalaceBuilder.BuildDiagnostic(
-                        "FLOOR_UNREACHABLE", "tier" + i + "_" + r.name()));
-            }
-        }
-        return issues;
+        return PalaceCirculationValidator.validate(patches, contract);
     }
 
     public static boolean isStructuralProtected(BlockPatch p) {
-        return isDoorPatch(p) || isStairPatch(p) || isClearancePatch(p);
+        return PalaceCirculationValidator.isStructuralProtected(p);
     }
 
     public static boolean isDoorPatch(BlockPatch p) {
-        if (p == null || p.targetBlock() == null) return false;
-        return p.targetBlock().toLowerCase(Locale.ROOT).contains("door");
+        return PalaceCirculationValidator.isDoorPatch(p);
     }
 
     public static boolean isStairPatch(BlockPatch p) {
-        if (p == null || p.targetBlock() == null) return false;
-        return p.targetBlock().toLowerCase(Locale.ROOT).contains("stairs");
+        return PalaceCirculationValidator.isStairPatch(p);
     }
 
     public static boolean isClearancePatch(BlockPatch p) {
-        if (p == null) return false;
-        if (BlockPatch.REMOVE.equals(p.action())) return true;
-        return PlannedOccupancy.isAirId(p.targetBlock());
-    }
-
-    private static long countStairs(List<BlockPatch> list) {
-        long n = 0;
-        for (BlockPatch p : list) {
-            if (isStairPatch(p)) n++;
-        }
-        return n;
-    }
-
-    private static long countDoors(List<BlockPatch> list) {
-        long n = 0;
-        for (BlockPatch p : list) {
-            if (isDoorPatch(p)) n++;
-        }
-        return n;
-    }
-
-    private Vec3i findLowerDoorRel() {
-        Vec3i best = null;
-        for (BlockPatch p : patches) {
-            if (!isDoorPatch(p)) continue;
-            Vec3i cand = new Vec3i(p.dx(), p.dy(), p.dz());
-            if (best == null
-                    || cand.y() < best.y()
-                    || (cand.y() == best.y()
-                    && (Math.abs(cand.x()) + Math.abs(cand.z())
-                    < Math.abs(best.x()) + Math.abs(best.z())))) {
-                best = cand;
-            }
-        }
-        return best;
-    }
-
-    private static Vec3i findStandableNear(PlannedOccupancy occ, int floorY, int nearX, int nearZ, int radius) {
-        for (int r = 0; r <= radius; r++) {
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (Math.abs(dx) != r && Math.abs(dz) != r && r > 0) continue;
-                    if (WalkabilityGraph.canStand(occ, nearX + dx, floorY, nearZ + dz)) {
-                        return new Vec3i(nearX + dx, floorY, nearZ + dz);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private int intParam(String key, int def) {
-        if (paramsSnapshot == null) return def;
-        Object v = paramsSnapshot.get(key);
-        if (v instanceof Number n) return n.intValue();
-        if (v != null) {
-            try {
-                return Integer.parseInt(String.valueOf(v).trim());
-            } catch (NumberFormatException ignored) {
-                return def;
-            }
-        }
-        return def;
+        return PalaceCirculationValidator.isClearancePatch(p);
     }
 
     private static Map<Long, BlockPatch> indexByCell(List<BlockPatch> list) {
@@ -578,6 +477,23 @@ public final class PalacePreviewPlan {
             int padY,
             int maxDrop
     ) {
+        return fromGenerateResult(result, patches, context, paramsSnapshot, paletteId,
+                corridorMx, pathStartZ, padY, maxDrop,
+                result == null ? null : result.circulation());
+    }
+
+    public static PalacePreviewPlan fromGenerateResult(
+            TieredMountainPalaceBuilder.PalaceGenerateResult result,
+            List<BlockPatch> patches,
+            PalaceBuildContextFingerprint context,
+            Map<String, Object> paramsSnapshot,
+            String paletteId,
+            int corridorMx,
+            int pathStartZ,
+            int padY,
+            int maxDrop,
+            PalaceCirculationContract circulation
+    ) {
         List<TieredMountainPalaceBuilder.BuildDiagnostic> diags = new ArrayList<>();
         if (result != null && result.diagnostics() != null) {
             diags.addAll(result.diagnostics());
@@ -585,7 +501,10 @@ public final class PalacePreviewPlan {
         TieredMountainPalaceBuilder.GenerateStatus st = result == null
                 ? TieredMountainPalaceBuilder.GenerateStatus.FAILED
                 : result.status();
+        PalaceCirculationContract contract = circulation != null
+                ? circulation
+                : (result == null ? null : result.circulation());
         return new PalacePreviewPlan(st, patches, context, diags,
-                paramsSnapshot, paletteId, corridorMx, pathStartZ, padY, maxDrop);
+                paramsSnapshot, paletteId, corridorMx, pathStartZ, padY, maxDrop, contract);
     }
 }
