@@ -429,7 +429,28 @@ public final class TieredMountainPalaceBuilder {
             );
         }
         List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(result.structure(), origin);
-        return PalacePreviewPlan.fromGenerateResult(result, patches, ctx);
+        LinkedHashMap<String, Object> paramsSnap = new LinkedHashMap<>();
+        if (spec != null && spec.getExtra() != null) {
+            paramsSnap.putAll(PalaceBuildContextFingerprint.normalizeExtras(spec.getExtra()));
+        }
+        paramsSnap.put("baseWidth", bw);
+        paramsSnap.put("baseDepth", bd);
+        paramsSnap.put("tiers", requestedTiers);
+        paramsSnap.put("tierInset", tierInset);
+        paramsSnap.put("tierHeight", tierHeight);
+        paramsSnap.put("platformHeight", platformH);
+        paramsSnap.put("potala", potala);
+        paramsSnap.put("entrance", entrance == null ? "south" : entrance.asString());
+        int[] corridor = approachCorridorParams(spec);
+        return PalacePreviewPlan.fromGenerateResult(
+                result, patches, ctx, paramsSnap, paletteId,
+                corridor[0], corridor[1], corridor[2], corridor[3]);
+    }
+
+    /** Public local→world transform for Confirm-time terrain re-sampling. */
+    public static BlockPos localToWorldPublic(
+            BlockPos origin, Direction entrance, int x, int y, int z) {
+        return local(origin, entrance, x, y, z);
     }
 
     /**

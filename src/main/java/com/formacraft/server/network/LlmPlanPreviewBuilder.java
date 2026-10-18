@@ -90,6 +90,7 @@ public final class LlmPlanPreviewBuilder {
             return false;
         }
 
+        com.formacraft.server.preview.GenerationRequestIds.begin();
         try {
             // patch.blocks 专用：走 PreviewTicket（增量 Patch 预览 + ticket 确认）
             if (llmPlan.mode() == LlmPlan.Mode.patch
@@ -649,6 +650,8 @@ public final class LlmPlanPreviewBuilder {
                     "Failed to process LlmPlan: " + e.getMessage()
             ));
             return true;
+        } finally {
+            com.formacraft.server.preview.GenerationRequestIds.clear();
         }
     }
 

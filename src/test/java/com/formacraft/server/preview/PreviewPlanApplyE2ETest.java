@@ -157,21 +157,38 @@ class PreviewPlanApplyE2ETest {
     }
 
     @Test
-    void pendingPlanBindsByPatchHash() {
+    void pendingPlanBindsByRequestId() {
         Map<String, Object> extras = schematicExtras();
         BuildingSpec spec = specOf(extras);
         var result = TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, spec);
-        // Promote to SUCCESS for registry binding tests
         PalacePreviewPlan schematic = TieredMountainPalaceBuilder.createPreviewPlan(result, ORIGIN, null, spec);
         PalacePreviewPlan plan = new PalacePreviewPlan(
                 TieredMountainPalaceBuilder.GenerateStatus.SUCCESS,
-                schematic.patches(), schematic.context(), schematic.diagnostics());
+                schematic.patches(), schematic.context(), schematic.diagnostics(),
+                schematic.paramsSnapshot(), schematic.paletteId(),
+                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop());
         assertTrue(plan.executable());
-        ConfirmedPlanRegistry.putPending(plan);
-        PalacePreviewPlan taken = ConfirmedPlanRegistry.takePendingByPatchHash(plan.patchHash());
+        UUID requestId = UUID.randomUUID();
+        ConfirmedPlanRegistry.putPending(requestId, "schematic", ORIGIN, plan);
+        PalacePreviewPlan taken = ConfirmedPlanRegistry.takePending(
+                requestId, UUID.randomUUID(), "schematic", ORIGIN);
         assertNotNull(taken);
         assertEquals(plan.planId(), taken.planId());
-        assertNull(ConfirmedPlanRegistry.takePendingByPatchHash(plan.patchHash()));
+        assertNull(ConfirmedPlanRegistry.takePending(
+                requestId, UUID.randomUUID(), "schematic", ORIGIN));
+    }
+
+    @Test
+    void requireBoundTicketMissingPlanIsRejectGate() {
+        List<BlockPatch> frozen = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:stone"));
+        UUID player = UUID.randomUUID();
+        PreviewTicket ticket = PreviewTicketStorage.create(
+                player, null, ORIGIN, frozen, null, 60_000L,
+                "gone-plan", "ctx", Map.of(), true, UUID.randomUUID());
+        assertTrue(ticket.requiresConfirmedPlan());
+        assertNull(ConfirmedPlanRegistry.get(ticket.planId(), player),
+                "PLAN_MISSING must block confirm — no silent degrade");
     }
 
     private static Map<String, Object> schematicExtras() {

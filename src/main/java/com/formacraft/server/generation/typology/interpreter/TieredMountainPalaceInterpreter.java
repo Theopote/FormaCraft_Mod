@@ -8,17 +8,19 @@ import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
 import com.formacraft.server.preview.ConfirmedPlanRegistry;
+import com.formacraft.server.preview.GenerationRequestIds;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Native typology interpreter for {@code tiered_mountain_palace}.
- * Produces an immutable {@link PalacePreviewPlan} and registers it so Apply
- * uses frozen patches via {@link com.formacraft.server.patch.PatchPreviewService}.
+ * Registers a frozen {@link PalacePreviewPlan} under the active
+ * {@link GenerationRequestIds} — never by patchHash alone.
  */
 public final class TieredMountainPalaceInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
 
@@ -37,7 +39,6 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
             return List.of();
         }
         Map<String, Object> params = TypologyParamResolver.merge(typologyId(), semantic.source());
-        // Real-world interpret never uses schematic flat; require live terrain snapshot.
         params.remove("schematicFlatTerrain");
         if ("schematic_flat".equalsIgnoreCase(String.valueOf(params.getOrDefault("terrainMode", "")))) {
             params.remove("terrainMode");
@@ -66,7 +67,12 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
             );
         }
         PalacePreviewPlan plan = TieredMountainPalaceBuilder.createPreviewPlan(result, origin, world, spec);
-        ConfirmedPlanRegistry.putPending(plan);
+        UUID requestId = GenerationRequestIds.currentOrCreate();
+        ConfirmedPlanRegistry.putPending(
+                requestId,
+                PalacePreviewPlan.worldKeyOf(world),
+                origin,
+                plan);
         return plan.patches();
     }
 }

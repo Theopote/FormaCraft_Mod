@@ -80,55 +80,60 @@ public final class FormaCraftServerNetworking {
             BlockPos origin = payload.origin();
             if (origin == null) return;
 
-            List<BlockPatch> rawPatches;
-            String componentId = payload.componentId();
-            if (componentId != null && !componentId.isBlank()) {
-                if (ComponentIds.tryNormalizeLoadId(componentId.trim()) == null) {
-                    FormacraftMod.LOGGER.warn("Patch preview request: invalid component id {}", componentId);
-                    return;
+            com.formacraft.server.preview.GenerationRequestIds.begin();
+            try {
+                List<BlockPatch> rawPatches;
+                String componentId = payload.componentId();
+                if (componentId != null && !componentId.isBlank()) {
+                    if (ComponentIds.tryNormalizeLoadId(componentId.trim()) == null) {
+                        FormacraftMod.LOGGER.warn("Patch preview request: invalid component id {}", componentId);
+                        return;
+                    }
+                    java.nio.file.Path worldDir = context.server().getSavePath(WorldSavePath.ROOT);
+                    ComponentDefinition def = ComponentStorage.loadComponent(worldDir, componentId.trim(), player.getUuid());
+                    if (def == null) {
+                        FormacraftMod.LOGGER.warn("Patch preview request: unknown component {}", componentId);
+                        return;
+                    }
+                    long seed = origin.asLong();
+                    rawPatches = com.formacraft.server.patch.ComponentPatchPreviewBuilder.fromComponentDefinition(
+                            def,
+                            com.formacraft.server.patch.ComponentPatchPreviewBuilder.parseFacing(payload.facing()),
+                            com.formacraft.server.patch.ComponentPatchPreviewBuilder.parseMirror(payload.mirror()),
+                            payload.semanticSkin(),
+                            payload.semanticStyleId(),
+                            seed
+                    );
+                } else {
+                    rawPatches = com.formacraft.server.patch.ComponentPatchPreviewBuilder.fromWorldSelection(
+                            sw, origin, payload.selectionMin(), payload.selectionMax());
                 }
-                java.nio.file.Path worldDir = context.server().getSavePath(WorldSavePath.ROOT);
-                ComponentDefinition def = ComponentStorage.loadComponent(worldDir, componentId.trim(), player.getUuid());
-                if (def == null) {
-                    FormacraftMod.LOGGER.warn("Patch preview request: unknown component {}", componentId);
-                    return;
+
+                if (rawPatches == null || rawPatches.isEmpty()) return;
+
+                List<ProtectedZone> zones = com.formacraft.server.state.PlayerProtectedZoneStorage.get(player);
+                if (zones.isEmpty() && payload.protectedZones() != null && !payload.protectedZones().isEmpty()) {
+                    com.formacraft.server.state.PlayerProtectedZoneStorage.set(player, payload.protectedZones());
+                    zones = com.formacraft.server.state.PlayerProtectedZoneStorage.get(player);
                 }
-                long seed = origin.asLong();
-                rawPatches = com.formacraft.server.patch.ComponentPatchPreviewBuilder.fromComponentDefinition(
-                        def,
-                        com.formacraft.server.patch.ComponentPatchPreviewBuilder.parseFacing(payload.facing()),
-                        com.formacraft.server.patch.ComponentPatchPreviewBuilder.parseMirror(payload.mirror()),
-                        payload.semanticSkin(),
-                        payload.semanticStyleId(),
-                        seed
+
+                com.formacraft.server.preview.PreviewTicket ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
+                        player,
+                        origin,
+                        rawPatches,
+                        zones,
+                        com.formacraft.server.state.PlayerOutlineStorage.get(player),
+                        payload.restrictToSelection(),
+                        payload.selectionMin(),
+                        payload.selectionMax(),
+                        !payload.autoConfirm()
                 );
-            } else {
-                rawPatches = com.formacraft.server.patch.ComponentPatchPreviewBuilder.fromWorldSelection(
-                        sw, origin, payload.selectionMin(), payload.selectionMax());
-            }
 
-            if (rawPatches == null || rawPatches.isEmpty()) return;
-
-            List<ProtectedZone> zones = com.formacraft.server.state.PlayerProtectedZoneStorage.get(player);
-            if (zones.isEmpty() && payload.protectedZones() != null && !payload.protectedZones().isEmpty()) {
-                com.formacraft.server.state.PlayerProtectedZoneStorage.set(player, payload.protectedZones());
-                zones = com.formacraft.server.state.PlayerProtectedZoneStorage.get(player);
-            }
-
-            com.formacraft.server.preview.PreviewTicket ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
-                    player,
-                    origin,
-                    rawPatches,
-                    zones,
-                    com.formacraft.server.state.PlayerOutlineStorage.get(player),
-                    payload.restrictToSelection(),
-                    payload.selectionMin(),
-                    payload.selectionMax(),
-                    !payload.autoConfirm()
-            );
-
-            if (ticket != null && payload.autoConfirm()) {
-                com.formacraft.server.patch.PatchPreviewService.confirm(player, ticket.id());
+                if (ticket != null && payload.autoConfirm()) {
+                    com.formacraft.server.patch.PatchPreviewService.confirm(player, ticket.id());
+                }
+            } finally {
+                com.formacraft.server.preview.GenerationRequestIds.clear();
             }
         }));
 

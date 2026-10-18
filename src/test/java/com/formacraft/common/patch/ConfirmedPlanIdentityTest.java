@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ConfirmedPlanIdentityTest {
 
     @Test
-    void patchHashIgnoresListOrder() {
+    void patchHashIgnoresListOrderForDistinctCells() {
         List<BlockPatch> a = List.of(
                 new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:stone"),
                 new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:dirt")
@@ -22,6 +22,27 @@ class ConfirmedPlanIdentityTest {
                 new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:stone")
         );
         assertEquals(ConfirmedPlanIdentity.patchHash(a), ConfirmedPlanIdentity.patchHash(b));
+    }
+
+    @Test
+    void duplicateCellsCollapseToLastWriteWins() {
+        List<BlockPatch> sequence = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:dirt"),
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone")
+        );
+        assertTrue(ConfirmedPlanIdentity.hasDuplicateCells(sequence));
+        List<BlockPatch> finalSet = ConfirmedPlanIdentity.toFinalPatches(sequence);
+        assertEquals(1, finalSet.size());
+        assertEquals("minecraft:stone", finalSet.getFirst().targetBlock());
+        assertEquals(
+                ConfirmedPlanIdentity.patchHash(List.of(
+                        new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone"))),
+                ConfirmedPlanIdentity.patchHash(sequence));
+        // Intermediate dirt then stone ≠ only dirt
+        assertNotEquals(
+                ConfirmedPlanIdentity.patchHash(List.of(
+                        new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:dirt"))),
+                ConfirmedPlanIdentity.patchHash(sequence));
     }
 
     @Test

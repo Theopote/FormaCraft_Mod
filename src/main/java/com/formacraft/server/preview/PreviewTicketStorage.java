@@ -22,11 +22,13 @@ public final class PreviewTicketStorage {
     private static final Map<UUID, PreviewTicket> TICKETS = new ConcurrentHashMap<>();
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches) {
-        return create(playerId, null, origin, patches, null, DEFAULT_TTL_MS, null, "", Map.of());
+        return create(playerId, null, origin, patches, null, DEFAULT_TTL_MS,
+                null, "", Map.of(), false, null);
     }
 
     public static PreviewTicket create(UUID playerId, Identifier dimension, BlockPos origin, List<BlockPatch> patches) {
-        return create(playerId, dimension, origin, patches, null, DEFAULT_TTL_MS, null, "", Map.of());
+        return create(playerId, dimension, origin, patches, null, DEFAULT_TTL_MS,
+                null, "", Map.of(), false, null);
     }
 
     public static PreviewTicket create(
@@ -36,11 +38,13 @@ public final class PreviewTicketStorage {
             List<BlockPatch> patches,
             BuildQualityGate.QualitySnapshot quality
     ) {
-        return create(playerId, dimension, origin, patches, quality, DEFAULT_TTL_MS, null, "", Map.of());
+        return create(playerId, dimension, origin, patches, quality, DEFAULT_TTL_MS,
+                null, "", Map.of(), false, null);
     }
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches, long ttlMs) {
-        return create(playerId, null, origin, patches, null, ttlMs, null, "", Map.of());
+        return create(playerId, null, origin, patches, null, ttlMs,
+                null, "", Map.of(), false, null);
     }
 
     public static PreviewTicket create(
@@ -51,16 +55,11 @@ public final class PreviewTicketStorage {
             BuildQualityGate.QualitySnapshot quality,
             long ttlMs
     ) {
-        return create(playerId, dimension, origin, patches, quality, ttlMs, null, "", Map.of());
+        return create(playerId, dimension, origin, patches, quality, ttlMs,
+                null, "", Map.of(), false, null);
     }
 
-    /**
-     * Full create with plan identity + expected world states for Apply conflict checks.
-     *
-     * @param explicitPlanId when non-null/blank, used as ticket planId (typology confirmed plan)
-     * @param contextHash optional build-context hash (empty for generic patch previews)
-     * @param expectedStates preview-time cell states (world absolute positions → state string)
-     */
+    /** Compatibility overload used by Round 49 callers. */
     public static PreviewTicket create(
             UUID playerId,
             Identifier dimension,
@@ -72,22 +71,44 @@ public final class PreviewTicketStorage {
             String contextHash,
             Map<BlockPos, String> expectedStates
     ) {
+        boolean requires = explicitPlanId != null && !explicitPlanId.isBlank()
+                && contextHash != null && !contextHash.isBlank();
+        return create(playerId, dimension, origin, patches, quality, ttlMs,
+                explicitPlanId, contextHash, expectedStates, requires, null);
+    }
+
+    public static PreviewTicket create(
+            UUID playerId,
+            Identifier dimension,
+            BlockPos origin,
+            List<BlockPatch> patches,
+            BuildQualityGate.QualitySnapshot quality,
+            long ttlMs,
+            String explicitPlanId,
+            String contextHash,
+            Map<BlockPos, String> expectedStates,
+            boolean requiresConfirmedPlan,
+            UUID generationRequestId
+    ) {
         if (playerId == null || origin == null || patches == null || patches.isEmpty()) {
             return null;
         }
         purgeExpired();
         long now = System.currentTimeMillis();
         UUID id = UUID.randomUUID();
-        String patchHash = ConfirmedPlanIdentity.patchHash(patches);
+        List<BlockPatch> finalPatches = ConfirmedPlanIdentity.toFinalPatches(patches);
+        String patchHash = ConfirmedPlanIdentity.patchHash(finalPatches);
         String ctx = contextHash == null ? "" : contextHash;
         String planId = (explicitPlanId != null && !explicitPlanId.isBlank())
                 ? explicitPlanId
-                : ConfirmedPlanIdentity.planId(ctx, patches);
+                : ConfirmedPlanIdentity.planId(ctx, finalPatches);
         PreviewTicket ticket = new PreviewTicket(
-                id, playerId, dimension, origin, List.copyOf(patches),
+                id, playerId, dimension, origin, finalPatches,
                 now + Math.max(1_000L, ttlMs), quality,
                 planId, patchHash, ctx,
-                expectedStates == null ? Map.of() : expectedStates);
+                expectedStates == null ? Map.of() : expectedStates,
+                requiresConfirmedPlan,
+                generationRequestId);
         TICKETS.put(id, ticket);
         return ticket;
     }
@@ -103,10 +124,6 @@ public final class PreviewTicketStorage {
         return ticket;
     }
 
-    /**
-     * CAS 一次性消费：查找 + 玩家校验 + remove(key, value) 不可分割。
-     * 调用方应在 consume 前完成距离/维度等门禁（用 {@link #get}），避免失败后票据丢失。
-     */
     public static PreviewTicket consume(UUID ticketId, UUID playerId) {
         if (ticketId == null || playerId == null) return null;
         purgeExpired();

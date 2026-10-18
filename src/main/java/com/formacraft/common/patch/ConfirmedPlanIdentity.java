@@ -8,6 +8,7 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -16,19 +17,53 @@ import java.util.Objects;
 /**
  * Shared confirmed-preview identity: context + frozen patches + generator version.
  * Used by PreviewTicket and typology PreviewPlans — not palace-specific.
+ * <p>
+ * Patch identity is defined over the <em>final</em> per-cell operation set
+ * (last-write-wins). Multi-op sequences on the same cell are collapsed before hash;
+ * frozen plans must store that final set so Apply order matches identity.
  */
 public final class ConfirmedPlanIdentity {
 
-    public static final int HASH_VERSION = 1;
+    /** v2: final-set (deduped) patch encoding. */
+    public static final int HASH_VERSION = 2;
 
     /** Bump when patch encoding or plan composition changes. */
-    public static final String GENERATOR_VERSION = "formacraft-plan-v1";
+    public static final String GENERATOR_VERSION = "formacraft-plan-v2";
 
     private ConfirmedPlanIdentity() {}
 
-    /** Deterministic hash of the exact block operations the user confirmed. */
+    /**
+     * Collapse to one patch per (dx,dy,dz): last write wins, stable iteration order
+     * of first-seen cells then overwritten in place.
+     */
+    public static List<BlockPatch> toFinalPatches(List<BlockPatch> patches) {
+        if (patches == null || patches.isEmpty()) return List.of();
+        LinkedHashMap<Long, BlockPatch> byCell = new LinkedHashMap<>();
+        for (BlockPatch p : patches) {
+            if (p == null) continue;
+            long key = packCell(p.dx(), p.dy(), p.dz());
+            byCell.put(key, p);
+        }
+        return List.copyOf(byCell.values());
+    }
+
+    public static boolean hasDuplicateCells(List<BlockPatch> patches) {
+        if (patches == null) return false;
+        LinkedHashMap<Long, Boolean> seen = new LinkedHashMap<>();
+        for (BlockPatch p : patches) {
+            if (p == null) continue;
+            long key = packCell(p.dx(), p.dy(), p.dz());
+            if (seen.put(key, Boolean.TRUE) != null) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Deterministic hash of the final per-cell operations the user confirmed.
+     * Input is normalized via {@link #toFinalPatches} then sorted by coordinate.
+     */
     public static String patchHash(List<BlockPatch> patches) {
-        List<BlockPatch> sorted = sortedPatches(patches);
+        List<BlockPatch> sorted = sortedFinalPatches(patches);
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             ByteBuffer hdr = ByteBuffer.allocate(8);
@@ -102,13 +137,8 @@ public final class ConfirmedPlanIdentity {
         }
     }
 
-    private static List<BlockPatch> sortedPatches(List<BlockPatch> patches) {
-        List<BlockPatch> out = new ArrayList<>();
-        if (patches != null) {
-            for (BlockPatch p : patches) {
-                if (p != null) out.add(p);
-            }
-        }
+    private static List<BlockPatch> sortedFinalPatches(List<BlockPatch> patches) {
+        List<BlockPatch> out = new ArrayList<>(toFinalPatches(patches));
         out.sort(Comparator
                 .comparingInt(BlockPatch::dx)
                 .thenComparingInt(BlockPatch::dy)
@@ -118,77 +148,86 @@ public final class ConfirmedPlanIdentity {
         return out;
     }
 
-    @SuppressWarnings("unchecked")
+    private static long packCell(int dx, int dy, int dz) {
+        return (((long) dx & 0x1FFFFFL) << 42)
+                | (((long) dy & 0x1FFFFFL) << 21)
+                | ((long) dz & 0x1FFFFFL);
+    }
+
     private static void appendCanonical(StringBuilder sb, Object value) {
-        if (value == null) {
-            sb.append("null");
-            return;
-        }
-        if (value instanceof Map<?, ?> map) {
-            sb.append('{');
-            List<String> keys = new ArrayList<>();
-            for (Object k : map.keySet()) {
-                if (k != null) keys.add(String.valueOf(k));
+        switch (value) {
+            case null -> {
+                sb.append("null");
+                return;
             }
-            keys.sort(String.CASE_INSENSITIVE_ORDER);
-            boolean first = true;
-            for (String k : keys) {
-                Object v = null;
-                for (var e : map.entrySet()) {
-                    if (e.getKey() != null && k.equalsIgnoreCase(String.valueOf(e.getKey()))) {
-                        v = e.getValue();
-                        break;
+            case Map<?, ?> map -> {
+                sb.append('{');
+                List<String> keys = new ArrayList<>();
+                for (Object k : map.keySet()) {
+                    if (k != null) keys.add(String.valueOf(k));
+                }
+                keys.sort(String.CASE_INSENSITIVE_ORDER);
+                boolean first = true;
+                for (String k : keys) {
+                    Object v = null;
+                    for (var e : map.entrySet()) {
+                        if (e.getKey() != null && k.equalsIgnoreCase(String.valueOf(e.getKey()))) {
+                            v = e.getValue();
+                            break;
+                        }
                     }
+                    String kl = k.trim().toLowerCase(Locale.ROOT);
+                    if (kl.isEmpty()
+                            || kl.equals("terrainfingerprint")
+                            || kl.equals("terraincontenthash")
+                            || kl.equals("buildcontexthash")
+                            || kl.equals("forcefailcirculation")
+                            || kl.equals("schematicflatterrain")
+                            || kl.equals("terrainmode")) {
+                        continue;
+                    }
+                    if (!first) sb.append(',');
+                    first = false;
+                    sb.append(kl).append(':');
+                    appendCanonical(sb, v);
                 }
-                String kl = k.trim().toLowerCase(Locale.ROOT);
-                if (kl.isEmpty()
-                        || kl.equals("terrainfingerprint")
-                        || kl.equals("terraincontenthash")
-                        || kl.equals("buildcontexthash")
-                        || kl.equals("forcefailcirculation")
-                        || kl.equals("schematicflatterrain")
-                        || kl.equals("terrainmode")) {
-                    continue;
+                sb.append('}');
+                return;
+            }
+            case List<?> list -> {
+                sb.append('[');
+                for (int i = 0; i < list.size(); i++) {
+                    if (i > 0) sb.append(',');
+                    appendCanonical(sb, list.get(i));
                 }
-                if (!first) sb.append(',');
-                first = false;
-                sb.append(kl).append(':');
-                appendCanonical(sb, v);
+                sb.append(']');
+                return;
             }
-            sb.append('}');
-            return;
-        }
-        if (value instanceof List<?> list) {
-            sb.append('[');
-            for (int i = 0; i < list.size(); i++) {
-                if (i > 0) sb.append(',');
-                appendCanonical(sb, list.get(i));
+            case Object[] arr -> {
+                sb.append('[');
+                for (int i = 0; i < arr.length; i++) {
+                    if (i > 0) sb.append(',');
+                    appendCanonical(sb, arr[i]);
+                }
+                sb.append(']');
+                return;
             }
-            sb.append(']');
-            return;
-        }
-        if (value instanceof Object[] arr) {
-            sb.append('[');
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(',');
-                appendCanonical(sb, arr[i]);
+            case Boolean b -> {
+                sb.append(b ? "true" : "false");
+                return;
             }
-            sb.append(']');
-            return;
-        }
-        if (value instanceof Boolean b) {
-            sb.append(b ? "true" : "false");
-            return;
-        }
-        if (value instanceof Number n) {
-            // Normalize integers vs floating forms: 3 and 3.0 → same when integral.
-            double d = n.doubleValue();
-            if (Double.isFinite(d) && d == Math.rint(d) && Math.abs(d) < 1e15) {
-                sb.append((long) d);
-            } else {
-                sb.append(n.toString().toLowerCase(Locale.ROOT));
+            case Number n -> {
+                // Normalize integers vs floating forms: 3 and 3.0 → same when integral.
+                double d = n.doubleValue();
+                if (Double.isFinite(d) && d == Math.rint(d) && Math.abs(d) < 1e15) {
+                    sb.append((long) d);
+                } else {
+                    sb.append(n.toString().toLowerCase(Locale.ROOT));
+                }
+                return;
             }
-            return;
+            default -> {
+            }
         }
         sb.append(String.valueOf(value).trim().toLowerCase(Locale.ROOT));
     }

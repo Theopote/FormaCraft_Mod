@@ -10,6 +10,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -19,9 +20,6 @@ import java.util.UUID;
 /**
  * Immutable confirmed preview: patches + build-context identity + diagnostics.
  * Apply must validate context then execute these patches — never silently regenerate.
- * <p>
- * {@link #planId()} binds contextHash + patchHash + generator version
- * (see {@link ConfirmedPlanIdentity}).
  */
 public final class PalacePreviewPlan {
 
@@ -49,6 +47,12 @@ public final class PalacePreviewPlan {
     private final List<BlockPatch> patches;
     private final PalaceBuildContextFingerprint context;
     private final List<TieredMountainPalaceBuilder.BuildDiagnostic> diagnostics;
+    private final Map<String, Object> paramsSnapshot;
+    private final String paletteId;
+    private final int corridorMx;
+    private final int pathStartZ;
+    private final int padY;
+    private final int maxDrop;
     private final String patchHash;
     private final String planId;
 
@@ -58,10 +62,35 @@ public final class PalacePreviewPlan {
             PalaceBuildContextFingerprint context,
             List<TieredMountainPalaceBuilder.BuildDiagnostic> diagnostics
     ) {
+        this(status, patches, context, diagnostics, Map.of(), null,
+                0, TieredMountainPalaceBuilder.MAX_APPROACH_DEPTH,
+                4, TieredMountainPalaceBuilder.MAX_APPROACH_DROP);
+    }
+
+    public PalacePreviewPlan(
+            TieredMountainPalaceBuilder.GenerateStatus status,
+            List<BlockPatch> patches,
+            PalaceBuildContextFingerprint context,
+            List<TieredMountainPalaceBuilder.BuildDiagnostic> diagnostics,
+            Map<String, Object> paramsSnapshot,
+            String paletteId,
+            int corridorMx,
+            int pathStartZ,
+            int padY,
+            int maxDrop
+    ) {
         this.status = status == null ? TieredMountainPalaceBuilder.GenerateStatus.FAILED : status;
-        this.patches = patches == null ? List.of() : List.copyOf(patches);
+        this.patches = List.copyOf(ConfirmedPlanIdentity.toFinalPatches(patches));
         this.context = Objects.requireNonNull(context, "context");
         this.diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
+        this.paramsSnapshot = paramsSnapshot == null
+                ? Map.of()
+                : Map.copyOf(new LinkedHashMap<>(paramsSnapshot));
+        this.paletteId = paletteId;
+        this.corridorMx = corridorMx;
+        this.pathStartZ = pathStartZ;
+        this.padY = padY;
+        this.maxDrop = maxDrop;
         this.patchHash = ConfirmedPlanIdentity.patchHash(this.patches);
         this.planId = ConfirmedPlanIdentity.planId(
                 GENERATOR_VERSION, context.contextHash(), this.patchHash);
@@ -71,6 +100,12 @@ public final class PalacePreviewPlan {
     public List<BlockPatch> patches() { return patches; }
     public PalaceBuildContextFingerprint context() { return context; }
     public List<TieredMountainPalaceBuilder.BuildDiagnostic> diagnostics() { return diagnostics; }
+    public Map<String, Object> paramsSnapshot() { return paramsSnapshot; }
+    public String paletteId() { return paletteId; }
+    public int corridorMx() { return corridorMx; }
+    public int pathStartZ() { return pathStartZ; }
+    public int padY() { return padY; }
+    public int maxDrop() { return maxDrop; }
     public String patchHash() { return patchHash; }
     public String planId() { return planId; }
     public String contextHash() { return context.contextHash(); }
@@ -80,18 +115,34 @@ public final class PalacePreviewPlan {
     }
 
     /**
-     * Re-capture terrain at the plan origin/facing and compare content + full context hashes.
+     * Re-sample approach terrain + rebuild context using the frozen params snapshot.
+     * Used by formal Confirm — complementary to expectedStates cell checks.
      */
+    public ApplyValidation validateLiveTerrainAndContext(ServerWorld world) {
+        return validateForApply(
+                world,
+                context.origin(),
+                context.facing(),
+                paramsSnapshot,
+                paletteId,
+                corridorMx,
+                pathStartZ,
+                padY,
+                maxDrop,
+                TieredMountainPalaceBuilder::localToWorldPublic
+        );
+    }
+
     public ApplyValidation validateForApply(
             ServerWorld world,
             BlockPos origin,
             Direction facing,
             Map<String, Object> currentParams,
-            String paletteId,
+            String paletteIdArg,
             int mx,
-            int pathStartZ,
-            int padY,
-            int maxDrop,
+            int pathStartZArg,
+            int padYArg,
+            int maxDropArg,
             PalaceTerrainSnapshot.LocalTransform transform
     ) {
         if (!executable()) {
@@ -120,13 +171,13 @@ public final class PalacePreviewPlan {
                     "world=" + worldKey + "_expected=" + context.worldKey());
         }
         PalaceTerrainSnapshot live = PalaceTerrainSnapshot.capture(
-                world, origin, face, mx, pathStartZ, padY, maxDrop, transform);
+                world, origin, face, mx, pathStartZArg, padYArg, maxDropArg, transform);
         if (!live.contentHash().equals(context.terrainContentHash())) {
             return new ApplyValidation(ApplyRejectReason.TERRAIN_STALE,
                     "live=" + live.contentHash() + "_plan=" + context.terrainContentHash());
         }
         PalaceBuildContextFingerprint liveCtx = PalaceBuildContextFingerprint.create(
-                worldKey, origin, face, currentParams, live.contentHash(), paletteId);
+                worldKey, origin, face, currentParams, live.contentHash(), paletteIdArg);
         if (!liveCtx.contextHash().equals(context.contextHash())) {
             return new ApplyValidation(ApplyRejectReason.CONTEXT_MISMATCH,
                     "liveCtx=" + liveCtx.contextHash() + "_plan=" + context.contextHash());
@@ -134,25 +185,22 @@ public final class PalacePreviewPlan {
         return new ApplyValidation(ApplyRejectReason.OK, "");
     }
 
-    /**
-     * Validate then execute the confirmed patches via {@link WorldPatchTransaction}.
-     * Does not regenerate geometry.
-     */
     public WorldPatchTransaction.Result applyConfirmed(
             ServerWorld world,
             UUID playerId,
             BlockPos origin,
             Direction facing,
             Map<String, Object> currentParams,
-            String paletteId,
+            String paletteIdArg,
             int mx,
-            int pathStartZ,
-            int padY,
-            int maxDrop,
+            int pathStartZArg,
+            int padYArg,
+            int maxDropArg,
             PalaceTerrainSnapshot.LocalTransform transform
     ) {
         ApplyValidation v = validateForApply(
-                world, origin, facing, currentParams, paletteId, mx, pathStartZ, padY, maxDrop, transform);
+                world, origin, facing, currentParams, paletteIdArg,
+                mx, pathStartZArg, padYArg, maxDropArg, transform);
         if (!v.ok()) {
             throw new TypologyGenerationException(
                     TieredMountainPalaceBuilder.TYPOLOGY_ID,
@@ -172,7 +220,6 @@ public final class PalacePreviewPlan {
         return WorldPatchTransaction.execute(access, origin, patches);
     }
 
-    /** Apply against an in-memory access (unit tests). */
     public WorldPatchTransaction.Result applyConfirmedForTest(
             BlockMutationAccess access,
             BlockPos origin,
@@ -196,6 +243,22 @@ public final class PalacePreviewPlan {
             List<BlockPatch> patches,
             PalaceBuildContextFingerprint context
     ) {
+        return fromGenerateResult(result, patches, context, Map.of(), null,
+                0, TieredMountainPalaceBuilder.MAX_APPROACH_DEPTH,
+                4, TieredMountainPalaceBuilder.MAX_APPROACH_DROP);
+    }
+
+    public static PalacePreviewPlan fromGenerateResult(
+            TieredMountainPalaceBuilder.PalaceGenerateResult result,
+            List<BlockPatch> patches,
+            PalaceBuildContextFingerprint context,
+            Map<String, Object> paramsSnapshot,
+            String paletteId,
+            int corridorMx,
+            int pathStartZ,
+            int padY,
+            int maxDrop
+    ) {
         List<TieredMountainPalaceBuilder.BuildDiagnostic> diags = new ArrayList<>();
         if (result != null && result.diagnostics() != null) {
             diags.addAll(result.diagnostics());
@@ -203,6 +266,7 @@ public final class PalacePreviewPlan {
         TieredMountainPalaceBuilder.GenerateStatus st = result == null
                 ? TieredMountainPalaceBuilder.GenerateStatus.FAILED
                 : result.status();
-        return new PalacePreviewPlan(st, patches, context, diags);
+        return new PalacePreviewPlan(st, patches, context, diags,
+                paramsSnapshot, paletteId, corridorMx, pathStartZ, padY, maxDrop);
     }
 }

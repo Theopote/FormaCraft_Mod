@@ -17,6 +17,7 @@ import com.formacraft.server.build.quality.PatchQualityChecker;
 import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.server.preview.ConfirmedPlanRegistry;
+import com.formacraft.server.preview.GenerationRequestIds;
 import com.formacraft.server.preview.PreviewStorage;
 import com.formacraft.server.preview.PreviewTicket;
 import com.formacraft.server.preview.PreviewTicketStorage;
@@ -34,9 +35,8 @@ import java.util.UUID;
 /**
  * 签发 Patch 预览票据并在确认时应用（服务端权威）。
  * <p>
- * 契约：预览时过滤 → Ticket 存 accepted + planId/patchHash + 预览时原状态
- * → 确认前校验玩家/维度/距离/质量门禁/计划完整性/世界冲突
- * → CAS 一次性消费 → 使用冻结 Patch 写入（绝不重新生成）。
+ * 已绑定宫殿计划的 Ticket（{@code requiresConfirmedPlan}）找不到计划时拒绝，
+ * 不得降级为普通 Patch 确认；Confirm 同时校验地形快照与 expectedStates。
  */
 public final class PatchPreviewService {
     private PatchPreviewService() {}
@@ -73,9 +73,6 @@ public final class PatchPreviewService {
                 restrictToSelection, selectionMin, selectionMax, deliverToClient, null);
     }
 
-    /**
-     * Issue preview; when {@code confirmedPlan} is set, its frozen patches + planId are authoritative.
-     */
     public static PreviewTicket issuePreview(
             ServerPlayerEntity player,
             BlockPos origin,
@@ -91,14 +88,22 @@ public final class PatchPreviewService {
         if (player == null || origin == null) {
             return null;
         }
+        if (!(player.getEntityWorld() instanceof ServerWorld sw)) {
+            return null;
+        }
+
         List<BlockPatch> sourcePatches = rawPatches;
         String ctx = "";
         String explicitPlanId = null;
-        // Typology interpret registers a pending plan by patchHash; bind it here.
-        if (confirmedPlan == null && rawPatches != null && !rawPatches.isEmpty()) {
-            confirmedPlan = ConfirmedPlanRegistry.takePendingByPatchHash(
-                    ConfirmedPlanIdentity.patchHash(rawPatches));
+        boolean requiresPlan = false;
+        UUID requestId = GenerationRequestIds.current();
+        String worldKey = PalacePreviewPlan.worldKeyOf(sw);
+
+        if (confirmedPlan == null && requestId != null) {
+            confirmedPlan = ConfirmedPlanRegistry.takePending(
+                    requestId, player.getUuid(), worldKey, origin);
         }
+
         if (confirmedPlan != null) {
             if (!confirmedPlan.executable()) {
                 if (deliverToClient) {
@@ -111,14 +116,15 @@ public final class PatchPreviewService {
             sourcePatches = confirmedPlan.patches();
             ctx = confirmedPlan.contextHash();
             explicitPlanId = confirmedPlan.planId();
+            requiresPlan = true;
+            if (requestId == null) {
+                requestId = GenerationRequestIds.currentOrCreate();
+            }
         }
         if (sourcePatches == null || sourcePatches.isEmpty()) {
             return null;
         }
         if (!isPlayerNear(player, origin)) {
-            return null;
-        }
-        if (!(player.getEntityWorld() instanceof ServerWorld sw)) {
             return null;
         }
 
@@ -153,8 +159,9 @@ public final class PatchPreviewService {
             return null;
         }
 
+        List<BlockPatch> acceptedFinal = ConfirmedPlanIdentity.toFinalPatches(filtered.accepted);
         if (confirmedPlan != null) {
-            String acceptedHash = ConfirmedPlanIdentity.patchHash(filtered.accepted);
+            String acceptedHash = ConfirmedPlanIdentity.patchHash(acceptedFinal);
             if (!acceptedHash.equals(confirmedPlan.patchHash())) {
                 quality.add(BuildQualitySeverity.FATAL, "PLAN_PATCH_FILTERED",
                         "确认计划的方块列表被约束过滤改变，拒绝签发预览");
@@ -170,18 +177,19 @@ public final class PatchPreviewService {
 
         Identifier dimension = sw.getRegistryKey().getValue();
         BuildQualityGate.QualitySnapshot qualitySnap = BuildQualityGate.QualitySnapshot.from(quality);
-        Map<BlockPos, String> expected = PreviewWorldStateCapture.capture(sw, origin, filtered.accepted);
+        Map<BlockPos, String> expected = PreviewWorldStateCapture.capture(sw, origin, acceptedFinal);
         PreviewTicket ticket = PreviewTicketStorage.create(
-                player.getUuid(), dimension, origin, filtered.accepted, qualitySnap,
-                PLAN_TTL_MS, explicitPlanId, ctx, expected);
+                player.getUuid(), dimension, origin, acceptedFinal, qualitySnap,
+                PLAN_TTL_MS, explicitPlanId, ctx, expected, requiresPlan, requestId);
         if (ticket == null) {
             return null;
         }
 
         if (confirmedPlan != null) {
-            ConfirmedPlanRegistry.put(player.getUuid(), confirmedPlan, PLAN_TTL_MS);
+            ConfirmedPlanRegistry.put(
+                    player.getUuid(), requestId, worldKey, origin, confirmedPlan, PLAN_TTL_MS);
             quality.add(BuildQualitySeverity.INFO, "CONFIRMED_PLAN",
-                    "planId=" + confirmedPlan.planId());
+                    "planId=" + confirmedPlan.planId() + " requestId=" + requestId);
         }
 
         PreviewStorage.storeQualityReport(player, quality);
@@ -191,7 +199,7 @@ public final class PatchPreviewService {
                     player,
                     ticket.id(),
                     origin,
-                    filtered.accepted,
+                    acceptedFinal,
                     filtered.rejected
             );
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(quality.summaryZh()));
@@ -216,8 +224,6 @@ public final class PatchPreviewService {
 
         Identifier currentDim = sw.getRegistryKey().getValue();
         if (pending.dimension() != null && !pending.dimension().equals(currentDim)) {
-            FormacraftMod.LOGGER.warn("Player {} patch ticket dimension mismatch: ticket={} current={}",
-                    player.getName().getString(), pending.dimension(), currentDim);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "预览维度与当前世界不一致，请回到原维度后确认，或重新预览。"
             ));
@@ -225,8 +231,6 @@ public final class PatchPreviewService {
         }
 
         if (!isPlayerNear(player, pending.origin())) {
-            FormacraftMod.LOGGER.warn("Player {} too far from patch ticket origin {}",
-                    player.getName().getString(), pending.origin());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "距离预览原点过远，请靠近后再确认（票据仍有效）。"
             ));
@@ -241,17 +245,42 @@ public final class PatchPreviewService {
         }
 
         PalacePreviewPlan bound = ConfirmedPlanRegistry.get(pending.planId(), player.getUuid());
-        if (bound != null && !bound.patchHash().equals(pending.patchHash())) {
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                    "确认计划与预览票据的方块列表不一致，请重新预览。"
-            ));
-            return false;
-        }
-        if (bound != null && !bound.contextHash().equals(pending.contextHash())) {
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                    "建造上下文已变化（参数/原点/材质），请重新预览后再确认。"
-            ));
-            return false;
+        if (pending.requiresConfirmedPlan()) {
+            if (bound == null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "确认计划已丢失或过期（PLAN_MISSING），请重新预览。不得降级执行。"
+                ));
+                return false;
+            }
+            if (!bound.patchHash().equals(pending.patchHash())) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "确认计划与预览票据的方块列表不一致，请重新预览。"
+                ));
+                return false;
+            }
+            if (!bound.contextHash().equals(pending.contextHash())) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "建造上下文已变化（参数/原点/材质），请重新预览后再确认。"
+                ));
+                return false;
+            }
+            // Terrain + build-context validation (not replaceable by expectedStates).
+            PalacePreviewPlan.ApplyValidation terrain = bound.validateLiveTerrainAndContext(sw);
+            if (!terrain.ok()) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "地形或建造上下文校验失败：" + terrain.reason() + " " + terrain.detail()
+                ));
+                return false;
+            }
+        } else if (bound != null) {
+            // Soft bind (legacy): still verify hashes if a plan happens to be present.
+            if (!bound.patchHash().equals(pending.patchHash())
+                    || !bound.contextHash().equals(pending.contextHash())) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "预览计划与票据不一致，请重新预览。"
+                ));
+                return false;
+            }
         }
 
         BlockMutationAccess access = BlockMutationAccess.forWorld(sw);
@@ -280,24 +309,30 @@ public final class PatchPreviewService {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                     "【强制确认】" + pending.quality().summaryZh()
             ));
-            FormacraftMod.LOGGER.info("Player {} force-confirmed patch ticket {} with errors",
-                    player.getName().getString(), ticketId);
         }
 
         PreviewTicket ticket = PreviewTicketStorage.consume(ticketId, player.getUuid());
         if (ticket == null) {
-            FormacraftMod.LOGGER.warn("Player {} patch ticket raced/expired at consume {}",
-                    player.getName().getString(), ticketId);
             return false;
         }
 
-        // TOCTOU: re-check after CAS consume, before writes.
         conflict = PreviewWorldStateCapture.conflictDetail(access, ticket.expectedStates());
         if (conflict != null) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "建造区域在确认瞬间被修改，已拒绝写入。请重新预览。"
             ));
             return false;
+        }
+
+        // Re-validate terrain after consume for require-bound tickets (TOCTOU).
+        if (ticket.requiresConfirmedPlan() && bound != null) {
+            PalacePreviewPlan.ApplyValidation terrain = bound.validateLiveTerrainAndContext(sw);
+            if (!terrain.ok()) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "确认瞬间地形校验失败：" + terrain.reason() + " " + terrain.detail()
+                ));
+                return false;
+            }
         }
 
         List<BlockPatch> patches = ticket.patches();
@@ -325,7 +360,6 @@ public final class PatchPreviewService {
         return d2 <= MAX_APPLY_DISTANCE * MAX_APPLY_DISTANCE;
     }
 
-    /** Test helper: verify ticket integrity + expected states. */
     public static String verifyExpectedStates(BlockMutationAccess access, PreviewTicket ticket) {
         if (ticket == null) return "ticket_null";
         if (!ticket.patchIntegrityOk()) return "patch_integrity";
