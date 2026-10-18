@@ -14,6 +14,22 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SurfaceOwnershipLedgerTest {
+    @Test void authoredFacadeMayReplaceOwnIntrinsicGlassOnly() {
+        var ledger=new SurfaceOwnershipLedger();
+        var pos=new BlockPos(0,2,0);
+        var cell=new GeneratedSurfaceCapture.Cell(pos,GeneratedSurfaceCapture.Role.WINDOW);
+        var glass=new BlockPatch(BlockPatch.PLACE,0,2,0,"minecraft:glass");
+        var pane=new BlockPatch(BlockPatch.PLACE,0,2,0,"minecraft:glass_pane");
+        var mass=component("MASS_MAIN","s",Map.of("component_id","hall"));
+        var facade=component("FACADE_WINDOWS","s",Map.of("component_id","windows","host_id","hall"));
+        ledger.accept(mass,List.of(glass),List.of(cell),BlockPos.ORIGIN);
+        assertTrue(ledger.check(facade,List.of(pane)).isEmpty());
+        var foreign=component("FACADE_WINDOWS","s",Map.of("component_id","foreign","host_id","other"));
+        assertTrue(ledger.check(foreign,List.of(pane)).isPresent());
+        ledger.accept(facade,List.of(pane),List.of(cell),BlockPos.ORIGIN);
+        var second=component("FACADE_WINDOWS","s",Map.of("component_id","second","host_id","hall"));
+        assertTrue(ledger.check(second,List.of(glass)).isPresent());
+    }
     @Test
     void decorCannotReplaceWindowSurface() {
         var ledger = new SurfaceOwnershipLedger();

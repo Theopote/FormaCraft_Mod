@@ -40,7 +40,7 @@ def normalize_hosted_connections(plan: dict) -> None:
     # A one-block standalone landing is a terrace plate, not a miniature house.
     for body in bodies:
         p = body.get('params') or {}
-        if p.get('plate_role') == 'landing' and body['dimensions']['height'] == 1 and not p.get('host_id'):
+        if (p.get('plate_role') == 'landing' or p.get('role') == 'bank_landing') and body['dimensions']['height'] == 1 and not p.get('host_id'):
             p.update(extrude_mode='plate', plate_role='terrace', anchor_mode='min_corner')
 
     def bounds(c):
@@ -173,6 +173,11 @@ def normalize_hosted_connections(plan: dict) -> None:
                 record(plate, 'bridge_endpoint_host')
         pl, ph = bounds(plate); hl, hh = bounds(host); tl, th = bounds(target)
         level = p.get('connection_level')
+        if (level == 0 and target['dimensions']['height'] == 1 and (target.get('params') or {}).get('role') == 'bank_landing'
+                and abs(pl['y']-tl['y']) == 1 and touches(plate,target)):
+            target['relative_position']['y'] += pl['y']-tl['y']
+            tl,th = bounds(target)
+            record(target,'bank_landing_deck_datum')
         rise = int(host.get('params', {}).get('floor_height') or 0)
         if isinstance(level,int) and rise > 0 and level in (plate['relative_position']['y'],pl['y']) and hl['y']+level*rise > hh['y']:
             p['legacy_connection_height'] = p.pop('connection_level')

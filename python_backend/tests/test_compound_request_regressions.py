@@ -11,6 +11,20 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class CompoundRequestRegressions(unittest.TestCase):
+    def test_oct18_night_live_plans_keep_full_buildings_and_align_bank_deck(self):
+        for i in range(1,7):
+            with self.subTest(plan=i):
+                raw=json.loads((FIXTURES/f'oct18_night_{i}.json').read_text(encoding='utf-8'))
+                result=normalize_circulation_plan(apply_building_contract(raw,raw['proportion_hints']['architecture_intent']['original_text'],finalize=True))
+                self.assertNotIn('capability_gap',result)
+                self.assertEqual(result,normalize_circulation_plan(result))
+                self.assertEqual(result,json.loads((FIXTURES/f'oct18_night_{i}.normalized.json').read_text(encoding='utf-8')))
+                if i==1:
+                    bank=next(c for c in result['components'] if c['params']['component_id']=='bank_landing')
+                    self.assertEqual(1,bank['relative_position']['y'])
+                    self.assertEqual('terrace',bank['params']['plate_role'])
+                    self.assertEqual({'width':2,'depth':5,'height':1},bank['dimensions'])
+
     def test_corner_floor_evidence_is_order_independent_and_keeps_explicit_anchors(self):
         from copy import deepcopy
         from app.services.bridge_plan_normalizer import normalize_hosted_connections

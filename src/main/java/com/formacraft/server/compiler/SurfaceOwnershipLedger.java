@@ -181,7 +181,7 @@ final class SurfaceOwnershipLedger {
         GeneratedSurfaceCapture.Role role = surface.role();
         boolean sameHost = host != null && host.equals(surface.owner());
         boolean sameSource = writer.equals(surface.source());
-        if ("ENTRANCE".equals(type) && sameHost && host.equals(surface.source())
+        if (opening && sameHost && host.equals(surface.source())
                 && role == GeneratedSurfaceCapture.Role.WINDOW) return null;
 
         return switch (op) {

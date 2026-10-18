@@ -2,6 +2,8 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Vec3i;
+import java.util.HashSet;
+import java.util.ArrayDeque;
 import com.formacraft.common.patch.BlockPatch;
 
 import java.util.ArrayList;
@@ -298,6 +300,34 @@ public final class BridgeWalkability {
     ) {
         if (occ == null || mass == null) {
             return new StoreyGoals(StoreyWalkRegions.Status.EMPTY, List.of(), 0L);
+        }
+        // A standalone receiving deck has no interior wall inset. Narrow bank
+        // landings still provide valid bridge goals at their standable cells.
+        if (mass.dimensions()!=null && mass.dimensions().height()==1 && mass.params()!=null
+                && "plate".equals(mass.params().get("extrude_mode"))
+                && HostedPlateOccupancy.resolveRole(mass.params())==HostedPlateOccupancy.PlateRole.TERRACE) {
+            var b=ComponentFootprintUtil.bounds(mass);
+            long area=(long)b.width()*b.depth();
+            if(area>StoreyWalkRegions.MAX_CELLS) return new StoreyGoals(StoreyWalkRegions.Status.SCAN_LIMIT,List.of(),area);
+            var goals=new ArrayList<Vec3i>();
+            for(int x=b.minX();x<b.maxX();x++) for(int z=b.minZ();z<b.maxZ();z++) {
+                var cell=shift(new Vec3i(x,plateY,z),massOffset);
+                if(WalkabilityGraph.canStand(occ,cell)) goals.add(cell);
+            }
+            var remaining=new HashSet<>(goals);
+            var representatives=new ArrayList<Vec3i>();
+            while(!remaining.isEmpty()) {
+                var seed=remaining.iterator().next(); representatives.add(seed); remaining.remove(seed);
+                var queue=new ArrayDeque<Vec3i>(); queue.add(seed);
+                while(!queue.isEmpty()) {
+                    var cell=queue.remove();
+                    for(var delta:List.of(new Vec3i(1,0,0),new Vec3i(-1,0,0),new Vec3i(0,0,1),new Vec3i(0,0,-1))) {
+                        var next=new Vec3i(cell.x()+delta.x(),cell.y(),cell.z()+delta.z());
+                        if(remaining.remove(next)) queue.add(next);
+                    }
+                }
+            }
+            return new StoreyGoals(representatives.isEmpty()?StoreyWalkRegions.Status.EMPTY:StoreyWalkRegions.Status.OK,representatives,area);
         }
         StoreyWalkRegions.ScanResult scan =
                 CirculationAnalysisContext.scanStorey(occ, mass, plateY, massOffset);

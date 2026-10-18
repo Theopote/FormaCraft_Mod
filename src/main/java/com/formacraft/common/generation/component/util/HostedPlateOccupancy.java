@@ -169,11 +169,11 @@ public final class HostedPlateOccupancy {
         // face it actually crosses instead of falling back to an unrelated X wall.
         if (!plateWestOfMass && !plateEastOfMass && !plateNorthOfMass && !plateSouthOfMass) {
             if (pb.depth() > pb.width()) {
-                plateNorthOfMass |= pb.minZ() < mb.minZ() && pb.maxZ() > mb.minZ();
-                plateSouthOfMass |= pb.maxZ() > mb.maxZ() && pb.minZ() < mb.maxZ();
+                plateNorthOfMass = pb.minZ() < mb.minZ() && pb.maxZ() > mb.minZ();
+                plateSouthOfMass = pb.maxZ() > mb.maxZ() && pb.minZ() < mb.maxZ();
             } else if (pb.width() > pb.depth()) {
-                plateWestOfMass |= pb.minX() < mb.minX() && pb.maxX() > mb.minX();
-                plateEastOfMass |= pb.maxX() > mb.maxX() && pb.minX() < mb.maxX();
+                plateWestOfMass = pb.minX() < mb.minX() && pb.maxX() > mb.minX();
+                plateEastOfMass = pb.maxX() > mb.maxX() && pb.minX() < mb.maxX();
             }
         }
 

@@ -1,0 +1,1191 @@
+{
+  "mode": "build",
+  "style_profile": "Industrial",
+  "style_attributes": {
+    "wall_color": null,
+    "roof_color": null,
+    "accent_color": null,
+    "wall_material": null,
+    "roof_material": null,
+    "floor_material": null,
+    "decorative_elements": [
+      "cornice_band",
+      "sawtooth_skylight",
+      "iron_railings",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "continuous sawtooth skylight roof over 27x17 maintenance hall",
+    "single-storey high-clearance hall with 10 blocks of uninterrupted interior height",
+    "two 5x6 decorative vehicle entrances on the short south gable",
+    "two-storey dispatch building with 5-block storeys, offset 6 blocks from the hall",
+    "3-wide elevated corridor at y=5 linking dispatch floor 2 to a local inspection platform",
+    "local inspection platform occupying only a corner of the hall, not a full floor",
+    "exterior stair up to the corridor with railing gaps at the corridor and stair landings",
+    "ornament"
+  ],
+  "anchor": {
+    "x": 246,
+    "y": 127,
+    "z": -298
+  },
+  "proportion_hints": {
+    "typology": "industrial_rail_maintenance",
+    "height_to_width": 0.44,
+    "depth_to_width": 0.63,
+    "roof_to_body_height": 0.2,
+    "clear_height_to_total_height": 0.83,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width_element_scope",
+          "property": "width",
+          "value": null,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽5格",
+            "宽3格"
+          ],
+          "scope": "unresolved",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        },
+        {
+          "id": "req_floor_height_named_dispatch",
+          "property": "floor_height",
+          "value": 5,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高5格"
+          ],
+          "scope": "named_dispatch",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "dispatch_body"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_dispatch",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层"
+          ],
+          "scope": "named_dispatch",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "dispatch_body"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_dispatch": [
+          "dispatch_body",
+          "dispatch_body"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "hall_body",
+          "slot_id": "hall",
+          "local_origin": {
+            "x": -8,
+            "y": 0,
+            "z": -13
+          },
+          "plan_origin": {
+            "x": -8,
+            "y": 0,
+            "z": -13
+          },
+          "dimensions": {
+            "width": 17,
+            "depth": 27,
+            "height": 10
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "hall_body",
+                "local_origin": {
+                  "x": -8,
+                  "y": 0,
+                  "z": -13
+                },
+                "dimensions": {
+                  "width": 17,
+                  "depth": 27,
+                  "height": 10
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": -8,
+              "min_z": -13,
+              "max_x": 9,
+              "max_z": 14,
+              "min_y": 0,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 9,
+                "start": -13,
+                "end": 14
+              },
+              {
+                "direction": "NORTH",
+                "plane": -13,
+                "start": -8,
+                "end": 9
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 14,
+                "start": -8,
+                "end": 9
+              },
+              {
+                "direction": "WEST",
+                "plane": -8,
+                "start": -13,
+                "end": 14
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "dispatch_body",
+          "slot_id": "dispatch",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": 14,
+            "y": 0,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 11,
+            "depth": 9,
+            "height": 10
+          },
+          "floor_ys_local": [
+            0,
+            5
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "dispatch_body",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 11,
+                  "depth": 9,
+                  "height": 10
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -4,
+              "max_x": 5,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 5,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -6,
+                "end": 5
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -6,
+                "end": 5
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -4,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Industrial_Structure",
+          "identity_id": "Industrial_Structure",
+          "status": "canonical",
+          "profile_id": "Industrial_Structure"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座工业风格的铁路维修设施，包含单层高净空维修车间、 两层调度楼和一条高架检修走道 。维修车间约27×17格， 总高12格， 内部至少保留9格连续净空， 不设置横跨整个车间的中间楼板 ； 屋顶采用连续锯齿形采光屋顶。 车间短边设置两个宽5格、 高6格的装饰车辆入口。 调度楼约11×9格，每层高5格， 放在车间侧面， 与车间间隔6格。 调度楼二层地面高度为5格， 在同一高度通过宽3格的连廊连接到车间侧面的局部检修平台。 平台只占车间内部一小部分， 不要扩展为完整楼层。 设置通往检修平台的室外楼梯， 栏杆在连廊和楼梯接入口处留缺口。主要使用红砖、 灰色混凝土、 深色金属质感方块和玻璃。",
+          "purposes": [],
+          "styles": [
+            {
+              "id": "Industrial_Structure",
+              "phrase": "工业风格",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座工业风格的铁路维修设施，包含单层高净空维修车间、\n两层调度楼和一条高架检修走道\n。维修车间约27×17格，\n总高12格，\n内部至少保留9格连续净空，\n不设置横跨整个车间的中间楼板\n；\n屋顶采用连续锯齿形采光屋顶。\n车间短边设置两个宽5格、\n高6格的装饰车辆入口。\n调度楼约11×9格，每层高5格，\n放在车间侧面，\n与车间间隔6格。\n调度楼二层地面高度为5格，\n在同一高度通过宽3格的连廊连接到车间侧面的局部检修平台。\n平台只占车间内部一小部分，\n不要扩展为完整楼层。\n设置通往检修平台的室外楼梯，\n栏杆在连廊和楼梯接入口处留缺口。主要使用红砖、\n灰色混凝土、\n深色金属质感方块和玻璃。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "hall_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Industrial",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "dispatch_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Industrial",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    },
+    "connection_repairs": [
+      {
+        "component_id": "bridge_deck",
+        "reason": "connection_height_in_blocks"
+      }
+    ]
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "industrial_facility",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "compound",
+      "composition": "multi_mass",
+      "axis": "linear",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "brick_and_steel_frame",
+      "massiveness": 0.58,
+      "voidRatio": 0.14,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "modular",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "sawtooth_roof",
+      "ribbon_windows",
+      "vehicle_portals",
+      "bridge_deck",
+      "inspection_platform",
+      "exterior_stair"
+    ],
+    "materials": {
+      "primary": "brick",
+      "secondary": "concrete",
+      "accent": "dark_metal",
+      "textureBias": "industrial",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "industrial",
+      "keywords": [
+        "railway",
+        "maintenance_depot",
+        "sawtooth_skylight"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 12,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "clear_span",
+        "sawtooth_lighting",
+        "bridge_link"
+      ],
+      "avoid": [
+        "mid_hall_floor",
+        "full_second_floor_in_hall"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "component_preset": "industrial_workshop_shell"
+      },
+      {
+        "slot_id": "dispatch",
+        "anchor": {
+          "x": 20,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "component_preset": "industrial_dispatch_block"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 27,
+        "height": 10
+      },
+      "features": [
+        "hollow_shell",
+        "high_clearance",
+        "no_intermediate_floor",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "hall_body",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "flat",
+        "floor_count": 1,
+        "void_ratio": 0.12,
+        "interior_clear_height": 10,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "base_plinth": true,
+        "wall_block": "minecraft:bricks",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:deepslate_tiles",
+        "structureExposure": 0.6,
+        "window_ratio": 0.35,
+        "floor_height": 3,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": -8,
+        "y": 10,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 27,
+        "height": 2
+      },
+      "features": [
+        "sawtooth_skylight",
+        "continuous_roof",
+        "overhang",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "hall_sawtooth_roof",
+        "host_id": "hall_body",
+        "anchor_mode": "min_corner",
+        "roof_type": "sawtooth",
+        "tooth_count": 6,
+        "tooth_axis": "Z",
+        "tooth_rise": 2,
+        "glazing_block": "minecraft:gray_stained_glass",
+        "roof_block": "minecraft:deepslate_tiles",
+        "overhang": 1,
+        "ridge_axis": "Z",
+        "roof_height": 2,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "vehicle_portal",
+        "decorative_gable_opening"
+      ],
+      "params": {
+        "component_id": "hall_vehicle_entry_1",
+        "host_id": "hall_body",
+        "anchor_mode": "min_corner",
+        "entrance_type": "vehicle_gate",
+        "facing": "SOUTH",
+        "facing_runtime": "NORTH",
+        "frame_block": "minecraft:deepslate_tiles",
+        "door_block": "minecraft:iron_bars",
+        "opening_width": 5,
+        "opening_height": 6,
+        "door_width": 3,
+        "door_height": 4,
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 2,
+        "y": 0,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "vehicle_portal",
+        "decorative_gable_opening"
+      ],
+      "params": {
+        "component_id": "hall_vehicle_entry_2",
+        "host_id": "hall_body",
+        "anchor_mode": "min_corner",
+        "entrance_type": "vehicle_gate",
+        "facing": "SOUTH",
+        "facing_runtime": "NORTH",
+        "frame_block": "minecraft:deepslate_tiles",
+        "door_block": "minecraft:iron_bars",
+        "opening_width": 5,
+        "opening_height": 6,
+        "door_width": 3,
+        "door_height": 4,
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 8,
+        "y": 5,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "corridor_wall_opening",
+        "opening_only"
+      ],
+      "params": {
+        "component_id": "hall_corridor_opening",
+        "host_id": "hall_body",
+        "anchor_mode": "min_corner",
+        "entrance_type": "none",
+        "opening_only": true,
+        "facing": "EAST",
+        "facing_runtime": "WEST",
+        "opening_width": 3,
+        "opening_height": 3,
+        "door_width": 3,
+        "door_height": 4,
+        "building_id": "hall_body",
+        "stair_connection": "exterior_stair_to_bridge"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": -8,
+        "y": 7,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 27,
+        "height": 2
+      },
+      "features": [
+        "clerestory_ribbon"
+      ],
+      "params": {
+        "component_id": "hall_clerestory_windows",
+        "host_id": "hall_body",
+        "anchor_mode": "min_corner",
+        "window_style": "ribbon_glazing",
+        "wall_sides": [
+          "EAST",
+          "WEST"
+        ],
+        "sill_height": 7,
+        "window_height": 2,
+        "module_spacing": 3,
+        "window_block": "minecraft:gray_stained_glass",
+        "frame_block": "minecraft:deepslate_tiles",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": -9,
+        "y": -1,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 29,
+        "height": 1
+      },
+      "features": [
+        "plinth"
+      ],
+      "params": {
+        "component_id": "hall_foundation",
+        "host_id": "hall_body",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "dispatch",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 10
+      },
+      "features": [
+        "two_storey_dispatch",
+        "hollow_shell",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "dispatch_body",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "flat",
+        "floor_count": 2,
+        "floor_height": 5,
+        "requirement_scope": "named_dispatch",
+        "void_ratio": 0.2,
+        "facade_profile": "banded_windows",
+        "wall_pattern": "gradient",
+        "base_plinth": true,
+        "wall_block": "minecraft:gray_concrete",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:gray_concrete",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "dispatch_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "dispatch",
+      "relative_position": {
+        "x": -6,
+        "y": 10,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "flat_parapet_roof",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "dispatch_roof",
+        "host_id": "dispatch_body",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "parapet": true,
+        "roof_block": "minecraft:gray_concrete",
+        "roof_height": 2,
+        "overhang": 2,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "dispatch_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "dispatch",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "personnel_door"
+      ],
+      "params": {
+        "component_id": "dispatch_entry_south",
+        "host_id": "dispatch_body",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "facing": "SOUTH",
+        "facing_runtime": "NORTH",
+        "door_block": "minecraft:dark_oak_door",
+        "opening_width": 3,
+        "opening_height": 3,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "dispatch_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "dispatch",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 10
+      },
+      "features": [
+        "banded_horizontal_glazing"
+      ],
+      "params": {
+        "component_id": "dispatch_windows",
+        "host_id": "dispatch_body",
+        "anchor_mode": "min_corner",
+        "window_style": "horizontal_band",
+        "wall_sides": [
+          "NORTH",
+          "SOUTH",
+          "EAST",
+          "WEST"
+        ],
+        "floor_bands": [
+          1,
+          2
+        ],
+        "floor_height": 5,
+        "sill_height": 1,
+        "window_height": 2,
+        "module_spacing": 2,
+        "window_block": "minecraft:gray_stained_glass",
+        "frame_block": "minecraft:deepslate_tiles",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "dispatch_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "dispatch",
+      "relative_position": {
+        "x": -7,
+        "y": -1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "plinth"
+      ],
+      "params": {
+        "component_id": "dispatch_foundation",
+        "host_id": "dispatch_body",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "building_id": "dispatch_body"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 8,
+        "y": 5,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "elevated_corridor_deck",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "bridge_deck",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "bridge",
+        "host_id": "hall_body",
+        "target_host_id": "dispatch_body",
+        "floor_block": "minecraft:smooth_stone",
+        "thickness": 1,
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.14,
+        "floor_height": 3,
+        "facade_profile": "mullion_grid",
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "hall_body",
+        "legacy_connection_height": 5
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 4,
+        "y": 5,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [
+        "local_inspection_platform_only",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "inspection_platform",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "platform",
+        "host_id": "hall_body",
+        "connection_level": 5,
+        "floor_block": "minecraft:smooth_stone",
+        "thickness": 1,
+        "partial_footprint": true,
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.14,
+        "floor_height": 3,
+        "facade_profile": "mullion_grid",
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 8,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "exterior_stair",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "exterior_stair_to_bridge",
+        "anchor_mode": "min_corner",
+        "exterior": true,
+        "from": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 1,
+          "y": 5,
+          "z": 7
+        },
+        "width": 3,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:smooth_stone",
+        "clearHeight": 3,
+        "landing_length": 2,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "hall_body",
+        "host_source": "entrance_elevation",
+        "host_id": "hall_body",
+        "target_host_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 8,
+        "y": 6,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "railing",
+        "bridge_south_railing"
+      ],
+      "params": {
+        "component_id": "bridge_railing_south",
+        "host_id": "bridge_deck",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_block": "minecraft:iron_bars",
+        "gap_at": [],
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 12,
+        "y": 6,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "railing",
+        "bridge_north_railing_with_stair_gap"
+      ],
+      "params": {
+        "component_id": "bridge_railing_north",
+        "host_id": "bridge_deck",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_block": "minecraft:iron_bars",
+        "gap_at": [
+          {
+            "x": 9,
+            "z": -1,
+            "width": 3
+          }
+        ],
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 4,
+        "y": 6,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [
+        "railing",
+        "platform_west_railing"
+      ],
+      "params": {
+        "component_id": "platform_railing_west",
+        "host_id": "inspection_platform",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_block": "minecraft:iron_bars",
+        "gap_at": [],
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 4,
+        "y": 6,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "railing",
+        "platform_south_railing_with_corridor_gap"
+      ],
+      "params": {
+        "component_id": "platform_railing_south",
+        "host_id": "inspection_platform",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_block": "minecraft:iron_bars",
+        "gap_at": [
+          {
+            "x": 7,
+            "z": 2,
+            "width": 2
+          }
+        ],
+        "building_id": "hall_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "dispatch",
+      "relative_position": {
+        "x": -6,
+        "y": 10,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "ornament_band",
+        "cornice"
+      ],
+      "params": {
+        "component_id": "dispatch_cornice",
+        "host_id": "dispatch_body",
+        "anchor_mode": "min_corner",
+        "ornament_type": "cornice",
+        "ornament_block": "minecraft:deepslate_tiles",
+        "band_height": 1,
+        "building_id": "dispatch_body"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "dispatch",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 2,
+        "height": 8
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "dispatch_body#access_1",
+        "host_id": "dispatch_body",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 5,
+          "y": 5,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:smooth_stone",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "dispatch_body"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「车间约27×17格」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

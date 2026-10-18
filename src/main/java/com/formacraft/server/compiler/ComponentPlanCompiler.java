@@ -1970,6 +1970,15 @@ public final class ComponentPlanCompiler {
         int height = Math.max(2, massDims.height());
         int hostFloorHeight = ComponentParamParsers.intParam(mass.params(), "floor_height", "floorHeight");
         int hostFloorCount = ComponentParamParsers.intParam(mass.params(), "floor_count", "floorCount");
+        if (hostFloorCount <= 0 && openingHeight >= hostFloorHeight && openingHeight < massDims.height()
+                && openingWidth > 0 && plan.components() != null) {
+            Object hostId = mass.params().get("component_id");
+            boolean hasRaisedPlate = plan.components().stream().anyMatch(c -> c.params()!=null && c.relativePosition()!=null
+                    && hostId!=null && hostId.equals(c.params().get("host_id"))
+                    && "plate".equals(c.params().get("extrude_mode"))
+                    && c.relativePosition().y()>massOrigin.y());
+            if (!hasRaisedPlate) { hostFloorCount=1; hostFloorHeight=massDims.height(); }
+        }
         if (hostFloorHeight > 0) params.put("floor_height", hostFloorHeight);
         if (hostFloorCount > 0) params.put("floor_count", hostFloorCount);
         // A height-only slit hint may exceed the clear wall band of a short
@@ -2159,7 +2168,13 @@ public final class ComponentPlanCompiler {
         var rp = door.relativePosition();
         var dims = door.dimensions();
         if (origin == null || rp == null || dims == null) return door;
-        String face = String.valueOf(params.getOrDefault("facing", "SOUTH"));
+        String face = String.valueOf(params.getOrDefault("facing", "SOUTH")).toUpperCase(Locale.ROOT);
+        if (!params.containsKey("facing")) {
+            face = dims.width()==1 && dims.depth()>1
+                    ? (Math.abs(rp.x()-origin.x()) <= Math.abs(rp.x()-(origin.x()+mass.dimensions().width()-1)) ? "EAST" : "WEST")
+                    : (Math.abs(rp.z()-origin.z()) <= Math.abs(rp.z()-(origin.z()+mass.dimensions().depth()-1)) ? "SOUTH" : "NORTH");
+        }
+        params.put("facing",face);
         boolean side = Set.of("EAST", "WEST").contains(face);
         int width = ComponentParamParsers.intParam(params, 3, "door_width");
         int height = ComponentParamParsers.intParam(params, 3, "door_height");

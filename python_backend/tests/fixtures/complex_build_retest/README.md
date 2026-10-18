@@ -107,3 +107,11 @@ legacy interior stair roles and nested features, omitted layout references,
 counted tall local windows, corner-coordinate floor evidence and inferred stairs
 that must yield to an existing bridge. Missing or ambiguous slot identities are
 not assigned by component order, and existing explicit slot references survive.
+
+`oct18_night_1` through `oct18_night_6` capture the 19:17–19:27 run
+(four failures, two successful builds), bringing the replay set to 71.
+The bank landing stays a narrow receiving deck, stair-bound doors infer their
+wall axis when facing is omitted, explicit facades can replace only their own
+host's intrinsic glass, and tall hall windows retain their requested dimensions
+when no storey count or raised floor is authored. Dedicated tests keep explicit
+multi-storey floor counts and independently authored window ownership protected.
