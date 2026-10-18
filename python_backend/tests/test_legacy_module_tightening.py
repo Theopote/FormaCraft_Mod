@@ -18,6 +18,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         "mingqing_courtyard",
         "castle_compound",
         "modern_skyscraper",
+        "potala_palace",
     }
 
     def test_registry_lists_migrated_landmarks(self):

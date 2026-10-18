@@ -1,5 +1,9 @@
 # Direct dependencies with compatible version ranges.
 # For reproducible installs use: pip install -r requirements.lock
+# Regenerate lock (Python 3.12 clean venv):
+#   pip install -r requirements.txt
+#   pip freeze | findstr /V /B "pip== setuptools== wheel==" > requirements.lock
+# Do not hand-edit transitive pins (e.g. jiter); openai requires jiter>=0.10.0,<1.
 fastapi>=0.138.0,<0.139.0
 uvicorn[standard]>=0.49.0,<0.50.0
 pydantic>=2.13.0,<3.0.0

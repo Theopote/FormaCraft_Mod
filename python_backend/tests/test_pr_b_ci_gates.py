@@ -85,6 +85,7 @@ class PrBMigratedCultureCardContractTest(unittest.TestCase):
         "mingqing_courtyard": "courtyard_compound",
         "castle_compound": "radial_fortress",
         "modern_skyscraper": "setback_tower",
+        "potala_palace": "tiered_mountain_palace",
     }
 
     def test_migration_map_matches_expected(self):

@@ -337,9 +337,9 @@ def merge_visual_into_profile(
 ) -> BuildingProfile:
     """将 VisualAnalysis（含 ReferenceBlueprint）合并进 BuildingProfile。"""
     data = profile.model_dump()
-    if visual.building_name and (
-        not data["identity"].get("name") or data["identity"]["name"] == "unknown"
-    ):
+    # Vision naming wins for image references: classifiers/rule synth may have
+    # already filled a generic or search-derived name before merge runs.
+    if visual.building_name:
         data["identity"]["name"] = visual.building_name
         profile.query = profile.query or visual.building_name
     if visual.style and not data["identity"].get("style"):

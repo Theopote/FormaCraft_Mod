@@ -185,11 +185,20 @@ def evaluate_enclosure(plan: Dict[str, Any], prompt: Optional[str] = None) -> Li
     types = [str(c.get("component_type") or "").upper() for c in comps]
 
     enclosure = sum(1 for t in types if t in _ENCLOSURE_TYPES or t.startswith("MASS_") or t.startswith("TOWER"))
+    typology_enclosure = 0
     for c in comps:
-        if str(c.get("component_type") or "").upper() != "MODULE":
-            continue
+        ctype = str(c.get("component_type") or "").upper()
         params = c.get("params") if isinstance(c.get("params"), dict) else {}
         features = c.get("features") if isinstance(c.get("features"), list) else []
+        has_typology = bool(params.get("typology_id") or params.get("typologyId")) or any(
+            isinstance(f, str) and f.lower().startswith("typology:") for f in features
+        )
+        if ctype == "STRUCTURE" and has_typology:
+            typology_enclosure += 1
+            enclosure += 1
+            continue
+        if ctype != "MODULE":
+            continue
         if params.get("module_id") or params.get("moduleId"):
             enclosure += 1
             continue
@@ -224,9 +233,20 @@ def evaluate_enclosure(plan: Dict[str, Any], prompt: Optional[str] = None) -> Li
 
     if is_castle:
         has_tower_or_wall = any(t.startswith("TOWER") or t == "WALL" for t in types)
+        # Typology-first radial_fortress STRUCTURE embeds walls+towers in one component.
+        has_fortress_typology = typology_enclosure >= 1 and any(
+            (isinstance(c.get("params"), dict) and str(c["params"].get("typology_id") or c["params"].get("typologyId") or "").lower() in (
+                "radial_fortress", "castle_compound"
+            ))
+            or any(
+                isinstance(f, str) and f.lower() in ("typology:radial_fortress", "typology:castle_compound")
+                for f in (c.get("features") if isinstance(c.get("features"), list) else [])
+            )
+            for c in comps
+        )
         checks.append((
             "castle_has_defensive_shell",
-            has_tower_or_wall and enclosure >= 2,
+            (has_tower_or_wall and enclosure >= 2) or has_fortress_typology,
             f"tower/wall + mass expected; types={types}",
         ))
 

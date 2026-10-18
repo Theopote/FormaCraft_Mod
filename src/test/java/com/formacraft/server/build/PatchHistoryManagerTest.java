@@ -65,6 +65,7 @@ class PatchHistoryManagerTest {
 
         PatchHistoryManager.clear(playerA);
         assertEquals(0, PatchHistoryManager.undoSize(playerA));
+        assertFalse(PlayerMutationLedger.get().canUndo(playerA));
         assertEquals(1, PatchHistoryManager.undoSize(playerB));
         assertEquals(bTx, PatchHistoryManager.peekUndoTransactionId(playerB));
         assertTrue(PlayerMutationLedger.get().canUndo(playerB));

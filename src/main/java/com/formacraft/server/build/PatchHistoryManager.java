@@ -79,6 +79,7 @@ public final class PatchHistoryManager {
         PER_PLAYER.remove(playerId);
         LAST_APPLY_RESULT.remove(playerId);
         LAST_TX_RESULT.remove(playerId);
+        PlayerMutationLedger.get().clear(playerId);
     }
 
     public static void clearAll() {
