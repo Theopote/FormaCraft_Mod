@@ -38,8 +38,13 @@ class PalacePreviewPlanTest {
         assertFalse(result.terrainContentHash().isBlank());
 
         PalacePreviewPlan plan = TieredMountainPalaceBuilder.createPreviewPlan(result, ORIGIN, null, spec);
-        assertEquals(result.buildContextHash(), plan.planId());
         assertEquals(result.buildContextHash(), plan.context().contextHash());
+        assertNotEquals(plan.contextHash(), plan.planId(),
+                "planId must bind more than context alone");
+        assertFalse(plan.patchHash().isBlank());
+        assertEquals(com.formacraft.common.patch.ConfirmedPlanIdentity.planId(
+                PalacePreviewPlan.GENERATOR_VERSION, plan.contextHash(), plan.patchHash()),
+                plan.planId());
         assertFalse(plan.patches().isEmpty());
         assertFalse(plan.executable()); // schematic
         assertEquals(PalacePreviewPlan.ApplyRejectReason.NOT_EXECUTABLE,

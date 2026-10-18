@@ -1,18 +1,25 @@
 package com.formacraft.server.generation.typology.interpreter;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
+import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.typology.TypologyGenerationException;
 import com.formacraft.common.typology.TypologyParamResolver;
-import com.formacraft.common.typology.TypologyPatchBridge;
+import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
+import com.formacraft.server.preview.ConfirmedPlanRegistry;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Native typology interpreter for {@code tiered_mountain_palace}. */
+/**
+ * Native typology interpreter for {@code tiered_mountain_palace}.
+ * Produces an immutable {@link PalacePreviewPlan} and registers it so Apply
+ * uses frozen patches via {@link com.formacraft.server.patch.PatchPreviewService}.
+ */
 public final class TieredMountainPalaceInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
 
     @Override
@@ -25,7 +32,7 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
         if (semantic == null || world == null || semantic.source() == null) {
             return List.of();
         }
-        BlockPos origin = TypologyPatchBridge.worldBuildOrigin(semantic);
+        BlockPos origin = com.formacraft.common.typology.TypologyPatchBridge.worldBuildOrigin(semantic);
         if (origin == null) {
             return List.of();
         }
@@ -35,8 +42,10 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
         if ("schematic_flat".equalsIgnoreCase(String.valueOf(params.getOrDefault("terrainMode", "")))) {
             params.remove("terrainMode");
         }
+        BuildingSpec spec = new BuildingSpec();
+        spec.setExtra(new HashMap<>(params));
         TieredMountainPalaceBuilder.PalaceGenerateResult result =
-                TieredMountainPalaceBuilder.generateDetailed(params, origin, world, null);
+                TieredMountainPalaceBuilder.generateDetailed(params, origin, world, spec);
         List<String> diags = result.diagnostics().stream()
                 .map(TieredMountainPalaceBuilder.BuildDiagnostic::toString)
                 .toList();
@@ -56,6 +65,8 @@ public final class TieredMountainPalaceInterpreter implements com.formacraft.com
                     diags
             );
         }
-        return TypologyPatchBridge.toBlockPatches(result.structure(), origin);
+        PalacePreviewPlan plan = TieredMountainPalaceBuilder.createPreviewPlan(result, origin, world, spec);
+        ConfirmedPlanRegistry.putPending(plan);
+        return plan.patches();
     }
 }

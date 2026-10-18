@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 
 /**
  * Full build-plan identity: world/dimension, origin, facing, normalized params,
@@ -105,30 +104,12 @@ public final class PalaceBuildContextFingerprint {
         }
     }
 
-    /** Canonical param hash: TreeMap of stringified values, skipping volatile/preview-only keys. */
+    /**
+     * Canonical param hash with recursive Map/List normalization
+     * (see {@link com.formacraft.common.patch.ConfirmedPlanIdentity#canonicalizeValue}).
+     */
     public static String hashCanonicalParams(Map<String, Object> params) {
-        TreeMap<String, String> canon = new TreeMap<>();
-        if (params != null) {
-            for (var e : params.entrySet()) {
-                if (e.getKey() == null || e.getValue() == null) continue;
-                String k = e.getKey().trim();
-                if (k.isEmpty()) continue;
-                String kl = k.toLowerCase(Locale.ROOT);
-                if (kl.equals("terrainfingerprint")
-                        || kl.equals("buildcontexthash")
-                        || kl.equals("forcefailcirculation")
-                        || kl.equals("schematicflatterrain")
-                        || kl.equals("terrainmode")) {
-                    continue;
-                }
-                canon.put(kl, String.valueOf(e.getValue()).trim().toLowerCase(Locale.ROOT));
-            }
-        }
-        StringBuilder sb = new StringBuilder();
-        for (var e : canon.entrySet()) {
-            sb.append(e.getKey()).append('=').append(e.getValue()).append(';');
-        }
-        return hashUtf8(sb.toString());
+        return com.formacraft.common.patch.ConfirmedPlanIdentity.hashCanonicalParams(params);
     }
 
     public static Map<String, Object> normalizeExtras(Map<String, Object> extras) {

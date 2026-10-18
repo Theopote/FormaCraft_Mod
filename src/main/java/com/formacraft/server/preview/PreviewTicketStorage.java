@@ -1,6 +1,7 @@
 package com.formacraft.server.preview;
 
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.server.build.quality.BuildQualityGate;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -21,11 +22,11 @@ public final class PreviewTicketStorage {
     private static final Map<UUID, PreviewTicket> TICKETS = new ConcurrentHashMap<>();
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches) {
-        return create(playerId, null, origin, patches, null, DEFAULT_TTL_MS);
+        return create(playerId, null, origin, patches, null, DEFAULT_TTL_MS, null, "", Map.of());
     }
 
     public static PreviewTicket create(UUID playerId, Identifier dimension, BlockPos origin, List<BlockPatch> patches) {
-        return create(playerId, dimension, origin, patches, null, DEFAULT_TTL_MS);
+        return create(playerId, dimension, origin, patches, null, DEFAULT_TTL_MS, null, "", Map.of());
     }
 
     public static PreviewTicket create(
@@ -35,11 +36,11 @@ public final class PreviewTicketStorage {
             List<BlockPatch> patches,
             BuildQualityGate.QualitySnapshot quality
     ) {
-        return create(playerId, dimension, origin, patches, quality, DEFAULT_TTL_MS);
+        return create(playerId, dimension, origin, patches, quality, DEFAULT_TTL_MS, null, "", Map.of());
     }
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches, long ttlMs) {
-        return create(playerId, null, origin, patches, null, ttlMs);
+        return create(playerId, null, origin, patches, null, ttlMs, null, "", Map.of());
     }
 
     public static PreviewTicket create(
@@ -50,15 +51,43 @@ public final class PreviewTicketStorage {
             BuildQualityGate.QualitySnapshot quality,
             long ttlMs
     ) {
+        return create(playerId, dimension, origin, patches, quality, ttlMs, null, "", Map.of());
+    }
+
+    /**
+     * Full create with plan identity + expected world states for Apply conflict checks.
+     *
+     * @param explicitPlanId when non-null/blank, used as ticket planId (typology confirmed plan)
+     * @param contextHash optional build-context hash (empty for generic patch previews)
+     * @param expectedStates preview-time cell states (world absolute positions → state string)
+     */
+    public static PreviewTicket create(
+            UUID playerId,
+            Identifier dimension,
+            BlockPos origin,
+            List<BlockPatch> patches,
+            BuildQualityGate.QualitySnapshot quality,
+            long ttlMs,
+            String explicitPlanId,
+            String contextHash,
+            Map<BlockPos, String> expectedStates
+    ) {
         if (playerId == null || origin == null || patches == null || patches.isEmpty()) {
             return null;
         }
         purgeExpired();
         long now = System.currentTimeMillis();
         UUID id = UUID.randomUUID();
+        String patchHash = ConfirmedPlanIdentity.patchHash(patches);
+        String ctx = contextHash == null ? "" : contextHash;
+        String planId = (explicitPlanId != null && !explicitPlanId.isBlank())
+                ? explicitPlanId
+                : ConfirmedPlanIdentity.planId(ctx, patches);
         PreviewTicket ticket = new PreviewTicket(
                 id, playerId, dimension, origin, List.copyOf(patches),
-                now + Math.max(1_000L, ttlMs), quality);
+                now + Math.max(1_000L, ttlMs), quality,
+                planId, patchHash, ctx,
+                expectedStates == null ? Map.of() : expectedStates);
         TICKETS.put(id, ticket);
         return ticket;
     }
@@ -111,5 +140,6 @@ public final class PreviewTicketStorage {
     public static void clearPlayer(UUID playerId) {
         if (playerId == null) return;
         TICKETS.entrySet().removeIf(e -> e.getValue() != null && playerId.equals(e.getValue().playerId()));
+        ConfirmedPlanRegistry.clearPlayer(playerId);
     }
 }

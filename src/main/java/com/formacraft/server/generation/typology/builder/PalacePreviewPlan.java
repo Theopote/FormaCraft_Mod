@@ -1,6 +1,7 @@
 package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.common.patch.WorldPatchTransaction;
 import com.formacraft.common.typology.TypologyGenerationException;
 import com.formacraft.common.world.BlockMutationAccess;
@@ -18,8 +19,14 @@ import java.util.UUID;
 /**
  * Immutable confirmed preview: patches + build-context identity + diagnostics.
  * Apply must validate context then execute these patches — never silently regenerate.
+ * <p>
+ * {@link #planId()} binds contextHash + patchHash + generator version
+ * (see {@link ConfirmedPlanIdentity}).
  */
 public final class PalacePreviewPlan {
+
+    public static final String GENERATOR_VERSION =
+            ConfirmedPlanIdentity.GENERATOR_VERSION + "/tiered_mountain_palace";
 
     public enum ApplyRejectReason {
         OK,
@@ -27,7 +34,9 @@ public final class PalacePreviewPlan {
         CONTEXT_MISMATCH,
         TERRAIN_STALE,
         EMPTY_PATCHES,
-        WORLD_MISSING
+        WORLD_MISSING,
+        PLAN_IDENTITY_MISMATCH,
+        WORLD_CONFLICT
     }
 
     public record ApplyValidation(ApplyRejectReason reason, String detail) {
@@ -40,6 +49,7 @@ public final class PalacePreviewPlan {
     private final List<BlockPatch> patches;
     private final PalaceBuildContextFingerprint context;
     private final List<TieredMountainPalaceBuilder.BuildDiagnostic> diagnostics;
+    private final String patchHash;
     private final String planId;
 
     public PalacePreviewPlan(
@@ -52,14 +62,18 @@ public final class PalacePreviewPlan {
         this.patches = patches == null ? List.of() : List.copyOf(patches);
         this.context = Objects.requireNonNull(context, "context");
         this.diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
-        this.planId = context.contextHash();
+        this.patchHash = ConfirmedPlanIdentity.patchHash(this.patches);
+        this.planId = ConfirmedPlanIdentity.planId(
+                GENERATOR_VERSION, context.contextHash(), this.patchHash);
     }
 
     public TieredMountainPalaceBuilder.GenerateStatus status() { return status; }
     public List<BlockPatch> patches() { return patches; }
     public PalaceBuildContextFingerprint context() { return context; }
     public List<TieredMountainPalaceBuilder.BuildDiagnostic> diagnostics() { return diagnostics; }
+    public String patchHash() { return patchHash; }
     public String planId() { return planId; }
+    public String contextHash() { return context.contextHash(); }
 
     public boolean executable() {
         return status == TieredMountainPalaceBuilder.GenerateStatus.SUCCESS && !patches.isEmpty();
@@ -89,6 +103,11 @@ public final class PalacePreviewPlan {
         }
         if (patches.isEmpty()) {
             return new ApplyValidation(ApplyRejectReason.EMPTY_PATCHES, "no_patches");
+        }
+        String livePatchHash = ConfirmedPlanIdentity.patchHash(patches);
+        if (!livePatchHash.equals(patchHash)) {
+            return new ApplyValidation(ApplyRejectReason.PLAN_IDENTITY_MISMATCH,
+                    "patchHash drifted");
         }
         Direction face = facing == null ? Direction.SOUTH : facing;
         if (!origin.equals(context.origin()) || face != context.facing()) {

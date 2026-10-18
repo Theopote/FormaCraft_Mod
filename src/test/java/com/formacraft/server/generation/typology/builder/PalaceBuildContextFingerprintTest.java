@@ -56,6 +56,25 @@ class PalaceBuildContextFingerprintTest {
     }
 
     @Test
+    void nestedMaterialsMapOrderDoesNotAffectHash() {
+        LinkedHashMap<String, Object> matA = new LinkedHashMap<>();
+        matA.put("wall", "white_terracotta");
+        matA.put("roof", "gold_block");
+        LinkedHashMap<String, Object> matB = new LinkedHashMap<>();
+        matB.put("roof", "gold_block");
+        matB.put("wall", "white_terracotta");
+        LinkedHashMap<String, Object> a = new LinkedHashMap<>();
+        a.put("materials", matA);
+        a.put("tiers", 3);
+        LinkedHashMap<String, Object> b = new LinkedHashMap<>();
+        b.put("tiers", 3);
+        b.put("materials", matB);
+        assertEquals(
+                PalaceBuildContextFingerprint.hashCanonicalParams(a),
+                PalaceBuildContextFingerprint.hashCanonicalParams(b));
+    }
+
+    @Test
     void paramChangeAltersContext() {
         String terrain = "abcd1234abcd1234";
         BlockPos origin = new BlockPos(0, 64, 0);

@@ -5,16 +5,22 @@ import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.BuildExecutionStatus;
+import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.common.patch.filter.PatchFilterResult;
+import com.formacraft.common.world.BlockMutationAccess;
 import com.formacraft.server.build.PatchHistoryManager;
 import com.formacraft.server.build.quality.BuildQualityGate;
 import com.formacraft.server.build.quality.BuildQualityReport;
 import com.formacraft.server.build.quality.BuildQualitySeverity;
 import com.formacraft.server.build.quality.PatchQualityChecker;
+import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import com.formacraft.server.network.FormaCraftServerNetworking;
+import com.formacraft.server.preview.ConfirmedPlanRegistry;
 import com.formacraft.server.preview.PreviewStorage;
 import com.formacraft.server.preview.PreviewTicket;
 import com.formacraft.server.preview.PreviewTicketStorage;
+import com.formacraft.server.preview.PreviewWorldStateCapture;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -22,18 +28,21 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * 签发 Patch 预览票据并在确认时应用（服务端权威）。
  * <p>
- * 契约：预览时过滤 → Ticket 仅存 accepted + 质量摘要 → 确认前校验玩家/维度/距离/质量门禁
- * → CAS 一次性消费 → 写入。
+ * 契约：预览时过滤 → Ticket 存 accepted + planId/patchHash + 预览时原状态
+ * → 确认前校验玩家/维度/距离/质量门禁/计划完整性/世界冲突
+ * → CAS 一次性消费 → 使用冻结 Patch 写入（绝不重新生成）。
  */
 public final class PatchPreviewService {
     private PatchPreviewService() {}
 
     private static final double MAX_APPLY_DISTANCE = 96.0;
+    private static final long PLAN_TTL_MS = 5L * 60L * 1000L;
 
     public static PreviewTicket issuePreview(
             ServerPlayerEntity player,
@@ -46,7 +55,7 @@ public final class PatchPreviewService {
             BlockPos selectionMax
     ) {
         return issuePreview(player, origin, rawPatches, protectedZones, outline,
-                restrictToSelection, selectionMin, selectionMax, true);
+                restrictToSelection, selectionMin, selectionMax, true, null);
     }
 
     public static PreviewTicket issuePreview(
@@ -60,7 +69,50 @@ public final class PatchPreviewService {
             BlockPos selectionMax,
             boolean deliverToClient
     ) {
-        if (player == null || origin == null || rawPatches == null || rawPatches.isEmpty()) {
+        return issuePreview(player, origin, rawPatches, protectedZones, outline,
+                restrictToSelection, selectionMin, selectionMax, deliverToClient, null);
+    }
+
+    /**
+     * Issue preview; when {@code confirmedPlan} is set, its frozen patches + planId are authoritative.
+     */
+    public static PreviewTicket issuePreview(
+            ServerPlayerEntity player,
+            BlockPos origin,
+            List<BlockPatch> rawPatches,
+            List<ProtectedZone> protectedZones,
+            OutlineShape outline,
+            boolean restrictToSelection,
+            BlockPos selectionMin,
+            BlockPos selectionMax,
+            boolean deliverToClient,
+            PalacePreviewPlan confirmedPlan
+    ) {
+        if (player == null || origin == null) {
+            return null;
+        }
+        List<BlockPatch> sourcePatches = rawPatches;
+        String ctx = "";
+        String explicitPlanId = null;
+        // Typology interpret registers a pending plan by patchHash; bind it here.
+        if (confirmedPlan == null && rawPatches != null && !rawPatches.isEmpty()) {
+            confirmedPlan = ConfirmedPlanRegistry.takePendingByPatchHash(
+                    ConfirmedPlanIdentity.patchHash(rawPatches));
+        }
+        if (confirmedPlan != null) {
+            if (!confirmedPlan.executable()) {
+                if (deliverToClient) {
+                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                            "预览计划不可执行（示意预览或生成失败），请重新预览。"
+                    ));
+                }
+                return null;
+            }
+            sourcePatches = confirmedPlan.patches();
+            ctx = confirmedPlan.contextHash();
+            explicitPlanId = confirmedPlan.planId();
+        }
+        if (sourcePatches == null || sourcePatches.isEmpty()) {
             return null;
         }
         if (!isPlayerNear(player, origin)) {
@@ -70,7 +122,7 @@ public final class PatchPreviewService {
             return null;
         }
 
-        BuildQualityReport quality = PatchQualityChecker.check(sw, origin, rawPatches);
+        BuildQualityReport quality = PatchQualityChecker.check(sw, origin, sourcePatches);
         quality.logIssues("patch-preview");
 
         if (!quality.allowPreview()) {
@@ -82,7 +134,7 @@ public final class PatchPreviewService {
         }
 
         PatchFilterResult filtered = ServerPatchFilter.filter(
-                origin, rawPatches, protectedZones, outline,
+                origin, sourcePatches, protectedZones, outline,
                 restrictToSelection, selectionMin, selectionMax);
 
         if (filtered.rejected != null && !filtered.rejected.isEmpty()) {
@@ -101,12 +153,35 @@ public final class PatchPreviewService {
             return null;
         }
 
+        if (confirmedPlan != null) {
+            String acceptedHash = ConfirmedPlanIdentity.patchHash(filtered.accepted);
+            if (!acceptedHash.equals(confirmedPlan.patchHash())) {
+                quality.add(BuildQualitySeverity.FATAL, "PLAN_PATCH_FILTERED",
+                        "确认计划的方块列表被约束过滤改变，拒绝签发预览");
+                if (deliverToClient) {
+                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                            "预览计划与过滤结果不一致，请缩小约束范围后重试。"
+                    ));
+                }
+                PreviewStorage.storeQualityReport(player, quality);
+                return null;
+            }
+        }
+
         Identifier dimension = sw.getRegistryKey().getValue();
         BuildQualityGate.QualitySnapshot qualitySnap = BuildQualityGate.QualitySnapshot.from(quality);
+        Map<BlockPos, String> expected = PreviewWorldStateCapture.capture(sw, origin, filtered.accepted);
         PreviewTicket ticket = PreviewTicketStorage.create(
-                player.getUuid(), dimension, origin, filtered.accepted, qualitySnap);
+                player.getUuid(), dimension, origin, filtered.accepted, qualitySnap,
+                PLAN_TTL_MS, explicitPlanId, ctx, expected);
         if (ticket == null) {
             return null;
+        }
+
+        if (confirmedPlan != null) {
+            ConfirmedPlanRegistry.put(player.getUuid(), confirmedPlan, PLAN_TTL_MS);
+            quality.add(BuildQualitySeverity.INFO, "CONFIRMED_PLAN",
+                    "planId=" + confirmedPlan.planId());
         }
 
         PreviewStorage.storeQualityReport(player, quality);
@@ -158,7 +233,36 @@ public final class PatchPreviewService {
             return false;
         }
 
-        // Ticket 级质量门禁（与 BUILD /forma_confirm 共用策略）
+        if (!pending.patchIntegrityOk()) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "预览计划方块列表完整性校验失败，请重新预览。"
+            ));
+            return false;
+        }
+
+        PalacePreviewPlan bound = ConfirmedPlanRegistry.get(pending.planId(), player.getUuid());
+        if (bound != null && !bound.patchHash().equals(pending.patchHash())) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "确认计划与预览票据的方块列表不一致，请重新预览。"
+            ));
+            return false;
+        }
+        if (bound != null && !bound.contextHash().equals(pending.contextHash())) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "建造上下文已变化（参数/原点/材质），请重新预览后再确认。"
+            ));
+            return false;
+        }
+
+        BlockMutationAccess access = BlockMutationAccess.forWorld(sw);
+        String conflict = PreviewWorldStateCapture.conflictDetail(access, pending.expectedStates());
+        if (conflict != null) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "建造区域已被修改，预览已过期，请重新预览。(" + conflict + ")"
+            ));
+            return false;
+        }
+
         BuildQualityGate.Decision decision = BuildQualityGate.decide(pending.quality(), force);
         if (decision == BuildQualityGate.Decision.DENY_FATAL) {
             String msg = pending.quality() != null ? pending.quality().summaryZh() : "质量检查失败";
@@ -187,13 +291,29 @@ public final class PatchPreviewService {
             return false;
         }
 
+        // TOCTOU: re-check after CAS consume, before writes.
+        conflict = PreviewWorldStateCapture.conflictDetail(access, ticket.expectedStates());
+        if (conflict != null) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "建造区域在确认瞬间被修改，已拒绝写入。请重新预览。"
+            ));
+            return false;
+        }
+
         List<BlockPatch> patches = ticket.patches();
         if (patches == null || patches.isEmpty()) return false;
+
+        if (bound != null) {
+            ConfirmedPlanRegistry.remove(bound.planId(), player.getUuid());
+        }
 
         var applyResult = PatchHistoryManager.applyWithHistory(
                 sw, player.getUuid(), ticket.origin(), patches);
         if (applyResult != null) {
             FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
+            if (applyResult.status() != BuildExecutionStatus.SUCCESS) {
+                return false;
+            }
         }
         PreviewStorage.clearQualityReport(player);
         return true;
@@ -203,5 +323,12 @@ public final class PatchPreviewService {
         if (player == null || origin == null) return false;
         double d2 = player.squaredDistanceTo(origin.getX() + 0.5, origin.getY() + 0.5, origin.getZ() + 0.5);
         return d2 <= MAX_APPLY_DISTANCE * MAX_APPLY_DISTANCE;
+    }
+
+    /** Test helper: verify ticket integrity + expected states. */
+    public static String verifyExpectedStates(BlockMutationAccess access, PreviewTicket ticket) {
+        if (ticket == null) return "ticket_null";
+        if (!ticket.patchIntegrityOk()) return "patch_integrity";
+        return PreviewWorldStateCapture.conflictDetail(access, ticket.expectedStates());
     }
 }
