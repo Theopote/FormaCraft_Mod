@@ -21,7 +21,7 @@ public final class RoofTypeCatalog {
             "hip", "hipped", "chinese_hip",
             "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山",
             "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山",
-            "pyramid",
+            "pyramid", "pyramidal",
             "cone", "conical",
             "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome",
             "mansard", "mansard_roof", "baroque_roof",
@@ -162,7 +162,7 @@ public final class RoofTypeCatalog {
             case "hip", "hipped", "chinese_hip" -> RoofTypeKind.HIP;
             case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山" -> RoofTypeKind.XIESHAN;
             case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofTypeKind.XUANSHAN;
-            case "pyramid" -> RoofTypeKind.PYRAMID;
+            case "pyramid", "pyramidal" -> RoofTypeKind.PYRAMID;
             case "cone", "conical" -> RoofTypeKind.CONE;
             case "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome" -> RoofTypeKind.DOME;
             case "mansard", "mansard_roof", "baroque_roof" -> RoofTypeKind.MANSARD;

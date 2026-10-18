@@ -19,6 +19,7 @@ class PlateRoleCatalogTest {
 
     @Test
     void knownAliasesMap() {
+        assertEquals(HostedPlateOccupancy.PlateRole.WATER,PlateRoleCatalog.parseSupported("water_channel").orElseThrow());
         assertEquals(HostedPlateOccupancy.PlateRole.TERRACE,
                 PlateRoleCatalog.parseSupported("landing").orElseThrow());
         assertEquals(HostedPlateOccupancy.PlateRole.TERRACE,

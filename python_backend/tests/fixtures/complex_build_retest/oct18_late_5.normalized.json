@@ -1,0 +1,1113 @@
+{
+  "mode": "build",
+  "style_profile": "Industrial_Railway_Maintenance",
+  "style_attributes": {
+    "wall_color": "red_brick_and_gray_concrete",
+    "roof_color": "dark_gray",
+    "accent_color": "dark_metal",
+    "wall_material": null,
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:smooth_stone",
+    "decorative_elements": [
+      "sawtooth_skylight",
+      "steel_pilasters",
+      "metal_railings",
+      "industrial_roller_doors",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "continuous_sawtooth_skylight_roof",
+    "two_5x6_vehicle_entrances_on_short_side",
+    "two_storey_dispatch_building",
+    "second_floor_corridor_bridge",
+    "partial_maintenance_platform_inside_workshop",
+    "outdoor_stair_with_railing_gaps",
+    "red_brick_gray_concrete_dark_metal_glass_palette",
+    "ornament"
+  ],
+  "anchor": {
+    "x": 360,
+    "y": 147,
+    "z": -321
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "industrial_railway_maintenance_facility",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "none",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "steel_frame_brick_infill",
+      "massiveness": 0.65,
+      "voidRatio": 0.3,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "repeated_sawtooth",
+      "progression": "stepped",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "sawtooth_roof",
+      "roller_doors",
+      "bridge",
+      "platform",
+      "stair",
+      "railings"
+    ],
+    "materials": {
+      "primary": "brick",
+      "secondary": "concrete",
+      "accent": "metal_and_glass",
+      "textureBias": "industrial",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "industrial",
+      "keywords": [
+        "railway",
+        "maintenance",
+        "workshop",
+        "dispatch",
+        "steel"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 24,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "clear_span_workshop",
+        "sawtooth_skylight",
+        "link_buildings",
+        "railing_gaps"
+      ],
+      "avoid": [
+        "stadium_bowl",
+        "radial_ring",
+        "elliptical",
+        "intermediate_full_span_floor"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "slot_workshop",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "weight": 0.6
+      },
+      {
+        "slot_id": "slot_dispatch",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 19
+        },
+        "facing": "EAST",
+        "weight": 0.4
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": -13,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 17,
+        "height": 9
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "wall_block": "minecraft:bricks",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_count": 1,
+        "interior_clear_height": 9,
+        "no_full_span_floor": true,
+        "roof_type": "sawtooth",
+        "window_style": "industrial_ribbon",
+        "entrance_type": "industrial_roller",
+        "void_ratio": 0.35,
+        "facade_profile": "industrial_pilaster",
+        "wall_pattern": "striped",
+        "hollow": true,
+        "material_tone": "red_brick_concrete_metal_glass",
+        "window_ratio": 0.35,
+        "floor_height": 3,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "workshop_mass"
+      },
+      "features": [
+        "ornament"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -13,
+        "y": 9,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 17,
+        "height": 3
+      },
+      "slot_id": "slot_workshop",
+      "features": [
+        "sawtooth_skylight_roof",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "workshop_roof",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "roof_type": "sawtooth",
+        "roof_material": "minecraft:deepslate_tiles",
+        "roof_color": "dark_gray",
+        "overhang": 1,
+        "sawtooth_count": 7,
+        "skylight_block": "minecraft:glass",
+        "skylight_ratio": 0.45,
+        "slope": 0.35,
+        "roof_height": 3,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "workshop_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -13,
+        "y": 3,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 1,
+        "height": 4
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_facade_north",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "window_style": "glass_band",
+        "facade_profile": "industrial_ribbon",
+        "rows": 1,
+        "spacing": 3,
+        "window_block": "minecraft:glass",
+        "frame_block": "minecraft:gray_concrete",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -13,
+        "y": 3,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 17,
+        "height": 4
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_facade_west",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "window_style": "glass_band",
+        "facade_profile": "industrial_ribbon",
+        "rows": 1,
+        "spacing": 3,
+        "window_block": "minecraft:glass",
+        "frame_block": "minecraft:gray_concrete",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 13,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 5,
+        "height": 6
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_vehicle_entrance_1",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "entrance_type": "industrial_roller",
+        "decorative": true,
+        "width_blocks": 5,
+        "height_blocks": 6,
+        "door_material": "minecraft:iron_block",
+        "frame_material": "minecraft:gray_concrete",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 13,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 5,
+        "height": 6
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_vehicle_entrance_2",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "entrance_type": "industrial_roller",
+        "decorative": true,
+        "width_blocks": 5,
+        "height_blocks": 6,
+        "door_material": "minecraft:iron_block",
+        "frame_material": "minecraft:gray_concrete",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -8,
+        "y": 5,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_stair_access_opening",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "entrance_type": "service_opening",
+        "level": 2,
+        "decorative": false,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -1,
+        "y": 5,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_corridor_opening",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "entrance_type": "corridor_opening",
+        "level": 2,
+        "decorative": false,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -13,
+        "y": 8,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 17,
+        "height": 1
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "workshop_cornice",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "decor_type": "cornice",
+        "material": "minecraft:gray_concrete",
+        "thickness": 1,
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": -5,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 10
+      },
+      "slot_id": "slot_dispatch",
+      "params": {
+        "component_id": "dispatch_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 5,
+        "wall_block": "minecraft:gray_concrete",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "flat",
+        "window_style": "glass_band",
+        "entrance_type": "double_door",
+        "void_ratio": 0.25,
+        "facade_profile": "industrial_banded",
+        "wall_pattern": "striped",
+        "requirement_scope": "named_dispatch",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "dispatch_mass"
+      },
+      "features": [
+        "ornament"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -5,
+        "y": 10,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 1
+      },
+      "slot_id": "slot_dispatch",
+      "params": {
+        "component_id": "dispatch_roof",
+        "host_id": "dispatch_mass",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "roof_material": "minecraft:deepslate_tiles",
+        "overhang": 1,
+        "roof_height": 2,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "dispatch_mass"
+      },
+      "features": [
+        "ornament"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -5,
+        "y": 2,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 9,
+        "height": 6
+      },
+      "slot_id": "slot_dispatch",
+      "params": {
+        "component_id": "dispatch_facade_west",
+        "host_id": "dispatch_mass",
+        "anchor_mode": "min_corner",
+        "window_style": "glass_band",
+        "facade_profile": "industrial_banded",
+        "rows": 2,
+        "spacing": 2,
+        "window_block": "minecraft:glass",
+        "frame_block": "minecraft:deepslate_tiles",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "dispatch_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "slot_id": "slot_dispatch",
+      "params": {
+        "component_id": "dispatch_entrance",
+        "host_id": "dispatch_mass",
+        "anchor_mode": "min_corner",
+        "entrance_type": "double_door",
+        "decorative": false,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "dispatch_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": -8,
+        "y": 5,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 5,
+        "height": 1
+      },
+      "slot_id": "slot_workshop",
+      "features": [
+        "partial_maintenance_platform",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "platform_plate",
+        "host_id": "workshop_mass",
+        "extrude_mode": "plate",
+        "plate_role": "platform",
+        "anchor_mode": "min_corner",
+        "floor_block": "minecraft:polished_deepslate",
+        "connection_level": 5,
+        "partial_platform": true,
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.3,
+        "floor_height": 3,
+        "facade_profile": "mullion_grid",
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "workshop_mass"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": -1,
+        "y": 5,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 8,
+        "height": 1
+      },
+      "slot_id": "slot_dispatch",
+      "features": [
+        "second_floor_corridor_bridge",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "bridge_plate",
+        "host_id": "dispatch_mass",
+        "target_host_id": "workshop_mass",
+        "extrude_mode": "plate",
+        "plate_role": "bridge",
+        "anchor_mode": "min_corner",
+        "floor_block": "minecraft:polished_deepslate",
+        "bridge_width": 3,
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.3,
+        "floor_height": 3,
+        "facade_profile": "mullion_grid",
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "dispatch_mass",
+        "legacy_connection_height": 5
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -1,
+        "y": 6,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 8,
+        "height": 1
+      },
+      "slot_id": "slot_dispatch",
+      "params": {
+        "component_id": "bridge_railing",
+        "host_id": "bridge_plate",
+        "anchor_mode": "min_corner",
+        "decor_type": "railing",
+        "railing_type": "metal",
+        "side": "both",
+        "gap_at_connections": true,
+        "gap_at_bridge_ends": true,
+        "material": "minecraft:iron_bars",
+        "building_id": "dispatch_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "slot_id": "slot_workshop",
+      "features": [
+        "stair:straight_single_run",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "outdoor_stair",
+        "host_id": "workshop_mass",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 0,
+          "y": 5,
+          "z": -6
+        },
+        "width": 3,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:polished_deepslate",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "exterior": true,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "workshop_mass"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "slot_id": "slot_workshop",
+      "params": {
+        "component_id": "stair_railing",
+        "host_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "decor_type": "railing",
+        "railing_type": "metal",
+        "side": "both",
+        "gap_at_landing": true,
+        "material": "minecraft:iron_bars",
+        "attachment_host_id": "outdoor_stair",
+        "building_id": "workshop_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_workshop",
+      "relative_position": {
+        "x": -1,
+        "y": 5,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "bridge_landing"
+      ],
+      "params": {
+        "component_id": "bridge_plate#target_landing",
+        "host_id": "workshop_mass",
+        "building_id": "workshop_mass",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "interior",
+        "material": "minecraft:smooth_stone"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_dispatch",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 2,
+        "height": 8
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "dispatch_mass#access_1",
+        "host_id": "dispatch_mass",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 5,
+          "y": 5,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:smooth_stone",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "dispatch_mass"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width_element_scope",
+          "property": "width",
+          "value": null,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽5格",
+            "宽3格"
+          ],
+          "scope": "unresolved",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        },
+        {
+          "id": "req_floor_height_named_dispatch",
+          "property": "floor_height",
+          "value": 5,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高5格"
+          ],
+          "scope": "named_dispatch",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "dispatch_mass"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_dispatch",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层"
+          ],
+          "scope": "named_dispatch",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "dispatch_mass"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_workshop": [
+          "workshop_mass"
+        ],
+        "named_dispatch": [
+          "dispatch_mass",
+          "dispatch_mass"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "workshop_mass",
+          "slot_id": "slot_workshop",
+          "local_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -8
+          },
+          "plan_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -8
+          },
+          "dimensions": {
+            "width": 27,
+            "depth": 17,
+            "height": 9
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 8,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "workshop_mass",
+                "local_origin": {
+                  "x": -13,
+                  "y": 0,
+                  "z": -8
+                },
+                "dimensions": {
+                  "width": 27,
+                  "depth": 17,
+                  "height": 9
+                },
+                "roof_y_local": 8
+              }
+            ],
+            "envelope_local": {
+              "min_x": -13,
+              "min_z": -8,
+              "max_x": 14,
+              "max_z": 9,
+              "min_y": 0,
+              "max_y": 9
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 14,
+                "start": -8,
+                "end": 9
+              },
+              {
+                "direction": "NORTH",
+                "plane": -8,
+                "start": -13,
+                "end": 14
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 9,
+                "start": -13,
+                "end": 14
+              },
+              {
+                "direction": "WEST",
+                "plane": -13,
+                "start": -8,
+                "end": 9
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "dispatch_mass",
+          "slot_id": "slot_dispatch",
+          "local_origin": {
+            "x": -5,
+            "y": 0,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -5,
+            "y": 0,
+            "z": 15
+          },
+          "dimensions": {
+            "width": 11,
+            "depth": 9,
+            "height": 10
+          },
+          "floor_ys_local": [
+            0,
+            5
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "dispatch_mass",
+                "local_origin": {
+                  "x": -5,
+                  "y": 0,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 11,
+                  "depth": 9,
+                  "height": 10
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": -5,
+              "min_z": -4,
+              "max_x": 6,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -5,
+                "start": -4,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Industrial_Structure",
+          "identity_id": "Industrial_Structure",
+          "status": "canonical",
+          "profile_id": "Industrial_Structure"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座工业风格的铁路维修设施，包含单层高净空维修车间、 两层调度楼和一条高架检修走道 。维修车间约27×17格， 总高12格， 内部至少保留9格连续净空， 不设置横跨整个车间的中间楼板 ； 屋顶采用连续锯齿形采光屋顶。 车间短边设置两个宽5格、 高6格的装饰车辆入口。 调度楼约11×9格，每层高5格， 放在车间侧面， 与车间间隔6格。 调度楼二层地面高度为5格， 在同一高度通过宽3格的连廊连接到车间侧面的局部检修平台。 平台只占车间内部一小部分， 不要扩展为完整楼层。 设置通往检修平台的室外楼梯， 栏杆在连廊和楼梯接入口处留缺口。主要使用红砖、 灰色混凝土、 深色金属质感方块和玻璃。",
+          "purposes": [],
+          "styles": [
+            {
+              "id": "Industrial_Structure",
+              "phrase": "工业风格",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座工业风格的铁路维修设施，包含单层高净空维修车间、\n两层调度楼和一条高架检修走道\n。维修车间约27×17格，\n总高12格，\n内部至少保留9格连续净空，\n不设置横跨整个车间的中间楼板\n；\n屋顶采用连续锯齿形采光屋顶。\n车间短边设置两个宽5格、\n高6格的装饰车辆入口。\n调度楼约11×9格，每层高5格，\n放在车间侧面，\n与车间间隔6格。\n调度楼二层地面高度为5格，\n在同一高度通过宽3格的连廊连接到车间侧面的局部检修平台。\n平台只占车间内部一小部分，\n不要扩展为完整楼层。\n设置通往检修平台的室外楼梯，\n栏杆在连廊和楼梯接入口处留缺口。主要使用红砖、\n灰色混凝土、\n深色金属质感方块和玻璃。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "workshop_mass",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Industrial_Railway_Maintenance",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "dispatch_mass",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Industrial_Railway_Maintenance",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    },
+    "connection_repairs": [
+      {
+        "component_id": "bridge_plate",
+        "reason": "connection_height_in_blocks"
+      },
+      {
+        "component_id": "bridge_plate#target_landing",
+        "reason": "bridge_target_landing"
+      }
+    ]
+  },
+  "player_fidelity_notice_zh": "组合式生成「车间约27×17格」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

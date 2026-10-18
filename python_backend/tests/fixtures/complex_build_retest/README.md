@@ -115,3 +115,12 @@ wall axis when facing is omitted, explicit facades can replace only their own
 host's intrinsic glass, and tall hall windows retain their requested dimensions
 when no storey count or raised floor is authored. Dedicated tests keep explicit
 multi-storey floor counts and independently authored window ownership protected.
+
+`oct18_late_1` through `oct18_late_6` capture the 19:45–19:56 run
+(four failures and two successful builds), bringing the replay set to 77.
+They cover water-channel/path plate aliases, pyramidal roof naming, a standalone
+footbridge proven by its full crossing of an authored water channel, full-width
+ground terraces whose host relation was omitted, and interior stair supports
+joining the top of a shared site foundation. Foreign hosted foundations and
+cells above the building base remain protected. The earlier 19:42 provider
+request returned billing error 402 and has no build plan to replay.

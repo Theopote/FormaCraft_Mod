@@ -322,6 +322,21 @@ def _fit_exterior_stairs(plan: dict) -> None:
         p = comp.get('params') or {}
         if comp.get('component_type') in ('BALCONY', 'TERRACE'):
             p.setdefault('anchor_mode', 'min_corner')
+            if not p.get('host_id') and comp.get('dimensions',{}).get('height') == 1:
+                po=world(comp); pd=comp['dimensions']; candidates=[]
+                for body in bodies:
+                    bp=body.get('params') or {}
+                    if body.get('component_type') not in ('MASS_MAIN','TOWER','MASS_WING','SIDE_WING'): continue
+                    bo=world(body); bd=body['dimensions']
+                    if po['y'] != bo['y']: continue
+                    if ((abs(po['z']-(bo['z']+bd['depth'])) <= 1 or abs(po['z']+pd['depth']-bo['z']) <= 1)
+                            and po['x'] == bo['x'] and pd['width'] == bd['width']) or (
+                            (abs(po['x']-(bo['x']+bd['width'])) <= 1 or abs(po['x']+pd['width']-bo['x']) <= 1)
+                            and po['z'] == bo['z'] and pd['depth'] == bd['depth']):
+                        candidates.append(bp.get('component_id'))
+                if len(candidates)==1 and candidates[0]:
+                    p['host_id']=candidates[0]
+                    p['circulation_host_source']='matching_ground_facade_deck'
         if comp.get('component_type') == 'TERRACE' and p.get('landing') is True:
             host = _host_mass(plan,comp)
             landing_height = comp.get('dimensions',{}).get('height',0)
@@ -381,6 +396,19 @@ def _fit_exterior_stairs(plan: dict) -> None:
         if len(targets) == 1 and p.get('host_id') not in targets and not p.get('target_host_id'):
             p['target_host_id'] = next(iter(targets))
             p['circulation_target_source'] = 'landing_contact'
+        # A slowly rising flight must reach deck height at its leading edge;
+        # otherwise its last rising rows cut the underside of the receiving deck.
+        axis = 'z' if side == 'x' else 'x'
+        direction = ((dz>0)-(dz<0)) if side == 'x' else ((dx>0)-(dx<0))
+        if len(target_landings)==1 and (target_landings[0].get('params') or {}).get('circulation_host_source')=='matching_ground_facade_deck':
+            po=world(target_landings[0]); pd=target_landings[0]['dimensions']
+            edge=po[axis] if direction>0 else po[axis]+pd['depth' if axis=='z' else 'width']-1
+            overshoot=(endpoint[axis]-edge)*direction
+            if 0<overshoot<=landing and run-overshoot>=abs(b['y']-a['y']):
+                b=dict(b); b[axis]-=overshoot*direction; p['to']=b
+                endpoint[axis]=edge; run-=overshoot
+                dx,dz=b['x']-a['x'],b['z']-a['z']
+                p['circulation_fit']='receive_at_deck_edge'
         def target_landing_fits(shift, commit=False):
             if not target_landings: return True
             for part in target_landings:

@@ -16,7 +16,7 @@ public final class PlateRoleCatalog {
     );
 
     public static final Set<String> TERRACE_TOKENS = Set.of(
-            "terrace", "balcony", "deck", "cantilever", "platform", "partial_platform", "roof", "canopy", "landing"
+            "terrace", "balcony", "deck", "cantilever", "platform", "partial_platform", "roof", "canopy", "landing", "path", "walkway"
     );
 
     public static final Set<String> BRIDGE_TOKENS = Set.of(
@@ -30,7 +30,7 @@ public final class PlateRoleCatalog {
         all.addAll(INTERIOR_TOKENS);
         all.addAll(TERRACE_TOKENS);
         all.addAll(BRIDGE_TOKENS);
-        all.add("water");
+        all.addAll(Set.of("water", "water_channel", "canal", "channel"));
         SUPPORTED_TOKENS = Set.copyOf(all);
     }
 
@@ -75,7 +75,7 @@ public final class PlateRoleCatalog {
         if (BRIDGE_TOKENS.contains(v)) {
             return Optional.of(HostedPlateOccupancy.PlateRole.BRIDGE);
         }
-        if ("water".equals(v)) return Optional.of(HostedPlateOccupancy.PlateRole.WATER);
+        if (Set.of("water", "water_channel", "canal", "channel").contains(v)) return Optional.of(HostedPlateOccupancy.PlateRole.WATER);
         return Optional.of(HostedPlateOccupancy.PlateRole.INTERIOR);
     }
 }

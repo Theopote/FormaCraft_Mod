@@ -53,7 +53,9 @@ class ComplexBuildRetest {
                 "oct18_evening_1.normalized", "oct18_evening_2.normalized", "oct18_evening_3.normalized",
                 "oct18_evening_4.normalized", "oct18_evening_5.normalized", "oct18_evening_6.normalized",
                 "oct18_night_1.normalized", "oct18_night_2.normalized", "oct18_night_3.normalized",
-                "oct18_night_4.normalized", "oct18_night_5.normalized", "oct18_night_6.normalized").map(n -> DynamicTest.dynamicTest("logged plan " + n, () -> {
+                "oct18_night_4.normalized", "oct18_night_5.normalized", "oct18_night_6.normalized",
+                "oct18_late_1.normalized", "oct18_late_2.normalized", "oct18_late_3.normalized",
+                "oct18_late_4.normalized", "oct18_late_5.normalized", "oct18_late_6.normalized").map(n -> DynamicTest.dynamicTest("logged plan " + n, () -> {
             var json = Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/" + n + ".json"));
             var plan = LlmPlanParser.parse(json);
             for (boolean postProcess : new boolean[]{false, true}) {

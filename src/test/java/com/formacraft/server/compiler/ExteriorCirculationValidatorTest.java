@@ -12,6 +12,22 @@ import com.formacraft.common.llm.dto.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @Test void interiorStairMayJoinSharedFoundationTopOnlyInsideItsHost() {
+        var host=new Component("MASS_MAIN","hall",new Vec3i(0,1,0),new Dimensions(8,8,10),List.of(),
+                Map.of("component_id","hall","anchor_mode","min_corner"));
+        var foundation=new Component("FOUNDATION",null,new Vec3i(-10,0,-10),new Dimensions(30,30,1),List.of(),
+                Map.of("component_id","site","anchor_mode","min_corner"));
+        var foreign=new Component("FOUNDATION",null,foundation.relativePosition(),foundation.dimensions(),List.of(),
+                Map.of("host_id","other","anchor_mode","min_corner"));
+        var stair=new Component("STRUCTURE","hall",new Vec3i(2,1,2),new Dimensions(3,6,6),List.of("stair:straight_single_run"),
+                Map.of("host_id","hall","width",3,"from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",0,"y",5,"z",5)));
+        var support=new BlockPos(2,0,2); var other=new BlockPos(1,0,2); var raised=new BlockPos(2,1,3);
+        var index=new PatchOccupancyIndex(); index.commit(foundation,List.of(stone(support),stone(raised))); index.commit(foreign,List.of(stone(other)));
+        var access=ExteriorCirculationValidator.connectorAccess(stair,List.of(host),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.contains(support)); assertFalse(access.contains(other)); assertFalse(access.contains(raised));
+        assertTrue(index.validate(stair,List.of(new BlockPatch(BlockPatch.PLACE,2,0,2,"minecraft:oak_planks")),access).isEmpty());
+        assertTrue(index.validate(stair,List.of(new BlockPatch(BlockPatch.PLACE,1,0,2,"minecraft:oak_planks")),access).isPresent());
+    }
     @Test void sourcePortalAccessCannotCarveBeyondDoorOrForeignWalls() {
         var stair=new Component("STRUCTURE","flight",new Vec3i(0,0,0),new Dimensions(5,3,5),List.of("stair:straight_single_run"),
                 Map.of("component_id","stair","host_id","hall","exterior",true,"width",3,

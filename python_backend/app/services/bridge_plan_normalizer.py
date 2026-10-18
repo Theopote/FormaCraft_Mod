@@ -156,7 +156,17 @@ def normalize_hosted_connections(plan: dict) -> None:
         if p.get('extrude_mode') != 'plate' or p.get('plate_role') not in ('bridge', 'link', 'connector'):
             continue
         host, target = by_id.get(p.get('host_id')), by_id.get(p.get('target_host_id'))
-        if target is None and not p.get('target_host_id') and 'bridge_over_channel' in plate.get('features', []):
+        def crosses_water_channel():
+            pl,ph=bounds(plate)
+            for water in components:
+                wp=water.get('params') or {}
+                if wp.get('plate_role') not in ('water','water_channel','canal','channel') or not water.get('dimensions'): continue
+                wl,wh=bounds(water)
+                if not 0 <= pl['y']-wl['y'] <= 2: continue
+                for axis,side in (('x','z'),('z','x')):
+                    if pl[axis]<wl[axis] and ph[axis]>wh[axis] and wl[side]<=pl[side] and ph[side]<=wh[side]: return True
+            return False
+        if target is None and not p.get('target_host_id') and ('bridge_over_channel' in plate.get('features', []) or crosses_water_channel()):
             # A footbridge crossing water has no second building endpoint.
             p['plate_role'] = 'terrace'
             p['connection_source'] = 'standalone_channel_crossing'

@@ -11,6 +11,29 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class CompoundRequestRegressions(unittest.TestCase):
+    def test_missing_bridge_target_requires_real_channel_crossing_evidence(self):
+        from app.services.bridge_plan_normalizer import normalize_hosted_connections
+        raw=json.loads((FIXTURES/'oct18_late_1.json').read_text(encoding='utf-8'))
+        for c in raw['components']:
+            if c['params'].get('plate_role')=='water_channel': c['params']['plate_role']='interior'
+        normalize_hosted_connections(raw)
+        bridge=next(c for c in raw['components'] if c['params']['component_id']=='mill_bridge')
+        self.assertEqual('bridge',bridge['params']['plate_role'])
+
+    def test_oct18_late_plans_bind_only_matching_ground_terraces(self):
+        for i in range(1,7):
+            with self.subTest(plan=i):
+                raw=json.loads((FIXTURES/f'oct18_late_{i}.json').read_text(encoding='utf-8'))
+                result=normalize_circulation_plan(apply_building_contract(raw,raw['proportion_hints']['architecture_intent']['original_text'],finalize=True))
+                self.assertNotIn('capability_gap',result)
+                self.assertEqual(result,normalize_circulation_plan(result))
+                self.assertEqual(result,json.loads((FIXTURES/f'oct18_late_{i}.normalized.json').read_text(encoding='utf-8')))
+                if i==3:
+                    parts={c['params']['component_id']:c for c in result['components']}
+                    self.assertEqual('mass_research',parts['terrace_research']['params']['host_id'])
+                    self.assertEqual('mass_tower',parts['terrace_tower']['params']['host_id'])
+                    self.assertEqual('mass_research',parts['stair_a_reception_to_research']['params']['target_host_id'])
+
     def test_oct18_night_live_plans_keep_full_buildings_and_align_bank_deck(self):
         for i in range(1,7):
             with self.subTest(plan=i):

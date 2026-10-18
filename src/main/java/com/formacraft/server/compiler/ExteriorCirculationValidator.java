@@ -65,10 +65,12 @@ final class ExteriorCirculationValidator {
     /** Only the last step/landing may open a connection into a corridor body. */
     static Set<BlockPos> connectorAccess(Component stair, List<Component> components, Map<String, Slot> slots,
                                          BlockPos offset, PatchOccupancyIndex occupancy) {
-        if (stair.params() == null || !Boolean.TRUE.equals(stair.params().get("exterior"))
+        if (stair.params() == null
                 || !com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(stair)
                 || !(stair.params().get("from") instanceof Map<?, ?> from)
                 || !(stair.params().get("to") instanceof Map<?, ?> to)) return Set.of();
+        if (!Boolean.TRUE.equals(stair.params().get("exterior")))
+            return interiorFoundationAccess(stair,components,slots,offset,occupancy,from,to);
         int dx = Integer.signum(number(to.get("x"))-number(from.get("x")));
         int dz = Integer.signum(number(to.get("z"))-number(from.get("z")));
         int width = number(stair.params().getOrDefault("width", 3));
@@ -255,6 +257,34 @@ final class ExteriorCirculationValidator {
                         result.add(pos);
                     }
                 }
+        }
+        return result;
+    }
+
+    private static Set<BlockPos> interiorFoundationAccess(Component stair,List<Component> components,Map<String,Slot> slots,
+            BlockPos offset,PatchOccupancyIndex occupancy,Map<?,?> from,Map<?,?> to) {
+        Object id=stair.params().get("host_id");
+        var host=components.stream().filter(c->c.params()!=null && id!=null && id.equals(c.params().get("component_id"))).findFirst();
+        if(host.isEmpty()) return Set.of();
+        var hb=ComponentFootprintUtil.bounds(host.get());
+        var hs=host.get().slotId()==null?null:slots.get(host.get().slotId()); var ha=hs==null?null:hs.anchor();
+        int hx=ha==null?0:ha.x(),hy=ha==null?0:ha.y(),hz=ha==null?0:ha.z();
+        if(hb==null) return Set.of();
+        int dx=Integer.signum(number(to.get("x"))-number(from.get("x"))),dz=Integer.signum(number(to.get("z"))-number(from.get("z")));
+        int run=Math.max(Math.abs(number(to.get("x"))-number(from.get("x"))),Math.abs(number(to.get("z"))-number(from.get("z"))));
+        int width=number(stair.params().getOrDefault("width",3)); var rp=stair.relativePosition();
+        var result=new HashSet<BlockPos>();
+        for(int step=0;step<=run;step++) for(int side=-width/2;side<width-width/2;side++) {
+            int y=offset.getY()+rp.y()+number(from.get("y"))+(int)Math.round((number(to.get("y"))-number(from.get("y")))*step/(double)Math.max(1,run))-1;
+            var pos=new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*step+(dz!=0?side:0),y,
+                    offset.getZ()+rp.z()+number(from.get("z"))+dz*step+(dx!=0?side:0));
+            var prev=occupancy.placeAt(pos);
+            if(y>=hb.minY()+hy || pos.getX()<hb.minX()+hx || pos.getX()>=hb.maxX()+hx || pos.getZ()<hb.minZ()+hz || pos.getZ()>=hb.maxZ()+hz
+                    || prev==null || !"FOUNDATION".equals(prev.writerType()) || prev.owner()==null || prev.owner().params()==null
+                    || prev.owner().params().get("host_id")!=null) continue;
+            var fb=ComponentFootprintUtil.bounds(prev.owner());
+            var fs=prev.owner().slotId()==null?null:slots.get(prev.owner().slotId()); var fa=fs==null?null:fs.anchor();
+            if(fb!=null && fb.maxY()+(fa==null?0:fa.y())==y+1) result.add(pos);
         }
         return result;
     }
