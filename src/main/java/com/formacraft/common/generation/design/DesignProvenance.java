@@ -4,7 +4,6 @@ import com.formacraft.common.llm.dto.LlmPlan;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 public final class DesignProvenance {
     private DesignProvenance() {}
@@ -53,9 +52,7 @@ public final class DesignProvenance {
             if (nested instanceof Map<?, ?> map) {
                 Object raw = map.get(paramKey);
                 DesignParamSource source = DesignParamSource.parse(raw == null ? null : String.valueOf(raw));
-                if (source != null && source.isDesignLocked()) {
-                    return false;
-                }
+                return source == null || !source.isDesignLocked();
             }
         }
         return true;

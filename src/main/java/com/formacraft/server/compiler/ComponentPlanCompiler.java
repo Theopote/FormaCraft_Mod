@@ -449,10 +449,18 @@ public final class ComponentPlanCompiler {
                 }
                 if (record == null || record.owner() == null) continue;
                 var owner = record.owner();
+                String writerType = record.writerType() == null ? "" : record.writerType();
+                // Chimneys (and hosted roof penetrations) own the column after overwrite;
+                // mark them occluded so gable audit does not false-fail on missing cells.
+                boolean roofPenetration = "CHIMNEY".equals(writerType) || "DECOR_DETAIL".equals(writerType);
                 if (!(com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(owner)
-                        || "ROOF".equals(record.writerType()))) continue;
-                if (java.util.Objects.equals(roofHost, getParamString(owner.params(), "component_id"))
-                        || java.util.Objects.equals(roofHost, getParamString(owner.params(), "host_id"))) continue;
+                        || writerType.startsWith("ROOF") || roofPenetration)) continue;
+                if (!roofPenetration && (java.util.Objects.equals(roofHost, getParamString(owner.params(), "component_id"))
+                        || java.util.Objects.equals(roofHost, getParamString(owner.params(), "host_id")))) continue;
+                if (roofPenetration) {
+                    String penetrationHost = getParamString(owner.params(), "host_id");
+                    if (penetrationHost != null && !java.util.Objects.equals(roofHost, penetrationHost)) continue;
+                }
                 occludedColumns.add(new BlockPos(p.dx(),0,p.dz()));
             }
             var shapeAudit = RoofShapeAudit.inspect(semantic, roofPatches, offset, occludedColumns);
@@ -1309,11 +1317,20 @@ public final class ComponentPlanCompiler {
                 var connectionLevel = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                         .connectionLevel(slab.params());
                 // Storey snap is interior-only. Bridge connection_level never silently overwrites explicit Y.
+                // Authored LLM plates often land one cell above a storey or on the roof plane
+                // (legacy height packed into dimensions); snap them onto a real storey floor.
                 if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.INTERIOR
-                        && isAutoInferred(slab)) {
+                        && (isAutoInferred(slab) || shouldSnapInteriorPlate(pos.y(), origin.y(), fh,
+                        body.dimensions().height(),
+                        ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount")))) {
                     int count = ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount");
-                    int level = Math.max(1, Math.min(Math.max(1, count - 1),
+                    int maxLevel = Math.max(1, count > 0 ? count - 1 : 1);
+                    int level = Math.max(1, Math.min(maxLevel,
                             Math.round((pos.y() - origin.y()) / (float) fh)));
+                    // Roof-plane Y (>= host height) is not an interior storey.
+                    if (pos.y() - origin.y() >= body.dimensions().height()) {
+                        level = maxLevel;
+                    }
                     plateY = origin.y() + level * fh;
                 } else if (plateRole == com.formacraft.common.generation.component.util.HostedPlateOccupancy.PlateRole.BRIDGE
                         && connectionLevel.isPresent()) {
@@ -2296,6 +2313,22 @@ public final class ComponentPlanCompiler {
             return "true".equalsIgnoreCase(v.toString().trim());
         }
         return false;
+    }
+
+    /**
+     * Authored interior plates that sit on the roof plane or one cell off a storey
+     * band are legacy packing artifacts — snap them rather than emit a thick floor.
+     */
+    private static boolean shouldSnapInteriorPlate(int plateY, int originY, int floorHeight,
+                                                   int hostHeight, int floorCount) {
+        if (floorHeight <= 0 || hostHeight <= 0) return false;
+        int local = plateY - originY;
+        if (local >= hostHeight) return true;
+        if (local <= 0) return false;
+        int nearest = Math.round(local / (float) floorHeight) * floorHeight;
+        int maxLevel = Math.max(1, floorCount > 0 ? floorCount - 1 : 1);
+        nearest = Math.max(floorHeight, Math.min(maxLevel * floorHeight, nearest));
+        return Math.abs(local - nearest) <= 1;
     }
 
     private static Component makeEntranceComponent(LlmPlan plan, Component base, String slotId, GlobalConstraints.Facing facing) {

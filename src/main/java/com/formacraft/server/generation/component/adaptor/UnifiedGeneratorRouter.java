@@ -287,8 +287,15 @@ public final class UnifiedGeneratorRouter {
         }
         // Explicit library request must not be silently dropped under envelope protection.
         // Exception: allow_envelope_attach or upstream resolved_host_attachment (run expander).
+        // Host shell types (MASS/FOUNDATION): style annotations must not block the registry
+        // generator — soft-skip the expander so the shell still compiles.
         if ((hasComponentRequest || hasGroupRequest) && preservesBuildingEnvelope(type)
                 && !allowEnvelopeAttach && !hostAttachment) {
+            if (isHostShellEnvelopeType(type)) {
+                FormacraftMod.LOGGER.warn(
+                        "UnifiedGeneratorRouter: ignoring library request on host shell type={}", type);
+                return new ExpanderStage(base, null, List.of(), false);
+            }
             FormacraftMod.LOGGER.error(
                     "UnifiedGeneratorRouter: library request conflicts with envelope protection type={}", type);
             return new ExpanderStage(List.of(), RoutedGenerationResult.failure(
@@ -429,6 +436,15 @@ public final class UnifiedGeneratorRouter {
         return switch (type.toUpperCase(java.util.Locale.ROOT)) {
             case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
                  "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "ENTRANCE", "CHIMNEY" -> true;
+            default -> false;
+        };
+    }
+
+    /** Mass/foundation shells own their geometry; library style tags are annotations only. */
+    static boolean isHostShellEnvelopeType(String type) {
+        if (type == null) return false;
+        return switch (type.toUpperCase(java.util.Locale.ROOT)) {
+            case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "FOUNDATION" -> true;
             default -> false;
         };
     }

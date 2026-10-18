@@ -80,7 +80,14 @@ class ComponentPlanCompilerDesignIntentTest {
     @Test void hostedRoofContradictingOptOutProducesDiagnostic() {
         var roof = new Component("ROOF", "s", new Vec3i(0, 10, 0), new Dimensions(15, 13, 4), List.of(),
                 Map.of("host_id", "a", "roof_type", "gable"));
-        assertTrue(ComponentPlanCompiler.compile(plan(List.of(body("a", 0, Map.of("roof_type", "none")), roof), "MODERN", Map.of())).isEmpty());
+        // Contract-level roof_type=none is a true opt-out; mass roof_type=none alone is the
+        // delegated-roof pattern used by logged plans (separate ROOF component).
+        var contract = Map.of("requirements", List.of(
+                Map.of("property", "roof_type", "value", "none", "scope", "plan")));
+        assertTrue(ComponentPlanCompiler.compile(plan(
+                List.of(body("a", 0, Map.of("roof_type", "none")), roof),
+                "MODERN",
+                Map.of("building_contract", contract))).isEmpty());
         assertEquals("E_EXPLICIT_DESIGN_CONFLICT", AssemblyCompileDiagnostics.get().code());
     }
     @Test void noComplexDecorBlocksCrownAndOptionalPostProcessingFromContract() {

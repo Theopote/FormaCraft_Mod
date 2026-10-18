@@ -15,8 +15,11 @@ final class ExplicitDesignConflictValidator {
             var body = bodies.get(c.params().get("host_id"));
             String disabled = null;
             if (body != null) {
+                // Mass roof_type=none + separate ROOF is the delegated-roof pattern unless the
+                // building contract explicitly requires no roof at all.
                 if (c.componentType().startsWith("ROOF") && ExplicitDesignPolicy.roofDisabled(body)
-                        && !ExplicitDesignPolicy.roofDisabled(c)) disabled = "roof_type=none";
+                        && !ExplicitDesignPolicy.roofDisabled(c)
+                        && contractRequiresRoofNone(plan, body)) disabled = "roof_type=none";
                 if ("FACADE_WINDOWS".equals(c.componentType()) && ExplicitDesignPolicy.windowsDisabled(body)
                         && !ExplicitDesignPolicy.windowsDisabled(c)) disabled = "windows";
                 if ("ENTRANCE".equals(c.componentType()) && ExplicitDesignPolicy.entranceDisabled(body)
@@ -33,5 +36,22 @@ final class ExplicitDesignConflictValidator {
                     List.of("Remove the conflicting component or revise the explicit opt-out.")));
         }
         return Optional.empty();
+    }
+
+    private static boolean contractRequiresRoofNone(LlmPlan plan, Component body) {
+        if (plan == null || plan.proportionHints() == null || body == null || body.params() == null) return false;
+        if (!(plan.proportionHints().get("building_contract") instanceof Map<?, ?> contract)
+                || !(contract.get("requirements") instanceof List<?> requirements)) return false;
+        Object id = body.params().get("component_id");
+        for (Object raw : requirements) {
+            if (!(raw instanceof Map<?, ?> req)) continue;
+            if (!"roof_type".equals(req.get("property")) || !"none".equals(String.valueOf(req.get("value")))) continue;
+            Object scope = req.get("scope");
+            if ("all_main_masses".equals(scope) || "plan".equals(scope)) return true;
+            if (scope != null && scope.equals(body.params().get("requirement_scope"))) return true;
+            if (req.get("target_components") instanceof List<?> targets
+                    && (targets.contains(id) || targets.contains(body.params().get("host_id")))) return true;
+        }
+        return false;
     }
 }

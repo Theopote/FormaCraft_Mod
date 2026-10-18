@@ -85,9 +85,13 @@ public final class StyleIntentResolver {
                     && Set.of("rectangle", "rect", "box").contains(shape.toLowerCase(Locale.ROOT))) {
                 changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", "none");
             } else if (isMissingOrDefault(planType) && flavor == StyleFlavor.HUI) {
-                String fallback = resolvePlanType(flavor, component.dimensions());
-                if (fallback != null) {
-                    changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", fallback);
+                // void_ratio<=0 marks a solid shell; do not invent a courtyard plan over it.
+                Double voidRatio = ComponentParamParsers.doubleOrNull(params, "void_ratio", "voidRatio");
+                if (voidRatio == null || voidRatio > 0.0) {
+                    String fallback = resolvePlanType(flavor, component.dimensions());
+                    if (fallback != null) {
+                        changed |= DesignProvenance.putIfAllowed(plan, params, "plan_type", fallback);
+                    }
                 }
             }
 

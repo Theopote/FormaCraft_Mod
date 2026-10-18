@@ -125,26 +125,40 @@ final class ExteriorCirculationValidator {
                         || pos.getZ()<core.minZ()+hz || pos.getZ()>=core.maxZ()+hz)) result.add(pos);
             }
         }
-        // Supports just below a declared destination doorway may join that
-        // destination's foundation, bounded to the actual portal footprint.
+        // Declared destination doorway: foundation footing, portal cells, and a
+        // bounded landing intrusion into the target host (not mid-run foreign mass).
         for (var door : components) {
             if (!"ENTRANCE".equals(door.componentType()) || door.params()==null
                     || !Objects.equals(stair.params().get("component_id"),door.params().get("stair_connection"))
                     || !Objects.equals(stair.params().get("target_host_id"),door.params().get("host_id"))) continue;
             var db = ComponentFootprintUtil.bounds(door);
             var ds = slots.get(door.slotId()); var da=ds==null?null:ds.anchor();
-            int ox=da==null?0:da.x(), oz=da==null?0:da.z();
+            int ox=da==null?0:da.x(), oy=da==null?0:da.y(), oz=da==null?0:da.z();
             if (db==null) continue;
+            Object doorHost = door.params().get("host_id");
+            int doorClear = Math.max(clear, Math.max(1, db.maxY() - db.minY()));
             for(int step=0;step<=(landing>1?landing:0);step++) for(int side=-width/2;side<width-width/2;side++) {
-                var pos = new BlockPos(offset.getX()+rp.x()+number(to.get("x"))+dx*step+(dz!=0?side:0),
-                        offset.getY()+rp.y()+number(to.get("y"))-1,
-                        offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx!=0?side:0));
-                var previous=occupancy.placeAt(pos);
-                if(pos.getX()>=db.minX()+ox-Math.abs(dx)*landing && pos.getX()<db.maxX()+ox+Math.abs(dx)*landing
-                        && pos.getZ()>=db.minZ()+oz-Math.abs(dz)*landing && pos.getZ()<db.maxZ()+oz+Math.abs(dz)*landing
-                        && previous!=null && "FOUNDATION".equals(previous.writerType()) && previous.owner()!=null
-                        && previous.owner().params()!=null && Objects.equals(door.params().get("host_id"),previous.owner().params().get("host_id")))
-                    result.add(pos);
+                for (int y = -1; y <= doorClear; y++) {
+                    var pos = new BlockPos(offset.getX()+rp.x()+number(to.get("x"))+dx*step+(dz!=0?side:0),
+                            offset.getY()+rp.y()+number(to.get("y"))+y,
+                            offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx!=0?side:0));
+                    var previous=occupancy.placeAt(pos);
+                    if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
+                    boolean inPortalBand = pos.getX()>=db.minX()+ox-Math.abs(dx)*landing && pos.getX()<db.maxX()+ox+Math.abs(dx)*landing
+                            && pos.getZ()>=db.minZ()+oz-Math.abs(dz)*landing && pos.getZ()<db.maxZ()+oz+Math.abs(dz)*landing;
+                    boolean hostOwned = Objects.equals(doorHost, previous.owner().params().get("host_id"))
+                            || Objects.equals(doorHost, previous.owner().params().get("component_id"));
+                    if (!hostOwned) continue;
+                    if (y == -1 && "FOUNDATION".equals(previous.writerType()) && inPortalBand) {
+                        result.add(pos);
+                        continue;
+                    }
+                    // Portal + short inward landing may meet the destination host shell.
+                    if (inPortalBand || Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY",
+                            "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(previous.writerType())) {
+                        if (pos.getY() >= db.minY()+oy-1 && pos.getY() < db.maxY()+oy+clear) result.add(pos);
+                    }
+                }
             }
         }
         for (Component connector : components) {
@@ -191,16 +205,25 @@ final class ExteriorCirculationValidator {
                             offset.getY()+rp.y()+number(to.get("y"))+y,
                             offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx != 0 ? side : 0));
                     var previous = occupancy.placeAt(pos);
-                    if (pos.getX() >= bounds.minX()+ox && pos.getX() < bounds.maxX()+ox
+                    if (previous == null || previous.owner() == null) continue;
+                    boolean inConnector = pos.getX() >= bounds.minX()+ox && pos.getX() < bounds.maxX()+ox
                             && pos.getY() >= bounds.minY()+oy-(ownPlatform ? 1 : 0)
                             && pos.getY() < bounds.maxY()+oy+(ownPlatform ? clear : 0)
-                            && pos.getZ() >= bounds.minZ()+oz && pos.getZ() < bounds.maxZ()+oz
-                            && previous != null && previous.owner() != null
-                            && (previous.owner() == connector || (ownPlatform && previous.owner().params() != null
-                                && (platformHost.equals(previous.owner().params().get("component_id"))
-                                    || platformHost.equals(previous.owner().params().get("host_id")))) || (previous.owner().params() != null
+                            && pos.getZ() >= bounds.minZ()+oz && pos.getZ() < bounds.maxZ()+oz;
+                    boolean onOwnHost = ownPlatform && previous.owner().params() != null
+                            && (platformHost.equals(previous.owner().params().get("component_id"))
+                                || platformHost.equals(previous.owner().params().get("host_id")));
+                    // Own-platform terminal neighborhood may also meet the host shell just
+                    // past the plate (gallery/terrace landings), still limited to to±landing.
+                    if ((inConnector && (previous.owner() == connector || onOwnHost
+                            || (previous.owner().params() != null
                                 && java.util.Objects.equals(connector.params().get("component_id"),
-                                        previous.owner().params().get("host_id"))))) result.add(pos);
+                                        previous.owner().params().get("host_id")))))
+                            || (onOwnHost && !inConnector
+                                && Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY",
+                                    "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(previous.writerType()))) {
+                        result.add(pos);
+                    }
                 }
         }
         return result;

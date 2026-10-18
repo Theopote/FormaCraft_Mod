@@ -166,13 +166,14 @@ final class MassDesignValidator {
         if (presentKey == null) {
             return Optional.empty();
         }
-        // void_ratio is shared with solid-mass semantics; skip INVALID when used as solid marker.
-        if (("void_ratio".equals(presentKey) || "voidRatio".equals(presentKey))
-                && !isCourtyardPlan(params, component.features())) {
-            return Optional.empty();
-        }
         Object raw = params.get(presentKey);
         Double ratio = parseDoubleStrict(raw);
+        // void_ratio<=0 is the solid-mass marker even when style enrichment later
+        // injects plan_type=courtyard; open courtyards must use courtyard_ratio.
+        if (("void_ratio".equals(presentKey) || "voidRatio".equals(presentKey))
+                && ((ratio != null && ratio <= 0.0) || !isCourtyardPlan(params, component.features()))) {
+            return Optional.empty();
+        }
         if (ratio == null || ratio <= 0.0 || ratio >= 1.0) {
             return Optional.of(new CapabilityGap(
                     "E_COURTYARD_RATIO_INVALID",

@@ -287,7 +287,15 @@ public final class PatchOccupancyIndex {
                     continue;
                 }
                 boolean chimneyFooting = "CHIMNEY".equals(type)
-                        && Set.of("FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType());
+                        && (Set.of("FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())
+                            || (prev.owner() != null && prev.owner().params() != null
+                                && bindsToOwner(writer,
+                                    prev.owner().params().get("component_id") == null ? null
+                                            : String.valueOf(prev.owner().params().get("component_id")).trim(),
+                                    prev.owner().params().get("host_id") == null ? null
+                                            : String.valueOf(prev.owner().params().get("host_id")).trim())
+                                && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "TOWER",
+                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())));
                 if (!overwriteOk && !chimneyFooting && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev)) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
@@ -330,7 +338,8 @@ public final class PatchOccupancyIndex {
         // Bound structural/detail parts may join their own building. The surface
         // ledger still protects roofs and openings from decoration; REMOVE uses
         // the separate stair/carve rules.
-        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER").contains(writer.componentType().toUpperCase(Locale.ROOT))
+        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY")
+                .contains(writer.componentType().toUpperCase(Locale.ROOT))
                 || ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType())
                     && "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode"))));
     }
