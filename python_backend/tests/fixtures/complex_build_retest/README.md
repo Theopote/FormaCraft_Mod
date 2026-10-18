@@ -124,3 +124,12 @@ ground terraces whose host relation was omitted, and interior stair supports
 joining the top of a shared site foundation. Foreign hosted foundations and
 cells above the building base remain protected. The earlier 19:42 provider
 request returned billing error 402 and has no build plan to replay.
+
+`oct18_final_1` through `oct18_final_6` capture the 20:36–20:48 run
+(three failures and three successful builds), bringing the replay set to 83.
+Coverage includes one-block quay receiving decks, referenced plaza/site hosts,
+the legacy plural `extrude_mode=stairs`, internal stairs avoiding a separate
+clock tower, and exterior flights avoiding both bridge decks and their railings.
+Only true one-layer bridge plates participate as solid plate obstacles; tall
+legacy corridor envelopes are not treated as solid boxes. Receiving platforms
+may grow by bounded edge cells, while bridge and railing geometry stays intact.

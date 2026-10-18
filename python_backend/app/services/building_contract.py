@@ -311,6 +311,9 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     # targets separate: a main-building width must not be imposed on its towers.
     owners = [c for c in components if c.get('component_type') in
               ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'TERRACE', 'COURTYARD', 'COURTYARD_SPACE')]
+    referenced_hosts = {c['params'].get('host_id') for c in components if c.get('component_type') in HOSTED}
+    owners.extend(c for c in components if c.get('component_type') in ('PLAZA','PAVING','PATH','ROAD','FOUNDATION')
+                  and c['params']['component_id'] in referenced_hosts)
     _repair_compound_courtyard_inheritance(out, components)
     ids = {c['params']['component_id']: c for c in owners}
     # Global attributes cannot encode different materials for separate buildings.

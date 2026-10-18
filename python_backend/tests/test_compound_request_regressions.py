@@ -11,6 +11,46 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'complex_build_retest'
 
 
 class CompoundRequestRegressions(unittest.TestCase):
+    def test_oct18_final_live_plans_preserve_bodies_and_repair_connections(self):
+        for i in range(1,7):
+            with self.subTest(plan=i):
+                raw=json.loads((FIXTURES/f'oct18_final_{i}.json').read_text(encoding='utf-8'))
+                result=normalize_circulation_plan(apply_building_contract(raw,raw['proportion_hints']['architecture_intent']['original_text'],finalize=True))
+                self.assertNotIn('capability_gap',result)
+                self.assertEqual(result,normalize_circulation_plan(result))
+                self.assertEqual(result,json.loads((FIXTURES/f'oct18_final_{i}.normalized.json').read_text(encoding='utf-8')))
+                parts={c['params']['component_id']:c for c in result['components']}
+                for body in raw['components']:
+                    if body['component_type']=='MASS_MAIN': self.assertEqual(body['dimensions'],parts[body['params']['component_id']]['dimensions'])
+                if i==1:
+                    self.assertEqual('terrace',parts['bank_north']['params']['plate_role'])
+                    self.assertEqual(0,parts['bank_north']['relative_position']['y'])
+                    self.assertEqual({'width':8,'depth':4,'height':1},parts['bank_north']['dimensions'])
+                if i==4:
+                    self.assertEqual('plaza_base',parts['flower_bed_north']['params']['host_id'])
+                    stair=parts['main_interior_stairs']
+                    self.assertEqual('STRUCTURE',stair['component_type'])
+                    self.assertEqual(2,stair['params']['width'])
+                    self.assertEqual(6,stair['params']['to']['y'])
+                    self.assertGreaterEqual(stair['relative_position']['x']-1,-5)
+                if i==5:
+                    stair=parts['exterior_stair_to_platform']
+                    self.assertGreater(stair['relative_position']['x']-1,2)
+                    self.assertEqual(3,stair['params']['width'])
+                    self.assertEqual(5,stair['params']['to']['y'])
+                    for identity in ('bridge_catwalk','bridge_railing_east'):
+                        original=next(c for c in raw['components'] if c['params']['component_id']==identity)
+                        self.assertEqual(original['relative_position'],parts[identity]['relative_position'])
+                        self.assertEqual(original['dimensions'],parts[identity]['dimensions'])
+
+    def test_real_site_hosts_are_allowed_but_missing_hosts_still_fail(self):
+        raw=json.loads((FIXTURES/'oct18_final_4.json').read_text(encoding='utf-8'))
+        for c in raw['components']:
+            if c['params'].get('host_id')=='plaza_base': c['params']['host_id']='missing_plaza'
+        result=apply_building_contract(raw,raw['proportion_hints']['architecture_intent']['original_text'],finalize=True)
+        self.assertTrue(any(d['code']=='E_HOST_UNKNOWN' and d['host_id']=='missing_plaza'
+                            for d in result['proportion_hints']['building_contract']['diagnostics']))
+
     def test_missing_bridge_target_requires_real_channel_crossing_evidence(self):
         from app.services.bridge_plan_normalizer import normalize_hosted_connections
         raw=json.loads((FIXTURES/'oct18_late_1.json').read_text(encoding='utf-8'))

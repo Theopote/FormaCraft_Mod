@@ -1,0 +1,1164 @@
+{
+  "mode": "build",
+  "style_profile": "Modern_Observatory_Stepped",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "dark",
+    "accent_color": "stone_gray",
+    "wall_material": null,
+    "roof_material": null,
+    "floor_material": null,
+    "decorative_elements": [
+      "polyhedral dome",
+      "observation slit",
+      "entrance canopy",
+      "exterior stair landings",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "three staggered volumes ascending the hillside in the same direction",
+    "dark polyhedral dome on the observation tower",
+    "decorative observation slit on the tower",
+    "3-wide exterior stairs with landing platforms linked to each entrance",
+    "small rain canopy over the reception entrance",
+    "white concrete / stone brick / dark glass palette",
+    "ornament"
+  ],
+  "anchor": {
+    "x": 302,
+    "y": 136,
+    "z": -379
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "stepped_hillside_observatory",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "linear_stepped",
+      "composition": "compound",
+      "axis": "east_west",
+      "levels": "multi"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.62,
+      "voidRatio": 0.22,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "stepped",
+      "progression": "ascending",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "dome",
+      "stairs",
+      "landing",
+      "canopy"
+    ],
+    "materials": {
+      "primary": "concrete",
+      "secondary": "stone",
+      "accent": "dark_glass",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "contemporary",
+      "keywords": [
+        "observatory",
+        "hillside",
+        "stepped massing"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 25,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "massing hierarchy",
+        "vertical offsets",
+        "exterior circulation"
+      ],
+      "avoid": [
+        "merging volumes",
+        "roofs intruding into upper volumes",
+        "stadium bowl"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "stepped_hillside_observatory",
+    "height_to_width": 0.45,
+    "depth_to_width": 0.29,
+    "roof_to_body_height": 0.25,
+    "tier_step_ratio": 0.2,
+    "tier_gap": 4,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width_element_scope",
+          "property": "width",
+          "value": 3,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽3格"
+          ],
+          "scope": "element_scope",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        },
+        {
+          "id": "req_roof_type",
+          "property": "roof_type",
+          "value": "flat",
+          "source": "user_explicit",
+          "source_text": [
+            "平屋顶"
+          ],
+          "scope": "named_research",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "research_main"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_reception": [
+          "reception_main"
+        ],
+        "named_research": [
+          "research_main",
+          "research_main"
+        ],
+        "named_tower": [
+          "tower_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "reception_main",
+          "slot_id": "slot_reception",
+          "local_origin": {
+            "x": -8,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -23,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 15,
+            "depth": 13,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0,
+            3
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "reception_main",
+                "local_origin": {
+                  "x": -8,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 15,
+                  "depth": 13,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -8,
+              "min_z": -6,
+              "max_x": 7,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -8,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -8,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -8,
+                "start": -6,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "research_main",
+          "slot_id": "slot_research",
+          "local_origin": {
+            "x": -6,
+            "y": 4,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -3,
+            "y": 4,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 11,
+            "height": 6
+          },
+          "floor_ys_local": [
+            4,
+            7
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "research_main",
+                "local_origin": {
+                  "x": -6,
+                  "y": 4,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 11,
+                  "height": 6
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -5,
+              "max_x": 7,
+              "max_z": 6,
+              "min_y": 4,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -5,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "tower_main",
+          "slot_id": "slot_tower",
+          "local_origin": {
+            "x": -4,
+            "y": 8,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": 14,
+            "y": 8,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 9,
+            "depth": 9,
+            "height": 12
+          },
+          "floor_ys_local": [
+            8,
+            12,
+            16
+          ],
+          "roof_y_local": 19,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "tower_main",
+                "local_origin": {
+                  "x": -4,
+                  "y": 8,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 9,
+                  "depth": 9,
+                  "height": 12
+                },
+                "roof_y_local": 19
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -4,
+              "max_x": 5,
+              "max_z": 5,
+              "min_y": 8,
+              "max_y": 20
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 5,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -4,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座由三个错层体块组成的山坡天文观测站， 使用白色混凝土、 石砖和深色玻璃。 下层接待楼约15×13格， 高6格，基底高度为0； 中层研究楼约13×11格， 高6格，基底比接待楼高4格； 上层观测塔约9×9格，高12格， 基底比接待楼高8格。 三个体块沿同一方向逐级升高， 彼此保留约4格水平间隔。 相邻体块使用宽3格的室外楼梯和落脚平台连接， 所有楼梯都要实际接到入口。 研究楼使用平屋顶， 观测塔顶部设置深色多面体穹顶和一条装饰观测缝。 接待楼入口设置小雨棚。 保持三个体块及其高差， 不要把低层屋顶伸进高层室内。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座由三个错层体块组成的山坡天文观测站，\n使用白色混凝土、\n石砖和深色玻璃。\n下层接待楼约15×13格，\n高6格，基底高度为0；\n中层研究楼约13×11格，\n高6格，基底比接待楼高4格；\n上层观测塔约9×9格，高12格，\n基底比接待楼高8格。\n三个体块沿同一方向逐级升高，\n彼此保留约4格水平间隔。\n相邻体块使用宽3格的室外楼梯和落脚平台连接，\n所有楼梯都要实际接到入口。\n研究楼使用平屋顶，\n观测塔顶部设置深色多面体穹顶和一条装饰观测缝。\n接待楼入口设置小雨棚。\n保持三个体块及其高差，\n不要把低层屋顶伸进高层室内。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "reception_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Modern_Observatory_Stepped",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "research_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Modern_Observatory_Stepped",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "tower_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Modern_Observatory_Stepped",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "slot_reception",
+        "anchor": {
+          "x": -15,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "tags": [
+          "lowest_tier",
+          "reception"
+        ]
+      },
+      {
+        "slot_id": "slot_research",
+        "anchor": {
+          "x": 3,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "tags": [
+          "middle_tier",
+          "research"
+        ]
+      },
+      {
+        "slot_id": "slot_tower",
+        "anchor": {
+          "x": 18,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "tags": [
+          "upper_tier",
+          "observatory_tower"
+        ]
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_reception",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [
+        "ornament"
+      ],
+      "params": {
+        "component_id": "reception_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "tier_index": 0,
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:white_concrete",
+        "roof_type": "flat",
+        "window_style": "ribbon",
+        "entrance_type": "door",
+        "floor_height": 3,
+        "floor_count": 2,
+        "void_ratio": 0.18,
+        "facade_profile": "clean_modern",
+        "base_plinth": true,
+        "parapet": true,
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "reception_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_research",
+      "relative_position": {
+        "x": -6,
+        "y": 4,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 6
+      },
+      "features": [
+        "ornament"
+      ],
+      "params": {
+        "component_id": "research_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "tier_index": 1,
+        "requirement_scope": "named_research",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:stone_bricks",
+        "roof_type": "flat",
+        "window_style": "band",
+        "entrance_type": "door",
+        "floor_height": 3,
+        "floor_count": 2,
+        "void_ratio": 0.22,
+        "facade_profile": "stone_banded",
+        "parapet": true,
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "research_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -4,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 12
+      },
+      "features": [
+        "ornament"
+      ],
+      "params": {
+        "component_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "tier_index": 2,
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:black_concrete",
+        "roof_type": "flat",
+        "window_style": "slit",
+        "entrance_type": "door",
+        "floor_height": 4,
+        "floor_count": 3,
+        "void_ratio": 0.15,
+        "facade_profile": "vertical_pilasters",
+        "parapet": false,
+        "window_ratio": 0.35,
+        "wall_pattern": "gradient",
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "tower_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_reception",
+      "relative_position": {
+        "x": -8,
+        "y": -1,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "reception_foundation",
+        "host_id": "reception_main",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "plinth": true,
+        "building_id": "reception_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_reception",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "reception_windows",
+        "host_id": "reception_main",
+        "anchor_mode": "min_corner",
+        "window_style": "ribbon",
+        "window_block": "minecraft:black_stained_glass",
+        "window_height": 2,
+        "sill_height": 1,
+        "rhythm": 3,
+        "window_ratio": 0.35,
+        "building_id": "reception_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_research",
+      "relative_position": {
+        "x": -6,
+        "y": 4,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "research_windows",
+        "host_id": "research_main",
+        "anchor_mode": "min_corner",
+        "window_style": "band",
+        "window_block": "minecraft:black_stained_glass",
+        "window_height": 2,
+        "sill_height": 1,
+        "rhythm": 4,
+        "window_ratio": 0.35,
+        "building_id": "research_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -4,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "tower_windows",
+        "host_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "window_style": "slit",
+        "window_block": "minecraft:black_stained_glass",
+        "window_height": 4,
+        "sill_height": 3,
+        "rhythm": 4,
+        "window_ratio": 0.35,
+        "building_id": "tower_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_reception",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"modern\", \"dark\", \"glass\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Observatory_Stepped\", \"materialTone\": \"dark_glass\"}, \"constraints\": {\"mustHave\": [\"exterior\"], \"forbiddenTags\": [\"ornate\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "reception_entrance",
+        "host_id": "reception_main",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "door_height": 3,
+        "door_width": 2,
+        "building_id": "reception_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_research",
+      "relative_position": {
+        "x": -4,
+        "y": 4,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"modern\", \"dark\", \"glass\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Observatory_Stepped\", \"materialTone\": \"dark_glass\"}, \"constraints\": {\"mustHave\": [\"exterior\"], \"forbiddenTags\": [\"ornate\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "research_entrance",
+        "host_id": "research_main",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "door_height": 3,
+        "door_width": 2,
+        "building_id": "research_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -3,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"modern\", \"dark\", \"glass\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Observatory_Stepped\", \"materialTone\": \"dark_glass\"}, \"constraints\": {\"mustHave\": [\"exterior\"], \"forbiddenTags\": [\"ornate\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "tower_entrance",
+        "host_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "door_height": 3,
+        "door_width": 2,
+        "building_id": "tower_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_reception",
+      "relative_position": {
+        "x": -2,
+        "y": 3,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "canopy"
+      ],
+      "params": {
+        "component_id": "reception_canopy",
+        "host_id": "reception_main",
+        "anchor_mode": "min_corner",
+        "detail_role": "entrance_canopy",
+        "material": "minecraft:white_concrete",
+        "overhang": 2,
+        "building_id": "reception_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -4,
+        "y": 20,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 5
+      },
+      "features": [
+        "polyhedral_dome",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "tower_dome",
+        "host_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "dome",
+        "roof_block": "minecraft:black_concrete",
+        "accent_block": "minecraft:black_stained_glass",
+        "facets": 8,
+        "overhang": 1,
+        "roof_height": 5,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "tower_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -1,
+        "y": 12,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "observation_slit"
+      ],
+      "params": {
+        "component_id": "tower_observation_slit",
+        "host_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "detail_role": "observation_slit",
+        "material": "minecraft:black_stained_glass",
+        "building_id": "tower_main"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_reception",
+      "relative_position": {
+        "x": 7,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "stair_reception_to_research",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 4,
+          "y": 4,
+          "z": 0
+        },
+        "width": 3,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:stone_bricks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "exterior": true,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "reception_main",
+        "host_source": "entrance_elevation",
+        "host_id": "reception_main",
+        "target_host_id": "research_main",
+        "circulation_target_source": "landing_contact",
+        "circulation_fit": "avoid_adjacent_body"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_research",
+      "relative_position": {
+        "x": 7,
+        "y": 4,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "stair_research_to_tower",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 4,
+          "y": 4,
+          "z": 0
+        },
+        "width": 3,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:stone_bricks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "exterior": true,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "research_main",
+        "host_source": "entrance_elevation",
+        "host_id": "research_main",
+        "target_host_id": "tower_main",
+        "circulation_target_source": "landing_contact",
+        "circulation_fit": "avoid_adjacent_body"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_research",
+      "relative_position": {
+        "x": -7,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [
+        "landing_platform"
+      ],
+      "params": {
+        "component_id": "landing_reception_to_research",
+        "host_id": "research_main",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "plate": true,
+        "building_id": "research_main"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -4,
+        "y": 8,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [
+        "landing_platform"
+      ],
+      "params": {
+        "component_id": "landing_research_to_tower",
+        "host_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "plate": true,
+        "building_id": "tower_main"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -2,
+        "y": 8,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 7
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_main#access_1",
+        "host_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 4,
+          "y": 4,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:stone_bricks",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "tower_main"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -2,
+        "y": 12,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 7
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_main#access_2",
+        "host_id": "tower_main",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 4,
+          "y": 4,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:stone_bricks",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "tower_main"
+      }
+    }
+  ],
+  "description": "山坡天文观测站：三个错层体块（接待楼 15×13×6 @y0、研究楼 13×11×6 @y4、观测塔 9×9×12 @y8）沿同一方向逐级升高并保持约 4 格间隔，白色混凝土 + 石砖 + 深色玻璃；宽 3 格室外楼梯与落脚平台分别接到研究楼与观测塔入口，研究楼平屋顶，观测塔顶部深色多面体穹顶与装饰观测缝，接待楼入口小雨棚。",
+  "player_fidelity_notice_zh": "组合式生成「建造一座由三个错层体块组成的\n山坡天文观测站，\n使用白色混凝土、\n石砖和深色玻璃。\n下层接待楼约15×13格，\n高6格，」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

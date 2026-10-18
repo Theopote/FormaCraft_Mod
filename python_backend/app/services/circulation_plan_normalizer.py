@@ -244,7 +244,7 @@ def _fit_straight_stairs(plan: dict) -> None:
                     if low > high: break
                     bounds[axis] = max(low, min(rp[axis], high))
                 if len(bounds) != 2: continue
-                if params.get('circulation_source') == 'missing_requested_stair':
+                if params.get('circulation_source') in ('missing_requested_stair','legacy_secondary_stair'):
                     slots={s.get('slot_id'):s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots',[])}
                     off=slots.get(comp.get('slot_id'),{})
                     ranges={}
@@ -256,7 +256,7 @@ def _fit_straight_stairs(plan: dict) -> None:
                     candidates=sorted(((x,z) for x in range(ranges['x'][0],ranges['x'][1]+1)
                                        for z in range(ranges['z'][0],ranges['z'][1]+1)),
                                       key=lambda v:abs(v[0]-bounds['x'])+abs(v[1]-bounds['z']))
-                    def blocks_bridge(x,z):
+                    def blocks_foreign_geometry(x,z):
                         for bridge in plan.get('components',[]):
                             bp=bridge.get('params') or {}
                             if bp.get('plate_role') not in ('bridge','link','connector') or params.get('host_id') not in (bp.get('host_id'),bp.get('target_host_id')): continue
@@ -265,8 +265,16 @@ def _fit_straight_stairs(plan: dict) -> None:
                             if not rp['y']+off.get('y',0)+aa['y'] <= bo['y'] <= rp['y']+off.get('y',0)+bb['y']+2: continue
                             if (x+off.get('x',0)+ranges['x'][2] < bo['x']+bd['width'] and x+off.get('x',0)+ranges['x'][3]>=bo['x']
                                     and z+off.get('z',0)+ranges['z'][2] < bo['z']+bd['depth'] and z+off.get('z',0)+ranges['z'][3]>=bo['z']): return True
+                        for body in plan.get('components',[]):
+                            bp=body.get('params') or {}
+                            if body is mass or body.get('component_type') not in ('MASS_MAIN','TOWER','MASS_WING','SIDE_WING','MASS_ANCILLARY'): continue
+                            bo=_mass_origin(body); ba=slots.get(body.get('slot_id'),{}); bd=body['dimensions']
+                            bo={a:bo[a]+ba.get(a,0) for a in ('x','y','z')}
+                            if rp['y']+off.get('y',0)+bb['y']+2 < bo['y'] or rp['y']+off.get('y',0)+aa['y'] >= bo['y']+bd['height']: continue
+                            if (x+off.get('x',0)+ranges['x'][2]<bo['x']+bd['width'] and x+off.get('x',0)+ranges['x'][3]>=bo['x']
+                                    and z+off.get('z',0)+ranges['z'][2]<bo['z']+bd['depth'] and z+off.get('z',0)+ranges['z'][3]>=bo['z']): return True
                         return False
-                    available=next(((x,z) for x,z in candidates if not blocks_bridge(x,z)),None)
+                    available=next(((x,z) for x,z in candidates if not blocks_foreign_geometry(x,z)),None)
                     if available is None: continue
                     bounds.update(x=available[0],z=available[1])
                 if (mass.get('params') or {}).get('shape') in ('circle', 'cylinder', 'circular', 'round'):
@@ -302,7 +310,9 @@ def _fit_exterior_stairs(plan: dict) -> None:
         return
     slots = {s.get('slot_id'): s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots', [])}
     bodies = [c for c in plan.get('components', []) if c.get('component_type') in
-              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'FOUNDATION', 'DECOR_DETAIL') and c.get('dimensions')
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'FOUNDATION', 'DECOR_DETAIL') and c.get('dimensions')
+              and (c.get('component_type') != 'MASS_SECONDARY' or ((c.get('params') or {}).get('extrude_mode') == 'plate'
+                   and (c.get('params') or {}).get('plate_role') in ('bridge','link','connector') and c['dimensions']['height']==1))
               and (c.get('component_type') != 'DECOR_DETAIL'
                    or 'cornice' in str((c.get('params') or {}).get('component_id','')).lower()
                    or (c.get('params') or {}).get('decor_type') in ('column','pillar'))]
@@ -369,7 +379,9 @@ def _fit_exterior_stairs(plan: dict) -> None:
         target_landings = []
         for part in plan.get('components', []):
             pp = part.get('params') or {}
-            if part.get('component_type') not in ('TERRACE','BALCONY') or not pp.get('host_id'):
+            receiving = part.get('component_type') in ('TERRACE','BALCONY') or (part.get('component_type')=='MASS_SECONDARY'
+                        and pp.get('extrude_mode')=='plate' and pp.get('plate_role') in ('platform','partial_platform') and part['dimensions']['height']==1)
+            if not receiving or not pp.get('host_id'):
                 continue
             po = world(part); pd = part.get('dimensions') or {}
             extent = pd.get('width' if side == 'x' else 'depth',0)
@@ -431,8 +443,16 @@ def _fit_exterior_stairs(plan: dict) -> None:
             for body in bodies:
                 bp = body.get('params') or {}
                 own_body = bp.get('component_id') == p.get('host_id')
-                if p.get('host_id') and bp.get('host_id') == p.get('host_id'): continue
+                if p.get('host_id') and bp.get('host_id') == p.get('host_id') and bp.get('plate_role') not in ('bridge','link','connector'): continue
                 bo = world(body); dims = body['dimensions']
+                if bp.get('plate_role') in ('bridge','link','connector') and any(
+                        c.get('component_type')=='DECOR_DETAIL' and bp.get('component_id') in (
+                            (c.get('params') or {}).get('host_id'),(c.get('params') or {}).get('attachment_host_id'))
+                        and ((c.get('params') or {}).get('railing_block') or (c.get('params') or {}).get('role')=='railing'
+                             or any('railing' in str(f) for f in c.get('features',[]))) for c in plan.get('components',[])):
+                    bo=dict(bo); dims=dict(dims)
+                    across='x' if dims['depth']>=dims['width'] else 'z'
+                    bo[across]-=1; dims['width' if across=='x' else 'depth']+=2
                 if body.get('component_type') == 'FOUNDATION' and bo['y']+dims['height'] <= origin['y']+a['y']:
                     continue
                 for step in range(run+(landing if landing > 1 else 0)+1):
@@ -492,7 +512,7 @@ def _fit_exterior_stairs(plan: dict) -> None:
                 # the entire shifted stair width. Never enlarge the hall floor.
                 for platform in plan.get('components', []):
                     pp = platform.get('params') or {}
-                    if pp.get('plate_role') != 'partial_platform' or pp.get('host_id') != p.get('host_id'):
+                    if pp.get('plate_role') not in ('platform','partial_platform') or pp.get('host_id') != p.get('host_id'):
                         continue
                     po = world(platform); pd = platform['dimensions']
                     end = {axis: origin[axis]+b[axis] for axis in ('x','y','z')}
@@ -538,8 +558,11 @@ def normalize_circulation_plan(plan: dict) -> dict:
         p = comp.get('params') or {}
         if comp.get('component_type') == 'STRUCTURE' and isinstance(p.get('features'),list):
             comp['features'] = list(dict.fromkeys([*comp.get('features',[]),*p['features']]))
-        if (comp.get('component_type') == 'MASS_SECONDARY' and (p.get('shape') == 'stair' or p.get('role') == 'interior_stair')
+        if (comp.get('component_type') == 'MASS_SECONDARY' and (p.get('shape') == 'stair' or p.get('role') == 'interior_stair' or p.get('extrude_mode') == 'stairs')
                 and all(isinstance(p.get(k),int) for k in ('rise','run'))):
+            if p.get('extrude_mode')=='stairs':
+                p.setdefault('stair_direction',p.get('direction','south'))
+                p.setdefault('width',(comp.get('dimensions') or {}).get('width',3))
             p.update(extrude_mode='stair',stair_rise=p['rise'],stair_run=p['run'])
         if comp.get('component_type') == 'STRUCTURE' and any(str(f).startswith('stair:') for f in comp.get('features', [])):
             for key in ('from', 'to'):
@@ -579,13 +602,13 @@ def normalize_circulation_plan(plan: dict) -> dict:
                   'stairs': _material(p.get('step_material',p.get('material')), True), 'floor': _material(p.get('step_material',p.get('material'))),
                   'clearHeight': max(2,int(p.get('headroom') or 2)), 'support': False,
                   'landing_length': 1, 'circulation_source': 'legacy_secondary_stair'})
-        if p.get('shape') == 'stair':
+        if p.get('shape') == 'stair' or p.get('stair_direction') in ('north','south','east','west'):
             direction = str(p.get('stair_direction','south')).lower()
             end = {'east':_point(run,rise,0),'west':_point(-run,rise,0),
                    'north':_point(0,rise,-run),'south':_point(0,rise,run)}.get(direction)
             if end is not None: p['to'] = end
             p['landing_length'] = max(1,min(16,int(p.get('landing_depth') or 1)))
-            p.pop('shape')
+            if p.get('shape') == 'stair': p.pop('shape')
     # Older responses inserted a default flight before recognizing the authored
     # secondary stair. Drop only defaults serving the same exact pair of levels.
     explicit_levels = set()
