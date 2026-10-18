@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Parametric tiered mountain palace builder (typology: {@code tiered_mountain_palace}).
@@ -81,7 +82,8 @@ public final class TieredMountainPalaceBuilder {
             GenerateStatus status,
             GeneratedStructure structure,
             List<BuildDiagnostic> diagnostics,
-            String terrainFingerprint
+            String terrainContentHash,
+            String buildContextHash
     ) {
         public PalaceGenerateResult {
             status = status == null ? GenerateStatus.FAILED : status;
@@ -89,7 +91,14 @@ public final class TieredMountainPalaceBuilder {
                     ? new GeneratedStructure(null, BlockPos.ORIGIN, "null", List.of())
                     : structure;
             diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
-            terrainFingerprint = terrainFingerprint == null ? "" : terrainFingerprint;
+            terrainContentHash = terrainContentHash == null ? "" : terrainContentHash;
+            buildContextHash = buildContextHash == null ? "" : buildContextHash;
+        }
+
+        /** @deprecated use {@link #terrainContentHash()} */
+        @Deprecated
+        public String terrainFingerprint() {
+            return terrainContentHash;
         }
 
         /** Blocks were produced (SUCCESS or SCHEMATIC_ONLY). */
@@ -308,7 +317,7 @@ public final class TieredMountainPalaceBuilder {
                     spec, world, origin, entrance, doorMx, pathStartZ, platformH, diagnostics);
             if (terrainSnapshot == null) {
                 return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
-                        voxels.airCount(), diagnostics, "");
+                        voxels.airCount(), diagnostics, "", "");
             }
             carveEntrance(voxels, base, platformH, foundation, floor);
             placeEntranceApproach(voxels, terrainSnapshot, doorMx, base.z1(), platformH,
@@ -324,7 +333,7 @@ public final class TieredMountainPalaceBuilder {
             // no tiers — still OK to continue empty-ish
         } else if (!schematicFlat) {
             diagnostics.add(new BuildDiagnostic("TERRAIN_CONTEXT_MISSING", "no_tiers_and_no_world"));
-            return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, 0, 0, diagnostics, "");
+            return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, 0, 0, diagnostics, "", "");
         }
 
         for (RoofUnit roof : roofs) {
@@ -336,15 +345,28 @@ public final class TieredMountainPalaceBuilder {
             diagnostics.add(new BuildDiagnostic("STAIR_GAP", "forced_test_failure"));
         }
 
-        String terrainFp = terrainSnapshot != null ? terrainSnapshot.fingerprint() : "";
+        String terrainContentHash = terrainSnapshot != null ? terrainSnapshot.contentHash() : "";
+        PalaceBuildContextFingerprint buildCtx = buildContextFingerprint(
+                world, origin, entrance, spec, bw, bd, requestedTiers, tierInset, tierHeight,
+                platformH, potala, paletteId, terrainContentHash);
+        String buildContextHash = buildCtx.contextHash();
+
+        String expectedCtx = getStringExtra(spec, "buildContextHash", null);
+        if (expectedCtx != null && !expectedCtx.isBlank() && !expectedCtx.equals(buildContextHash)) {
+            diagnostics.add(new BuildDiagnostic("CONTEXT_MISMATCH",
+                    "expected=" + expectedCtx + "_got=" + buildContextHash));
+        }
+
         boolean stairFailed = diagnostics.stream().anyMatch(d -> d.code().startsWith("STAIR_GAP"));
         boolean approachFailed = diagnostics.stream().anyMatch(d -> d.code().startsWith("APPROACH_"));
         // TERRAIN_SCHEMATIC is informational; only missing/stale terrain hard-fails.
         boolean terrainFailed = diagnostics.stream().anyMatch(d ->
                 d.code().equals("TERRAIN_CONTEXT_MISSING") || d.code().equals("TERRAIN_STALE"));
-        if (requireConnectivity && ((actualTiers >= 2 && stairFailed) || approachFailed || terrainFailed)) {
+        boolean contextFailed = diagnostics.stream().anyMatch(d -> d.code().equals("CONTEXT_MISMATCH"));
+        if (requireConnectivity && ((actualTiers >= 2 && stairFailed) || approachFailed || terrainFailed)
+                || contextFailed) {
             return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
-                    voxels.airCount(), diagnostics, terrainFp);
+                    voxels.airCount(), diagnostics, terrainContentHash, buildContextHash);
         }
 
         List<PlannedBlock> blocks = voxels.emit(origin, entrance);
@@ -356,7 +378,7 @@ public final class TieredMountainPalaceBuilder {
 
         if (requireConnectivity && !occupancyIssues.isEmpty()) {
             return failResult(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
-                    voxels.airCount(), diagnostics, terrainFp);
+                    voxels.airCount(), diagnostics, terrainContentHash, buildContextHash);
         }
 
         boolean schematic = terrainSnapshot != null && terrainSnapshot.schematicFlat();
@@ -364,12 +386,96 @@ public final class TieredMountainPalaceBuilder {
         String statusTag = schematic ? "SCHEMATIC" : "OK";
         String diagSuffix = diagnostics.isEmpty() ? "" : ", diagnostics=" + formatDiagnostics(diagnostics);
         String desc = String.format(
-                "Tiered Mountain Palace (tiered_mountain_palace, status=%s, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, terrainFp=%s%s)",
+                "Tiered Mountain Palace (tiered_mountain_palace, status=%s, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, terrainHash=%s, ctxHash=%s%s)",
                 statusTag, mode, bw, bd, requestedTiers, actualTiers, roofs.size(), voxels.airCount(),
-                terrainFp, diagSuffix
+                terrainContentHash, buildContextHash, diagSuffix
         );
         return new PalaceGenerateResult(status, new GeneratedStructure(null, origin, desc, blocks),
-                diagnostics, terrainFp);
+                diagnostics, terrainContentHash, buildContextHash);
+    }
+
+    /**
+     * Freeze a successful (or schematic) generate into an immutable PreviewPlan.
+     * Apply must call {@link PalacePreviewPlan#applyConfirmed} — never silently regenerate.
+     */
+    public static PalacePreviewPlan createPreviewPlan(
+            PalaceGenerateResult result,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec spec
+    ) {
+        Objects.requireNonNull(result, "result");
+        Objects.requireNonNull(origin, "origin");
+        Direction entrance = StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
+        String paletteId = getStringExtra(spec, "paletteId", null);
+        int bw = clampOdd(getIntExtra(spec, "baseWidth", 48), 24, 96);
+        int bd = clampOdd(getIntExtra(spec, "baseDepth", 40), 20, 88);
+        int requestedTiers = clamp(getIntExtra(spec, "tiers", 5), 2, 8);
+        int tierInset = clamp(getIntExtra(spec, "tierInset", 3), 2, 6);
+        int tierHeight = clamp(getIntExtra(spec, "tierHeight", 6), 4, 12);
+        int platformH = clamp(getIntExtra(spec, "platformHeight", 4), 2, 10);
+        boolean potala = isPotalaLandmark(spec);
+        PalaceBuildContextFingerprint ctx = buildContextFingerprint(
+                world, origin, entrance, spec, bw, bd, requestedTiers, tierInset, tierHeight,
+                platformH, potala, paletteId, result.terrainContentHash());
+        if (!result.buildContextHash().isBlank()
+                && !result.buildContextHash().equals(ctx.contextHash())) {
+            throw new TypologyGenerationException(
+                    TYPOLOGY_ID,
+                    "CONTEXT_MISMATCH",
+                    "preview plan context diverged from generate result: plan="
+                            + ctx.contextHash() + " result=" + result.buildContextHash(),
+                    List.of("CONTEXT_MISMATCH")
+            );
+        }
+        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(result.structure(), origin);
+        return PalacePreviewPlan.fromGenerateResult(result, patches, ctx);
+    }
+
+    /**
+     * Apply corridor geometry parameters for {@link PalacePreviewPlan#validateForApply}.
+     */
+    public static int[] approachCorridorParams(BuildingSpec spec) {
+        int bw = clampOdd(getIntExtra(spec, "baseWidth", 48), 24, 96);
+        int bd = clampOdd(getIntExtra(spec, "baseDepth", 40), 20, 88);
+        int platformH = clamp(getIntExtra(spec, "platformHeight", 4), 2, 10);
+        int requestedTiers = clamp(getIntExtra(spec, "tiers", 5), 2, 8);
+        int tierInset = clamp(getIntExtra(spec, "tierInset", 3), 2, 6);
+        int tierHeight = clamp(getIntExtra(spec, "tierHeight", 6), 4, 12);
+        List<TierRect> keepTiers = computeConcentricTiers(bw, bd, platformH, requestedTiers, tierInset, tierHeight);
+        if (keepTiers.isEmpty()) {
+            return new int[]{bw / 2, MAX_APPROACH_DEPTH, platformH, MAX_APPROACH_DROP};
+        }
+        TierRect base = keepTiers.getFirst();
+        int doorMx = (base.x0() + base.x1()) / 2;
+        int pathStartZ = base.z1() + MAX_APPROACH_DEPTH;
+        return new int[]{doorMx, pathStartZ, platformH, MAX_APPROACH_DROP};
+    }
+
+    private static PalaceBuildContextFingerprint buildContextFingerprint(
+            ServerWorld world,
+            BlockPos origin,
+            Direction entrance,
+            BuildingSpec spec,
+            int bw, int bd, int requestedTiers, int tierInset, int tierHeight,
+            int platformH, boolean potala, String paletteId, String terrainContentHash
+    ) {
+        String worldKey = world != null ? PalacePreviewPlan.worldKeyOf(world) : "schematic";
+        LinkedHashMap<String, Object> params = new LinkedHashMap<>();
+        if (spec != null && spec.getExtra() != null) {
+            params.putAll(PalaceBuildContextFingerprint.normalizeExtras(spec.getExtra()));
+        }
+        // Bind clamped generation params that affect geometry.
+        params.put("baseWidth", bw);
+        params.put("baseDepth", bd);
+        params.put("tiers", requestedTiers);
+        params.put("tierInset", tierInset);
+        params.put("tierHeight", tierHeight);
+        params.put("platformHeight", platformH);
+        params.put("potala", potala);
+        params.put("entrance", entrance == null ? "south" : entrance.asString());
+        return PalaceBuildContextFingerprint.create(
+                worldKey, origin, entrance, params, terrainContentHash, paletteId);
     }
 
     private static PalaceTerrainSnapshot resolveTerrainSnapshot(
@@ -380,7 +486,7 @@ public final class TieredMountainPalaceBuilder {
         PalaceTerrainSnapshot snap;
         if (schematicFlat) {
             snap = PalaceTerrainSnapshot.schematicFlat(mx, pathStartZ, padY, MAX_APPROACH_DROP);
-            diagnostics.add(new BuildDiagnostic("TERRAIN_SCHEMATIC", "fingerprint=" + snap.fingerprint()));
+            diagnostics.add(new BuildDiagnostic("TERRAIN_SCHEMATIC", "contentHash=" + snap.contentHash()));
         } else if (world == null || origin == null) {
             diagnostics.add(new BuildDiagnostic("TERRAIN_CONTEXT_MISSING",
                     "world_required_unless_schematicFlatTerrain"));
@@ -391,9 +497,12 @@ public final class TieredMountainPalaceBuilder {
                     TieredMountainPalaceBuilder::local);
         }
         String expected = getStringExtra(spec, "terrainFingerprint", null);
-        if (expected != null && !expected.isBlank() && !expected.equals(snap.fingerprint())) {
+        if (expected == null || expected.isBlank()) {
+            expected = getStringExtra(spec, "terrainContentHash", null);
+        }
+        if (expected != null && !expected.isBlank() && !expected.equals(snap.contentHash())) {
             diagnostics.add(new BuildDiagnostic("TERRAIN_STALE",
-                    "expected=" + expected + "_got=" + snap.fingerprint()));
+                    "expected=" + expected + "_got=" + snap.contentHash()));
             return null;
         }
         return snap;
@@ -401,17 +510,20 @@ public final class TieredMountainPalaceBuilder {
 
     private static PalaceGenerateResult failResult(
             BlockPos origin, String mode, int bw, int bd, int requestedTiers, int actualTiers,
-            int roofs, int air, List<BuildDiagnostic> diagnostics, String terrainFp) {
+            int roofs, int air, List<BuildDiagnostic> diagnostics,
+            String terrainContentHash, String buildContextHash) {
         LOG.warn("tiered_mountain_palace FAILED: {}", formatDiagnostics(diagnostics));
         String desc = String.format(
-                "Tiered Mountain Palace (tiered_mountain_palace, status=FAILED, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, terrainFp=%s, diagnostics=%s)",
-                mode, bw, bd, requestedTiers, actualTiers, roofs, air, terrainFp, formatDiagnostics(diagnostics)
+                "Tiered Mountain Palace (tiered_mountain_palace, status=FAILED, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, terrainHash=%s, ctxHash=%s, diagnostics=%s)",
+                mode, bw, bd, requestedTiers, actualTiers, roofs, air,
+                terrainContentHash, buildContextHash, formatDiagnostics(diagnostics)
         );
         return new PalaceGenerateResult(
                 GenerateStatus.FAILED,
                 new GeneratedStructure(null, origin, desc, List.of()),
                 diagnostics,
-                terrainFp == null ? "" : terrainFp);
+                terrainContentHash == null ? "" : terrainContentHash,
+                buildContextHash == null ? "" : buildContextHash);
     }
 
     private static String formatDiagnostics(List<BuildDiagnostic> diagnostics) {

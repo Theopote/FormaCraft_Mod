@@ -259,7 +259,8 @@ class TieredMountainPalaceBuilderTest {
         TieredMountainPalaceBuilder.PalaceGenerateResult first =
                 TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
         assertTrue(first.hasGeometry());
-        assertFalse(first.terrainFingerprint().isBlank());
+        assertFalse(first.terrainContentHash().isBlank());
+        assertFalse(first.buildContextHash().isBlank());
         extras.put("terrainFingerprint", "deadbeefdeadbeef");
         TieredMountainPalaceBuilder.PalaceGenerateResult stale =
                 TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, specOf(extras));
