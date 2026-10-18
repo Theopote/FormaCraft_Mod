@@ -52,14 +52,6 @@ public final class PalaceTerrainSnapshot {
         return contentHash;
     }
 
-    /**
-     * @deprecated use {@link #contentHash()}; retained for callers that still say "fingerprint".
-     */
-    @Deprecated
-    public String fingerprint() {
-        return contentHash;
-    }
-
     public boolean schematicFlat() {
         return schematicFlat;
     }

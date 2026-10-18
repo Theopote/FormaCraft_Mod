@@ -62,10 +62,11 @@ class PalaceTerrainSnapshotTest {
     }
 
     @Test
-    void fingerprintAliasMatchesContentHash() {
+    void contentHashIsStableHexDigest() {
         PalaceTerrainSnapshot snap = PalaceTerrainSnapshot.schematicFlat(10, 20, 3, 4);
-        assertEquals(snap.contentHash(), snap.fingerprint());
         assertFalse(snap.contentHash().isBlank());
         assertEquals(16, snap.contentHash().length());
+        assertEquals(snap.contentHash(),
+                PalaceTerrainSnapshot.schematicFlat(10, 20, 3, 4).contentHash());
     }
 }
