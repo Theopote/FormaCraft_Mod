@@ -5162,7 +5162,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             client,
             model=model,
             messages=messages,
-            temperature=_clamp_temperature(getattr(req, "temperature", None), 0.7),
+            temperature=_clamp_temperature(os.getenv("LLMPLAN_TEMPERATURE"), 0.3),
             call_with_timeout=_call_with_timeout,
             timeout_sec=timeout_sec,
             prefer_json_object=prefer_json_object,

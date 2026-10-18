@@ -1,10 +1,10 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-15（第四十七批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-15（第四十七批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；直接世界方块写入由 BlockMutationAccess 收敛，scripts/check_architecture.py 检查新增旁路。
 
 ## 预览过滤 = 建造过滤（不变量）
 
-服务端 Patch 预览签发（`PatchPreviewService` → `ServerPatchFilter`）委托 `PatchFilterPipeline.createDefault()`（禁区 / 轮廓 / 选区 / 对称）。确认时消费的是**已过滤**的 `PreviewTicket` 内容，不得在确认路径上再跑一套不同的过滤规则，也不得回退到未过滤的客户端上传补丁。
+服务端 Patch 预览签发（`PatchPreviewService` → `ServerPatchFilter`）委托共享 `MutationRegionPolicy.allow`（禁区 / 轮廓 / 选区；服务端不扩展对称）。确认时消费的是**已过滤**的 `PreviewTicket` 内容，不得在确认路径上再跑一套不同的过滤规则，也不得回退到未过滤的客户端上传补丁。
 
 普通建造预览（`/forma_confirm`）经 `PreviewStorage`：确认前校验维度 + origin + 结构 digest，确认时**一次性消费**结构，禁止二次确认重放。整栋路径在预览阶段用 `BuildConstraintClipper` + `BuildConstraints`（禁区 / 选区 / 轮廓 / 笔刷 / 路径走廊）裁剪；写入阶段 `BuildTask` 不再二次裁剪。
 
@@ -12,13 +12,13 @@
 
 | 项 | Patch（`PatchPreviewService`） | Build（`/forma_confirm` → `BuildExecutionService`） |
 |---|---|---|
-| 预览裁剪 | `ServerPatchFilter` → `PatchFilterPipeline` | `BuildConstraintClipper` → `BuildConstraints.allow` |
+| 预览裁剪 | `ServerPatchFilter` → `MutationRegionPolicy.allow` | `BuildConstraintClipper` → `BuildConstraints.allow` |
 | 确认门禁 | 玩家绑定 + **维度** + 距离 ≤96 + 一次性 Ticket | 玩家预览态 + **维度** + digest + 一次性 consume |
 | 世界写入 | `WorldPatchTransaction` → `PatchExecutor`（同步） | `BuildTask`（分 Tick） |
 | 历史 | `PatchHistoryManager` | `UndoService` |
 | Memory | Patch Diff Mutation | `registerBuilding`（仅完整放置） |
 
-**已知分叉（未在本批统一）**：Pipeline 含对称扩展；BuildConstraints 含笔刷/路径走廊，不含对称。两边核心禁区/选区/轮廓应对齐，新增约束须两边同步或抽共享 allow()。
+**共享核心约束**：Patch 与 Build 均调用 `MutationRegionPolicy.allow`，单点维护禁区/选区/轮廓；无效轮廓拒绝通过。Build 另含笔刷/路径走廊，这些输入不在当前 Patch 接口内。通用 PatchFilterPipeline 支持对称，但服务端 Patch 接口未启用对称；对称扩展先于区域裁剪。
 
 **已修复**：Patch `confirm` 须先校验维度/距离再 `consume`，避免门禁失败丢票据；Ticket 绑定签发维度。
 

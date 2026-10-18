@@ -977,7 +977,9 @@ public class ChatPanel extends BasePanel {
         // 否则 Python 后端会收到 apiKey/model/provider/baseUrl 都是 null，通常只能走“兜底模板”，导致“无论输入什么都生成得很像”。
         SettingsConfig cfg = SettingsConfig.INSTANCE;
         String apiKey = cfg.apiKey != null ? cfg.apiKey.trim() : "";
-        if (!apiKey.isEmpty()) req.setApiKey(apiKey);
+        if (!apiKey.isEmpty() && net.minecraft.client.MinecraftClient.getInstance().isInSingleplayer()) {
+            req.setApiKey(apiKey);
+        }
 
         String model = cfg.model != null ? cfg.model.trim() : "";
         if (!model.isEmpty()) req.setModel(model);

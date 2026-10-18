@@ -59,10 +59,10 @@ public class PatchFilterPipeline {
      */
     public static PatchFilterPipeline createDefault() {
         return new PatchFilterPipeline()
+                .add(new com.formacraft.common.patch.filter.impl.SymmetryFilter())
                 .add(new com.formacraft.common.patch.filter.impl.ForbiddenZoneFilter())
                 .add(new com.formacraft.common.patch.filter.impl.OutlineClipFilter())
-                .add(new com.formacraft.common.patch.filter.impl.SelectionOnlyFilter())
-                .add(new com.formacraft.common.patch.filter.impl.SymmetryFilter());
+                .add(new com.formacraft.common.patch.filter.impl.SelectionOnlyFilter());
     }
 }
 

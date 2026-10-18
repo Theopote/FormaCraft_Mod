@@ -43,35 +43,9 @@ public final class BuildConstraints {
     }
 
     public boolean allow(BlockPos p) {
-        if (p == null) return false;
-
-        // 1) protected zones (strongest)
-        if (!protectedZones.isEmpty()) {
-            for (ProtectedZone z : protectedZones) {
-                if (z != null && z.contains(p)) return false;
-            }
-        }
-
-        // 2) selection clamp
-        if (selectionMin != null && selectionMax != null) {
-            if (p.getX() < selectionMin.getX() || p.getX() > selectionMax.getX()
-                    || p.getY() < selectionMin.getY() || p.getY() > selectionMax.getY()
-                    || p.getZ() < selectionMin.getZ() || p.getZ() > selectionMax.getZ()) {
-                return false;
-            }
-        } else if (brushMin != null && brushMax != null) {
-            // 2b) 无 selection 时，笔刷 AABB 作为硬约束区域
-            if (p.getX() < brushMin.getX() || p.getX() > brushMax.getX()
-                    || p.getY() < brushMin.getY() || p.getY() > brushMax.getY()
-                    || p.getZ() < brushMin.getZ() || p.getZ() > brushMax.getZ()) {
-                return false;
-            }
-        }
-
-        // 3) outline clamp
-        if (outline != null) {
-            if (!insideOutline(p, outline)) return false;
-        }
+        BlockPos min = selectionMin != null && selectionMax != null ? selectionMin : brushMin;
+        BlockPos max = selectionMin != null && selectionMax != null ? selectionMax : brushMax;
+        if (!com.formacraft.common.world.MutationRegionPolicy.allow(p, min, max, outline, protectedZones)) return false;
 
         // 4) path corridor clamp（水平距离折线 <= radius）
         if (pathNodes != null && pathNodes.size() >= 2 && pathRadius > 0) {
@@ -112,38 +86,4 @@ public final class BuildConstraints {
         return ex * ex + ez * ez;
     }
 
-    private static boolean insideOutline(BlockPos p, OutlineShape s) {
-        // height range
-        int y = p.getY();
-        if (y < s.minY() || y > s.maxY()) return false;
-
-        if ("circle".equalsIgnoreCase(s.shapeType()) && s.center() != null) {
-            int dx = p.getX() - s.center().getX();
-            int dz = p.getZ() - s.center().getZ();
-            return (dx * dx + dz * dz) <= (s.radius() * s.radius());
-        }
-
-        List<BlockPos> poly = s.vertices();
-        if (poly == null || poly.size() < 3) return true;
-        return pointInPolygonXZ(p.getX() + 0.5, p.getZ() + 0.5, poly);
-    }
-
-    // Keep identical to client OutlineRule for consistent behavior.
-    private static boolean pointInPolygonXZ(double x, double z, List<BlockPos> poly) {
-        boolean inside = false;
-        int n = poly.size();
-        for (int i = 0, j = n - 1; i < n; j = i++) {
-            double xi = poly.get(i).getX() + 0.5;
-            double zi = poly.get(i).getZ() + 0.5;
-            double xj = poly.get(j).getX() + 0.5;
-            double zj = poly.get(j).getZ() + 0.5;
-
-            boolean intersect = ((zi > z) != (zj > z)) &&
-                    (x < (xj - xi) * (z - zi) / (zj - zi + 0.0) + xi);
-            if (intersect) inside = !inside;
-        }
-        return inside;
-    }
 }
-
-

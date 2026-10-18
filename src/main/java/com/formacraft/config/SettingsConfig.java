@@ -14,11 +14,13 @@ public class SettingsConfig {
     private static final File CONFIG_FILE = new File("config/formacraft_settings.json");
 
     // === 配置字段 ===
+    // Local singleplayer credential (stored as plain text); never sent to multiplayer servers.
+    // Dedicated servers use FORMACRAFT_API_KEY > server config > backend environment.
     public String apiKey = "";
     public String model = "gpt-4o";        // 默认模型
 
     /**
-     * LLM Provider（优先级：请求覆盖 > 本地配置 > 后端环境变量）
+     * LLM Provider（优先级：单人：请求覆盖 > 本地配置 > 后端环境变量；专用服：服务端配置 > 后端环境变量）
      * 推荐值：auto / deepseek / openai / openai_compat / ollama
      */
     public String llmProvider = "auto";

@@ -2,8 +2,10 @@
 
 .gradle/
 # Anchor to the Gradle output dir only, so a future source package named
-# .../server/build/ is not accidentally ignored (see blueprint Track C housekeeping).
+# .../server/build/
+/build-ci-fix/ is not accidentally ignored (see blueprint Track C housekeeping).
 /build/
+/build-ci-fix/
 out/
 classes/
 
@@ -60,3 +62,4 @@ python_backend/eval/reports/live_weekly_*.json
 # local config (may contain API keys)
 
 config/formacraft_settings.json
+config/formacraft_server.properties

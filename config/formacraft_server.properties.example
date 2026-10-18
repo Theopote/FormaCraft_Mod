@@ -1,0 +1,6 @@
+# Dedicated server only; copy to formacraft_server.properties and restart.
+# Environment FORMACRAFT_* overrides this file. Missing values use backend env.
+apiKey=
+llmProvider=
+llmBaseUrl=
+model=

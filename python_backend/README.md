@@ -188,3 +188,20 @@ python python_backend/tools/spec_contract_smoke.py
 - `styleProfileId` 合法性校验与自动回退（无效则写入 `extra.debugWarnings`）
 - `paletteId` 合法性校验与自动回退
 - `styleProfileId` 存在默认 palette 且 `paletteId` 缺失时，自动补齐 `paletteId`（并置 `paletteIdAutoFromStyle=true`）
+
+## 服务端凭据与调试
+
+专用 Minecraft 服务器不接受客户端 API Key、Provider、Base URL 或 model。
+在 Minecraft 服务端进程设置 `FORMACRAFT_API_KEY`、`FORMACRAFT_LLM_PROVIDER`、
+`FORMACRAFT_LLM_BASE_URL`、`FORMACRAFT_LLM_MODEL`，或复制仓库中的
+`config/formacraft_server.properties.example` 为 `config/formacraft_server.properties`。
+环境变量优先，配置修改后重启服务端；未设置的值回落到 Python 后端环境。
+管理员 Key 必须搭配管理员控制的 URL，不能单独保留客户端 URL。
+单人游戏仍支持设置面板中的本地 Key（本地 JSON 为明文，请保护文件）。
+
+CORS 默认不允许跨域浏览器访问，Minecraft 的 HTTP 客户端不需要 CORS。
+本地浏览器调试可在后端进程设置 `FORMACRAFT_CORS_ORIGINS=http://localhost:3000`；
+多个源用逗号分隔，不开启 cookie 凭据。CORS 不替代后端访问控制。
+
+LlmPlan 使用独立温度，默认 `0.3`，可通过后端环境 `LLMPLAN_TEMPERATURE` 调整
+（限 0–1）；其他规划路径仍按原请求温度工作。降低温度不保证造型质量提升，需实测评估。

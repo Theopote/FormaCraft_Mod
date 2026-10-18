@@ -27,6 +27,22 @@ def violations(root: Path) -> list[str]:
             for match in REFERENCE.finditer(code):
                 if match.group(1) in forbidden:
                     errors.append(f"{path.relative_to(root).as_posix()}: {layer} references {match.group(1)}")
+    for path in sorted(root.rglob("*.java")):
+        if path.relative_to(root).as_posix() == "common/world/BlockMutationAccess.java":
+            continue
+        code = NON_CODE.sub(lambda m: "\n" * m.group().count("\n"), path.read_text(encoding="utf-8-sig"))
+        for match in re.finditer(r"\.\s*setBlockState\s*\(([^;]*)", code):
+            # World writes take position + state; Voxel setters take one argument.
+            depth = 0
+            has_separator = False
+            for char in match.group(1):
+                if char == "(": depth += 1
+                elif char == ")":
+                    if depth == 0: break
+                    depth -= 1
+                elif char == "," and depth == 0: has_separator = True
+            if has_separator:
+                errors.append(f"{path.relative_to(root).as_posix()}: world write bypasses BlockMutationAccess")
     return errors
 
 

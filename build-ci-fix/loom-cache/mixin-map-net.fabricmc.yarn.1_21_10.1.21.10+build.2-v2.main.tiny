@@ -1,4 +1,0 @@
-v1	named	intermediary
-FIELD	com/formacraft/mixin/MouseMixin	Lnet/minecraft/client/MinecraftClient;	client	field_1779
-FIELD	com/formacraft/mixin/MouseMixin	D	cursorDeltaX	field_1789
-FIELD	com/formacraft/mixin/MouseMixin	D	cursorDeltaY	field_1787

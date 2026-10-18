@@ -51,6 +51,7 @@ public final class BuildRequestProcessor {
                     com.formacraft.common.component.query.ComponentRetriever.setViewerPlayer(player.getUuid());
                     try {
                     FormaRequest req = payload.request();
+                    com.formacraft.server.config.ServerLlmConfig.apply(req, context.server().isDedicated());
                     FormacraftMod.LOGGER.info("Received build request from player {}: {}",
                             player.getName().getString(), BuildingSpecRoutingPolicy.userIntentText(req));
 

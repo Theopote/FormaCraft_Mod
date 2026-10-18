@@ -185,6 +185,14 @@ def run_assembly_repair_negative() -> int:
 
 def run_ci_gate(*, gate: bool = True, quick: bool = False) -> int:
     steps: List[Tuple[str, int]] = []
+    repo = _BACKEND_ROOT.parent
+    consumers = (
+        "src/main/java/com/formacraft/server/build/BuildConstraints.java",
+        "src/main/java/com/formacraft/server/patch/ServerPatchFilter.java",
+    )
+    if any("MutationRegionPolicy.allow(" not in (repo / p).read_text(encoding="utf-8") for p in consumers):
+        print("FAIL: Patch and Build must delegate core constraints to MutationRegionPolicy.allow")
+        return 1
 
     if not quick:
         code = _run_unittest_modules(_UNITTEST_MODULES)

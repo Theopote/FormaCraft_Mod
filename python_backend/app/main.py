@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,11 +17,11 @@ def root():
 def health():
     return {"ok": True}
 
-# 配置 CORS，允许 Minecraft 客户端访问
+# Minecraft HTTP clients do not require CORS. Opt in only for browser debugging.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 调试阶段可以 *, 线上建议收紧
-    allow_credentials=True,
+    allow_origins=[s.strip() for s in os.getenv("FORMACRAFT_CORS_ORIGINS", "").split(",") if s.strip()],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
