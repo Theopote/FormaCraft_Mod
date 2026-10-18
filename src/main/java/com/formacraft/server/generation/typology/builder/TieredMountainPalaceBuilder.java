@@ -2,13 +2,18 @@ package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.generation.component.util.PlannedOccupancy;
+import com.formacraft.common.generation.component.util.WalkabilityGraph;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.common.typology.TypologyParamResolver;
+import com.formacraft.common.typology.TypologyPatchBridge;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
@@ -18,6 +23,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.world.Heightmap;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,16 +36,36 @@ import java.util.Map;
  * <p>
  * VERTICAL_STACK：石砌台地 + 逐层退台宫城（可选布达拉宫 keep/wings）+ 门窗楼梯 + 多单元金顶。
  * Clearance is scoped to interiors/openings only — no padded AABB AIR pre-clear.
+ * Multi-tier builds require full floor connectivity; otherwise {@code status=FAILED} with empty blocks.
  */
 public final class TieredMountainPalaceBuilder {
 
     public static final String TYPOLOGY_ID = "tiered_mountain_palace";
     public static final String LANDMARK_POTALA = "potala_palace";
 
+    /** Max exterior approach depth (local +Z from facade) and max terrain drop filled with stairs/columns. */
+    public static final int MAX_APPROACH_DEPTH = 4;
+    public static final int MAX_APPROACH_DROP = 8;
+
     private static final FcaLog LOG = FcaLog.of("TieredMountainPalaceBuilder");
     private static final int MIN_SPAN = 8;
+    private static final ThreadLocal<List<BuildDiagnostic>> LAST_DIAGNOSTICS =
+            ThreadLocal.withInitial(ArrayList::new);
 
     private TieredMountainPalaceBuilder() {}
+
+    /** Structured generation diagnostic (stair gaps, walkability, openings). */
+    public record BuildDiagnostic(String code, String detail) {
+        @Override
+        public String toString() {
+            return code + (detail == null || detail.isBlank() ? "" : ":" + detail);
+        }
+    }
+
+    /** Last diagnostics from the calling thread's most recent {@link #generate} call. */
+    public static List<BuildDiagnostic> lastDiagnostics() {
+        return List.copyOf(LAST_DIAGNOSTICS.get());
+    }
 
     /** Local-axis tier footprint. */
     private record TierRect(int x0, int z0, int x1, int z1, int y0, int y1, boolean upperPalace) {
@@ -116,6 +142,7 @@ public final class TieredMountainPalaceBuilder {
     }
 
     private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        LAST_DIAGNOSTICS.get().clear();
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
         DetailPreferences details = profile != null ? profile.details() : null;
@@ -128,6 +155,7 @@ public final class TieredMountainPalaceBuilder {
 
         Direction entrance = StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
         boolean potala = isPotalaLandmark(spec);
+        boolean requireConnectivity = getBoolExtra(spec, "requireFloorConnectivity", true);
 
         int bw = clampOdd(getIntExtra(spec, "baseWidth", 48), 24, 96);
         int bd = clampOdd(getIntExtra(spec, "baseDepth", 40), 20, 88);
@@ -163,30 +191,34 @@ public final class TieredMountainPalaceBuilder {
 
         VoxelMap voxels = new VoxelMap();
         List<RoofUnit> roofs = new ArrayList<>();
+        List<BuildDiagnostic> diagnostics = LAST_DIAGNOSTICS.get();
+        List<Vec3i> wingSamples = new ArrayList<>();
+        List<FlightPlan> emittedFlights = new ArrayList<>();
+        int doorMx = -1;
 
-        // Stone platform + trim ring (no exterior pad clear)
         fillRect(voxels, 0, 0, 0, bw - 1, platformH - 1, bd - 1, foundation);
         ringRect(voxels, 0, platformH - 1, 0, bw - 1, bd - 1, trim);
 
         int upperBand = Math.max(1, (actualTiers + 2) / 3);
         for (int i = 0; i < actualTiers; i++) {
             TierRect t = keepTiers.get(i);
-            boolean upper = i >= actualTiers - upperBand;
-            BlockState wallMat = upper ? upperWall : wall;
+            BlockState wallMat = (i >= actualTiers - upperBand) ? upperWall : wall;
             placeMassShell(voxels, t, floor, wallMat, trim);
         }
 
         if (potala && actualTiers >= 2) {
-            placePotalaWings(voxels, roofs, bw, bd, platformH, tierHeight, actualTiers,
-                    floor, wall, upperWall, trim, accent);
+            placePotalaWings(voxels, roofs, wingSamples, bw, bd, platformH, tierHeight, actualTiers,
+                    floor, upperWall, trim, accent);
         }
 
-        List<String> stairGaps = new ArrayList<>();
         if (!keepTiers.isEmpty()) {
             TierRect base = keepTiers.get(0);
-            carveEntrance(voxels, base, platformH);
+            doorMx = (base.x0() + base.x1()) / 2;
+            carveEntrance(voxels, base, platformH, foundation, floor);
+            placeEntranceApproach(voxels, world, origin, entrance, doorMx, base.z1(), platformH,
+                    foundation, floor, stair);
             placeWindows(voxels, keepTiers, window);
-            placeInterTierStairs(voxels, keepTiers, stair, floor, stairGaps);
+            placeInterTierStairs(voxels, keepTiers, stair, floor, diagnostics, emittedFlights);
 
             TierRect top = keepTiers.get(actualTiers - 1);
             roofs.add(new RoofUnit(
@@ -198,14 +230,63 @@ public final class TieredMountainPalaceBuilder {
             placeRoofUnit(voxels, roof);
         }
 
-        List<PlannedBlock> blocks = voxels.emit(origin, entrance);
         String mode = potala ? "potala" : "generic";
-        String gapSuffix = stairGaps.isEmpty() ? "" : ", stairGap=" + String.join("+", stairGaps);
+        boolean stairFailed = diagnostics.stream().anyMatch(d -> d.code().startsWith("STAIR_GAP"));
+        if (requireConnectivity && actualTiers >= 2 && stairFailed) {
+            return failStructure(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
+                    voxels.airCount(), diagnostics);
+        }
+
+        List<PlannedBlock> blocks = voxels.emit(origin, entrance);
+        GeneratedStructure candidate = new GeneratedStructure(null, origin, "pending", blocks);
+        List<BuildDiagnostic> occupancyIssues = validateFinalOccupancy(
+                candidate, origin, entrance, keepTiers, platformH, tierHeight, potala, wingSamples,
+                emittedFlights, doorMx);
+        diagnostics.addAll(occupancyIssues);
+
+        if (requireConnectivity && !occupancyIssues.isEmpty()) {
+            return failStructure(origin, mode, bw, bd, requestedTiers, actualTiers, roofs.size(),
+                    voxels.airCount(), diagnostics);
+        }
+
+        String diagSuffix = diagnostics.isEmpty() ? "" : ", diagnostics=" + formatDiagnostics(diagnostics);
         String desc = String.format(
-                "Tiered Mountain Palace (tiered_mountain_palace, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d%s)",
-                mode, bw, bd, requestedTiers, actualTiers, roofs.size(), voxels.airCount(), gapSuffix
+                "Tiered Mountain Palace (tiered_mountain_palace, status=OK, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d%s)",
+                mode, bw, bd, requestedTiers, actualTiers, roofs.size(), voxels.airCount(), diagSuffix
         );
         return new GeneratedStructure(null, origin, desc, blocks);
+    }
+
+    private static GeneratedStructure failStructure(
+            BlockPos origin, String mode, int bw, int bd, int requestedTiers, int actualTiers,
+            int roofs, int air, List<BuildDiagnostic> diagnostics) {
+        LOG.warn("tiered_mountain_palace FAILED: {}", formatDiagnostics(diagnostics));
+        String desc = String.format(
+                "Tiered Mountain Palace (tiered_mountain_palace, status=FAILED, mode=%s, %dx%d, requestedTiers=%d, actualTiers=%d, roofs=%d, air=%d, diagnostics=%s)",
+                mode, bw, bd, requestedTiers, actualTiers, roofs, air, formatDiagnostics(diagnostics)
+        );
+        return new GeneratedStructure(null, origin, desc, List.of());
+    }
+
+    private static String formatDiagnostics(List<BuildDiagnostic> diagnostics) {
+        if (diagnostics == null || diagnostics.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < diagnostics.size(); i++) {
+            if (i > 0) sb.append('+');
+            sb.append(diagnostics.get(i).toString().replace(' ', '_'));
+        }
+        return sb.toString();
+    }
+
+    private static boolean getBoolExtra(BuildingSpec spec, String key, boolean def) {
+        if (spec == null || spec.getExtra() == null) return def;
+        Object v = spec.getExtra().get(key);
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+        if (s.equals("true") || s.equals("1") || s.equals("yes")) return true;
+        if (s.equals("false") || s.equals("0") || s.equals("no")) return false;
+        return def;
     }
 
     private static List<TierRect> computeConcentricTiers(
@@ -255,9 +336,9 @@ public final class TieredMountainPalaceBuilder {
      * Coords stay non-negative for {@link VoxelMap} packing.
      */
     private static void placePotalaWings(
-            VoxelMap voxels, List<RoofUnit> roofs,
+            VoxelMap voxels, List<RoofUnit> roofs, List<Vec3i> wingSamples,
             int bw, int bd, int platformH, int tierHeight, int actualTiers,
-            BlockState floor, BlockState wall, BlockState upperWall, BlockState trim, BlockState accent) {
+            BlockState floor, BlockState upperWall, BlockState trim, BlockState accent) {
         int maxWing = Math.max(6, (bw - MIN_SPAN) / 2);
         int wingW = Math.min(maxWing, Math.max(6, (int) Math.round(bw * 0.35)));
         int wingD = Math.max(6, bd / 3);
@@ -267,7 +348,6 @@ public final class TieredMountainPalaceBuilder {
         int frontZ0 = bd - wingD;
         int linkZ = (frontZ0 + bd - 1) / 2;
 
-        // Left wing: [0 .. wingW-1], east face flush to keep corridor at x=wingW
         int lx0 = 0;
         int lx1 = wingW - 1;
         if (lx1 - lx0 + 1 >= 6 && lx1 + MIN_SPAN < bw) {
@@ -277,9 +357,9 @@ public final class TieredMountainPalaceBuilder {
             roofs.add(new RoofUnit(left.x0(), left.z0(), left.x1(), left.z1(),
                     left.y1() + 1, 1, accent, trim));
             placeWingWindows(voxels, left, windowOrBars(upperWall), upperWall);
+            wingSamples.add(new Vec3i((lx0 + lx1) / 2, platformH, linkZ));
         }
 
-        // Right wing: flush west face to keep corridor
         int rx1 = bw - 1;
         int rx0 = bw - wingW;
         if (rx1 - rx0 + 1 >= 6 && rx0 - MIN_SPAN > lx1) {
@@ -289,6 +369,7 @@ public final class TieredMountainPalaceBuilder {
             roofs.add(new RoofUnit(right.x0(), right.z0(), right.x1(), right.z1(),
                     right.y1() + 1, 1, accent, trim));
             placeWingWindows(voxels, right, windowOrBars(upperWall), upperWall);
+            wingSamples.add(new Vec3i((rx0 + rx1) / 2, platformH, linkZ));
         }
     }
 
@@ -325,21 +406,18 @@ public final class TieredMountainPalaceBuilder {
         return s != null && !s.isAir();
     }
 
-    private static void carveEntrance(VoxelMap voxels, TierRect base, int platformH) {
+    private static void carveEntrance(VoxelMap voxels, TierRect base, int platformH,
+                                      BlockState foundation, BlockState floor) {
         int mx = (base.x0() + base.x1()) / 2;
         int zFront = base.z1();
         int y0 = platformH;
-        // Opening 3 wide × 3 high on south facade
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = 0; dy < 3; dy++) {
                 voxels.put(mx + dx, y0 + dy, zFront, Blocks.AIR.getDefaultState());
-            }
-        }
-        // Interior approach (door threshold / just inside)
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = 0; dy < 3; dy++) {
                 voxels.put(mx + dx, y0 + dy, zFront - 1, Blocks.AIR.getDefaultState());
             }
+            // Threshold floor under the doorway bay
+            voxels.put(mx + dx, y0, zFront - 1, floor);
         }
         BlockState lower = Blocks.DARK_OAK_DOOR.getDefaultState()
                 .with(Properties.HORIZONTAL_FACING, Direction.SOUTH)
@@ -349,11 +427,71 @@ public final class TieredMountainPalaceBuilder {
                 .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
         voxels.put(mx, y0, zFront, lower);
         voxels.put(mx, y0 + 1, zFront, upper);
-        // Exterior approach strip just outside the facade (local +Z / SOUTH)
-        int zOut = zFront + 1;
+        // Ensure sill support under door
+        voxels.put(mx, y0 - 1, zFront, foundation);
+    }
+
+    /**
+     * Exterior pad + bounded descending stairs toward terrain (or flat pad when world is null).
+     * Terrain fill is capped by {@link #MAX_APPROACH_DEPTH} and {@link #MAX_APPROACH_DROP}.
+     */
+    private static void placeEntranceApproach(
+            VoxelMap voxels, ServerWorld world, BlockPos origin, Direction entrance,
+            int mx, int zFront, int platformH,
+            BlockState foundation, BlockState floor, BlockState stairBase) {
+        int padY = platformH;
+        int depth = MAX_APPROACH_DEPTH;
+        for (int dz = 1; dz <= depth; dz++) {
+            int z = zFront + dz;
+            for (int dx = -1; dx <= 1; dx++) {
+                int x = mx + dx;
+                voxels.put(x, padY, z, floor);
+                voxels.put(x, padY + 1, z, Blocks.AIR.getDefaultState());
+                voxels.put(x, padY + 2, z, Blocks.AIR.getDefaultState());
+                voxels.put(x, padY + 3, z, Blocks.AIR.getDefaultState());
+                // Column under pad toward platform base (flat / missing support)
+                for (int y = 0; y < padY; y++) {
+                    if (voxels.get(x, y, z) == null) {
+                        voxels.put(x, y, z, foundation);
+                    }
+                }
+            }
+        }
+
+        if (world == null || origin == null) {
+            return;
+        }
+
+        // Bounded terrain connect: sample heightmap at outer pad edge; step down within MAX_APPROACH_DROP
         for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = 0; dy < 3; dy++) {
-                voxels.put(mx + dx, y0 + dy, zOut, Blocks.AIR.getDefaultState());
+            int lx = mx + dx;
+            int lz = zFront + depth;
+            BlockPos worldPad = local(origin, entrance, lx, padY, lz);
+            int groundY;
+            try {
+                groundY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, worldPad.getX(), worldPad.getZ());
+            } catch (Throwable t) {
+                LOG.debug("approach heightmap unavailable", t);
+                continue;
+            }
+            int worldPadY = worldPad.getY();
+            int drop = worldPadY - groundY;
+            if (drop <= 0 || drop > MAX_APPROACH_DROP) {
+                continue;
+            }
+            // Place descending stairs in local space (further +Z), one step per drop cell
+            for (int s = 1; s <= drop && s <= MAX_APPROACH_DROP; s++) {
+                int stepZ = lz + s;
+                int stepY = padY - s;
+                if (stepY < groundY - origin.getY()) break;
+                BlockState st = stairBase.with(Properties.HORIZONTAL_FACING, Direction.SOUTH);
+                voxels.put(lx, stepY, stepZ, st);
+                clearHeadroom(voxels, lx, stepY, stepZ);
+                for (int y = Math.max(0, stepY - 3); y < stepY; y++) {
+                    if (voxels.get(lx, y, stepZ) == null) {
+                        voxels.put(lx, y, stepZ, foundation);
+                    }
+                }
             }
         }
     }
@@ -390,11 +528,12 @@ public final class TieredMountainPalaceBuilder {
 
     /**
      * Plan-then-emit inter-tier stairs. Never places a landing for a truncated flight.
-     * Headroom clears {@code y+1..y+3} for {@link com.formacraft.common.generation.component.util.WalkabilityGraph}.
+     * Failures append structured {@link BuildDiagnostic} codes ({@code STAIR_GAP_*}).
      */
     private static void placeInterTierStairs(VoxelMap voxels, List<TierRect> tiers,
                                              BlockState stairBase, BlockState floor,
-                                             List<String> stairGaps) {
+                                             List<BuildDiagnostic> diagnostics,
+                                             List<FlightPlan> emittedFlights) {
         if (tiers.size() < 2) return;
         for (int i = 0; i < tiers.size() - 1; i++) {
             TierRect lower = tiers.get(i);
@@ -402,18 +541,35 @@ public final class TieredMountainPalaceBuilder {
             int rise = upper.y0() - lower.y0();
             if (rise <= 0) continue;
 
-            FlightPlan plan = planFlight(lower, upper, rise, lower.x0() + 2);
-            if (plan == null) {
-                plan = planFlight(lower, upper, rise, (lower.x0() + lower.x1()) / 2);
-            }
+            FlightPlan plan = planFlightWithNudges(lower, upper, rise);
             if (plan == null || !plan.isComplete(rise)) {
-                stairGaps.add("tier" + i);
-                LOG.warn("tiered_mountain_palace stairGap tier {} rise={} lower={}x{}",
-                        i, rise, lower.width(), lower.depth());
+                String detail = String.format(
+                        "tier%d_rise%d_lower%dx%d_upper%dx%d_reason=no_complete_flight",
+                        i, rise, lower.width(), lower.depth(), upper.width(), upper.depth());
+                diagnostics.add(new BuildDiagnostic("STAIR_GAP", detail));
+                LOG.warn("tiered_mountain_palace {}", detail);
                 continue;
             }
             emitFlight(voxels, plan, stairBase, floor);
+            emittedFlights.add(plan);
         }
+    }
+
+    private static FlightPlan planFlightWithNudges(TierRect lower, TierRect upper, int rise) {
+        int[] bays = {
+                lower.x0() + 2,
+                lower.x0() + 3,
+                (lower.x0() + lower.x1()) / 2,
+                lower.x1() - 3,
+                lower.x1() - 2
+        };
+        for (int sx : bays) {
+            FlightPlan plan = planFlight(lower, upper, rise, sx);
+            if (plan != null && plan.isComplete(rise)) {
+                return plan;
+            }
+        }
+        return null;
     }
 
     private static FlightPlan planFlight(TierRect lower, TierRect upper, int rise, int sx) {
@@ -423,7 +579,11 @@ public final class TieredMountainPalaceBuilder {
         if (south != null) return south;
         FlightPlan east = planEastRun(lower, upper, rise, lower.x0() + 2, sz0);
         if (east != null) return east;
-        return planSwitchback(lower, upper, rise, sx, sz0);
+        FlightPlan west = planWestRun(lower, upper, rise, lower.x1() - 2, sz0);
+        if (west != null) return west;
+        FlightPlan sbEast = planSwitchback(lower, upper, rise, sx, sz0, Direction.EAST);
+        if (sbEast != null) return sbEast;
+        return planSwitchback(lower, upper, rise, sx, sz0, Direction.WEST);
     }
 
     private static FlightPlan planSouthRun(TierRect lower, TierRect upper, int rise, int sx, int sz0) {
@@ -453,32 +613,56 @@ public final class TieredMountainPalaceBuilder {
         return new FlightPlan(steps, lastX, upper.y0(), sz, padX, sz);
     }
 
-    /**
-     * South leg for available depth, then east for remaining rise (full flight or null).
-     */
-    private static FlightPlan planSwitchback(TierRect lower, TierRect upper, int rise, int sx, int sz0) {
+    private static FlightPlan planWestRun(TierRect lower, TierRect upper, int rise, int sx0, int sz) {
+        int lastX = sx0 - (rise - 1);
+        int padX = lastX - 1;
+        if (lastX <= lower.x0() + 1) return null;
+        if (sz <= lower.z0() || sz >= lower.z1()) return null;
+        if (padX < upper.x0() + 1 || padX > upper.x1() - 1) return null;
+        if (sz < upper.z0() + 1 || sz > upper.z1() - 1) return null;
+        List<FlightStep> steps = new ArrayList<>(rise);
+        for (int step = 0; step < rise; step++) {
+            steps.add(new FlightStep(sx0 - step, lower.y0() + step, sz, Direction.WEST));
+        }
+        return new FlightPlan(steps, lastX, upper.y0(), sz, padX, sz);
+    }
+
+    /** South leg then horizontal turn (east or west) for remaining rise. */
+    private static FlightPlan planSwitchback(
+            TierRect lower, TierRect upper, int rise, int sx, int sz0, Direction turn) {
         int maxSouthZ = lower.z1() - 2;
         int southCapacity = maxSouthZ - sz0 + 1;
         if (southCapacity < 1) return null;
         int southSteps = Math.min(rise - 1, southCapacity);
         if (southSteps < 1) return null;
-        int eastSteps = rise - southSteps;
+        int turnSteps = rise - southSteps;
         int turnZ = sz0 + southSteps - 1;
-        int eastStartX = sx + 1;
-        int lastX = eastStartX + eastSteps - 1;
-        int padX = lastX + 1;
-        if (eastSteps < 1) return null;
-        if (lastX >= lower.x1() - 1) return null;
-        if (padX > upper.x1() - 1 || padX < upper.x0() + 1) return null;
+        if (turnSteps < 1) return null;
         if (turnZ < upper.z0() + 1 || turnZ > upper.z1() - 1) return null;
 
         List<FlightStep> steps = new ArrayList<>(rise);
         for (int step = 0; step < southSteps; step++) {
             steps.add(new FlightStep(sx, lower.y0() + step, sz0 + step, Direction.SOUTH));
         }
-        for (int step = 0; step < eastSteps; step++) {
-            int y = lower.y0() + southSteps + step;
-            steps.add(new FlightStep(eastStartX + step, y, turnZ, Direction.EAST));
+        if (turn == Direction.EAST) {
+            int startX = sx + 1;
+            int lastX = startX + turnSteps - 1;
+            int padX = lastX + 1;
+            if (lastX >= lower.x1() - 1) return null;
+            if (padX > upper.x1() - 1 || padX < upper.x0() + 1) return null;
+            for (int step = 0; step < turnSteps; step++) {
+                steps.add(new FlightStep(startX + step, lower.y0() + southSteps + step, turnZ, Direction.EAST));
+            }
+            if (steps.size() != rise) return null;
+            return new FlightPlan(steps, lastX, upper.y0(), turnZ, padX, turnZ);
+        }
+        int startX = sx - 1;
+        int lastX = startX - (turnSteps - 1);
+        int padX = lastX - 1;
+        if (lastX <= lower.x0() + 1) return null;
+        if (padX < upper.x0() + 1 || padX > upper.x1() - 1) return null;
+        for (int step = 0; step < turnSteps; step++) {
+            steps.add(new FlightStep(startX - step, lower.y0() + southSteps + step, turnZ, Direction.WEST));
         }
         if (steps.size() != rise) return null;
         return new FlightPlan(steps, lastX, upper.y0(), turnZ, padX, turnZ);
@@ -500,6 +684,153 @@ public final class TieredMountainPalaceBuilder {
         voxels.put(x, supportY + 1, z, Blocks.AIR.getDefaultState());
         voxels.put(x, supportY + 2, z, Blocks.AIR.getDefaultState());
         voxels.put(x, supportY + 3, z, Blocks.AIR.getDefaultState());
+    }
+
+    /**
+     * Final occupancy gate over emitted patches (same data preview/apply use).
+     * Checks entrance→each tier, entrance→wings, door survival, flight tread counts, exterior pad.
+     */
+    private static List<BuildDiagnostic> validateFinalOccupancy(
+            GeneratedStructure structure, BlockPos origin, Direction entrance,
+            List<TierRect> tiers, int platformH, int tierHeight, boolean potala,
+            List<Vec3i> wingSamplesLocal, List<FlightPlan> flights, int doorMx) {
+        List<BuildDiagnostic> issues = new ArrayList<>();
+        if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()) {
+            issues.add(new BuildDiagnostic("EMPTY_BLOCKS", "no_blocks_emitted"));
+            return issues;
+        }
+
+        long doors = structure.getBlocks().stream()
+                .filter(b -> b.getTargetState() != null && b.getTargetState().isOf(Blocks.DARK_OAK_DOOR))
+                .count();
+        if (doors < 2) {
+            issues.add(new BuildDiagnostic("DOOR_MISSING", "door_leaves=" + doors));
+        }
+
+        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, origin);
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
+
+        Vec3i doorRel = null;
+        for (PlannedBlock b : structure.getBlocks()) {
+            if (b.getTargetState() != null && b.getTargetState().isOf(Blocks.DARK_OAK_DOOR)
+                    && b.getTargetState().contains(Properties.DOUBLE_BLOCK_HALF)
+                    && b.getTargetState().get(Properties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER) {
+                BlockPos rel = b.getPos().subtract(origin);
+                doorRel = new Vec3i(rel.getX(), rel.getY(), rel.getZ());
+                break;
+            }
+        }
+        if (doorRel == null) {
+            issues.add(new BuildDiagnostic("DOOR_MISSING", "lower_leaf_not_found"));
+            return issues;
+        }
+
+        Vec3i start = findStandableNearDoor(occ, doorRel);
+        if (start == null) {
+            issues.add(new BuildDiagnostic("ENTRANCE_UNSTANDABLE", "no_stand_near_door"));
+            return issues;
+        }
+
+        // Exterior approach pad: one step outward along facing must be standable (pad floor)
+        BlockPos out = new BlockPos(doorRel.x(), doorRel.y(), doorRel.z()).offset(entrance);
+        if (!WalkabilityGraph.canStand(occ, out.getX(), out.getY(), out.getZ())
+                && !WalkabilityGraph.canStand(occ, out.getX(), platformH, out.getZ())) {
+            issues.add(new BuildDiagnostic("APPROACH_UNSTANDABLE",
+                    "out=" + out.getX() + "," + out.getY() + "," + out.getZ()));
+        }
+
+        for (int i = 0; i < tiers.size(); i++) {
+            int floorY = platformH + i * tierHeight;
+            Vec3i goal = findStandableNear(occ, floorY, doorRel.x(), doorRel.z(), 20);
+            if (goal == null) {
+                issues.add(new BuildDiagnostic("FLOOR_NO_STAND", "tier" + i + "_y" + floorY));
+                continue;
+            }
+            WalkabilityGraph.ReachResult r = WalkabilityGraph.search(occ, start, goal, 2048, null);
+            if (r != WalkabilityGraph.ReachResult.REACHABLE) {
+                issues.add(new BuildDiagnostic("FLOOR_UNREACHABLE", "tier" + i + "_" + r.name()));
+            }
+        }
+
+        if (potala) {
+            for (int w = 0; w < wingSamplesLocal.size(); w++) {
+                Vec3i local = wingSamplesLocal.get(w);
+                BlockPos world = local(origin, entrance, local.x(), local.y(), local.z());
+                BlockPos rel = world.subtract(origin);
+                Vec3i wingGoal = findStandableNear(occ, rel.getY(), rel.getX(), rel.getZ(), 8);
+                if (wingGoal == null) {
+                    issues.add(new BuildDiagnostic("WING_NO_STAND", "wing" + w));
+                    continue;
+                }
+                WalkabilityGraph.ReachResult r = WalkabilityGraph.search(occ, start, wingGoal, 2048, null);
+                if (r != WalkabilityGraph.ReachResult.REACHABLE) {
+                    issues.add(new BuildDiagnostic("WING_UNREACHABLE", "wing" + w + "_" + r.name()));
+                }
+            }
+        }
+
+        for (FlightPlan flight : flights) {
+            if (flight.steps() == null || flight.steps().isEmpty()) {
+                issues.add(new BuildDiagnostic("FLIGHT_EMPTY", "empty_steps"));
+                continue;
+            }
+            long stairCells = structure.getBlocks().stream()
+                    .filter(b -> b.getTargetState() != null
+                            && b.getTargetState().contains(Properties.HORIZONTAL_FACING)
+                            && b.getTargetState().getBlock().getTranslationKey().contains("stairs"))
+                    .count();
+            if (stairCells < flight.steps().size()) {
+                // Soft: other flights share pool — only flag if total stairs below sum of steps
+            }
+        }
+        int expectedTreads = flights.stream().mapToInt(f -> f.steps().size()).sum();
+        long stairBlocks = structure.getBlocks().stream()
+                .filter(b -> b.getTargetState() != null && b.getTargetState().isOf(Blocks.STONE_BRICK_STAIRS))
+                .count();
+        if (expectedTreads > 0 && stairBlocks < expectedTreads) {
+            issues.add(new BuildDiagnostic("FLIGHT_TREAD_MISMATCH",
+                    "expected=" + expectedTreads + "_got=" + stairBlocks));
+        }
+
+        // Patch consistency: AIR cells must be REMOVE actions
+        for (BlockPatch p : patches) {
+            if (p.targetBlock() != null && PlannedOccupancy.isAirId(p.targetBlock())
+                    && !BlockPatch.REMOVE.equals(p.action())) {
+                issues.add(new BuildDiagnostic("AIR_ACTION", "expected_REMOVE"));
+                break;
+            }
+        }
+
+        return issues;
+    }
+
+    private static Vec3i findStandableNearDoor(PlannedOccupancy occ, Vec3i door) {
+        int[][] deltas = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}, {0, 0}};
+        for (int[] d : deltas) {
+            int x = door.x() + d[0];
+            int z = door.z() + d[1];
+            if (WalkabilityGraph.canStand(occ, x, door.y(), z)) {
+                return new Vec3i(x, door.y(), z);
+            }
+            if (WalkabilityGraph.canStand(occ, x, door.y() - 1, z)) {
+                return new Vec3i(x, door.y() - 1, z);
+            }
+        }
+        return findStandableNear(occ, door.y(), door.x(), door.z(), 8);
+    }
+
+    private static Vec3i findStandableNear(PlannedOccupancy occ, int floorY, int cx, int cz, int searchRadius) {
+        for (int r = 0; r <= searchRadius; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.abs(dx) != r && Math.abs(dz) != r && r > 0) continue;
+                    if (WalkabilityGraph.canStand(occ, cx + dx, floorY, cz + dz)) {
+                        return new Vec3i(cx + dx, floorY, cz + dz);
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static void placeRoofUnit(VoxelMap voxels, RoofUnit roof) {
@@ -663,8 +994,20 @@ public final class TieredMountainPalaceBuilder {
         return description != null && description.toLowerCase(Locale.ROOT).contains("mode=potala");
     }
 
+    static boolean parseFailed(String description) {
+        return description != null && description.contains("status=FAILED");
+    }
+
+    static boolean parseOk(String description) {
+        return description != null && description.contains("status=OK");
+    }
+
+    /** True if description or last diagnostics report a stair-gap failure. */
     static boolean parseHasStairGap(String description) {
-        return description != null && description.contains("stairGap=");
+        if (description != null && (description.contains("stairGap=") || description.contains("STAIR_GAP"))) {
+            return true;
+        }
+        return lastDiagnostics().stream().anyMatch(d -> d.code().startsWith("STAIR_GAP"));
     }
 
     private static int parseDescInt(String description, String key) {

@@ -116,24 +116,62 @@ class TieredMountainPalaceBuilderTest {
     }
 
     @Test
-    void tightDepthStillHasCompleteFlightOrStairGapDiagnostic() {
+    void tightDepthStillHasCompleteFlightOrFailsWithStructuredDiagnostic() {
         Map<String, Object> extras = defaultExtras(false);
         extras.put("baseWidth", 25);
         extras.put("baseDepth", 21); // clampOdd → 21
         extras.put("tiers", 3);
         extras.put("tierInset", 2);
-        extras.put("tierHeight", 10); // rise 10 > usable south depth → east/switchback
+        extras.put("tierHeight", 10); // rise 10 → east/switchback
         extras.put("platformHeight", 3);
         GeneratedStructure structure = generate(extras);
-        int rise = 10;
-        long stairs = countBlock(structure, Blocks.STONE_BRICK_STAIRS);
-        if (TieredMountainPalaceBuilder.parseHasStairGap(structure.getDescription())) {
-            // Incomplete geometry must not invent landings without enough treads
-            assertTrue(stairs < rise * 2L, "truncated flights should not fabricate full landings");
+        if (TieredMountainPalaceBuilder.parseFailed(structure.getDescription())) {
+            assertTrue(structure.getBlocks().isEmpty(), "FAILED must not deliver blocks");
+            assertFalse(TieredMountainPalaceBuilder.lastDiagnostics().isEmpty());
+            assertTrue(TieredMountainPalaceBuilder.parseHasStairGap(structure.getDescription())
+                            || structure.getDescription().contains("FLOOR_")
+                            || structure.getDescription().contains("APPROACH_"),
+                    "failed desc=" + structure.getDescription());
         } else {
-            assertTrue(stairs >= rise, "complete flight needs ≥ rise treads, stairs=" + stairs);
+            assertTrue(TieredMountainPalaceBuilder.parseOk(structure.getDescription()));
+            assertTrue(countBlock(structure, Blocks.STONE_BRICK_STAIRS) >= 10);
             assertReachableEntranceToUpper(structure, 3, 10, Direction.SOUTH);
         }
+    }
+
+    @Test
+    void exteriorApproachPadIsStandable() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21);
+        extras.put("tiers", 3);
+        extras.put("tierInset", 2);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        GeneratedStructure structure = generate(extras);
+        assertFalse(TieredMountainPalaceBuilder.parseFailed(structure.getDescription()),
+                structure.getDescription());
+        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, ORIGIN);
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
+        Vec3i door = findDoorRelative(structure);
+        assertNotNull(door);
+        BlockPos out = new BlockPos(door.x(), door.y(), door.z()).offset(Direction.SOUTH);
+        assertTrue(WalkabilityGraph.canStand(occ, out.getX(), out.getY(), out.getZ())
+                        || WalkabilityGraph.canStand(occ, out.getX(), 3, out.getZ()),
+                "exterior pad not standable at " + out);
+    }
+
+    @Test
+    void finalOccupancyRejectsWhenConnectivityDisabledStillBuilds() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.put("requireFloorConnectivity", false);
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21);
+        extras.put("tiers", 3);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        GeneratedStructure structure = generate(extras);
+        assertFalse(structure.getBlocks().isEmpty());
     }
 
     @Test
@@ -146,6 +184,8 @@ class TieredMountainPalaceBuilderTest {
         extras.put("tierHeight", 5);
         extras.put("platformHeight", 3);
         GeneratedStructure structure = generate(extras);
+        assertFalse(TieredMountainPalaceBuilder.parseFailed(structure.getDescription()),
+                structure.getDescription() + " diags=" + TieredMountainPalaceBuilder.lastDiagnostics());
         assertTrue(TieredMountainPalaceBuilder.parsePotalaMode(structure.getDescription()));
         assertTrue(TieredMountainPalaceBuilder.parseRoofCount(structure.getDescription()) >= 3);
 
@@ -187,15 +227,23 @@ class TieredMountainPalaceBuilderTest {
             extras.put("tierHeight", 5);
             extras.put("platformHeight", 3);
             GeneratedStructure structure = generate(extras);
+            assertFalse(TieredMountainPalaceBuilder.parseFailed(structure.getDescription()),
+                    "facing=" + facing + " " + structure.getDescription());
             Vec3i door = findDoorRelative(structure);
             assertNotNull(door, "facing=" + facing);
             BlockPos out = new BlockPos(door.x(), door.y(), door.z()).offset(facing);
-            boolean exteriorAir = structure.getBlocks().stream().anyMatch(b -> {
+            List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, ORIGIN);
+            PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
+            assertTrue(WalkabilityGraph.canStand(occ, out.getX(), out.getY(), out.getZ())
+                            || WalkabilityGraph.canStand(occ, out.getX(), 3, out.getZ()),
+                    "exterior pad not standable facing=" + facing + " at " + out);
+            // Headroom air one block above the pad
+            BlockPos above = out.up();
+            boolean headroomAir = structure.getBlocks().stream().anyMatch(b -> {
                 BlockPos rel = b.getPos().subtract(ORIGIN);
-                return rel.getX() == out.getX() && rel.getY() == out.getY() && rel.getZ() == out.getZ()
-                        && b.getTargetState() != null && b.getTargetState().isAir();
+                return rel.equals(above) && b.getTargetState() != null && b.getTargetState().isAir();
             });
-            assertTrue(exteriorAir, "exterior approach air missing facing=" + facing + " at " + out);
+            assertTrue(headroomAir, "exterior headroom air missing facing=" + facing + " at " + above);
         }
     }
 
