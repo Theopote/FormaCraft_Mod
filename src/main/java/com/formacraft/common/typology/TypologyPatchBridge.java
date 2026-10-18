@@ -66,8 +66,9 @@ public final class TypologyPatchBridge {
             }
             BlockPos relative = block.getPos().subtract(worldAnchor);
             String blockId = BlockStateStringUtil.fromState(block.getTargetState());
+            String action = block.getTargetState().isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE;
             patches.add(new BlockPatch(
-                    BlockPatch.PLACE,
+                    action,
                     relative.getX(),
                     relative.getY(),
                     relative.getZ(),

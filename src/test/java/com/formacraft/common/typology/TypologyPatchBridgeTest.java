@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TypologyPatchBridgeTest {
     @org.junit.jupiter.api.BeforeAll
@@ -83,5 +84,41 @@ class TypologyPatchBridgeTest {
                 List.of(new PlannedBlock(BlockPos.ORIGIN, null)));
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
                 () -> TypologyPatchBridge.toBlockPatches(structure, BlockPos.ORIGIN));
+    }
+
+    @Test
+    void plannedAirEmitsRemoveMatchingAssemblySemantics() {
+        BlockPos origin = new BlockPos(10, 64, 20);
+        GeneratedStructure structure = new GeneratedStructure(
+                null,
+                origin,
+                "test",
+                List.of(
+                        new PlannedBlock(origin.add(1, 0, 0), Blocks.STONE.getDefaultState()),
+                        new PlannedBlock(origin.add(2, 0, 0), Blocks.AIR.getDefaultState())
+                )
+        );
+        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, origin);
+        assertEquals(2, patches.size());
+        BlockPatch solid = patches.stream().filter(p -> p.dx() == 1).findFirst().orElseThrow();
+        BlockPatch air = patches.stream().filter(p -> p.dx() == 2).findFirst().orElseThrow();
+        assertEquals(BlockPatch.PLACE, solid.action());
+        assertEquals(BlockPatch.REMOVE, air.action());
+        assertEquals("minecraft:air", air.targetBlock());
+    }
+
+    @Test
+    void removeAirClearsPriorSolidViaPatchExecutor() {
+        var access = new com.formacraft.test.FakeBlockMutationAccess();
+        BlockPos origin = BlockPos.ORIGIN;
+        // Builder last-write-wins: planned AIR at a cell that currently has stone in the world
+        GeneratedStructure structure = new GeneratedStructure(null, origin, "test",
+                List.of(new PlannedBlock(origin.add(0, 1, 0), Blocks.AIR.getDefaultState())));
+        access.states.put(new BlockPos(0, 1, 0), Blocks.STONE.getDefaultState());
+        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, origin);
+        assertEquals(BlockPatch.REMOVE, patches.getFirst().action());
+        var result = com.formacraft.common.patch.PatchExecutor.applyToAccess(access, origin, patches);
+        assertEquals(1, result.applied());
+        assertTrue(access.states.get(new BlockPos(0, 1, 0)).isAir());
     }
 }

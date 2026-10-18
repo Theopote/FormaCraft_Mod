@@ -115,6 +115,90 @@ class TieredMountainPalaceBuilderTest {
         assertReachableEntranceToUpper(structure, 3, 5, Direction.SOUTH);
     }
 
+    @Test
+    void tightDepthStillHasCompleteFlightOrStairGapDiagnostic() {
+        Map<String, Object> extras = defaultExtras(false);
+        extras.put("baseWidth", 25);
+        extras.put("baseDepth", 21); // clampOdd → 21
+        extras.put("tiers", 3);
+        extras.put("tierInset", 2);
+        extras.put("tierHeight", 10); // rise 10 > usable south depth → east/switchback
+        extras.put("platformHeight", 3);
+        GeneratedStructure structure = generate(extras);
+        int rise = 10;
+        long stairs = countBlock(structure, Blocks.STONE_BRICK_STAIRS);
+        if (TieredMountainPalaceBuilder.parseHasStairGap(structure.getDescription())) {
+            // Incomplete geometry must not invent landings without enough treads
+            assertTrue(stairs < rise * 2L, "truncated flights should not fabricate full landings");
+        } else {
+            assertTrue(stairs >= rise, "complete flight needs ≥ rise treads, stairs=" + stairs);
+            assertReachableEntranceToUpper(structure, 3, 10, Direction.SOUTH);
+        }
+    }
+
+    @Test
+    void potalaWingsReachableFromEntrance() {
+        Map<String, Object> extras = defaultExtras(true);
+        extras.put("baseWidth", 49);
+        extras.put("baseDepth", 41);
+        extras.put("tiers", 4);
+        extras.put("tierInset", 3);
+        extras.put("tierHeight", 5);
+        extras.put("platformHeight", 3);
+        GeneratedStructure structure = generate(extras);
+        assertTrue(TieredMountainPalaceBuilder.parsePotalaMode(structure.getDescription()));
+        assertTrue(TieredMountainPalaceBuilder.parseRoofCount(structure.getDescription()) >= 3);
+
+        List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, ORIGIN);
+        PlannedOccupancy occ = PlannedOccupancy.fromPatches(patches, true);
+        Vec3i door = findDoorRelative(structure);
+        assertNotNull(door);
+        Vec3i start = standableNeighbor(occ, door);
+        assertNotNull(start);
+
+        // Wing samples: local west/east front thirds, rotated for SOUTH (identity)
+        int bw = 49;
+        int bd = 41;
+        int wingW = Math.min(Math.max(6, (bw - 8) / 2), Math.max(6, (int) Math.round(bw * 0.35)));
+        int platformH = 3;
+        int frontZ0 = bd - Math.max(6, bd / 3);
+        int linkZ = (frontZ0 + bd - 1) / 2;
+        Vec3i leftWing = findStandableNear(occ, platformH, wingW / 2, linkZ, 6);
+        Vec3i rightWing = findStandableNear(occ, platformH, bw - 1 - wingW / 2, linkZ, 6);
+        assertNotNull(leftWing, "left wing standable");
+        assertNotNull(rightWing, "right wing standable");
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE,
+                WalkabilityGraph.search(occ, start, leftWing, 2048, null),
+                "keep→left wing start=" + start + " goal=" + leftWing);
+        assertEquals(WalkabilityGraph.ReachResult.REACHABLE,
+                WalkabilityGraph.search(occ, start, rightWing, 2048, null),
+                "keep→right wing start=" + start + " goal=" + rightWing);
+    }
+
+    @Test
+    void fourFacingsHaveExteriorApproachClearance() {
+        for (Direction facing : List.of(Direction.SOUTH, Direction.NORTH, Direction.EAST, Direction.WEST)) {
+            Map<String, Object> extras = defaultExtras(false);
+            extras.put("facing", facing.asString());
+            extras.put("baseWidth", 25);
+            extras.put("baseDepth", 21);
+            extras.put("tiers", 3);
+            extras.put("tierInset", 2);
+            extras.put("tierHeight", 5);
+            extras.put("platformHeight", 3);
+            GeneratedStructure structure = generate(extras);
+            Vec3i door = findDoorRelative(structure);
+            assertNotNull(door, "facing=" + facing);
+            BlockPos out = new BlockPos(door.x(), door.y(), door.z()).offset(facing);
+            boolean exteriorAir = structure.getBlocks().stream().anyMatch(b -> {
+                BlockPos rel = b.getPos().subtract(ORIGIN);
+                return rel.getX() == out.getX() && rel.getY() == out.getY() && rel.getZ() == out.getZ()
+                        && b.getTargetState() != null && b.getTargetState().isAir();
+            });
+            assertTrue(exteriorAir, "exterior approach air missing facing=" + facing + " at " + out);
+        }
+    }
+
     private static void assertReachableEntranceToUpper(
             GeneratedStructure structure, int platformH, int tierHeight, Direction facing) {
         List<BlockPatch> patches = TypologyPatchBridge.toBlockPatches(structure, ORIGIN);
