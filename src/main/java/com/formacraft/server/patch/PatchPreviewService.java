@@ -6,7 +6,7 @@ import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.filter.PatchFilterResult;
-import com.formacraft.common.patch.history.PatchHistoryManager;
+import com.formacraft.server.build.PatchHistoryManager;
 import com.formacraft.server.build.quality.BuildQualityGate;
 import com.formacraft.server.build.quality.BuildQualityReport;
 import com.formacraft.server.build.quality.BuildQualitySeverity;

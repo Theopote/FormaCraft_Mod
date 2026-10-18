@@ -410,7 +410,7 @@ public class BuildExecutionService {
             service.activeTasks.clear();
             service.undoService.clear();
             service.setMemoryManager(null);
-            com.formacraft.common.patch.history.PatchHistoryManager.clearAll();
+            PatchHistoryManager.clearAll();
             com.formacraft.server.build.PlayerMutationLedger.get().clearAll();
         });
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));

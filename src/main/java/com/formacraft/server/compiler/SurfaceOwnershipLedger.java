@@ -2,6 +2,8 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 
@@ -105,7 +107,9 @@ final class SurfaceOwnershipLedger {
             BlockPos position = cell.shift(offset).position();
             if (cell.requiresBlock() || cell.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
                     || cell.role() == GeneratedSurfaceCapture.Role.FACADE_OPENING) {
-                boolean carvable = cell.role() == GeneratedSurfaceCapture.Role.ROOF && openingCarvable;
+                boolean carvable = cell.role() == GeneratedSurfaceCapture.Role.ROOF
+                        && openingCarvable
+                        && isFlatRoofEdge(component, position, offset);
                 surfaces.put(position, new Surface(owner, identity(component), cell.role(), carvable));
             }
         }
@@ -117,6 +121,28 @@ final class SurfaceOwnershipLedger {
         }
         Object type = component.params().getOrDefault("roof_type", component.params().get("roofType"));
         return "flat".equalsIgnoreCase(String.valueOf(type));
+    }
+
+    /**
+     * Only the plan-local perimeter of a flat roof may be carved by same-host openings.
+     * Interior deck cells stay protected so facade windows cannot punch through the center plate.
+     * Without dimensions, treat the cell as non-carvable (fail closed).
+     */
+    private static boolean isFlatRoofEdge(Component component, BlockPos worldPos, BlockPos offset) {
+        Dimensions dims = component.dimensions();
+        Vec3i rp = component.relativePosition();
+        if (dims == null || rp == null || dims.width() <= 0 || dims.depth() <= 0) {
+            return false;
+        }
+        int localX = worldPos.getX() - offset.getX() - rp.x();
+        int localZ = worldPos.getZ() - offset.getZ() - rp.z();
+        int w = dims.width();
+        int d = dims.depth();
+        // Overhang beyond the core footprint is still an eave/edge, so allow carve.
+        if (localX < 0 || localX >= w || localZ < 0 || localZ >= d) {
+            return true;
+        }
+        return localX == 0 || localX == w - 1 || localZ == 0 || localZ == d - 1;
     }
 
     private static String buildingOwner(Component component) {
