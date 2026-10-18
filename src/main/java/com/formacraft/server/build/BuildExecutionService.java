@@ -414,5 +414,8 @@ public class BuildExecutionService {
             com.formacraft.server.build.PlayerMutationLedger.get().clearAll();
         });
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));
+        // Low-frequency reclaim of expired preview tickets / bound plans while idle.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
+                server -> com.formacraft.server.preview.PreviewTicketStorage.onServerTick());
     }
 }

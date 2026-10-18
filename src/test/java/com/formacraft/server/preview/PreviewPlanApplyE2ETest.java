@@ -197,6 +197,27 @@ class PreviewPlanApplyE2ETest {
     }
 
     @Test
+    void planMismatchWithoutCellPreserveDoesNotTouchWorld() {
+        FakeBlockMutationAccess access = new FakeBlockMutationAccess();
+        BlockPos target = ORIGIN.add(0, 1, 0);
+        access.states.put(target, Blocks.AIR.getDefaultState());
+        Map<String, Object> extras = schematicExtras();
+        BuildingSpec spec = specOf(extras);
+        var result = TieredMountainPalaceBuilder.generateDetailed(extras, ORIGIN, null, spec);
+        PalacePreviewPlan schematic = TieredMountainPalaceBuilder.createPreviewPlan(result, ORIGIN, null, spec);
+        PalacePreviewPlan plan = new PalacePreviewPlan(
+                TieredMountainPalaceBuilder.GenerateStatus.SUCCESS,
+                schematic.patches(), schematic.context(), schematic.diagnostics(),
+                schematic.paramsSnapshot(), schematic.paletteId(),
+                schematic.corridorMx(), schematic.pathStartZ(), schematic.padY(), schematic.maxDrop());
+        List<BlockPatch> unrelated = List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:gold_block"));
+        assertNull(plan.resolveForAcceptedPatches(unrelated));
+        // World unchanged — refusal happens before apply.
+        assertTrue(access.getState(target).isOf(Blocks.AIR));
+    }
+
+    @Test
     void ticketBoundPlanSurvivesSiblingPlanIdRemoval() {
         Map<String, Object> extras = schematicExtras();
         BuildingSpec spec = specOf(extras);

@@ -154,38 +154,35 @@ public final class PatchPreviewService {
         List<BlockPatch> acceptedFinal = ConfirmedPlanIdentity.toFinalPatches(filtered.accepted);
 
         // Bind pending typology plan only after we know the ticket will be issued.
+        // A pending plan means this request declared frozen-plan constraints — never
+        // silently degrade to an ordinary ticket on hash mismatch.
         if (confirmedPlan == null && requestId != null) {
             confirmedPlan = ConfirmedPlanRegistry.takePending(
                     requestId, player.getUuid(), worldKey, origin);
             if (confirmedPlan != null) {
-                if (!confirmedPlan.executable()) {
-                    reject(player, deliverToClient, "预览计划不可执行，请重新预览。");
+                BindOutcome bind = bindOrRefuseFrozenPlan(
+                        player, deliverToClient, quality, requestId, confirmedPlan, acceptedFinal);
+                if (bind.isReject()) {
                     return null;
                 }
-                String acceptedHash = ConfirmedPlanIdentity.patchHash(acceptedFinal);
-                if (!acceptedHash.equals(confirmedPlan.patchHash())) {
-                    // Patches came from a different source (merged compile) — keep as ordinary ticket.
-                    confirmedPlan = null;
-                } else {
-                    ctx = confirmedPlan.contextHash();
-                    explicitPlanId = confirmedPlan.planId();
-                    requiresPlan = true;
-                }
+                confirmedPlan = bind.plan();
+                ctx = confirmedPlan.contextHash();
+                explicitPlanId = confirmedPlan.planId();
+                requiresPlan = true;
+                // Re-frozen merge: ticket patches must equal the new plan's final set.
+                acceptedFinal = List.copyOf(confirmedPlan.patches());
             }
         } else if (confirmedPlan != null) {
-            String acceptedHash = ConfirmedPlanIdentity.patchHash(acceptedFinal);
-            if (!acceptedHash.equals(confirmedPlan.patchHash())) {
-                quality.add(BuildQualitySeverity.FATAL, "PLAN_PATCH_FILTERED",
-                        "确认计划的方块列表被约束过滤改变，拒绝签发预览");
-                if (deliverToClient) {
-                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                            "预览计划与过滤结果不一致，请缩小约束范围后重试。"
-                    ));
-                }
-                PreviewStorage.storeQualityReport(player, quality);
-                if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
+            BindOutcome bind = bindOrRefuseFrozenPlan(
+                    player, deliverToClient, quality, requestId, confirmedPlan, acceptedFinal);
+            if (bind.isReject()) {
                 return null;
             }
+            confirmedPlan = bind.plan();
+            ctx = confirmedPlan.contextHash();
+            explicitPlanId = confirmedPlan.planId();
+            requiresPlan = true;
+            acceptedFinal = List.copyOf(confirmedPlan.patches());
         }
 
         Identifier dimension = sw.getRegistryKey().getValue();
@@ -318,25 +315,33 @@ public final class PatchPreviewService {
             ));
         }
 
-        PreviewTicket ticket = PreviewTicketStorage.consume(ticketId, player.getUuid());
-        if (ticket == null) {
-            return false;
+        // One-shot consume: ticket + bound plan detached together (no orphan plan).
+        PreviewTicketStorage.TicketConsumption consumption =
+                PreviewTicketStorage.consumeForApply(ticketId, player.getUuid());
+        if (consumption == null) {
+            return false; // already consumed / expired — no double apply
         }
+        PreviewTicket ticket = consumption.ticket();
+        PalacePreviewPlan consumedPlan = consumption.boundPlan();
 
         conflict = PreviewWorldStateCapture.conflictDetail(access, ticket.expectedStates());
         if (conflict != null) {
-            // Ticket consumed — still drop this ticket's plan only.
-            ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "建造区域在确认瞬间被修改，已拒绝写入。请重新预览。"
             ));
             return false;
         }
 
-        if (ticket.requiresConfirmedPlan() && bound != null) {
-            PalacePreviewPlan.ApplyValidation terrain = bound.validateLiveTerrainAndContext(sw);
+        if (ticket.requiresConfirmedPlan()) {
+            PalacePreviewPlan planForCheck = consumedPlan != null ? consumedPlan : bound;
+            if (planForCheck == null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "确认计划已丢失（PLAN_MISSING），已拒绝写入。"
+                ));
+                return false;
+            }
+            PalacePreviewPlan.ApplyValidation terrain = planForCheck.validateLiveTerrainAndContext(sw);
             if (!terrain.ok()) {
-                ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "确认瞬间地形校验失败：" + terrain.reason() + " " + terrain.detail()
                 ));
@@ -346,12 +351,8 @@ public final class PatchPreviewService {
 
         List<BlockPatch> patches = ticket.patches();
         if (patches == null || patches.isEmpty()) {
-            ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
             return false;
         }
-
-        // Clear only this ticket's plan — other tickets with same planId stay valid.
-        ConfirmedPlanRegistry.removeByTicket(ticket.id(), player.getUuid());
 
         var applyResult = PatchHistoryManager.applyWithHistory(
                 sw, player.getUuid(), ticket.origin(), patches);
@@ -380,6 +381,60 @@ public final class PatchPreviewService {
     private static void reject(ServerPlayerEntity player, boolean deliver, String msg) {
         if (deliver && player != null) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg));
+        }
+    }
+
+    /**
+     * Resolve a declared frozen plan against accepted patches.
+     * Exact match → keep; legal merge (all plan cells present) → re-freeze;
+     * otherwise reject — never silent ordinary-ticket downgrade.
+     */
+    private static BindOutcome bindOrRefuseFrozenPlan(
+            ServerPlayerEntity player,
+            boolean deliverToClient,
+            BuildQualityReport quality,
+            UUID requestId,
+            PalacePreviewPlan plan,
+            List<BlockPatch> acceptedFinal
+    ) {
+        if (plan == null || !plan.executable()) {
+            quality.add(BuildQualitySeverity.FATAL, "PLAN_NOT_EXECUTABLE",
+                    "冻结计划不可执行，拒绝签发预览");
+            reject(player, deliverToClient, "预览计划不可执行，请重新预览。");
+            if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
+            return BindOutcome.REJECT;
+        }
+        PalacePreviewPlan resolved = plan.resolveForAcceptedPatches(acceptedFinal);
+        if (resolved == null) {
+            quality.add(BuildQualitySeverity.FATAL, "PLAN_PATCH_MISMATCH",
+                    "冻结计划与编译/过滤结果不一致，拒绝签发预览（不得降级）");
+            if (deliverToClient) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "预览计划与编译/过滤结果不一致，已拒绝签发（不得降级为普通票据）。请重新预览。"
+                ));
+            }
+            PreviewStorage.storeQualityReport(player, quality);
+            if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
+            return BindOutcome.REJECT;
+        }
+        if (!resolved.planId().equals(plan.planId())) {
+            quality.add(BuildQualitySeverity.INFO, "PLAN_REFROZEN",
+                    "merged planId=" + resolved.planId()
+                            + " from=" + plan.planId()
+                            + " patches=" + resolved.patches().size());
+        }
+        return BindOutcome.ok(resolved);
+    }
+
+    private record BindOutcome(PalacePreviewPlan plan) {
+        static final BindOutcome REJECT = new BindOutcome(null);
+
+        static BindOutcome ok(PalacePreviewPlan plan) {
+            return new BindOutcome(plan);
+        }
+
+        boolean isReject() {
+            return plan == null;
         }
     }
 

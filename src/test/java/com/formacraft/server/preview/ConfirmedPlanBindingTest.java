@@ -2,6 +2,7 @@ package com.formacraft.server.preview;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
@@ -228,6 +229,77 @@ class ConfirmedPlanBindingTest {
             GenerationRequestContext.clear();
         }
         assertNull(GenerationRequestContext.current(), "request context must not leak after exception");
+    }
+
+    @Test
+    void mergePreservingPlanCellsRefreezesNotDegrades() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        List<BlockPatch> merged = new java.util.ArrayList<>(plan.patches());
+        merged.add(new BlockPatch(BlockPatch.PLACE, 99, 1, 99, "minecraft:oak_planks"));
+        PalacePreviewPlan resolved = plan.resolveForAcceptedPatches(merged);
+        assertNotNull(resolved, "legal merge must re-freeze, not return null");
+        assertNotEquals(plan.planId(), resolved.planId());
+        assertEquals(plan.contextHash(), resolved.contextHash(), "terrain/context must be preserved");
+        assertEquals(ConfirmedPlanIdentity.patchHash(merged), resolved.patchHash());
+        assertTrue(resolved.executable());
+    }
+
+    @Test
+    void unrelatedPatchesRefuseBindNotSilentDowngrade() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        List<BlockPatch> unrelated = List.of(
+                new BlockPatch(BlockPatch.PLACE, 7, 7, 7, "minecraft:dirt"),
+                new BlockPatch(BlockPatch.PLACE, 8, 7, 7, "minecraft:dirt"));
+        assertNull(plan.resolveForAcceptedPatches(unrelated),
+                "unrelated compile must refuse — never silent ordinary ticket");
+        assertFalse(plan.cellsPreservedIn(unrelated));
+    }
+
+    @Test
+    void exactMatchKeepsSamePlanInstance() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        PalacePreviewPlan resolved = plan.resolveForAcceptedPatches(plan.patches());
+        assertSame(plan, resolved);
+    }
+
+    @Test
+    void consumeForApplyDetachesPlanAndIsOneShot() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        UUID player = UUID.randomUUID();
+        PreviewTicket ticket = PreviewTicketStorage.create(
+                player, null, ORIGIN_A, plan.patches(), null, 60_000L,
+                plan.planId(), plan.contextHash(), Map.of(), true, UUID.randomUUID());
+        assertNotNull(ticket);
+        ConfirmedPlanRegistry.putForTicket(
+                ticket.id(), player, ticket.generationRequestId(), "schematic", ORIGIN_A, plan, 60_000L);
+
+        PreviewTicketStorage.TicketConsumption first =
+                PreviewTicketStorage.consumeForApply(ticket.id(), player);
+        assertNotNull(first);
+        assertSame(plan, first.boundPlan());
+        assertNull(ConfirmedPlanRegistry.getByTicket(ticket.id(), player));
+        assertNull(PreviewTicketStorage.consumeForApply(ticket.id(), player),
+                "repeat confirm must not re-apply");
+    }
+
+    @Test
+    void consumeForApplyDoesNotAffectSiblingTicket() {
+        PalacePreviewPlan plan = executablePlan(ORIGIN_A);
+        UUID player = UUID.randomUUID();
+        PreviewTicket t1 = PreviewTicketStorage.create(
+                player, null, ORIGIN_A, plan.patches(), null, 60_000L,
+                plan.planId(), plan.contextHash(), Map.of(), true, UUID.randomUUID());
+        PreviewTicket t2 = PreviewTicketStorage.create(
+                player, null, ORIGIN_A, plan.patches(), null, 60_000L,
+                plan.planId(), plan.contextHash(), Map.of(), true, UUID.randomUUID());
+        ConfirmedPlanRegistry.putForTicket(
+                t1.id(), player, t1.generationRequestId(), "schematic", ORIGIN_A, plan, 60_000L);
+        ConfirmedPlanRegistry.putForTicket(
+                t2.id(), player, t2.generationRequestId(), "schematic", ORIGIN_A, plan, 60_000L);
+
+        assertNotNull(PreviewTicketStorage.consumeForApply(t1.id(), player));
+        assertNotNull(PreviewTicketStorage.get(t2.id()));
+        assertSame(plan, ConfirmedPlanRegistry.getByTicket(t2.id(), player));
     }
 
     private static PalacePreviewPlan executablePlan(BlockPos origin) {

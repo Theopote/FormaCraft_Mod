@@ -3,6 +3,7 @@ package com.formacraft.server.preview;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.server.build.quality.BuildQualityGate;
+import com.formacraft.server.generation.typology.builder.PalacePreviewPlan;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
@@ -11,16 +12,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 内存中的 Patch 预览票据存储（按 ticketId 索引）。
- * 过期 / 取消 / 玩家清理时同步释放 {@link ConfirmedPlanRegistry} 中同 ticket 的计划实例。
+ * <p>
+ * 生命周期契约：{@link #consumeForApply} 一次消费 Ticket 并分离绑定计划；
+ * 取消 / 过期 / 玩家清理同样只影响本 Ticket。
  */
 public final class PreviewTicketStorage {
     private PreviewTicketStorage() {}
 
     private static final long DEFAULT_TTL_MS = 5L * 60L * 1000L;
+    /** ~5s at 20 TPS — low-frequency active purge when idle. */
+    private static final int PURGE_EVERY_TICKS = 100;
     private static final Map<UUID, PreviewTicket> TICKETS = new ConcurrentHashMap<>();
+    private static final AtomicInteger SERVER_TICK = new AtomicInteger();
+
+    /**
+     * One-shot consumption: ticket removed from storage and bound plan detached.
+     * Callers hold {@link #boundPlan()} for post-consume validation; plan is already
+     * gone from {@link ConfirmedPlanRegistry}.
+     */
+    public record TicketConsumption(PreviewTicket ticket, PalacePreviewPlan boundPlan) {
+        public TicketConsumption {
+            if (ticket == null) throw new IllegalArgumentException("ticket");
+        }
+    }
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches) {
         return create(playerId, null, origin, patches, null, DEFAULT_TTL_MS,
@@ -126,7 +144,11 @@ public final class PreviewTicketStorage {
         return ticket;
     }
 
-    public static PreviewTicket consume(UUID ticketId, UUID playerId) {
+    /**
+     * Unified apply consumption: removes ticket and detaches its bound plan.
+     * Repeat calls return null (no double apply).
+     */
+    public static TicketConsumption consumeForApply(UUID ticketId, UUID playerId) {
         if (ticketId == null || playerId == null) return null;
         purgeExpired();
         PreviewTicket ticket = TICKETS.get(ticketId);
@@ -141,18 +163,25 @@ public final class PreviewTicketStorage {
         if (!TICKETS.remove(ticketId, ticket)) {
             return null;
         }
-        return ticket;
+        PalacePreviewPlan plan = ConfirmedPlanRegistry.removeByTicket(ticket.id(), playerId);
+        if (ticket.generationRequestId() != null) {
+            ConfirmedPlanRegistry.dropPending(ticket.generationRequestId());
+        }
+        return new TicketConsumption(ticket, plan);
+    }
+
+    /**
+     * @deprecated prefer {@link #consumeForApply}; still releases bound plan.
+     */
+    @Deprecated
+    public static PreviewTicket consume(UUID ticketId, UUID playerId) {
+        TicketConsumption c = consumeForApply(ticketId, playerId);
+        return c == null ? null : c.ticket();
     }
 
     /** Cancel / discard a ticket without applying; clears bound plan for this ticket only. */
     public static boolean cancel(UUID ticketId, UUID playerId) {
-        PreviewTicket ticket = consume(ticketId, playerId);
-        if (ticket == null) return false;
-        ConfirmedPlanRegistry.removeByTicket(ticket.id(), playerId);
-        if (ticket.generationRequestId() != null) {
-            ConfirmedPlanRegistry.dropPending(ticket.generationRequestId());
-        }
-        return true;
+        return consumeForApply(ticketId, playerId) != null;
     }
 
     public static void purgeExpired() {
@@ -174,6 +203,13 @@ public final class PreviewTicketStorage {
         ConfirmedPlanRegistry.purgeExpired();
     }
 
+    /** Low-frequency active purge from server tick (idle servers still reclaim). */
+    public static void onServerTick() {
+        if (SERVER_TICK.incrementAndGet() < PURGE_EVERY_TICKS) return;
+        SERVER_TICK.set(0);
+        purgeExpired();
+    }
+
     public static void clearPlayer(UUID playerId) {
         if (playerId == null) return;
         Iterator<Map.Entry<UUID, PreviewTicket>> it = TICKETS.entrySet().iterator();
@@ -192,6 +228,11 @@ public final class PreviewTicketStorage {
     public static void clearAllForTest() {
         TICKETS.clear();
         ConfirmedPlanRegistry.clearAllForTest();
+        SERVER_TICK.set(0);
+    }
+
+    public static int sizeForTest() {
+        return TICKETS.size();
     }
 
     private static void releaseTicket(PreviewTicket ticket) {

@@ -86,6 +86,36 @@ class PreviewTicketStorageTest {
     }
 
     @Test
+    void consumeForApplyReleasesBoundPlan() {
+        UUID player = UUID.randomUUID();
+        BlockPos origin = new BlockPos(0, 64, 0);
+        List<BlockPatch> patches = List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone"));
+        PreviewTicket ticket = PreviewTicketStorage.create(player, origin, patches);
+        assertNotNull(ticket);
+        // Ordinary ticket: no bound plan — consumption still one-shot.
+        PreviewTicketStorage.TicketConsumption c =
+                PreviewTicketStorage.consumeForApply(ticket.id(), player);
+        assertNotNull(c);
+        assertNull(c.boundPlan());
+        assertNull(PreviewTicketStorage.consumeForApply(ticket.id(), player));
+    }
+
+    @Test
+    void onServerTickEventuallyPurgesExpired() throws Exception {
+        UUID player = UUID.randomUUID();
+        PreviewTicket ticket = PreviewTicketStorage.create(
+                player, new BlockPos(0, 1, 0),
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone")),
+                1_000L);
+        assertNotNull(ticket);
+        Thread.sleep(1_100L);
+        for (int i = 0; i < 120; i++) {
+            PreviewTicketStorage.onServerTick();
+        }
+        assertEquals(0, PreviewTicketStorage.sizeForTest());
+    }
+
+    @Test
     void ticketCarriesQualitySnapshot() {
         UUID player = UUID.randomUUID();
         var quality = new com.formacraft.server.build.quality.BuildQualityGate.QualitySnapshot(

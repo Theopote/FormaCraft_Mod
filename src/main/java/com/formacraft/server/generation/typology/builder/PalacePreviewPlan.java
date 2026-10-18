@@ -115,6 +115,77 @@ public final class PalacePreviewPlan {
     }
 
     /**
+     * Bind accepted compile/filter patches to this frozen plan.
+     * Exact hash → this; legal merge (all plan cells present) → {@link #freezeMerged};
+     * otherwise null (caller must refuse — never silently degrade).
+     */
+    public PalacePreviewPlan resolveForAcceptedPatches(List<BlockPatch> acceptedFinal) {
+        if (!executable() || acceptedFinal == null || acceptedFinal.isEmpty()) {
+            return null;
+        }
+        String acceptedHash = ConfirmedPlanIdentity.patchHash(acceptedFinal);
+        if (acceptedHash.equals(patchHash)) {
+            return this;
+        }
+        if (!cellsPreservedIn(acceptedFinal)) {
+            return null;
+        }
+        return freezeMerged(acceptedFinal);
+    }
+
+    /**
+     * Re-freeze a legally merged compile result: new patches, same terrain/context/params.
+     * Returns null if this plan is not executable or {@code mergedPatches} is empty.
+     * Produces a new {@code planId}/{@code patchHash}; {@code contextHash} is preserved.
+     */
+    public PalacePreviewPlan freezeMerged(List<BlockPatch> mergedPatches) {
+        if (!executable() || mergedPatches == null || mergedPatches.isEmpty()) {
+            return null;
+        }
+        List<BlockPatch> finalMerged = ConfirmedPlanIdentity.toFinalPatches(mergedPatches);
+        if (finalMerged.isEmpty()) {
+            return null;
+        }
+        return new PalacePreviewPlan(
+                status,
+                finalMerged,
+                context,
+                diagnostics,
+                paramsSnapshot,
+                paletteId,
+                corridorMx,
+                pathStartZ,
+                padY,
+                maxDrop);
+    }
+
+    /**
+     * True when every cell in this plan appears in {@code candidate} (final-set keys).
+     * Target blocks may differ (merge overwrite); missing cells mean integrity failure.
+     */
+    public boolean cellsPreservedIn(List<BlockPatch> candidate) {
+        List<BlockPatch> planFinal = this.patches;
+        List<BlockPatch> candFinal = ConfirmedPlanIdentity.toFinalPatches(candidate);
+        if (planFinal.isEmpty()) return false;
+        java.util.HashSet<Long> candKeys = new java.util.HashSet<>(candFinal.size() * 2);
+        for (BlockPatch p : candFinal) {
+            candKeys.add(packCell(p.dx(), p.dy(), p.dz()));
+        }
+        for (BlockPatch p : planFinal) {
+            if (!candKeys.contains(packCell(p.dx(), p.dy(), p.dz()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static long packCell(int dx, int dy, int dz) {
+        return (((long) dx & 0x1FFFFFL) << 42)
+                | (((long) dy & 0x1FFFFFL) << 21)
+                | ((long) dz & 0x1FFFFFL);
+    }
+
+    /**
      * Re-sample approach terrain + rebuild context using the frozen params snapshot.
      * Used by formal Confirm — complementary to expectedStates cell checks.
      */
