@@ -1,0 +1,1054 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Imperial",
+  "style_attributes": {
+    "wall_color": "#9E2A2B",
+    "roof_color": "#E6B800",
+    "accent_color": "#D4AF37",
+    "wall_material": "minecraft:red_terracotta",
+    "roof_material": "minecraft:yellow_glazed_terracotta",
+    "floor_material": "minecraft:polished_andesite",
+    "decorative_elements": [
+      "yellow glazed tile roofs",
+      "red lacquered walls and columns",
+      "meridian gate axial symmetry",
+      "progression of courtyards",
+      "hall of supreme harmony raised terrace"
+    ]
+  },
+  "distinguishing_features": [
+    "meridian gate axial symmetry",
+    "yellow glazed tile roofs",
+    "red lacquered walls and columns",
+    "progression of courtyards",
+    "hall of supreme harmony raised terrace"
+  ],
+  "anchor": {
+    "x": -151,
+    "y": 69,
+    "z": -2037
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "imperial_palace",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "compound",
+      "composition": "axial",
+      "axis": "north_south",
+      "levels": "single"
+    },
+    "structure": {
+      "type": "timber_frame",
+      "massiveness": 0.62,
+      "voidRatio": 0.28,
+      "supports": "columns"
+    },
+    "form": {
+      "repetition": "courtyard_progression",
+      "progression": "axial",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "columns",
+      "courtyard"
+    ],
+    "materials": {
+      "primary": "red_lacquer",
+      "secondary": "yellow_glazed_tile",
+      "accent": "gold",
+      "textureBias": "ornate",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "east_asia",
+      "era": "ming_qing",
+      "keywords": [
+        "imperial",
+        "axial",
+        "courtyard",
+        "palace"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "axial symmetry",
+        "yellow glazed roofs",
+        "red lacquered walls",
+        "raised terrace"
+      ],
+      "avoid": [
+        "modern glass",
+        "stadium bowl"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "height_to_width": 0.14,
+    "depth_to_width": 0.71,
+    "roof_to_body_height": 0.33,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_hall": [
+          "forbidden_city_main_hall"
+        ],
+        "named_main_body": [
+          "forbidden_city_main_hall"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "forbidden_city_main_hall",
+          "slot_id": "main_hall",
+          "local_origin": {
+            "x": -24,
+            "y": 0,
+            "z": -15
+          },
+          "plan_origin": {
+            "x": -24,
+            "y": 0,
+            "z": -15
+          },
+          "dimensions": {
+            "width": 48,
+            "depth": 30,
+            "height": 18
+          },
+          "floor_ys_local": [
+            0,
+            8
+          ],
+          "roof_y_local": 17,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "forbidden_city_main_hall",
+                "local_origin": {
+                  "x": -24,
+                  "y": 0,
+                  "z": -15
+                },
+                "dimensions": {
+                  "width": 48,
+                  "depth": 30,
+                  "height": 18
+                },
+                "roof_y_local": 17
+              }
+            ],
+            "envelope_local": {
+              "min_x": -24,
+              "min_z": -15,
+              "max_x": 24,
+              "max_z": 15,
+              "min_y": 0,
+              "max_y": 18
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 24,
+                "start": -15,
+                "end": 15
+              },
+              {
+                "direction": "NORTH",
+                "plane": -15,
+                "start": -24,
+                "end": 24
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 15,
+                "start": -24,
+                "end": 24
+              },
+              {
+                "direction": "WEST",
+                "plane": -24,
+                "start": -15,
+                "end": 15
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成故宫",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成故宫",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "id": "compound_base",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "slot_id": "compound_base"
+      },
+      {
+        "id": "main_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "slot_id": "main_hall"
+      },
+      {
+        "id": "gate",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 48
+        },
+        "facing": "SOUTH",
+        "slot_id": "gate"
+      },
+      {
+        "id": "rear_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -40
+        },
+        "facing": "SOUTH",
+        "slot_id": "rear_hall"
+      },
+      {
+        "id": "east_wing",
+        "anchor": {
+          "x": 44,
+          "y": 0,
+          "z": 8
+        },
+        "facing": "WEST",
+        "slot_id": "east_wing"
+      },
+      {
+        "id": "west_wing",
+        "anchor": {
+          "x": -44,
+          "y": 0,
+          "z": 8
+        },
+        "facing": "EAST",
+        "slot_id": "west_wing"
+      },
+      {
+        "id": "courtyard",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 26
+        },
+        "facing": "SOUTH",
+        "slot_id": "courtyard"
+      },
+      {
+        "id": "central_path",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 24
+        },
+        "facing": "SOUTH",
+        "slot_id": "central_path"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "compound_base",
+      "relative_position": {
+        "x": 0,
+        "y": -2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 150,
+        "depth": 110,
+        "height": 2
+      },
+      "params": {
+        "component_id": "forbidden_city_foundation",
+        "foundation_type": "plinth",
+        "material": "minecraft:stone_bricks",
+        "anchor_mode": "center",
+        "foundation_datum_source": "shared_compound_ground_floor"
+      },
+      "features": []
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "compound_base",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 140,
+        "depth": 100,
+        "height": 8
+      },
+      "params": {
+        "component_id": "forbidden_city_perimeter_wall",
+        "wall_type": "curtain_wall",
+        "thickness": 3,
+        "crenellations": false,
+        "wall_block": "minecraft:red_terracotta",
+        "gate_opening": {
+          "side": "south",
+          "width": 20,
+          "height": 10
+        },
+        "anchor_mode": "center"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 48,
+        "depth": 30,
+        "height": 18
+      },
+      "params": {
+        "component_id": "forbidden_city_main_hall",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "xuanshan",
+        "hollow": true,
+        "void_ratio": 0.28,
+        "floor_height": 8,
+        "floor_count": 2,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:red_terracotta",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "material": "red_lacquer",
+        "anchor_mode": "center",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "forbidden_city_main_hall"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 60,
+        "depth": 42,
+        "height": 4
+      },
+      "params": {
+        "component_id": "supreme_harmony_terrace",
+        "terrace_type": "raised_marble",
+        "railing": true,
+        "material": "minecraft:quartz_block",
+        "anchor_mode": "center",
+        "building_id": "supreme_harmony_terrace"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -27,
+        "y": 18,
+        "z": -18
+      },
+      "dimensions": {
+        "width": 54,
+        "depth": 36,
+        "height": 8
+      },
+      "params": {
+        "component_id": "main_hall_roof",
+        "host_id": "forbidden_city_main_hall",
+        "roof_type": "xuanshan",
+        "overhang": 3,
+        "eave_curve": 0.25,
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "material": "yellow_glazed_tile",
+        "roof_height": 8,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "forbidden_city_main_hall"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -20,
+        "y": 4,
+        "z": 15
+      },
+      "dimensions": {
+        "width": 40,
+        "depth": 1,
+        "height": 6
+      },
+      "params": {
+        "component_id": "main_hall_front_windows",
+        "host_id": "forbidden_city_main_hall",
+        "window_style": "Chinese_lattice",
+        "pattern": "rhythm",
+        "void_ratio": 0.3,
+        "window_block": "minecraft:birch_trapdoor",
+        "material": "wood",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "forbidden_city_main_hall"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": 15
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 2,
+        "height": 6
+      },
+      "params": {
+        "component_id": "main_hall_entrance",
+        "host_id": "forbidden_city_main_hall",
+        "entrance_type": "double_door",
+        "facing": "SOUTH",
+        "door_block": "minecraft:dark_oak_door",
+        "height": 6,
+        "door_width": 6,
+        "door_height": 4,
+        "building_id": "forbidden_city_main_hall"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -15,
+        "y": 6,
+        "z": 15
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "main_hall_balcony",
+        "host_id": "forbidden_city_main_hall",
+        "railing": true,
+        "material": "minecraft:quartz_block",
+        "building_id": "forbidden_city_main_hall",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -25,
+        "y": 17,
+        "z": -16
+      },
+      "dimensions": {
+        "width": 50,
+        "depth": 32,
+        "height": 1
+      },
+      "params": {
+        "component_id": "main_hall_cornice",
+        "host_id": "forbidden_city_main_hall",
+        "decor_type": "cornice",
+        "ornament_band": true,
+        "material": "minecraft:gold_block",
+        "building_id": "forbidden_city_main_hall"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 40,
+        "depth": 12,
+        "height": 16
+      },
+      "params": {
+        "component_id": "meridian_gate",
+        "gate_type": "tower_gate",
+        "facing": "SOUTH",
+        "wall_block": "minecraft:red_terracotta",
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "openings": 3,
+        "anchor_mode": "center",
+        "hollow": true,
+        "floor_count": 1,
+        "floor_height": 16,
+        "shape": "rectangle",
+        "geometry_source": "tower_gate_shell",
+        "building_id": "meridian_gate"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": -22,
+        "y": 16,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 16,
+        "height": 6
+      },
+      "params": {
+        "component_id": "meridian_gate_roof",
+        "host_id": "meridian_gate",
+        "roof_type": "xuanshan",
+        "overhang": 2,
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "roof_height": 6,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "meridian_gate"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 2,
+        "height": 10
+      },
+      "params": {
+        "component_id": "meridian_gate_entrance",
+        "host_id": "meridian_gate",
+        "entrance_type": "arched_gate",
+        "facing": "SOUTH",
+        "door_block": "minecraft:dark_oak_door",
+        "height": 10,
+        "door_width": 14,
+        "door_height": 4,
+        "building_id": "meridian_gate"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "rear_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 20,
+        "height": 12
+      },
+      "params": {
+        "component_id": "rear_hall_mass",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "xuanshan",
+        "hollow": true,
+        "void_ratio": 0.25,
+        "floor_height": 6,
+        "floor_count": 2,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:red_terracotta",
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "anchor_mode": "center",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "rear_hall_mass"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "rear_hall",
+      "relative_position": {
+        "x": -19,
+        "y": 12,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 40,
+        "depth": 24,
+        "height": 6
+      },
+      "params": {
+        "component_id": "rear_hall_roof",
+        "host_id": "rear_hall_mass",
+        "roof_type": "xuanshan",
+        "overhang": 2,
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "roof_height": 6,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "rear_hall_mass"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "rear_hall",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 5
+      },
+      "params": {
+        "component_id": "rear_hall_entrance",
+        "host_id": "rear_hall_mass",
+        "entrance_type": "double_door",
+        "facing": "SOUTH",
+        "door_block": "minecraft:dark_oak_door",
+        "height": 5,
+        "door_width": 4,
+        "door_height": 4,
+        "building_id": "rear_hall_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "east_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 42,
+        "height": 10
+      },
+      "params": {
+        "component_id": "east_wing_mass",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "xuanshan",
+        "hollow": true,
+        "void_ratio": 0.22,
+        "floor_height": 5,
+        "floor_count": 2,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:red_terracotta",
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "anchor_mode": "center",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "east_wing_mass"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "east_wing",
+      "relative_position": {
+        "x": -9,
+        "y": 10,
+        "z": -23
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 44,
+        "height": 4
+      },
+      "params": {
+        "component_id": "east_wing_roof",
+        "host_id": "east_wing_mass",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "roof_height": 4,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "east_wing_mass"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "east_wing",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 6,
+        "height": 5
+      },
+      "params": {
+        "component_id": "east_wing_entrance",
+        "host_id": "east_wing_mass",
+        "entrance_type": "single_door",
+        "facing": "WEST",
+        "door_block": "minecraft:dark_oak_door",
+        "height": 5,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "east_wing_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "west_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 42,
+        "height": 10
+      },
+      "params": {
+        "component_id": "west_wing_mass",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "xuanshan",
+        "hollow": true,
+        "void_ratio": 0.22,
+        "floor_height": 5,
+        "floor_count": 2,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:red_terracotta",
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "anchor_mode": "center",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "west_wing_mass"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "west_wing",
+      "relative_position": {
+        "x": -9,
+        "y": 10,
+        "z": -23
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 44,
+        "height": 4
+      },
+      "params": {
+        "component_id": "west_wing_roof",
+        "host_id": "west_wing_mass",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "roof_block": "minecraft:yellow_glazed_terracotta",
+        "roof_height": 4,
+        "distinctive_features": [
+          "meridian gate axial symmetry",
+          "yellow glazed tile roofs",
+          "red lacquered walls and columns",
+          "progression of courtyards",
+          "hall of supreme harmony raised terrace"
+        ],
+        "building_id": "west_wing_mass"
+      },
+      "features": [
+        "meridian_gate_axial_symmetry",
+        "yellow_glazed_tile_roofs",
+        "red_lacquered_walls_and_columns",
+        "progression_of_courtyards",
+        "hall_of_supreme_harmony_raised_terrace"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "west_wing",
+      "relative_position": {
+        "x": 6,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 6,
+        "height": 5
+      },
+      "params": {
+        "component_id": "west_wing_entrance",
+        "host_id": "west_wing_mass",
+        "entrance_type": "single_door",
+        "facing": "EAST",
+        "door_block": "minecraft:dark_oak_door",
+        "height": 5,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "west_wing_mass"
+      },
+      "features": []
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "central_path",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 36,
+        "height": 1
+      },
+      "params": {
+        "component_id": "central_ceremonial_path",
+        "path_type": "imperial_way",
+        "paving_block": "minecraft:polished_andesite",
+        "anchor_mode": "center"
+      },
+      "features": []
+    }
+  ],
+  "player_fidelity_notice_zh": "识别为真实建筑「Forbidden City (故宫)」，无专属模板，已依据研究资料组合式重建（保真度：中等；重点特征：meridian gate axial symmetry、yellow glazed tile roofs、red lacquered walls and columns）",
+  "kind": "llmplan"
+}

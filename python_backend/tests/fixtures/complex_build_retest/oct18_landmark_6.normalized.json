@@ -1,0 +1,620 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "light_gray",
+    "roof_color": "silver",
+    "accent_color": "pink",
+    "wall_material": "minecraft:light_gray_concrete",
+    "roof_material": "minecraft:smooth_quartz",
+    "floor_material": "minecraft:polished_andesite",
+    "decorative_elements": [
+      "sphere_pods",
+      "antenna_spire",
+      "glass_curtain_podium",
+      "splayed_legs"
+    ]
+  },
+  "distinguishing_features": [
+    "three splayed cylindrical support legs at 120 degrees",
+    "stacked sphere pods along a central shaft (large / medium / small)",
+    "slender needle antenna spire above the top pod",
+    "low glazed podium ring at the base",
+    "radial symmetry around a single vertical axis"
+  ],
+  "anchor": {
+    "x": -142,
+    "y": 70,
+    "z": -2026
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "observation_tower",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "vertical_radial",
+      "composition": "stacked_masses",
+      "axis": "vertical",
+      "levels": "multi"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.45,
+      "voidRatio": 0.35,
+      "supports": "central_shaft_with_splayed_legs"
+    },
+    "form": {
+      "repetition": "tiered",
+      "progression": "tapered",
+      "curvature": "spherical",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 3,
+      "mirror": null
+    },
+    "modules": [
+      "shaft",
+      "sphere_pod",
+      "spire",
+      "podium",
+      "windows"
+    ],
+    "materials": {
+      "primary": "concrete",
+      "secondary": "glass",
+      "accent": "terracotta",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "modern",
+      "keywords": [
+        "tv_tower",
+        "shanghai",
+        "pearl",
+        "spheres"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 130,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "vertical_proportion",
+        "sphere_stack",
+        "radial_symmetry"
+      ],
+      "avoid": [
+        "rectangular_block_massing",
+        "gothic_templates",
+        "castle_architecture"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "tower",
+    "height_to_width": 3.75,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.16,
+    "lower_pod_diameter_to_total_height": 0.2,
+    "spire_height_to_total_height": 0.15,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "op_podium"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "op_podium",
+          "slot_id": "tower_main",
+          "local_origin": {
+            "x": -12,
+            "y": 4,
+            "z": -12
+          },
+          "plan_origin": {
+            "x": -12,
+            "y": 4,
+            "z": -12
+          },
+          "dimensions": {
+            "width": 24,
+            "depth": 24,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "op_podium",
+                "local_origin": {
+                  "x": -12,
+                  "y": 4,
+                  "z": -12
+                },
+                "dimensions": {
+                  "width": 24,
+                  "depth": 24,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -12,
+              "min_z": -12,
+              "max_x": 12,
+              "max_z": 12,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 12,
+                "start": -12,
+                "end": 12
+              },
+              {
+                "direction": "NORTH",
+                "plane": -12,
+                "start": -12,
+                "end": 12
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 12,
+                "start": -12,
+                "end": 12
+              },
+              {
+                "direction": "WEST",
+                "plane": -12,
+                "start": -12,
+                "end": 12
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成上海东方明珠电视塔",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成上海东方明珠电视塔",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "tower_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "label": "Pearl TV Tower main radial slot"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -14,
+        "y": 0,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 28,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_foundation",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "floor_block": "minecraft:polished_andesite",
+        "building_id": "op_podium",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "op_podium"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -12,
+        "y": 4,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 24,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_podium",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "flat",
+        "window_style": "glass_curtain",
+        "void_ratio": 0.4,
+        "wall_block": "minecraft:light_gray_concrete",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:smooth_quartz",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "building_id": "op_podium"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -2,
+        "y": 4,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"glass\", \"modern\", \"wide\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 4, \"openingHeight\": 4, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"glass\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"wooden\", \"rustic\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "op_entrance",
+        "host_id": "op_podium",
+        "facing": "NORTH",
+        "entrance_type": "glass_door",
+        "material": "glass",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "op_podium"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -12,
+        "y": 6,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 24,
+        "height": 4
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"ribbon_glazing\", \"horizontal_band\", \"modern\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"glass\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"gothic\", \"arched\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "op_podium_windows",
+        "host_id": "op_podium",
+        "window_style": "glass_curtain",
+        "void_ratio": 0.45,
+        "material": "glass",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "op_podium"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 48
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_leg_north",
+        "anchor_mode": "min_corner",
+        "shape": "cylinder",
+        "hollow": false,
+        "material": "light_gray_concrete",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.35,
+        "floor_height": 3,
+        "building_id": "op_leg_north"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -9,
+        "y": 4,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 48
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_leg_west",
+        "anchor_mode": "min_corner",
+        "shape": "cylinder",
+        "hollow": false,
+        "material": "light_gray_concrete",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.35,
+        "floor_height": 3,
+        "building_id": "op_leg_west"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": 3,
+        "y": 4,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 48
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_leg_east",
+        "anchor_mode": "min_corner",
+        "shape": "cylinder",
+        "hollow": false,
+        "material": "light_gray_concrete",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.35,
+        "floor_height": 3,
+        "building_id": "op_leg_east"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -3,
+        "y": 12,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 93
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_shaft",
+        "anchor_mode": "min_corner",
+        "shape": "cylinder",
+        "hollow": true,
+        "material": "light_gray_concrete",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.35,
+        "floor_height": 3,
+        "building_id": "op_shaft"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -11,
+        "y": 34,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 22,
+        "height": 22
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_sphere_lower",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "hollow": true,
+        "void_ratio": 0.35,
+        "material": "pink_terracotta",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "floor_height": 3,
+        "building_id": "op_sphere_lower",
+        "kind": "sphere",
+        "volume_geometry": "sphere"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -8,
+        "y": 70,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 16
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_sphere_upper",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "hollow": true,
+        "void_ratio": 0.3,
+        "material": "pink_terracotta",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "floor_height": 3,
+        "building_id": "op_sphere_upper",
+        "kind": "sphere",
+        "volume_geometry": "sphere"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -4,
+        "y": 94,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_sphere_top",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "hollow": true,
+        "void_ratio": 0.25,
+        "material": "pink_terracotta",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "floor_height": 4,
+        "building_id": "op_sphere_top",
+        "kind": "sphere",
+        "volume_geometry": "sphere"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "tower_main",
+      "relative_position": {
+        "x": -3,
+        "y": 102,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 18
+      },
+      "features": [],
+      "params": {
+        "component_id": "op_spire",
+        "host_id": "op_shaft",
+        "roof_type": "cone",
+        "material": "light_gray_concrete",
+        "roof_block": "minecraft:smooth_quartz",
+        "roof_height": 12,
+        "overhang": 2,
+        "building_id": "op_shaft"
+      }
+    }
+  ],
+  "description": "组合式生成「上海东方明珠电视塔」：放射状三腿基座 + 玻璃裙房，中央筒体向上串联大、中、小三座球体舱段，顶部收为针状天线尖顶；纯语义构件组合，不引用地标模块。",
+  "player_fidelity_notice_zh": "组合式生成「上海东方明珠电视塔」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

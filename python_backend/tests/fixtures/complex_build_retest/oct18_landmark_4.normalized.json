@@ -1,0 +1,231 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "crimson_red",
+    "roof_color": "glazed_blue",
+    "accent_color": "white_marble",
+    "wall_material": "minecraft:red_concrete",
+    "roof_material": "minecraft:blue_concrete",
+    "floor_material": "minecraft:quartz_block",
+    "decorative_elements": [
+      "gilded_finial",
+      "round_wooden_columns",
+      "lattice_doors",
+      "marble_balustrade",
+      "caisson_ceiling"
+    ]
+  },
+  "distinguishing_features": [
+    "three_tiered_circular_marble_terrace",
+    "concentric_sacrificial_altar_levels",
+    "south_facing_ceremonial_axis",
+    "triple_circular_blue_glazed_roof",
+    "golden_finial_apex",
+    "radial_symmetry_hall_plan"
+  ],
+  "anchor": {
+    "x": -151,
+    "y": 69,
+    "z": -2037
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "ceremonial_temple",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "radial_centric",
+      "composition": "single",
+      "axis": "radial",
+      "levels": "multi"
+    },
+    "structure": {
+      "type": "radial_timber_frame",
+      "massiveness": 0.62,
+      "voidRatio": 0.18,
+      "supports": "radial_distributed"
+    },
+    "form": {
+      "repetition": "concentric",
+      "progression": "stepped",
+      "curvature": "circular",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 4,
+      "mirror": null
+    },
+    "modules": [
+      "terrace",
+      "circular_hall",
+      "tiered_roof",
+      "balustrade"
+    ],
+    "materials": {
+      "primary": "marble",
+      "secondary": "wood",
+      "accent": "glazed_tile",
+      "textureBias": "polished",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "china",
+      "era": "ming_qing",
+      "keywords": [
+        "imperial_altar",
+        "cosmology",
+        "heaven_worship"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 40,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "radial_symmetry",
+        "tiered_terrace"
+      ],
+      "avoid": [
+        "rectangular_shell",
+        "pilaster_facade_rows"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "RADIAL_RING",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH"
+      }
+    ]
+  },
+  "proportion_hints": {
+    "typology": "radial_terrace_hall",
+    "base_radius_to_height": 0.53,
+    "diameter_to_height": 1.06,
+    "tier_count": 3,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": []
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成天坛",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成天坛",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "components": [
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 36,
+        "height": 34
+      },
+      "features": [
+        "typology:radial_terrace_hall"
+      ],
+      "params": {
+        "component_id": "temple_of_heaven_main",
+        "typology_id": "radial_terrace_hall",
+        "reference_landmark": "temple_of_heaven",
+        "baseRadius": 18,
+        "hallRadius": 10,
+        "tiers": 3,
+        "tierStep": 3,
+        "height": 34,
+        "facing": "SOUTH",
+        "designSeed": 4317,
+        "symmetry": "RADIAL",
+        "terrace_material": "minecraft:quartz_block",
+        "hall_wall_material": "minecraft:red_concrete",
+        "roof_material": "minecraft:blue_concrete",
+        "finial_material": "minecraft:gold_block"
+      }
+    }
+  ],
+  "description": "天坛（祈年殿式）径向祭坛厅：三重圆台 + 圆形大殿 + 三重蓝琉璃圆顶，正南朝向，RADIAL 对称，由 radial_terrace_hall 参数化解释器生成完整体量。",
+  "player_fidelity_notice_zh": "组合式生成「天坛」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

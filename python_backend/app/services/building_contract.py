@@ -231,6 +231,21 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     components = [c for c in (out.get('components') or []) if isinstance(c, dict)]
     for component in components:
         params = component.get('params') or {}
+        roof_aliases = {'chinese_xieshan':'xieshan', 'chinese_xuanshan':'xuanshan', 'chinese_yingshan':'yingshan'}
+        if params.get('roof_type') in roof_aliases:
+            params['roof_type'] = roof_aliases[params['roof_type']]
+        if (component.get('component_type') == 'MASS_SECONDARY'
+                and params.get('shape') == 'sphere' and not params.get('floor_count')):
+            params.update(shape='circle', kind='sphere', volume_geometry='sphere')
+        # A tower gate is an occupied building shell with hosted roof/openings,
+        # rather than the standalone thin gate-frame generator.
+        if component.get('component_type') == 'GATE' and params.get('gate_type') == 'tower_gate':
+            component['component_type'] = 'MASS_SECONDARY'
+            params.setdefault('hollow', True)
+            params.setdefault('floor_count', 1)
+            params.setdefault('floor_height', component['dimensions']['height'])
+            params.setdefault('shape', 'rectangle')
+            params['geometry_source'] = 'tower_gate_shell'
         if params.get('interior') == 'single_open_bay' and component.get('component_type') == 'MASS_MAIN':
             params.update(floor_count=1, floor_height=component['dimensions']['height'])
     # A stack of authored tiers describes one storey per body, not a full-height
@@ -438,6 +453,20 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 mass['params']['requirement_scope'] = 'building_' + direction
     for mass in masses:
         own = [r for r in requirements if r['scope'] in ('all_main_masses', mass['params'].get('requirement_scope'))]
+        # A one-cell-short model envelope is a roof/floor datum discrepancy.
+        # Preserve declared storeys and spacing; never shrink them to fit.
+        fh, count = mass['params'].get('floor_height'), mass['params'].get('floor_count')
+        dims = mass.get('dimensions') or {}
+        if (type(fh) is int and type(count) is int and fh > 0 and count > 0
+                and dims.get('height') == fh * count - 1):
+            old_top = mass['relative_position']['y'] + dims['height']
+            dims['height'] += 1
+            mass['params']['envelope_source'] = 'floor_band_datum'
+            for roof in components:
+                if (roof.get('component_type') in ('ROOF','ROOF_STRUCTURE')
+                        and roof['params'].get('host_id') == mass['params']['component_id']
+                        and roof.get('relative_position',{}).get('y') in (old_top-1,old_top)):
+                    roof['relative_position']['y'] += 1
         if any(r['property'] == 'glass_block' for r in own):
             mass['params']['glass_block'] = 'minecraft:glass'
             for child in components:
@@ -528,6 +557,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         requirement['status'] = 'mismatch' if invalid else 'planned'
         requirement['target_components'] = sorted(target_ids)
         requirement['mismatched_components'] = invalid
+    _repair_site_foundation_datum(out, components)
     from .resolved_geometry import resolve_buildings
     contract['resolved_buildings'] = resolve_buildings(out)
     for building in contract['resolved_buildings']:
@@ -558,6 +588,30 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     from .chinese_material_contract import apply_chinese_material_contract
     apply_chinese_material_contract(out, text)
     return out
+
+
+def _repair_site_foundation_datum(plan: dict, components: list[dict]) -> None:
+    """Put a shared buried foundation below the compound's authored ground floors."""
+    from .resolved_geometry import mass_origin
+    slots = {s.get('slot_id',s.get('id')):s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots',[])}
+    def origin(c):
+        p=mass_origin(c); a=slots.get(c.get('slot_id'),{})
+        return {k:p[k]+a.get(k,0) for k in ('x','y','z')}
+    for foundation in components:
+        p=foundation.get('params') or {}; d=foundation.get('dimensions') or {}
+        if foundation.get('component_type')!='FOUNDATION' or p.get('host_id') or not d.get('height'): continue
+        fo=origin(foundation); bodies=[]
+        for body in components:
+            if body.get('component_type') not in ('MASS_MAIN','MASS_SECONDARY','TOWER','MASS_WING','SIDE_WING'): continue
+            bd=body.get('dimensions') or {}; bp=body.get('params') or {}
+            if bp.get('extrude_mode')=='plate' or bd.get('height',0)<3: continue
+            bo=origin(body)
+            if bo['y'] != fo['y']: continue
+            if all(fo[k] <= bo[k] and bo[k]+bd[size] <= fo[k]+d[size] for k,size in (('x','width'),('z','depth'))):
+                bodies.append(body)
+        if len({b.get('slot_id') for b in bodies}) < 2: continue
+        foundation['relative_position']['y'] -= min(5,d['height'])
+        p['foundation_datum_source']='shared_compound_ground_floor'
 
 
 def _repair_compound_courtyard_inheritance(plan: dict, components: list[dict]) -> None:

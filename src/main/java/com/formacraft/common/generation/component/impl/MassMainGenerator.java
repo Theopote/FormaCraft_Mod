@@ -92,6 +92,14 @@ public class MassMainGenerator implements ComponentGenerator {
         
         Map<String, Object> params = c.params();
 
+        // Volumetric bodies use their authored 3-D shell, not a cylindrical
+        // extrusion of the circular footprint used by attachment validators.
+        if (params != null && "sphere".equals(params.get("volume_geometry"))) {
+            Component volume = new Component(c.componentType(), c.slotId(), actualRp, d, c.features(), params);
+            return new PrimitiveShapeGenerator().generate(new SemanticComponent(c.componentType(), semantic.slot(), volume,
+                    semantic.styleProfile(), semantic.styleAttributes(), semantic.genome()));
+        }
+
         // A plate is a floor slab, not another multi-storey building shell.
         if (params != null && "plate".equals(params.get("extrude_mode"))) {
             String floor = getParamString(params, "floor_block");

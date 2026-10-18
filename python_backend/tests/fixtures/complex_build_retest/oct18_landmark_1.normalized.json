@@ -1,0 +1,1336 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Traditional_Pagoda",
+  "style_attributes": {
+    "wall_color": "#EDE6D6",
+    "roof_color": "#3A3E45",
+    "accent_color": "#9E2B25",
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:dark_oak_planks",
+    "decorative_elements": [
+      "red timber columns",
+      "upturned eave corners",
+      "stone balustrade balconies",
+      "gold finial spire",
+      "octagonal stacked eaves"
+    ]
+  },
+  "distinguishing_features": [
+    "八边形平面塔基与塔身 (octagonal plan at every tier)",
+    "五层密檐式收分塔身 (five tapering tiers)",
+    "层层出檐的攒尖顶 (pyramidal eaves roof per tier with overhang)",
+    "每层平座栏杆 (balustrade balcony rings)",
+    "塔刹宝顶 (gold finial crown)"
+  ],
+  "anchor": {
+    "x": -25,
+    "y": 63,
+    "z": -1936
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "chinese_pagoda",
+      "confidence": 0.86
+    },
+    "topology": {
+      "layout": "radial_octagon",
+      "composition": "stacked_tiers",
+      "axis": "vertical",
+      "levels": "multi"
+    },
+    "structure": {
+      "type": "load_bearing_masonry_with_timber_frame",
+      "massiveness": 0.62,
+      "voidRatio": 0.18,
+      "supports": "central_core_with_perimeter_columns"
+    },
+    "form": {
+      "repetition": "tiered",
+      "progression": "tapering",
+      "curvature": "eave_upturn",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 8,
+      "mirror": null
+    },
+    "modules": [
+      "foundation",
+      "terrace",
+      "tiers",
+      "eaves_roof",
+      "balcony",
+      "windows",
+      "entrance",
+      "finial"
+    ],
+    "materials": {
+      "primary": "white_plaster",
+      "secondary": "dark_red_timber",
+      "accent": "gold",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "east_asia",
+      "era": "medieval_to_premodern",
+      "keywords": [
+        "pagoda",
+        "buddhist",
+        "octagonal",
+        "chinese",
+        "multi_eave"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 60,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "octagonal_plan",
+        "tapering_tiers",
+        "eave_overhang"
+      ],
+      "avoid": [
+        "rectangular_box_only",
+        "flat_roof",
+        "modern_glazing"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "octagonal_pagoda",
+    "height_to_width": 3.2,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.28,
+    "tier_taper_ratio": 0.78,
+    "storey_height": 6.5,
+    "eave_overhang": 2,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": [
+        {
+          "component_id": "pagoda_tier_1",
+          "slot_id": "slot_pagoda",
+          "local_origin": {
+            "x": -8,
+            "y": 4,
+            "z": -8
+          },
+          "plan_origin": {
+            "x": -8,
+            "y": 4,
+            "z": -8
+          },
+          "dimensions": {
+            "width": 17,
+            "depth": 17,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pagoda_tier_1",
+                "local_origin": {
+                  "x": -8,
+                  "y": 4,
+                  "z": -8
+                },
+                "dimensions": {
+                  "width": 17,
+                  "depth": 17,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -8,
+              "min_z": -8,
+              "max_x": 9,
+              "max_z": 9,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "pagoda_tier_2",
+          "slot_id": "slot_pagoda",
+          "local_origin": {
+            "x": -6,
+            "y": 14,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 14,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 13,
+            "height": 8
+          },
+          "floor_ys_local": [
+            14,
+            18
+          ],
+          "roof_y_local": 21,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pagoda_tier_2",
+                "local_origin": {
+                  "x": -6,
+                  "y": 14,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 13,
+                  "height": 8
+                },
+                "roof_y_local": 21
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -6,
+              "max_x": 7,
+              "max_z": 7,
+              "min_y": 14,
+              "max_y": 22
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "pagoda_tier_3",
+          "slot_id": "slot_pagoda",
+          "local_origin": {
+            "x": -4,
+            "y": 24,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -4,
+            "y": 24,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 9,
+            "depth": 9,
+            "height": 7
+          },
+          "floor_ys_local": [
+            24,
+            27
+          ],
+          "roof_y_local": 30,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pagoda_tier_3",
+                "local_origin": {
+                  "x": -4,
+                  "y": 24,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 9,
+                  "depth": 9,
+                  "height": 7
+                },
+                "roof_y_local": 30
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -4,
+              "max_x": 5,
+              "max_z": 5,
+              "min_y": 24,
+              "max_y": 31
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "pagoda_tier_4",
+          "slot_id": "slot_pagoda",
+          "local_origin": {
+            "x": -3,
+            "y": 33,
+            "z": -3
+          },
+          "plan_origin": {
+            "x": -3,
+            "y": 33,
+            "z": -3
+          },
+          "dimensions": {
+            "width": 7,
+            "depth": 7,
+            "height": 6
+          },
+          "floor_ys_local": [
+            33
+          ],
+          "roof_y_local": 38,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pagoda_tier_4",
+                "local_origin": {
+                  "x": -3,
+                  "y": 33,
+                  "z": -3
+                },
+                "dimensions": {
+                  "width": 7,
+                  "depth": 7,
+                  "height": 6
+                },
+                "roof_y_local": 38
+              }
+            ],
+            "envelope_local": {
+              "min_x": -3,
+              "min_z": -3,
+              "max_x": 4,
+              "max_z": 4,
+              "min_y": 33,
+              "max_y": 39
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "pagoda_tier_5",
+          "slot_id": "slot_pagoda",
+          "local_origin": {
+            "x": -2,
+            "y": 40,
+            "z": -2
+          },
+          "plan_origin": {
+            "x": -2,
+            "y": 40,
+            "z": -2
+          },
+          "dimensions": {
+            "width": 5,
+            "depth": 5,
+            "height": 5
+          },
+          "floor_ys_local": [
+            40
+          ],
+          "roof_y_local": 44,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pagoda_tier_5",
+                "local_origin": {
+                  "x": -2,
+                  "y": 40,
+                  "z": -2
+                },
+                "dimensions": {
+                  "width": 5,
+                  "depth": 5,
+                  "height": 5
+                },
+                "roof_y_local": 44
+              }
+            ],
+            "envelope_local": {
+              "min_x": -2,
+              "min_z": -2,
+              "max_x": 3,
+              "max_z": 3,
+              "min_y": 40,
+              "max_y": 45
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座八边形的中式佛塔",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座八边形的中式佛塔",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "pagoda_tier_1",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Traditional_Pagoda",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "pagoda_tier_2",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Traditional_Pagoda",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "pagoda_tier_3",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Traditional_Pagoda",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "pagoda_tier_4",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Traditional_Pagoda",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "pagoda_tier_5",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Traditional_Pagoda",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "RADIAL_RING",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "slot_pagoda",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "component_preset": "octagonal_pagoda_tower",
+        "slot_id": "slot_pagoda"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -11,
+        "y": 0,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 22,
+        "height": 3
+      },
+      "features": [
+        "octagonal stone plinth",
+        "stepped base"
+      ],
+      "params": {
+        "component_id": "pagoda_foundation",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "plan_type": "none",
+        "detail_level": "medium",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "material": "stone",
+        "building_id": "pagoda_foundation"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -12,
+        "y": 3,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 24,
+        "height": 1
+      },
+      "features": [
+        "walkable octagonal terrace",
+        "perimeter curb"
+      ],
+      "params": {
+        "component_id": "pagoda_terrace",
+        "host_id": "pagoda_foundation",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "detail_level": "medium",
+        "wall_block": "minecraft:smooth_stone",
+        "floor_block": "minecraft:stone_bricks",
+        "material": "stone",
+        "building_id": "pagoda_foundation"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -8,
+        "y": 4,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 17,
+        "height": 8
+      },
+      "features": [
+        "octagonal storey shell",
+        "red timber columns",
+        "white plaster infill"
+      ],
+      "params": {
+        "component_id": "pagoda_tier_1",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "xuanshan",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "window_ratio": 0.22,
+        "window_aspect": "vertical_strip",
+        "void_ratio": 0.15,
+        "detail_level": "high",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "setback_ratio": 0.06,
+        "building_id": "pagoda_tier_1"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -6,
+        "y": 14,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 8
+      },
+      "features": [
+        "second octagonal storey",
+        "shrinking tier"
+      ],
+      "params": {
+        "component_id": "pagoda_tier_2",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "xuanshan",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "window_ratio": 0.2,
+        "window_aspect": "vertical_strip",
+        "void_ratio": 0.15,
+        "detail_level": "high",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "setback_ratio": 0.06,
+        "building_id": "pagoda_tier_2"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -4,
+        "y": 24,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 7
+      },
+      "features": [
+        "third octagonal storey"
+      ],
+      "params": {
+        "component_id": "pagoda_tier_3",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 3,
+        "roof_type": "xuanshan",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "window_ratio": 0.2,
+        "window_aspect": "vertical_strip",
+        "void_ratio": 0.16,
+        "detail_level": "medium",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "setback_ratio": 0.06,
+        "building_id": "pagoda_tier_3"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -3,
+        "y": 33,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 6
+      },
+      "features": [
+        "fourth octagonal storey"
+      ],
+      "params": {
+        "component_id": "pagoda_tier_4",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "plan_type": "none",
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "xuanshan",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "window_ratio": 0.18,
+        "window_aspect": "vertical_strip",
+        "void_ratio": 0.16,
+        "detail_level": "medium",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "setback_ratio": 0.06,
+        "building_id": "pagoda_tier_4"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -2,
+        "y": 40,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 5
+      },
+      "features": [
+        "topmost octagonal storey under the crown roof"
+      ],
+      "params": {
+        "component_id": "pagoda_tier_5",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "plan_type": "none",
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "xuanshan",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "solid",
+        "window_ratio": 0.15,
+        "window_aspect": "vertical_strip",
+        "void_ratio": 0.18,
+        "detail_level": "medium",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "setback_ratio": 0.06,
+        "building_id": "pagoda_tier_5"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -10,
+        "y": 12,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 21,
+        "height": 2
+      },
+      "features": [
+        "eave roof tier 1",
+        "upturned corners",
+        "2 block overhang"
+      ],
+      "params": {
+        "component_id": "pagoda_roof_1",
+        "host_id": "pagoda_tier_1",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "roof_type": "xuanshan",
+        "setback_ratio": 0.0,
+        "detail_level": "high",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "tile",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "pagoda_tier_1"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -8,
+        "y": 22,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 17,
+        "height": 2
+      },
+      "features": [
+        "eave roof tier 2",
+        "2 block overhang"
+      ],
+      "params": {
+        "component_id": "pagoda_roof_2",
+        "host_id": "pagoda_tier_2",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "roof_type": "xuanshan",
+        "setback_ratio": 0.0,
+        "detail_level": "high",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "tile",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "pagoda_tier_2"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -6,
+        "y": 31,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 2
+      },
+      "features": [
+        "eave roof tier 3",
+        "2 block overhang"
+      ],
+      "params": {
+        "component_id": "pagoda_roof_3",
+        "host_id": "pagoda_tier_3",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "roof_type": "xuanshan",
+        "setback_ratio": 0.0,
+        "detail_level": "high",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "tile",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "pagoda_tier_3"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -4,
+        "y": 38,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 11,
+        "height": 2
+      },
+      "features": [
+        "eave roof tier 4",
+        "2 block overhang"
+      ],
+      "params": {
+        "component_id": "pagoda_roof_4",
+        "host_id": "pagoda_tier_4",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "roof_type": "xuanshan",
+        "setback_ratio": 0.0,
+        "detail_level": "medium",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "tile",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "pagoda_tier_4"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -3,
+        "y": 44,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 4
+      },
+      "features": [
+        "crown攒尖顶 of the pagoda",
+        "steep pyramid with upturned eaves"
+      ],
+      "params": {
+        "component_id": "pagoda_roof_5_crown",
+        "host_id": "pagoda_tier_5",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "roof_type": "xuanshan",
+        "setback_ratio": 0.0,
+        "detail_level": "high",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "tile",
+        "roof_height": 4,
+        "overhang": 2,
+        "building_id": "pagoda_tier_5"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -2,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"wooden\", \"red_lacquer\", \"arched\", \"chinese\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 4, \"openingHeight\": 5, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional_Pagoda\", \"materialTone\": \"dark red timber\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"modern\", \"glass\", \"industrial\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "pagoda_entrance",
+        "host_id": "pagoda_tier_1",
+        "facing": "NORTH",
+        "detail_level": "high",
+        "wall_block": "minecraft:crimson_planks",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "pagoda_tier_1"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -8,
+        "y": 6,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 17,
+        "height": 4
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"lattice\", \"vertical_strip\", \"wooden\", \"chinese\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional_Pagoda\", \"materialTone\": \"dark wood lattice\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"modern_glass\", \"curtain_wall\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "pagoda_windows_tier_1",
+        "host_id": "pagoda_tier_1",
+        "window_style": "vertical_strip",
+        "window_aspect": "vertical_strip",
+        "window_ratio": 0.22,
+        "window_spacing": 3,
+        "rhythm": "regular",
+        "detail_level": "high",
+        "material": "wood",
+        "building_id": "pagoda_tier_1"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -6,
+        "y": 16,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 4
+      },
+      "features": [
+        "lattice window rhythm on third storey"
+      ],
+      "params": {
+        "component_id": "pagoda_windows_tier_2",
+        "host_id": "pagoda_tier_2",
+        "window_style": "vertical_strip",
+        "window_aspect": "vertical_strip",
+        "window_ratio": 0.2,
+        "window_spacing": 3,
+        "rhythm": "regular",
+        "detail_level": "medium",
+        "material": "wood",
+        "building_id": "pagoda_tier_2"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -4,
+        "y": 26,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 3
+      },
+      "features": [
+        "small lattice openings"
+      ],
+      "params": {
+        "component_id": "pagoda_windows_tier_3",
+        "host_id": "pagoda_tier_3",
+        "window_style": "vertical_strip",
+        "window_aspect": "vertical_strip",
+        "window_ratio": 0.2,
+        "window_spacing": 2,
+        "rhythm": "regular",
+        "detail_level": "medium",
+        "material": "wood",
+        "building_id": "pagoda_tier_3"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -3,
+        "y": 34,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [
+        "narrow slit windows near the crown"
+      ],
+      "params": {
+        "component_id": "pagoda_windows_tier_4",
+        "host_id": "pagoda_tier_4",
+        "window_style": "vertical_strip",
+        "window_aspect": "vertical_strip",
+        "window_ratio": 0.18,
+        "window_spacing": 2,
+        "rhythm": "regular",
+        "detail_level": "medium",
+        "material": "wood",
+        "building_id": "pagoda_tier_4"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -7,
+        "y": 14,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "平座 balustrade ring around second storey"
+      ],
+      "params": {
+        "component_id": "pagoda_balcony_2",
+        "host_id": "pagoda_tier_2",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "railing_style": "stone_balustrade",
+        "detail_level": "medium",
+        "wall_block": "minecraft:stone_brick_wall",
+        "material": "stone",
+        "building_id": "pagoda_tier_2"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -5,
+        "y": 24,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "平座 balustrade ring around third storey"
+      ],
+      "params": {
+        "component_id": "pagoda_balcony_3",
+        "host_id": "pagoda_tier_3",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "railing_style": "stone_balustrade",
+        "detail_level": "medium",
+        "wall_block": "minecraft:stone_brick_wall",
+        "material": "stone",
+        "building_id": "pagoda_tier_3"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -4,
+        "y": 33,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "平座 balustrade ring around fourth storey"
+      ],
+      "params": {
+        "component_id": "pagoda_balcony_4",
+        "host_id": "pagoda_tier_4",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "railing_style": "stone_balustrade",
+        "detail_level": "medium",
+        "wall_block": "minecraft:stone_brick_wall",
+        "material": "stone",
+        "building_id": "pagoda_tier_4"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -3,
+        "y": 40,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "top balustrade below the crown roof"
+      ],
+      "params": {
+        "component_id": "pagoda_balcony_5",
+        "host_id": "pagoda_tier_5",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "railing_style": "stone_balustrade",
+        "detail_level": "low",
+        "wall_block": "minecraft:stone_brick_wall",
+        "material": "stone",
+        "building_id": "pagoda_tier_5"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -9,
+        "y": 11,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 19,
+        "height": 1
+      },
+      "features": [
+        "dougong bracket band under first eave"
+      ],
+      "params": {
+        "component_id": "pagoda_bracket_band_1",
+        "host_id": "pagoda_tier_1",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "hollow": true,
+        "extrude_mode": "plate",
+        "detail_level": "high",
+        "wall_block": "minecraft:dark_oak_planks",
+        "material": "wood",
+        "building_id": "pagoda_tier_1"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -7,
+        "y": 21,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "bracket band under second eave"
+      ],
+      "params": {
+        "component_id": "pagoda_bracket_band_2",
+        "host_id": "pagoda_tier_2",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "sides": 8,
+        "hollow": true,
+        "extrude_mode": "plate",
+        "detail_level": "medium",
+        "wall_block": "minecraft:dark_oak_planks",
+        "material": "wood",
+        "building_id": "pagoda_tier_2"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -1,
+        "y": 48,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 6
+      },
+      "features": [
+        "塔刹 mast of the finial"
+      ],
+      "params": {
+        "component_id": "pagoda_finial_mast",
+        "host_id": "pagoda_tier_5",
+        "anchor_mode": "min_corner",
+        "kind": "cylinder",
+        "sides": 8,
+        "radius": 1,
+        "detail_level": "high",
+        "wall_block": "minecraft:gold_block",
+        "material": "gold",
+        "attachment_host_id": "pagoda_roof_5_crown",
+        "building_id": "pagoda_tier_5"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_pagoda",
+      "relative_position": {
+        "x": -2,
+        "y": 54,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 3
+      },
+      "features": [
+        "宝顶 jewel crown"
+      ],
+      "params": {
+        "component_id": "pagoda_finial_jewel",
+        "host_id": "pagoda_tier_5",
+        "anchor_mode": "min_corner",
+        "kind": "sphere",
+        "radius": 2,
+        "detail_level": "high",
+        "wall_block": "minecraft:gold_block",
+        "material": "gold",
+        "attachment_host_id": "pagoda_finial_mast",
+        "building_id": "pagoda_tier_5"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「八边形的中式佛塔」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

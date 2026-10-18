@@ -1,0 +1,972 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#E8D9B5",
+    "roof_color": "#B4552B",
+    "accent_color": "#C9A227",
+    "wall_material": "minecraft:smooth_sandstone",
+    "roof_material": "minecraft:orange_terracotta",
+    "floor_material": "minecraft:quartz_block",
+    "decorative_elements": [
+      "arched windows",
+      "pilaster strips",
+      "cornice band",
+      "barrel tile hip roofs",
+      "courtyard fountain",
+      "arcaded terrace"
+    ]
+  },
+  "distinguishing_features": [
+    "symmetrical main block flanked by two lower wings",
+    "tall central tower with pyramidal tile roof rising above the main roof",
+    "arcaded entrance porch with second-floor balcony",
+    "walled forecourt with central fountain",
+    "Mediterranean Revival cream stucco walls with terracotta tile roofs"
+  ],
+  "anchor": {
+    "x": -65,
+    "y": 65,
+    "z": -1985
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "mediterranean_revival_estate",
+      "confidence": 0.7
+    },
+    "topology": {
+      "layout": "compound",
+      "composition": "courtyard_compound",
+      "axis": "N-S",
+      "levels": "3-4"
+    },
+    "structure": {
+      "type": "masonry",
+      "massiveness": 0.7,
+      "voidRatio": 0.22,
+      "supports": "load_bearing_walls"
+    },
+    "form": {
+      "repetition": "symmetrical_wings",
+      "progression": "uniform",
+      "curvature": "arched_openings",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "tower",
+      "arcade",
+      "hip_roof",
+      "arched_windows",
+      "courtyard",
+      "terrace"
+    ],
+    "materials": {
+      "primary": "smooth_sandstone",
+      "secondary": "quartz",
+      "accent": "terracotta",
+      "textureBias": "warm",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "mediterranean",
+      "era": "early_20th_century",
+      "keywords": [
+        "spanish_colonial_revival",
+        "moorish_revival",
+        "palm_beach_estate"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "arched_openings",
+        "tile_roofs",
+        "central_tower",
+        "forecourt"
+      ],
+      "avoid": [
+        "stadium",
+        "gothic",
+        "modern_glass_curtain"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "compound_estate",
+    "height_to_width": 0.35,
+    "depth_to_width": 0.57,
+    "roof_to_body_height": 0.44,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "estate_main"
+        ],
+        "named_tower": [
+          "estate_tower"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "estate_main",
+          "slot_id": "main",
+          "local_origin": {
+            "x": -23,
+            "y": 0,
+            "z": -13
+          },
+          "plan_origin": {
+            "x": -23,
+            "y": 0,
+            "z": -13
+          },
+          "dimensions": {
+            "width": 46,
+            "depth": 26,
+            "height": 16
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "roof_y_local": 15,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "estate_main",
+                "local_origin": {
+                  "x": -23,
+                  "y": 0,
+                  "z": -13
+                },
+                "dimensions": {
+                  "width": 46,
+                  "depth": 26,
+                  "height": 16
+                },
+                "roof_y_local": 15
+              }
+            ],
+            "envelope_local": {
+              "min_x": -23,
+              "min_z": -13,
+              "max_x": 23,
+              "max_z": 13,
+              "min_y": 0,
+              "max_y": 16
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 23,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "NORTH",
+                "plane": -13,
+                "start": -23,
+                "end": 23
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 13,
+                "start": -23,
+                "end": 23
+              },
+              {
+                "direction": "WEST",
+                "plane": -23,
+                "start": -13,
+                "end": 13
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成海湖庄园",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成海湖庄园",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "main"
+      },
+      {
+        "id": "west_wing",
+        "anchor": {
+          "x": -34,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "west_wing"
+      },
+      {
+        "id": "east_wing",
+        "anchor": {
+          "x": 34,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "east_wing"
+      },
+      {
+        "id": "terrace",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -20
+        },
+        "facing": "NORTH",
+        "slot_id": "terrace"
+      },
+      {
+        "id": "court",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -38
+        },
+        "facing": "NORTH",
+        "slot_id": "court"
+      },
+      {
+        "id": "path",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -58
+        },
+        "facing": "NORTH",
+        "slot_id": "path"
+      },
+      {
+        "id": "gate",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -72
+        },
+        "facing": "NORTH",
+        "slot_id": "gate"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 46,
+        "depth": 26,
+        "height": 16
+      },
+      "params": {
+        "component_id": "estate_main",
+        "anchor_mode": "center",
+        "floor_count": 4,
+        "floor_height": 4,
+        "hollow": true,
+        "void_ratio": 0.22,
+        "roof_type": "hip",
+        "window_style": "arched",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:smooth_sandstone",
+        "floor_block": "minecraft:quartz_block",
+        "roof_block": "minecraft:orange_terracotta",
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "building_id": "estate_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 16,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 50,
+        "depth": 30,
+        "height": 7
+      },
+      "params": {
+        "component_id": "estate_main_roof",
+        "host_id": "estate_main",
+        "roof_type": "hip",
+        "overhang": 2,
+        "roof_block": "minecraft:orange_terracotta",
+        "ridge_block": "minecraft:terracotta",
+        "roof_height": 7,
+        "building_id": "estate_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 1,
+        "height": 10
+      },
+      "params": {
+        "component_id": "estate_main_windows",
+        "host_id": "estate_main",
+        "window_style": "arched",
+        "rows": 3,
+        "columns": 9,
+        "spacing": 4,
+        "sill": 1,
+        "frame_block": "minecraft:quartz_block",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "estate_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 5
+      },
+      "params": {
+        "component_id": "estate_main_entrance",
+        "host_id": "estate_main",
+        "entrance_type": "double_door",
+        "facing": "NORTH",
+        "arched": true,
+        "canopy": true,
+        "door_width": 4,
+        "door_height": 4,
+        "building_id": "estate_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 3,
+        "height": 2
+      },
+      "params": {
+        "component_id": "estate_main_balcony",
+        "host_id": "estate_main",
+        "railing": true,
+        "facing": "NORTH",
+        "building_id": "estate_main",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 30
+      },
+      "params": {
+        "component_id": "estate_tower",
+        "floor_count": 5,
+        "floor_height": 4,
+        "hollow": true,
+        "roof_type": "pyramid",
+        "window_style": "arched",
+        "wall_block": "minecraft:smooth_sandstone",
+        "floor_block": "minecraft:quartz_block",
+        "building_id": "estate_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "params": {
+        "component_id": "estate_tower_door",
+        "host_id": "estate_tower",
+        "entrance_type": "door",
+        "facing": "SOUTH",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "estate_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 30,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 6
+      },
+      "params": {
+        "component_id": "estate_tower_roof",
+        "host_id": "estate_tower",
+        "roof_type": "pyramid",
+        "overhang": 1,
+        "roof_block": "minecraft:orange_terracotta",
+        "roof_height": 6,
+        "building_id": "estate_tower"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 50,
+        "depth": 30,
+        "height": 2
+      },
+      "params": {
+        "component_id": "estate_foundation",
+        "host_id": "estate_main",
+        "plinth": true,
+        "material": "stone",
+        "block": "minecraft:smooth_sandstone",
+        "building_id": "estate_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 15,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 48,
+        "depth": 28,
+        "height": 2
+      },
+      "params": {
+        "component_id": "estate_cornice",
+        "host_id": "estate_main",
+        "detail_type": "cornice",
+        "material": "stone",
+        "block": "minecraft:quartz_block",
+        "building_id": "estate_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "CHIMNEY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -12,
+        "y": 16,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 6
+      },
+      "params": {
+        "component_id": "estate_chimney_west",
+        "host_id": "estate_main",
+        "block": "minecraft:smooth_sandstone"
+      },
+      "features": []
+    },
+    {
+      "component_type": "CHIMNEY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 12,
+        "y": 16,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 6
+      },
+      "params": {
+        "component_id": "estate_chimney_east",
+        "host_id": "estate_main",
+        "block": "minecraft:smooth_sandstone"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "west_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 18,
+        "height": 12
+      },
+      "params": {
+        "component_id": "estate_west_wing",
+        "anchor_mode": "center",
+        "floor_count": 3,
+        "floor_height": 4,
+        "hollow": true,
+        "void_ratio": 0.2,
+        "roof_type": "hip",
+        "window_style": "arched",
+        "wall_block": "minecraft:smooth_sandstone",
+        "floor_block": "minecraft:quartz_block",
+        "roof_block": "minecraft:orange_terracotta",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "building_id": "estate_west_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "west_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 22,
+        "height": 5
+      },
+      "params": {
+        "component_id": "estate_west_wing_roof",
+        "host_id": "estate_west_wing",
+        "roof_type": "hip",
+        "overhang": 2,
+        "roof_block": "minecraft:orange_terracotta",
+        "roof_height": 5,
+        "building_id": "estate_west_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "west_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 3,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 1,
+        "height": 8
+      },
+      "params": {
+        "component_id": "estate_west_wing_windows",
+        "host_id": "estate_west_wing",
+        "window_style": "arched",
+        "rows": 2,
+        "columns": 4,
+        "spacing": 5,
+        "frame_block": "minecraft:quartz_block",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "estate_west_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "west_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "params": {
+        "component_id": "estate_west_wing_entrance",
+        "host_id": "estate_west_wing",
+        "entrance_type": "double_door",
+        "facing": "NORTH",
+        "arched": true,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "estate_west_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "east_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 18,
+        "height": 12
+      },
+      "params": {
+        "component_id": "estate_east_wing",
+        "anchor_mode": "center",
+        "floor_count": 3,
+        "floor_height": 4,
+        "hollow": true,
+        "void_ratio": 0.2,
+        "roof_type": "hip",
+        "window_style": "arched",
+        "wall_block": "minecraft:smooth_sandstone",
+        "floor_block": "minecraft:quartz_block",
+        "roof_block": "minecraft:orange_terracotta",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "building_id": "estate_east_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "east_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 22,
+        "height": 5
+      },
+      "params": {
+        "component_id": "estate_east_wing_roof",
+        "host_id": "estate_east_wing",
+        "roof_type": "hip",
+        "overhang": 2,
+        "roof_block": "minecraft:orange_terracotta",
+        "roof_height": 5,
+        "building_id": "estate_east_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "east_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 3,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 1,
+        "height": 8
+      },
+      "params": {
+        "component_id": "estate_east_wing_windows",
+        "host_id": "estate_east_wing",
+        "window_style": "arched",
+        "rows": 2,
+        "columns": 4,
+        "spacing": 5,
+        "frame_block": "minecraft:quartz_block",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "estate_east_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "east_wing",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "params": {
+        "component_id": "estate_east_wing_entrance",
+        "host_id": "estate_east_wing",
+        "entrance_type": "double_door",
+        "facing": "NORTH",
+        "arched": true,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "estate_east_wing"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "terrace",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "estate_terrace",
+        "block": "minecraft:smooth_sandstone",
+        "edge_block": "minecraft:quartz_block",
+        "building_id": "estate_terrace",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "COURTYARD",
+      "slot_id": "court",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 20,
+        "height": 1
+      },
+      "params": {
+        "component_id": "estate_court",
+        "paving": "minecraft:smooth_sandstone",
+        "plan_type": "none",
+        "building_id": "estate_court"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "court",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 3
+      },
+      "params": {
+        "component_id": "estate_fountain",
+        "host_id": "estate_court",
+        "detail_type": "fountain",
+        "block": "minecraft:quartz_block",
+        "water": true,
+        "building_id": "estate_court"
+      },
+      "features": []
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "path",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 20,
+        "height": 1
+      },
+      "params": {
+        "component_id": "estate_path",
+        "block": "minecraft:smooth_sandstone",
+        "border_block": "minecraft:quartz_block"
+      },
+      "features": []
+    },
+    {
+      "component_type": "GATE",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 4,
+        "height": 10
+      },
+      "params": {
+        "component_id": "estate_gate",
+        "facing": "NORTH",
+        "arch": true,
+        "block": "minecraft:smooth_sandstone",
+        "accent_block": "minecraft:quartz_block"
+      },
+      "features": []
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「海湖庄园」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

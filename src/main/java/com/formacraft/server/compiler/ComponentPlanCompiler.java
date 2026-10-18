@@ -1858,7 +1858,8 @@ public final class ComponentPlanCompiler {
                 if (bboxOverhang > 0 && existing != bboxOverhang) {
                     AssemblyCompileDiagnostics.set(new CapabilityGap(
                             "E_ROOF_OVERHANG_CONFLICT",
-                            "explicit overhang=" + existing + " conflicts with roof bbox overhang=" + bboxOverhang,
+                            "explicit overhang=" + existing + " conflicts with roof bbox overhang=" + bboxOverhang
+                                    + " host=" + paramIdentity(mass) + " host_size=" + mass.dimensions() + " roof_size=" + llmDims,
                             "components[]",
                             List.of("Align roof dimensions with overhang, or omit overhang to derive from bbox.")));
                     return null;

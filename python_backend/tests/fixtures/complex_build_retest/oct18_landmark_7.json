@@ -1,0 +1,700 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Buddhist_Grotto_Temple",
+  "style_attributes": {
+    "wall_color": "grey stone",
+    "roof_color": "dark slate",
+    "accent_color": "cinnabar red",
+    "wall_material": "minecraft:stone",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:smooth_stone",
+    "decorative_elements": [
+      "rock-cut arched niches",
+      "dougong bracket band",
+      "upturned eave corners",
+      "stone lanterns and incense burner",
+      "cliff gallery railings"
+    ]
+  },
+  "distinguishing_features": [
+    "rock-cut cliff facade with rows of Buddhist arched niches",
+    "central cave gateway carved into the stone mass",
+    "multi-tiered Chinese timber eave roof over the grotto face",
+    "cliff-hugging wooden gallery / walkway",
+    "stone plinth and paved forecourt terrace",
+    "30-block total height composition"
+  ],
+  "anchor": {
+    "x": -142,
+    "y": 70,
+    "z": -2026
+  },
+  "proportion_hints": {
+    "typology": "cliff_grotto_temple",
+    "target_width": 30,
+    "target_depth": 30,
+    "target_body_height": 19,
+    "target_roof_height": 4,
+    "height_to_width": 1.0,
+    "depth_to_width": 0.6,
+    "roof_to_body_height": 0.15,
+    "window_aspect": "square",
+    "max_void_ratio": 0.18,
+    "plinth_to_body_height": 0.08,
+    "facade_niche_rhythm": 0.25,
+    "note": "30 blocks total = 2 plinth + 24 carved rock body + 4 tiered eave roof",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [
+        {
+          "code": "E_FLOOR_ENVELOPE",
+          "component_id": "grotto_cliff"
+        }
+      ],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "buddhist_grotto_30m": [
+          "grotto_cliff"
+        ],
+        "named_main_body": [
+          "grotto_cliff"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "grotto_cliff",
+          "slot_id": "slot_grotto",
+          "local_origin": {
+            "x": -15,
+            "y": 2,
+            "z": -15
+          },
+          "plan_origin": {
+            "x": -15,
+            "y": 2,
+            "z": -15
+          },
+          "dimensions": {
+            "width": 30,
+            "depth": 30,
+            "height": 19
+          },
+          "floor_ys_local": [
+            2,
+            6,
+            10,
+            14,
+            18
+          ],
+          "roof_y_local": 20,
+          "floor_layout_fits": false,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "grotto_cliff",
+                "local_origin": {
+                  "x": -15,
+                  "y": 2,
+                  "z": -15
+                },
+                "dimensions": {
+                  "width": 30,
+                  "depth": 30,
+                  "height": 19
+                },
+                "roof_y_local": 20
+              }
+            ],
+            "envelope_local": {
+              "min_x": -15,
+              "min_z": -15,
+              "max_x": 15,
+              "max_z": 15,
+              "min_y": 2,
+              "max_y": 21
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 15,
+                "start": -15,
+                "end": 15
+              },
+              {
+                "direction": "NORTH",
+                "plane": -15,
+                "start": -15,
+                "end": 15
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 15,
+                "start": -15,
+                "end": 15
+              },
+              {
+                "direction": "WEST",
+                "plane": -15,
+                "start": -15,
+                "end": 15
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "1.中式 2.佛教石窟建筑； 3.30米高度",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "1.中式\n2.佛教石窟建筑；\n3.30米高度",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "floor_cornice": true,
+    "base_plinth_detail": true,
+    "detail_rules": [
+      {
+        "id": "floor_cornice",
+        "when": {
+          "region": "perimeter",
+          "y": "floor_boundary",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "block",
+          "part": "WALL_ACCENT",
+          "facing": "outward"
+        }
+      },
+      {
+        "id": "base_plinth_top",
+        "when": {
+          "region": "perimeter",
+          "y": "base_top",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "block",
+          "part": "FOUNDATION"
+        }
+      }
+    ],
+    "window_order": "full",
+    "repeating_pattern": {
+      "unit_width_z": 5,
+      "elements": [
+        {
+          "type": "pillar",
+          "width": 1
+        },
+        {
+          "type": "window",
+          "width": 3
+        },
+        {
+          "type": "pillar",
+          "width": 1
+        }
+      ]
+    },
+    "alignment_and_symmetry": {
+      "symmetry_type": "bilateral_x",
+      "center_axis_x": 0,
+      "rhythm_x": {
+        "side_bays": [
+          {
+            "width": 6,
+            "role": "wing"
+          },
+          {
+            "width": 10,
+            "role": "center"
+          },
+          {
+            "width": 6,
+            "role": "wing"
+          }
+        ]
+      },
+      "rhythm_z": {
+        "side_bays": [
+          {
+            "width": 7,
+            "role": "service"
+          },
+          {
+            "width": 15,
+            "role": "hall"
+          },
+          {
+            "width": 7,
+            "role": "service"
+          }
+        ]
+      }
+    },
+    "crown_assembly": true,
+    "crown_template": "CLASSICAL_CUPOLA",
+    "floor_height": 4,
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "buddhist_grotto_temple",
+      "confidence": 0.78
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single_cliff_mass_with_forecourt",
+      "axis": "north_south",
+      "levels": "multi_level"
+    },
+    "structure": {
+      "type": "rock_cut",
+      "massiveness": 0.85,
+      "voidRatio": 0.3,
+      "supports": "load_bearing_rock_mass"
+    },
+    "form": {
+      "repetition": "tiered",
+      "progression": "vertical",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 1,
+      "mirror": null
+    },
+    "modules": [
+      "niche_facade",
+      "eave_roof",
+      "cliff_gallery",
+      "cave_chambers"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "dark_oak_timber",
+      "accent": "tile_and_cinnabar",
+      "textureBias": "weathered_carved",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "east_asia",
+      "era": "tang_to_ming",
+      "keywords": [
+        "grotto",
+        "cave temple",
+        "buddhist niches",
+        "cliff carving",
+        "chinese timber eaves"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 30,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "carved niche rhythm on the cliff face",
+        "cave gateway legibility at ground level",
+        "tiered eave roof silhouette"
+      ],
+      "avoid": [
+        "plain undecorated box",
+        "pure glass facade",
+        "european castle towers"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "slot_grotto",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "role": "main",
+        "preset": "grotto_cliff_complex",
+        "weight": 1.0,
+        "slot_id": "slot_grotto"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": 0,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 30,
+        "height": 19
+      },
+      "params": {
+        "component_id": "grotto_cliff",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.3,
+        "floor_count": 5,
+        "floor_height": 4,
+        "wall_block": "minecraft:stone",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "chinese_xieshan",
+        "window_style": "arched_niche",
+        "entrance_type": "cave_arch",
+        "facade_profile": "rock_cut_niches",
+        "material": "stone",
+        "requirement_scope": "buddhist_grotto_30m",
+        "window_ratio": 0.35,
+        "building_id": "grotto_cliff",
+        "wall_pattern": "gradient",
+        "floor_cornice": true
+      },
+      "features": [
+        "pilasters",
+        "base_plinth",
+        "cornice"
+      ]
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -17,
+        "y": 0,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 34,
+        "depth": 22,
+        "height": 2
+      },
+      "params": {
+        "component_id": "grotto_plinth",
+        "host_id": "grotto_cliff",
+        "shape": "rectangle",
+        "material": "stone_bricks",
+        "plinth_style": "stepped_stone_terrace",
+        "building_id": "grotto_cliff"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -3,
+        "y": 2,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 6
+      },
+      "params": {
+        "component_id": "cave_gateway_main",
+        "host_id": "grotto_cliff",
+        "facing": "NORTH",
+        "entrance_type": "cave_arch",
+        "arch_style": "round_buddhist_arch",
+        "material": "stone",
+        "door_width": 4,
+        "door_height": 4,
+        "building_id": "grotto_cliff"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"arched\", \"carved\", \"stone\", \"cave\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 6, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Buddhist_Grotto_Temple\", \"materialTone\": \"weathered grey stone\"}, \"constraints\": {\"mustHave\": [\"arch\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -14,
+        "y": 8,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 1,
+        "height": 16
+      },
+      "params": {
+        "component_id": "niche_facade",
+        "host_id": "grotto_cliff",
+        "window_style": "arched_niche",
+        "rows": 4,
+        "columns": 6,
+        "spacing": 3,
+        "sill_height": 2,
+        "facing": "NORTH",
+        "material": "stone",
+        "rhythm": "regular",
+        "window_ratio": 0.35,
+        "building_id": "grotto_cliff",
+        "window_aspect": "square",
+        "rhythm_preset": "CLASSICAL_PILASTER_BAY",
+        "repeating_pattern": {
+          "unit_width_z": 5,
+          "elements": [
+            {
+              "type": "pillar",
+              "width": 1
+            },
+            {
+              "type": "window",
+              "width": 3
+            },
+            {
+              "type": "pillar",
+              "width": 1
+            }
+          ]
+        }
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arched\", \"niche\", \"carved\", \"repeating\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Buddhist_Grotto_Temple\", \"materialTone\": \"carved grey stone\"}, \"constraints\": {\"mustHave\": [\"arch\"], \"forbiddenTags\": [\"glass\", \"modern\", \"flat_pane\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -2,
+        "y": 19,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 36,
+        "height": 4
+      },
+      "params": {
+        "roof_height": 4,
+        "overhang": 3,
+        "roof_type": "chinese_xieshan",
+        "component_id": "grotto_pavilion_roof",
+        "host_id": "grotto_cliff",
+        "eave_curve": true,
+        "tier_count": 2,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "deepslate_tiles",
+        "building_id": "grotto_cliff"
+      },
+      "features": [
+        "overhang",
+        "eaves"
+      ]
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -14,
+        "y": 14,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 2,
+        "height": 1
+      },
+      "params": {
+        "component_id": "cliff_gallery",
+        "host_id": "grotto_cliff",
+        "railing": true,
+        "railing_style": "wooden_lattice",
+        "material": "minecraft:dark_oak_planks",
+        "building_id": "grotto_cliff",
+        "anchor_mode": "min_corner"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"wooden\", \"lattice\", \"slender\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Buddhist_Grotto_Temple\", \"materialTone\": \"dark timber\"}, \"constraints\": {\"mustHave\": [\"rail\"], \"forbiddenTags\": [\"glass\", \"metal_panel\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -17,
+        "y": 25,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 34,
+        "depth": 22,
+        "height": 1
+      },
+      "params": {
+        "component_id": "eave_bracket_band",
+        "host_id": "grotto_cliff",
+        "decor_type": "dougong_cornice",
+        "material": "minecraft:dark_oak_planks",
+        "building_id": "grotto_cliff"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -2,
+        "y": 1,
+        "z": -16
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 3
+      },
+      "params": {
+        "component_id": "stone_incense_burner",
+        "decor_type": "incense_burner_and_lanterns",
+        "material": "minecraft:stone_bricks",
+        "building_id": "grotto_cliff",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "grotto_cliff"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_grotto",
+      "relative_position": {
+        "x": -16,
+        "y": 0,
+        "z": -20
+      },
+      "dimensions": {
+        "width": 32,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "front_forecourt",
+        "material": "minecraft:stone_bricks",
+        "paving_pattern": "regular_slabs",
+        "steps": 2,
+        "building_id": "front_forecourt",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "CROWN",
+      "relative_position": {
+        "x": 9,
+        "y": 23,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 10
+      },
+      "features": [
+        "crown",
+        "revolve_surface"
+      ],
+      "params": {
+        "generation_method": "revolved_surface_around_axis",
+        "crown_template": "CLASSICAL_CUPOLA",
+        "crown_radius": 6,
+        "crown_height": 10,
+        "revolve_segments": 32,
+        "host_id": "grotto_cliff",
+        "component_id": "component_10",
+        "building_id": "grotto_cliff"
+      },
+      "slot_id": "slot_grotto"
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「1.中式\n2.佛教石窟建筑；\n3.30米高度」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "plan_status": "capability_gap",
+  "capability_gap": {
+    "code": "E_BUILDING_CONTRACT",
+    "message": "建筑方案未满足明确要求或主体引用无效",
+    "path": "proportion_hints.building_contract",
+    "suggestions": [
+      "{'code': 'E_FLOOR_ENVELOPE', 'component_id': 'grotto_cliff'}"
+    ]
+  },
+  "kind": "llmplan"
+}

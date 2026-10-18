@@ -1,0 +1,887 @@
+{
+  "mode": "build",
+  "style_profile": "Indian_Haveli_Villa",
+  "style_attributes": {
+    "wall_color": "#e8d5a8",
+    "roof_color": "#a0522d",
+    "accent_color": "#f2f0e6",
+    "wall_material": "sandstone",
+    "roof_material": "terracotta",
+    "floor_material": "marble",
+    "decorative_elements": [
+      "jharokha",
+      "jali_screen",
+      "chhatri",
+      "chhajja_cornice",
+      "arched_torana",
+      "raised_plinth"
+    ]
+  },
+  "distinguishing_features": [
+    "raised sandstone plinth with entry steps",
+    "three storeys at exactly 3 blocks per floor",
+    "projecting jharokha balconies on west and south faces",
+    "pierced jali screen window bands",
+    "chhajja overhanging cornice between floors and at eaves",
+    "rooftop chhatri domed pavilion on a marble terrace",
+    "arched torana entrance on the west facade"
+  ],
+  "anchor": {
+    "x": -115,
+    "y": 64,
+    "z": -1944
+  },
+  "proportion_hints": {
+    "height_to_width": 0.75,
+    "depth_to_width": 0.75,
+    "roof_to_body_height": 0.22,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_height",
+          "property": "floor_height",
+          "value": 3,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "每层高度3格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 3,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "三层"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "mass_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "mass_main",
+          "slot_id": "main",
+          "local_origin": {
+            "x": -8,
+            "y": 1,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -8,
+            "y": 1,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 16,
+            "depth": 12,
+            "height": 9
+          },
+          "floor_ys_local": [
+            1,
+            4,
+            7
+          ],
+          "roof_y_local": 9,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_main",
+                "local_origin": {
+                  "x": -8,
+                  "y": 1,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 16,
+                  "depth": 12,
+                  "height": 9
+                },
+                "roof_y_local": 9
+              }
+            ],
+            "envelope_local": {
+              "min_x": -8,
+              "min_z": -6,
+              "max_x": 8,
+              "max_z": 6,
+              "min_y": 1,
+              "max_y": 10
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": -8,
+                "start": -6,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成印度风格的三层别墅， 每层高度3格",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "别墅",
+              "start": 9,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成印度风格的三层别墅，\n每层高度3格",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [
+        "residential"
+      ],
+      "scope_status": "bound",
+      "bindings": [
+        {
+          "scope": "single_main_building",
+          "uses": [
+            "residential"
+          ],
+          "status": "bound",
+          "target_components": [
+            "mass_main"
+          ]
+        }
+      ],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": [
+        {
+          "building_id": "mass_main",
+          "uses": [
+            "residential"
+          ],
+          "status": "plan_review",
+          "checks": {
+            "entrance_component": "declared",
+            "interfloor_circulation": "not_declared",
+            "interior_clearance": "not_assessed",
+            "final_block_traversability": "not_assessed"
+          },
+          "entrance_components": [
+            "entrance_main"
+          ],
+          "stair_components": [],
+          "notes": [
+            "An entrance may also be generated inline by the main mass; missing ENTRANCE is not proof of a missing door.",
+            "Declared stairs do not prove connection to every floor or final clearance."
+          ]
+        }
+      ]
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "residential_villa",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "z",
+      "levels": "3"
+    },
+    "structure": {
+      "type": "load_bearing_wall",
+      "massiveness": 0.6,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "floor_rhythm",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "balcony",
+      "cornice",
+      "chhatri",
+      "entrance"
+    ],
+    "materials": {
+      "primary": "sandstone",
+      "secondary": "carved_wood",
+      "accent": "white_marble",
+      "textureBias": "carved",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "south_asia",
+      "era": "rajasthani_haveli",
+      "keywords": [
+        "jharokha",
+        "jali",
+        "chhatri",
+        "chhajja",
+        "torana"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 16,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "floor_height_3",
+        "three_floors",
+        "indian_facade_detail"
+      ],
+      "avoid": [
+        "stadium",
+        "radial_ring",
+        "module_landmark"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "MIRROR_Z",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "role": "primary",
+        "slot_id": "main"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 1
+      },
+      "params": {
+        "component_id": "foundation_main",
+        "host_id": "mass_main",
+        "material": "sandstone",
+        "plinth": true,
+        "facade_profile": "base_plinth",
+        "overhang": 1,
+        "steps_side": "WEST",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 12,
+        "height": 9
+      },
+      "params": {
+        "component_id": "mass_main",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 3,
+        "floor_height": 3,
+        "hollow": true,
+        "void_ratio": 0.18,
+        "window_ratio": 0.35,
+        "window_aspect": "vertical_strip",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "roof_type": "flat",
+        "facade_cutout": "arches",
+        "material": "sandstone",
+        "entrance_facing": "WEST",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 9
+      },
+      "params": {
+        "component_id": "floor_plate_1",
+        "host_id": "mass_main",
+        "extrude_mode": "plate",
+        "floor_index": 1,
+        "material": "marble",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "floor_count": 3,
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 7,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 9
+      },
+      "params": {
+        "component_id": "floor_plate_2",
+        "host_id": "mass_main",
+        "extrude_mode": "plate",
+        "floor_index": 2,
+        "material": "marble",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "floor_count": 3,
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -9,
+        "y": 10,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 1
+      },
+      "params": {
+        "component_id": "roof_main",
+        "host_id": "mass_main",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet": true,
+        "material": "terracotta",
+        "roof_height": 2,
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -7,
+        "y": 11,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 1
+      },
+      "params": {
+        "component_id": "terrace_roof",
+        "host_id": "mass_main",
+        "surface": "marble",
+        "railing": true,
+        "railing_style": "carved_stone",
+        "building_id": "mass_main",
+        "attachment_host_id": "roof_main",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -2,
+        "y": 11,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 4,
+        "height": 4
+      },
+      "params": {
+        "component_id": "decor_chhatri",
+        "host_id": "mass_main",
+        "type": "chhatri",
+        "columns": 4,
+        "dome": true,
+        "material": "white_marble",
+        "accent_material": "sandstone",
+        "attachment_host_id": "roof_main",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -9,
+        "y": 1,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 3
+      },
+      "params": {
+        "component_id": "entrance_main",
+        "host_id": "mass_main",
+        "entrance_type": "arched_torana",
+        "facing": "EAST",
+        "steps": true,
+        "canopy": true,
+        "material": "carved_wood",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -9,
+        "y": 2,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 10,
+        "height": 2
+      },
+      "params": {
+        "component_id": "windows_west",
+        "host_id": "mass_main",
+        "window_style": "jali_arch",
+        "window_aspect": "vertical_strip",
+        "rows": 3,
+        "columns": 4,
+        "floors": [
+          1,
+          2,
+          3
+        ],
+        "window_ratio": 0.35,
+        "jali_screen": true,
+        "rhythm": "regular",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 8,
+        "y": 2,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 10,
+        "height": 2
+      },
+      "params": {
+        "component_id": "windows_east",
+        "host_id": "mass_main",
+        "window_style": "jali_arch",
+        "window_aspect": "vertical_strip",
+        "rows": 3,
+        "columns": 4,
+        "floors": [
+          1,
+          2,
+          3
+        ],
+        "window_ratio": 0.35,
+        "jali_screen": true,
+        "rhythm": "regular",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -5,
+        "y": 2,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 2
+      },
+      "params": {
+        "component_id": "windows_north",
+        "host_id": "mass_main",
+        "window_style": "rectangular_shaded",
+        "window_aspect": "punch_window",
+        "rows": 3,
+        "columns": 3,
+        "floors": [
+          1,
+          2,
+          3
+        ],
+        "window_ratio": 0.3,
+        "rhythm": "regular",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -5,
+        "y": 2,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 2
+      },
+      "params": {
+        "component_id": "windows_south",
+        "host_id": "mass_main",
+        "window_style": "rectangular_shaded",
+        "window_aspect": "punch_window",
+        "rows": 3,
+        "columns": 3,
+        "floors": [
+          1,
+          2,
+          3
+        ],
+        "window_ratio": 0.3,
+        "rhythm": "regular",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -10,
+        "y": 4,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 6,
+        "height": 2
+      },
+      "params": {
+        "component_id": "balcony_west_l2",
+        "host_id": "mass_main",
+        "floor": 2,
+        "style": "jharokha",
+        "railing": true,
+        "canopy": true,
+        "material": "sandstone",
+        "building_id": "mass_main",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -10,
+        "y": 7,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 6,
+        "height": 2
+      },
+      "params": {
+        "component_id": "balcony_west_l3",
+        "host_id": "mass_main",
+        "floor": 3,
+        "style": "jharokha",
+        "railing": true,
+        "canopy": true,
+        "material": "sandstone",
+        "building_id": "mass_main",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -3,
+        "y": 7,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 2
+      },
+      "params": {
+        "component_id": "balcony_south_l3",
+        "host_id": "mass_main",
+        "floor": 3,
+        "style": "jharokha",
+        "railing": true,
+        "canopy": true,
+        "material": "sandstone",
+        "building_id": "mass_main",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -9,
+        "y": 4,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 1
+      },
+      "params": {
+        "component_id": "cornice_band_l1",
+        "host_id": "mass_main",
+        "type": "chhajja_cornice",
+        "overhang": 1,
+        "hollow": true,
+        "material": "sandstone",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -9,
+        "y": 7,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 1
+      },
+      "params": {
+        "component_id": "cornice_band_l2",
+        "host_id": "mass_main",
+        "type": "chhajja_cornice",
+        "overhang": 1,
+        "hollow": true,
+        "material": "sandstone",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -9,
+        "y": 10,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 1
+      },
+      "params": {
+        "component_id": "decor_eave_band",
+        "host_id": "mass_main",
+        "type": "carved_eave_band",
+        "overhang": 1,
+        "hollow": true,
+        "material": "carved_sandstone",
+        "attachment_host_id": "roof_main",
+        "building_id": "mass_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -10,
+        "y": 4,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 1
+      },
+      "params": {
+        "component_id": "decor_entrance_canopy",
+        "host_id": "mass_main",
+        "type": "torana_canopy",
+        "material": "carved_wood",
+        "building_id": "mass_main"
+      },
+      "features": []
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「印度风格的三层别墅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

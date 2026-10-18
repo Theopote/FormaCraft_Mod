@@ -14,6 +14,7 @@ import com.formacraft.common.semantic.SemanticPart;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * WallComponentGenerator（构件层墙体生成器 v2）
@@ -54,10 +55,30 @@ public class WallComponentGenerator implements ComponentGenerator {
         boolean hasWindows = hasFeature(c, "windows", "window", "arrow_slits");
         boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved");
         boolean hasBattlements = hasFeature(c, "battlements", "battlement", "crenelation");
+        boolean enclosure = "curtain_wall".equals(getParamString(c.params(), "wall_type"));
+        int thickness = Math.max(1, com.formacraft.common.generation.component.util.ComponentParamParsers
+                .intParam(c.params(), 1, "thickness", "wall_thickness"));
+        Map<?,?> gate = c.params() != null && c.params().get("gate_opening") instanceof Map<?,?> g ? g : Map.of();
+        String gateSide = String.valueOf(gate.get("side")).toLowerCase(java.util.Locale.ROOT);
+        int gateWidth = gate.get("width") instanceof Number n ? n.intValue() : 0;
+        int gateHeight = gate.get("height") instanceof Number n ? n.intValue() : 0;
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
+                    if (enclosure) {
+                        if (x >= thickness && x < width-thickness && z >= thickness && z < depth-thickness) continue;
+                        boolean onGateSide = switch (gateSide) {
+                            case "south" -> z >= depth-thickness;
+                            case "north" -> z < thickness;
+                            case "east" -> x >= width-thickness;
+                            case "west" -> x < thickness;
+                            default -> false;
+                        };
+                        int axis = Set.of("east","west").contains(gateSide) ? z : x;
+                        int span = Set.of("east","west").contains(gateSide) ? depth : width;
+                        if (onGateSide && y < gateHeight && axis >= (span-gateWidth)/2 && axis < (span+gateWidth)/2) continue;
+                    }
                     if (hasWindows && isWindowPosition(x, z, width, depth, y, height)) {
                         SemanticPart part = SemanticPart.WINDOW;
                         String block = palette.pick(part);

@@ -58,7 +58,9 @@ public final class TypologyPatchBridge {
         if (structure == null || structure.getBlocks() == null || worldAnchor == null) {
             return List.of();
         }
-        List<BlockPatch> patches = new ArrayList<>();
+        // Builders compose a single structure in order (base, trim, steps, etc.).
+        // Resolve that internal sequence before enforcing ownership between components.
+        var patches = new java.util.LinkedHashMap<BlockPos, BlockPatch>();
         for (PlannedBlock block : structure.getBlocks()) {
             if (block == null || block.getPos() == null) continue;
             if (block.getTargetState() == null) {
@@ -67,7 +69,7 @@ public final class TypologyPatchBridge {
             BlockPos relative = block.getPos().subtract(worldAnchor);
             String blockId = BlockStateStringUtil.fromState(block.getTargetState());
             String action = block.getTargetState().isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE;
-            patches.add(new BlockPatch(
+            patches.put(relative, new BlockPatch(
                     action,
                     relative.getX(),
                     relative.getY(),
@@ -75,6 +77,6 @@ public final class TypologyPatchBridge {
                     blockId
             ));
         }
-        return patches;
+        return new ArrayList<>(patches.values());
     }
 }

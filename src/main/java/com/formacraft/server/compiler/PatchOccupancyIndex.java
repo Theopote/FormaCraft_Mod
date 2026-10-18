@@ -78,11 +78,19 @@ public final class PatchOccupancyIndex {
         patches.removeIf(p -> {
             var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
             return prev != null && prev.owner() != null
-                    && !java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
+                    && (!java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
+                        || isSculpturalVolume(writer))
                     && com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner())
                     && (!BlockPatch.PLACE.equals(p.action()) || !java.util.Objects.equals(canonical(p.targetBlock()), canonical(prev.targetBlock())));
         });
         return before - patches.size();
+    }
+
+    private static boolean isSculpturalVolume(Component c) {
+        if (c == null || c.params() == null || !"MASS_SECONDARY".equalsIgnoreCase(c.componentType())) return false;
+        if (c.params().containsKey("floor_count")) return false;
+        return "sphere".equals(c.params().get("volume_geometry"))
+                || "cylinder".equals(c.params().get("shape"));
     }
 
     /** Mutates formal state; call only after {@link #validate} succeeded. */
