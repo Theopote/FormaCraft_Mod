@@ -1,0 +1,1322 @@
+{
+  "mode": "build",
+  "style_profile": "French_Classical",
+  "style_attributes": {
+    "wall_color": "cream",
+    "roof_color": "dark_slate",
+    "accent_color": "gilt_gold",
+    "wall_material": "minecraft:smooth_sandstone",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:polished_andesite",
+    "decorative_elements": [
+      "cornice bands",
+      "vertical pilasters",
+      "arched windows",
+      "colonnaded passages",
+      "mansard roof",
+      "glass pyramid pavilion",
+      "Renaissance palace courtyard wings",
+      "glass pyramid entrance pavilion",
+      "long axial palace facade",
+      "pavilions and colonnaded passages",
+      "grande scale urban block",
+      "colonnade"
+    ]
+  },
+  "distinguishing_features": [
+    "Renaissance palace courtyard wings",
+    "glass pyramid entrance pavilion",
+    "long axial palace facade",
+    "pavilions and colonnaded passages",
+    "grande scale urban block",
+    "colonnade"
+  ],
+  "proportion_hints": {
+    "typology": "classical_courtyard_compound",
+    "height_to_width": 0.23,
+    "depth_to_width": 0.67,
+    "roof_to_body_height": 0.23,
+    "window_wall_ratio": 0.2,
+    "opening_aspect": "vertical_bay",
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.25,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_wing": [
+          "louvre_wing_north",
+          "louvre_wing_south",
+          "louvre_wing_east"
+        ],
+        "named_tower": [
+          "louvre_pavilion_nw",
+          "louvre_pavilion_sw"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "louvre_wing_north",
+          "slot_id": "louvre_court",
+          "local_origin": {
+            "x": -60,
+            "y": 0,
+            "z": -40
+          },
+          "plan_origin": {
+            "x": -60,
+            "y": 0,
+            "z": -40
+          },
+          "dimensions": {
+            "width": 120,
+            "depth": 18,
+            "height": 22
+          },
+          "floor_ys_local": [
+            0,
+            5,
+            10,
+            15
+          ],
+          "roof_y_local": 21,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "louvre_wing_north",
+                "local_origin": {
+                  "x": -60,
+                  "y": 0,
+                  "z": -40
+                },
+                "dimensions": {
+                  "width": 120,
+                  "depth": 18,
+                  "height": 22
+                },
+                "roof_y_local": 21
+              }
+            ],
+            "envelope_local": {
+              "min_x": -60,
+              "min_z": -40,
+              "max_x": 60,
+              "max_z": -22,
+              "min_y": 0,
+              "max_y": 22
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 60,
+                "start": -40,
+                "end": -22
+              },
+              {
+                "direction": "NORTH",
+                "plane": -40,
+                "start": -60,
+                "end": 60
+              },
+              {
+                "direction": "SOUTH",
+                "plane": -22,
+                "start": -60,
+                "end": 60
+              },
+              {
+                "direction": "WEST",
+                "plane": -60,
+                "start": -40,
+                "end": -22
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "louvre_wing_south",
+          "slot_id": "louvre_court",
+          "local_origin": {
+            "x": -60,
+            "y": 0,
+            "z": 22
+          },
+          "plan_origin": {
+            "x": -60,
+            "y": 0,
+            "z": 22
+          },
+          "dimensions": {
+            "width": 120,
+            "depth": 18,
+            "height": 22
+          },
+          "floor_ys_local": [
+            0,
+            5,
+            10,
+            15
+          ],
+          "roof_y_local": 21,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "louvre_wing_south",
+                "local_origin": {
+                  "x": -60,
+                  "y": 0,
+                  "z": 22
+                },
+                "dimensions": {
+                  "width": 120,
+                  "depth": 18,
+                  "height": 22
+                },
+                "roof_y_local": 21
+              }
+            ],
+            "envelope_local": {
+              "min_x": -60,
+              "min_z": 22,
+              "max_x": 60,
+              "max_z": 40,
+              "min_y": 0,
+              "max_y": 22
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 60,
+                "start": 22,
+                "end": 40
+              },
+              {
+                "direction": "NORTH",
+                "plane": 22,
+                "start": -60,
+                "end": 60
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 40,
+                "start": -60,
+                "end": 60
+              },
+              {
+                "direction": "WEST",
+                "plane": -60,
+                "start": 22,
+                "end": 40
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "louvre_wing_east",
+          "slot_id": "louvre_court",
+          "local_origin": {
+            "x": 40,
+            "y": 0,
+            "z": -22
+          },
+          "plan_origin": {
+            "x": 40,
+            "y": 0,
+            "z": -22
+          },
+          "dimensions": {
+            "width": 20,
+            "depth": 44,
+            "height": 22
+          },
+          "floor_ys_local": [
+            0,
+            5,
+            10,
+            15
+          ],
+          "roof_y_local": 21,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "louvre_wing_east",
+                "local_origin": {
+                  "x": 40,
+                  "y": 0,
+                  "z": -22
+                },
+                "dimensions": {
+                  "width": 20,
+                  "depth": 44,
+                  "height": 22
+                },
+                "roof_y_local": 21
+              }
+            ],
+            "envelope_local": {
+              "min_x": 40,
+              "min_z": -22,
+              "max_x": 60,
+              "max_z": 22,
+              "min_y": 0,
+              "max_y": 22
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 60,
+                "start": -22,
+                "end": 22
+              },
+              {
+                "direction": "NORTH",
+                "plane": -22,
+                "start": 40,
+                "end": 60
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 22,
+                "start": 40,
+                "end": 60
+              },
+              {
+                "direction": "WEST",
+                "plane": 40,
+                "start": -22,
+                "end": 22
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成卢浮宫",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成卢浮宫",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "louvre_wing_north",
+          "changes": [],
+          "skipped": [],
+          "style_id": "French_Classical",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "louvre_wing_south",
+          "changes": [],
+          "skipped": [],
+          "style_id": "French_Classical",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "louvre_wing_east",
+          "changes": [],
+          "skipped": [],
+          "style_id": "French_Classical",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "anchor": {
+    "x": -171,
+    "y": 74,
+    "z": -2127
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "classical_palace_compound",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "courtyard_u_shape",
+      "composition": "compound",
+      "axis": "E-W",
+      "levels": "3-4"
+    },
+    "structure": {
+      "type": "masonry",
+      "massiveness": 0.8,
+      "voidRatio": 0.22,
+      "supports": "load_bearing_walls"
+    },
+    "form": {
+      "repetition": "rhythmic_bays",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "mansard_roof",
+      "arched_windows",
+      "pilasters",
+      "cornice",
+      "glass_pyramid"
+    ],
+    "materials": {
+      "primary": "limestone",
+      "secondary": "slate",
+      "accent": "glass",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "europe",
+      "era": "renaissance_to_modern",
+      "keywords": [
+        "french_classical",
+        "louvre",
+        "mansard",
+        "colonnade",
+        "palace_courtyard"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 32,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "axial_symmetry",
+        "courtyard",
+        "colonnade",
+        "pyramid_focal_point",
+        "pilaster_rhythm"
+      ],
+      "avoid": [
+        "gothic",
+        "stadium",
+        "castle_battlements"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "louvre_court",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "width": 140,
+        "depth": 100,
+        "slot_id": "louvre_court"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": -64,
+        "y": 0,
+        "z": -44
+      },
+      "dimensions": {
+        "width": 128,
+        "depth": 88,
+        "height": 2
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "monumental plinth"
+      ],
+      "params": {
+        "component_id": "louvre_plinth",
+        "anchor_mode": "min_corner",
+        "wall_block": "minecraft:smooth_sandstone",
+        "material": "stone",
+        "material_role": "foundation",
+        "building_id": "louvre_wing_north",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "louvre_wing_north"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -31
+      },
+      "dimensions": {
+        "width": 120,
+        "depth": 18,
+        "height": 22
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "long axial palace facade",
+        "colonnaded passage",
+        "Richelieu wing",
+        "renaissance_palace_courtyard_wings",
+        "glass_pyramid_entrance_pavilion",
+        "long_axial_palace_facade",
+        "pavilions_and_colonnaded_passages",
+        "grande_scale_urban_block",
+        "colonnade"
+      ],
+      "params": {
+        "component_id": "louvre_wing_north",
+        "wall_block": "minecraft:smooth_sandstone",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_count": 4,
+        "floor_height": 5,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "roof_type": "hip",
+        "void_ratio": 0.22,
+        "symmetry": "MIRROR_X",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "Renaissance palace courtyard wings",
+          "glass pyramid entrance pavilion",
+          "long axial palace facade",
+          "pavilions and colonnaded passages",
+          "grande scale urban block",
+          "colonnade"
+        ],
+        "building_id": "louvre_wing_north"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 31
+      },
+      "dimensions": {
+        "width": 120,
+        "depth": 18,
+        "height": 22
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "long axial palace facade",
+        "Denon wing",
+        "balconied court front",
+        "renaissance_palace_courtyard_wings",
+        "glass_pyramid_entrance_pavilion",
+        "long_axial_palace_facade",
+        "pavilions_and_colonnaded_passages",
+        "grande_scale_urban_block",
+        "colonnade"
+      ],
+      "params": {
+        "component_id": "louvre_wing_south",
+        "wall_block": "minecraft:smooth_sandstone",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_count": 4,
+        "floor_height": 5,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "roof_type": "hip",
+        "void_ratio": 0.22,
+        "symmetry": "MIRROR_X",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "Renaissance palace courtyard wings",
+          "glass pyramid entrance pavilion",
+          "long axial palace facade",
+          "pavilions and colonnaded passages",
+          "grande scale urban block",
+          "colonnade"
+        ],
+        "building_id": "louvre_wing_south"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 50,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 44,
+        "height": 22
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "Sully wing closing the court",
+        "colonnaded passage",
+        "renaissance_palace_courtyard_wings",
+        "glass_pyramid_entrance_pavilion",
+        "long_axial_palace_facade",
+        "pavilions_and_colonnaded_passages",
+        "grande_scale_urban_block",
+        "colonnade"
+      ],
+      "params": {
+        "component_id": "louvre_wing_east",
+        "wall_block": "minecraft:smooth_sandstone",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_count": 4,
+        "floor_height": 5,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "roof_type": "hip",
+        "void_ratio": 0.22,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "Renaissance palace courtyard wings",
+          "glass pyramid entrance pavilion",
+          "long axial palace facade",
+          "pavilions and colonnaded passages",
+          "grande scale urban block",
+          "colonnade"
+        ],
+        "building_id": "louvre_wing_east"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": -52,
+        "y": 0,
+        "z": -31
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 18,
+        "height": 28
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "Pavillon de Marsan",
+        "pavilion tower at the west return"
+      ],
+      "params": {
+        "component_id": "louvre_pavilion_nw",
+        "wall_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "hip",
+        "roof_height": 6,
+        "facade_profile": "vertical_pilasters",
+        "building_id": "louvre_pavilion_nw"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": -52,
+        "y": 0,
+        "z": 31
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 18,
+        "height": 28
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "Pavillon de Flore",
+        "pavilion tower at the west return"
+      ],
+      "params": {
+        "component_id": "louvre_pavilion_sw",
+        "wall_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "hip",
+        "roof_height": 6,
+        "facade_profile": "vertical_pilasters",
+        "building_id": "louvre_pavilion_sw"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": -10,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 24,
+        "height": 16
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "glass pyramid entrance pavilion",
+        "steel and glass lattice",
+        "renaissance_palace_courtyard_wings",
+        "glass_pyramid_entrance_pavilion",
+        "long_axial_palace_facade",
+        "pavilions_and_colonnaded_passages",
+        "grande_scale_urban_block",
+        "colonnade"
+      ],
+      "params": {
+        "component_id": "louvre_pyramid",
+        "shape": "rectangle",
+        "extrude_mode": "solid",
+        "wall_block": "minecraft:glass",
+        "frame_block": "minecraft:iron_block",
+        "material": "glass",
+        "transparency": 0.9,
+        "facet_ridges": true,
+        "roof_type": "none",
+        "window_ratio": 0.6,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "distinctive_features": [
+          "Renaissance palace courtyard wings",
+          "glass pyramid entrance pavilion",
+          "long axial palace facade",
+          "pavilions and colonnaded passages",
+          "grande scale urban block",
+          "colonnade"
+        ],
+        "building_id": "louvre_pyramid",
+        "volume_geometry": "pyramid",
+        "hollow": true
+      }
+    },
+    {
+      "component_type": "COURTYARD",
+      "relative_position": {
+        "x": -60,
+        "y": 0,
+        "z": -22
+      },
+      "dimensions": {
+        "width": 100,
+        "depth": 44,
+        "height": 1
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "Cour Napoleon",
+        "paved court contained by the three wings"
+      ],
+      "params": {
+        "component_id": "louvre_cour_napoleon",
+        "anchor_mode": "min_corner",
+        "paved": true,
+        "floor_block": "minecraft:smooth_stone",
+        "material": "stone",
+        "building_id": "louvre_cour_napoleon"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "relative_position": {
+        "x": -40,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 20,
+        "height": 2
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "raised forecourt terrace west of the pyramid"
+      ],
+      "params": {
+        "component_id": "louvre_terrace_west",
+        "anchor_mode": "min_corner",
+        "wall_block": "minecraft:smooth_sandstone",
+        "steps": true,
+        "building_id": "louvre_terrace_west"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -60,
+        "y": 22,
+        "z": -40
+      },
+      "dimensions": {
+        "width": 120,
+        "depth": 18,
+        "height": 5
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "mansard slate roof with overhang",
+        "renaissance_palace_courtyard_wings",
+        "glass_pyramid_entrance_pavilion",
+        "long_axial_palace_facade",
+        "pavilions_and_colonnaded_passages",
+        "grande_scale_urban_block",
+        "colonnade"
+      ],
+      "params": {
+        "component_id": "louvre_roof_north",
+        "host_id": "louvre_wing_north",
+        "roof_type": "hip",
+        "roof_block": "minecraft:deepslate_tiles",
+        "overhang": 1,
+        "roof_height": 5,
+        "distinctive_features": [
+          "Renaissance palace courtyard wings",
+          "glass pyramid entrance pavilion",
+          "long axial palace facade",
+          "pavilions and colonnaded passages",
+          "grande scale urban block",
+          "colonnade"
+        ],
+        "building_id": "louvre_wing_north"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -60,
+        "y": 22,
+        "z": 22
+      },
+      "dimensions": {
+        "width": 120,
+        "depth": 18,
+        "height": 5
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "mansard slate roof with overhang",
+        "renaissance_palace_courtyard_wings",
+        "glass_pyramid_entrance_pavilion",
+        "long_axial_palace_facade",
+        "pavilions_and_colonnaded_passages",
+        "grande_scale_urban_block",
+        "colonnade"
+      ],
+      "params": {
+        "component_id": "louvre_roof_south",
+        "host_id": "louvre_wing_south",
+        "roof_type": "hip",
+        "roof_block": "minecraft:deepslate_tiles",
+        "overhang": 1,
+        "roof_height": 5,
+        "distinctive_features": [
+          "Renaissance palace courtyard wings",
+          "glass pyramid entrance pavilion",
+          "long axial palace facade",
+          "pavilions and colonnaded passages",
+          "grande scale urban block",
+          "colonnade"
+        ],
+        "building_id": "louvre_wing_south"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 40,
+        "y": 22,
+        "z": -22
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 44,
+        "height": 5
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "mansard slate roof with overhang",
+        "renaissance_palace_courtyard_wings",
+        "glass_pyramid_entrance_pavilion",
+        "long_axial_palace_facade",
+        "pavilions_and_colonnaded_passages",
+        "grande_scale_urban_block",
+        "colonnade"
+      ],
+      "params": {
+        "component_id": "louvre_roof_east",
+        "host_id": "louvre_wing_east",
+        "roof_type": "hip",
+        "roof_block": "minecraft:deepslate_tiles",
+        "overhang": 1,
+        "roof_height": 5,
+        "distinctive_features": [
+          "Renaissance palace courtyard wings",
+          "glass pyramid entrance pavilion",
+          "long axial palace facade",
+          "pavilions and colonnaded passages",
+          "grande scale urban block",
+          "colonnade"
+        ],
+        "building_id": "louvre_wing_east"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -60,
+        "y": 2,
+        "z": -22
+      },
+      "dimensions": {
+        "width": 120,
+        "depth": 1,
+        "height": 16
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "rhythmic vertical bay windows",
+        "arched openings"
+      ],
+      "params": {
+        "component_id": "louvre_windows_north",
+        "host_id": "louvre_wing_north",
+        "window_style": "arched",
+        "rows": 3,
+        "spacing": 5,
+        "sill_height": 2,
+        "window_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:smooth_sandstone",
+        "facing": "NORTH",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "louvre_wing_north"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -60,
+        "y": 2,
+        "z": 22
+      },
+      "dimensions": {
+        "width": 120,
+        "depth": 1,
+        "height": 16
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "rhythmic vertical bay windows",
+        "arched openings"
+      ],
+      "params": {
+        "component_id": "louvre_windows_south",
+        "host_id": "louvre_wing_south",
+        "window_style": "arched",
+        "rows": 3,
+        "spacing": 5,
+        "sill_height": 2,
+        "window_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:smooth_sandstone",
+        "facing": "SOUTH",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "louvre_wing_south"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 40,
+        "y": 2,
+        "z": -22
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 44,
+        "height": 16
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "rhythmic vertical bay windows"
+      ],
+      "params": {
+        "component_id": "louvre_windows_east",
+        "host_id": "louvre_wing_east",
+        "window_style": "arched",
+        "rows": 3,
+        "spacing": 5,
+        "sill_height": 2,
+        "window_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:smooth_sandstone",
+        "facing": "EAST",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "louvre_wing_east"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": 22
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 6
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "grand arched portal onto the Cour Napoleon"
+      ],
+      "params": {
+        "component_id": "louvre_entrance_south",
+        "host_id": "louvre_wing_south",
+        "entrance_type": "arched_portal",
+        "facing": "SOUTH",
+        "world_facing": "NORTH",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:chiseled_sandstone",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "louvre_wing_south"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -23
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 6
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "colonnade passage portal"
+      ],
+      "params": {
+        "component_id": "louvre_entrance_north",
+        "host_id": "louvre_wing_north",
+        "entrance_type": "arched_portal",
+        "facing": "NORTH",
+        "world_facing": "SOUTH",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:chiseled_sandstone",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "louvre_wing_north"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 40,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 6
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "east wing court portal"
+      ],
+      "params": {
+        "component_id": "louvre_entrance_east",
+        "host_id": "louvre_wing_east",
+        "entrance_type": "arched_portal",
+        "facing": "EAST",
+        "world_facing": "WEST",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:chiseled_sandstone",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "louvre_wing_east"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -23,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 6,
+        "height": 7
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "pyramid pavilion main public entrance"
+      ],
+      "params": {
+        "component_id": "louvre_entrance_pyramid",
+        "host_id": "louvre_pyramid",
+        "entrance_type": "glass_portal",
+        "facing": "EAST",
+        "world_facing": "WEST",
+        "door_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:iron_block",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "louvre_pyramid"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -62,
+        "y": 0,
+        "z": -34
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 6
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "north pavilion service portal"
+      ],
+      "params": {
+        "component_id": "louvre_entrance_pavilion_nw",
+        "host_id": "louvre_pavilion_nw",
+        "entrance_type": "rectangular_door",
+        "facing": "EAST",
+        "world_facing": "WEST",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:chiseled_sandstone",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "louvre_pavilion_nw"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -62,
+        "y": 0,
+        "z": 28
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 6
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "south pavilion service portal"
+      ],
+      "params": {
+        "component_id": "louvre_entrance_pavilion_sw",
+        "host_id": "louvre_pavilion_sw",
+        "entrance_type": "rectangular_door",
+        "facing": "EAST",
+        "world_facing": "WEST",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:chiseled_sandstone",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "louvre_pavilion_sw"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "relative_position": {
+        "x": -12,
+        "y": 10,
+        "z": 20
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 2,
+        "height": 1
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "stone balcony over the court portal"
+      ],
+      "params": {
+        "component_id": "louvre_balcony_south",
+        "host_id": "louvre_wing_south",
+        "facing": "SOUTH",
+        "world_facing": "NORTH",
+        "railing_block": "minecraft:stone_brick_wall",
+        "slab_block": "minecraft:smooth_sandstone",
+        "building_id": "louvre_wing_south",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -61,
+        "y": 20,
+        "z": -41
+      },
+      "dimensions": {
+        "width": 122,
+        "depth": 22,
+        "height": 2
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "cornice band running the whole axial facade"
+      ],
+      "params": {
+        "component_id": "louvre_cornice_north",
+        "host_id": "louvre_wing_north",
+        "decor_type": "cornice",
+        "block": "minecraft:chiseled_sandstone",
+        "building_id": "louvre_wing_north"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -61,
+        "y": 20,
+        "z": 21
+      },
+      "dimensions": {
+        "width": 122,
+        "depth": 22,
+        "height": 2
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "cornice band running the whole axial facade"
+      ],
+      "params": {
+        "component_id": "louvre_cornice_south",
+        "host_id": "louvre_wing_south",
+        "decor_type": "cornice",
+        "block": "minecraft:chiseled_sandstone",
+        "building_id": "louvre_wing_south"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 39,
+        "y": 20,
+        "z": -23
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 46,
+        "height": 2
+      },
+      "slot_id": "louvre_court",
+      "features": [
+        "cornice band and pilaster capitals on the court wing"
+      ],
+      "params": {
+        "component_id": "louvre_cornice_east",
+        "host_id": "louvre_wing_east",
+        "decor_type": "cornice",
+        "block": "minecraft:chiseled_sandstone",
+        "building_id": "louvre_wing_east"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "识别为真实建筑「卢浮宫」，无专属模板，已依据研究资料组合式重建（保真度：中等；重点特征：Renaissance palace courtyard wings、glass pyramid entrance pavilion、long axial palace facade）",
+  "kind": "llmplan"
+}

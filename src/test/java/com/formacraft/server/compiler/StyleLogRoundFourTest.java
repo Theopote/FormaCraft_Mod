@@ -35,8 +35,13 @@ class StyleLogRoundFourTest {
                 assertTrue(detached.isEmpty(), () -> "detached detail blocks: " + detached);
                 assertNull(blocks.get(new Vec3i(0,8,0)), "duplicated slot height must not create roof-level floor plate");
             }
-            if (id == 2) for (int x : new int[]{-1,0}) for (int y : new int[]{1,2,3})
-                assertNull(blocks.get(new Vec3i(x,y,-6)), "rectangular modern doorway: forbidden arch tags are not features");
+            if (id == 2) for (int x : new int[]{-1,0}) {
+                // The fixture explicitly places its three-cell opening at Y=0;
+                // Y=3 is its lintel, not another opening cell.
+                for (int y : new int[]{0,1,2})
+                    assertNull(blocks.get(new Vec3i(x,y,-6)), "rectangular modern doorway: forbidden arch tags are not features");
+                assertNotNull(blocks.get(new Vec3i(x,3,-6)), "lintel stays above the authored opening");
+            }
             if (id == 4) {
                 for (int x : new int[]{-15,15}) {
                     for (int y : new int[]{2,5}) assertTrue(blocks.entrySet().stream().anyMatch(e ->

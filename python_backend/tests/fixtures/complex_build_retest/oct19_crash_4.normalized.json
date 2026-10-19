@@ -1,0 +1,1270 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL_CASTLE",
+  "style_attributes": {
+    "wall_color": "#8B3A2E",
+    "roof_color": "#C9A227",
+    "accent_color": "#F2EFE4",
+    "wall_material": "minecraft:bricks",
+    "roof_material": "minecraft:gold_block",
+    "floor_material": "minecraft:polished_andesite",
+    "decorative_elements": [
+      "swallowtail battlements",
+      "onion dome crowns",
+      "white stone pilaster bands",
+      "arched gate with clock face",
+      "cobbled inner square"
+    ]
+  },
+  "distinguishing_features": [
+    "red brick curtain walls with swallowtail battlements enclosing a triangular-ish inner square",
+    "corner watch towers with tent roofs",
+    "monumental gate tower with arched passage and clock",
+    "palace facade with vertical pilasters and white stone trim",
+    "cluster of golden onion domes above the cathedral block and the tall bell tower"
+  ],
+  "anchor": {
+    "x": -171,
+    "y": 74,
+    "z": -2127
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "fortress_compound",
+      "confidence": 0.62
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "courtyard",
+      "axis": "N-S",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "masonry_walled_compound",
+      "massiveness": 0.78,
+      "voidRatio": 0.28,
+      "supports": "perimeter_walls"
+    },
+    "form": {
+      "repetition": "tower_rhythm",
+      "progression": "ascending_to_bell_tower",
+      "curvature": "domed_crowns",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "curtain_wall",
+      "corner_tower",
+      "gate_tower",
+      "palace_block",
+      "cathedral_block",
+      "bell_tower",
+      "inner_plaza"
+    ],
+    "materials": {
+      "primary": "brick",
+      "secondary": "white_limestone",
+      "accent": "gold",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "eastern_europe",
+      "era": "late_medieval_to_imperial",
+      "keywords": [
+        "kremlin",
+        "fortress",
+        "onion dome",
+        "battlement",
+        "bell tower"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 42,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "courtyard enclosure",
+        "gate tower landmark",
+        "golden domes"
+      ],
+      "avoid": [
+        "plain single box",
+        "modern glass curtain wall",
+        "stadium bowl"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "compound",
+    "height_to_width": 0.16,
+    "depth_to_width": 0.72,
+    "roof_to_body_height": 0.34,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "palace_main"
+        ],
+        "named_tower": [
+          "tower_nw",
+          "tower_ne",
+          "tower_sw",
+          "tower_se",
+          "gate_tower",
+          "bell_tower"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "palace_main",
+          "slot_id": "slot_palace",
+          "local_origin": {
+            "x": -17,
+            "y": 0,
+            "z": -7
+          },
+          "plan_origin": {
+            "x": 3,
+            "y": 0,
+            "z": 3
+          },
+          "dimensions": {
+            "width": 34,
+            "depth": 14,
+            "height": 15
+          },
+          "floor_ys_local": [
+            0,
+            5,
+            10
+          ],
+          "roof_y_local": 14,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "palace_main",
+                "local_origin": {
+                  "x": -17,
+                  "y": 0,
+                  "z": -7
+                },
+                "dimensions": {
+                  "width": 34,
+                  "depth": 14,
+                  "height": 15
+                },
+                "roof_y_local": 14
+              }
+            ],
+            "envelope_local": {
+              "min_x": -17,
+              "min_z": -7,
+              "max_x": 17,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 15
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 17,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -7,
+                "start": -17,
+                "end": 17
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -17,
+                "end": 17
+              },
+              {
+                "direction": "WEST",
+                "plane": -17,
+                "start": -7,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成克里姆林宫",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成克里姆林宫",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "id": "slot_wall_n",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -32
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_wall_n"
+      },
+      {
+        "id": "slot_wall_s",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 32
+        },
+        "facing": "SOUTH",
+        "slot_id": "slot_wall_s"
+      },
+      {
+        "id": "slot_wall_e",
+        "anchor": {
+          "x": 44,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "slot_id": "slot_wall_e"
+      },
+      {
+        "id": "slot_wall_w",
+        "anchor": {
+          "x": -44,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "slot_id": "slot_wall_w"
+      },
+      {
+        "id": "slot_tower_nw",
+        "anchor": {
+          "x": -44,
+          "y": 0,
+          "z": -32
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_tower_nw"
+      },
+      {
+        "id": "slot_tower_ne",
+        "anchor": {
+          "x": 44,
+          "y": 0,
+          "z": -32
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_tower_ne"
+      },
+      {
+        "id": "slot_tower_sw",
+        "anchor": {
+          "x": -44,
+          "y": 0,
+          "z": 32
+        },
+        "facing": "SOUTH",
+        "slot_id": "slot_tower_sw"
+      },
+      {
+        "id": "slot_tower_se",
+        "anchor": {
+          "x": 44,
+          "y": 0,
+          "z": 32
+        },
+        "facing": "SOUTH",
+        "slot_id": "slot_tower_se"
+      },
+      {
+        "id": "slot_gate",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -32
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_gate"
+      },
+      {
+        "id": "slot_palace",
+        "anchor": {
+          "x": 20,
+          "y": 0,
+          "z": 10
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_palace"
+      },
+      {
+        "id": "slot_cathedral",
+        "anchor": {
+          "x": -22,
+          "y": 0,
+          "z": 8
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_cathedral"
+      },
+      {
+        "id": "slot_bell",
+        "anchor": {
+          "x": -2,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_bell"
+      },
+      {
+        "id": "slot_court",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_court"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall_n",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 88,
+        "depth": 3,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "component_id": "wall_n",
+        "thickness": 3,
+        "height": 9,
+        "battlement": true,
+        "walkway": true,
+        "wall_block": "minecraft:bricks",
+        "facade_profile": "base_plinth",
+        "facing": "NORTH"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall_s",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 88,
+        "depth": 3,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "component_id": "wall_s",
+        "thickness": 3,
+        "height": 9,
+        "battlement": true,
+        "walkway": true,
+        "wall_block": "minecraft:bricks",
+        "facing": "SOUTH"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall_e",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 64,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "component_id": "wall_e",
+        "thickness": 3,
+        "height": 9,
+        "battlement": true,
+        "walkway": true,
+        "wall_block": "minecraft:bricks",
+        "facing": "EAST"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall_w",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 64,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "component_id": "wall_w",
+        "thickness": 3,
+        "height": 9,
+        "battlement": true,
+        "walkway": true,
+        "wall_block": "minecraft:bricks",
+        "facing": "WEST"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_tower_nw",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 18
+      },
+      "features": [],
+      "params": {
+        "component_id": "tower_nw",
+        "tower_shape": "square",
+        "radius": 5,
+        "sides": 4,
+        "height": 18,
+        "roof_type": "pyramid",
+        "roof_block": "minecraft:dark_prismarine",
+        "wall_block": "minecraft:bricks",
+        "facade_profile": "base_plinth",
+        "facing": "NORTH",
+        "building_id": "tower_nw"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_tower_ne",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 18
+      },
+      "features": [],
+      "params": {
+        "component_id": "tower_ne",
+        "tower_shape": "square",
+        "radius": 5,
+        "sides": 4,
+        "height": 18,
+        "roof_type": "pyramid",
+        "roof_block": "minecraft:dark_prismarine",
+        "wall_block": "minecraft:bricks",
+        "facade_profile": "base_plinth",
+        "facing": "NORTH",
+        "building_id": "tower_ne"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_tower_sw",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 18
+      },
+      "features": [],
+      "params": {
+        "component_id": "tower_sw",
+        "tower_shape": "square",
+        "radius": 5,
+        "sides": 4,
+        "height": 18,
+        "roof_type": "pyramid",
+        "roof_block": "minecraft:dark_prismarine",
+        "wall_block": "minecraft:bricks",
+        "facade_profile": "base_plinth",
+        "facing": "SOUTH",
+        "building_id": "tower_sw"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_tower_se",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 18
+      },
+      "features": [],
+      "params": {
+        "component_id": "tower_se",
+        "tower_shape": "square",
+        "radius": 5,
+        "sides": 4,
+        "height": 18,
+        "roof_type": "pyramid",
+        "roof_block": "minecraft:dark_prismarine",
+        "wall_block": "minecraft:bricks",
+        "facade_profile": "base_plinth",
+        "facing": "SOUTH",
+        "building_id": "tower_se"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower_nw",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "door_tower_nw",
+        "host_id": "tower_nw",
+        "entrance_type": "wooden_door",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "tower_nw"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower_ne",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "door_tower_ne",
+        "host_id": "tower_ne",
+        "entrance_type": "wooden_door",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "tower_ne"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower_sw",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "door_tower_sw",
+        "host_id": "tower_sw",
+        "entrance_type": "wooden_door",
+        "facing": "SOUTH",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "tower_sw"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower_se",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "door_tower_se",
+        "host_id": "tower_se",
+        "entrance_type": "wooden_door",
+        "facing": "SOUTH",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "tower_se"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 26
+      },
+      "features": [],
+      "params": {
+        "component_id": "gate_tower",
+        "tower_shape": "square",
+        "radius": 6,
+        "sides": 4,
+        "height": 26,
+        "roof_type": "pyramid",
+        "roof_block": "minecraft:dark_prismarine",
+        "wall_block": "minecraft:bricks",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "clock_face": true,
+        "facing": "NORTH",
+        "building_id": "gate_tower"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 26,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 14,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_gate_tower",
+        "host_id": "gate_tower",
+        "roof_type": "pyramid",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_prismarine",
+        "roof_height": 9,
+        "building_id": "gate_tower"
+      }
+    },
+    {
+      "component_type": "GATE",
+      "slot_id": "slot_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "gate_main",
+        "host_id": "gate_tower",
+        "gate_type": "arched",
+        "arch_radius": 3,
+        "facing": "NORTH",
+        "wall_block": "minecraft:bricks"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "door_gate_tower",
+        "host_id": "gate_tower",
+        "entrance_type": "arched_double_door",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gate_tower"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 34,
+        "depth": 14,
+        "height": 15
+      },
+      "features": [],
+      "params": {
+        "component_id": "palace_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.35,
+        "floor_count": 3,
+        "floor_height": 5,
+        "height": 15,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "roof_type": "hip",
+        "window_style": "rectangular",
+        "entrance_type": "double_door",
+        "wall_block": "minecraft:bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:oxidized_cut_copper",
+        "facing": "NORTH",
+        "window_ratio": 0.35,
+        "building_id": "palace_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 16,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "foundation_palace",
+        "host_id": "palace_main",
+        "plinth": true,
+        "material": "minecraft:polished_andesite",
+        "building_id": "palace_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 0,
+        "y": 15,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 16,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_palace",
+        "host_id": "palace_main",
+        "roof_type": "hip",
+        "overhang": 1,
+        "roof_block": "minecraft:oxidized_cut_copper",
+        "roof_height": 5,
+        "building_id": "palace_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 34,
+        "depth": 14,
+        "height": 15
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"rectangular\", \"tall\", \"white_frame\", \"modular\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"MEDIEVAL_CASTLE\", \"materialTone\": \"white_limestone\"}, \"constraints\": {\"mustHave\": [\"wall_mountable\"], \"forbiddenTags\": [\"gothic_tracery\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "windows_palace",
+        "host_id": "palace_main",
+        "window_style": "rectangular",
+        "rows": 3,
+        "columns": 12,
+        "window_width": 2,
+        "window_height": 3,
+        "spacing": 3,
+        "sill_height": 1,
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "palace_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"arched\", \"heavy\", \"double_leaf\", \"carved\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 4, \"openingHeight\": 5, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"MEDIEVAL_CASTLE\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"wall_opening_mountable\"], \"forbiddenTags\": [\"glass_automatic\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "door_palace",
+        "host_id": "palace_main",
+        "entrance_type": "arched_double_door",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "palace_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 16,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"cornice\", \"band\", \"white_stone\", \"carved\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 2, \"scalable\": true}, \"style\": {\"styleProfile\": \"MEDIEVAL_CASTLE\", \"materialTone\": \"white_limestone\"}, \"constraints\": {\"mustHave\": [\"wall_surface_mountable\"], \"forbiddenTags\": [\"neon\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "cornice_palace",
+        "host_id": "palace_main",
+        "detail_type": "cornice",
+        "material": "minecraft:smooth_quartz",
+        "building_id": "palace_main"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 8,
+        "y": 5,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "balcony_palace",
+        "host_id": "palace_main",
+        "railing": "stone_balustrade",
+        "facing": "NORTH",
+        "building_id": "palace_main",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_palace",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "terrace_palace",
+        "host_id": "palace_main",
+        "material": "minecraft:polished_andesite",
+        "railing": "low_stone_wall",
+        "building_id": "palace_main",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_cathedral",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "cathedral_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "hollow": true,
+        "void_ratio": 0.25,
+        "floor_count": 2,
+        "floor_height": 5,
+        "facade_profile": "base_plinth",
+        "roof_type": "dome",
+        "wall_block": "minecraft:smooth_quartz",
+        "floor_block": "minecraft:polished_diorite",
+        "roof_block": "minecraft:gold_block",
+        "facing": "NORTH",
+        "window_ratio": 0.35,
+        "building_id": "cathedral_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_cathedral",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_cathedral",
+        "host_id": "cathedral_main",
+        "roof_type": "dome",
+        "crown_template": "ONION_DOME",
+        "crown_radius": 5,
+        "crown_height": 8,
+        "revolve_segments": 16,
+        "roof_block": "minecraft:gold_block",
+        "roof_height": 9,
+        "overhang": 2,
+        "building_id": "cathedral_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_cathedral",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "windows_cathedral",
+        "host_id": "cathedral_main",
+        "window_style": "arched_narrow",
+        "rows": 2,
+        "columns": 4,
+        "window_width": 1,
+        "window_height": 3,
+        "spacing": 3,
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "cathedral_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_cathedral",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "door_cathedral",
+        "host_id": "cathedral_main",
+        "entrance_type": "arched_portal",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "cathedral_main"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "slot_bell",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 34
+      },
+      "features": [],
+      "params": {
+        "component_id": "bell_tower",
+        "tower_shape": "octagon",
+        "radius": 4,
+        "sides": 8,
+        "height": 34,
+        "roof_type": "dome",
+        "facade_profile": "vertical_pilasters",
+        "wall_block": "minecraft:smooth_quartz",
+        "roof_block": "minecraft:gold_block",
+        "facing": "NORTH",
+        "building_id": "bell_tower"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_bell",
+      "relative_position": {
+        "x": 0,
+        "y": 34,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 10
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_bell_tower",
+        "host_id": "bell_tower",
+        "roof_type": "dome",
+        "crown_template": "ONION_DOME",
+        "crown_radius": 4,
+        "crown_height": 9,
+        "revolve_segments": 16,
+        "roof_block": "minecraft:gold_block",
+        "roof_height": 10,
+        "overhang": 2,
+        "building_id": "bell_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_bell",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "door_bell_tower",
+        "host_id": "bell_tower",
+        "entrance_type": "arched_door",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "bell_tower"
+      }
+    },
+    {
+      "component_type": "PLAZA",
+      "slot_id": "slot_court",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 62,
+        "depth": 42,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "plaza_cathedral_square",
+        "surface_block": "minecraft:polished_andesite",
+        "border_block": "minecraft:cobblestone",
+        "pattern": "grid"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_court",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -22
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 22,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "path_gate_to_square",
+        "path_block": "minecraft:cobblestone",
+        "width": 6,
+        "facing": "NORTH"
+      }
+    }
+  ],
+  "description": "组合式克里姆林宫：红砖城墙+吞尾垛口围合，四角方塔与正面钟楼门塔，内部为白石大教堂（金洋葱顶）、高耸钟塔与带壁柱的宫殿体量，中央铺装广场与门至广场轴线路面。",
+  "player_fidelity_notice_zh": "组合式生成「克里姆林宫」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

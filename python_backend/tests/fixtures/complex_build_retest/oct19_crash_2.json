@@ -1,0 +1,898 @@
+{
+  "mode": "build",
+  "style_profile": "Ancient_Egyptian",
+  "style_attributes": {
+    "wall_color": "sand",
+    "roof_color": "pale_sand",
+    "accent_color": "gold",
+    "wall_material": "minecraft:sandstone",
+    "roof_material": "minecraft:cut_sandstone",
+    "floor_material": "minecraft:smooth_sandstone",
+    "decorative_elements": [
+      "pyramidion_capstone",
+      "limestone_casing",
+      "carved_granite_corridor",
+      "desert_plateau"
+    ]
+  },
+  "distinguishing_features": [
+    "tripod of three four-sided pyramids of decreasing scale",
+    "steep straight-sloped monumental massing",
+    "narrow north-face corridor entrance at base center",
+    "gilded pyramidion capstone at each apex",
+    "solid sandstone core with small hidden chambers"
+  ],
+  "anchor": {
+    "x": -141,
+    "y": 71,
+    "z": -2040
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "egyptian_pyramid",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "cluster",
+      "composition": "triptych",
+      "axis": "diagonal",
+      "levels": "single"
+    },
+    "structure": {
+      "type": "pyramidal",
+      "massiveness": 0.95,
+      "voidRatio": 0.03,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "triple",
+      "progression": "tapered_descending",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 4,
+      "mirror": null
+    },
+    "modules": [
+      "entrance",
+      "capstone",
+      "foundation_plinth"
+    ],
+    "materials": {
+      "primary": "sandstone",
+      "secondary": "cut_sandstone",
+      "accent": "gold",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "egypt",
+      "era": "old_kingdom",
+      "keywords": [
+        "giza",
+        "pyramid",
+        "limestone",
+        "necropolis"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "solid_monumental_massing",
+        "steep_straight_slopes",
+        "scale_hierarchy"
+      ],
+      "avoid": [
+        "windows",
+        "pilasters",
+        "cornice",
+        "gable_roof"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "pyramid",
+    "height_to_width": 0.68,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.92,
+    "slope_angle_deg": 51.5,
+    "capstone_to_height": 0.1,
+    "spacing_to_base": 1.2,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": [
+        {
+          "component_id": "pyr_khufu",
+          "slot_id": "slot_khufu",
+          "local_origin": {
+            "x": -22,
+            "y": 0,
+            "z": -22
+          },
+          "plan_origin": {
+            "x": -22,
+            "y": 0,
+            "z": -22
+          },
+          "dimensions": {
+            "width": 44,
+            "depth": 44,
+            "height": 30
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8,
+            12,
+            16
+          ],
+          "roof_y_local": 29,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pyr_khufu",
+                "local_origin": {
+                  "x": -22,
+                  "y": 0,
+                  "z": -22
+                },
+                "dimensions": {
+                  "width": 44,
+                  "depth": 44,
+                  "height": 30
+                },
+                "roof_y_local": 29
+              }
+            ],
+            "envelope_local": {
+              "min_x": -22,
+              "min_z": -22,
+              "max_x": 22,
+              "max_z": 22,
+              "min_y": 0,
+              "max_y": 30
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 22,
+                "start": -22,
+                "end": 22
+              },
+              {
+                "direction": "NORTH",
+                "plane": -22,
+                "start": -22,
+                "end": 22
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 22,
+                "start": -22,
+                "end": 22
+              },
+              {
+                "direction": "WEST",
+                "plane": -22,
+                "start": -22,
+                "end": 22
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "pyr_khafre",
+          "slot_id": "slot_khafre",
+          "local_origin": {
+            "x": -19,
+            "y": 0,
+            "z": -19
+          },
+          "plan_origin": {
+            "x": 33,
+            "y": 0,
+            "z": 25
+          },
+          "dimensions": {
+            "width": 38,
+            "depth": 38,
+            "height": 27
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "roof_y_local": 26,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pyr_khafre",
+                "local_origin": {
+                  "x": -19,
+                  "y": 0,
+                  "z": -19
+                },
+                "dimensions": {
+                  "width": 38,
+                  "depth": 38,
+                  "height": 27
+                },
+                "roof_y_local": 26
+              }
+            ],
+            "envelope_local": {
+              "min_x": -19,
+              "min_z": -19,
+              "max_x": 19,
+              "max_z": 19,
+              "min_y": 0,
+              "max_y": 27
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 19,
+                "start": -19,
+                "end": 19
+              },
+              {
+                "direction": "NORTH",
+                "plane": -19,
+                "start": -19,
+                "end": 19
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 19,
+                "start": -19,
+                "end": 19
+              },
+              {
+                "direction": "WEST",
+                "plane": -19,
+                "start": -19,
+                "end": 19
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "pyr_menkaure",
+          "slot_id": "slot_menkaure",
+          "local_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -13
+          },
+          "plan_origin": {
+            "x": 85,
+            "y": 0,
+            "z": 71
+          },
+          "dimensions": {
+            "width": 26,
+            "depth": 26,
+            "height": 18
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8
+          ],
+          "roof_y_local": 17,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pyr_menkaure",
+                "local_origin": {
+                  "x": -13,
+                  "y": 0,
+                  "z": -13
+                },
+                "dimensions": {
+                  "width": 26,
+                  "depth": 26,
+                  "height": 18
+                },
+                "roof_y_local": 17
+              }
+            ],
+            "envelope_local": {
+              "min_x": -13,
+              "min_z": -13,
+              "max_x": 13,
+              "max_z": 13,
+              "min_y": 0,
+              "max_y": 18
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 13,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "NORTH",
+                "plane": -13,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 13,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "WEST",
+                "plane": -13,
+                "start": -13,
+                "end": 13
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成三座埃及金字塔",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成三座埃及金字塔",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "pyr_khufu",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Ancient_Egyptian",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "pyr_khafre",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Ancient_Egyptian",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "pyr_menkaure",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Ancient_Egyptian",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "slot_khufu",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "role": "primary_pyramid",
+        "slot_id": "slot_khufu"
+      },
+      {
+        "id": "slot_khafre",
+        "anchor": {
+          "x": 52,
+          "y": 0,
+          "z": 44
+        },
+        "facing": "NORTH",
+        "role": "secondary_pyramid",
+        "slot_id": "slot_khafre"
+      },
+      {
+        "id": "slot_menkaure",
+        "anchor": {
+          "x": 98,
+          "y": 0,
+          "z": 84
+        },
+        "facing": "NORTH",
+        "role": "tertiary_pyramid",
+        "slot_id": "slot_menkaure"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_khufu",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 44,
+        "height": 30
+      },
+      "features": [
+        "pyramid",
+        "limestone_casing",
+        "triangular_profile"
+      ],
+      "params": {
+        "component_id": "pyr_khufu",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "kind": "cone",
+        "sides": 4,
+        "radius": 22,
+        "top_radius": 0,
+        "roof_type": "pyramid",
+        "generation_method": "revolved_surface_around_axis",
+        "revolve_segments": 4,
+        "hollow": true,
+        "void_ratio": 0.02,
+        "extrude_mode": "solid",
+        "floor_height": 4,
+        "floor_count": 5,
+        "setback_ratio": 0.0,
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "facade_cutout": "none",
+        "entrance_type": "door",
+        "window_style": "none",
+        "material": "stone",
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:cut_sandstone",
+        "anchor_mode": "center",
+        "window_ratio": 0.35,
+        "building_id": "pyr_khufu"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_khafre",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 38,
+        "depth": 38,
+        "height": 27
+      },
+      "features": [
+        "pyramid",
+        "limestone_casing",
+        "triangular_profile"
+      ],
+      "params": {
+        "component_id": "pyr_khafre",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "kind": "cone",
+        "sides": 4,
+        "radius": 19,
+        "top_radius": 0,
+        "roof_type": "pyramid",
+        "generation_method": "revolved_surface_around_axis",
+        "revolve_segments": 4,
+        "hollow": true,
+        "void_ratio": 0.02,
+        "extrude_mode": "solid",
+        "floor_height": 4,
+        "floor_count": 4,
+        "setback_ratio": 0.0,
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "facade_cutout": "none",
+        "entrance_type": "door",
+        "window_style": "none",
+        "material": "stone",
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:cut_sandstone",
+        "anchor_mode": "center",
+        "window_ratio": 0.35,
+        "building_id": "pyr_khafre"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_menkaure",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 26,
+        "height": 18
+      },
+      "features": [
+        "pyramid",
+        "granite_casing",
+        "triangular_profile"
+      ],
+      "params": {
+        "component_id": "pyr_menkaure",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "kind": "cone",
+        "sides": 4,
+        "radius": 13,
+        "top_radius": 0,
+        "roof_type": "pyramid",
+        "generation_method": "revolved_surface_around_axis",
+        "revolve_segments": 4,
+        "hollow": true,
+        "void_ratio": 0.03,
+        "extrude_mode": "solid",
+        "floor_height": 4,
+        "floor_count": 3,
+        "setback_ratio": 0.0,
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "facade_cutout": "none",
+        "entrance_type": "door",
+        "window_style": "none",
+        "material": "stone",
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:cut_sandstone",
+        "anchor_mode": "center",
+        "window_ratio": 0.35,
+        "building_id": "pyr_menkaure"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_khufu",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 48,
+        "depth": 48,
+        "height": 2
+      },
+      "features": [
+        "stone_plinth",
+        "desert_platform"
+      ],
+      "params": {
+        "component_id": "fnd_khufu",
+        "host_id": "pyr_khufu",
+        "material": "stone",
+        "wall_block": "minecraft:cut_sandstone",
+        "extrude_mode": "plate",
+        "building_id": "pyr_khufu"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_khafre",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 42,
+        "depth": 42,
+        "height": 2
+      },
+      "features": [
+        "stone_plinth",
+        "desert_platform"
+      ],
+      "params": {
+        "component_id": "fnd_khafre",
+        "host_id": "pyr_khafre",
+        "material": "stone",
+        "wall_block": "minecraft:cut_sandstone",
+        "extrude_mode": "plate",
+        "building_id": "pyr_khafre"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_menkaure",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 30,
+        "height": 2
+      },
+      "features": [
+        "stone_plinth",
+        "desert_platform"
+      ],
+      "params": {
+        "component_id": "fnd_menkaure",
+        "host_id": "pyr_menkaure",
+        "material": "stone",
+        "wall_block": "minecraft:cut_sandstone",
+        "extrude_mode": "plate",
+        "building_id": "pyr_menkaure"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_khufu",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -22
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 3,
+        "height": 3
+      },
+      "facing": "SOUTH",
+      "features": [
+        "north_corridor",
+        "granite_frame"
+      ],
+      "params": {
+        "component_id": "ent_khufu",
+        "host_id": "pyr_khufu",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "material": "stone",
+        "wall_block": "minecraft:granite",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "pyr_khufu"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_khafre",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -19
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 3,
+        "height": 3
+      },
+      "facing": "SOUTH",
+      "features": [
+        "north_corridor",
+        "granite_frame"
+      ],
+      "params": {
+        "component_id": "ent_khafre",
+        "host_id": "pyr_khafre",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "material": "stone",
+        "wall_block": "minecraft:granite",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "pyr_khafre"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_menkaure",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 3,
+        "height": 3
+      },
+      "facing": "SOUTH",
+      "features": [
+        "north_corridor",
+        "granite_frame"
+      ],
+      "params": {
+        "component_id": "ent_menkaure",
+        "host_id": "pyr_menkaure",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "material": "stone",
+        "wall_block": "minecraft:granite",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "pyr_menkaure"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_khufu",
+      "relative_position": {
+        "x": 0,
+        "y": 28,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [
+        "pyramidion",
+        "gilded_capstone"
+      ],
+      "params": {
+        "component_id": "cap_khufu",
+        "host_id": "pyr_khufu",
+        "material": "metal",
+        "wall_block": "minecraft:gold_block",
+        "usage": "apex_capstone",
+        "building_id": "pyr_khufu"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_khafre",
+      "relative_position": {
+        "x": 0,
+        "y": 25,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "pyramidion",
+        "gilded_capstone"
+      ],
+      "params": {
+        "component_id": "cap_khafre",
+        "host_id": "pyr_khafre",
+        "material": "metal",
+        "wall_block": "minecraft:gold_block",
+        "usage": "apex_capstone",
+        "building_id": "pyr_khafre"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_menkaure",
+      "relative_position": {
+        "x": 0,
+        "y": 16,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "pyramidion",
+        "gilded_capstone"
+      ],
+      "params": {
+        "component_id": "cap_menkaure",
+        "host_id": "pyr_menkaure",
+        "material": "metal",
+        "wall_block": "minecraft:gold_block",
+        "usage": "apex_capstone",
+        "building_id": "pyr_menkaure"
+      }
+    }
+  ],
+  "description": "三座埃及金字塔：胡夫、哈夫拉、门卡乌拉，按对角线排布于同一沙漠台地，四棱锥纯实体量、北面狭窄通道入口、镀金压顶石。",
+  "player_fidelity_notice_zh": "组合式生成「三座埃及金字塔」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

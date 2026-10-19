@@ -60,6 +60,32 @@ public final class FormaRequestCompactor {
             // Last resort: hard-cap requestText so packet can be sent.
             hardCapRequestText(req, MAX_PACKET_STRING / 2);
         }
+        // Measure the serialized JSON, including escaping and every other field.
+        // Never let an oversized request reach Netty's asynchronous encoder.
+        json = JsonUtil.toJson(req);
+        if (json.length() > TARGET_JSON_CHARS) {
+            String text = req.getRequestText();
+            req.setRequestText(req.getUserMessage() == null ? "" : "USER REQUEST:\n" + req.getUserMessage());
+            if (JsonUtil.toJson(req).length() > TARGET_JSON_CHARS) {
+                req.setChatHistory(List.of());
+            }
+            if (JsonUtil.toJson(req).length() > MAX_PACKET_STRING) {
+                throw new IllegalArgumentException("请求内容过大，请减少附加资料或分次发送；选区和保护区不会被自动删除。");
+            }
+            if (text != null) {
+                int low = 0, high = text.length();
+                String best = req.getRequestText();
+                while (low <= high) {
+                    int mid = (low + high) >>> 1;
+                    String candidate = preserveUserRequestSection(text, mid);
+                    req.setRequestText(candidate);
+                    if (JsonUtil.toJson(req).length() <= TARGET_JSON_CHARS) {
+                        best = candidate; low = mid + 1;
+                    } else high = mid - 1;
+                }
+                req.setRequestText(best);
+            }
+        }
         return req;
     }
 

@@ -1,0 +1,300 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL_CASTLE",
+  "style_attributes": {
+    "wall_color": "earth_tan",
+    "roof_color": "charcoal_gray",
+    "accent_color": "dark_brown",
+    "wall_material": "minecraft:terracotta",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:cobblestone",
+    "decorative_elements": [
+      "timber_eaves",
+      "window_rhythm",
+      "plaster_bands"
+    ]
+  },
+  "distinguishing_features": [
+    "圆形夯土外墙向内收分",
+    "环形木构回廊与密集窗洞",
+    "中央开敞天井与祖堂",
+    "厚墙基座与瓦顶出檐"
+  ],
+  "anchor": {
+    "x": -157,
+    "y": 79,
+    "z": -2101
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "tulou",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "radial",
+      "composition": "single",
+      "axis": "radial",
+      "levels": "multi"
+    },
+    "structure": {
+      "type": "load_bearing_wall",
+      "massiveness": 0.85,
+      "voidRatio": 0.25,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "repeating",
+      "progression": "tapered",
+      "curvature": "circular",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 12,
+      "mirror": null
+    },
+    "modules": [
+      "ring_wall",
+      "inner_courtyard",
+      "roof_eaves"
+    ],
+    "materials": {
+      "primary": "earth",
+      "secondary": "wood",
+      "accent": "stone",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "east_asia",
+      "era": "pre_modern",
+      "keywords": [
+        "hakka",
+        "earthen_ring_house",
+        "fujian"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "radial_symmetry",
+        "ring_massing"
+      ],
+      "avoid": [
+        "rectangular_box",
+        "gothic_arches",
+        "glass_curtain_wall"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "tulou_1",
+        "anchor": {
+          "x": -45,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "tulou_1"
+      },
+      {
+        "id": "tulou_2",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 38
+        },
+        "facing": "NORTH",
+        "slot_id": "tulou_2"
+      },
+      {
+        "id": "tulou_3",
+        "anchor": {
+          "x": 45,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "tulou_3"
+      }
+    ]
+  },
+  "proportion_hints": {
+    "typology": "tulou",
+    "height_to_diameter": 0.38,
+    "courtyard_to_outer_diameter": 0.42,
+    "wall_thickness_to_diameter": 0.12,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": []
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Chinese_Vernacular_Tulou",
+          "identity_id": "Chinese_Vernacular_Tulou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Tulou"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成福建土楼三栋",
+          "purposes": [],
+          "styles": [
+            {
+              "id": "Chinese_Vernacular_Tulou",
+              "phrase": "土楼",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "生成福建土楼三栋",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "components": [
+    {
+      "component_type": "MODULE",
+      "slot_id": "tulou_1",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 36,
+        "height": 16
+      },
+      "features": [
+        "landmark:tulou"
+      ],
+      "params": {
+        "component_id": "tulou_ring_a",
+        "module_id": "tulou",
+        "meshStructure": true,
+        "designSeed": 1973,
+        "facing": "NORTH"
+      }
+    },
+    {
+      "component_type": "MODULE",
+      "slot_id": "tulou_2",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 36,
+        "height": 16
+      },
+      "features": [
+        "landmark:tulou"
+      ],
+      "params": {
+        "component_id": "tulou_ring_a#tulou_2",
+        "module_id": "tulou",
+        "meshStructure": true,
+        "designSeed": 1973,
+        "facing": "NORTH"
+      }
+    },
+    {
+      "component_type": "MODULE",
+      "slot_id": "tulou_3",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 36,
+        "height": 16
+      },
+      "features": [
+        "landmark:tulou"
+      ],
+      "params": {
+        "component_id": "tulou_ring_a#tulou_3",
+        "module_id": "tulou",
+        "meshStructure": true,
+        "designSeed": 1973,
+        "facing": "NORTH"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "识别为预置地标「tulou」，使用固定模板生成（保真度：取决于模块与真实建筑吻合度）",
+  "kind": "llmplan"
+}

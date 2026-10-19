@@ -92,6 +92,21 @@ public class MassMainGenerator implements ComponentGenerator {
         
         Map<String, Object> params = c.params();
 
+        if (params != null && "pyramid".equals(params.get("volume_geometry"))) {
+            String block = DynamicPaletteResolver.mapMaterialToBlock(String.valueOf(params.getOrDefault("wall_block",params.getOrDefault("material","glass"))));
+            if (block == null) block = "minecraft:glass";
+            for (int y=0;y<height;y++) {
+                int w=Math.max(1,(int)Math.ceil(width*(height-y)/(double)height));
+                int dep=Math.max(1,(int)Math.ceil(depth*(height-y)/(double)height));
+                int ox=(width-w)/2, oz=(depth-dep)/2;
+                for(int x=0;x<w;x++) for(int z=0;z<dep;z++) {
+                    if (y>0 && x>0 && x<w-1 && z>0 && z<dep-1) continue;
+                    out.add(new BlockPatch(BlockPatch.PLACE,actualRp.x()+ox+x,actualRp.y()+y,actualRp.z()+oz+z,block));
+                }
+            }
+            return out;
+        }
+
         // Volumetric bodies use their authored 3-D shell, not a cylindrical
         // extrusion of the circular footprint used by attachment validators.
         if (params != null && "sphere".equals(params.get("volume_geometry"))) {
@@ -1012,7 +1027,10 @@ public class MassMainGenerator implements ComponentGenerator {
         var geom = com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(
                 semantic, width, depth, height);
         if (componentId != null && !componentId.isEmpty() && geom != null
-                && semantic.source() != null) {
+                && semantic.source() != null && semantic.source().dimensions() != null
+                && semantic.source().dimensions().width() == width
+                && semantic.source().dimensions().depth() == depth
+                && semantic.source().dimensions().height() == height) {
             com.formacraft.common.generation.component.util.BuildingGeometryContext.put(
                     componentId, geom,
                     com.formacraft.common.generation.component.util.ComponentFootprintUtil
@@ -1168,7 +1186,7 @@ public class MassMainGenerator implements ComponentGenerator {
             int mw = resolved.dimensions().width(), md = resolved.dimensions().depth(), mh = resolved.dimensions().height();
             int ox = resolved.offset().x(), oy = resolved.offset().y(), oz = resolved.offset().z();
             if (ox == 0 && oy == 0 && oz == 0 && masses.isEmpty()) {
-                masses.add(new MassConfig(0, 0, 0, width, depth, height, baseShape, cornerRadius, basePattern));
+                masses.add(new MassConfig(0, 0, 0, mw, md, mh, baseShape, cornerRadius, basePattern));
                 continue;
             }
 

@@ -93,6 +93,33 @@ public final class PatchOccupancyIndex {
                 || "cylinder".equals(c.params().get("shape"));
     }
 
+    public int trimWallTowerJoins(Component writer, List<BlockPatch> patches) {
+        if (writer == null || !Set.of("WALL","WALL_SEGMENT").contains(writer.componentType())) return 0;
+        var joins = new HashSet<BlockPos>();
+        var buildingIds = new HashSet<Object>();
+        for (var record : places.values()) {
+            var owner=record.owner();
+            if (owner!=null && owner.params()!=null && ("TOWER".equals(owner.componentType()) || com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(owner)
+                    || "tower_gate_shell".equals(owner.params().get("geometry_source")))) {
+                Object id = owner.params().get("component_id");
+                if (id != null) buildingIds.add(id);
+            }
+        }
+        for (var p : patches) {
+            var pos = new BlockPos(p.dx(),p.dy(),p.dz());
+            var previous = places.get(pos);
+            if (previous == null || previous.owner() == null) continue;
+            var owner = previous.owner();
+            if ("TOWER".equals(owner.componentType()) || com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(owner) || owner.params() != null
+                    && ("tower_gate_shell".equals(owner.params().get("geometry_source"))
+                        || buildingIds.contains(owner.params().get("host_id")))) joins.add(pos);
+        }
+        if (joins.size()*2 >= patches.size()) return 0;
+        int before = patches.size();
+        patches.removeIf(p -> joins.contains(new BlockPos(p.dx(),p.dy(),p.dz())));
+        return before-patches.size();
+    }
+
     /** Mutates formal state; call only after {@link #validate} succeeded. */
     public void commit(Component writer, List<BlockPatch> patches) {
         commit(writer, patches, Set.of());
@@ -346,7 +373,7 @@ public final class PatchOccupancyIndex {
         // Bound structural/detail parts may join their own building. The surface
         // ledger still protects roofs and openings from decoration; REMOVE uses
         // the separate stair/carve rules.
-        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY")
+        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY", "GATE")
                 .contains(writer.componentType().toUpperCase(Locale.ROOT))
                 || ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType())
                     && "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode"))));

@@ -1,0 +1,379 @@
+{
+  "mode": "build",
+  "style_profile": "Modern_Stadium_Elliptical",
+  "style_attributes": {
+    "wall_color": "titanium_silver",
+    "roof_color": "pale_silver",
+    "accent_color": "water_blue",
+    "wall_material": "titanium",
+    "roof_material": "glass",
+    "floor_material": "polished_granite",
+    "decorative_elements": [
+      "ribbon glazing band",
+      "elliptical shell ribs",
+      "reflecting pool rim",
+      "submerged north entry portal"
+    ]
+  },
+  "distinguishing_features": [
+    "ellipsoidal low-profile shell dome of titanium and glass",
+    "building sits within a shallow artificial reflecting pool",
+    "entry sequence passes beneath the water surface from the north",
+    "smooth continuous curved shell with no visible corners",
+    "granite podium ring separating shell from water"
+  ],
+  "anchor": {
+    "x": -157,
+    "y": 79,
+    "z": -2101
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "modern_elliptical_dome",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "radial",
+      "composition": "single",
+      "axis": "radial",
+      "levels": "single"
+    },
+    "structure": {
+      "type": "shell",
+      "massiveness": 0.34,
+      "voidRatio": 0.3,
+      "supports": "ring"
+    },
+    "form": {
+      "repetition": "repeating",
+      "progression": "curved_taper",
+      "curvature": "curved",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "shell",
+      "glazing",
+      "pool",
+      "portal"
+    ],
+    "materials": {
+      "primary": "metal",
+      "secondary": "glass",
+      "accent": "water",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "east_asia",
+      "era": "contemporary",
+      "keywords": [
+        "ellipsoid",
+        "titanium",
+        "reflecting_pool",
+        "performing_arts"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "smooth elliptical silhouette",
+        "low dome height relative to major axis",
+        "water surround"
+      ],
+      "avoid": [
+        "rectangular box mass",
+        "gothic spire",
+        "castle battlements"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "stadium_bowl",
+    "bowl_depth_to_width": 0.38,
+    "height_to_major_axis": 0.48,
+    "field_to_bowl": 0.58,
+    "target_major_axis": 62,
+    "target_minor_axis": 48,
+    "target_height": 30,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [
+        {
+          "code": "E_HOST_UNKNOWN",
+          "component_id": "ncp_north_portal",
+          "host_id": "ncp_shell"
+        },
+        {
+          "code": "E_HOST_UNKNOWN",
+          "component_id": "ncp_entry_terrace",
+          "host_id": "ncp_shell"
+        },
+        {
+          "code": "E_HOST_UNKNOWN",
+          "component_id": "ncp_rib_band",
+          "host_id": "ncp_shell"
+        }
+      ],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": []
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成北京国家大剧院",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成北京国家大剧院",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "RADIAL_RING",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "size": {
+          "width": 108,
+          "depth": 92
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 3,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 62,
+        "depth": 48,
+        "height": 30
+      },
+      "features": [
+        "typology:stadium_bowl"
+      ],
+      "params": {
+        "component_id": "ncp_shell",
+        "typology_id": "stadium_bowl",
+        "width": 62,
+        "depth": 48,
+        "height": 30,
+        "elliptical": true,
+        "meshStructure": true,
+        "bowlSteepness": 0.32,
+        "tierStep": 4,
+        "designSeed": 4177,
+        "facing": "NORTH",
+        "shell_material": "titanium",
+        "glazing_ratio": 0.24,
+        "openings": "ribbon_glazing"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -38,
+        "y": 1,
+        "z": -31
+      },
+      "dimensions": {
+        "width": 76,
+        "depth": 62,
+        "height": 2
+      },
+      "params": {
+        "component_id": "ncp_podium",
+        "material": "polished_granite",
+        "anchor_mode": "min_corner",
+        "plinth": true
+      },
+      "features": []
+    },
+    {
+      "component_type": "PLAZA",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -54,
+        "y": 0,
+        "z": -46
+      },
+      "dimensions": {
+        "width": 108,
+        "depth": 92,
+        "height": 1
+      },
+      "features": [
+        "reflecting_pool"
+      ],
+      "params": {
+        "component_id": "ncp_reflecting_pool",
+        "anchor_mode": "min_corner",
+        "surface": "water",
+        "rim_material": "granite",
+        "pool_depth": 1
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -6,
+        "y": 1,
+        "z": -36
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 6,
+        "height": 8
+      },
+      "params": {
+        "component_id": "ncp_north_portal",
+        "host_id": "ncp_shell",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "portal",
+        "door_material": "glass",
+        "door_width": 10,
+        "door_height": 4
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -16,
+        "y": 0,
+        "z": -44
+      },
+      "dimensions": {
+        "width": 32,
+        "depth": 10,
+        "height": 2
+      },
+      "params": {
+        "component_id": "ncp_entry_terrace",
+        "anchor_mode": "min_corner",
+        "steps": 3,
+        "host_id": "ncp_shell",
+        "facing": "NORTH",
+        "building_id": "ncp_entry_terrace"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 64,
+        "depth": 50,
+        "height": 2
+      },
+      "params": {
+        "component_id": "ncp_rib_band",
+        "host_id": "ncp_shell",
+        "detail_type": "rim_band",
+        "material": "titanium",
+        "repeat": "radial"
+      },
+      "features": []
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「北京国家大剧院」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "plan_status": "capability_gap",
+  "capability_gap": {
+    "code": "E_BUILDING_CONTRACT",
+    "message": "建筑方案未满足明确要求或主体引用无效",
+    "path": "proportion_hints.building_contract",
+    "suggestions": [
+      "{'code': 'E_HOST_UNKNOWN', 'component_id': 'ncp_north_portal', 'host_id': 'ncp_shell'}",
+      "{'code': 'E_HOST_UNKNOWN', 'component_id': 'ncp_entry_terrace', 'host_id': 'ncp_shell'}",
+      "{'code': 'E_HOST_UNKNOWN', 'component_id': 'ncp_rib_band', 'host_id': 'ncp_shell'}"
+    ]
+  },
+  "kind": "llmplan"
+}

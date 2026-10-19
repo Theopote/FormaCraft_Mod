@@ -858,6 +858,7 @@ public final class ComponentPlanCompiler {
                     }
                     if (plan.layout() != null && "COMPOUND".equalsIgnoreCase(String.valueOf(plan.layout().skeletonType()))) {
                         int shared = patchOccupancy.trimCompoundMassJoin(c, shiftedPatches);
+                        shared += patchOccupancy.trimWallTowerJoins(c, shiftedPatches);
                         if (shared > 0) AssemblyCompileDiagnostics.addSoftWarning("MASS_JOIN_CLIPPED",
                                 "相邻体块交界处保留已有外壳，跳过冲突操作 " + shared, c.componentType(), paramIdentity(c));
                     }
@@ -1301,7 +1302,30 @@ public final class ComponentPlanCompiler {
             return new PreparedComponents(components, Set.of());
         }
 
+        List<Component> beforeAlignment = components;
         components = AlignmentContractEnforcer.apply(plan, components);
+        for (int i=0;i<components.size();i++) {
+            Component roof = components.get(i);
+            if (!isRoofType(normalizeType(roof.componentType())) || roof.dimensions()==null) continue;
+            String host = getParamString(roof.params(),"host_id");
+            Integer eaves = ComponentParamParsers.intOrNull(roof.params(),"overhang");
+            if (host==null || eaves==null || eaves<0) continue;
+            for (Component original : beforeAlignment) {
+                if (!host.equals(getParamString(original.params(),"component_id")) || original.dimensions()==null) continue;
+                for (Component aligned : components) {
+                    if (!host.equals(getParamString(aligned.params(),"component_id")) || aligned.dimensions()==null) continue;
+                    if (!aligned.dimensions().equals(original.dimensions())
+                            && roof.dimensions().width()==original.dimensions().width()+2*eaves
+                            && roof.dimensions().depth()==original.dimensions().depth()+2*eaves) {
+                        components.set(i,new Component(roof.componentType(),roof.slotId(),roof.relativePosition(),
+                                new Dimensions(aligned.dimensions().width()+2*eaves,aligned.dimensions().depth()+2*eaves,roof.dimensions().height()),
+                                roof.features(),roof.params()));
+                    }
+                    break;
+                }
+                break;
+            }
+        }
         for (int i = 0; i < components.size(); i++) {
             Component slab = components.get(i);
             if (!com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(slab)) continue;

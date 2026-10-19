@@ -36,6 +36,13 @@ public final class GenerationFallbackMatrix {
             Component component,
             Map<String, Object> planMeta
     ) {
+        // MODULE + landmark is an explicit executor request, not a generic
+        // empty-house fallback. Explicit authority locks still take precedence.
+        if ((authority == null || authority == GenerationAuthority.COMPONENTS)
+                && component != null && "MODULE".equalsIgnoreCase(component.componentType())
+                && com.formacraft.common.typology.TypologyComponentRouter.extractLandmarkModuleId(component) != null
+                && (component.params() == null || GenerationAuthority.parse(component.params().get(GenerationAuthority.PARAM_KEY)) == null)
+                && (planMeta == null || GenerationAuthority.parse(planMeta.get(GenerationAuthority.META_KEY)) == null)) return true;
         if (authority == null) {
             authority = GenerationAuthority.COMPONENTS;
         }

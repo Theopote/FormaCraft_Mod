@@ -16,7 +16,9 @@ public final class StructurePatchBridge {
         Set<BlockPos> requiredAir = new HashSet<>();
         for (var flight : flights) requiredAir.addAll(flight.clearance());
         List<BlockPatch> patches = new ArrayList<>();
-        for (var block : structure.getBlocks()) {
+        var finalBlocks = new LinkedHashMap<BlockPos, com.formacraft.common.build.PlannedBlock>();
+        for (var block : structure.getBlocks()) finalBlocks.put(block.getPos().toImmutable(),block);
+        for (var block : finalBlocks.values()) {
             if (block.getTargetState().isAir() && !requiredAir.contains(block.getPos())) continue;
             var pos = block.getPos().subtract(origin);
             patches.add(new BlockPatch(block.getTargetState().isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE,

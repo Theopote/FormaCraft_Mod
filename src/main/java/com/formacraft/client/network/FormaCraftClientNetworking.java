@@ -183,6 +183,12 @@ public final class FormaCraftClientNetworking {
      * @param request 建筑请求
      */
     public static void sendBuildRequest(FormaRequest request) {
+        try {
+            request = com.formacraft.common.model.request.FormaRequestCompactor.compactForNetwork(request);
+        } catch (IllegalArgumentException e) {
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIError(e.getMessage());
+            return;
+        }
         // 某些环境下 Fabric API 的 send() 会尝试把 payload cast 成 UnknownCustomPayload（导致 ClassCastException）。
         // 这里直接走原版 CustomPayloadC2SPacket，避免该兼容问题。
         MinecraftClient mc = MinecraftClient.getInstance();

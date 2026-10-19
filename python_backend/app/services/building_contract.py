@@ -229,14 +229,33 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     hints['architecture_intent']['materials'] = [deepcopy(r) for r in requirements
                                                if r['property'] in ('wall_block', 'floor_block', 'roof_block')]
     components = [c for c in (out.get('components') or []) if isinstance(c, dict)]
+    # A provider may emit all requested placement slots but only one module.
+    slots_for_modules = (out.get('layout') or {}).get('slots') or []
+    count_match = re.search(r'([2-9二三四五六七八九])(?:座|栋)', text)
+    slot_ids = [s.get('slot_id', s.get('id')) for s in slots_for_modules if isinstance(s, dict)]
+    if len(components) == 1 and components[0].get('component_type') == 'MODULE' and count_match:
+        count = int(count_match[1]) if count_match[1].isdigit() else '零一二三四五六七八九'.index(count_match[1])
+        if (count == len(slots_for_modules) == len(set(slot_ids))
+                and all(slot_ids) and components[0].get('slot_id') in slot_ids):
+            prototype = components[0]
+            for key in slot_ids:
+                if key == prototype.get('slot_id'):
+                    continue
+                clone = deepcopy(prototype)
+                clone['slot_id'] = key
+                clone.setdefault('params', {})['component_id'] = str(prototype.get('params', {}).get('component_id', 'module')) + '#' + str(key)
+                components.append(clone)
+            out['components'] = components
     for component in components:
         params = component.get('params') or {}
-        roof_aliases = {'chinese_xieshan':'xieshan', 'chinese_xuanshan':'xuanshan', 'chinese_yingshan':'yingshan'}
+        roof_aliases = {'chinese_xieshan':'xieshan', 'chinese_xuanshan':'xuanshan', 'chinese_yingshan':'yingshan', 'spire':'pyramid'}
         if params.get('roof_type') in roof_aliases:
             params['roof_type'] = roof_aliases[params['roof_type']]
         if (component.get('component_type') == 'MASS_SECONDARY'
                 and params.get('shape') == 'sphere' and not params.get('floor_count')):
             params.update(shape='circle', kind='sphere', volume_geometry='sphere')
+        if component.get('component_type') == 'MASS_SECONDARY' and params.get('shape') == 'pyramid':
+            params.update(shape='rectangle', volume_geometry='pyramid', roof_type='none', hollow=True)
         # A tower gate is an occupied building shell with hosted roof/openings,
         # rather than the standalone thin gate-frame generator.
         if component.get('component_type') == 'GATE' and params.get('gate_type') == 'tower_gate':
@@ -327,7 +346,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     owners = [c for c in components if c.get('component_type') in
               ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'TERRACE', 'COURTYARD', 'COURTYARD_SPACE')]
     referenced_hosts = {c['params'].get('host_id') for c in components if c.get('component_type') in HOSTED}
-    owners.extend(c for c in components if c.get('component_type') in ('PLAZA','PAVING','PATH','ROAD','FOUNDATION')
+    owners.extend(c for c in components if c.get('component_type') in ('PLAZA','PAVING','PATH','ROAD','FOUNDATION','STRUCTURE','MODULE')
                   and c['params']['component_id'] in referenced_hosts)
     _repair_compound_courtyard_inheritance(out, components)
     ids = {c['params']['component_id']: c for c in owners}

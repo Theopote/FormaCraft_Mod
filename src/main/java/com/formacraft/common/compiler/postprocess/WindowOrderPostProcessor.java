@@ -52,7 +52,7 @@ public class WindowOrderPostProcessor implements PostProcessor {
         int maxY = Integer.MIN_VALUE;
         int maxZ = Integer.MIN_VALUE;
 
-        Set<Long> glassKeys = new HashSet<>();
+        Set<net.minecraft.util.math.BlockPos> glassKeys = new HashSet<>();
         for (BlockPatch patch : patches) {
             if (patch == null || BlockPatch.REMOVE.equals(patch.action())) {
                 continue;
@@ -66,7 +66,7 @@ public class WindowOrderPostProcessor implements PostProcessor {
             maxX = Math.max(maxX, patch.dx());
             maxY = Math.max(maxY, patch.dy());
             maxZ = Math.max(maxZ, patch.dz());
-            glassKeys.add(pack(patch.dx(), patch.dy(), patch.dz()));
+            glassKeys.add(new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz()));
         }
 
         if (glassKeys.isEmpty() || minX == Integer.MAX_VALUE) {
@@ -74,10 +74,10 @@ public class WindowOrderPostProcessor implements PostProcessor {
         }
 
         Set<long[]> perimeterGlass = new HashSet<>();
-        for (Long key : glassKeys) {
-            int x = (int) (key >> 42);
-            int y = (int) ((key >> 21) & 0x1fffffL);
-            int z = (int) (key & 0x1fffffL);
+        for (var key : glassKeys) {
+            int x = key.getX();
+            int y = key.getY();
+            int z = key.getZ();
             if (x == minX || x == maxX || z == minZ || z == maxZ) {
                 perimeterGlass.add(ComponentWindowOrderDecorator.packCell(x, y, z));
             }
@@ -119,6 +119,13 @@ public class WindowOrderPostProcessor implements PostProcessor {
         if (surrounds.isEmpty()) {
             return patches;
         }
+
+        Set<net.minecraft.util.math.BlockPos> seeds = new HashSet<>();
+        for (var p : patches) if (com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.occupied(p))
+            seeds.add(new net.minecraft.util.math.BlockPos(p.dx(),p.dy(),p.dz()));
+        var scope = PostProcessWriteScope.fromContext(context,seeds);
+        if (!context.buildingVolumes().isEmpty() || !context.generatedSurfaces().isEmpty())
+            surrounds.removeIf(p -> !scope.allowsPlace(new net.minecraft.util.math.BlockPos(p.dx(),p.dy(),p.dz())));
 
         List<BlockPatch> merged = new ArrayList<>(patches.size() + surrounds.size());
         merged.addAll(patches);

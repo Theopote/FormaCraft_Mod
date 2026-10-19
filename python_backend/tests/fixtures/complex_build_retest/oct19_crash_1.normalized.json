@@ -1,0 +1,921 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "sand",
+    "roof_color": "terracotta",
+    "accent_color": "lapis_blue",
+    "wall_material": "sandstone",
+    "roof_material": "cut_sandstone",
+    "floor_material": "mud_bricks",
+    "decorative_elements": [
+      "stepped_ziggurat_terraces",
+      "arched_vault_openings",
+      "glazed_brick_relief_bands",
+      "hanging_vines_and_ivy",
+      "terraced_planters",
+      "irrigation_water_channels",
+      "cornice_string_courses",
+      "potted_trees_on_ledges"
+    ]
+  },
+  "distinguishing_features": [
+    "five diminishing stepped terrace tiers",
+    "planted hanging-garden ledges on every tier",
+    "arched vault openings in sandstone bearing walls",
+    "glazed brick relief panels flanking the north gate",
+    "irrigation channel network feeding the terraces",
+    "summit shrine pavilion with flat overhanging roof"
+  ],
+  "anchor": {
+    "x": -141,
+    "y": 71,
+    "z": -2040
+  },
+  "proportion_hints": {
+    "typology": "terraced_garden_ziggurat",
+    "target_width": 44,
+    "target_depth": 44,
+    "target_body_height": 28,
+    "target_roof_height": 7,
+    "height_to_width": 0.77,
+    "depth_to_width": 0.82,
+    "roof_to_body_height": 0.06,
+    "window_aspect": "square",
+    "max_void_ratio": 0.18,
+    "tier_count": 5,
+    "tier_setback_ratio": 0.16,
+    "terrace_depth_to_tier_width": 0.09,
+    "green_coverage_ratio": 0.45,
+    "void_ratio": 0.28,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "hg_ziggurat"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "hg_ziggurat",
+          "slot_id": "hg_core",
+          "local_origin": {
+            "x": -22,
+            "y": 0,
+            "z": -18
+          },
+          "plan_origin": {
+            "x": -22,
+            "y": 0,
+            "z": -18
+          },
+          "dimensions": {
+            "width": 44,
+            "depth": 36,
+            "height": 35
+          },
+          "floor_ys_local": [
+            0,
+            7,
+            14,
+            21,
+            28
+          ],
+          "roof_y_local": 34,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "hg_ziggurat",
+                "local_origin": {
+                  "x": -22,
+                  "y": 0,
+                  "z": -18
+                },
+                "dimensions": {
+                  "width": 44,
+                  "depth": 36,
+                  "height": 35
+                },
+                "roof_y_local": 34
+              },
+              {
+                "part_id": "hg_ziggurat#mass_1",
+                "local_origin": {
+                  "x": -22,
+                  "y": 0,
+                  "z": -18
+                },
+                "dimensions": {
+                  "width": 44,
+                  "depth": 36,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              },
+              {
+                "part_id": "hg_ziggurat#mass_2",
+                "local_origin": {
+                  "x": -22,
+                  "y": 8,
+                  "z": -18
+                },
+                "dimensions": {
+                  "width": 36,
+                  "depth": 30,
+                  "height": 7
+                },
+                "roof_y_local": 14
+              },
+              {
+                "part_id": "hg_ziggurat#mass_3",
+                "local_origin": {
+                  "x": -22,
+                  "y": 15,
+                  "z": -18
+                },
+                "dimensions": {
+                  "width": 28,
+                  "depth": 24,
+                  "height": 7
+                },
+                "roof_y_local": 21
+              },
+              {
+                "part_id": "hg_ziggurat#mass_4",
+                "local_origin": {
+                  "x": -22,
+                  "y": 22,
+                  "z": -18
+                },
+                "dimensions": {
+                  "width": 20,
+                  "depth": 18,
+                  "height": 6
+                },
+                "roof_y_local": 27
+              },
+              {
+                "part_id": "hg_ziggurat#mass_5",
+                "local_origin": {
+                  "x": -22,
+                  "y": 28,
+                  "z": -18
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 12,
+                  "height": 6
+                },
+                "roof_y_local": 33
+              }
+            ],
+            "envelope_local": {
+              "min_x": -22,
+              "min_z": -18,
+              "max_x": 22,
+              "max_z": 18,
+              "min_y": 0,
+              "max_y": 35
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 22,
+                "start": -18,
+                "end": 18
+              },
+              {
+                "direction": "NORTH",
+                "plane": -18,
+                "start": -22,
+                "end": 22
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 18,
+                "start": -22,
+                "end": 22
+              },
+              {
+                "direction": "WEST",
+                "plane": -22,
+                "start": -18,
+                "end": 18
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "根据想象生成巴比伦空中花园建筑",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "根据想象生成巴比伦空中花园建筑",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "terraced_garden_ziggurat",
+      "confidence": 0.62
+    },
+    "topology": {
+      "layout": "stepped_rectangular",
+      "composition": "tiered",
+      "axis": "vertical",
+      "levels": "multi"
+    },
+    "structure": {
+      "type": "masonry_bearing_walls",
+      "massiveness": 0.78,
+      "voidRatio": 0.28,
+      "supports": "bearing_walls"
+    },
+    "form": {
+      "repetition": "stacked_tiers",
+      "progression": "diminishing",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "terraces",
+      "arched_vaults",
+      "water_channels",
+      "planters",
+      "roof_garden"
+    ],
+    "materials": {
+      "primary": "sandstone",
+      "secondary": "mud_bricks",
+      "accent": "glazed_brick",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "mesopotamia",
+      "era": "neo_babylonian",
+      "keywords": [
+        "hanging gardens",
+        "ziggurat",
+        "euphrates",
+        "terraces",
+        "irrigation"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 48,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "terraces",
+        "greenery",
+        "arches",
+        "water"
+      ],
+      "avoid": [
+        "gothic",
+        "glass_curtain_wall",
+        "stadium_seating",
+        "skyscraper_setbacks"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "hg_core",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "component_preset": "MASS_MAIN",
+        "footprint": {
+          "width": 44,
+          "depth": 36
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -24,
+        "y": -2,
+        "z": -20
+      },
+      "dimensions": {
+        "width": 48,
+        "depth": 40,
+        "height": 2
+      },
+      "params": {
+        "component_id": "hg_plinth",
+        "material": "sandstone",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "detail_level": "high",
+        "foundation_style": "stepped_plinth",
+        "trim_block": "chiseled_sandstone",
+        "building_id": "hg_ziggurat",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "hg_ziggurat"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 36,
+        "height": 35
+      },
+      "params": {
+        "component_id": "hg_ziggurat",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 5,
+        "floor_height": 7,
+        "void_ratio": 0.28,
+        "window_ratio": 0.3,
+        "window_aspect": "punch_window",
+        "roof_type": "flat",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "facade_cutout": "arches",
+        "detail_level": "high",
+        "material": "sandstone",
+        "wall_block": "sandstone",
+        "floor_block": "mud_bricks",
+        "roof_block": "cut_sandstone",
+        "masses": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 44,
+              "depth": 36,
+              "height": 8
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 8,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 36,
+              "depth": 30,
+              "height": 7
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 15,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 28,
+              "depth": 24,
+              "height": 7
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 22,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 20,
+              "depth": 18,
+              "height": 6
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 28,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 12,
+              "depth": 12,
+              "height": 6
+            },
+            "shape": "rectangle"
+          }
+        ],
+        "building_id": "hg_ziggurat",
+        "envelope_source": "floor_band_datum"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -19
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 6
+      },
+      "params": {
+        "component_id": "hg_gate",
+        "host_id": "hg_ziggurat",
+        "entrance_type": "arched_gate",
+        "facing": "NORTH",
+        "material": "sandstone",
+        "frame_block": "chiseled_sandstone",
+        "carve": true,
+        "detail_level": "high",
+        "door_width": 4,
+        "door_height": 4,
+        "building_id": "hg_ziggurat"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"arched\", \"monumental\", \"double\", \"carved\", \"mud_brick\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 6, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"sandstone\"}, \"constraints\": {\"mustHave\": [\"arch\"], \"forbiddenTags\": [\"glass_curtain\", \"modern_panel\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -16,
+        "y": 2,
+        "z": -18
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 4
+      },
+      "params": {
+        "component_id": "hg_windows_l1",
+        "host_id": "hg_ziggurat",
+        "window_style": "arched",
+        "spacing": 3,
+        "levels": 1,
+        "sill_block": "chiseled_sandstone",
+        "material": "sandstone",
+        "detail_level": "high",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "hg_ziggurat"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arched\", \"deep_reveal\", \"small\", \"recessed\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 4, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"sandstone\"}, \"constraints\": {\"mustHave\": [\"arch\"], \"forbiddenTags\": [\"ribbon_glazing\", \"full_height_glass\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -14,
+        "y": 9,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 1,
+        "height": 4
+      },
+      "params": {
+        "component_id": "hg_windows_l2",
+        "host_id": "hg_ziggurat",
+        "window_style": "arched",
+        "spacing": 3,
+        "levels": 1,
+        "sill_block": "chiseled_sandstone",
+        "material": "sandstone",
+        "detail_level": "medium",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "hg_ziggurat"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -10,
+        "y": 16,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 4
+      },
+      "params": {
+        "component_id": "hg_windows_l3",
+        "host_id": "hg_ziggurat",
+        "window_style": "arched",
+        "spacing": 3,
+        "levels": 1,
+        "material": "sandstone",
+        "detail_level": "medium",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "hg_ziggurat"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -6,
+        "y": 23,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 3
+      },
+      "params": {
+        "component_id": "hg_windows_l4",
+        "host_id": "hg_ziggurat",
+        "window_style": "arched",
+        "spacing": 2,
+        "levels": 1,
+        "material": "sandstone",
+        "detail_level": "medium",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "hg_ziggurat"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -22,
+        "y": 8,
+        "z": -18
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "hg_terrace_l1",
+        "host_id": "hg_ziggurat",
+        "material": "grass_block",
+        "planter_block": "mud_bricks",
+        "plants": true,
+        "irrigation": true,
+        "edge_block": "sandstone",
+        "detail_level": "high",
+        "building_id": "hg_ziggurat",
+        "anchor_mode": "min_corner"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"low_parapet\", \"mud_brick\", \"planter_edge\", \"slender\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"sandstone\"}, \"constraints\": {\"mustHave\": [\"parapet\"], \"forbiddenTags\": [\"metal_fence\", \"glass_rail\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -18,
+        "y": 15,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "hg_terrace_l2",
+        "host_id": "hg_ziggurat",
+        "material": "grass_block",
+        "planter_block": "mud_bricks",
+        "plants": true,
+        "irrigation": true,
+        "edge_block": "sandstone",
+        "detail_level": "high",
+        "building_id": "hg_ziggurat",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -14,
+        "y": 22,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "hg_terrace_l3",
+        "host_id": "hg_ziggurat",
+        "material": "grass_block",
+        "planter_block": "mud_bricks",
+        "plants": true,
+        "irrigation": true,
+        "edge_block": "sandstone",
+        "detail_level": "high",
+        "building_id": "hg_ziggurat",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -10,
+        "y": 28,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 3,
+        "height": 1
+      },
+      "params": {
+        "component_id": "hg_terrace_l4",
+        "host_id": "hg_ziggurat",
+        "material": "grass_block",
+        "planter_block": "mud_bricks",
+        "plants": true,
+        "irrigation": true,
+        "edge_block": "sandstone",
+        "detail_level": "medium",
+        "building_id": "hg_ziggurat",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -6,
+        "y": 16,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "params": {
+        "component_id": "hg_balcony_l3",
+        "host_id": "hg_ziggurat",
+        "material": "sandstone",
+        "railing": true,
+        "railing_block": "sandstone_wall",
+        "planter": true,
+        "detail_level": "medium",
+        "building_id": "hg_ziggurat",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -5,
+        "y": 23,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 2,
+        "height": 1
+      },
+      "params": {
+        "component_id": "hg_balcony_l4",
+        "host_id": "hg_ziggurat",
+        "material": "sandstone",
+        "railing": true,
+        "railing_block": "sandstone_wall",
+        "planter": true,
+        "detail_level": "medium",
+        "building_id": "hg_ziggurat",
+        "anchor_mode": "min_corner"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -7,
+        "y": 35,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 14,
+        "height": 2
+      },
+      "params": {
+        "component_id": "hg_shrine_roof",
+        "host_id": "hg_ziggurat",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet": true,
+        "material": "cut_sandstone",
+        "roof_block": "cut_sandstone",
+        "detail_level": "high",
+        "roof_height": 2,
+        "building_id": "hg_ziggurat"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -22,
+        "y": 7,
+        "z": -18
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 1,
+        "height": 1
+      },
+      "params": {
+        "component_id": "hg_cornice_band",
+        "host_id": "hg_ziggurat",
+        "decor_type": "cornice_band",
+        "pattern": "glazed_brick_relief",
+        "material": "chiseled_sandstone",
+        "accent_block": "lapis_block",
+        "detail_level": "high",
+        "building_id": "hg_ziggurat"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -8,
+        "y": 1,
+        "z": -19
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 4
+      },
+      "params": {
+        "component_id": "hg_gate_relief",
+        "host_id": "hg_ziggurat",
+        "decor_type": "relief_panel",
+        "pattern": "processional_lion_frieze",
+        "material": "glazed_terracotta",
+        "accent_block": "blue_glazed_terracotta",
+        "detail_level": "high",
+        "building_id": "hg_ziggurat"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "hg_core",
+      "relative_position": {
+        "x": -18,
+        "y": 9,
+        "z": -19
+      },
+      "dimensions": {
+        "width": 36,
+        "depth": 1,
+        "height": 2
+      },
+      "params": {
+        "component_id": "hg_hanging_vines",
+        "host_id": "hg_ziggurat",
+        "decor_type": "vegetation",
+        "pattern": "hanging_vines_and_flowers",
+        "material": "oak_leaves",
+        "accent_block": "flowering_azalea_leaves",
+        "detail_level": "medium",
+        "building_id": "hg_ziggurat"
+      },
+      "features": []
+    }
+  ],
+  "description": "Imaginative Hanging Gardens of Babylon: a five-tier diminishing ziggurat of sandstone bearing walls and arched vaults, every tier ringed by a planted terrace with irrigation channels, hanging vines, glazed-brick relief bands flanking the north gate, and a flat-roofed summit shrine.",
+  "enrichment_guard": "non_classical_marker:stadium",
+  "player_fidelity_notice_zh": "组合式生成「根据想象生成巴比伦空中花园建\n筑」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}
