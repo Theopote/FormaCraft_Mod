@@ -1,0 +1,1435 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#D9D4C7",
+    "roof_color": "#2F3A44",
+    "accent_color": "#B08D57",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:polished_andesite",
+    "decorative_elements": [
+      "cornice",
+      "pilasters",
+      "quoins",
+      "balustrade",
+      "pediment"
+    ]
+  },
+  "distinguishing_features": [
+    "central open courtyard 17x17 enclosed on four sides",
+    "three-storey north main hall as the dominant mass",
+    "two-storey east and west wings flanking the courtyard",
+    "south entrance portico with a passable gate from courtyard to street",
+    "second-floor connecting bridges from each wing into the main hall, with doors at both ends",
+    "all principal entrances face inward onto the courtyard"
+  ],
+  "anchor": {
+    "x": -99,
+    "y": 71,
+    "z": -2197
+  },
+  "proportion_hints": {
+    "typology": "courtyard_compound",
+    "height_to_width": 0.43,
+    "depth_to_width": 0.97,
+    "roof_to_body_height": 0.25,
+    "courtyard_to_footprint": 0.24,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_count_named_main_body",
+          "property": "floor_count",
+          "value": null,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "三层",
+            "两层",
+            "二层"
+          ],
+          "scope": "unresolved",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_wing": [
+          "east_wing",
+          "west_wing"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "north_main",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -19
+          },
+          "plan_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -19
+          },
+          "dimensions": {
+            "width": 27,
+            "depth": 11,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "north_main",
+                "local_origin": {
+                  "x": -13,
+                  "y": 0,
+                  "z": -19
+                },
+                "dimensions": {
+                  "width": 27,
+                  "depth": 11,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -13,
+              "min_z": -19,
+              "max_x": 14,
+              "max_z": -8,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 14,
+                "start": -19,
+                "end": -8
+              },
+              {
+                "direction": "NORTH",
+                "plane": -19,
+                "start": -13,
+                "end": 14
+              },
+              {
+                "direction": "SOUTH",
+                "plane": -8,
+                "start": -13,
+                "end": 14
+              },
+              {
+                "direction": "WEST",
+                "plane": -13,
+                "start": -19,
+                "end": -8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "east_wing",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": 9,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": 9,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 9,
+            "depth": 15,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "east_wing",
+                "local_origin": {
+                  "x": 9,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 9,
+                  "depth": 15,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": 9,
+              "min_z": -5,
+              "max_x": 18,
+              "max_z": 10,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 18,
+                "start": -5,
+                "end": 10
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": 9,
+                "end": 18
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 10,
+                "start": 9,
+                "end": 18
+              },
+              {
+                "direction": "WEST",
+                "plane": 9,
+                "start": -5,
+                "end": 10
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "west_wing",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": -17,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -17,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 9,
+            "depth": 15,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "west_wing",
+                "local_origin": {
+                  "x": -17,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 9,
+                  "depth": 15,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -17,
+              "min_z": -5,
+              "max_x": -8,
+              "max_z": 10,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": -8,
+                "start": -5,
+                "end": 10
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -17,
+                "end": -8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 10,
+                "start": -17,
+                "end": -8
+              },
+              {
+                "direction": "WEST",
+                "plane": -17,
+                "start": -5,
+                "end": 10
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "south_portico",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": -8,
+            "y": 0,
+            "z": 9
+          },
+          "plan_origin": {
+            "x": -8,
+            "y": 0,
+            "z": 9
+          },
+          "dimensions": {
+            "width": 17,
+            "depth": 6,
+            "height": 7
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 6,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "south_portico",
+                "local_origin": {
+                  "x": -8,
+                  "y": 0,
+                  "z": 9
+                },
+                "dimensions": {
+                  "width": 17,
+                  "depth": 6,
+                  "height": 7
+                },
+                "roof_y_local": 6
+              }
+            ],
+            "envelope_local": {
+              "min_x": -8,
+              "min_z": 9,
+              "max_x": 9,
+              "max_z": 15,
+              "min_y": 0,
+              "max_y": 7
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 9,
+                "start": 9,
+                "end": 15
+              },
+              {
+                "direction": "NORTH",
+                "plane": 9,
+                "start": -8,
+                "end": 9
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 15,
+                "start": -8,
+                "end": 9
+              },
+              {
+                "direction": "WEST",
+                "plane": -8,
+                "start": 9,
+                "end": 15
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一组围绕中央露天庭院布置的市政厅建筑， 北侧为三层主楼， 东西两侧为两层侧楼， 南侧为带入口的门廊。 庭院约17×17格， 各栋主要入口朝向庭院。 东西侧楼分别通过二层连廊连接主楼，连接处开门， 庭院与街道之间保留可通行入口 。",
+          "purposes": [
+            {
+              "id": "civic_hall",
+              "phrase": "市政厅",
+              "start": 15,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一组围绕中央露天庭院布置的市政厅建筑，\n北侧为三层主楼，\n东西两侧为两层侧楼，\n南侧为带入口的门廊。\n庭院约17×17格，\n各栋主要入口朝向庭院。\n东西侧楼分别通过二层连廊连接主楼，连接处开门，\n庭院与街道之间保留可通行入口\n。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "north_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "east_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "west_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "south_portico",
+          "changes": [],
+          "skipped": [],
+          "style_id": "DEFAULT",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "civic_courtyard_compound",
+      "confidence": 0.78
+    },
+    "topology": {
+      "layout": "courtyard_compound",
+      "composition": "four_masses_around_court",
+      "axis": "north_south",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "load_bearing_masonry",
+      "massiveness": 0.72,
+      "voidRatio": 0.28,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "symmetrical_wings",
+      "progression": "stepped_by_storey",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "entrance",
+      "colonnade",
+      "cornice",
+      "balcony",
+      "bridge"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "neoclassical",
+      "keywords": [
+        "civic",
+        "courtyard",
+        "portico",
+        "pilasters",
+        "civic hall"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 20,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "courtyard enclosure",
+        "entrances facing courtyard",
+        "second-floor bridges with doors",
+        "street passage through south portico"
+      ],
+      "avoid": [
+        "stadium bowl",
+        "elliptical seating",
+        "single monolithic box"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "compound",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "role": "courtyard_compound",
+        "slot_id": "compound"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -13,
+        "y": 0,
+        "z": -19
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 11,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "north_main",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 3,
+        "floor_height": 4,
+        "roof_type": "hip",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "base_plinth": true,
+        "window_style": "grid",
+        "entrance_type": "double_door",
+        "facing": "NORTH",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:deepslate_tiles",
+        "role": "three_storey_main_hall",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.28,
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -14,
+        "y": 12,
+        "z": -20
+      },
+      "dimensions": {
+        "width": 29,
+        "depth": 13,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_north",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "hip",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -13,
+        "y": 0,
+        "z": -19
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 11,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "win_north",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "window_style": "grid",
+        "floors": 3,
+        "floor_height": 4,
+        "spacing": 3,
+        "sill_height": 1,
+        "rhythm": "regular",
+        "glazing": "minecraft:glass_pane",
+        "window_ratio": 0.35,
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "ent_north",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "double_door",
+        "courtyard_facing": true,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -3,
+        "y": 5,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "balc_north",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "railing": true,
+        "railing_block": "minecraft:stone_brick_wall",
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -14,
+        "y": 11,
+        "z": -20
+      },
+      "dimensions": {
+        "width": 29,
+        "depth": 13,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "cornice_north",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "detail_type": "cornice",
+        "band_block": "minecraft:chiseled_stone_bricks",
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -14,
+        "y": 0,
+        "z": -20
+      },
+      "dimensions": {
+        "width": 29,
+        "depth": 13,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "found_north",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "foundation_block": "minecraft:polished_andesite",
+        "plinth": true,
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 15,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "east_wing",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "hip",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "base_plinth": true,
+        "window_style": "grid",
+        "entrance_type": "double_door",
+        "facing": "EAST",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:deepslate_tiles",
+        "role": "two_storey_side_wing",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.28,
+        "building_id": "east_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 8,
+        "y": 8,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 17,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_east",
+        "host_id": "east_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "hip",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "east_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 15,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "win_east",
+        "host_id": "east_wing",
+        "anchor_mode": "min_corner",
+        "window_style": "grid",
+        "floors": 2,
+        "floor_height": 4,
+        "spacing": 3,
+        "sill_height": 1,
+        "rhythm": "regular",
+        "glazing": "minecraft:glass_pane",
+        "window_ratio": 0.35,
+        "building_id": "east_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "ent_east",
+        "host_id": "east_wing",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "entrance_type": "double_door",
+        "courtyard_facing": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "east_wing"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "found_east",
+        "host_id": "east_wing",
+        "anchor_mode": "min_corner",
+        "foundation_block": "minecraft:polished_andesite",
+        "plinth": true,
+        "building_id": "east_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -17,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 15,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "west_wing",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "hip",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "base_plinth": true,
+        "window_style": "grid",
+        "entrance_type": "double_door",
+        "facing": "WEST",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:deepslate_tiles",
+        "role": "two_storey_side_wing",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.28,
+        "building_id": "west_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -18,
+        "y": 8,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 17,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_west",
+        "host_id": "west_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "hip",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "west_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -17,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 15,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "win_west",
+        "host_id": "west_wing",
+        "anchor_mode": "min_corner",
+        "window_style": "grid",
+        "floors": 2,
+        "floor_height": 4,
+        "spacing": 3,
+        "sill_height": 1,
+        "rhythm": "regular",
+        "glazing": "minecraft:glass_pane",
+        "window_ratio": 0.35,
+        "building_id": "west_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "ent_west",
+        "host_id": "west_wing",
+        "anchor_mode": "min_corner",
+        "facing": "WEST",
+        "entrance_type": "double_door",
+        "courtyard_facing": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "west_wing"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -18,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "found_west",
+        "host_id": "west_wing",
+        "anchor_mode": "min_corner",
+        "foundation_block": "minecraft:polished_andesite",
+        "plinth": true,
+        "building_id": "west_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 6,
+        "height": 7
+      },
+      "features": [],
+      "params": {
+        "component_id": "south_portico",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 1,
+        "floor_height": 6,
+        "roof_type": "flat",
+        "facade_profile": "colonnade",
+        "wall_pattern": "plain",
+        "base_plinth": true,
+        "window_style": "grid",
+        "entrance_type": "double_door",
+        "facing": "SOUTH",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:stone_bricks",
+        "role": "south_entrance_portico",
+        "passage_through": true,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.28,
+        "building_id": "south_portico"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -8,
+        "y": 7,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_porch",
+        "host_id": "south_portico",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 0,
+        "roof_block": "minecraft:stone_bricks",
+        "roof_height": 2,
+        "building_id": "south_portico"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -8,
+        "y": 8,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "terrace_portico",
+        "host_id": "south_portico",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_block": "minecraft:stone_brick_wall",
+        "deck_block": "minecraft:polished_andesite",
+        "building_id": "south_portico"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "ent_porch_court",
+        "host_id": "south_portico",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "entrance_type": "double_door",
+        "courtyard_facing": true,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "south_portico"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "ent_porch_street",
+        "host_id": "south_portico",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "gate",
+        "courtyard_facing": false,
+        "street_passage": true,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "south_portico"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "found_porch",
+        "host_id": "south_portico",
+        "anchor_mode": "min_corner",
+        "foundation_block": "minecraft:polished_andesite",
+        "plinth": true,
+        "building_id": "south_portico"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 9,
+        "y": 4,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "bridge_east",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "roof_type": "flat",
+        "floor_height": 3,
+        "railing": true,
+        "railing_block": "minecraft:stone_brick_wall",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "role": "second_floor_connecting_corridor",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.28,
+        "building_id": "bridge_east"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 10,
+        "y": 4,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "bridge_east_door_wing",
+        "host_id": "bridge_east",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "bridge_east"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": 10,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "bridge_east_door_main",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "entrance_type": "door",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -13,
+        "y": 4,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "bridge_west",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "roof_type": "flat",
+        "floor_height": 3,
+        "railing": true,
+        "railing_block": "minecraft:stone_brick_wall",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "role": "second_floor_connecting_corridor",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.28,
+        "building_id": "bridge_west"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -12,
+        "y": 4,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "bridge_west_door_wing",
+        "host_id": "bridge_west",
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "entrance_type": "door",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "bridge_west"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -12,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "bridge_west_door_main",
+        "host_id": "north_main",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "entrance_type": "door",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "north_main"
+      }
+    },
+    {
+      "component_type": "COURTYARD",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "courtyard_paving",
+        "anchor_mode": "min_corner",
+        "paving_block": "minecraft:polished_andesite",
+        "pattern": "grid",
+        "accent_block": "minecraft:stone_bricks",
+        "open_air": true,
+        "building_id": "courtyard_paving"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "compound",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 15
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "path_street_access",
+        "anchor_mode": "min_corner",
+        "path_block": "minecraft:polished_andesite",
+        "connects": "courtyard_to_street"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「建造一组围绕中央露天庭院布置\n的市政厅建筑，\n北侧为三层主楼，\n东西两侧为两层侧楼，\n南侧为带入口的门廊。\n庭院约17×」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

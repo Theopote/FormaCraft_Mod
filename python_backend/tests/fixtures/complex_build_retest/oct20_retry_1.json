@@ -1,0 +1,279 @@
+{
+  "mode": "build",
+  "style_profile": "Fujian_Tulou",
+  "style_attributes": {
+    "wall_color": "#C2A678",
+    "roof_color": "#33302E",
+    "accent_color": "#8B5E34",
+    "wall_material": "minecraft:packed_mud",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:dark_oak_planks",
+    "decorative_elements": [
+      "夯土色环墙",
+      "木质内廊与栏板",
+      "深色瓦屋顶出檐",
+      "露天中央庭院"
+    ]
+  },
+  "distinguishing_features": [
+    "露天中央庭院",
+    "圆形夯土环墙",
+    "各层木质内廊朝向庭院",
+    "房间入口开向内廊",
+    "单一外部主入口"
+  ],
+  "anchor": {
+    "x": -145,
+    "y": 71,
+    "z": -2163
+  },
+  "proportion_hints": {
+    "typology": "tulou",
+    "height_to_diameter": 0.52,
+    "wall_thickness_to_diameter": 0.08,
+    "courtyard_to_diameter": 0.56,
+    "roof_overhang": 1.5,
+    "note": "圆形环墙承重，内院露天，三层内廊环绕",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 3,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "三层"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "unverified"
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": []
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Chinese_Vernacular_Tulou",
+          "identity_id": "Chinese_Vernacular_Tulou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Tulou"
+        },
+        {
+          "requested_id": "Chinese_Vernacular_Tulou",
+          "identity_id": "Chinese_Vernacular_Tulou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Tulou"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一个由三栋圆形福建土楼组成的小型聚落， 三栋建筑分开布置， 间隔至少8格，用石板路连接。 每栋土楼直径约25格、高三层， 使用夯土色墙面、 木质内廊和深色瓦屋顶。 中央庭院露天， 各层内廊朝向庭院， 房间入口开向内廊， 每栋设一个外部主入口。",
+          "purposes": [],
+          "styles": [
+            {
+              "id": "Chinese_Vernacular_Tulou",
+              "phrase": "土楼",
+              "start": 11,
+              "status": "requested",
+              "part": "building"
+            },
+            {
+              "id": "Chinese_Vernacular_Tulou",
+              "phrase": "土楼",
+              "start": 49,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一个由三栋圆形福建土楼组成的小型聚落，\n三栋建筑分开布置，\n间隔至少8格，用石板路连接。\n每栋土楼直径约25格、高三层，\n使用夯土色墙面、\n木质内廊和深色瓦屋顶。\n中央庭院露天，\n各层内廊朝向庭院，\n房间入口开向内廊，\n每栋设一个外部主入口。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "tulou",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "circular",
+      "composition": "single",
+      "axis": "radial",
+      "levels": "three"
+    },
+    "structure": {
+      "type": "rammed_earth_ring",
+      "massiveness": 0.82,
+      "voidRatio": 0.42,
+      "supports": "continuous_ring_wall"
+    },
+    "form": {
+      "repetition": "radial",
+      "progression": "uniform",
+      "curvature": "circular",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 24,
+      "mirror": null
+    },
+    "modules": [
+      "courtyard",
+      "inner_corridor",
+      "roof",
+      "windows"
+    ],
+    "materials": {
+      "primary": "rammed_earth",
+      "secondary": "wood",
+      "accent": "dark_tile",
+      "textureBias": "weathered",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "fujian",
+      "era": "ming_qing",
+      "keywords": [
+        "hakka",
+        "earthen_ring",
+        "communal_courtyard"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "circular_ring_wall",
+        "open_courtyard",
+        "inward_corridors"
+      ],
+      "avoid": [
+        "rectangular_shell",
+        "solid_fill",
+        "stadium_bowl"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "slot_0",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "component_preset": "MODULE",
+        "slot_id": "slot_0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MODULE",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 25,
+        "height": 13
+      },
+      "features": [
+        "landmark:tulou"
+      ],
+      "params": {
+        "component_id": "tulou_main_01",
+        "module_id": "tulou",
+        "meshStructure": true,
+        "designSeed": 4172,
+        "facing": "EAST",
+        "diameter": 25,
+        "floor_count": 3,
+        "floor_height": 4,
+        "wall_thickness": 2,
+        "courtyard_open": true,
+        "inner_corridor_material": "wood",
+        "entrance_count": 1,
+        "wall_block": "minecraft:packed_mud",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "requirement_scope": "all_main_masses",
+        "style_profile": "Fujian_Tulou",
+        "notes": "三层圆形福建土楼：夯土环墙、各层木质内廊朝向露天庭院、房间门开向内廊、深色瓦屋顶，设单一外部主入口"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "识别为预置地标「tulou」，使用固定模板生成（保真度：取决于模块与真实建筑吻合度）",
+  "kind": "llmplan"
+}

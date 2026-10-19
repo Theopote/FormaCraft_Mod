@@ -30,7 +30,7 @@ NAMED_BUILDINGS = {
     'chapel': ('礼拜堂', 'chapel'),
 }
 
-ELEMENT_SUBJECTS = ('楼梯', '步道', '走道', '连廊', '木桥', '水渠', '栏杆', '阳台', '回廊', '窗口', '窗户', '入口')
+ELEMENT_SUBJECTS = ('楼梯', '步道', '走道', '连廊', '木桥', '水渠', '栏杆', '阳台', '回廊', '窗口', '窗户', '入口', '门洞')
 
 
 def _numeric_subject(text: str, match: re.Match) -> str:
@@ -39,6 +39,9 @@ def _numeric_subject(text: str, match: re.Match) -> str:
     start = max(text.rfind(s, 0, match.start()) for s in ('。', '；', ';')) + 1
     prefix = text[start:match.start()]
     suffix = re.split(r'[，。；;,]', text[match.end():match.end()+12])[0]
+    if (re.match(r'(?:宽度|宽|长度|长|深度|深)', match[0])
+            and '门洞' in re.split(r'[。；;]',text[match.end():match.end()+24])[0]):
+        return 'element_scope'
     if re.match(r'(?:宽度|宽|长度|长|深度|深)', match[0]) and any(name in suffix for name in ELEMENT_SUBJECTS):
         return 'element_scope'
     if re.match(r'[一二两三四五六七八九十\d]+\s*层', match[0]):
@@ -236,14 +239,20 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     slot_ids = [s.get('slot_id', s.get('id')) for s in slots_for_modules if isinstance(s, dict)]
     if len(components) == 1 and components[0].get('component_type') == 'MODULE' and count_match:
         count = int(count_match[1]) if count_match[1].isdigit() else '零一二三四五六七八九'.index(count_match[1])
-        if not slots_for_modules and components[0].get('dimensions') and not components[0].get('slot_id'):
+        if (len(slots_for_modules) < count and components[0].get('dimensions')
+                and (not slots_for_modules or components[0].get('slot_id') in slot_ids)):
             prototype = components[0]
             dims = prototype['dimensions']
             gap_match = re.search(r'间隔(?:至少|约)?\s*(\d+)\s*格', text)
             gap = max(8, int(gap_match[1])) if gap_match else 8
-            slots_for_modules = [{'slot_id': f'module_{i+1}',
-                                  'anchor': {'x': i*(dims['width']+gap), 'y': 0, 'z': 0}}
-                                 for i in range(count)]
+            first = deepcopy(slots_for_modules[0]) if slots_for_modules else {'slot_id': prototype.get('slot_id') or 'module_1', 'anchor': {'x': 0,'y': 0,'z': 0}}
+            slots_for_modules = deepcopy(slots_for_modules) or [first]
+            for i in range(len(slots_for_modules),count):
+                slot = deepcopy(first)
+                slot['slot_id'] = f"{first['slot_id']}_{i+1}" if slot_ids else f'module_{i+1}'
+                slot.pop('id',None)
+                slot.setdefault('anchor',{})['x'] = max(s.get('anchor',{}).get('x',0) for s in slots_for_modules)+dims['width']+gap
+                slots_for_modules.append(slot)
             out.setdefault('layout', {})['slots'] = slots_for_modules
             slot_ids = [s['slot_id'] for s in slots_for_modules]
             prototype['slot_id'] = slot_ids[0]
@@ -258,6 +267,43 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 clone.setdefault('params', {})['component_id'] = str(prototype.get('params', {}).get('component_id', 'module')) + '#' + str(key)
                 components.append(clone)
             out['components'] = components
+    # Execute explicit rectangular setback schedules rather than leaving their
+    # full-height circular placeholder as the only shell.
+    for body in components:
+        p = body.get('params') or {}
+        footprints, levels = p.get('tier_footprints'), p.get('tier_base_levels')
+        d = body.get('dimensions') or {}
+        if (body.get('component_type') != 'MASS_MAIN' or not re.search(r'退台|逐层缩小|每层逐渐缩小',text)
+                or not isinstance(footprints,list) or not isinstance(levels,list)
+                or len(footprints) != len(levels) or not 2 <= len(levels) <= 16
+                or any(not isinstance(f,list) or len(f)!=2 or any(type(v) is not int or v<3 for v in f) for f in footprints)
+                or any(type(v) is not int for v in levels) or levels != sorted(set(levels))):
+            continue
+        from .resolved_geometry import mass_origin
+        origin = mass_origin(body)
+        if (levels[0] != origin['y'] or footprints[0] != [d.get('width'),d.get('depth')]
+                or any(b[0]>a[0] or b[1]>a[1] for a,b in zip(footprints,footprints[1:]))
+                or levels[-1] >= origin['y']+d.get('height',0)):
+            continue
+        top = origin['y']+d['height']
+        p.update(shape='rectangle',plan_type='none',terraced=True,roof_type='flat')
+        p['masses'] = [{'offset':{'x':0,'y':level-origin['y'],'z':0},
+                        'dimensions':{'width':f[0],'depth':f[1],'height':(levels[i+1] if i+1<len(levels) else top)-level},
+                        'shape':'rectangle'} for i,(f,level) in enumerate(zip(footprints,levels))]
+        for plate in components:
+            pp = plate.get('params') or {}
+            if pp.get('host_id') == p.get('component_id') and pp.get('extrude_mode') == 'plate' and pp.get('plate_role') == 'floor':
+                plate['dimensions']['height'] = 1
+                pp.update(floor_count=1,floor_height=1)
+            if (plate.get('component_type') == 'DECOR_DETAIL' and pp.get('host_id') == p.get('component_id')
+                    and pp.get('planter_count') and pp.get('saplings') and not pp.get('planting_layout_source')):
+                # Keep the planter inside the two-cell exposed terrace band,
+                # above the deck rather than inside the next tier's wall.
+                plate['relative_position']['y'] += 1
+                plate['relative_position']['z'] -= 1
+                plate['dimensions'].update(depth=2,height=2)
+                pp.update(decor_type='planter',foliage_block='minecraft:oak_leaves[persistent=true]',
+                          planting_layout_source='terrace_outer_edge')
     for component in components:
         params = component.get('params') or {}
         roof_aliases = {'chinese_xieshan':'xieshan', 'chinese_xuanshan':'xuanshan', 'chinese_yingshan':'yingshan', 'spire':'pyramid'}

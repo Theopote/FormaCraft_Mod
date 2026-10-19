@@ -1633,6 +1633,32 @@
         "material_block": "minecraft:smooth_sandstone",
         "building_id": "courtyard_floor"
       }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 6,
+        "y": 6,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "gallery_south#platform_door",
+        "host_id": "main_body",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "main_body",
+        "facing": "WEST",
+        "anchor_mode": "min_corner",
+        "platform_connection": "gallery_south"
+      }
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「沙漠风格的商队驿站」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",

@@ -1047,6 +1047,32 @@
         "anchor_mode": "center"
       },
       "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 7,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_hall_balcony#platform_door",
+        "host_id": "forbidden_city_main_hall",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "forbidden_city_main_hall",
+        "facing": "NORTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "main_hall_balcony"
+      }
     }
   ],
   "player_fidelity_notice_zh": "识别为真实建筑「Forbidden City (故宫)」，无专属模板，已依据研究资料组合式重建（保真度：中等；重点特征：meridian gate axial symmetry、yellow glazed tile roofs、red lacquered walls and columns）",

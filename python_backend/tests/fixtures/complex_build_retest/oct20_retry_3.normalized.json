@@ -1,0 +1,832 @@
+{
+  "mode": "build",
+  "style_profile": "Rustic_Vernacular",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "dark_brown",
+    "accent_color": "grey",
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:spruce_planks",
+    "decorative_elements": [
+      "stone_plinth",
+      "timber_frames",
+      "eave_cornice",
+      "chimney",
+      "terrace_railing"
+    ]
+  },
+  "distinguishing_features": [
+    "stone brick plinth wrapping the full footprint",
+    "white plastered upper walls with dark timber window frames",
+    "dark oak gable roof with one-block eave overhang",
+    "front main entrance under a small dark oak canopy",
+    "side terrace on the second floor reached by a continuous outdoor staircase",
+    "terrace door into the second-floor interior with clear landing space",
+    "fenced terrace edge along the outer and end sides"
+  ],
+  "anchor": {
+    "x": -99,
+    "y": 71,
+    "z": -2197
+  },
+  "proportion_hints": {
+    "typology": "mountain_inn",
+    "height_to_width": 0.57,
+    "depth_to_width": 0.71,
+    "roof_to_body_height": 0.42,
+    "floor_height": 4,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": null,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "三层",
+            "二层",
+            "二层"
+          ],
+          "scope": "unresolved",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "inn_body"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "inn_body",
+          "slot_id": "inn_slot",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "dimensions": {
+            "width": 21,
+            "depth": 15,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "inn_body",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 21,
+                  "depth": 15,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 21,
+              "max_z": 15,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 21,
+                "start": 0,
+                "end": 15
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 21
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 15,
+                "start": 0,
+                "end": 21
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 15
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一栋约21×15格的三层山地旅馆，使用石砖底座、 白色墙面和深色木屋顶。 正面设置主入口， 侧面设置从地面通向二层平台的室外楼梯。 平台与二层室内之间必须开门， 门前保留落脚空间。 楼梯全程连贯，平台有栏杆， 屋顶不能与楼梯冲突。",
+          "purposes": [
+            {
+              "id": "hotel",
+              "phrase": "旅馆",
+              "start": 16,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一栋约21×15格的三层山地旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层平台的室外楼梯。\n平台与二层室内之间必须开门，\n门前保留落脚空间。\n楼梯全程连贯，平台有栏杆，\n屋顶不能与楼梯冲突。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "mountain_inn",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "long_side",
+      "levels": "three"
+    },
+    "structure": {
+      "type": "load_bearing_wall",
+      "massiveness": 0.55,
+      "voidRatio": 0.22,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "floor_bands",
+      "progression": "stacked",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "plinth",
+      "windows",
+      "roof",
+      "terrace",
+      "stair",
+      "chimney"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "white_plaster",
+      "accent": "dark_oak",
+      "textureBias": "rustic",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "alpine_europe",
+      "era": "vernacular",
+      "keywords": [
+        "mountain_lodge",
+        "timber_frame",
+        "stone_base"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "entrance_front",
+        "exterior_stair_continuity",
+        "terrace_railing"
+      ],
+      "avoid": [
+        "stadium_routing",
+        "floating_stair"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "inn_slot",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "size": {
+          "width": 21,
+          "depth": 15,
+          "height": 12
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 3,
+        "floor_height": 4,
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:spruce_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "base_block": "minecraft:stone_bricks",
+        "base_height": 2,
+        "void_ratio": 0.22,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "roof_type": "gable",
+        "window_style": "timber_frame",
+        "entrance_type": "arched_double",
+        "window_ratio": 0.35,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_plinth",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plinth": true,
+        "block": "minecraft:stone_bricks",
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_floor_2",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "tier_index": 1,
+        "block": "minecraft:spruce_planks",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_floor_3",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "tier_index": 2,
+        "block": "minecraft:spruce_planks",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": -1,
+        "y": 12,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 17,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_roof",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "x",
+        "overhang": 1,
+        "pitch": 1.0,
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_stairs": "minecraft:dark_oak_stairs",
+        "gable_end": "timber",
+        "clear_terrace_side": true,
+        "roof_height": 5,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 20,
+        "y": 1,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_main_door",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "entrance_type": "arched_double",
+        "material": "minecraft:dark_oak_planks",
+        "carve": true,
+        "mask": {
+          "w": 3,
+          "h": 3,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 9,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_terrace_door",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single",
+        "material": "minecraft:dark_oak_planks",
+        "carve": true,
+        "landing_clearance": 2,
+        "mask": {
+          "w": 2,
+          "h": 3,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "inn_body",
+        "facing": "SOUTH",
+        "platform_connection": "inn_terrace"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 6,
+        "y": 4,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_terrace",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "deck_block": "minecraft:spruce_planks",
+        "platform": true,
+        "level": 2,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "inn_outer_stair",
+        "host_id": "inn_body",
+        "exterior": true,
+        "from": {
+          "x": 18,
+          "y": 0,
+          "z": -3
+        },
+        "to": {
+          "x": 14,
+          "y": 4,
+          "z": -3
+        },
+        "width": 2,
+        "stairs": "minecraft:dark_oak_stairs",
+        "floor": "minecraft:stone_bricks",
+        "clearHeight": 2,
+        "landing_length": 2,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 5,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "inn_inner_stair",
+        "host_id": "inn_body",
+        "exterior": false,
+        "from": {
+          "x": 3,
+          "y": 5,
+          "z": 9
+        },
+        "to": {
+          "x": 3,
+          "y": 9,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:spruce_stairs",
+        "floor": "minecraft:spruce_planks",
+        "clearHeight": 2,
+        "landing_length": 2,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_windows_1f",
+        "host_id": "inn_body",
+        "window_style": "timber_frame",
+        "glass_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:dark_oak_planks",
+        "spacing": 4,
+        "sill_height": 2,
+        "skip_entrance": true,
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_windows_2f",
+        "host_id": "inn_body",
+        "window_style": "timber_frame",
+        "glass_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:dark_oak_planks",
+        "spacing": 4,
+        "sill_height": 2,
+        "skip_terrace_door": true,
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 10,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_windows_3f",
+        "host_id": "inn_body",
+        "window_style": "timber_frame",
+        "glass_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:dark_oak_planks",
+        "spacing": 4,
+        "sill_height": 2,
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 18,
+        "y": 4,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_entrance_canopy",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "decor_type": "canopy",
+        "block": "minecraft:dark_oak_slab",
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": -1,
+        "y": 11,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_cornice",
+        "host_id": "inn_body",
+        "anchor_mode": "min_corner",
+        "decor_type": "cornice",
+        "block": "minecraft:stone_bricks",
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 6,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_terrace_rail_outer",
+        "host_id": "inn_terrace",
+        "anchor_mode": "min_corner",
+        "decor_type": "railing",
+        "block": "minecraft:dark_oak_fence",
+        "rail_height": 1,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 6,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_terrace_rail_end",
+        "host_id": "inn_terrace",
+        "anchor_mode": "min_corner",
+        "decor_type": "railing",
+        "block": "minecraft:dark_oak_fence",
+        "rail_height": 1,
+        "building_id": "inn_body"
+      }
+    },
+    {
+      "component_type": "CHIMNEY",
+      "slot_id": "inn_slot",
+      "relative_position": {
+        "x": 16,
+        "y": 12,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "inn_chimney",
+        "host_id": "inn_roof",
+        "anchor_mode": "min_corner",
+        "block": "minecraft:stone_bricks",
+        "cap": "minecraft:stone_brick_slab"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「建造一栋约21×15格的三层山地\n旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

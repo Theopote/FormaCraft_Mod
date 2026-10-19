@@ -1316,6 +1316,32 @@
         "block": "minecraft:chiseled_sandstone",
         "building_id": "louvre_wing_east"
       }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "louvre_court",
+      "relative_position": {
+        "x": -7,
+        "y": 11,
+        "z": 22
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "louvre_balcony_south#platform_door",
+        "host_id": "louvre_wing_south",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "louvre_wing_south",
+        "facing": "SOUTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "louvre_balcony_south"
+      }
     }
   ],
   "player_fidelity_notice_zh": "识别为真实建筑「卢浮宫」，无专属模板，已依据研究资料组合式重建（保真度：中等；重点特征：Renaissance palace courtyard wings、glass pyramid entrance pavilion、long axial palace facade）",

@@ -1,0 +1,1337 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": null,
+    "roof_color": null,
+    "accent_color": null,
+    "wall_material": "minecraft:sandstone",
+    "roof_material": "minecraft:stone_bricks",
+    "floor_material": "minecraft:smooth_sandstone",
+    "decorative_elements": [
+      "ground_floor_colonnade",
+      "cornice_bands",
+      "stone_balustrade",
+      "terraced_planters",
+      "colonnade",
+      "column"
+    ]
+  },
+  "distinguishing_features": [
+    "ground_floor_colonnade",
+    "five_stepped_sky_garden_terraces",
+    "walkable_terrace_ring_with_planters_and_railings",
+    "interior_stair_flights_linking_all_five_floors",
+    "colonnade",
+    "column"
+  ],
+  "anchor": {
+    "x": -79,
+    "y": 73,
+    "z": -2263
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "stepped_sky_garden",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "stepped_rectangular",
+      "composition": "tiered",
+      "axis": "vertical",
+      "levels": "five"
+    },
+    "structure": {
+      "type": "framed_masonry",
+      "massiveness": 0.72,
+      "voidRatio": 0.24,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "tier",
+      "progression": "stepped",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "colonnade",
+      "terrace",
+      "planter",
+      "railing",
+      "stair",
+      "parapet"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "sandstone",
+      "accent": "chiseled_sandstone",
+      "textureBias": "warm_masonry",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "classical",
+      "keywords": [
+        "sandstone",
+        "colonnade",
+        "balustrade",
+        "hanging_garden"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 25,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "walkable_terrace_ring",
+        "door_from_terrace_to_interior",
+        "stepped_massing"
+      ],
+      "avoid": [
+        "sealed_terrace_wall",
+        "single_flat_box"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "sky_garden_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "size": {
+          "width": 35,
+          "depth": 29,
+          "height": 25
+        },
+        "role": "main"
+      }
+    ]
+  },
+  "proportion_hints": {
+    "typology": "stepped_terraced_garden",
+    "height_to_width": 0.71,
+    "depth_to_width": 0.83,
+    "roof_to_body_height": 0.08,
+    "floor_height": 5,
+    "floor_count": 5,
+    "tier_setback": 2,
+    "terrace_walk_width": 2,
+    "enclosure_coverage": 0.76,
+    "void_ratio": 0.24,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 5,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "五层"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "main_tower"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_tower": [
+          "main_tower"
+        ],
+        "named_main_body": [
+          "main_tower"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_tower",
+          "slot_id": "sky_garden_main",
+          "local_origin": {
+            "x": -17,
+            "y": 1,
+            "z": -14
+          },
+          "plan_origin": {
+            "x": -17,
+            "y": 1,
+            "z": -14
+          },
+          "dimensions": {
+            "width": 35,
+            "depth": 29,
+            "height": 25
+          },
+          "floor_ys_local": [
+            1,
+            6,
+            11,
+            16,
+            21
+          ],
+          "roof_y_local": 25,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_tower",
+                "local_origin": {
+                  "x": -17,
+                  "y": 1,
+                  "z": -14
+                },
+                "dimensions": {
+                  "width": 35,
+                  "depth": 29,
+                  "height": 25
+                },
+                "roof_y_local": 25
+              }
+            ],
+            "envelope_local": {
+              "min_x": -17,
+              "min_z": -14,
+              "max_x": 18,
+              "max_z": 15,
+              "min_y": 1,
+              "max_y": 26
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座五层退台式空中花园， 底层约35×29格， 总高约25格。每层逐渐缩小， 四周保留可行走露台， 设置花坛、树木和栏杆。 主体使用砂岩与石砖， 底层设置柱廊， 各层通过内部楼梯连接。 露台通向室内的位置需要开门， 不能被墙封住。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座五层退台式空中花园，\n底层约35×29格，\n总高约25格。每层逐渐缩小，\n四周保留可行走露台，\n设置花坛、树木和栏杆。\n主体使用砂岩与石砖，\n底层设置柱廊，\n各层通过内部楼梯连接。\n露台通向室内的位置需要开门，\n不能被墙封住。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -18,
+        "y": 0,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 37,
+        "depth": 31,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "plinth_main",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "plinth": true,
+        "note": "one-block plinth ring around the base tier",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -17,
+        "y": 1,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 35,
+        "depth": 29,
+        "height": 25
+      },
+      "features": [
+        "component_request:{\"semantic\":{\"role\":\"wall\",\"tags\":[\"sandstone\",\"stone_brick_banding\",\"colonnade_base\"]},\"context\":{\"placement\":\"wall\",\"side\":\"exterior\",\"heightLevel\":\"ground\"},\"geometry\":{\"requiresOpening\":false,\"openingWidth\":null,\"openingHeight\":null,\"tolerance\":2,\"scalable\":true},\"style\":{\"styleProfile\":\"Classical_Sandstone\",\"materialTone\":\"warm sandstone and stone brick\"},\"constraints\":{\"mustHave\":[],\"forbiddenTags\":[\"glass_curtain\"]},\"usageHint\":{\"frequency\":\"primary\",\"visibility\":\"high\"}}",
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 5,
+        "floor_height": 5,
+        "building_height": 25,
+        "void_ratio": 0.24,
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:stone_bricks",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "base_plinth": true,
+        "colonnade": true,
+        "stepped": true,
+        "tier_count": 5,
+        "setback_per_tier": 2,
+        "tier_footprints": [
+          [
+            35,
+            29
+          ],
+          [
+            31,
+            25
+          ],
+          [
+            27,
+            21
+          ],
+          [
+            23,
+            17
+          ],
+          [
+            19,
+            13
+          ]
+        ],
+        "tier_base_levels": [
+          1,
+          6,
+          11,
+          16,
+          21
+        ],
+        "shape": "circle",
+        "window_ratio": 0.6,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -15,
+        "y": 1,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 31,
+        "depth": 25,
+        "height": 15
+      },
+      "features": [
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "floor_plate_ground",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "storey": 1,
+        "material": "minecraft:smooth_sandstone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.24,
+        "floor_height": 3,
+        "floor_count": 5,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -13,
+        "y": 6,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 21,
+        "height": 15
+      },
+      "features": [
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "floor_plate_2",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "storey": 2,
+        "material": "minecraft:smooth_sandstone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.24,
+        "floor_height": 3,
+        "floor_count": 5,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -11,
+        "y": 11,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 17,
+        "height": 15
+      },
+      "features": [
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "floor_plate_3",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "storey": 3,
+        "material": "minecraft:smooth_sandstone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.24,
+        "floor_height": 3,
+        "floor_count": 5,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -9,
+        "y": 16,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 13,
+        "height": 15
+      },
+      "features": [
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "floor_plate_4",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "storey": 4,
+        "material": "minecraft:smooth_sandstone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.24,
+        "floor_height": 3,
+        "floor_count": 5,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -7,
+        "y": 21,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 9,
+        "height": 15
+      },
+      "features": [
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "floor_plate_5",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "storey": 5,
+        "material": "minecraft:smooth_sandstone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.24,
+        "floor_height": 3,
+        "floor_count": 5,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -17,
+        "y": 6,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 35,
+        "depth": 29,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "terrace_level_2",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "ring_width": 2,
+        "walkable": true,
+        "planters": true,
+        "railings": true,
+        "trees": 2,
+        "deck_material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -15,
+        "y": 11,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 31,
+        "depth": 25,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "terrace_level_3",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "ring_width": 2,
+        "walkable": true,
+        "planters": true,
+        "railings": true,
+        "trees": 2,
+        "deck_material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -13,
+        "y": 16,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 21,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "terrace_level_4",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "ring_width": 2,
+        "walkable": true,
+        "planters": true,
+        "railings": true,
+        "trees": 2,
+        "deck_material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -11,
+        "y": 21,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "terrace_level_5",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "ring_width": 2,
+        "walkable": true,
+        "planters": true,
+        "railings": true,
+        "trees": 2,
+        "deck_material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -10,
+        "y": 26,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "roof_crown",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet": true,
+        "roof_material": "minecraft:stone_bricks",
+        "garden_deck": true,
+        "roof_height": 2,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -2,
+        "y": 1,
+        "z": 13
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"double\", \"paneled\", \"sandstone_frame\", \"grand\"], \"importance\": [\"role\", \"style\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 4, \"openingHeight\": 4, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"warm sandstone with stone brick surround\"}, \"constraints\": {\"mustHave\": [\"opening\", \"solid_panels\"], \"forbiddenTags\": [\"modern_glass\", \"metal_shutter\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "entrance_ground",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "entrance_type": "double_door_with_portico",
+        "facing": "SOUTH",
+        "portico": true,
+        "colonnade": true,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -1,
+        "y": 6,
+        "z": 12
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"single\", \"wooden\", \"terrace_access\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"oak door in sandstone frame\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"solid_wall\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "door_terrace_2",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "facing": "SOUTH",
+        "terrace_level": 2,
+        "note": "opens from terrace ring into interior, must not be sealed",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -1,
+        "y": 11,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"single\", \"wooden\", \"terrace_access\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"oak door in sandstone frame\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"solid_wall\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "door_terrace_3",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "facing": "SOUTH",
+        "terrace_level": 3,
+        "note": "opens from terrace ring into interior, must not be sealed",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -1,
+        "y": 16,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"single\", \"wooden\", \"terrace_access\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"oak door in sandstone frame\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"solid_wall\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "door_terrace_4",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "facing": "SOUTH",
+        "terrace_level": 4,
+        "note": "opens from terrace ring into interior, must not be sealed",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -1,
+        "y": 21,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"single\", \"wooden\", \"terrace_access\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"oak door in sandstone frame\"}, \"constraints\": {\"mustHave\": [\"opening\"], \"forbiddenTags\": [\"solid_wall\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "door_terrace_5",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "facing": "SOUTH",
+        "terrace_level": 5,
+        "note": "opens from terrace ring into interior, must not be sealed",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -16,
+        "y": 2,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 33,
+        "depth": 1,
+        "height": 23
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"tall\", \"recessed\", \"sandstone_sill\", \"vertical_bay\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"dark glass inset in sandstone surround\"}, \"constraints\": {\"mustHave\": [\"opening\", \"sill\"], \"forbiddenTags\": [\"floor_to_ceiling_glass\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "facade_windows_main",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "window_style": "tall_recessed_bay",
+        "rhythm": 4,
+        "rows": 5,
+        "window_spacing": 4,
+        "sill_material": "minecraft:chiseled_sandstone",
+        "window_ratio": 0.35,
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -6,
+        "y": 1,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 3,
+        "height": 5
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"column\", \"tags\": [\"slender\", \"fluted\", \"sandstone\", \"colonnade\"], \"importance\": [\"style\", \"role\"]}, \"context\": {\"placement\": \"ground\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"smooth sandstone with stone brick base\"}, \"constraints\": {\"mustHave\": [\"base\", \"shaft\"], \"forbiddenTags\": [\"modern_steel\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "colonnade_ground",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "column_count": 6,
+        "column_height": 5,
+        "material": "minecraft:smooth_sandstone",
+        "note": "ground floor portico colonnade along south face",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -17,
+        "y": 5,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 35,
+        "depth": 29,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "cornice_bands",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "band_type": "cornice",
+        "band_levels": [
+          5,
+          10,
+          15,
+          20
+        ],
+        "overhang": 1,
+        "material": "minecraft:chiseled_sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -17,
+        "y": 6,
+        "z": 12
+      },
+      "dimensions": {
+        "width": 35,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"balustrade\", \"stone\", \"low\", \"perimeter\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 2, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"sandstone balustrade\"}, \"constraints\": {\"mustHave\": [\"baluster\"], \"forbiddenTags\": [\"fence_wood\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "railing_terrace_2",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "perimeter": true,
+        "terrace_level": 2,
+        "material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -15,
+        "y": 11,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 31,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"balustrade\", \"stone\", \"low\", \"perimeter\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 2, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"sandstone balustrade\"}, \"constraints\": {\"mustHave\": [\"baluster\"], \"forbiddenTags\": [\"fence_wood\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "railing_terrace_3",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "perimeter": true,
+        "terrace_level": 3,
+        "material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -13,
+        "y": 16,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"balustrade\", \"stone\", \"low\", \"perimeter\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 2, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"sandstone balustrade\"}, \"constraints\": {\"mustHave\": [\"baluster\"], \"forbiddenTags\": [\"fence_wood\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "railing_terrace_4",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "perimeter": true,
+        "terrace_level": 4,
+        "material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -11,
+        "y": 21,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"balustrade\", \"stone\", \"low\", \"perimeter\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 2, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"sandstone balustrade\"}, \"constraints\": {\"mustHave\": [\"baluster\"], \"forbiddenTags\": [\"fence_wood\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "railing_terrace_5",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "perimeter": true,
+        "terrace_level": 5,
+        "material": "minecraft:sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -15,
+        "y": 6,
+        "z": -13
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"planter\", \"flower_box\", \"stone\", \"garden\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"ground\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Classical_Sandstone\", \"materialTone\": \"stone planter with greenery\"}, \"constraints\": {\"mustHave\": [\"container\"], \"forbiddenTags\": []}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "planters_level_2",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "terrace_level": 2,
+        "planter_count": 8,
+        "saplings": 2,
+        "material": "minecraft:chiseled_sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -13,
+        "y": 11,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "planters_level_3",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "terrace_level": 3,
+        "planter_count": 8,
+        "saplings": 2,
+        "material": "minecraft:chiseled_sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -11,
+        "y": 16,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "planters_level_4",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "terrace_level": 4,
+        "planter_count": 6,
+        "saplings": 2,
+        "material": "minecraft:chiseled_sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": -9,
+        "y": 21,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "planters_level_5",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "terrace_level": 5,
+        "planter_count": 6,
+        "saplings": 2,
+        "material": "minecraft:chiseled_sandstone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "stair_flight_1_2",
+        "host_id": "main_tower",
+        "exterior": false,
+        "from": {
+          "x": -4,
+          "y": 1,
+          "z": -9
+        },
+        "to": {
+          "x": -4,
+          "y": 6,
+          "z": -3
+        },
+        "width": 3,
+        "stairs": "minecraft:sandstone_stairs",
+        "floor": "minecraft:smooth_sandstone",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "stair_flight_2_3",
+        "host_id": "main_tower",
+        "exterior": false,
+        "from": {
+          "x": -4,
+          "y": 6,
+          "z": -9
+        },
+        "to": {
+          "x": -4,
+          "y": 11,
+          "z": -3
+        },
+        "width": 3,
+        "stairs": "minecraft:sandstone_stairs",
+        "floor": "minecraft:smooth_sandstone",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "stair_flight_3_4",
+        "host_id": "main_tower",
+        "exterior": false,
+        "from": {
+          "x": -4,
+          "y": 11,
+          "z": -9
+        },
+        "to": {
+          "x": -4,
+          "y": 16,
+          "z": -3
+        },
+        "width": 3,
+        "stairs": "minecraft:sandstone_stairs",
+        "floor": "minecraft:smooth_sandstone",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "sky_garden_main",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run",
+        "colonnade",
+        "column"
+      ],
+      "params": {
+        "component_id": "stair_flight_4_5",
+        "host_id": "main_tower",
+        "exterior": false,
+        "from": {
+          "x": -4,
+          "y": 16,
+          "z": -9
+        },
+        "to": {
+          "x": -4,
+          "y": 21,
+          "z": -3
+        },
+        "width": 3,
+        "stairs": "minecraft:sandstone_stairs",
+        "floor": "minecraft:smooth_sandstone",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "distinctive_features": [
+          "colonnade",
+          "column"
+        ],
+        "building_id": "main_tower"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「五层退台式空中花园」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

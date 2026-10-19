@@ -549,6 +549,19 @@ def _fit_exterior_stairs(plan: dict) -> None:
                     if lo['x'] <= x < lo['x']+dims['width'] and lo['z'] <= z < lo['z']+dims['depth']:
                         return True
             return False
+        # A long landing may reach the adjacent bridge railing even when the
+        # receiving deck already touches the last tread. Try a shorter landing
+        # before abandoning an otherwise valid sideways adjustment.
+        if landing > 1 and not any(not clips(s) and reaches_landing(s) and target_landing_fits(s)
+                                   for s in range(-width,width+1)):
+            original_landing = landing
+            landing = 1
+            if any(not clips(s) and reaches_landing(s) and target_landing_fits(s) for s in range(-width,width+1)):
+                p['landing_length'] = landing
+                if not clips(0) and target_landing_fits(0,True):
+                    continue
+            else:
+                landing = original_landing
         for distance in range(1,width+1):
             candidates = [s for s in (distance,-distance) if not clips(s) and reaches_landing(s) and target_landing_fits(s)]
             if candidates:
@@ -689,6 +702,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
     _normalize_bridge_levels(out)
     _bind_exterior_stair_doors(out)
     _fit_exterior_stairs(out)
+    _bind_hosted_platform_doors(out)
     _complete_exterior_target_doors(out)
     _complete_stair_door_landings(out)
     # Narrow towers cannot accommodate independently rotated flights whose
@@ -848,6 +862,64 @@ def _complete_exterior_target_doors(plan: dict) -> None:
                       'door_width':width,'door_height':clear+1,'entrance_type':'door','stair_connection':p.get('component_id'),
                       **({'platform_connection':deck['params']['component_id'], 'entrance_at_deck_level':True} if deck else {}),
                       'circulation_source':'explicit_stair_wall_contact'}})
+    components.extend(additions)
+
+
+def _bind_hosted_platform_doors(plan: dict) -> None:
+    """Preserve or create the upper doorway proved by an adjacent hosted deck."""
+    if (plan.get('plan_meta') or {}).get('allow_compiler_satellites') is False:
+        return
+    components = plan.get('components', [])
+    ids = {(c.get('params') or {}).get('component_id'):c for c in components}
+    slots = {s.get('slot_id'):s.get('anchor') or {} for s in (plan.get('layout') or {}).get('slots',[])}
+    additions = []
+    for deck in components:
+        p,d = deck.get('params') or {},deck.get('dimensions') or {}
+        host = ids.get(p.get('host_id'))
+        if (deck.get('component_type') not in ('TERRACE','BALCONY') or d.get('height') != 1
+                or not host or host.get('component_type') not in ('MASS_MAIN','MASS_SECONDARY','TOWER','MASS_WING')):
+            continue
+        bo,po = _mass_origin(host),_mass_origin(deck)
+        offset,anchor = slots.get(deck.get('slot_id'),{}),slots.get(host.get('slot_id'),{})
+        po = {a:po[a]+offset.get(a,0)-anchor.get(a,0) for a in ('x','y','z')}
+        hd = host['dimensions']
+        if not bo['y'] < po['y'] or po['y']+4 > bo['y']+hd['height']:
+            continue
+        faces = []
+        for axis,across,size,span,low_face,high_face in (
+                ('x','z','width','depth','EAST','WEST'),('z','x','depth','width','SOUTH','NORTH')):
+            low,high = max(po[across],bo[across]+1),min(po[across]+d[span],bo[across]+hd[span]-1)
+            if high-low < 2:
+                continue
+            if po[axis]+d[size] == bo[axis]:
+                faces.append((axis,across,bo[axis],low,high,low_face))
+            if po[axis] == bo[axis]+hd[size]:
+                faces.append((axis,across,bo[axis]+hd[size]-1,low,high,high_face))
+        if len(faces) != 1:
+            continue
+        axis,across,plane,low,high,facing = faces[0]
+        doors = [c for c in components if c.get('component_type')=='ENTRANCE'
+                 and (c.get('params') or {}).get('host_id')==p['host_id']
+                 and c.get('slot_id')==host.get('slot_id')
+                 and c['relative_position']['y']==po['y']+1
+                 and abs(c['relative_position'][axis]-plane)<=1
+                 and low-1 <= c['relative_position'][across] < high]
+        if len(doors)>1:
+            continue
+        if doors:
+            door=doors[0]
+        else:
+            identity=str(p.get('component_id'))+'#platform_door'
+            if identity in ids:
+                continue
+            pos=dict(po); pos[across]=(low+high)//2-1;pos['y']+=1
+            door={'component_type':'ENTRANCE','slot_id':host.get('slot_id'),'relative_position':pos,
+                  'dimensions':{'width':2 if across=='x' else 1,'depth':2 if across=='z' else 1,'height':3},
+                  'features':[],'params':{'component_id':identity,'host_id':p['host_id'],'door_width':2,'door_height':3,
+                                        'entrance_type':'door','building_id':host['params'].get('building_id',p['host_id'])}}
+            additions.append(door)
+        door['relative_position'][axis]=plane
+        door['params'].update(facing=facing,anchor_mode='min_corner',platform_connection=p.get('component_id'))
     components.extend(additions)
 
 

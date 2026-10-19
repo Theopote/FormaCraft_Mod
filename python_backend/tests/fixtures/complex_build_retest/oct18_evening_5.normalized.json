@@ -652,7 +652,7 @@
         "stairs": "minecraft:polished_blackstone_stairs",
         "floor": "minecraft:gray_concrete",
         "clearHeight": 2,
-        "landing_length": 3,
+        "landing_length": 1,
         "exterior": true,
         "host_id": "workshop_main",
         "distinctive_features": [

@@ -1717,6 +1717,58 @@
       "features": [
         "decor:four_simple_courtyard_columns"
       ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 6,
+        "y": 6,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "gallery_walkway#platform_door",
+        "host_id": "main_building",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "main_building",
+        "facing": "NORTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "gallery_walkway"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 14,
+        "y": 6,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "stair_landing_upper#platform_door",
+        "host_id": "main_building",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "main_building",
+        "facing": "NORTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "stair_landing_upper"
+      }
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「沙漠风格的商队驿站」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",

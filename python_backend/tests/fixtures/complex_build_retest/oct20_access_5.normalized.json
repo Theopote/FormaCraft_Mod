@@ -1139,6 +1139,32 @@
         "plate_role": "interior",
         "material": "minecraft:smooth_stone"
       }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "workshop",
+      "relative_position": {
+        "x": 4,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "platform_maintenance#platform_door",
+        "host_id": "mass_workshop",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "mass_workshop",
+        "facing": "SOUTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "platform_maintenance"
+      }
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「平台」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",

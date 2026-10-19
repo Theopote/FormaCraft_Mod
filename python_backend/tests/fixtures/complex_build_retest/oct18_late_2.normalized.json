@@ -1522,6 +1522,32 @@
         "role": "column",
         "material": "minecraft:sandstone"
       }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 7,
+        "y": 6,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_balcony#platform_door",
+        "host_id": "main_body",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "main_body",
+        "facing": "WEST",
+        "anchor_mode": "min_corner",
+        "platform_connection": "main_balcony"
+      }
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「沙漠风格的商队驿站」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",

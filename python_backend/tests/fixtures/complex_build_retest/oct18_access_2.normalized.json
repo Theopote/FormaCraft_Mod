@@ -1587,6 +1587,32 @@
           "minecraft:azure_bluet"
         ]
       }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 7,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "townhall_balcony#platform_door",
+        "host_id": "townhall_main",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "townhall_main",
+        "facing": "SOUTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "townhall_balcony"
+      }
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方\n形钟楼。中央大厅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",

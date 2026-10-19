@@ -1459,6 +1459,32 @@
         "pattern": "grid",
         "building_id": "central_courtyard"
       }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_north",
+      "relative_position": {
+        "x": -1,
+        "y": 7,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_north_balcony#platform_door",
+        "host_id": "main_north_body",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "main_north_body",
+        "facing": "NORTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "main_north_balcony"
+      }
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建造一组围绕中央露天庭院布置\n的市政厅建筑，\n北侧为三层主楼，\n东西两侧为两层侧楼，\n南侧为带入口的门廊。\n庭院约17×」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",

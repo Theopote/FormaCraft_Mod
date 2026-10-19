@@ -539,14 +539,15 @@
         "component_id": "hotel_terrace_door",
         "host_id": "hotel_main",
         "anchor_mode": "min_corner",
-        "facing": "SOUTH",
+        "facing": "NORTH",
         "entrance_type": "single",
         "door_block": "minecraft:dark_oak_door",
         "frame_block": "minecraft:dark_oak_planks",
         "landing_clearance": 3,
         "door_width": 2,
         "door_height": 3,
-        "building_id": "hotel_main"
+        "building_id": "hotel_main",
+        "platform_connection": "hotel_terrace"
       }
     },
     {

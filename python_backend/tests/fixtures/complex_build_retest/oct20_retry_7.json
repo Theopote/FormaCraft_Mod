@@ -1,0 +1,685 @@
+{
+  "mode": "build",
+  "style_profile": "Modern_Museum",
+  "style_attributes": {
+    "wall_color": "#F5F5F5",
+    "roof_color": "#F5F5F5",
+    "accent_color": "#BFE9FF",
+    "wall_material": "minecraft:quartz_block",
+    "roof_material": "minecraft:quartz_block",
+    "floor_material": "minecraft:smooth_quartz",
+    "decorative_elements": [
+      "hollow glass pyramid",
+      "quartz exhibition hall",
+      "flat roof",
+      "short connecting corridor"
+    ]
+  },
+  "distinguishing_features": [
+    "hollow glass pyramid approximately 17x17 with height 12, preserving complete sloped faces and apex",
+    "passable entrance on the pyramid front face",
+    "two-story quartz exhibition hall with flat roof",
+    "short connecting corridor with door openings at both ends"
+  ],
+  "anchor": {
+    "x": -52,
+    "y": 75,
+    "z": -2310
+  },
+  "proportion_hints": {
+    "typology": "museum_compositional",
+    "height_to_width": 0.4,
+    "depth_to_width": 0.7,
+    "roof_to_body_height": 0.0,
+    "window_wall_ratio": 0.35,
+    "pyramid_base_to_exhibition_width": 0.85,
+    "pyramid_height_to_base": 0.706,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_roof_type",
+          "property": "roof_type",
+          "value": "flat",
+          "source": "user_explicit",
+          "source_text": [
+            "平屋顶"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "exhibition_hall"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "exhibition_hall"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "exhibition_hall",
+          "slot_id": "exhibition",
+          "local_origin": {
+            "x": -10,
+            "y": 0,
+            "z": -7
+          },
+          "plan_origin": {
+            "x": -10,
+            "y": 0,
+            "z": -7
+          },
+          "dimensions": {
+            "width": 20,
+            "depth": 14,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "exhibition_hall",
+                "local_origin": {
+                  "x": -10,
+                  "y": 0,
+                  "z": -7
+                },
+                "dimensions": {
+                  "width": 20,
+                  "depth": 14,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -10,
+              "min_z": -7,
+              "max_x": 10,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 10,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -7,
+                "start": -10,
+                "end": 10
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -10,
+                "end": 10
+              },
+              {
+                "direction": "WEST",
+                "plane": -10,
+                "start": -7,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座小型博物馆， 由一栋两层石英展览楼和前方一座约17×17格、 高12格的空心玻璃金字塔组成。 金字塔保留完整斜面和顶部， 在正面设置可通行入口， 通过一条短连廊连接展览楼。 连廊两端都要有门洞， 展览楼使用平屋顶。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一座小型博物馆，\n由一栋两层石英展览楼和前方一座约17×17格、\n高12格的空心玻璃金字塔组成。\n金字塔保留完整斜面和顶部，\n在正面设置可通行入口，\n通过一条短连廊连接展览楼。\n连廊两端都要有门洞，\n展览楼使用平屋顶。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "museum",
+      "confidence": 0.93
+    },
+    "topology": {
+      "layout": "linear_compound",
+      "composition": "exhibition_hall_pyramid_corridor",
+      "axis": "x",
+      "levels": "two"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.45,
+      "voidRatio": 0.25,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "stepped",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "entrance",
+      "pyramid",
+      "corridor",
+      "path"
+    ],
+    "materials": {
+      "primary": "quartz",
+      "secondary": "glass",
+      "accent": "smooth_quartz",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "contemporary",
+      "keywords": [
+        "museum",
+        "glass pyramid",
+        "quartz",
+        "flat roof"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 12,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "user_explicit:glass_pyramid",
+        "user_explicit:flat_roof",
+        "user_explicit:corridor_doors_both_ends"
+      ],
+      "avoid": [
+        "stadium",
+        "castle",
+        "gothic",
+        "landmark_module"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "exhibition",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "slot_id": "exhibition"
+      },
+      {
+        "id": "corridor",
+        "anchor": {
+          "x": -12,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "slot_id": "corridor"
+      },
+      {
+        "id": "pyramid",
+        "anchor": {
+          "x": -23,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "slot_id": "pyramid"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "exhibition",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 14,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "exhibition_hall",
+        "floors": 2,
+        "floor_count": 2,
+        "floor_height": 4,
+        "wall_block": "minecraft:quartz_block",
+        "floor_block": "minecraft:smooth_quartz",
+        "roof_block": "minecraft:quartz_block",
+        "roof_type": "flat",
+        "hollow": true,
+        "void_ratio": 0.25,
+        "window_style": "ribbon",
+        "entrance_type": "double_door",
+        "material": "quartz",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "facade_profile": "mullion_grid",
+        "building_id": "exhibition_hall"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "exhibition",
+      "relative_position": {
+        "x": -11,
+        "y": -1,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 16,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "exhibition_foundation",
+        "host_id": "exhibition_hall",
+        "material": "minecraft:smooth_quartz",
+        "foundation_depth": 1,
+        "building_id": "exhibition_hall"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "exhibition",
+      "relative_position": {
+        "x": -10,
+        "y": 8,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "exhibition_flat_roof",
+        "host_id": "exhibition_hall",
+        "roof_type": "flat",
+        "material": "minecraft:quartz_block",
+        "thickness": 1,
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "exhibition_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "exhibition",
+      "relative_position": {
+        "x": -10,
+        "y": 1,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 14,
+        "height": 6
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"ribbon_glazing\", \"modern\", \"glazed\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Museum\", \"materialTone\": \"glass\"}, \"constraints\": {\"mustHave\": [\"glazed\"], \"forbiddenTags\": []}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "exhibition_windows",
+        "host_id": "exhibition_hall",
+        "sides": [
+          "WEST",
+          "EAST",
+          "NORTH",
+          "SOUTH"
+        ],
+        "window_style": "ribbon",
+        "floor_levels": [
+          1,
+          2
+        ],
+        "material": "minecraft:glass",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "exhibition_hall"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "exhibition",
+      "relative_position": {
+        "x": -10,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"quartz\", \"modern\", \"double\", \"passable\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Museum\", \"materialTone\": \"quartz\"}, \"constraints\": {\"mustHave\": [\"passable\"], \"forbiddenTags\": []}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "exhibition_corridor_entrance",
+        "host_id": "exhibition_hall",
+        "entrance_type": "double_door",
+        "facing": "WEST",
+        "carve": true,
+        "material": "minecraft:quartz_block",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "exhibition_hall"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "pyramid",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 17,
+        "height": 12
+      },
+      "features": [],
+      "params": {
+        "component_id": "glass_pyramid",
+        "shape": "rectangle",
+        "massing": "pyramid",
+        "hollow": true,
+        "truncated": false,
+        "apex_height": 12,
+        "wall_block": "minecraft:glass",
+        "floor_block": "minecraft:smooth_quartz",
+        "transparency": 0.95,
+        "material": "glass",
+        "opening_on_front": true,
+        "volume_geometry": "pyramid",
+        "roof_type": "none",
+        "plan_type": "none",
+        "building_id": "glass_pyramid"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "pyramid",
+      "relative_position": {
+        "x": -9,
+        "y": -1,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 19,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "pyramid_foundation",
+        "host_id": "glass_pyramid",
+        "material": "minecraft:smooth_quartz",
+        "foundation_depth": 1,
+        "building_id": "glass_pyramid"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "pyramid",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"glass\", \"modern\", \"portal\", \"passable\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Museum\", \"materialTone\": \"glass\"}, \"constraints\": {\"mustHave\": [\"passable\"], \"forbiddenTags\": []}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "pyramid_front_entrance",
+        "host_id": "glass_pyramid",
+        "entrance_type": "passable_portal",
+        "facing": "WEST",
+        "carve": true,
+        "material": "minecraft:glass",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "glass_pyramid"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "pyramid",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"glass\", \"modern\", \"corridor_connection\", \"passable\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Museum\", \"materialTone\": \"glass\"}, \"constraints\": {\"mustHave\": [\"passable\"], \"forbiddenTags\": []}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "pyramid_corridor_entrance",
+        "host_id": "glass_pyramid",
+        "entrance_type": "passable_portal",
+        "facing": "EAST",
+        "carve": true,
+        "material": "minecraft:glass",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "glass_pyramid"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "corridor",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "connecting_corridor",
+        "hollow": true,
+        "wall_block": "minecraft:quartz_block",
+        "floor_block": "minecraft:smooth_quartz",
+        "roof_block": "minecraft:quartz_block",
+        "roof_type": "flat",
+        "passage": true,
+        "doorways_both_ends": true,
+        "material": "quartz",
+        "building_id": "connecting_corridor"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "corridor",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"quartz\", \"modern\", \"narrow\", \"passable\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Museum\", \"materialTone\": \"quartz\"}, \"constraints\": {\"mustHave\": [\"passable\"], \"forbiddenTags\": []}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "corridor_west_door",
+        "host_id": "connecting_corridor",
+        "entrance_type": "doorway",
+        "facing": "WEST",
+        "carve": true,
+        "material": "minecraft:quartz_block",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "connecting_corridor"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "corridor",
+      "relative_position": {
+        "x": 2,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"quartz\", \"modern\", \"narrow\", \"passable\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Museum\", \"materialTone\": \"quartz\"}, \"constraints\": {\"mustHave\": [\"passable\"], \"forbiddenTags\": []}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "corridor_east_door",
+        "host_id": "connecting_corridor",
+        "entrance_type": "doorway",
+        "facing": "EAST",
+        "carve": true,
+        "material": "minecraft:quartz_block",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "connecting_corridor"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "pyramid",
+      "relative_position": {
+        "x": -18,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "museum_approach_path",
+        "material": "minecraft:smooth_quartz",
+        "path_type": "straight_approach"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「小型博物馆」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}
