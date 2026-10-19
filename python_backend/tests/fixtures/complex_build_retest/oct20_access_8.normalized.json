@@ -1,0 +1,739 @@
+{
+  "mode": "build",
+  "style_profile": "Medieval_Castle",
+  "style_attributes": {
+    "wall_color": "gray",
+    "roof_color": "dark_gray",
+    "accent_color": "dark_oak",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:oak_planks",
+    "decorative_elements": [
+      "battlements",
+      "arrow_slits",
+      "banners",
+      "torches",
+      "stone_path"
+    ]
+  },
+  "distinguishing_features": [
+    "four corner towers with pyramidal pointed roofs",
+    "central three-story keep with gable roof",
+    "south gate tower with 5x6 through passage",
+    "curtain walls with battlements and arrow slits",
+    "stone path connecting gate passage to keep entrance"
+  ],
+  "anchor": {
+    "x": -228,
+    "y": 69,
+    "z": -2192
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "medieval_castle",
+      "confidence": 0.92
+    },
+    "topology": {
+      "layout": "rectangular_enclosure",
+      "composition": "compound",
+      "axis": "bilateral_south",
+      "levels": "multi"
+    },
+    "structure": {
+      "type": "walled_compound",
+      "massiveness": 0.82,
+      "voidRatio": 0.1,
+      "supports": "load_bearing"
+    },
+    "form": {
+      "repetition": "corner_towers",
+      "progression": "stepped",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "corner_towers",
+      "curtain_wall",
+      "south_gatehouse",
+      "central_keep",
+      "battlements",
+      "arrow_slits",
+      "stone_path"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "deepslate_tiles",
+      "accent": "dark_oak",
+      "textureBias": "weathered",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "europe",
+      "era": "medieval",
+      "keywords": [
+        "castle",
+        "fortress",
+        "keep",
+        "curtain wall",
+        "gatehouse"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "defense",
+        "symmetry",
+        "stone_brick",
+        "gable_keep",
+        "pyramidal_corner_towers",
+        "unblocked_tower_entries"
+      ],
+      "avoid": [
+        "modern_glass",
+        "stadium",
+        "elliptical_bowl"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "medieval_castle",
+    "wall_height_to_thickness": 4.0,
+    "tower_height_to_base": 3.6,
+    "curtain_wall_to_tower": 0.55,
+    "window_wall_ratio": 0.08,
+    "window_aspect": [
+      "arrow_slit"
+    ],
+    "min_enclosure_coverage": 0.88,
+    "max_void_ratio": 0.25,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width",
+          "property": "width",
+          "value": 5,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽5格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "keep_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count_named_keep",
+          "property": "floor_count",
+          "value": 3,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "三层"
+          ],
+          "scope": "named_keep",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "keep_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_gable",
+          "property": "roof_type",
+          "value": "gable",
+          "source": "user_explicit",
+          "source_text": [
+            "双坡屋顶"
+          ],
+          "scope": "named_keep",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "keep_main"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_keep": [
+          "keep_main"
+        ],
+        "named_main_body": [
+          "keep_main"
+        ],
+        "named_tower": [
+          "tower_nw",
+          "tower_ne",
+          "tower_sw",
+          "tower_se",
+          "gate_tower_south"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "keep_main",
+          "slot_id": null,
+          "local_origin": {
+            "x": -2,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -2,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 5,
+            "depth": 10,
+            "height": 14
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8
+          ],
+          "roof_y_local": 13,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "keep_main",
+                "local_origin": {
+                  "x": -2,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 5,
+                  "depth": 10,
+                  "height": 14
+                },
+                "roof_y_local": 13
+              }
+            ],
+            "envelope_local": {
+              "min_x": -2,
+              "min_z": -5,
+              "max_x": 3,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 14
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 3,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -2,
+                "end": 3
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -2,
+                "end": 3
+              },
+              {
+                "direction": "WEST",
+                "plane": -2,
+                "start": -5,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一座约45×39格的小型石砖城堡，包含四座角塔、 外围城墙、 南侧城门塔和中央三层主堡。 角塔使用四面尖顶， 主堡使用双坡屋顶。 城墙与塔楼自然衔接， 不能封住塔楼入口； 城门塔底部留出宽5格、 高6格的贯通门洞， 并通过道路连接主堡入口。",
+          "purposes": [
+            {
+              "id": "fortification",
+              "phrase": "城堡",
+              "start": 16,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": [
+            {
+              "id": "tower",
+              "phrase": "塔楼",
+              "start": 70,
+              "status": "requested",
+              "part": "building"
+            },
+            {
+              "id": "tower",
+              "phrase": "塔楼",
+              "start": 82,
+              "status": "requested",
+              "part": "building"
+            }
+          ]
+        }
+      ],
+      "original_text": "建造一座约45×39格的小型石砖城堡，包含四座角塔、\n外围城墙、\n南侧城门塔和中央三层主堡。\n角塔使用四面尖顶，\n主堡使用双坡屋顶。\n城墙与塔楼自然衔接，\n不能封住塔楼入口；\n城门塔底部留出宽5格、\n高6格的贯通门洞，\n并通过道路连接主堡入口。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 10,
+        "height": 14
+      },
+      "params": {
+        "component_id": "keep_main",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 3,
+        "floor_height": 4,
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "gable",
+        "roof_pitch": 0.85,
+        "entrance_type": "stone_arch_door",
+        "entrance_width": 2,
+        "entrance_height": 3,
+        "facing": "NORTH",
+        "window_style": "arrow_slit",
+        "void_ratio": 0.08,
+        "interior_stairs": true,
+        "keep": true,
+        "window_ratio": 0.6,
+        "building_id": "keep_main"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"stone\", \"arched\", \"heavy\", \"medieval\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 0, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"stone\", \"arched\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arrow_slit\", \"narrow\", \"stone\", \"defensive\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"narrow\", \"stone\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": -20,
+        "y": 0,
+        "z": -17
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 18
+      },
+      "params": {
+        "component_id": "tower_nw",
+        "shape": "rectangle",
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "pyramidal",
+        "roof_height": 5,
+        "window_style": "arrow_slit",
+        "tower_entrance_inner": true,
+        "entry_side": "inner",
+        "battlement": true,
+        "building_id": "tower_nw"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arrow_slit\", \"narrow\", \"stone\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"corner\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"narrow\", \"stone\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": 20,
+        "y": 0,
+        "z": -17
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 18
+      },
+      "params": {
+        "component_id": "tower_ne",
+        "shape": "rectangle",
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "pyramidal",
+        "roof_height": 5,
+        "window_style": "arrow_slit",
+        "tower_entrance_inner": true,
+        "entry_side": "inner",
+        "battlement": true,
+        "building_id": "tower_ne"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arrow_slit\", \"narrow\", \"stone\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"corner\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"narrow\", \"stone\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": -20,
+        "y": 0,
+        "z": 17
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 18
+      },
+      "params": {
+        "component_id": "tower_sw",
+        "shape": "rectangle",
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "pyramidal",
+        "roof_height": 5,
+        "window_style": "arrow_slit",
+        "tower_entrance_inner": true,
+        "entry_side": "inner",
+        "battlement": true,
+        "building_id": "tower_sw"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arrow_slit\", \"narrow\", \"stone\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"corner\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"narrow\", \"stone\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": 20,
+        "y": 0,
+        "z": 17
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 18
+      },
+      "params": {
+        "component_id": "tower_se",
+        "shape": "rectangle",
+        "wall_thickness": 1,
+        "wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "pyramidal",
+        "roof_height": 5,
+        "window_style": "arrow_slit",
+        "tower_entrance_inner": true,
+        "entry_side": "inner",
+        "battlement": true,
+        "building_id": "tower_se"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arrow_slit\", \"narrow\", \"stone\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"corner\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"narrow\", \"stone\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "WALL",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -17
+      },
+      "dimensions": {
+        "width": 35,
+        "depth": 2,
+        "height": 8
+      },
+      "params": {
+        "component_id": "wall_north",
+        "thickness": 2,
+        "wall_block": "minecraft:stone_bricks",
+        "battlement": true,
+        "has_arrow_slits": true,
+        "window_style": "arrow_slit",
+        "connects_towers": [
+          "tower_nw",
+          "tower_ne"
+        ]
+      },
+      "features": []
+    },
+    {
+      "component_type": "WALL",
+      "relative_position": {
+        "x": 20,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 29,
+        "height": 8
+      },
+      "params": {
+        "component_id": "wall_east",
+        "thickness": 2,
+        "wall_block": "minecraft:stone_bricks",
+        "battlement": true,
+        "has_arrow_slits": true,
+        "window_style": "arrow_slit",
+        "connects_towers": [
+          "tower_ne",
+          "tower_se"
+        ]
+      },
+      "features": []
+    },
+    {
+      "component_type": "WALL",
+      "relative_position": {
+        "x": -20,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 29,
+        "height": 8
+      },
+      "params": {
+        "component_id": "wall_west",
+        "thickness": 2,
+        "wall_block": "minecraft:stone_bricks",
+        "battlement": true,
+        "has_arrow_slits": true,
+        "window_style": "arrow_slit",
+        "connects_towers": [
+          "tower_nw",
+          "tower_sw"
+        ]
+      },
+      "features": []
+    },
+    {
+      "component_type": "WALL",
+      "relative_position": {
+        "x": -11,
+        "y": 0,
+        "z": 17
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 2,
+        "height": 8
+      },
+      "params": {
+        "component_id": "wall_south_west",
+        "thickness": 2,
+        "wall_block": "minecraft:stone_bricks",
+        "battlement": true,
+        "has_arrow_slits": true,
+        "window_style": "arrow_slit",
+        "connects_towers": [
+          "tower_sw",
+          "gate_tower_south"
+        ]
+      },
+      "features": []
+    },
+    {
+      "component_type": "WALL",
+      "relative_position": {
+        "x": 11,
+        "y": 0,
+        "z": 17
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 2,
+        "height": 8
+      },
+      "params": {
+        "component_id": "wall_south_east",
+        "thickness": 2,
+        "wall_block": "minecraft:stone_bricks",
+        "battlement": true,
+        "has_arrow_slits": true,
+        "window_style": "arrow_slit",
+        "connects_towers": [
+          "gate_tower_south",
+          "tower_se"
+        ]
+      },
+      "features": []
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 17
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 7,
+        "height": 13
+      },
+      "params": {
+        "component_id": "gate_tower_south",
+        "shape": "rectangle",
+        "wall_thickness": 2,
+        "wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "crenellated",
+        "battlement": true,
+        "has_gate_passage": true,
+        "passage_width": 5,
+        "passage_height": 6,
+        "through_passage": true,
+        "facing": "NORTH",
+        "building_id": "gate_tower_south"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 7,
+        "height": 6
+      },
+      "params": {
+        "component_id": "gate_passage",
+        "host_id": "gate_tower_south",
+        "style": "stone_arch_gate",
+        "entrance_type": "gate_passage",
+        "passage_width": 5,
+        "passage_height": 6,
+        "through_passage": true,
+        "facing": "NORTH",
+        "carve": true,
+        "materialTone": "stone",
+        "door_width": 3,
+        "door_height": 4,
+        "building_id": "gate_tower_south"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"gate\", \"arched\", \"heavy\", \"stone\", \"through_passage\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 5, \"openingHeight\": 6, \"tolerance\": 0, \"scalable\": false}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"stone\", \"arched\", \"through_passage\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "PAVING",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "path_to_keep",
+        "material": "minecraft:stone_bricks",
+        "path_width": 3,
+        "connects_from": "gate_tower_south",
+        "connects_to": "keep_main"
+      },
+      "features": []
+    }
+  ],
+  "kind": "llmplan"
+}

@@ -1,0 +1,729 @@
+{
+  "mode": "build",
+  "style_profile": "Alpine_Rustic_Lodge",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "dark_brown",
+    "accent_color": "grey",
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:spruce_planks",
+    "decorative_elements": [
+      "stone_brick_plinth",
+      "dark_oak_eaves",
+      "timber_balustrade",
+      "stone_chimney"
+    ]
+  },
+  "distinguishing_features": [
+    "stone brick plinth course around the whole base",
+    "whitewashed plaster walls with vertical timber pilaster rhythm",
+    "dark wood gable roof with one block overhang",
+    "main entrance centred on the front (west) facade",
+    "exterior stone stair on the south side rising from ground to the 2F terrace",
+    "2F terrace deck with continuous railing and a door into the 2F interior",
+    "roof sits at y=14 so it never intersects the stair or terrace"
+  ],
+  "anchor": {
+    "x": -248,
+    "y": 69,
+    "z": -2151
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "alpine_mountain_hotel",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "stacked"
+    },
+    "structure": {
+      "type": "load_bearing",
+      "massiveness": 0.62,
+      "voidRatio": 0.18,
+      "supports": "perimeter"
+    },
+    "form": {
+      "repetition": "stacked",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "stone_plinth",
+      "plaster_wall",
+      "gable_roof",
+      "punched_windows",
+      "side_terrace",
+      "exterior_stair"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "glass",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "alpine_europe",
+      "era": "vernacular",
+      "keywords": [
+        "lodge",
+        "mountain_inn",
+        "plaster",
+        "timber",
+        "stone_base"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 20,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "exterior_stair_continuity",
+        "terrace_door_access",
+        "roof_clear_of_stair"
+      ],
+      "avoid": [
+        "stadium_bowl",
+        "radial_ring",
+        "solid_interior_fill",
+        "roof_over_terrace"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "alpine_lodge_block",
+    "height_to_width": 0.8,
+    "depth_to_width": 0.71,
+    "roof_to_body_height": 0.35,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": null,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "三层",
+            "二层",
+            "二层"
+          ],
+          "scope": "unresolved",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "hotel_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "hotel_main",
+          "slot_id": "hotel_main_slot",
+          "local_origin": {
+            "x": -10,
+            "y": 2,
+            "z": -7
+          },
+          "plan_origin": {
+            "x": -10,
+            "y": 2,
+            "z": -7
+          },
+          "dimensions": {
+            "width": 21,
+            "depth": 15,
+            "height": 12
+          },
+          "floor_ys_local": [
+            2,
+            6,
+            10
+          ],
+          "roof_y_local": 13,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "hotel_main",
+                "local_origin": {
+                  "x": -10,
+                  "y": 2,
+                  "z": -7
+                },
+                "dimensions": {
+                  "width": 21,
+                  "depth": 15,
+                  "height": 12
+                },
+                "roof_y_local": 13
+              }
+            ],
+            "envelope_local": {
+              "min_x": -10,
+              "min_z": -7,
+              "max_x": 11,
+              "max_z": 8,
+              "min_y": 2,
+              "max_y": 14
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 11,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": -7,
+                "start": -10,
+                "end": 11
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": -10,
+                "end": 11
+              },
+              {
+                "direction": "WEST",
+                "plane": -10,
+                "start": -7,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建造一栋约21×15格的三层山地旅馆，使用石砖底座、 白色墙面和深色木屋顶。 正面设置主入口， 侧面设置从地面通向二层平台的室外楼梯。 平台与二层室内之间必须开门， 门前保留落脚空间。 楼梯全程连贯，平台有栏杆， 屋顶不能与楼梯冲突。",
+          "purposes": [
+            {
+              "id": "hotel",
+              "phrase": "旅馆",
+              "start": 16,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建造一栋约21×15格的三层山地旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层平台的室外楼梯。\n平台与二层室内之间必须开门，\n门前保留落脚空间。\n楼梯全程连贯，平台有栏杆，\n屋顶不能与楼梯冲突。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "hotel_main_slot",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "component_preset": "MASS_MAIN",
+        "dimensions": {
+          "width": 21,
+          "depth": 15,
+          "height": 12
+        },
+        "slot_id": "hotel_main_slot"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": -11,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 17,
+        "height": 2
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_plinth",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "block": "minecraft:stone_bricks",
+        "plinth": true,
+        "extrude_mode": "solid",
+        "building_id": "hotel_main",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": -10,
+        "y": 2,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 12
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 3,
+        "floor_height": 4,
+        "void_ratio": 0.18,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:white_concrete",
+        "base_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:spruce_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "wall_thickness": 1,
+        "window_style": "punched",
+        "roof_type": "gable",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": -9,
+        "y": 6,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 13,
+        "height": 1
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_floor_2",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "tier_index": 1,
+        "floor_block": "minecraft:spruce_planks",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": -9,
+        "y": 10,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 13,
+        "height": 1
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_floor_3",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "tier_index": 2,
+        "floor_block": "minecraft:spruce_planks",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -11,
+        "y": 14,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 17,
+        "height": 5
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_roof",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "x",
+        "overhang": 1,
+        "roof_block": "minecraft:dark_oak_planks",
+        "eave_block": "minecraft:dark_oak_slab",
+        "crown": false,
+        "spire": false,
+        "roof_height": 5,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -10,
+        "y": 2,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 12
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_windows",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "window_style": "punched",
+        "window_block": "minecraft:glass_pane",
+        "frame_block": "minecraft:dark_oak_planks",
+        "sill_height": 2,
+        "columns": 5,
+        "rows": 3,
+        "rhythm": "regular",
+        "window_ratio": 0.35,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -10,
+        "y": 2,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_main_door",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "facing": "WEST",
+        "entrance_type": "double",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:stone_bricks",
+        "canopy": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -3,
+        "y": 7,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_terrace_door",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "entrance_type": "single",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:dark_oak_planks",
+        "landing_clearance": 3,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "relative_position": {
+        "x": -8,
+        "y": 6,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 5,
+        "height": 1
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_terrace",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "deck_block": "minecraft:spruce_planks",
+        "support_block": "minecraft:stone_bricks",
+        "railing": true,
+        "level": 2,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -8,
+        "y": 7,
+        "z": 12
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 1,
+        "height": 1
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"timber\", \"post_and_rail\", \"rustic\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": 11, \"openingHeight\": 1, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Alpine_Rustic_Lodge\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"railing\"], \"forbiddenTags\": [\"glass_wall\", \"stone_parapet\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "hotel_terrace_rail_south",
+        "host_id": "hotel_terrace",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:dark_oak_fence",
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -8,
+        "y": 7,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 5,
+        "height": 1
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"timber\", \"post_and_rail\", \"rustic\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"corner\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": 5, \"openingHeight\": 1, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Alpine_Rustic_Lodge\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"railing\"], \"forbiddenTags\": [\"glass_wall\", \"stone_parapet\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "hotel_terrace_rail_west",
+        "host_id": "hotel_terrace",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:dark_oak_fence",
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 3,
+        "height": 6
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "hotel_ext_stair",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "exterior": true,
+        "from": {
+          "x": 8,
+          "y": 2,
+          "z": 10
+        },
+        "to": {
+          "x": 2,
+          "y": 6,
+          "z": 10
+        },
+        "width": 3,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:stone_bricks",
+        "clearHeight": 2,
+        "landing_length": 2,
+        "building_id": "hotel_main",
+        "landing_level_source": "receiving_deck_block"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 5,
+        "height": 6
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "hotel_int_stair",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "exterior": false,
+        "from": {
+          "x": 8,
+          "y": 2,
+          "z": -5
+        },
+        "to": {
+          "x": 8,
+          "y": 7,
+          "z": 0
+        },
+        "width": 3,
+        "stairs": "minecraft:spruce_stairs",
+        "floor": "minecraft:spruce_planks",
+        "clearHeight": 2,
+        "landing_length": 2,
+        "building_id": "hotel_main"
+      }
+    },
+    {
+      "component_type": "CHIMNEY",
+      "relative_position": {
+        "x": -7,
+        "y": 14,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 7
+      },
+      "slot_id": "hotel_main_slot",
+      "features": [],
+      "params": {
+        "component_id": "hotel_chimney",
+        "host_id": "hotel_main",
+        "anchor_mode": "min_corner",
+        "block": "minecraft:stone_bricks",
+        "cap_block": "minecraft:stone_brick_slab"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「建造一栋约21×15格的三层山地\n旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

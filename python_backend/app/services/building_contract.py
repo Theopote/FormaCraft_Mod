@@ -13,6 +13,7 @@ HOSTED = {'ROOF', 'ROOF_STRUCTURE', 'FOUNDATION', 'FACADE_WINDOWS', 'FACADE', 'E
 
 NAMED_BUILDINGS = {
     'main_body': ('主楼', 'main_body', 'main_building'),
+    'keep': ('主堡', 'keep'),
     'tower': ('塔楼', '钟楼', 'tower'),
     'office': ('办公楼', 'office'),
     'workshop': ('主车间', '维修车间', 'workshop'),
@@ -235,6 +236,17 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     slot_ids = [s.get('slot_id', s.get('id')) for s in slots_for_modules if isinstance(s, dict)]
     if len(components) == 1 and components[0].get('component_type') == 'MODULE' and count_match:
         count = int(count_match[1]) if count_match[1].isdigit() else '零一二三四五六七八九'.index(count_match[1])
+        if not slots_for_modules and components[0].get('dimensions') and not components[0].get('slot_id'):
+            prototype = components[0]
+            dims = prototype['dimensions']
+            gap_match = re.search(r'间隔(?:至少|约)?\s*(\d+)\s*格', text)
+            gap = max(8, int(gap_match[1])) if gap_match else 8
+            slots_for_modules = [{'slot_id': f'module_{i+1}',
+                                  'anchor': {'x': i*(dims['width']+gap), 'y': 0, 'z': 0}}
+                                 for i in range(count)]
+            out.setdefault('layout', {})['slots'] = slots_for_modules
+            slot_ids = [s['slot_id'] for s in slots_for_modules]
+            prototype['slot_id'] = slot_ids[0]
         if (count == len(slots_for_modules) == len(set(slot_ids))
                 and all(slot_ids) and components[0].get('slot_id') in slot_ids):
             prototype = components[0]
@@ -254,8 +266,11 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if (component.get('component_type') == 'MASS_SECONDARY'
                 and params.get('shape') == 'sphere' and not params.get('floor_count')):
             params.update(shape='circle', kind='sphere', volume_geometry='sphere')
-        if component.get('component_type') == 'MASS_SECONDARY' and params.get('shape') == 'pyramid':
+        if component.get('component_type') in ('MASS_MAIN','MAIN_MASS','MASS_SECONDARY','MASS_ANCILLARY','MASS_WING') and params.get('shape') == 'pyramid':
             params.update(shape='rectangle', volume_geometry='pyramid', roof_type='none', hollow=True)
+            params['plan_type'] = 'none'
+        if component.get('component_type') == 'MASS_SECONDARY' and params.get('bridge') is True:
+            params.setdefault('plan_type', 'none')
         # A tower gate is an occupied building shell with hosted roof/openings,
         # rather than the standalone thin gate-frame generator.
         if component.get('component_type') == 'GATE' and params.get('gate_type') == 'tower_gate':
@@ -550,7 +565,21 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 return envelope['max_' + axis] - envelope['min_' + axis]
             requirement['dimension_subject'] = 'building_envelope'
             invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]
-        elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type', 'gable_windows', 'glass_block'):
+        elif key == 'floor_count':
+            def storeys(c):
+                p = c['params']
+                tiers = [c] + [t for t in components if t.get('component_type') == 'MASS_SECONDARY'
+                               and t['params'].get('host_id') == p['component_id']
+                               and 'tier_index' in t['params'] and t['params'].get('extrude_mode') != 'plate']
+                tiers.sort(key=lambda t: t['relative_position']['y'])
+                if (len(tiers) > 1 and 'tier_index' in p
+                        and all(a.get('slot_id') == b.get('slot_id')
+                                and a['relative_position']['y'] + a['dimensions']['height'] == b['relative_position']['y']
+                                for a,b in zip(tiers,tiers[1:]))):
+                    return sum(int(t['params'].get('floor_count',1)) for t in tiers)
+                return p.get(key)
+            invalid = [c['params']['component_id'] for c in targets if storeys(c) != expected]
+        elif key in ('floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type', 'gable_windows', 'glass_block'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
         elif key == 'net_height':
             invalid = [c['params']['component_id'] for c in targets

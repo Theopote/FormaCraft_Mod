@@ -45,14 +45,23 @@ public final class OpeningGrammarResolver {
         boolean changed = false;
 
         String aspect = getParamString(params, "window_aspect", "windowAspect");
+        String explicitStyle = getParamString(params, "window_style", "windowStyle");
         if (isBlank(aspect)) {
             Object hintAspect = hints.get("window_aspect");
+            if (hintAspect instanceof List<?> alternatives) {
+                hintAspect = alternatives.stream().map(String::valueOf)
+                        .filter(value -> !com.formacraft.common.generation.component.impl.WindowAspect.conflictsWithWindowStyle(
+                                com.formacraft.common.generation.component.impl.WindowAspect.parse(value), explicitStyle))
+                        .findFirst().orElse(null);
+            }
             if (hintAspect != null && !String.valueOf(hintAspect).isBlank()) {
-                changed |= DesignProvenance.putIfAllowed(plan, params, "window_aspect",
-                        String.valueOf(hintAspect).trim());
+                if (!com.formacraft.common.generation.component.impl.WindowAspect.conflictsWithWindowStyle(
+                        com.formacraft.common.generation.component.impl.WindowAspect.parse(String.valueOf(hintAspect)), explicitStyle))
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "window_aspect", String.valueOf(hintAspect).trim());
             } else if (card != null && card.openingGrammar() != null) {
                 String fallback = firstAllowedAspect(card);
-                if (fallback != null) {
+                if (fallback != null && !com.formacraft.common.generation.component.impl.WindowAspect.conflictsWithWindowStyle(
+                        com.formacraft.common.generation.component.impl.WindowAspect.parse(fallback), explicitStyle)) {
                     changed |= DesignProvenance.putIfAllowed(plan, params, "window_aspect", fallback);
                 }
             }

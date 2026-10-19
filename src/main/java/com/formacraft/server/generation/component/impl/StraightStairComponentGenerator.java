@@ -38,6 +38,11 @@ public final class StraightStairComponentGenerator {
                 op.put("stairs", floor.replace("_planks", "_stairs"));
             }
             int width = integer(op.getOrDefault("width", 3));
+            if (point(op.get("from")).getY() > point(op.get("to")).getY()) {
+                Object low = op.get("to");
+                op.put("to", op.get("from"));
+                op.put("from", low);
+            }
             int landing = integer(op.getOrDefault("landing_length", 1));
             int clear = integer(op.getOrDefault("clearHeight", 2));
             if (width < 1 || width > 15 || landing < 1 || landing > 16 || clear < 2 || clear > 16)

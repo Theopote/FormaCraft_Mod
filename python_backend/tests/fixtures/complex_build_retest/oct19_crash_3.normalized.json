@@ -775,7 +775,8 @@
         ],
         "building_id": "louvre_pyramid",
         "volume_geometry": "pyramid",
-        "hollow": true
+        "hollow": true,
+        "plan_type": "none"
       }
     },
     {

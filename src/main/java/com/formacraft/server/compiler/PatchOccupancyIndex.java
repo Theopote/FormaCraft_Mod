@@ -396,6 +396,12 @@ public final class PatchOccupancyIndex {
     private static boolean isHostedStairJoin(Component writer, PlaceRecord previous) {
         if (!com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(writer)
                 || writer.params() == null || previous.owner() == null || previous.owner().params() == null) return false;
+        Object target = writer.params().get("target_host_id");
+        if (target instanceof String targetId && !targetId.isBlank()
+                && targetId.equals(previous.owner().params().get("host_id"))
+                && (Set.of("TERRACE", "BALCONY").contains(previous.writerType())
+                    || "MASS_SECONDARY".equals(previous.writerType())
+                        && "plate".equals(previous.owner().params().get("extrude_mode")))) return true;
         Object host = writer.params().get("host_id");
         if (!(host instanceof String id) || id.isBlank()) return false;
         if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;

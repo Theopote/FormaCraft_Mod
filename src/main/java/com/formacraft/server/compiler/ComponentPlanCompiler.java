@@ -1479,7 +1479,12 @@ public final class ComponentPlanCompiler {
 
             boolean hasRoofEarly = hasSatelliteForMass(c, components, inferred, "ROOF");
             boolean hasCrown = slotsWithCrown.contains(slotKey);
+            Component crownHost = c;
             boolean wouldInferCrown = !hasCrown
+                    && !(c.params() != null && c.params().containsKey("tier_index")
+                        && components.stream().anyMatch(upper -> upper != crownHost && upper.params() != null
+                            && java.util.Objects.equals(upper.params().get("host_id"), crownHost.params().get("component_id"))
+                            && upper.params().containsKey("tier_index")))
                     && !NonClassicalEnrichmentGuard.blocksCrownInference(plan)
                     && ComponentCrownDecorator.shouldApply(plan, c.params());
             var designGap = CompilerSatellitePolicy.missingSatellitesGap(
@@ -1812,6 +1817,8 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component alignFoundationToMass(Component foundation, Component mass) {
+        // A terrace is an authored deck, not buried support beneath the host.
+        if ("TERRACE".equalsIgnoreCase(foundation.componentType())) return foundation;
         Vec3i massOrigin = resolveMassOrigin(mass);
         Vec3i fp = foundation.relativePosition();
         Dimensions dims = foundation.dimensions();
@@ -2586,6 +2593,15 @@ public final class ComponentPlanCompiler {
         int roofHeight = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
                 width, depth, 0, params);
         String roofType = getParamString(params, "roof_type", "roofType");
+        // An unroofed setback tier supports the next tier and its garden deck;
+        // a default pitched roof would cut through that upper occupied body.
+        if ((roofType == null || roofType.isBlank()) && params.containsKey("tier_index")
+                && (Boolean.TRUE.equals(params.get("terraced")) || plan.components().stream().anyMatch(body ->
+                    body.params() != null && Boolean.TRUE.equals(body.params().get("terraced"))
+                        && java.util.Objects.equals(body.params().get("component_id"), params.get("host_id"))))) {
+            roofType = "flat";
+            params.put("roof_type", roofType);
+        }
         if (roofType == null || roofType.isBlank()) {
             roofType = resolveDefaultRoofType(plan, base);
             if (roofType != null) {

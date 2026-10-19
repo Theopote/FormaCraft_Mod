@@ -189,6 +189,41 @@ def _bind_exterior_stair_doors(plan: dict) -> None:
 
 
 def _fit_straight_stairs(plan: dict) -> None:
+    # Separate authored setback storeys share one circulation datum. Providers
+    # sometimes repeat the terrace's underside elevation and overlap stair lanes.
+    components = plan.get('components', [])
+    for root in components:
+        root_params = root.get('params') or {}
+        if root_params.get('terraced') is not True or not root_params.get('tier_count'):
+            continue
+        tiers = [root] + [c for c in components if c.get('component_type') == 'MASS_SECONDARY'
+                         and (c.get('params') or {}).get('host_id') == root_params.get('component_id')
+                         and 'tier_index' in (c.get('params') or {})]
+        tiers.sort(key=lambda c: c['relative_position']['y'])
+        if len(tiers) != root_params['tier_count']:
+            continue
+        ids = {t['params']['component_id']: i for i,t in enumerate(tiers)}
+        for stair in components:
+            p = stair.get('params') or {}
+            index = ids.get(p.get('host_id'))
+            if (index is None or stair.get('component_type') != 'STRUCTURE' or p.get('exterior') is True
+                    or p.get('circulation_datum') == 'tier_floors'
+                    or not isinstance(p.get('from'),dict) or not isinstance(p.get('to'),dict)):
+                continue
+            host = tiers[index]
+            low = _mass_origin(host)['y']
+            high = _mass_origin(tiers[index+1])['y'] if index+1 < len(tiers) else low+host['dimensions']['height']
+            a,b = p['from'],p['to']
+            dx,dz = b['x']-a['x'],b['z']-a['z']
+            if bool(dx) == bool(dz) or high <= low:
+                continue
+            axis,side = ('x','z') if dx else ('z','x')
+            direction = 1 if b[axis] > a[axis] else -1
+            a['y'],b['y'] = 0,high-low
+            b[axis] = a[axis]+direction*max(abs(dx or dz),high-low)
+            stair['relative_position']['y'] = low
+            stair['relative_position'][side] += index*max(0,int(p.get('width',3))-1)
+            p['circulation_datum'] = 'tier_floors'
     for comp in plan.get('components', []):
         params = comp.get('params') or {}
         if comp.get('component_type') != 'STRUCTURE' or not any(
@@ -365,6 +400,11 @@ def _fit_exterior_stairs(plan: dict) -> None:
             continue
         a, b = p.get('from'), p.get('to')
         if not isinstance(a,dict) or not isinstance(b,dict): continue
+        # Canonical low-to-high endpoints keep the generated landing at the
+        # raised end, including providers that describe a descending flight.
+        if a['y'] > b['y']:
+            a, b = b, a
+            p['from'], p['to'] = a, b
         dx, dz = b['x']-a['x'], b['z']-a['z']
         if bool(dx) == bool(dz): continue
         side = 'x' if dz else 'z'
@@ -385,9 +425,17 @@ def _fit_exterior_stairs(plan: dict) -> None:
                 continue
             po = world(part); pd = part.get('dimensions') or {}
             extent = pd.get('width' if side == 'x' else 'depth',0)
-            if (po['y'] == endpoint['y'] and po['x']-width <= endpoint['x'] < po['x']+pd.get('width',0)+width
+            if ((po['y'] == endpoint['y'] or abs(po['y'] - endpoint['y']) == 1 and pp.get('host_id') == p.get('host_id'))
+                    and po['x']-width <= endpoint['x'] < po['x']+pd.get('width',0)+width
                     and po['z']-width <= endpoint['z'] < po['z']+pd.get('depth',0)+width):
                 target_landings.append(part)
+        heights = {world(c)['y'] for c in target_landings}
+        if len(heights) == 1:
+            level = next(iter(heights))
+            if level != endpoint['y'] and 0 < level - (origin['y']+a['y']) <= run:
+                b['y'] = level-origin['y']
+                endpoint['y'] = level
+                p['landing_level_source'] = 'receiving_deck_block'
         direct = [c for c in target_landings if endpoint[side]+width-width//2 > world(c)[side]
                   and endpoint[side]-width//2 < world(c)[side]+c['dimensions']['width' if side=='x' else 'depth']]
         if direct: target_landings = direct
