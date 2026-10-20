@@ -477,6 +477,8 @@
     {
       "id": "brutalist_megastructure",
       "aliases": ["粗野主义", "粗野主义建筑", "brutalist megastructure", "brutalist architecture"],
+      "properNounAliases": ["brutalist megastructure", "粗野主义巨构"],
+      "genericAliases": ["粗野主义", "粗野主义建筑", "brutalist architecture"],
       "category": "LANDMARK",
       "generatorId": "brutalist_megastructure",
       "defaults": { "width": 36, "depth": 28, "height": 32, "massCount": 3 },

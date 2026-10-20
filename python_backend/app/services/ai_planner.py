@@ -342,6 +342,9 @@ def _ensure_genome_for_city_spec(spec: CitySpec, req: Optional[BuildRequest]) ->
 
 def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome: Dict[str, Any]) -> None:
     ctype = str(comp.get("component_type", "")).upper()
+    from .style_feature_compiler import component_style_defaults
+    for key, value in component_style_defaults(comp.get("_style_hint"), ctype).items():
+        params.setdefault(key, value)
     features = comp.get("features") or []
     dims = comp.get("dimensions") or {}
 
@@ -420,9 +423,6 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
                 params["setback_ratio"] = 0.06
         if "floor_height" not in params and dims.get("height"):
             params["floor_height"] = max(3, int(dims.get("height", 6) / max(1, dims.get("height", 6) // 3)))
-        from .style_feature_compiler import component_style_defaults
-        for key, value in component_style_defaults(comp.get("_style_hint"), ctype).items():
-            params.setdefault(key, value)
         if "wall_pattern" not in params and params.get("facade_profile") == "vertical_pilasters":
             params["wall_pattern"] = "gradient"
 

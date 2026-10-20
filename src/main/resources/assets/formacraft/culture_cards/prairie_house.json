@@ -1,0 +1,46 @@
+{
+  "id": "prairie_house",
+  "styleId": "Prairie_House",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "草原式住宅",
+    "草原式",
+    "草原学派住宅",
+    "prairie house",
+    "prairie architecture",
+    "prairie_horizontal"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "草原式住宅": 12,
+    "草原式": 12,
+    "草原学派住宅": 12,
+    "prairie house": 12,
+    "prairie architecture": 12,
+    "prairie_horizontal": 12
+  },
+  "negativeKeywords": [
+    "不要草原式住宅",
+    "not prairie architecture"
+  ],
+  "proportionCardId": "prairie_house",
+  "llmPlanExampleRefs": [
+    "prairie_horizontal_compact.json",
+    "prairie_horizontal_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "prairie_horizontal",
+      "constraints": [
+        "Use style_profile=Prairie_House and proportion_hints.typology=flat_roof_pavilion; original style request, not a named building.",
+        "Compose a low single-story MASS_MAIN, flat ROOF with overhang=2, hosted windows and entrance; facade_profile=base_plinth, window_ratio=0.28.",
+        "Preserve explicit user requirements; no native typology STRUCTURE or MODULE.",
+        "Authored voxel interpretation: do not claim a cantilever solver, ribbon-window generator or exact historic roof shape."
+      ]
+    }
+  ],
+  "structuralTypologyId": "flat_roof_pavilion"
+}

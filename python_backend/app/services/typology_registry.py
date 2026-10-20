@@ -121,7 +121,8 @@ def _load_from_json(path: Path) -> None:
             style_families=_str_tuple(item.get("styleFamilies")),
             match_keywords=_str_tuple(item.get("matchKeywords")),
             negative_keywords=_str_tuple(item.get("negativeKeywords")),
-            interpreter_id=str(item.get("interpreterId") or tid),
+            interpreter_id=("" if item.get("routingPolicy") == "compositional_only"
+                            else str(item.get("interpreterId") or tid)),
             legacy_interpreter_id=(
                 str(item.get("legacyInterpreterId")).strip()
                 if item.get("legacyInterpreterId")
@@ -190,6 +191,11 @@ def get_migration(legacy_module_id: str) -> Optional[MigrationEntry]:
     if not legacy_module_id:
         return None
     return _MIGRATION.get(legacy_module_id.strip())
+
+
+def is_compositional_typology(typology_id: str) -> bool:
+    definition = get_typology(typology_id)
+    return definition is not None and definition.routing_policy == "compositional_only"
 
 
 def typology_for_legacy_module(legacy_module_id: str) -> Optional[str]:

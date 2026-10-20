@@ -22,13 +22,17 @@ def enrich_hosted_styles(plan: dict, profile=None) -> dict:
             report["status"] = "invalid_host_identity"
             continue
         scopes = {identity, params.get("building_id"), params.get("requirement_scope")} - {None, ""}
-        research_styles = {canonical_style_id(spec.identity_id or spec.requested_name)
-                           for spec in (profile.style_specs if profile else []) if spec.scope in scopes}
+        scoped = [spec for spec in (profile.style_specs if profile else []) if spec.scope in scopes
+                  and (spec.weight is None or spec.weight > 0)]
+        highest_weight = max((spec.weight if spec.weight is not None else 1.0 for spec in scoped), default=0)
+        research_styles = {canonical_style_id(spec.identity_id or spec.requested_name) for spec in scoped
+                           if (spec.weight if spec.weight is not None else 1.0) == highest_weight}
         local = mass.get("style_profile") or params.get("style_profile")
         if local:
             style = canonical_style_id(local)
         elif len(research_styles) == 1:
             style = next(iter(research_styles))
+            report["weight"] = highest_weight
         elif len(research_styles) > 1:
             report["status"] = "conflicting_scoped_styles"
             continue

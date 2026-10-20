@@ -1,0 +1,152 @@
+{
+  "plan": {
+    "mode": "build",
+    "style_profile": "Chinese_Imperial_Official",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "mixed_host_compound"
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 17,
+          "depth": 13,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "component_id": "garden",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 8,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 17,
+          "depth": 13,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "garden_roof",
+          "anchor_mode": "min_corner",
+          "host_id": "garden"
+        }
+      },
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 30,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 9,
+          "depth": 7,
+          "height": 7
+        },
+        "features": [],
+        "params": {
+          "component_id": "chapel",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 30,
+          "y": 7,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 9,
+          "depth": 7,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "chapel_roof",
+          "anchor_mode": "min_corner",
+          "host_id": "chapel"
+        }
+      }
+    ]
+  },
+  "profile": {
+    "query": "中式园林里放一座哥特小教堂",
+    "style_specs": [
+      {
+        "requested_name": "Chinese_Imperial_Official",
+        "identity_id": "Chinese_Imperial_Official",
+        "scope": "garden",
+        "weight": 0.8,
+        "features": [
+          {
+            "feature": "hip roof",
+            "scope": "roof",
+            "confidence": 0.9,
+            "source_urls": [
+              "https://example.org/style"
+            ]
+          }
+        ]
+      },
+      {
+        "requested_name": "Gothic_Cathedral",
+        "identity_id": "Gothic_Cathedral",
+        "scope": "garden",
+        "weight": 0.2,
+        "features": [
+          {
+            "feature": "gable roof",
+            "scope": "roof",
+            "confidence": 0.9,
+            "source_urls": [
+              "https://example.org/style"
+            ]
+          }
+        ]
+      },
+      {
+        "requested_name": "Gothic_Cathedral",
+        "identity_id": "Gothic_Cathedral",
+        "scope": "chapel",
+        "weight": 0.2,
+        "features": [
+          {
+            "feature": "gable roof",
+            "scope": "roof",
+            "confidence": 0.9,
+            "source_urls": [
+              "https://example.org/style"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_roofs": {
+    "garden": "hip",
+    "chapel": "gable"
+  }
+}

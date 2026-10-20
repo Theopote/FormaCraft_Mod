@@ -73,6 +73,8 @@ class StyleSpec(BaseModel):
     period: Optional[str] = None
     purpose: Optional[str] = None
     scope: str = "building"
+    weight: Optional[float] = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False,
+                                   description="Relative default priority within the same host; omitted means 1, zero disables defaults.")
     features: List[StyleFeatureEvidence] = Field(default_factory=list)
 
 

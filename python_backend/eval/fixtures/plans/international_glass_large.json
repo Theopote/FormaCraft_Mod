@@ -1,0 +1,142 @@
+{
+  "mode": "build",
+  "style_profile": "Modern_International",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "concrete_civic_block",
+    "proportion_card_id": "international_glass_office",
+    "window_wall_ratio": 0.48,
+    "height_to_width": 0.5172413793103449,
+    "depth_to_width": 0.7241379310344828,
+    "window_aspect": "rectangular"
+  },
+  "style_attributes": {
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:smooth_stone",
+    "floor_material": "minecraft:smooth_stone",
+    "decorative_elements": [
+      "restrained_frame"
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 29,
+        "depth": 21,
+        "height": 15
+      },
+      "features": [],
+      "params": {
+        "wall_block": "minecraft:white_concrete",
+        "roof_block": "minecraft:smooth_stone",
+        "floor_block": "minecraft:smooth_stone",
+        "window_block": "minecraft:light_gray_stained_glass_pane",
+        "foundation_block": "minecraft:smooth_stone",
+        "trim_block": "minecraft:polished_andesite",
+        "pillar_block": "minecraft:iron_block",
+        "roof_type": "none",
+        "window_style": "pane",
+        "window_ratio": 0.48,
+        "facade_profile": "mullion_grid",
+        "floor_height": 5,
+        "component_id": "international_glass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 3,
+        "void_ratio": 0.05
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 14,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 29,
+        "depth": 21,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "roof_type": "flat",
+        "overhang": 0,
+        "roof_block": "minecraft:smooth_stone",
+        "component_id": "international_glass_roof",
+        "host_id": "international_glass",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 13,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "entry",
+        "host_id": "international_glass",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 1,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 1,
+        "height": 15
+      },
+      "features": [],
+      "params": {
+        "window_style": "pane",
+        "window_ratio": 0.48,
+        "window_block": "minecraft:light_gray_stained_glass_pane",
+        "component_id": "windows",
+        "host_id": "international_glass",
+        "facing": "NORTH",
+        "wall": "front",
+        "floor_count": 3,
+        "floor_height": 5,
+        "window_width": 2,
+        "window_height": 2,
+        "window_per_wall": 6
+      }
+    }
+  ]
+}

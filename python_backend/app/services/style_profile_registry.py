@@ -191,6 +191,12 @@ def _expand_query_tokens(query_text: Optional[str]) -> List[str]:
         return []
 
     tokens = set(re.findall(r"[a-z0-9_]{2,}", q))
+    from .style_identity import matched_style_ids
+    for identity in matched_style_ids(q):
+        tokens.add(identity.casefold())
+        palette_id = default_palette_for_style(identity)
+        if palette_id:
+            tokens.add(palette_id.casefold())
     # 额外：把常见中文关键词映射到可匹配的英文 token（避免 catalog/palette 主要为英文时匹配不到）
     for aliases, adds in _ALIAS_GROUPS:
         if any(a.lower() in q for a in aliases):
@@ -231,7 +237,10 @@ def catalog_prompt_block(max_items: int = 30, query_text: Optional[str] = None) 
     if not _CATALOG:
         return ""
 
-    items = list(_CATALOG.values())
+    from .style_identity import matched_style_ids, negated_style_ids
+    requested = matched_style_ids(query_text or '')
+    rejected = negated_style_ids(query_text or '')
+    items = [profile for profile in _CATALOG.values() if profile.style_id not in rejected]
     qtokens = _expand_query_tokens(query_text)
 
     if qtokens:
@@ -245,6 +254,8 @@ def catalog_prompt_block(max_items: int = 30, query_text: Optional[str] = None) 
                 _normalize_text(",".join(d.meta.tags or [])),
             ])
             s = _score_text_match(qtokens, hay, strong_needles=[d.style_id])
+            if d.style_id in requested:
+                s += 100
             # tags 命中额外加权（更稳定）
             for tg in (d.meta.tags or []):
                 tt = _normalize_text(tg)

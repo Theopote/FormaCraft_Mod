@@ -1,0 +1,37 @@
+{
+  "id": "japanese_rural_inn",
+  "styleId": "Japanese_Traditional",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "和风乡村旅馆",
+    "japanese timber inn"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "和风乡村旅馆": 30,
+    "japanese timber inn": 30
+  },
+  "negativeKeywords": [
+    "不要和风乡村旅馆",
+    "not japanese timber inn"
+  ],
+  "proportionCardId": "japanese_rural_inn",
+  "llmPlanExampleRefs": [
+    "japanese_rural_inn_compact.json",
+    "japanese_rural_inn_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "japanese_rural_inn",
+      "constraints": [
+        "Use style_profile=Japanese_Traditional, proportion_hints.typology=timber_gable_house; original 和风乡村旅馆 exterior request.",
+        "Use the dedicated envelope examples; preserve host bindings and explicit user requirements.",
+        "Exterior program proportions only; no furniture, room-use, accessibility or structural verification is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "timber_gable_house"
+}

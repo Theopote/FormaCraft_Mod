@@ -24,8 +24,158 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Region parity is separate from symmetry expansion and Build-only brush/path inputs. */
 class ConstraintParityTest {
+    static List<String> stylePlanNames(com.fasterxml.jackson.databind.JsonNode style) {
+        var names = new ArrayList<String>();
+        for (var name : style.path("plans")) names.add(name.asText());
+        for (var variant : style.path("variant_cards"))
+            for (var name : variant.path("plans")) names.add(name.asText());
+        for (var name : style.path("diversity_plans")) names.add(name.asText());
+        return names;
+    }
+
+    static java.util.stream.Stream<String> stylePackPlans() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        try (var input = ConstraintParityTest.class.getResourceAsStream(
+                "/assets/formacraft/style_profiles/style_pack_manifest_v1.json")) {
+            assertNotNull(input);
+            var names = new ArrayList<String>();
+            for (var style : mapper.readTree(input).get("styles"))
+                names.addAll(stylePlanNames(style));
+            assertFalse(names.isEmpty());
+            assertEquals(names.size(), new HashSet<>(names).size(), "duplicate style fixture names");
+            return names.stream();
+        }
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.MethodSource("stylePackPlans")
+    void authoredStylePackPlansCompileAndPreserveMaterialsAcrossClippers(String fixture) throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var plan = mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans", fixture).toFile(), LlmPlan.class);
+        List<BlockPatch> raw;
+        var first = plan.components().getFirst();
+        var typology = com.formacraft.common.typology.TypologyComponentRouter.extractTypologyId(first);
+        if (typology != null) {
+            // Native routers require a live ServerWorld. Exercise their pure builders here;
+            // compositional plans below exercise the complete offline compiler.
+            String builderName = java.util.Arrays.stream(typology.split("_"))
+                    .map(word -> Character.toUpperCase(word.charAt(0)) + word.substring(1))
+                    .collect(java.util.stream.Collectors.joining()) + "Builder";
+            var builder = Class.forName("com.formacraft.server.generation.typology.builder." + builderName);
+            var generate = builder.getMethod("generate", Map.class, BlockPos.class,
+                    net.minecraft.server.world.ServerWorld.class, com.formacraft.common.model.build.BuildingSpec.class);
+            var parameters = com.formacraft.common.typology.TypologyParamResolver.merge(typology, first);
+            var structure = (com.formacraft.common.build.GeneratedStructure) generate.invoke(null, parameters, ORIGIN, null, null);
+            raw = com.formacraft.common.typology.TypologyPatchBridge.toBlockPatches(structure, ORIGIN);
+        } else {
+            raw = ComponentPlanCompiler.compile(plan, ORIGIN, null, null, false);
+        }
+        assertFalse(raw.isEmpty(), () -> fixture + ": " + com.formacraft.server.assembly.AssemblyCompileDiagnostics.get());
+        try (var input = getClass().getResourceAsStream("/assets/formacraft/style_profiles/style_pack_manifest_v1.json")) {
+            for (var style : mapper.readTree(input).get("styles")) {
+                if (!stylePlanNames(style).contains(fixture)) continue;
+                if (!style.get("typology_id").isNull()) {
+                    String typologyId = style.get("typology_id").asText();
+                    var definition = com.formacraft.common.typology.StructuralTypologyRegistry.getById(typologyId);
+                    assertNotNull(definition, fixture + " missing typology: " + typologyId);
+                    if ("compositional_only".equals(definition.routingPolicy())) {
+                        assertNull(definition.interpreterId(), fixture + " must not claim a native interpreter");
+                        assertNull(typology, fixture + " must not carry native component routing");
+                        assertTrue(plan.components().stream().noneMatch(component ->
+                                Set.of("STRUCTURE", "MODULE").contains(component.componentType())), fixture);
+                    }
+                }
+                var materials = raw.stream().map(BlockPatch::targetBlock)
+                        .map(id -> id.split("\\[")[0]).collect(java.util.stream.Collectors.toSet());
+                assertTrue(materials.contains(style.get("expected_wall").asText()), fixture + " wall: " + materials);
+                try (var genome = getClass().getResourceAsStream("/assets/formacraft/style_genomes/"
+                        + style.get("genome_id").asText() + ".json")) {
+                    var palette = mapper.readTree(genome).get("palette");
+                    assertEquals(12, palette.size(), fixture + " palette roles");
+                    for (var block : palette) {
+                        var id = net.minecraft.util.Identifier.of(block.asText());
+                        assertTrue(net.minecraft.registry.Registries.BLOCK.containsId(id), fixture + " unregistered material: " + id);
+                        assertFalse(net.minecraft.registry.Registries.BLOCK.get(id).getDefaultState().isAir(), fixture + " air material: " + id);
+                    }
+                    assertInstanceOf(net.minecraft.block.DoorBlock.class, net.minecraft.registry.Registries.BLOCK.get(
+                            net.minecraft.util.Identifier.of(palette.get("door").asText())), fixture);
+                    assertInstanceOf(net.minecraft.block.StairsBlock.class, net.minecraft.registry.Registries.BLOCK.get(
+                            net.minecraft.util.Identifier.of(palette.get("stairs").asText())), fixture);
+                    assertInstanceOf(net.minecraft.block.SlabBlock.class, net.minecraft.registry.Registries.BLOCK.get(
+                            net.minecraft.util.Identifier.of(palette.get("roof_slab").asText())), fixture);
+                    assertTrue(java.util.stream.Stream.of("roof", "stairs", "roof_slab")
+                            .anyMatch(role -> materials.contains(palette.get(role).asText())), fixture + " roof: " + materials);
+                }
+            }
+        }
+        int minX = raw.stream().mapToInt(BlockPatch::dx).min().orElseThrow();
+        int maxX = raw.stream().mapToInt(BlockPatch::dx).max().orElseThrow();
+        var min = ORIGIN.add(minX, -512, -512);
+        var max = ORIGIN.add(minX + (maxX - minX) / 2, 512, 512);
+        var expected = allowed(raw, ORIGIN, new BuildConstraints(min, max, null, List.of()));
+        assertFalse(expected.isEmpty(), fixture);
+        assertTrue(expected.size() < raw.size(), fixture);
+        assertEquals(expected, ServerPatchFilter.filter(ORIGIN, raw, List.of(), null, true, min, max).accepted);
+        assertEquals(expected, PatchFilterPipeline.createDefault().apply(raw, ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min, max), null, List.of()))));
+    }
+
     private static final BlockPos ORIGIN = new BlockPos(100, 64, -40);
     @BeforeAll static void bootstrap() { MinecraftRegistryTestBootstrap.initialize(); }
+
+    @Test void allP1GenomeRolesReachTheRuntimeAdapterWithoutFallback() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var ids = new HashSet<>(List.of("default", "rustic_wood", "medieval_stone", "mingqing_official",
+                "modern_minimal", "futuristic_clean"));
+        try (var input = getClass().getResourceAsStream("/assets/formacraft/style_profiles/style_pack_manifest_v1.json")) {
+            for (var style : mapper.readTree(input).get("styles")) ids.add(style.get("genome_id").asText());
+        }
+        assertTrue(ids.size() >= 20);
+        for (String id : ids) {
+            var genome = com.formacraft.common.style.StyleGenomeRegistry.load(id);
+            assertEquals(id, genome.id);
+            var adapter = new com.formacraft.common.style.profile.GenomeStyleProfile(genome,
+                    com.formacraft.common.model.build.BuildingStyle.DEFAULT).palette();
+            var actual = Map.ofEntries(Map.entry("wall", adapter.wall), Map.entry("roof", adapter.roof),
+                    Map.entry("floor", adapter.floor), Map.entry("window", adapter.window),
+                    Map.entry("foundation", adapter.foundation), Map.entry("trim", adapter.trim),
+                    Map.entry("pillar", adapter.pillar), Map.entry("cap", adapter.cap),
+                    Map.entry("door", adapter.door), Map.entry("roof_trim", adapter.roofTrim),
+                    Map.entry("stairs", adapter.stairs), Map.entry("roof_slab", adapter.roofSlab));
+            try (var input = getClass().getResourceAsStream("/assets/formacraft/style_genomes/" + id + ".json")) {
+                var expected = mapper.readTree(input).get("palette");
+                assertEquals(12, expected.size(), id);
+                for (var role : actual.entrySet()) {
+                    assertEquals(expected.get(role.getKey()).asText(), role.getValue(), id + ": " + role.getKey());
+                    assertTrue(net.minecraft.registry.Registries.BLOCK.containsId(
+                            net.minecraft.util.Identifier.of(role.getValue())), id + ": " + role);
+                }
+            }
+        }
+    }
+
+    @Test void mixedGardenAndChapelGoldenCompilesWithSeparateRoofBindings() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var file = java.nio.file.Path.of("python_backend/eval/fixtures/plans/mixed_garden_chapel.json").toFile();
+        var plan = mapper.readValue(file, LlmPlan.class);
+        var expectedTypes = Map.of("garden", "hip", "chapel", "gable");
+        for (var roof : plan.components()) {
+            if (!"ROOF".equals(roof.componentType())) continue;
+            assertEquals(expectedTypes.get(roof.params().get("host_id")), roof.params().get("roof_type"));
+        }
+        var raw = ComponentPlanCompiler.compile(plan, ORIGIN, null, null, false);
+        assertFalse(raw.isEmpty(), () -> String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        assertTrue(raw.stream().anyMatch(p -> p.dx() < 20));
+        assertTrue(raw.stream().anyMatch(p -> p.dx() >= 30));
+        var min = ORIGIN.add(-8, -16, -16);
+        var max = ORIGIN.add(24, 64, 32);
+        var clipped = allowed(raw, ORIGIN, new BuildConstraints(min, max, null, List.of()));
+        assertFalse(clipped.isEmpty());
+        assertTrue(clipped.size() < raw.size());
+        assertEquals(clipped, ServerPatchFilter.filter(ORIGIN, raw, List.of(), null, true, min, max).accepted);
+        assertEquals(clipped, PatchFilterPipeline.createDefault().apply(raw, ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min, max), null, List.of()))));
+    }
 
     private ToolConstraintSnapshot snapshot(SelectionBox selection, OutlineShape outline, List<ProtectedZone> zones) {
         return new ToolConstraintSnapshot(selection, outline, List.of(), zones,

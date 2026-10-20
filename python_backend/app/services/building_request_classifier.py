@@ -14,7 +14,7 @@ import re
 from typing import Any, Callable, Optional
 
 from ..models.building_profile import RequestClassification
-from .style_identity import generic_style_pattern
+from .style_identity import generic_style_pattern, identity_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +121,15 @@ def classify_building_request_local(user_text: str) -> RequestClassification:
             )
     except Exception:
         pass
+
+    # Remove catalog style descriptors, but retain any distinguishing place/proper name.
+    if subject and _GENERIC_STYLE_RE.search(subject):
+        remainder = _GENERIC_STYLE_RE.sub('', subject).strip()
+        remainder = re.sub(r'^(?:风格|式|的|style\b)\s*', '', remainder, flags=re.I).strip()
+        categories = _BROAD_TYPE_WORDS | set(identity_catalog().get('generic_building_types', []))
+        if not remainder or remainder.casefold() in {word.casefold() for word in categories}:
+            return RequestClassification(is_specific_real_building=False, confidence=0.8,
+                reasoning_hint='catalog style with a generic building category', source='rules')
 
     # Explicit generic typology phrases
     if _GENERIC_TYPology_RE.search(text):

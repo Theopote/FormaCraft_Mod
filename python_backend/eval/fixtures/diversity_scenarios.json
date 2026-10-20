@@ -37,5 +37,68 @@
     "notes": [
       "两个完全相同 plan — unique_ratio 应 < 1.0，用于验证重复检测"
     ]
+  },
+  {
+    "id": "style_family_A_diversity",
+    "prompt": "生成一座唐风木构大殿",
+    "plan_fixtures": [
+      "plans/tang_timber_compact.json",
+      "plans/tang_timber_large.json",
+      "plans/tang_timber_diversity.json"
+    ],
+    "thresholds": {
+      "min_samples": 3,
+      "min_unique_ratio": 1.0,
+      "min_mean_distance": 0.12,
+      "min_routing_unique": 1,
+      "require_routing_diversity": false
+    },
+    "ci": true,
+    "notes": [
+      "Authored parameter alternatives for one style prompt; not live LLM samples.",
+      "The third alternative changes actual envelope geometry, not just an ignored seed."
+    ]
+  },
+  {
+    "id": "style_family_B_diversity",
+    "prompt": "生成一座新古典风格大楼",
+    "plan_fixtures": [
+      "plans/neoclassical_civic_compact.json",
+      "plans/neoclassical_civic_large.json",
+      "plans/neoclassical_civic_diversity.json"
+    ],
+    "thresholds": {
+      "min_samples": 3,
+      "min_unique_ratio": 1.0,
+      "min_mean_distance": 0.12,
+      "min_routing_unique": 1,
+      "require_routing_diversity": false
+    },
+    "ci": true,
+    "notes": [
+      "Authored parameter alternatives for one style prompt; not live LLM samples.",
+      "The third alternative changes actual envelope geometry, not just an ignored seed."
+    ]
+  },
+  {
+    "id": "style_family_C_diversity",
+    "prompt": "生成一座现代国际式大楼",
+    "plan_fixtures": [
+      "plans/international_glass_compact.json",
+      "plans/international_glass_large.json",
+      "plans/international_glass_diversity.json"
+    ],
+    "thresholds": {
+      "min_samples": 3,
+      "min_unique_ratio": 1.0,
+      "min_mean_distance": 0.12,
+      "min_routing_unique": 1,
+      "require_routing_diversity": false
+    },
+    "ci": true,
+    "notes": [
+      "Authored parameter alternatives for one style prompt; not live LLM samples.",
+      "The third alternative changes actual envelope geometry, not just an ignored seed."
+    ]
   }
 ]

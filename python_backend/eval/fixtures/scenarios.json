@@ -360,5 +360,857 @@
       "layout.skeleton_type=VERTICAL_STACK; FORBID MODULE + landmark",
       "proportion_card setback_tower"
     ]
+  },
+  {
+    "id": "tang_timber_compact",
+    "prompt": "生成一座唐风木构大殿",
+    "plan_fixture": "plans/tang_timber_compact.json",
+    "tags": [
+      "style_pack",
+      "A",
+      "tang_timber"
+    ],
+    "proportion_card": "tang_timber_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "tang_timber_large",
+    "prompt": "生成一座唐风木构大殿",
+    "plan_fixture": "plans/tang_timber_large.json",
+    "tags": [
+      "style_pack",
+      "A",
+      "tang_timber"
+    ],
+    "proportion_card": "tang_timber_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "renaissance_stone_compact",
+    "prompt": "生成一座文艺复兴宅邸",
+    "plan_fixture": "plans/renaissance_stone_compact.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "renaissance_stone"
+    ],
+    "proportion_card": "renaissance_palazzo",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "renaissance_stone_large",
+    "prompt": "生成一座文艺复兴宅邸",
+    "plan_fixture": "plans/renaissance_stone_large.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "renaissance_stone"
+    ],
+    "proportion_card": "renaissance_palazzo",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "art_deco_vertical_compact",
+    "prompt": "生成装饰艺术退台塔楼",
+    "plan_fixture": "plans/art_deco_vertical_compact.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "art_deco_vertical"
+    ],
+    "proportion_card": "art_deco_tower",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "art_deco_vertical_large",
+    "prompt": "生成装饰艺术退台塔楼",
+    "plan_fixture": "plans/art_deco_vertical_large.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "art_deco_vertical"
+    ],
+    "proportion_card": "art_deco_tower",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "brutalist_concrete_compact",
+    "prompt": "生成一座粗野主义大楼",
+    "plan_fixture": "plans/brutalist_concrete_compact.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "brutalist_concrete"
+    ],
+    "proportion_card": "brutalist_civic",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "brutalist_concrete_large",
+    "prompt": "生成一座粗野主义大楼",
+    "plan_fixture": "plans/brutalist_concrete_large.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "brutalist_concrete"
+    ],
+    "proportion_card": "brutalist_civic",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "industrial_brick_compact",
+    "prompt": "生成一座红砖工业大楼",
+    "plan_fixture": "plans/industrial_brick_compact.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "industrial_brick"
+    ],
+    "proportion_card": "industrial_brick_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "industrial_brick_large",
+    "prompt": "生成一座红砖工业大楼",
+    "plan_fixture": "plans/industrial_brick_large.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "industrial_brick"
+    ],
+    "proportion_card": "industrial_brick_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "japanese_timber_compact",
+    "prompt": "生成一座日式传统木屋",
+    "plan_fixture": "plans/japanese_timber_compact.json",
+    "tags": [
+      "style_pack",
+      "A",
+      "japanese_timber"
+    ],
+    "proportion_card": "japanese_timber_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "japanese_timber_large",
+    "prompt": "生成一座日式传统木屋",
+    "plan_fixture": "plans/japanese_timber_large.json",
+    "tags": [
+      "style_pack",
+      "A",
+      "japanese_timber"
+    ],
+    "proportion_card": "japanese_timber_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "scandinavian_timber_compact",
+    "prompt": "生成一座北欧木屋",
+    "plan_fixture": "plans/scandinavian_timber_compact.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "scandinavian_timber"
+    ],
+    "proportion_card": "scandinavian_timber_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "scandinavian_timber_large",
+    "prompt": "生成一座北欧木屋",
+    "plan_fixture": "plans/scandinavian_timber_large.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "scandinavian_timber"
+    ],
+    "proportion_card": "scandinavian_timber_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "mediterranean_stucco_compact",
+    "prompt": "生成一座地中海灰泥别墅",
+    "plan_fixture": "plans/mediterranean_stucco_compact.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "mediterranean_stucco"
+    ],
+    "proportion_card": "mediterranean_stucco_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "mediterranean_stucco_large",
+    "prompt": "生成一座地中海灰泥别墅",
+    "plan_fixture": "plans/mediterranean_stucco_large.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "mediterranean_stucco"
+    ],
+    "proportion_card": "mediterranean_stucco_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "georgian_brick_compact",
+    "prompt": "生成一座乔治王朝砖砌宅邸",
+    "plan_fixture": "plans/georgian_brick_compact.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "georgian_brick"
+    ],
+    "proportion_card": "georgian_brick_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "georgian_brick_large",
+    "prompt": "生成一座乔治王朝砖砌宅邸",
+    "plan_fixture": "plans/georgian_brick_large.json",
+    "tags": [
+      "style_pack",
+      "B",
+      "georgian_brick"
+    ],
+    "proportion_card": "georgian_brick_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "prairie_horizontal_compact",
+    "prompt": "生成一座草原式住宅",
+    "plan_fixture": "plans/prairie_horizontal_compact.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "prairie_horizontal"
+    ],
+    "proportion_card": "prairie_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "prairie_horizontal_large",
+    "prompt": "生成一座草原式住宅",
+    "plan_fixture": "plans/prairie_horizontal_large.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "prairie_horizontal"
+    ],
+    "proportion_card": "prairie_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "midcentury_pavilion_compact",
+    "prompt": "生成一座世纪中叶住宅",
+    "plan_fixture": "plans/midcentury_pavilion_compact.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "midcentury_pavilion"
+    ],
+    "proportion_card": "midcentury_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "midcentury_pavilion_large",
+    "prompt": "生成一座世纪中叶住宅",
+    "plan_fixture": "plans/midcentury_pavilion_large.json",
+    "tags": [
+      "style_pack",
+      "C",
+      "midcentury_pavilion"
+    ],
+    "proportion_card": "midcentury_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "alpine_chalet_compact",
+    "prompt": "生成一座阿尔卑斯木屋",
+    "plan_fixture": "plans/alpine_chalet_compact.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "alpine_chalet_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "alpine_chalet_large",
+    "prompt": "生成一座阿尔卑斯木屋",
+    "plan_fixture": "plans/alpine_chalet_large.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "alpine_chalet_house",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "neoclassical_civic_compact",
+    "prompt": "生成一座新古典风格大楼",
+    "plan_fixture": "plans/neoclassical_civic_compact.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "neoclassical_civic_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "neoclassical_civic_large",
+    "prompt": "生成一座新古典风格大楼",
+    "plan_fixture": "plans/neoclassical_civic_large.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "neoclassical_civic_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "international_glass_compact",
+    "prompt": "生成一座现代国际式大楼",
+    "plan_fixture": "plans/international_glass_compact.json",
+    "tags": [
+      "style_pack",
+      "C"
+    ],
+    "proportion_card": "international_glass_office",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "international_glass_large",
+    "prompt": "生成一座现代国际式大楼",
+    "plan_fixture": "plans/international_glass_large.json",
+    "tags": [
+      "style_pack",
+      "C"
+    ],
+    "proportion_card": "international_glass_office",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "tang_study_hall_compact",
+    "prompt": "生成一座唐风书院大殿",
+    "plan_fixture": "plans/tang_study_hall_compact.json",
+    "tags": [
+      "style_pack",
+      "A"
+    ],
+    "proportion_card": "tang_study_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "tang_study_hall_large",
+    "prompt": "生成一座唐风书院大殿",
+    "plan_fixture": "plans/tang_study_hall_large.json",
+    "tags": [
+      "style_pack",
+      "A"
+    ],
+    "proportion_card": "tang_study_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "japanese_rural_inn_compact",
+    "prompt": "生成一座和风乡村旅馆",
+    "plan_fixture": "plans/japanese_rural_inn_compact.json",
+    "tags": [
+      "style_pack",
+      "A"
+    ],
+    "proportion_card": "japanese_rural_inn",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "japanese_rural_inn_large",
+    "prompt": "生成一座和风乡村旅馆",
+    "plan_fixture": "plans/japanese_rural_inn_large.json",
+    "tags": [
+      "style_pack",
+      "A"
+    ],
+    "proportion_card": "japanese_rural_inn",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "nordic_forest_lodge_compact",
+    "prompt": "生成一座北欧木构森林山庄",
+    "plan_fixture": "plans/nordic_forest_lodge_compact.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "nordic_forest_lodge",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "nordic_forest_lodge_large",
+    "prompt": "生成一座北欧木构森林山庄",
+    "plan_fixture": "plans/nordic_forest_lodge_large.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "nordic_forest_lodge",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "mediterranean_guesthouse_compact",
+    "prompt": "生成一座地中海灰泥客舍",
+    "plan_fixture": "plans/mediterranean_guesthouse_compact.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "mediterranean_guesthouse",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "mediterranean_guesthouse_large",
+    "prompt": "生成一座地中海灰泥客舍",
+    "plan_fixture": "plans/mediterranean_guesthouse_large.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "mediterranean_guesthouse",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "georgian_civic_hall_compact",
+    "prompt": "生成一座乔治王朝会馆",
+    "plan_fixture": "plans/georgian_civic_hall_compact.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "georgian_civic_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "georgian_civic_hall_large",
+    "prompt": "生成一座乔治王朝会馆",
+    "plan_fixture": "plans/georgian_civic_hall_large.json",
+    "tags": [
+      "style_pack",
+      "B"
+    ],
+    "proportion_card": "georgian_civic_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "prairie_community_library_compact",
+    "prompt": "生成一座草原式社区图书馆",
+    "plan_fixture": "plans/prairie_community_library_compact.json",
+    "tags": [
+      "style_pack",
+      "C"
+    ],
+    "proportion_card": "prairie_community_library",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "prairie_community_library_large",
+    "prompt": "生成一座草原式社区图书馆",
+    "plan_fixture": "plans/prairie_community_library_large.json",
+    "tags": [
+      "style_pack",
+      "C"
+    ],
+    "proportion_card": "prairie_community_library",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "midcentury_visitor_center_compact",
+    "prompt": "生成一座世纪中叶游客中心",
+    "plan_fixture": "plans/midcentury_visitor_center_compact.json",
+    "tags": [
+      "style_pack",
+      "C"
+    ],
+    "proportion_card": "midcentury_visitor_center",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "midcentury_visitor_center_large",
+    "prompt": "生成一座世纪中叶游客中心",
+    "plan_fixture": "plans/midcentury_visitor_center_large.json",
+    "tags": [
+      "style_pack",
+      "C"
+    ],
+    "proportion_card": "midcentury_visitor_center",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "tang_timber_diversity",
+    "prompt": "生成一座唐风木构大殿",
+    "plan_fixture": "plans/tang_timber_diversity.json",
+    "tags": [
+      "style_pack",
+      "diversity",
+      "A"
+    ],
+    "proportion_card": "tang_timber_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "neoclassical_civic_diversity",
+    "prompt": "生成一座新古典风格大楼",
+    "plan_fixture": "plans/neoclassical_civic_diversity.json",
+    "tags": [
+      "style_pack",
+      "diversity",
+      "B"
+    ],
+    "proportion_card": "neoclassical_civic_hall",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "international_glass_diversity",
+    "prompt": "生成一座现代国际式大楼",
+    "plan_fixture": "plans/international_glass_diversity.json",
+    "tags": [
+      "style_pack",
+      "diversity",
+      "C"
+    ],
+    "proportion_card": "international_glass_office",
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
+  },
+  {
+    "id": "mixed_garden_chapel",
+    "prompt": "中式园林里放一座哥特小教堂",
+    "plan_fixture": "plans/mixed_garden_chapel.json",
+    "tags": [
+      "style_pack",
+      "mixed_host"
+    ],
+    "ci": true,
+    "hard_checks": [
+      "schema_valid",
+      "has_anchor",
+      "has_geometry",
+      "dimensions_sane",
+      "has_proportion_hints"
+    ]
   }
 ]

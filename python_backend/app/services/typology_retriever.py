@@ -89,7 +89,8 @@ def resolve_typology_for_intent(
                     score=9.0,
                     source="culture_card",
                     matched_keywords=[culture_card_id],
-                    reference_landmark_id=culture_card_id,
+                    reference_landmark_id=(_primary_reference_landmark(defn)
+                                           if defn.routing_policy == "compositional_only" else culture_card_id),
                     legacy_module_id=defn.legacy_interpreter_id,
                     routing_policy=defn.routing_policy,
                 )
@@ -179,7 +180,7 @@ def compact_typology_payload(match: Optional[TypologyMatch]) -> Optional[Dict[st
 
 
 def should_suppress_landmark_module(match: Optional[TypologyMatch]) -> bool:
-    """typology_first policy: do not auto-inject landmark MODULE when typology resolves."""
+    """Native and compositional typologies both suppress automatic landmark MODULEs."""
     if match is None:
         return False
-    return match.routing_policy == "typology_first"
+    return match.routing_policy in {"typology_first", "compositional_only"}

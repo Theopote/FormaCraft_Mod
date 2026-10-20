@@ -1,0 +1,254 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Imperial_Official",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "mixed_host_compound",
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "garden",
+          "changes": [
+            {
+              "component_id": "garden",
+              "parameter": "facade_profile",
+              "value": "base_plinth"
+            },
+            {
+              "component_id": "garden_roof",
+              "parameter": "roof_type",
+              "value": "hip"
+            }
+          ],
+          "skipped": [],
+          "weight": 0.8,
+          "style_id": "Chinese_Imperial_Official",
+          "status": "processed"
+        },
+        {
+          "host_id": "chapel",
+          "changes": [
+            {
+              "component_id": "chapel",
+              "parameter": "facade_profile",
+              "value": "vertical_pilasters"
+            }
+          ],
+          "skipped": [],
+          "weight": 0.2,
+          "style_id": "Gothic_Cathedral",
+          "status": "processed"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": [
+        {
+          "style": "Chinese_Imperial_Official",
+          "feature": "hip roof",
+          "scope": "roof",
+          "style_scope": "garden",
+          "weight": 0.8,
+          "component_type": "ROOF",
+          "params": {
+            "roof_type": "hip"
+          },
+          "status": "matched_existing",
+          "source_urls": [
+            "https://example.org/style"
+          ],
+          "parameter_verification": "matched",
+          "component_id": "garden_roof",
+          "host_id": "garden",
+          "actual_value": "hip"
+        },
+        {
+          "style": "Gothic_Cathedral",
+          "feature": "gable roof",
+          "scope": "roof",
+          "style_scope": "garden",
+          "weight": 0.2,
+          "component_type": "ROOF",
+          "params": {
+            "roof_type": "gable"
+          },
+          "status": "lower_weight_default",
+          "source_urls": [
+            "https://example.org/style"
+          ],
+          "parameter_verification": "not_checked",
+          "component_id": "garden_roof",
+          "host_id": "garden"
+        },
+        {
+          "style": "Gothic_Cathedral",
+          "feature": "gable roof",
+          "scope": "roof",
+          "style_scope": "chapel",
+          "weight": 0.2,
+          "component_type": "ROOF",
+          "params": {
+            "roof_type": "gable"
+          },
+          "status": "applied_default",
+          "source_urls": [
+            "https://example.org/style"
+          ],
+          "parameter_verification": "matched",
+          "component_id": "chapel_roof",
+          "host_id": "chapel",
+          "actual_value": "gable"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 13,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "garden",
+        "anchor_mode": "min_corner",
+        "facade_profile": "base_plinth",
+        "style_profile": "Chinese_Imperial_Official",
+        "roof_type": "none",
+        "wall_block": "minecraft:red_concrete",
+        "floor_block": "minecraft:quartz_block",
+        "foundation_block": "minecraft:quartz_block",
+        "trim_block": "minecraft:polished_blackstone"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 13,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "garden_roof",
+        "anchor_mode": "min_corner",
+        "host_id": "garden",
+        "roof_type": "hip",
+        "roof_block": "minecraft:yellow_concrete"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 30,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 7,
+        "height": 7
+      },
+      "features": [],
+      "params": {
+        "component_id": "chapel",
+        "anchor_mode": "min_corner",
+        "facade_profile": "vertical_pilasters",
+        "style_profile": "Gothic_Cathedral",
+        "roof_type": "none",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:polished_andesite",
+        "foundation_block": "minecraft:stone_bricks",
+        "trim_block": "minecraft:polished_blackstone"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 30,
+        "y": 7,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 7,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "chapel_roof",
+        "anchor_mode": "min_corner",
+        "host_id": "chapel",
+        "roof_type": "gable",
+        "roof_block": "minecraft:deepslate_tiles"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 7,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "garden_entrance",
+        "host_id": "garden",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 33,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "chapel_entrance",
+        "host_id": "chapel",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3
+      }
+    }
+  ]
+}

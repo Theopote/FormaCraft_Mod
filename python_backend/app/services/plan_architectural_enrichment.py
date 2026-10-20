@@ -126,7 +126,13 @@ def enrich_profile_architectural_detail(
         exclusive = typology_exclusive_component_note(mc.structural_typology, mc.reference_landmark)
         if exclusive not in note:
             mc.notes = f"{exclusive} {note}".strip()
-        mc.recommended_components = ["STRUCTURE"]
+        from .typology_registry import is_compositional_typology
+        mc.recommended_components = (["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
+                                     if is_compositional_typology(mc.structural_typology) else ["STRUCTURE"])
+        return profile.model_copy(update={"minecraft_strategy": mc})
+
+    if mc.landmark_module:
+        mc.recommended_components = ["MODULE"]
         return profile.model_copy(update={"minecraft_strategy": mc})
 
     skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile)

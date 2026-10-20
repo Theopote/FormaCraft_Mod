@@ -138,6 +138,8 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
     q = (prompt or "").strip()
     qn = q.lower()
 
+    from .style_identity import canonical_style_id, negated_style_ids
+    rejected_styles = negated_style_ids(q)
     hits: List[CultureHit] = []
     for p in sorted(cards_dir.glob("*.json")):
         try:
@@ -149,6 +151,8 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         cid = str(c.get("id") or "").strip()
         style_id = str(c.get("styleId") or "").strip()
         if not cid or not style_id:
+            continue
+        if canonical_style_id(style_id) in rejected_styles:
             continue
         # A tower attached to a villa/hotel is not evidence of a fortress.
         if cid in ('medieval_castle', 'castle_compound') and not any(

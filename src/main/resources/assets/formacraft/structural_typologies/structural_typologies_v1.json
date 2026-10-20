@@ -2,7 +2,13 @@
   "version": 1,
   "schema": {
     "description": "Structural typology registry — finite parametric interpreters, landmarks as references only.",
-    "typologyRequired": ["id", "displayName", "skeletonType", "matchKeywords", "routingPolicy"],
+    "typologyRequired": [
+      "id",
+      "displayName",
+      "skeletonType",
+      "matchKeywords",
+      "routingPolicy"
+    ],
     "routingPolicies": {
       "typology_first": "Plan emits structural_typology; landmark MODULE disabled for migrated landmarks.",
       "compositional_only": "No dedicated interpreter; MASS_MAIN + ROOF composition with proportion_hints."
@@ -76,15 +82,46 @@
         "en": "Tailiang timber hall"
       },
       "skeletonType": "GRID_BAY",
-      "styleFamilies": ["Tang_Dynasty_Timber", "Chinese_Traditional"],
+      "styleFamilies": [
+        "Tang_Dynasty_Timber",
+        "Chinese_Traditional"
+      ],
       "matchKeywords": [
-        "抬梁式", "抬梁式大殿", "唐代木构", "唐代建筑", "木构大殿", "七开间", "庑殿顶",
-        "斗拱", "铺作", "副阶周匝", "tailiang hall", "tang timber hall", "timber frame hall",
-        "佛光寺", "佛光寺大殿", "东大殿", "foguang temple", "foguang si", "wutai foguang"
+        "抬梁式",
+        "抬梁式大殿",
+        "唐代木构",
+        "唐代建筑",
+        "木构大殿",
+        "七开间",
+        "庑殿顶",
+        "斗拱",
+        "铺作",
+        "副阶周匝",
+        "tailiang hall",
+        "tang timber hall",
+        "timber frame hall",
+        "佛光寺",
+        "佛光寺大殿",
+        "东大殿",
+        "foguang temple",
+        "foguang si",
+        "wutai foguang",
+        "唐风书院大殿",
+        "tang timber study hall"
       ],
       "negativeKeywords": [
-        "密檐塔", "砖塔", "pagoda", "天坛", "祈年殿", "四合院", "哥特", "大教堂",
-        "圆顶", "classical monument", "cottage", "小房子"
+        "密檐塔",
+        "砖塔",
+        "pagoda",
+        "天坛",
+        "祈年殿",
+        "四合院",
+        "哥特",
+        "大教堂",
+        "圆顶",
+        "classical monument",
+        "cottage",
+        "小房子"
       ],
       "interpreterId": "tailiang_timber_hall",
       "routingPolicy": "typology_first",
@@ -100,30 +137,119 @@
         "facing": "SOUTH"
       },
       "paramSchema": {
-        "baysX": { "min": 5, "ideal": 7, "max": 9, "desc": "面阔开间数" },
-        "baysZ": { "min": 3, "ideal": 4, "max": 5, "desc": "进深开间数" },
-        "width": { "min": 15, "ideal": 21, "max": 30, "desc": "面阔（blocks）" },
-        "depth": { "min": 10, "ideal": 15, "max": 22, "desc": "进深（blocks）" },
-        "hallHeight": { "min": 5, "ideal": 7, "max": 12, "desc": "柱网主体高度" },
-        "includeSubEaves": { "type": "boolean", "default": true, "desc": "副阶周匝 + 副阶内檐" },
-        "roofType": { "type": "string", "desc": "屋顶形式：ying_shan/yingshan（硬山）、xuan_shan/xuanshan（悬山）、xie_shan/xieshan（歇山）、wu_dian/wudian（庑殿）；未知形式拒绝生成" },
-        "roofRise": { "min": 3, "max": 18, "desc": "屋面从檐口到正脊的升高格数，未指定时由坡面水平跨度推导；工程近似，不表示历史举折比例" },
-        "roofOverhang": { "min": 0, "max": 3, "desc": "出檐格数，默认1；硬山端部始终与山墙齐平" },
-        "roofCurve": { "min": 0, "max": 100, "desc": "坡面曲率，默认0直坡；数值越高下部越缓、上部越陡，为视觉近似" },
-        "roofCornerLift": { "min": 0, "max": 3, "desc": "翘角高度，默认0；仅歇山或庑殿且出檐至少1格时支持" },
-        "includePainting": { "type": "boolean", "default": true, "desc": "独立彩画端帽开关，不移除柱梁和斗拱；仅斗拱启用时出现" },
-        "includeFacadeDetails": { "type": "boolean", "default": true, "desc": "按开间生成挑出窗台、窗楣及檐枋；入口不设窗台；材质跟随 trim_block，木板使用同木种半砖" },
-        "wall_block": { "type": "string", "desc": "注册方块ID，显式覆盖墙体材料；无效/空气/流体拒绝" },
-        "floor_block": { "type": "string", "desc": "覆盖台基地面，边缘梁枋保留trim_block" },
-        "foundation_block": { "type": "string", "desc": "覆盖台基内部基础" },
-        "pillar_block": { "type": "string", "desc": "覆盖柱与内部木梁材料" },
-        "trim_block": { "type": "string", "desc": "覆盖柱帽、梁枋与联系梁" },
-        "bracket_block": { "type": "string", "desc": "覆盖简化斗拱外挑臂" },
-        "paint_block": { "type": "string", "desc": "覆盖彩画端帽，不隐式开启彩画" },
-        "window_block": { "type": "string", "desc": "覆盖窗格填充材料" },
-        "roof_block": { "type": "string", "desc": "覆盖屋面主材，未单独指定坡面或半砖时跟随主材；保持原几何" },
-        "roof_stairs_block": { "type": "string", "desc": "单独覆盖坡面材料" },
-        "roof_slab_block": { "type": "string", "desc": "单独覆盖副檐材料" }
+        "baysX": {
+          "min": 5,
+          "ideal": 7,
+          "max": 9,
+          "desc": "面阔开间数"
+        },
+        "baysZ": {
+          "min": 3,
+          "ideal": 4,
+          "max": 5,
+          "desc": "进深开间数"
+        },
+        "width": {
+          "min": 15,
+          "ideal": 21,
+          "max": 30,
+          "desc": "面阔（blocks）"
+        },
+        "depth": {
+          "min": 10,
+          "ideal": 15,
+          "max": 22,
+          "desc": "进深（blocks）"
+        },
+        "hallHeight": {
+          "min": 5,
+          "ideal": 7,
+          "max": 12,
+          "desc": "柱网主体高度"
+        },
+        "includeSubEaves": {
+          "type": "boolean",
+          "default": true,
+          "desc": "副阶周匝 + 副阶内檐"
+        },
+        "roofType": {
+          "type": "string",
+          "desc": "屋顶形式：ying_shan/yingshan（硬山）、xuan_shan/xuanshan（悬山）、xie_shan/xieshan（歇山）、wu_dian/wudian（庑殿）；未知形式拒绝生成"
+        },
+        "roofRise": {
+          "min": 3,
+          "max": 18,
+          "desc": "屋面从檐口到正脊的升高格数，未指定时由坡面水平跨度推导；工程近似，不表示历史举折比例"
+        },
+        "roofOverhang": {
+          "min": 0,
+          "max": 3,
+          "desc": "出檐格数，默认1；硬山端部始终与山墙齐平"
+        },
+        "roofCurve": {
+          "min": 0,
+          "max": 100,
+          "desc": "坡面曲率，默认0直坡；数值越高下部越缓、上部越陡，为视觉近似"
+        },
+        "roofCornerLift": {
+          "min": 0,
+          "max": 3,
+          "desc": "翘角高度，默认0；仅歇山或庑殿且出檐至少1格时支持"
+        },
+        "includePainting": {
+          "type": "boolean",
+          "default": true,
+          "desc": "独立彩画端帽开关，不移除柱梁和斗拱；仅斗拱启用时出现"
+        },
+        "includeFacadeDetails": {
+          "type": "boolean",
+          "default": true,
+          "desc": "按开间生成挑出窗台、窗楣及檐枋；入口不设窗台；材质跟随 trim_block，木板使用同木种半砖"
+        },
+        "wall_block": {
+          "type": "string",
+          "desc": "注册方块ID，显式覆盖墙体材料；无效/空气/流体拒绝"
+        },
+        "floor_block": {
+          "type": "string",
+          "desc": "覆盖台基地面，边缘梁枋保留trim_block"
+        },
+        "foundation_block": {
+          "type": "string",
+          "desc": "覆盖台基内部基础"
+        },
+        "pillar_block": {
+          "type": "string",
+          "desc": "覆盖柱与内部木梁材料"
+        },
+        "trim_block": {
+          "type": "string",
+          "desc": "覆盖柱帽、梁枋与联系梁"
+        },
+        "bracket_block": {
+          "type": "string",
+          "desc": "覆盖简化斗拱外挑臂"
+        },
+        "paint_block": {
+          "type": "string",
+          "desc": "覆盖彩画端帽，不隐式开启彩画"
+        },
+        "window_block": {
+          "type": "string",
+          "desc": "覆盖窗格填充材料"
+        },
+        "roof_block": {
+          "type": "string",
+          "desc": "覆盖屋面主材，未单独指定坡面或半砖时跟随主材；保持原几何"
+        },
+        "roof_stairs_block": {
+          "type": "string",
+          "desc": "单独覆盖坡面材料"
+        },
+        "roof_slab_block": {
+          "type": "string",
+          "desc": "单独覆盖副檐材料"
+        }
       },
       "referenceLandmarks": [
         {
@@ -132,8 +258,15 @@
           "notes": "五台山佛光寺东大殿：七开间四深，单檐庑殿，副阶周匝铺作分区"
         }
       ],
-      "proportionCardIds": ["foguang_temple_hall"],
-      "cultureCardIds": ["foguang_temple_hall"],
+      "proportionCardIds": [
+        "foguang_temple_hall",
+        "tang_study_hall"
+      ],
+      "cultureCardIds": [
+        "foguang_temple_hall",
+        "tang_timber_hall",
+        "tang_study_hall"
+      ],
       "llmPlanGuidance": "Use structural_typology=tailiang_timber_hall with layout.skeleton_type=GRID_BAY. proportion_hints.typology=tailiang_timber_hall. Params: baysX, baysZ, width, depth, hallHeight, includeSubEaves=true. MASS_MAIN low and wide; FOUNDATION stone platform; ROOF wudian large overhang; DECOR dougong/bracket_sets. Set reference_landmark=foguang_temple_hall when user names Foguang. FORBID pagoda/tower proportions and western dome."
     },
     {
@@ -454,7 +587,7 @@
         }
       ],
       "proportionCardIds": ["setback_tower"],
-      "cultureCardIds": ["modern_skyscraper"],
+      "cultureCardIds": ["modern_skyscraper", "art_deco_tower"],
       "llmPlanGuidance": "Use structural_typology=setback_tower with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=setback_tower, slenderness≈4.5, setback_ratio≈0.12, window_wall_ratio≈0.55. Prefer STRUCTURE + typology:setback_tower; set reference_landmark=modern_skyscraper when user names modern skyscraper preset. Params: width, depth, height, floors, setbackEveryFloors, setbackStep, facing, paletteId. global_constraints.symmetry=RADIAL. FORBID plain MASS box without setbacks and curtain wall grammar. Office block / Zaha deconstructivism use other routes."
     },
     {
@@ -502,6 +635,396 @@
       "proportionCardIds": ["tiered_mountain_palace"],
       "cultureCardIds": ["potala_palace"],
       "llmPlanGuidance": "Use structural_typology=tiered_mountain_palace with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=tiered_mountain_palace, setback_ratio≈0.08, tier_count≈5. Prefer STRUCTURE + typology:tiered_mountain_palace; set reference_landmark=potala_palace when user names Potala / 布达拉宫. Params: baseWidth, baseDepth, tiers, tierInset, tierHeight, platformHeight, facing, paletteId. global_constraints.symmetry=MIRROR_X. FORBID plain MASS box without terraced setbacks. Courtyard compounds and pagodas use other typologies."
+    },
+    {
+      "id": "timber_gable_house",
+      "displayName": {
+        "zh": "木构双坡住宅",
+        "en": "Timber gable house"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": [
+        "Japanese_Traditional",
+        "Scandinavian_Timber",
+        "Alpine_Chalet"
+      ],
+      "matchKeywords": [
+        "木构双坡住宅",
+        "日式传统木屋",
+        "北欧木屋",
+        "japanese timber house",
+        "scandinavian timber house",
+        "timber gable house",
+        "生成一座阿尔卑斯木屋",
+        "build an alpine chalet",
+        "和风乡村旅馆",
+        "japanese timber inn",
+        "北欧木构森林山庄",
+        "scandinavian timber lodge"
+      ],
+      "negativeKeywords": [
+        "不要木构双坡住宅",
+        "not timber gable house"
+      ],
+      "routingPolicy": "compositional_only",
+      "defaultParams": {
+        "width": 17,
+        "depth": 13,
+        "height": 6,
+        "floor_count": 1,
+        "roof_type": "gable"
+      },
+      "paramSchema": {
+        "width": {
+          "min": 9,
+          "max": 65
+        },
+        "depth": {
+          "min": 7,
+          "max": 49
+        },
+        "height": {
+          "min": 4,
+          "max": 32
+        },
+        "roof_type": {
+          "enum": [
+            "gable"
+          ]
+        }
+      },
+      "referenceLandmarks": [],
+      "proportionCardIds": [
+        "japanese_timber_house",
+        "scandinavian_timber_house",
+        "alpine_chalet_house",
+        "japanese_rural_inn",
+        "nordic_forest_lodge"
+      ],
+      "cultureCardIds": [
+        "japanese_timber_house",
+        "scandinavian_timber_house",
+        "alpine_chalet_house",
+        "japanese_rural_inn",
+        "nordic_forest_lodge"
+      ],
+      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=gable only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=timber_gable_house. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+    },
+    {
+      "id": "masonry_palazzo",
+      "displayName": {
+        "zh": "石砌对称宅邸",
+        "en": "Masonry palazzo"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": [
+        "Renaissance_Classical",
+        "Georgian_Brick",
+        "Neoclassical_Civic"
+      ],
+      "matchKeywords": [
+        "石砌对称宅邸",
+        "文艺复兴宅邸",
+        "renaissance palazzo",
+        "masonry palazzo",
+        "生成一座乔治王朝砖砌宅邸",
+        "build a georgian brick house",
+        "生成一座新古典风格大楼",
+        "build a neoclassical civic hall",
+        "乔治王朝会馆",
+        "georgian brick civic hall"
+      ],
+      "negativeKeywords": [
+        "不要石砌对称宅邸",
+        "not masonry palazzo"
+      ],
+      "routingPolicy": "compositional_only",
+      "defaultParams": {
+        "width": 21,
+        "depth": 15,
+        "height": 10,
+        "floor_count": 2,
+        "roof_type": "hip"
+      },
+      "paramSchema": {
+        "width": {
+          "min": 9,
+          "max": 65
+        },
+        "depth": {
+          "min": 7,
+          "max": 49
+        },
+        "height": {
+          "min": 4,
+          "max": 32
+        },
+        "roof_type": {
+          "enum": [
+            "hip"
+          ]
+        }
+      },
+      "referenceLandmarks": [],
+      "proportionCardIds": [
+        "renaissance_palazzo",
+        "georgian_brick_house",
+        "neoclassical_civic_hall",
+        "georgian_civic_hall"
+      ],
+      "cultureCardIds": [
+        "renaissance_palazzo",
+        "georgian_brick_house",
+        "neoclassical_civic_hall",
+        "georgian_civic_hall"
+      ],
+      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=hip only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=masonry_palazzo. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+    },
+    {
+      "id": "industrial_brick_hall",
+      "displayName": {
+        "zh": "工业砖厅",
+        "en": "Industrial brick hall"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": [
+        "Industrial_Brick_Hall"
+      ],
+      "matchKeywords": [
+        "工业砖厅",
+        "红砖工业大楼",
+        "industrial brick hall",
+        "brick factory hall"
+      ],
+      "negativeKeywords": [
+        "不要工业砖厅",
+        "not industrial brick hall"
+      ],
+      "routingPolicy": "compositional_only",
+      "defaultParams": {
+        "width": 21,
+        "depth": 15,
+        "height": 10,
+        "floor_count": 2,
+        "roof_type": "gable"
+      },
+      "paramSchema": {
+        "width": {
+          "min": 9,
+          "max": 65
+        },
+        "depth": {
+          "min": 7,
+          "max": 49
+        },
+        "height": {
+          "min": 4,
+          "max": 32
+        },
+        "roof_type": {
+          "enum": [
+            "gable"
+          ]
+        }
+      },
+      "referenceLandmarks": [],
+      "proportionCardIds": [
+        "industrial_brick_hall"
+      ],
+      "cultureCardIds": [
+        "industrial_brick_hall"
+      ],
+      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=gable only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=industrial_brick_hall. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+    },
+    {
+      "id": "concrete_civic_block",
+      "displayName": {
+        "zh": "混凝土公共体量",
+        "en": "Concrete civic block"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": [
+        "Brutalism",
+        "Modern_International"
+      ],
+      "matchKeywords": [
+        "混凝土公共体量",
+        "粗野主义大楼",
+        "brutalist museum",
+        "concrete civic block",
+        "生成一座现代国际式大楼",
+        "build an international glass office"
+      ],
+      "negativeKeywords": [
+        "不要混凝土公共体量",
+        "not concrete civic block"
+      ],
+      "routingPolicy": "compositional_only",
+      "defaultParams": {
+        "width": 21,
+        "depth": 15,
+        "height": 10,
+        "floor_count": 2,
+        "roof_type": "flat"
+      },
+      "paramSchema": {
+        "width": {
+          "min": 9,
+          "max": 65
+        },
+        "depth": {
+          "min": 7,
+          "max": 49
+        },
+        "height": {
+          "min": 4,
+          "max": 32
+        },
+        "roof_type": {
+          "enum": [
+            "flat"
+          ]
+        }
+      },
+      "referenceLandmarks": [],
+      "proportionCardIds": [
+        "brutalist_civic",
+        "international_glass_office"
+      ],
+      "cultureCardIds": [
+        "brutalist_civic",
+        "international_glass_office"
+      ],
+      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=flat only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=concrete_civic_block. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+    },
+    {
+      "id": "stucco_tile_house",
+      "displayName": {
+        "zh": "灰泥瓦顶住宅",
+        "en": "Stucco tile house"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": [
+        "Mediterranean_Stucco"
+      ],
+      "matchKeywords": [
+        "生成一座地中海灰泥别墅",
+        "build a mediterranean stucco villa",
+        "灰泥瓦顶住宅",
+        "stucco tile house",
+        "地中海灰泥客舍",
+        "mediterranean stucco guesthouse"
+      ],
+      "negativeKeywords": [
+        "不要灰泥瓦顶住宅",
+        "not stucco tile house"
+      ],
+      "routingPolicy": "compositional_only",
+      "defaultParams": {
+        "width": 17,
+        "depth": 13,
+        "height": 6,
+        "floor_count": 1,
+        "roof_type": "hip"
+      },
+      "paramSchema": {
+        "width": {
+          "min": 9,
+          "max": 65
+        },
+        "depth": {
+          "min": 7,
+          "max": 49
+        },
+        "height": {
+          "min": 4,
+          "max": 32
+        },
+        "roof_type": {
+          "enum": [
+            "hip"
+          ]
+        }
+      },
+      "referenceLandmarks": [],
+      "proportionCardIds": [
+        "mediterranean_stucco_house",
+        "mediterranean_guesthouse"
+      ],
+      "cultureCardIds": [
+        "mediterranean_stucco_house",
+        "mediterranean_guesthouse"
+      ],
+      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=hip only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=stucco_tile_house. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+    },
+    {
+      "id": "flat_roof_pavilion",
+      "displayName": {
+        "zh": "平顶亭屋",
+        "en": "Flat-roof pavilion"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": [
+        "Prairie_House",
+        "Midcentury_House"
+      ],
+      "matchKeywords": [
+        "平顶亭屋",
+        "flat roof pavilion",
+        "生成一座草原式住宅",
+        "build a prairie house",
+        "生成一座世纪中叶住宅",
+        "build a midcentury house",
+        "草原式社区图书馆",
+        "prairie community library",
+        "世纪中叶游客中心",
+        "midcentury visitor center"
+      ],
+      "negativeKeywords": [
+        "不要平顶亭屋",
+        "not flat roof pavilion"
+      ],
+      "routingPolicy": "compositional_only",
+      "defaultParams": {
+        "width": 23,
+        "depth": 13,
+        "height": 6,
+        "floor_count": 1,
+        "roof_type": "flat"
+      },
+      "paramSchema": {
+        "width": {
+          "min": 9,
+          "max": 65
+        },
+        "depth": {
+          "min": 7,
+          "max": 49
+        },
+        "height": {
+          "min": 4,
+          "max": 32
+        },
+        "roof_type": {
+          "enum": [
+            "flat"
+          ]
+        }
+      },
+      "referenceLandmarks": [],
+      "proportionCardIds": [
+        "prairie_house",
+        "midcentury_house",
+        "prairie_community_library",
+        "midcentury_visitor_center"
+      ],
+      "cultureCardIds": [
+        "prairie_house",
+        "midcentury_house",
+        "prairie_community_library",
+        "midcentury_visitor_center"
+      ],
+      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=flat only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=flat_roof_pavilion. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     }
   ],
   "migrationMap": {

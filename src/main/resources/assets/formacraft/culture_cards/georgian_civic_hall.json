@@ -1,0 +1,37 @@
+{
+  "id": "georgian_civic_hall",
+  "styleId": "Georgian_Brick",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "乔治王朝会馆",
+    "georgian brick civic hall"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "乔治王朝会馆": 30,
+    "georgian brick civic hall": 30
+  },
+  "negativeKeywords": [
+    "不要乔治王朝会馆",
+    "not georgian brick civic hall"
+  ],
+  "proportionCardId": "georgian_civic_hall",
+  "llmPlanExampleRefs": [
+    "georgian_civic_hall_compact.json",
+    "georgian_civic_hall_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "georgian_civic_hall",
+      "constraints": [
+        "Use style_profile=Georgian_Brick, proportion_hints.typology=masonry_palazzo; original 乔治王朝会馆 exterior request.",
+        "Use the dedicated envelope examples; preserve host bindings and explicit user requirements.",
+        "Exterior program proportions only; no furniture, room-use, accessibility or structural verification is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "masonry_palazzo"
+}

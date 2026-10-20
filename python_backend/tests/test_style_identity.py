@@ -9,7 +9,8 @@ class StyleIdentityTest(unittest.TestCase):
     def test_chinese_alias_resolves(self):self.assertEqual('Modern_International',canonical_style_id('现代风格'))
     def test_historical_variant_retains_identity(self):
         item=style_identity('Tang_Dynasty_Timber')
-        self.assertEqual('recognized_variant',item['status']);self.assertIsNone(item['profile_id'])
+        self.assertEqual('recognized_variant',item['status']);self.assertEqual('Tang_Dynasty_Timber',item['profile_id'])
+        self.assertIsNotNone(get_style_profile(item['profile_id']))
         self.assertEqual('tailiang_timber_hall',item['structural_typology'])
     def test_edit_is_not_architectural_style(self):self.assertEqual('non_style',style_identity('Patch_Edit')['status'])
     def test_unknown_is_not_a_modern_fallback(self):self.assertEqual('unknown',style_identity('UnknownStyle')['status'])

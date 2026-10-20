@@ -1,0 +1,142 @@
+{
+  "mode": "build",
+  "style_profile": "Brutalism",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "concrete_civic_block",
+    "proportion_card_id": "brutalist_civic",
+    "window_wall_ratio": 0.16,
+    "height_to_width": 0.47619047619047616,
+    "depth_to_width": 0.7142857142857143,
+    "window_aspect": "rectangular"
+  },
+  "style_attributes": {
+    "wall_material": "minecraft:gray_concrete",
+    "roof_material": "minecraft:smooth_stone",
+    "floor_material": "minecraft:smooth_stone",
+    "decorative_elements": [
+      "modular_rhythm"
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 10
+      },
+      "features": [],
+      "params": {
+        "wall_block": "minecraft:gray_concrete",
+        "roof_block": "minecraft:smooth_stone",
+        "floor_block": "minecraft:smooth_stone",
+        "window_block": "minecraft:gray_stained_glass",
+        "foundation_block": "minecraft:smooth_stone",
+        "trim_block": "minecraft:polished_andesite",
+        "pillar_block": "minecraft:gray_concrete",
+        "roof_type": "none",
+        "window_style": "pane",
+        "window_ratio": 0.16,
+        "facade_profile": "module_grid",
+        "floor_height": 5,
+        "component_id": "palazzo",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "void_ratio": 0.05
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 9,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "roof_type": "flat",
+        "overhang": 0,
+        "roof_block": "minecraft:smooth_stone",
+        "component_id": "palazzo_roof",
+        "host_id": "palazzo",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "entry",
+        "host_id": "palazzo",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 1,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 1,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "window_style": "pane",
+        "window_ratio": 0.16,
+        "window_block": "minecraft:gray_stained_glass",
+        "component_id": "windows",
+        "host_id": "palazzo",
+        "facing": "NORTH",
+        "wall": "front",
+        "floor_count": 2,
+        "floor_height": 4,
+        "window_width": 2,
+        "window_height": 2,
+        "window_per_wall": 3
+      }
+    }
+  ]
+}

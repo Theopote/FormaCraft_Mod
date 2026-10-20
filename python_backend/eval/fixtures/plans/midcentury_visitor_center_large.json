@@ -1,0 +1,142 @@
+{
+  "mode": "build",
+  "style_profile": "Midcentury_House",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "flat_roof_pavilion",
+    "proportion_card_id": "midcentury_visitor_center",
+    "window_wall_ratio": 0.42,
+    "height_to_width": 0.2727272727272727,
+    "depth_to_width": 0.6363636363636364,
+    "window_aspect": "rectangular"
+  },
+  "style_attributes": {
+    "wall_material": "minecraft:smooth_sandstone",
+    "roof_material": "minecraft:smooth_stone",
+    "floor_material": "minecraft:dark_oak_planks",
+    "decorative_elements": [
+      "horizontal_rhythm"
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 33,
+        "depth": 21,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "wall_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:smooth_stone",
+        "floor_block": "minecraft:dark_oak_planks",
+        "window_block": "minecraft:light_blue_stained_glass_pane",
+        "foundation_block": "minecraft:polished_andesite",
+        "trim_block": "minecraft:stripped_oak_log",
+        "pillar_block": "minecraft:iron_block",
+        "roof_type": "none",
+        "window_style": "pane",
+        "window_ratio": 0.42,
+        "facade_profile": "mullion_grid",
+        "floor_height": 9,
+        "component_id": "midcentury_pavilion",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 1,
+        "void_ratio": 0.05
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 33,
+        "depth": 21,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "roof_type": "flat",
+        "overhang": 1,
+        "roof_block": "minecraft:smooth_stone",
+        "component_id": "midcentury_pavilion_roof",
+        "host_id": "midcentury_pavilion",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 15,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "entry",
+        "host_id": "midcentury_pavilion",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 1,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 31,
+        "depth": 1,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "window_style": "pane",
+        "window_ratio": 0.42,
+        "window_block": "minecraft:light_blue_stained_glass_pane",
+        "component_id": "windows",
+        "host_id": "midcentury_pavilion",
+        "facing": "NORTH",
+        "wall": "front",
+        "floor_count": 1,
+        "floor_height": 9,
+        "window_width": 2,
+        "window_height": 3,
+        "window_per_wall": 8
+      }
+    }
+  ]
+}

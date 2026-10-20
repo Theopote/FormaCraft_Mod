@@ -43,7 +43,8 @@ def compile_style_feature_defaults(profile: BuildingProfile) -> list[dict]:
                 "xuanshan roof": "xuanshan", "悬山屋顶": "xuanshan",
                 "xieshan roof": "xieshan", "hip and gable roof": "xieshan", "歇山屋顶": "xieshan"}
     result = []
-    for spec in profile.style_specs:
+    for spec in sorted(profile.style_specs, key=lambda spec: spec.weight if spec.weight is not None else 1.0, reverse=True):
+        weight = spec.weight if spec.weight is not None else 1.0
         for feature in spec.features:
             roof = mappings.get(feature.feature.strip().casefold())
             status = "unsupported" if roof is None else "insufficient_evidence"
@@ -51,8 +52,11 @@ def compile_style_feature_defaults(profile: BuildingProfile) -> list[dict]:
             if roof and feature.source_urls and feature.confidence >= 0.6:
                 status = "mapped_default"
                 params = {"roof_type": roof}
+            if weight == 0:
+                status = "disabled_weight"
+                params = {}
             result.append({"style": spec.requested_name, "feature": feature.feature,
-                           "scope": feature.scope, "style_scope": spec.scope,
+                           "scope": feature.scope, "style_scope": spec.scope, "weight": weight,
                            "component_type": "ROOF", "params": params,
                            "status": status, "source_urls": feature.source_urls})
     return result
@@ -124,7 +128,12 @@ def apply_style_feature_defaults(plan: dict, profile: BuildingProfile) -> dict:
                and r.get("scope") in ("unresolved", "unsupported_scope") for r in requirements):
             entry["status"] = "unresolved_user_scope"
             continue
-        competing = {other["params"]["roof_type"] for other, target, _ in bound if target is roof}
+        highest_weight = max(other["weight"] for other, target, _ in bound if target is roof)
+        if entry["weight"] < highest_weight:
+            entry["status"] = "lower_weight_default"
+            continue
+        competing = {other["params"]["roof_type"] for other, target, _ in bound
+                     if target is roof and other["weight"] == highest_weight}
         if len(competing) > 1:
             entry["status"] = "conflicting_defaults"
             continue

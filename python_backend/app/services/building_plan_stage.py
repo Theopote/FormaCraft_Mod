@@ -17,6 +17,7 @@ from .plan_specificity_guard import (
     extract_distinguishing_tokens,
     score_feature_token_coverage,
 )
+from .typology_registry import is_compositional_typology
 
 # 与 Java ComponentGeneratorRegistry / LlmPlan prompt 对齐的可注册构件类型
 REGISTERED_COMPONENT_TYPES: Tuple[str, ...] = (
@@ -83,6 +84,10 @@ def research_landmark_override_block(profile: BuildingProfile) -> str:
     lm = (mc.landmark_module or "").strip()
     ref = (mc.reference_landmark or "").strip()
 
+    if stid and is_compositional_typology(stid):
+        from .building_research_agent import typology_exclusive_component_note
+        return (f"\n========================================\n{RESEARCH_OVERRIDE_MARKER} (authoritative)\n"
+                "========================================\n" + typology_exclusive_component_note(stid) + "\n")
     if stid:
         ref_hint = f'\nSet params.reference_landmark="{ref}".' if ref else ""
         return f"""
@@ -147,7 +152,7 @@ def profile_routing_summary(profile: BuildingProfile) -> str:
     stid = (mc.structural_typology or "").strip()
     lm = (mc.landmark_module or "").strip()
     ref = (mc.reference_landmark or "").strip()
-    if stid:
+    if stid and not is_compositional_typology(stid):
         hint = f"STRUCTURE + typology:{stid}; landmark_module=null"
         if ref:
             hint += f"; reference_landmark={ref}"
@@ -157,7 +162,8 @@ def profile_routing_summary(profile: BuildingProfile) -> str:
     rec = ", ".join(str(c) for c in (mc.recommended_components or []) if c)
     if not rec:
         rec = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE"
-    return f"Compositional plan; landmark_module=null; recommended_components=[{rec}]."
+    typology_hint = f" structural_typology={stid};" if stid else ""
+    return f"Compositional plan;{typology_hint} landmark_module=null; recommended_components=[{rec}]."
 
 
 def strip_java_landmark_routing_blocks(system_prompt: str) -> str:
@@ -256,7 +262,7 @@ def build_plan_stage_user_block(
         "5. routing ← system OPEN-WORLD RESEARCH OVERRIDE (authoritative)",
         "6. distinguishing_features[] ← profile.structure.distinguishing_features",
     ]
-    if stid:
+    if stid and not is_compositional_typology(stid):
         lines.append(
             "7. typology plan: proportion_hints.typology + typology ratios only; no house/pilaster enrichment"
         )
@@ -338,6 +344,12 @@ def evaluate_plan_profile_alignment(
     """
     results: List[Tuple[str, bool, str]] = []
     components = _component_types_in_plan(plan)
+    stid = profile.minecraft_strategy.structural_typology
+    if stid and is_compositional_typology(stid):
+        valid = (not ({"STRUCTURE", "MODULE"} & set(components))
+                 and {"MASS_MAIN", "ROOF"}.issubset(components)
+                 and (plan.get("proportion_hints") or {}).get("typology") == stid)
+        results.append(("plan_respects_typology_policy", valid, f"compositional_only={stid}, found={components}"))
 
     # skeleton
     expected_skel = (profile.minecraft_strategy.skeleton_type or "").upper()
@@ -471,5 +483,6 @@ def alignment_hard_failures(
         "plan_reflects_skeleton",
         "plan_uses_recommended_components",
         "plan_uses_landmark_module",
+        "plan_respects_typology_policy",
     })
     return [name for name, ok, detail in results if name in hard and not ok]

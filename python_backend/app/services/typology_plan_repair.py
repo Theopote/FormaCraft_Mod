@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from .typology_registry import get_migration, get_typology
+from .typology_registry import get_migration, get_typology, is_compositional_typology
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +275,7 @@ def repair_migrated_landmark_components(
         elif ctype == "MODULE" and structural_typology:
             tid = structural_typology
 
-        if tid and (ctype == "MODULE" or landmark_id):
+        if tid and not is_compositional_typology(tid) and (ctype == "MODULE" or landmark_id):
             repaired.append(_convert_component(comp, tid, ref or landmark_id or ""))
             count += 1
             logger.info(

@@ -14,12 +14,44 @@ def generic_style_pattern():
     """Literal catalog aliases, longest first; flexible whitespace for English names."""
     data = identity_catalog()
     markers = set(data.get('generic_style_markers', []))
+    markers.update(data.get('aliases', {}))
     for aliases in data.get('lexical_aliases', {}).values():
         markers.update(aliases)
     patterns = [r'\s*'.join(re.escape(part) for part in marker.split())
                 for marker in sorted(markers, key=lambda value: (-len(value), value))
                 if marker.strip()]
     return re.compile('|'.join(patterns) if patterns else r'(?!)', re.IGNORECASE)
+
+
+def _style_aliases():
+    data = identity_catalog()
+    aliases = {identity: {identity, *names} for identity, names in data.get('lexical_aliases', {}).items()}
+    for name, identity in data.get('aliases', {}).items():
+        aliases.setdefault(identity, set()).add(name)
+    return aliases
+
+
+def _alias_pattern(alias):
+    pattern = r'\s*'.join(re.escape(part) for part in alias.split())
+    if alias and alias[0].isascii() and alias[0].isalnum():
+        pattern = r'(?<![a-z0-9_])' + pattern
+    if alias and alias[-1].isascii() and alias[-1].isalnum():
+        pattern += r'(?![a-z0-9_])'
+    return pattern
+
+
+def negated_style_ids(text):
+    """Only explicit whole-style refusals; '不要哥特窗花' is a detail, not a style ban."""
+    prefix = r'(?:不要|不用|不采用|不使用|别用|排除|拒绝|避免|\b(?:no|not|without|exclude)\s+)\s*'
+    ending = r'(?:风格|建筑|式|\s+style|\s+architecture)?\s*(?:$|[，。；;,.!?！、]|但|而|改|要|\bbut\b|\binstead\b)'
+    return {identity for identity, aliases in _style_aliases().items()
+            if any(alias and re.search(prefix + _alias_pattern(alias) + ending, text, re.I) for alias in aliases)}
+
+
+def matched_style_ids(text):
+    rejected = negated_style_ids(text)
+    return {identity for identity, aliases in _style_aliases().items() if identity not in rejected
+            and any(alias and re.search(_alias_pattern(alias), text, re.I) for alias in aliases)}
 
 def canonical_style_id(value):
     if not value: return value

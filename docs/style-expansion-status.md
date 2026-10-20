@@ -1,0 +1,42 @@
+# Style expansion delivery status
+
+This document tracks phase completion separately from passing incremental CI.
+
+| Phase | State | Delivered | Remaining |
+| --- | --- | --- | --- |
+| P0 | Implemented | Catalog-driven planner defaults and generic markers; shared material aliases; twelve palette roles | Preserve regression coverage as assets grow |
+| P1 | Complete: local asset/execution acceptance | Declarative ornament contracts; scoped style priority; 20 genomes, 45 culture cards, 16 typologies; golden, negative, diversity and parity gates | Live sampling and visual/historical fidelity are outside this acceptance |
+| P2 | Incomplete | Existing geometry can already execute the delivered packs | New roof/wall vocabulary, fantasy skeletons/generators, emissive material strategy, visual-case integration |
+| P3 | Incomplete | An internal manifest links bundled assets and tests | User-pack format, discovery/loading/validation, Settings integration, contribution workflow |
+
+Bundled counts at P1 acceptance:
+
+| Asset | Current | P1 target |
+| --- | ---: | ---: |
+| Genomes | 20 | 20 |
+| Culture cards | 45 | 45+ |
+| Structural typologies | 16 (10 native, 6 compositional) | 16 |
+
+The manifest covers Tang timber, Renaissance, Art Deco, Brutalism, industrial
+brick halls, Japanese timber, Scandinavian timber, Mediterranean stucco, and
+Georgian brick, Prairie house, midcentury house, Alpine chalet, neoclassical civic,
+and Modern International. Fourteen style entries own 28 primary plans, seven
+program cards own 14 further plans, and three authored diversity alternatives
+bring the manifest to 45 plans. A separate mixed garden/chapel golden is also tested.
+The generic compositional packs register six shared
+compositional typologies: timber gable house, masonry palazzo, industrial brick
+hall, concrete civic block, stucco tile house, and flat-roof pavilion. These use
+`compositional_only` routing and the existing component compiler, with no native
+interpreter claim. All manifest fixtures exercise their actual geometry and region
+clipping. Typology growth requires executable routing and geometry validation;
+the new compositions are not new native generators.
+
+Offline native tests invoke pure builders because runtime typology routing
+requires a live ServerWorld. CI success establishes the covered contracts and
+outputs; it does not establish historical accuracy, visual quality, live-world
+routing, or completion of later phases.
+
+Final P1 validation: 340 Python tests, 67 CI golden scenarios, four CI diversity
+scenarios (existing stadium plus A/B/C style families), 58 Java parity/adapter
+tests, and 45 culture-card validations passed. See `style-p1-acceptance.md` for
+the scope and reproduction commands. P2/P3 remain incomplete.
