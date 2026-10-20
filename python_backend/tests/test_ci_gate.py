@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 
 class CiGateTest(unittest.TestCase):
     def test_ci_gate_quick_passes(self):
         from eval.ci_gate import run_ci_gate
 
-        code = run_ci_gate(gate=True, quick=True)
+        # Java behavior is exercised by constraintParityTest; this smoke test isolates orchestration.
+        with patch('eval.ci_gate.run_constraint_parity', return_value=0) as parity:
+            code = run_ci_gate(gate=True, quick=True)
+            parity.assert_called_once()
         self.assertEqual(code, 0, "ci_gate --quick should pass offline")
 
     def test_golden_scenarios_ci_only_gate(self):

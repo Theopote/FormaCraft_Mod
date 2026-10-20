@@ -4,6 +4,8 @@ import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Set;
+import com.formacraft.common.world.MutationRegionPolicy;
 
 /**
  * PatchFilter（可插拔的 Patch 过滤器接口）
@@ -16,6 +18,8 @@ import java.util.List;
  * - Filter 是最后一道闸门，确保安全
  */
 public interface PatchFilter {
+    /** Region filters must declare their rules; geometry transforms such as symmetry return none. */
+    default Set<MutationRegionPolicy.Constraint> regionConstraints() { return Set.of(); }
 
     /**
      * 过滤 BlockPatch 列表

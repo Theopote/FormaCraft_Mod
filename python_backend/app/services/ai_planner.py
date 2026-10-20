@@ -211,22 +211,11 @@ def _build_genome_from_spec(req: Optional[BuildRequest], spec: BuildingSpec) -> 
             g.topology.layout = "rectangular"
 
     if spec.style is not None:
-        style = str(spec.style.value if hasattr(spec.style, "value") else spec.style).lower()
-        if "asian" in style:
-            g.culturalStyle.region = "chinese"
-            g.culturalStyle.era = "traditional"
-        elif "medieval" in style:
-            g.culturalStyle.region = "european"
-            g.culturalStyle.era = "medieval"
-        elif "futuristic" in style:
-            g.culturalStyle.region = "modern"
-            g.culturalStyle.era = "modern"
-        elif "modern" in style:
-            g.culturalStyle.region = "modern"
-            g.culturalStyle.era = "modern"
-        elif "rustic" in style:
-            g.culturalStyle.region = "rustic"
-            g.culturalStyle.era = "traditional"
+        from .style_profile_registry import get_style_profile
+        style = spec.style.value if hasattr(spec.style, "value") else spec.style
+        profile = get_style_profile(style)
+        cultural = (profile.defaults.get("genome") or {}).get("culturalStyle", {}) if profile else {}
+        g.culturalStyle = g.culturalStyle.model_copy(update=cultural)
 
     if spec.materials is not None:
         g.materials.primary = _semantic_material_from_block(spec.materials.wall)
@@ -431,12 +420,9 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
                 params["setback_ratio"] = 0.06
         if "floor_height" not in params and dims.get("height"):
             params["floor_height"] = max(3, int(dims.get("height", 6) / max(1, dims.get("height", 6) // 3)))
-        style = str((comp.get("_style_hint") or "")).upper()
-        if "facade_profile" not in params:
-            if any(k in style for k in ("GOTHIC", "CATHEDRAL", "CLASSICAL", "RENAISSANCE", "NAPOLEON", "FRENCH")):
-                params["facade_profile"] = "vertical_pilasters"
-            elif any(k in style for k in ("MODERN", "FUTURISTIC", "INDUSTRIAL")):
-                params["facade_profile"] = "mullion_grid"
+        from .style_feature_compiler import component_style_defaults
+        for key, value in component_style_defaults(comp.get("_style_hint"), ctype).items():
+            params.setdefault(key, value)
         if "wall_pattern" not in params and params.get("facade_profile") == "vertical_pilasters":
             params["wall_pattern"] = "gradient"
 

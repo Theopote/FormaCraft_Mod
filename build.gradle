@@ -137,6 +137,18 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+tasks.register('constraintParityTest', Test) {
+	group = 'verification'
+	description = 'Compare Patch/Build shared region constraints, clipping behavior, and style-plan replay.'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	filter {
+		includeTestsMatching 'com.formacraft.server.build.ConstraintParityTest'
+		includeTestsMatching 'com.formacraft.server.build.MutationRegionPolicyTest'
+	}
+}
+
 java {
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
 	// if it is present.

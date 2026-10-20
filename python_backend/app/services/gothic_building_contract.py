@@ -1,74 +1,11 @@
-"""Exact optional Gothic elements; never infer multi-building scope."""
+"""Gothic route repair and backwards-compatible ornament contract entry point."""
 import re
 
-_PATTERNS = {
-    'includeVaultShell': r'(?:不要|不设|取消)(?:薄)?拱顶壳体|\bno vault shell\b',
-    'includeApse': r'(?:不要|不设|取消)后殿|\bno apse\b',
-    'includeChoir': r'(?:不要|不设|取消)唱诗席|\bno choir\b',
-    'includeEntranceSteps': r'(?:不要|不设|取消)(?:入口)?(?:大)?台阶|\bno entrance steps\b',
-    'includeRibVault': r'(?:不要|不设|不生成|取消)(?:室内)?肋拱|\bno rib vault\b',
-    'includeWindowTracery': r'(?:不要|不设|不生成|取消)窗花|\bno (?:window )?tracery\b',
-    'includeWindows': r'(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\bno windows anywhere\b',
-    'includeRoseWindow': r'(?:不要|不设|不生成|取消)玫瑰(?:花)?窗|\bno rose window\b|(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\bno windows anywhere\b',
-    'includeButtresses': r'(?:不要|不设|不生成|取消)(?:飞)?扶壁|\bno (?:flying )?buttresses\b',
-    'includeTowers': r'(?:不要|不设|不生成|取消)双塔|\bno twin towers\b',
-}
 
 def apply_gothic_building_contract(plan: dict, text: str) -> None:
-    targets = [c for c in plan.get('components', []) if isinstance(c, dict)
-               and c.get('component_type') == 'STRUCTURE'
-               and ('typology:gothic_cathedral_hall' in c.get('features', [])
-                    or c.get('params', {}).get('typology_id') == 'gothic_cathedral_hall')]
-    scoped = bool(re.search(r'左栋|右栋|第.+?栋|东侧建筑|西侧建筑', text))
-    report = []
-    for key, pattern in _PATTERNS.items():
-        match = re.search(pattern, text, re.IGNORECASE)
-        if not match:
-            continue
-        status = 'planned' if len(targets) == 1 and not scoped else 'unresolved_building_scope'
-        ids = []
-        if status == 'planned':
-            params = targets[0].setdefault('params', {})
-            params[key] = False
-            ids = [params.get('component_id')]
-        report.append({'property': key, 'value': False, 'source_text': match[0],
-                       'status': status, 'target_components': ids})
-    if len(targets) == 1 and not scoped:
-        params = targets[0].get('params', {})
-        if re.search(r'(?:设置|增加|采用)(?:薄)?拱顶壳体|\binclude vault shell\b', text, re.I) and not re.search(_PATTERNS['includeVaultShell'], text, re.I):
-            params['includeVaultShell'] = True
-            report.append({'property': 'includeVaultShell', 'value': True, 'status': 'planned',
-                           'target_components': [params.get('component_id')]})
-        for key, pattern in [('includeApse', r'(?:设置|增加|采用)折角后殿|\binclude faceted apse\b'), ('includeChoir', r'(?:设置|增加|采用)唱诗席|\binclude choir\b')]:
-            if re.search(pattern, text, re.I) and not re.search(_PATTERNS[key], text, re.I):
-                params[key] = True
-                report.append({'property': key, 'value': True, 'status': 'planned', 'target_components': [params.get('component_id')]})
-        if re.search(r'(?:设置|增加|采用)(?:室内)?肋拱|\binclude rib vault\b', text, re.I) and not re.search(_PATTERNS['includeRibVault'], text, re.I):
-            params['includeRibVault'] = True
-            report.append({'property': 'includeRibVault', 'value': True, 'status': 'planned',
-                           'target_components': [params.get('component_id')],
-                           'verification_level': 'plan_parameters_only'})
-        if re.search(r'单塔|single tower', text, re.I) and not re.search(r'不要单塔|不设单塔|no single tower', text, re.I):
-            params['towerArrangement'] = 'single'
-            params['includeTowers'] = True
-            for item in report:
-                if item['property'] == 'includeTowers':
-                    item['value'] = True
-                    item['overridden_by'] = 'explicit_single_tower'
-        elif re.search(r'无塔|不要任何塔|no towers', text, re.I):
-            params['towerArrangement'] = 'none'
-        elif re.search(r'设置双塔|采用双塔|twin towers', text, re.I) and not re.search(r'不要双塔|不设双塔|no twin towers', text, re.I):
-            params['towerArrangement'] = 'twin'
+    from .ornament_contract import apply_ornament_contract
+    apply_ornament_contract(plan, text, 'gothic')
 
-        for requirement in plan.get('proportion_hints', {}).get('building_contract', {}).get('requirements', []):
-            key = {'width': 'width', 'depth': 'depth', 'entrance_facing': 'facing'}.get(requirement['property'])
-            if key and requirement.get('scope') == 'all_main_masses' and params.get(key) == requirement['value']:
-                requirement['status'] = 'planned'
-                requirement['target_components'] = [params.get('component_id')]
-                requirement['verification_level'] = 'native_parameters_only'
-    plan.setdefault('proportion_hints', {})['gothic_building_contract'] = {
-        'schema': 'formacraft.gothic_building.v1', 'requirements': report,
-        'verification_level': 'plan_parameters_only'}
 
 def repair_gothic_route(plan: dict, text: str) -> None:
     """Repair only the generic single-church native route, not named landmarks/compounds."""

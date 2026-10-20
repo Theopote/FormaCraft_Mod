@@ -10,7 +10,11 @@
     "foundation": "minecraft:polished_blackstone_bricks",
     "trim": "minecraft:polished_blackstone",
     "pillar": "minecraft:dark_oak_log",
-    "cap": "minecraft:polished_blackstone_slab"
+    "cap": "minecraft:polished_blackstone_slab",
+    "door": "minecraft:dark_oak_door",
+    "roof_trim": "minecraft:polished_blackstone",
+    "stairs": "minecraft:deepslate_tile_stairs",
+    "roof_slab": "minecraft:deepslate_tile_slab"
   },
   "params": {
     "roofType": "hipped",

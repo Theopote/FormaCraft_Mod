@@ -1,0 +1,4936 @@
+{
+  "schema": "formacraft.ornament_migration_baseline.v1",
+  "cases": [
+    {
+      "contract": "gothic",
+      "text": "不要薄拱顶壳体，不设后殿，取消唱诗席，不要入口大台阶，不生成室内肋拱，不生成窗花，不要玫瑰花窗，不设飞扶壁，不要双塔",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "不要薄拱顶壳体",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "不设后殿",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeChoir",
+                "value": false,
+                "source_text": "取消唱诗席",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeEntranceSteps",
+                "value": false,
+                "source_text": "不要入口大台阶",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "不生成室内肋拱",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeWindowTracery",
+                "value": false,
+                "source_text": "不生成窗花",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "不要玫瑰花窗",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "不设飞扶壁",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要薄拱顶壳体，不设后殿，取消唱诗席，不要入口大台阶，不生成室内肋拱，不生成窗花，不要玫瑰花窗，不设飞扶壁，不要双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeVaultShell": false,
+              "includeApse": false,
+              "includeChoir": false,
+              "includeEntranceSteps": false,
+              "includeRibVault": false,
+              "includeWindowTracery": false,
+              "includeRoseWindow": false,
+              "includeButtresses": false,
+              "includeTowers": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "不要薄拱顶壳体",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "不设后殿",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeChoir",
+                "value": false,
+                "source_text": "取消唱诗席",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeEntranceSteps",
+                "value": false,
+                "source_text": "不要入口大台阶",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "不生成室内肋拱",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeWindowTracery",
+                "value": false,
+                "source_text": "不生成窗花",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "不要玫瑰花窗",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "不设飞扶壁",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要薄拱顶壳体，不设后殿，取消唱诗席，不要入口大台阶，不生成室内肋拱，不生成窗花，不要玫瑰花窗，不设飞扶壁，不要双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "不要薄拱顶壳体",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "不设后殿",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeChoir",
+                "value": false,
+                "source_text": "取消唱诗席",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeEntranceSteps",
+                "value": false,
+                "source_text": "不要入口大台阶",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "不生成室内肋拱",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeWindowTracery",
+                "value": false,
+                "source_text": "不生成窗花",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "不要玫瑰花窗",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "不设飞扶壁",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no vault shell, no apse, no choir, no entrance steps, no rib vault, no window tracery, no rose window, no flying buttresses, no twin towers",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "no vault shell",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "no apse",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeChoir",
+                "value": false,
+                "source_text": "no choir",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeEntranceSteps",
+                "value": false,
+                "source_text": "no entrance steps",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "no rib vault",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeWindowTracery",
+                "value": false,
+                "source_text": "no window tracery",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "no rose window",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "no flying buttresses",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "no twin towers",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no vault shell, no apse, no choir, no entrance steps, no rib vault, no window tracery, no rose window, no flying buttresses, no twin towers",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeVaultShell": false,
+              "includeApse": false,
+              "includeChoir": false,
+              "includeEntranceSteps": false,
+              "includeRibVault": false,
+              "includeWindowTracery": false,
+              "includeRoseWindow": false,
+              "includeButtresses": false,
+              "includeTowers": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "no vault shell",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "no apse",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeChoir",
+                "value": false,
+                "source_text": "no choir",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeEntranceSteps",
+                "value": false,
+                "source_text": "no entrance steps",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "no rib vault",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeWindowTracery",
+                "value": false,
+                "source_text": "no window tracery",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "no rose window",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "no flying buttresses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "no twin towers",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no vault shell, no apse, no choir, no entrance steps, no rib vault, no window tracery, no rose window, no flying buttresses, no twin towers",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "no vault shell",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "no apse",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeChoir",
+                "value": false,
+                "source_text": "no choir",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeEntranceSteps",
+                "value": false,
+                "source_text": "no entrance steps",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "no rib vault",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeWindowTracery",
+                "value": false,
+                "source_text": "no window tracery",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "no rose window",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "no flying buttresses",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "no twin towers",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置薄拱顶壳体，增加折角后殿，采用唱诗席，设置室内肋拱",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置薄拱顶壳体，增加折角后殿，采用唱诗席，设置室内肋拱",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeVaultShell": true,
+              "includeApse": true,
+              "includeChoir": true,
+              "includeRibVault": true
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeApse",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeChoir",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRibVault",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "plan_parameters_only"
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置薄拱顶壳体，增加折角后殿，采用唱诗席，设置室内肋拱",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "include vault shell, include faceted apse, include choir, include rib vault",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "include vault shell, include faceted apse, include choir, include rib vault",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeVaultShell": true,
+              "includeApse": true,
+              "includeChoir": true,
+              "includeRibVault": true
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeApse",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeChoir",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRibVault",
+                "value": true,
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "plan_parameters_only"
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "include vault shell, include faceted apse, include choir, include rib vault",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置室内肋拱，但是取消室内肋拱",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "取消室内肋拱",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置室内肋拱，但是取消室内肋拱",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeRibVault": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "取消室内肋拱",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置室内肋拱，但是取消室内肋拱",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeRibVault",
+                "value": false,
+                "source_text": "取消室内肋拱",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "所有墙面都不要开窗",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "所有墙面都不要开窗",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "所有墙面都不要开窗",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "所有墙面都不要窗户",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeWindows",
+                "value": false,
+                "source_text": "所有墙面都不要窗户",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "所有墙面都不要窗户",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "所有墙面都不要窗户",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeWindows": false,
+              "includeRoseWindow": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeWindows",
+                "value": false,
+                "source_text": "所有墙面都不要窗户",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "所有墙面都不要窗户",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "所有墙面都不要窗户",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeWindows",
+                "value": false,
+                "source_text": "所有墙面都不要窗户",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "所有墙面都不要窗户",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no windows anywhere",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeWindows",
+                "value": false,
+                "source_text": "no windows anywhere",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "no windows anywhere",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no windows anywhere",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeWindows": false,
+              "includeRoseWindow": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeWindows",
+                "value": false,
+                "source_text": "no windows anywhere",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "no windows anywhere",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no windows anywhere",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeWindows",
+                "value": false,
+                "source_text": "no windows anywhere",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeRoseWindow",
+                "value": false,
+                "source_text": "no windows anywhere",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要双塔，改用单塔",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要双塔，改用单塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeTowers": true,
+              "towerArrangement": "single"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": true,
+                "source_text": "不要双塔",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "overridden_by": "explicit_single_tower"
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要双塔，改用单塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "single tower",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "single tower",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "towerArrangement": "single",
+              "includeTowers": true
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "single tower",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "无塔",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "无塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "towerArrangement": "none"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "无塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no towers",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no towers",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "towerArrangement": "none"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no towers",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置双塔",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "towerArrangement": "twin"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "设置双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no twin towers",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "no twin towers",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no twin towers",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeTowers": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "no twin towers",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "no twin towers",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "no twin towers",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要单塔，也不要双塔",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要单塔，也不要双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeTowers": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要单塔，也不要双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeTowers",
+                "value": false,
+                "source_text": "不要双塔",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "左栋不要飞扶壁",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "不要飞扶壁",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "左栋不要飞扶壁",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "不要飞扶壁",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "左栋不要飞扶壁",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeButtresses",
+                "value": false,
+                "source_text": "不要飞扶壁",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "东侧建筑设置室内肋拱",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "东侧建筑设置室内肋拱",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "东侧建筑设置室内肋拱",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "玫瑰窗与双塔",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "玫瑰窗与双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "玫瑰窗与双塔",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要后殿，增加折角后殿，取消拱顶壳体，include vault shell",
+      "plan": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "取消拱顶壳体",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "不要后殿",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要后殿，增加折角后殿，取消拱顶壳体，include vault shell",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH",
+              "includeVaultShell": false,
+              "includeApse": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ],
+                "verification_level": "native_parameters_only"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "取消拱顶壳体",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "不要后殿",
+                "status": "planned",
+                "target_components": [
+                  "church_0"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "gothic",
+      "text": "不要后殿，增加折角后殿，取消拱顶壳体，include vault shell",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_0",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          },
+          {
+            "component_type": "STRUCTURE",
+            "features": [
+              "typology:gothic_cathedral_hall"
+            ],
+            "params": {
+              "component_id": "church_1",
+              "width": 25,
+              "depth": 35,
+              "facing": "SOUTH"
+            }
+          }
+        ],
+        "proportion_hints": {
+          "building_contract": {
+            "requirements": [
+              {
+                "property": "width",
+                "value": 25,
+                "scope": "all_main_masses",
+                "status": "unresolved"
+              }
+            ]
+          },
+          "gothic_building_contract": {
+            "schema": "formacraft.gothic_building.v1",
+            "requirements": [
+              {
+                "property": "includeVaultShell",
+                "value": false,
+                "source_text": "取消拱顶壳体",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              },
+              {
+                "property": "includeApse",
+                "value": false,
+                "source_text": "不要后殿",
+                "status": "unresolved_building_scope",
+                "target_components": []
+              }
+            ],
+            "verification_level": "plan_parameters_only"
+          }
+        }
+      }
+    },
+    {
+      "contract": "chinese",
+      "text": "取消彩画，增加斗拱，不设副檐",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall",
+              "includePainting": false,
+              "includeBrackets": true,
+              "includeSubEaves": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "chinese_material_contract": {
+            "schema": "formacraft.chinese_material.v1",
+            "requirements": [
+              {
+                "property": "includePainting",
+                "value": false,
+                "status": "planned",
+                "source_text": [
+                  "取消彩画"
+                ],
+                "target_components": [
+                  "hall"
+                ]
+              },
+              {
+                "property": "includeBrackets",
+                "value": true,
+                "status": "planned",
+                "source_text": [
+                  "增加斗拱"
+                ],
+                "target_components": [
+                  "hall"
+                ]
+              },
+              {
+                "property": "includeSubEaves",
+                "value": false,
+                "status": "planned",
+                "source_text": [
+                  "不设副檐"
+                ],
+                "target_components": [
+                  "hall"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only",
+            "material_validation": "runtime_block_registry"
+          }
+        }
+      }
+    },
+    {
+      "contract": "chinese",
+      "text": "设置彩画，但是不要彩画",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ],
+        "plan_status": "capability_gap",
+        "capability_gap": {
+          "code": "E_CHINESE_MATERIAL_CONTRACT",
+          "message": "中式材料或彩画要求冲突，或建筑归属不明确",
+          "path": "proportion_hints.chinese_material_contract",
+          "suggestions": [
+            "includePainting: conflicting_values"
+          ]
+        },
+        "proportion_hints": {
+          "chinese_material_contract": {
+            "schema": "formacraft.chinese_material.v1",
+            "requirements": [
+              {
+                "property": "includePainting",
+                "value": null,
+                "status": "conflicting_values",
+                "source_text": [
+                  "设置彩画",
+                  "不要彩画"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only",
+            "material_validation": "runtime_block_registry"
+          }
+        }
+      }
+    },
+    {
+      "contract": "chinese",
+      "text": "墙体使用石砖，不要斗拱",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall",
+              "wall_block": "minecraft:stone_bricks",
+              "includeBrackets": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "chinese_material_contract": {
+            "schema": "formacraft.chinese_material.v1",
+            "requirements": [
+              {
+                "property": "wall_block",
+                "value": "minecraft:stone_bricks",
+                "status": "planned",
+                "source_text": [
+                  "墙体使用石砖"
+                ],
+                "target_components": [
+                  "hall"
+                ]
+              },
+              {
+                "property": "includeBrackets",
+                "value": false,
+                "status": "planned",
+                "source_text": [
+                  "不要斗拱"
+                ],
+                "target_components": [
+                  "hall"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only",
+            "material_validation": "runtime_block_registry"
+          }
+        }
+      }
+    },
+    {
+      "contract": "chinese",
+      "text": "左栋取消彩画",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ],
+        "plan_status": "capability_gap",
+        "capability_gap": {
+          "code": "E_CHINESE_MATERIAL_CONTRACT",
+          "message": "中式材料或彩画要求冲突，或建筑归属不明确",
+          "path": "proportion_hints.chinese_material_contract",
+          "suggestions": [
+            "includePainting: unresolved_building_scope"
+          ]
+        },
+        "proportion_hints": {
+          "chinese_material_contract": {
+            "schema": "formacraft.chinese_material.v1",
+            "requirements": [
+              {
+                "property": "includePainting",
+                "value": false,
+                "status": "unresolved_building_scope",
+                "source_text": [
+                  "取消彩画"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only",
+            "material_validation": "runtime_block_registry"
+          }
+        }
+      }
+    },
+    {
+      "contract": "chinese",
+      "text": "墙体使用石砖，墙体使用白色混凝土，增加副檐",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ],
+        "plan_status": "capability_gap",
+        "capability_gap": {
+          "code": "E_CHINESE_MATERIAL_CONTRACT",
+          "message": "中式材料或彩画要求冲突，或建筑归属不明确",
+          "path": "proportion_hints.chinese_material_contract",
+          "suggestions": [
+            "wall_block: conflicting_values"
+          ]
+        },
+        "proportion_hints": {
+          "chinese_material_contract": {
+            "schema": "formacraft.chinese_material.v1",
+            "requirements": [
+              {
+                "property": "wall_block",
+                "value": null,
+                "status": "conflicting_values",
+                "source_text": [
+                  "墙体使用石砖",
+                  "墙体使用白色混凝土"
+                ]
+              },
+              {
+                "property": "includeSubEaves",
+                "value": true,
+                "status": "not_applied_due_to_conflict",
+                "source_text": [
+                  "增加副檐"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only",
+            "material_validation": "runtime_block_registry"
+          }
+        }
+      }
+    },
+    {
+      "contract": "chinese",
+      "text": "不要彩画使用红色陶瓦",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall",
+              "includePainting": false
+            }
+          }
+        ],
+        "proportion_hints": {
+          "chinese_material_contract": {
+            "schema": "formacraft.chinese_material.v1",
+            "requirements": [
+              {
+                "property": "includePainting",
+                "value": false,
+                "status": "planned",
+                "source_text": [
+                  "不要彩画"
+                ],
+                "target_components": [
+                  "hall"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only",
+            "material_validation": "runtime_block_registry"
+          }
+        }
+      }
+    },
+    {
+      "contract": "chinese",
+      "text": "设置副檐",
+      "plan": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "components": [
+          {
+            "component_type": "STRUCTURE",
+            "params": {
+              "component_id": "hall",
+              "typology_id": "tailiang_timber_hall",
+              "includeSubEaves": true
+            }
+          }
+        ],
+        "proportion_hints": {
+          "chinese_material_contract": {
+            "schema": "formacraft.chinese_material.v1",
+            "requirements": [
+              {
+                "property": "includeSubEaves",
+                "value": true,
+                "status": "planned",
+                "source_text": [
+                  "设置副檐"
+                ],
+                "target_components": [
+                  "hall"
+                ]
+              }
+            ],
+            "verification_level": "plan_parameters_only",
+            "material_validation": "runtime_block_registry"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -16,6 +16,10 @@ public final class BlockPalette {
     public String pillar;
     /** Wall/fence cap (optional): e.g. minecraft:polished_blackstone_slab */
     public String cap;
+    public String door;
+    public String roofTrim;
+    public String stairs;
+    public String roofSlab;
 
     // Optional variants: consumed deterministically by generators via pickWall/pickRoof.
     public List<String> wallVariants;

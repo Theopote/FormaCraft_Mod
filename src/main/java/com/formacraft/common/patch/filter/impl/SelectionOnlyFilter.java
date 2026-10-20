@@ -8,12 +8,18 @@ import com.formacraft.common.patch.filter.PatchFilterContext;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Set;
+import com.formacraft.common.world.MutationRegionPolicy;
 import java.util.stream.Collectors;
 
 /**
  * SelectionOnlyFilter（只修改选区）
  */
 public class SelectionOnlyFilter implements PatchFilter {
+    @Override
+    public Set<MutationRegionPolicy.Constraint> regionConstraints() {
+        return Set.of(MutationRegionPolicy.Constraint.BOUNDS);
+    }
 
     @Override
     public List<BlockPatch> filter(
@@ -25,7 +31,7 @@ public class SelectionOnlyFilter implements PatchFilter {
             return input;
         }
 
-        SelectionBox sel = context.snapshot.selection;
+        SelectionBox sel = context.snapshot.selection.normalized();
         BlockPos min = sel.min();
         BlockPos max = sel.max();
 

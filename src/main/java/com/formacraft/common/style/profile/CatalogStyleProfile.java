@@ -54,6 +54,10 @@ public final class CatalogStyleProfile implements StyleProfile {
             palette.trim = pickBlockId(mats.get("trim"), pickBlockId(mats.get("accent"), null));
             palette.pillar = pickBlockId(mats.get("pillar"), pickBlockId(mats.get("frame"), null));
             palette.cap = pickBlockId(mats.get("cap"), null);
+            palette.door = pickBlockId(mats.get("door"), null);
+            palette.roofTrim = pickBlockId(mats.get("roof_trim"), null);
+            palette.stairs = pickBlockId(mats.get("stairs"), null);
+            palette.roofSlab = pickBlockId(mats.get("roof_slab"), null);
 
             // Optional variants
             palette.wallVariants = pickListOfStrings(mats.get("wall"));

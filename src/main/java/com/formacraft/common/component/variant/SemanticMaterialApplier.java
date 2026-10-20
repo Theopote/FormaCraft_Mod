@@ -166,6 +166,10 @@ public final class SemanticMaterialApplier {
             case "trim" -> palette.trim;
             case "pillar", "column" -> palette.pillar;
             case "cap" -> palette.cap;
+            case "door" -> palette.door;
+            case "roof_trim", "rooftrim" -> palette.roofTrim;
+            case "stairs" -> palette.stairs;
+            case "roof_slab", "roofslab" -> palette.roofSlab;
             default -> null;
         };
     }

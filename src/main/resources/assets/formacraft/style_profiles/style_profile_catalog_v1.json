@@ -2,6 +2,131 @@
   "version": "1.0",
   "description": "Formacraft Style Profile Catalog — architectural genetic presets (v1)",
   "profiles": {
+    "Legacy_Classical_Facade": {
+      "meta": {
+        "display_name": "Legacy classical facade"
+      },
+      "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_WING": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "SIDE_WING": {
+            "facade_profile": "vertical_pilasters"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "RUSTIC": {
+      "meta": {
+        "display_name": "RUSTIC",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "rustic",
+            "era": "traditional"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "FUTURISTIC": {
+      "meta": {
+        "display_name": "FUTURISTIC",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "modern",
+            "era": "modern"
+          }
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_WING": {
+            "facade_profile": "mullion_grid"
+          },
+          "SIDE_WING": {
+            "facade_profile": "mullion_grid"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "MODERN": {
+      "meta": {
+        "display_name": "MODERN",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "modern",
+            "era": "modern"
+          }
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_WING": {
+            "facade_profile": "mullion_grid"
+          },
+          "SIDE_WING": {
+            "facade_profile": "mullion_grid"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "MEDIEVAL": {
+      "meta": {
+        "display_name": "MEDIEVAL",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "european",
+            "era": "medieval"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "ASIAN": {
+      "meta": {
+        "display_name": "ASIAN",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "chinese",
+            "era": "traditional"
+          }
+        }
+      },
+      "constraints": {}
+    },
     "Chinese_Imperial_Official": {
       "meta": {
         "display_name": "Chinese Imperial Architecture",
@@ -139,6 +264,20 @@
         "description": "Highly vertical religious architecture with spires and stained glass"
       },
       "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_WING": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "SIDE_WING": {
+            "facade_profile": "vertical_pilasters"
+          }
+        },
         "geometry": {
           "symmetry": "mirror",
           "roof": { "type": "spires" }
@@ -230,6 +369,20 @@
         "description": "Minimalist modern architecture with boxy forms and glass curtain walls"
       },
       "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_WING": {
+            "facade_profile": "mullion_grid"
+          },
+          "SIDE_WING": {
+            "facade_profile": "mullion_grid"
+          }
+        },
         "geometry": {
           "symmetry": "mirror",
           "roof": { "type": "flat" }
@@ -348,6 +501,20 @@
         "description": "Exposed structural systems like bridges and towers"
       },
       "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_WING": {
+            "facade_profile": "mullion_grid"
+          },
+          "SIDE_WING": {
+            "facade_profile": "mullion_grid"
+          }
+        },
         "materials": {
           "frame": ["minecraft:iron_bars", "minecraft:iron_block"],
           "accent": ["minecraft:copper_block"]
@@ -418,6 +585,20 @@
         "description": "Classical temples with colonnades, pediments, and clean proportional geometry"
       },
       "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_WING": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "SIDE_WING": {
+            "facade_profile": "vertical_pilasters"
+          }
+        },
         "geometry": {
           "symmetry": "mirror",
           "roof": { "type": "gable" }

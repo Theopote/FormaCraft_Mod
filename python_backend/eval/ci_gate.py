@@ -10,15 +10,19 @@
 2. golden_eval --scenarios --gate --ci-only
 3. diversity_eval --diversity-scenarios --gate（仅 ci:true 场景）
 4. diversity 负向检测（重复 plan 应被检出）
-5. ShapeLibrary / PRIMITIVE few-shot schema 校验
+5. Assembly repair 负向检测
+6. Java Patch/Build 共享区域约束一致性
+7. ShapeLibrary / PRIMITIVE few-shot schema 校验
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -28,6 +32,13 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 _UNITTEST_MODULES: Tuple[str, ...] = (
+    "tests.test_constraint_parity_gate",
+    "tests.test_ornament_contract",
+    "tests.test_gothic_building_contract",
+    "tests.test_chinese_material_contract",
+    "tests.test_style_catalog_p0",
+    "tests.test_style_feature_compiler",
+    "tests.test_building_request_classifier",
     "tests.test_cottage_castle_p0",
     "tests.test_siheyuan_courtyard_p0",
     "tests.test_square_tower_p0",
@@ -65,7 +76,7 @@ _UNITTEST_MODULES: Tuple[str, ...] = (
 
 
 def _run_unittest_modules(modules: Tuple[str, ...]) -> int:
-    print("\n========== [1/5] 单元测试 ==========")
+    print("\n========== [1/7] 单元测试 ==========")
     cmd = [sys.executable, "-m", "unittest", *modules, "-v"]
     proc = subprocess.run(cmd, cwd=str(_BACKEND_ROOT))
     return proc.returncode
@@ -80,7 +91,7 @@ def run_diversity_negative() -> int:
         evaluate_diversity,
     )
 
-    print("\n========== [4/5] Diversity 负向检测 ==========")
+    print("\n========== [4/7] Diversity 负向检测 ==========")
     fixtures = _THIS.parent / "fixtures" / "diversity" / "stadium"
     paths = [fixtures / "compositional_seed_100.json", fixtures / "compositional_seed_100_dup.json"]
     plans = []
@@ -109,7 +120,7 @@ def run_diversity_negative() -> int:
 
 def run_shape_fixtures() -> int:
     """校验 ShapeLibrary PRIMITIVE few-shot / golden plan schema。"""
-    print("\n========== [6/6] ShapeLibrary fixture schema ==========")
+    print("\n========== [7/7] ShapeLibrary fixture schema ==========")
     from app.models.llm_plan import validate_llm_plan_dict
 
     repo_root = _BACKEND_ROOT.parent
@@ -163,7 +174,7 @@ def run_assembly_repair_negative() -> int:
     from eval.golden_eval import _load_plan_file
     from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
 
-    print("\n========== [5/6] Assembly repair → capability_gap ==========")
+    print("\n========== [5/7] Assembly repair → capability_gap ==========")
     path = _THIS.parent / "fixtures" / "plans" / "assembly_capability_gap_bad_port_golden.json"
     plan = _load_plan_file(path)
     if plan is None:
@@ -183,17 +194,38 @@ def run_assembly_repair_negative() -> int:
     return 0
 
 
+def run_constraint_parity() -> int:
+    """Run the actual Java tests; a missing runtime or a failed Gradle task fails closed."""
+    print("\n========== [6/7] Patch/Build constraint parity ==========")
+    repo = _BACKEND_ROOT.parent
+    executable = os.getenv("FORMACRAFT_GRADLE") or str(repo / ("gradlew.bat" if os.name == "nt" else "gradlew"))
+    try:
+        result = subprocess.run([executable, "constraintParityTest", "--offline", "--console=plain"],
+                                cwd=str(repo), timeout=600)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"FAIL: constraint parity could not run: {exc}")
+        return 2
+    if result.returncode != 0:
+        return result.returncode
+    # A successful/no-source Gradle invocation alone does not prove the tests ran.
+    reports = repo / "build/test-results/constraintParityTest"
+    for suite in ("ConstraintParityTest", "MutationRegionPolicyTest"):
+        path = reports / f"TEST-com.formacraft.server.build.{suite}.xml"
+        try:
+            report = ET.parse(path).getroot()
+            count = int(report.get("tests", "0"))
+            skipped = int(report.get("skipped", "0"))
+            if count <= skipped or int(report.get("failures", "0")) or int(report.get("errors", "0")):
+                print(f"FAIL: constraint parity report is empty, skipped or failed: {path.name}")
+                return 1
+        except (OSError, ET.ParseError, ValueError) as exc:
+            print(f"FAIL: missing or invalid constraint parity report: {exc}")
+            return 2
+    return 0
+
+
 def run_ci_gate(*, gate: bool = True, quick: bool = False) -> int:
     steps: List[Tuple[str, int]] = []
-    repo = _BACKEND_ROOT.parent
-    consumers = (
-        "src/main/java/com/formacraft/server/build/BuildConstraints.java",
-        "src/main/java/com/formacraft/server/patch/ServerPatchFilter.java",
-    )
-    if any("MutationRegionPolicy.allow(" not in (repo / p).read_text(encoding="utf-8") for p in consumers):
-        print("FAIL: Patch and Build must delegate core constraints to MutationRegionPolicy.allow")
-        return 1
-
     if not quick:
         code = _run_unittest_modules(_UNITTEST_MODULES)
         steps.append(("unittest", code))
@@ -201,7 +233,7 @@ def run_ci_gate(*, gate: bool = True, quick: bool = False) -> int:
             _print_summary(steps)
             return code
 
-    print("\n========== [2/5] Golden scenarios ==========")
+    print("\n========== [2/7] Golden scenarios ==========")
     from eval.golden_eval import run_scenarios
     # gate=False：仅 HARD 失败阻断；typology 关键项已通过 promote_scenario_hard_checks 升为 HARD
     code = run_scenarios(gate=False, ci_only=True)
@@ -210,7 +242,7 @@ def run_ci_gate(*, gate: bool = True, quick: bool = False) -> int:
         _print_summary(steps)
         return code
 
-    print("\n========== [3/5] Diversity scenarios (ci) ==========")
+    print("\n========== [3/7] Diversity scenarios (ci) ==========")
     from eval.diversity_eval import run_diversity_scenarios
     code = run_diversity_scenarios(gate=gate, ci_only=True)
     steps.append(("diversity_ci", code))
@@ -226,6 +258,12 @@ def run_ci_gate(*, gate: bool = True, quick: bool = False) -> int:
 
     code = run_assembly_repair_negative()
     steps.append(("assembly_repair_negative", code))
+    if code != 0:
+        _print_summary(steps)
+        return code
+
+    code = run_constraint_parity()
+    steps.append(("constraint_parity", code))
     if code != 0:
         _print_summary(steps)
         return code

@@ -1,10 +1,23 @@
 {
   "version": 1,
   "aliases": {
+    "Industrial": "Industrial_Structure",
+    "French": "Legacy_Classical_Facade",
+    "Napoleon": "Legacy_Classical_Facade",
+    "Renaissance": "Legacy_Classical_Facade",
+    "Classical": "Greco_Roman_Classical",
+    "Cathedral": "Gothic_Cathedral",
+    "Gothic": "Gothic_Cathedral",
     "Classical_GrecoRoman": "Greco_Roman_Classical",
     "Industrial_Structural": "Industrial_Structure"
   },
   "lexical_aliases": {
+    "Legacy_Classical_Facade": [],
+    "RUSTIC": [],
+    "FUTURISTIC": [],
+    "MODERN": [],
+    "MEDIEVAL": [],
+    "ASIAN": [],
     "Modern_International": [
       "现代主义",
       "现代风格",
@@ -68,6 +81,25 @@
       "赛博朋克"
     ]
   },
+  "generic_style_markers": [
+    "哥特",
+    "巴洛克",
+    "现代",
+    "中世纪",
+    "罗马",
+    "拜占庭",
+    "装饰艺术",
+    "解构",
+    "新古典",
+    "gothic",
+    "baroque",
+    "modern",
+    "medieval",
+    "romanesque",
+    "byzantine",
+    "art deco",
+    "deconstruct"
+  ],
   "variants": {
     "Chinese_Traditional": {
       "family": "Chinese",

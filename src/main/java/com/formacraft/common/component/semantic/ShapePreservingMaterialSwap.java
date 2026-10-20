@@ -17,6 +17,8 @@ public final class ShapePreservingMaterialSwap {
         if (original == null || requested == null) return original;
         Block from = original.getBlock();
         Block to = requested.getBlock();
+        // An authored door role may change the door family while retaining both halves and facing.
+        if (from instanceof DoorBlock && to instanceof DoorBlock) return copyProperties(original, requested);
         if (original.isAir() || from instanceof BlockEntityProvider || from instanceof DoorBlock
                 || from instanceof BedBlock || from instanceof TrapdoorBlock) return original;
         String base = Registries.BLOCK.getId(to).toString();

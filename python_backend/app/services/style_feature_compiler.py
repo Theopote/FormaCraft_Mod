@@ -5,6 +5,15 @@ from copy import deepcopy
 from ..models.building_profile import BuildingProfile, ProfileSource
 
 
+def component_style_defaults(style_id: str, component_type: str) -> dict:
+    """Authored catalog defaults, separate from researched evidence mappings."""
+    from .style_profile_registry import get_style_profile
+    profile = get_style_profile(style_id)
+    if profile is None:
+        return {}
+    return deepcopy((profile.defaults.get("component_params") or {}).get(component_type, {}))
+
+
 def validate_style_evidence(profile: BuildingProfile, search_results: list[dict]) -> BuildingProfile:
     allowed = {str(r.get("url", "")).strip() for r in search_results
                if urlparse(str(r.get("url", ""))).scheme in ("https", "http")

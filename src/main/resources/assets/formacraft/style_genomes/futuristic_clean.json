@@ -10,7 +10,11 @@
     "foundation": "minecraft:smooth_stone",
     "trim": "minecraft:light_blue_stained_glass",
     "pillar": "minecraft:quartz_pillar",
-    "cap": "minecraft:smooth_quartz_slab"
+    "cap": "minecraft:smooth_quartz_slab",
+    "door": "minecraft:iron_door",
+    "roof_trim": "minecraft:light_blue_stained_glass",
+    "stairs": "minecraft:quartz_stairs",
+    "roof_slab": "minecraft:quartz_slab"
   },
   "params": {
     "roofType": "flat",

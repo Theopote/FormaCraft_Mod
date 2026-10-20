@@ -675,8 +675,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     record_building_use_intent(out, text)
     from .building_use_audit import audit_building_use
     audit_building_use(out)
-    from .gothic_building_contract import apply_gothic_building_contract
-    apply_gothic_building_contract(out, text)
+    from .ornament_contract import apply_ornament_contracts
+    apply_ornament_contracts(out, text)
     from .chinese_roof_contract import apply_chinese_roof_contract
     apply_chinese_roof_contract(out, text)
     from .chinese_material_contract import apply_chinese_material_contract

@@ -5,6 +5,9 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import com.formacraft.common.world.MutationRegionPolicy;
 
 /**
  * PatchFilterPipeline（主入口）
@@ -19,6 +22,12 @@ import java.util.List;
 public class PatchFilterPipeline {
 
     private final List<PatchFilter> filters = new ArrayList<>();
+
+    public Set<MutationRegionPolicy.Constraint> regionConstraints() {
+        Set<MutationRegionPolicy.Constraint> result = new HashSet<>();
+        for (PatchFilter filter : filters) result.addAll(filter.regionConstraints());
+        return Set.copyOf(result);
+    }
 
     /**
      * 添加 Filter

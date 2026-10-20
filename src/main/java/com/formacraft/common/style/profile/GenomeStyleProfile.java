@@ -33,6 +33,10 @@ public final class GenomeStyleProfile implements StyleProfile {
             this.palette.trim = genome.palette.trim;
             this.palette.pillar = genome.palette.pillar;
             this.palette.cap = genome.palette.cap;
+            this.palette.door = genome.palette.door;
+            this.palette.roofTrim = genome.palette.roofTrim;
+            this.palette.stairs = genome.palette.stairs;
+            this.palette.roofSlab = genome.palette.roofSlab;
         }
 
         this.rules = new StyleRules();

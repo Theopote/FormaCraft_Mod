@@ -8,12 +8,18 @@ import com.formacraft.common.patch.filter.PatchFilterContext;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Set;
+import com.formacraft.common.world.MutationRegionPolicy;
 import java.util.stream.Collectors;
 
 /**
  * ForbiddenZoneFilter（禁区裁剪）
  */
 public class ForbiddenZoneFilter implements PatchFilter {
+    @Override
+    public Set<MutationRegionPolicy.Constraint> regionConstraints() {
+        return Set.of(MutationRegionPolicy.Constraint.PROTECTED_ZONES);
+    }
 
     @Override
     public List<BlockPatch> filter(

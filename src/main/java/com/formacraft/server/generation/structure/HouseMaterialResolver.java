@@ -43,6 +43,9 @@ public class HouseMaterialResolver {
             BlockState roofStairs,
             BlockState roofSlab,
             BlockState door,
+            BlockState roofTrim,
+            boolean roofStairsConfigured,
+            boolean roofSlabConfigured,
             BlockState windowBlock  // 经过样式解析后的窗户材质
     ) {}
 
@@ -58,53 +61,53 @@ public class HouseMaterialResolver {
      */
     public static MaterialSet resolveMaterials(ServerWorld world, BuildingSpec spec,
                                                BuildingStyle style, StyleGenome genome, StyleProfile profile) {
-        // 获取材质 ID（优先级：spec.materials > profile.palette > genome.palette）
-        String wallId = spec.getMaterials() != null ? spec.getMaterials().getWall() : null;
-        String floorId = spec.getMaterials() != null ? spec.getMaterials().getFloor() : null;
-        String windowId = spec.getMaterials() != null ? spec.getMaterials().getWindow() : null;
-        String roofId = spec.getMaterials() != null ? spec.getMaterials().getRoof() : null;
-
-        String pWall = (profile != null && profile.palette() != null) ? profile.palette().wall : null;
-        String pFloor = (profile != null && profile.palette() != null) ? profile.palette().floor : null;
-        String pWindow = (profile != null && profile.palette() != null) ? profile.palette().window : null;
-        String pRoof = (profile != null && profile.palette() != null) ? profile.palette().roof : null;
-
-        // 解析基础材质
-        BlockState wall = getStateOrDefault(world, wallId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.wall : pWall,
-                        defaultWall(style)));
-        BlockState floor = getStateOrDefault(world, floorId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.floor : pFloor,
-                        defaultFloor(style)));
-        BlockState window = getStateOrDefault(world, windowId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.window : pWindow,
-                        defaultWindow(style)));
-        BlockState roof = getStateOrDefault(world, roofId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.roof : pRoof,
-                        defaultRoof(style)));
-
-        // 装饰/细节材质
-        BlockState trim = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.trim : (profile != null && profile.palette() != null ? profile.palette().trim : null),
-                defaultTrim(style, wall));
-        BlockState foundation = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.foundation : (profile != null && profile.palette() != null ? profile.palette().foundation : null),
-                defaultFoundation(style, wall));
-        BlockState pillar = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.pillar : (profile != null && profile.palette() != null ? profile.palette().pillar : null),
-                defaultPillar(style));
-        BlockState roofStairs = defaultRoofStairs(style, roof);
-        BlockState roofSlab = defaultRoofSlab(style, roof);
-        BlockState door = defaultDoor(style);
+        // Explicit materials > profile palette > genome palette > legacy defaults.
+        if (style == null) style = BuildingStyle.DEFAULT;
+        var explicit = spec.getMaterials();
+        var authored = profile != null && profile.palette() != null ? profile.palette()
+                : new com.formacraft.common.style.profile.BlockPalette();
+        var inherited = genome != null && genome.palette != null ? genome.palette : new StyleGenome.Palette();
+        String roofId = explicit != null ? explicit.getRoof() : null;
+        BlockState wall = resolveMaterial(defaultWall(style),
+                explicit != null ? explicit.getWall() : null, authored.wall, inherited.wall);
+        BlockState floor = resolveMaterial(defaultFloor(style),
+                explicit != null ? explicit.getFloor() : null, authored.floor, inherited.floor);
+        BlockState window = resolveMaterial(defaultWindow(style),
+                explicit != null ? explicit.getWindow() : null, authored.window, inherited.window);
+        BlockState roof = resolveMaterial(defaultRoof(style), roofId, authored.roof, inherited.roof);
+        BlockState trim = resolveMaterial(defaultTrim(style, wall), authored.trim, inherited.trim);
+        BlockState foundation = resolveMaterial(defaultFoundation(style, wall),
+                explicit != null ? explicit.getFoundation() : null, authored.foundation, inherited.foundation);
+        BlockState pillar = resolveMaterial(defaultPillar(style), authored.pillar, inherited.pillar);
+        // An explicit roof material owns its derived stair/slab family as well.
+        boolean explicitRoof = registeredState(roofId) != null;
+        BlockState configuredStairs = explicitRoof ? null : resolveMaterial(null, authored.stairs, inherited.stairs);
+        BlockState configuredSlab = explicitRoof ? null : resolveMaterial(null, authored.roofSlab, inherited.roofSlab);
+        BlockState roofStairs = configuredStairs != null ? configuredStairs : defaultRoofStairs(style, roof);
+        BlockState roofSlab = configuredSlab != null ? configuredSlab : defaultRoofSlab(style, roof);
+        BlockState door = resolveMaterial(defaultDoor(style), authored.door, inherited.door);
+        BlockState roofTrim = resolveMaterial(trim, authored.roofTrim, inherited.roofTrim);
 
         // 根据样式解析窗户材质
         BlockState windowBlock = resolveWindowByStyleOption(world, style, spec, genome, profile, window, pillar, trim);
 
-        return new MaterialSet(wall, floor, window, roof, trim, foundation, pillar, roofStairs, roofSlab, door, windowBlock);
+        return new MaterialSet(wall, floor, window, roof, trim, foundation, pillar, roofStairs, roofSlab, door,
+                roofTrim, explicitRoof || configuredStairs != null, explicitRoof || configuredSlab != null, windowBlock);
+    }
+
+    /** Unknown registry IDs must fall through, rather than resolving silently to air. */
+    private static BlockState registeredState(String id) {
+        if (id == null || id.isBlank()) return null;
+        Identifier key = Identifier.tryParse(id.trim());
+        return key != null && Registries.BLOCK.containsId(key) ? Registries.BLOCK.get(key).getDefaultState() : null;
+    }
+
+    private static BlockState resolveMaterial(BlockState fallback, String... candidates) {
+        for (String candidate : candidates) {
+            BlockState state = registeredState(candidate);
+            if (state != null) return state;
+        }
+        return fallback;
     }
 
     // ========== 默认材质方法 ==========

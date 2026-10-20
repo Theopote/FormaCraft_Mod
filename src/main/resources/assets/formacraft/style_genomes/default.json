@@ -10,7 +10,11 @@
     "foundation": "minecraft:cobblestone",
     "trim": "minecraft:oak_log",
     "pillar": "minecraft:oak_log",
-    "cap": "minecraft:stone_slab"
+    "cap": "minecraft:stone_slab",
+    "door": "minecraft:oak_door",
+    "roof_trim": "minecraft:oak_log",
+    "stairs": "minecraft:dark_oak_stairs",
+    "roof_slab": "minecraft:dark_oak_slab"
   },
   "params": {
     "roofType": "gable",

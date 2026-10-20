@@ -14,16 +14,13 @@ import re
 from typing import Any, Callable, Optional
 
 from ..models.building_profile import RequestClassification
+from .style_identity import generic_style_pattern
 
 logger = logging.getLogger(__name__)
 
 _CLASSIFICATION_MIN_CONFIDENCE = 0.55
 
-_GENERIC_STYLE_RE = re.compile(
-    r"(?:哥特|巴洛克|现代|中世纪|罗马|拜占庭|装饰艺术|解构|新古典|"
-    r"gothic|baroque|modern|medieval|romanesque|byzantine|art\s*deco|deconstruct)",
-    re.IGNORECASE,
-)
+_GENERIC_STYLE_RE = generic_style_pattern()
 
 _GENERIC_TYPology_RE = re.compile(
     r"(?:"

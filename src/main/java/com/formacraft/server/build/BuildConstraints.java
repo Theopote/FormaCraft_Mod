@@ -5,6 +5,8 @@ import com.formacraft.common.model.constraint.ProtectedZone;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Set;
+import com.formacraft.common.world.MutationRegionPolicy;
 
 /**
  * Server-side immutable constraints snapshot (v1):
@@ -13,6 +15,10 @@ import java.util.List;
  * - protectedZones: optional list of AABBs that are always forbidden
  */
 public final class BuildConstraints {
+    /** Core parity excludes the Build-only brush fallback and path-corridor request inputs. */
+    public static Set<MutationRegionPolicy.Constraint> sharedRegionConstraints() {
+        return MutationRegionPolicy.supportedConstraints();
+    }
     public final BlockPos selectionMin; // normalized, nullable
     public final BlockPos selectionMax; // normalized, nullable
     public final OutlineShape outline;  // nullable

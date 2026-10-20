@@ -9,12 +9,18 @@ import com.formacraft.common.tool.OutlineGeometry;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Set;
+import com.formacraft.common.world.MutationRegionPolicy;
 import java.util.stream.Collectors;
 
 /**
  * OutlineClipFilter（轮廓裁切）
  */
 public class OutlineClipFilter implements PatchFilter {
+    @Override
+    public Set<MutationRegionPolicy.Constraint> regionConstraints() {
+        return Set.of(MutationRegionPolicy.Constraint.OUTLINE);
+    }
 
     @Override
     public List<BlockPatch> filter(

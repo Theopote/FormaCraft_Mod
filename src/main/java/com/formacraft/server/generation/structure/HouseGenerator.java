@@ -215,10 +215,14 @@ public class HouseGenerator implements StructureGenerator {
         if (paletteId != null && !paletteId.isBlank()) {
             String roofIdFromSpec = spec.getMaterials() != null ? spec.getMaterials().getRoof() : null;
             if (roofIdFromSpec == null || roofIdFromSpec.isBlank()) {
-                roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_SLOPE", origin, 0xA501001L, roofStairs);
-                roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xA501002L, roofStairs);
-                roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xA501003L, roofSlab);
-                roofSlab = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xA501004L, roofSlab);
+                if (!materials.roofStairsConfigured()) {
+                    roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_SLOPE", origin, 0xA501001L, roofStairs);
+                    roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xA501002L, roofStairs);
+                }
+                if (!materials.roofSlabConfigured()) {
+                    roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xA501003L, roofSlab);
+                    roofSlab = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xA501004L, roofSlab);
+                }
             }
         }
         
@@ -647,7 +651,7 @@ public class HouseGenerator implements StructureGenerator {
         
         // 使用 HouseRoofGenerator 生成屋顶
         HouseRoofGenerator.generateRoof(blocks, origin, ctx.width(), ctx.depth(), ctx.height(), actualRoofType,
-                ctx.materials().roof(), roofMaterials[0], roofMaterials[1], ctx.materials().trim(), 
+                ctx.materials().roof(), roofMaterials[0], roofMaterials[1], ctx.materials().roofTrim(),
                 ctx.style(), ctx.profile(), ctx.doorSide(), ctx.spec(), ctx.paletteId());
         
         // 徽派马头墙

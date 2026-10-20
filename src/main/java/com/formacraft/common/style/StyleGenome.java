@@ -1,6 +1,7 @@
 package com.formacraft.common.style;
 
 import java.util.Objects;
+import com.google.gson.annotations.SerializedName;
 
 /**
  * StyleGenome：风格“基因”定义（数据驱动）
@@ -31,6 +32,14 @@ public class StyleGenome {
         public String pillar;
         /** 围墙/院墙“帽檐”/压顶（可选） */
         public String cap;
+        public String door;
+        /** Roof edging, separate from wall trim. */
+        @SerializedName(value = "roof_trim", alternate = {"roofTrim"})
+        public String roofTrim;
+        /** Stair blocks used by sloped roofs. */
+        public String stairs;
+        @SerializedName(value = "roof_slab", alternate = {"roofSlab"})
+        public String roofSlab;
     }
 
     public static class Params {
@@ -59,7 +68,10 @@ public class StyleGenome {
     }
 
     public boolean hasPalette() {
-        return palette != null && (palette.wall != null || palette.roof != null || palette.floor != null || palette.window != null);
+        return palette != null && (palette.wall != null || palette.roof != null || palette.floor != null
+                || palette.window != null || palette.foundation != null || palette.trim != null
+                || palette.pillar != null || palette.cap != null || palette.door != null
+                || palette.roofTrim != null || palette.stairs != null || palette.roofSlab != null);
     }
 
     @Override
