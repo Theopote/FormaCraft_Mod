@@ -6,7 +6,7 @@ This document tracks phase completion separately from passing incremental CI.
 | --- | --- | --- | --- |
 | P0 | Implemented | Catalog-driven planner defaults and generic markers; shared material aliases; twelve palette roles | Preserve regression coverage as assets grow |
 | P1 | Complete: local asset/execution acceptance | Declarative ornament contracts; scoped style priority; 20 genomes, 45 culture cards, 16 typologies; golden, negative, diversity and parity gates | Live sampling and visual/historical fidelity are outside this acceptance |
-| P2 | Incomplete | Existing geometry can already execute the delivered packs | New roof/wall vocabulary, fantasy skeletons/generators, emissive material strategy, visual-case integration |
+| P2 | In progress | Four new roof generators, bilingual contracts and eight dual-size plans; see `style-p2-roofs.md` | D/E assets, wall vocabulary, fantasy skeletons/generators, emissive material strategy, visual-case integration |
 | P3 | Incomplete | An internal manifest links bundled assets and tests | User-pack format, discovery/loading/validation, Settings integration, contribution workflow |
 
 Bundled counts at P1 acceptance:

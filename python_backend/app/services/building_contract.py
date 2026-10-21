@@ -68,7 +68,7 @@ def _numeric_subject(text: str, match: re.Match) -> str:
 
 def _positive_match(text: str, match: re.Match) -> bool:
     prefix = text[max(0, match.start()-12):match.start()]
-    return not re.search(r'(?:不要|不用|不使用|不采用|避免)(?:用|采用|使用)?\s*$', prefix)
+    return not re.search(r'(?:不要|不用|不使用|不采用|避免)(?:用|采用|使用)?\s*$|\b(?:no|not|without|avoid)(?:\s+(?:use|using|a|an))?\s*$', prefix, re.I)
 
 
 def _normalize_request_text(text: str) -> str:
@@ -106,12 +106,31 @@ def _extract_global_requirements(text: str) -> list[dict]:
     if any(_positive_match(text, m) for m in re.finditer(r'平屋顶|平顶', text)):
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
                        'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+    specialty_roofs = {
+        'gambrel': r'折线双坡顶|\bgambrel(?:[ _]roof)?\b',
+        'barrel_vault': r'筒拱(?:屋)?顶|\bbarrel[ _]vault\b',
+        'onion_dome': r'洋葱穹顶|\bonion[ _]dome\b',
+        'steep_thatch': r'陡坡茅草顶|\bsteep[ _]thatch\b',
+    }
+    for roof_type, pattern in specialty_roofs.items():
+        hits = [match for match in re.finditer(pattern, text, re.I) if _positive_match(text, match)]
+        if hits:
+            result.append({'id':'req_roof_'+roof_type, 'property':'roof_type', 'value':roof_type,
+                           'source':'user_explicit', 'source_text':[hits[0][0]],
+                           'scope':'all_main_masses', 'priority':'hard', 'status':'pending'})
     for requirement in result:
         if requirement['property'] == 'roof_type':
             token = requirement['source_text'][0]
             hit = re.search(re.escape(token), text)
             if hit:
                 requirement['scope'] = _numeric_subject(text, hit)
+    roof_requirements = [requirement for requirement in result if requirement['property']=='roof_type']
+    if any(requirement['value'] in specialty_roofs for requirement in roof_requirements):
+        for scope in {requirement['scope'] for requirement in roof_requirements}:
+            scoped = [requirement for requirement in roof_requirements if requirement['scope']==scope]
+            if len({requirement['value'] for requirement in scoped}) > 1:
+                for requirement in scoped:
+                    requirement.update(value=None, scope='unresolved', status='unresolved')
     if re.search(r'山墙[^。；\n]{0,15}(?:不要|不需要|不设|不开|无)[^。；\n]{0,6}(?:窗|开口)|(?:不要|不需要|不设|不开)[^。；\n]{0,6}山墙[^。；\n]{0,6}窗|(?:普通)?封闭山墙', text):
         result.append({'id': 'req_gable_windows', 'property': 'gable_windows', 'value': False,
                        'source': 'user_explicit', 'source_text': ['山墙禁窗或封闭山墙'],

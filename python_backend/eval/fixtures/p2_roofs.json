@@ -1,0 +1,30 @@
+[
+  {
+    "roof_type": "gambrel",
+    "plans": [
+      "p2_gambrel_13.json",
+      "p2_gambrel_21.json"
+    ]
+  },
+  {
+    "roof_type": "barrel_vault",
+    "plans": [
+      "p2_barrel_vault_13.json",
+      "p2_barrel_vault_21.json"
+    ]
+  },
+  {
+    "roof_type": "onion_dome",
+    "plans": [
+      "p2_onion_dome_13.json",
+      "p2_onion_dome_21.json"
+    ]
+  },
+  {
+    "roof_type": "steep_thatch",
+    "plans": [
+      "p2_steep_thatch_13.json",
+      "p2_steep_thatch_21.json"
+    ]
+  }
+]

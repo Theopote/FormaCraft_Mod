@@ -1212,5 +1212,93 @@
       "dimensions_sane",
       "has_proportion_hints"
     ]
+  },
+  {
+    "id": "p2_gambrel_13",
+    "prompt": "Build a hall with gambrel roof",
+    "plan_fixture": "plans/p2_gambrel_13.json",
+    "tags": [
+      "p2",
+      "roof",
+      "gambrel"
+    ],
+    "ci": true
+  },
+  {
+    "id": "p2_gambrel_21",
+    "prompt": "Build a hall with gambrel roof",
+    "plan_fixture": "plans/p2_gambrel_21.json",
+    "tags": [
+      "p2",
+      "roof",
+      "gambrel"
+    ],
+    "ci": true
+  },
+  {
+    "id": "p2_barrel_vault_13",
+    "prompt": "Build a hall with barrel_vault roof",
+    "plan_fixture": "plans/p2_barrel_vault_13.json",
+    "tags": [
+      "p2",
+      "roof",
+      "barrel_vault"
+    ],
+    "ci": true
+  },
+  {
+    "id": "p2_barrel_vault_21",
+    "prompt": "Build a hall with barrel_vault roof",
+    "plan_fixture": "plans/p2_barrel_vault_21.json",
+    "tags": [
+      "p2",
+      "roof",
+      "barrel_vault"
+    ],
+    "ci": true
+  },
+  {
+    "id": "p2_onion_dome_13",
+    "prompt": "Build a hall with onion_dome roof",
+    "plan_fixture": "plans/p2_onion_dome_13.json",
+    "tags": [
+      "p2",
+      "roof",
+      "onion_dome"
+    ],
+    "ci": true
+  },
+  {
+    "id": "p2_onion_dome_21",
+    "prompt": "Build a hall with onion_dome roof",
+    "plan_fixture": "plans/p2_onion_dome_21.json",
+    "tags": [
+      "p2",
+      "roof",
+      "onion_dome"
+    ],
+    "ci": true
+  },
+  {
+    "id": "p2_steep_thatch_13",
+    "prompt": "Build a hall with steep_thatch roof",
+    "plan_fixture": "plans/p2_steep_thatch_13.json",
+    "tags": [
+      "p2",
+      "roof",
+      "steep_thatch"
+    ],
+    "ci": true
+  },
+  {
+    "id": "p2_steep_thatch_21",
+    "prompt": "Build a hall with steep_thatch roof",
+    "plan_fixture": "plans/p2_steep_thatch_21.json",
+    "tags": [
+      "p2",
+      "roof",
+      "steep_thatch"
+    ],
+    "ci": true
   }
 ]

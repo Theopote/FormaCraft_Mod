@@ -25,6 +25,10 @@ public final class RoofTypeCatalog {
             "cone", "conical",
             "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome",
             "mansard", "mansard_roof", "baroque_roof",
+            "gambrel", "gambrel_roof", "折线双坡顶",
+            "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶",
+            "onion_dome", "onion dome", "洋葱穹顶",
+            "steep_thatch", "steep thatch", "陡坡茅草顶",
             "none"
     );
 
@@ -76,6 +80,12 @@ public final class RoofTypeCatalog {
                 continue;
             }
             String lower = feature.toLowerCase(Locale.ROOT);
+            for (String token : java.util.List.of("gambrel_roof", "gambrel", "折线双坡顶",
+                    "barrel_vault", "barrel vault", "筒拱屋顶", "筒拱顶",
+                    "onion_dome", "onion dome", "洋葱穹顶",
+                    "steep_thatch", "steep thatch", "陡坡茅草顶")) {
+                if (lower.contains(token)) return Optional.of(token);
+            }
             if (lower.contains("yingshan") || lower.contains("ying_shan") || lower.contains("ying-shan")
                     || lower.contains("hard_gable") || lower.contains("hard gable") || lower.contains("硬山")) {
                 return Optional.of("yingshan");
@@ -156,6 +166,10 @@ public final class RoofTypeCatalog {
 
     private static RoofTypeKind mapToken(String normalized) {
         return switch (normalized) {
+            case "gambrel", "gambrel_roof", "折线双坡顶" -> RoofTypeKind.GAMBREL;
+            case "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶" -> RoofTypeKind.BARREL_VAULT;
+            case "onion_dome", "onion dome", "洋葱穹顶" -> RoofTypeKind.ONION_DOME;
+            case "steep_thatch", "steep thatch", "陡坡茅草顶" -> RoofTypeKind.STEEP_THATCH;
             case "shed", "lean_to", "single_slope" -> RoofTypeKind.SHED;
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;

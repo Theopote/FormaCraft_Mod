@@ -1,0 +1,93 @@
+{
+  "mode": "build",
+  "style_profile": "Alpine_Chalet",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "timber_gable_house",
+    "proportion_card_id": "alpine_chalet_house",
+    "window_wall_ratio": 0.24,
+    "height_to_width": 0.47619047619047616,
+    "depth_to_width": 1.1904761904761905,
+    "window_aspect": "rectangular"
+  },
+  "style_attributes": {
+    "wall_material": "minecraft:spruce_planks",
+    "roof_material": "minecraft:hay_block",
+    "floor_material": "minecraft:oak_planks",
+    "decorative_elements": [
+      "restrained_frame"
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 25,
+        "height": 10
+      },
+      "features": [],
+      "params": {
+        "wall_block": "minecraft:spruce_planks",
+        "roof_block": "minecraft:hay_block",
+        "floor_block": "minecraft:oak_planks",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:stripped_spruce_log",
+        "pillar_block": "minecraft:spruce_log",
+        "roof_type": "none",
+        "window_style": "pane",
+        "window_ratio": 0.24,
+        "facade_profile": "base_plinth",
+        "floor_height": 5,
+        "component_id": "alpine_chalet",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "void_ratio": 0.05
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 9,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 25,
+        "height": 21
+      },
+      "features": [],
+      "params": {
+        "roof_type": "steep_thatch",
+        "overhang": 0,
+        "roof_block": "minecraft:hay_block",
+        "component_id": "alpine_chalet_roof",
+        "host_id": "alpine_chalet",
+        "anchor_mode": "min_corner"
+      }
+    }
+  ]
+}

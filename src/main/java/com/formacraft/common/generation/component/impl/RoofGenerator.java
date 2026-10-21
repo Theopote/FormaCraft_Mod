@@ -89,6 +89,10 @@ public class RoofGenerator implements ComponentGenerator {
                     footprint, appliedOverhang);
         } else {
             switch (roofType) {
+                case GAMBREL, BARREL_VAULT, ONION_DOME, STEEP_THATCH -> out.addAll(
+                        com.formacraft.common.generation.component.util.SpecialtyRoofSurfaces.generate(
+                                roofType, baseX, rp.y(), baseZ, width, depth, height,
+                                getBlockForPart(semantic, palette, SemanticPart.ROOF), footprint, appliedOverhang));
                 case SHED -> generateShedRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         palette, footprint, appliedOverhang);
                 case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
@@ -112,7 +116,8 @@ public class RoofGenerator implements ComponentGenerator {
             }
         }
 
-        if (!doubleEave && roofType != RoofTypeKind.FLAT && roofType != RoofTypeKind.SAWTOOTH) sealSlopeRisers(out);
+        if (!doubleEave && roofType != RoofTypeKind.FLAT && roofType != RoofTypeKind.SAWTOOTH
+                && roofType != RoofTypeKind.ONION_DOME) sealSlopeRisers(out);
         List<BlockPatch> roofShell = List.copyOf(out);
         if (ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c)
                 && width >= 7) {
@@ -136,7 +141,8 @@ public class RoofGenerator implements ComponentGenerator {
                 GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
                         GeneratedSurfaceCapture.Role.ROOF);
         }
-        if (!doubleEave && (roofType == RoofTypeKind.GABLE || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.XUANSHAN)
+        if (!doubleEave && (roofType == RoofTypeKind.GABLE || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.XUANSHAN
+                || roofType == RoofTypeKind.GAMBREL || roofType == RoofTypeKind.BARREL_VAULT || roofType == RoofTypeKind.STEEP_THATCH)
                 && !"false".equalsIgnoreCase(getParamString(params, "gable_walls"))) {
             sealRectangularGables(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette);
             if (getParamBoolean(params, "horse_head_walls", "horseHeadWalls")

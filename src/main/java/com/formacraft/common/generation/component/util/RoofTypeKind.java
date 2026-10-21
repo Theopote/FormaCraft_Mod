@@ -13,5 +13,9 @@ public enum RoofTypeKind {
     DOME,
     MANSARD,
     SAWTOOTH,
-    SHED
+    SHED,
+    GAMBREL,
+    BARREL_VAULT,
+    ONION_DOME,
+    STEEP_THATCH
 }

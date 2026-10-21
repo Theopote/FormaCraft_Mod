@@ -4,6 +4,9 @@ from copy import deepcopy
 
 from ..models.building_profile import BuildingProfile, ProfileSource
 
+SUPPORTED_ROOF_DEFAULTS = frozenset({'flat', 'gable', 'hip', 'mansard', 'shed', 'cone', 'dome',
+    'pyramid', 'xieshan', 'xuanshan', 'gambrel', 'barrel_vault', 'onion_dome', 'steep_thatch'})
+
 
 def component_style_defaults(style_id: str, component_type: str) -> dict:
     """Authored catalog defaults, separate from researched evidence mappings."""
@@ -41,7 +44,11 @@ def compile_style_feature_defaults(profile: BuildingProfile) -> list[dict]:
                 "hip roof": "hip", "hipped roof": "hip", "四坡屋顶": "hip",
                 "pyramid roof": "pyramid", "金字塔屋顶": "pyramid",
                 "xuanshan roof": "xuanshan", "悬山屋顶": "xuanshan",
-                "xieshan roof": "xieshan", "hip and gable roof": "xieshan", "歇山屋顶": "xieshan"}
+                "xieshan roof": "xieshan", "hip and gable roof": "xieshan", "歇山屋顶": "xieshan",
+                "gambrel roof": "gambrel", "折线双坡顶": "gambrel",
+                "barrel vault": "barrel_vault", "筒拱顶": "barrel_vault", "筒拱屋顶": "barrel_vault",
+                "onion dome": "onion_dome", "洋葱穹顶": "onion_dome",
+                "steep thatch": "steep_thatch", "陡坡茅草顶": "steep_thatch"}
     result = []
     for spec in sorted(profile.style_specs, key=lambda spec: spec.weight if spec.weight is not None else 1.0, reverse=True):
         weight = spec.weight if spec.weight is not None else 1.0

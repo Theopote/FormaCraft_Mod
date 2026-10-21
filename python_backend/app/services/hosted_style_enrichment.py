@@ -3,6 +3,7 @@ from copy import deepcopy
 
 from .style_identity import canonical_style_id
 from .style_profile_registry import get_style_profile
+from .style_feature_compiler import SUPPORTED_ROOF_DEFAULTS
 
 
 def enrich_hosted_styles(plan: dict, profile=None) -> dict:
@@ -65,7 +66,7 @@ def enrich_hosted_styles(plan: dict, profile=None) -> dict:
                                                for f in component.get("features", []))):
                 report["skipped"].append(cid)
                 continue
-            if roof_type in {"flat", "gable", "hip", "mansard"} and not blocked_roof and "roof_type" not in cp and "roof_type" not in params:
+            if roof_type in SUPPORTED_ROOF_DEFAULTS and not blocked_roof and "roof_type" not in cp and "roof_type" not in params:
                 component.setdefault("params", {})["roof_type"] = roof_type
                 report["changes"].append({"component_id": cid, "parameter": "roof_type", "value": roof_type})
         report["status"] = "processed"
