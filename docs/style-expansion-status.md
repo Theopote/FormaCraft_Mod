@@ -10,6 +10,16 @@ Huizhou retains a separate culture card and now has two compiled dwelling fixtur
 with stepped gables, explicit gable opt-out and Patch/Build clipping checks.
 Live visual comparison and a complete tianjing compound remain pending.
 
+Raised timber examples now include authored steps or a bank walkway and use
+PRESERVE elevations. Fixed-site support, clearance and underfloor write bounds
+are covered separately in [`style-raised-timber-acceptance.md`](style-raised-timber-acceptance.md).
+Arbitrary water/terrain fitting and live-world preservation remain pending.
+
+The two single-treehouse fixtures also include a continuous straight timber
+approach to the elevated entrance; their support/access and compiler edit-locality
+checks are documented in [`style-treehouse-acceptance.md`](style-treehouse-acceptance.md).
+This does not establish a spiral stair or a multi-tree city.
+
 | Phase | State | Delivered | Remaining |
 | --- | --- | --- | --- |
 | P0 | Implemented | Catalog-driven planner defaults and generic markers; shared material aliases; twelve palette roles | Preserve regression coverage as assets grow |

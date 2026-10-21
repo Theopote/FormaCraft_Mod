@@ -70,6 +70,8 @@ Counts and references below are generated from bundled profiles, culture cards a
 | --- | --- | --- | --- | --- | --- | --- |
 | 25 manifest styles | Bilingual/refusal cases: test_style_p1_acceptance | Fixture/schema checks: same suite | Shared plan replay and constraint parity; P2 acceptance | Pending live evidence | Pending reviewed screenshots | Pending per-style world evidence |
 | Northern siheyuan / Huizhou split | test_siheyuan_courtyard_p0 regional cases | Gray-brick defaults, isolated ornaments, bilingual gable toggle and ambiguous-scope refusal | Two Huizhou dwelling fixtures compile; stepped/capped symmetric end walls, attachment, hollow attic and Patch/Build clipping checked in ConstraintParityTest | Pending | Pending | Gable disable replay preserves all blocks outside upper end planes; world edit chain pending |
+| Stilt timber / Water platform fixed sites | Existing manifest bilingual/refusal tests | Explicit PRESERVE elevations and authored access; helper/few-shot equality tests | Five fixtures: pile/deck contact, entrance path and two-cell air clearance, no raw underfloor writes outside piles, clipping parity | Pending terrain/water simulation | Pending | Pending world edits |
+| Single elven treehouse | Existing manifest bilingual/refusal tests | Explicit PRESERVE heights and authored timber access; helper/few-shot equality | Two fixtures: trunk/floor contact, connected three-wide treads, landing/entrance clearance and clipping parity | Pending live site/walking checks | Pending | Access-removal compiler replay checks dwelling/trunk locality; world editing pending |
 | Startup user packs | test_user_style_packs sample integration | Sample defaults/ornament tests | UserStylePackRuntimeTest sample compilation/clipping | Settings clicks and live build pending | Pending | Pending |
 
 ## Next acceptance queue
@@ -91,9 +93,9 @@ gable-disable block locality and shared clipping parity. This is offline block
 evidence; live world edits, historical fidelity and screenshots remain pending.
 
 1. Northern siheyuan vs Huizhou: compare live gray-brick courtyard and white-wall/horse-head-gable dwelling; complete tianjing compounds still require dedicated examples and acceptance. `huizhou_vernacular_13.json` and `huizhou_vernacular_21.json` now cover rectangular dwellings with both ridge orientations, not complete courtyard compounds.
-2. Water/stilt: test terrain clearance, pile contact, shore access and preservation of existing water/underwater blocks.
+2. Water/stilt: fixed-site pile contact, entrance access and untouched underfloor non-pile columns now have offline assertions. Validate arbitrary bed/bank/water levels, automatic landing passes and live water updates next; see [fixed-site acceptance](style-raised-timber-acceptance.md).
 3. Dwarven hall: current barrel-vaulted above-ground composition is not underground excavation; test excavation separately.
-4. Elven treehouse: current trunk/deck support does not establish connected bridges, spiral access or a tree city.
+4. Elven treehouse: single-tree support and straight timber access now have dedicated fixtures and offline assertions. Live walking, fall protection and site fitting remain; connected canopy bridges, spiral access and a tree city require additional compositions. See [single-treehouse acceptance](style-treehouse-acceptance.md).
 5. Cyberpunk: luminous registry blocks and disable behavior have offline coverage; record actual night rendering and passage visibility.
 6. Deconstructivism: declared profile/algorithm does not establish continuous curved geometry.
 7. Local edits: replay roof/material/opening changes for each accepted style, then compare unaffected components and actual built blocks.

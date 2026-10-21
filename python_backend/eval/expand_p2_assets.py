@@ -51,6 +51,58 @@ def primitive(name, x,y,z,w,d,h,kind,block,**extra):
                 params=dict(component_id=name,anchor_mode='min_corner',kind=kind,material='minecraft:'+block,**extra))
 
 
+def add_raised_access(plan):
+    """Fixed-site examples: authored elevation, not automatic water/terrain fitting."""
+    body = plan['components'][0]
+    width = body['dimensions']['width']
+    center = width // 2
+    wall = body['params']['wall_block'].removeprefix('minecraft:')
+    plan['global_constraints']['terrain_strategy'] = 'PRESERVE'
+    body['features'] = list(dict.fromkeys([*body.get('features', []), 'entrance']))
+    plan['components'] = [c for c in plan['components']
+                          if not c['params'].get('component_id', '').startswith('access_')]
+    if plan['style_profile'] == 'Water_Platform':
+        # A level bank at deck elevation is an explicit fixture assumption.
+        plan['components'].append(primitive('access_walkway', center-1,5,-8,3,8,1,'box',wall))
+        trim = body['params']['pillar_block'].removeprefix('minecraft:')
+        for i, x in enumerate((center-1, center+1)):
+            plan['components'].append(primitive('access_post_'+str(i),x,0,-7,1,1,5,'box',trim))
+    else:
+        plan['components'].append(primitive('access_landing',center-1,5,-3,3,3,1,'box',wall))
+        for step in range(5):
+            plan['components'].append(primitive('access_step_'+str(step),center-1,step,-8+step,3,1,1,'box',wall))
+        if width == 17:
+            # The diversity alternative has a supported covered porch, not just a resized shell.
+            trim = body['params']['pillar_block'].removeprefix('minecraft:')
+            plan['components'].append(primitive('access_canopy',center-3,9,-3,7,3,1,'box',wall))
+            for i, x in enumerate((center-3, center+3)):
+                plan['components'].append(primitive('access_canopy_post_'+str(i),x,0,-2,1,1,9,'box',trim))
+
+
+def add_treehouse_access(plan):
+    """Single supported treehouse with an authored straight timber approach."""
+    body = plan['components'][0]
+    center = body['dimensions']['width'] // 2
+    elevation = body['relative_position']['y']
+    plan['global_constraints']['terrain_strategy'] = 'PRESERVE'
+    body['features'] = list(dict.fromkeys([*body.get('features', []), 'entrance']))
+    plan['components'] = [c for c in plan['components']
+                          if not c['params'].get('component_id', '').startswith('tree_access_')
+                          and c['params'].get('component_id') != 'tree_entrance']
+    plan['components'].append(dict(component_type='ENTRANCE',
+        relative_position=dict(x=center-2,y=elevation+1,z=0),
+        dimensions=dict(width=5,depth=1,height=4),features=['entrance'],
+        params=dict(component_id='tree_entrance',host_id=body['params']['component_id'],
+                    anchor_mode='min_corner',facing='SOUTH',door_width=3,door_height=3,canopy_depth=0)))
+    plan['components'].append(primitive('tree_access_landing',center-1,elevation-1,-3,
+                                        3,3,2,'box','birch_planks'))
+    for step in range(elevation):
+        # Two-course treads share vertical faces, forming a continuous wooden run.
+        bottom = max(0, step-1)
+        plan['components'].append(primitive('tree_access_step_'+str(step),center-1,bottom,
+                                            -elevation-3+step,3,1,step-bottom+1,'box','birch_planks'))
+
+
 def main():
     manifest_path=ASSETS/'style_profiles/style_pack_manifest_v1.json'
     manifest=load(manifest_path)
@@ -114,10 +166,12 @@ def main():
             if sid in ('Stilt_Timber','Water_Platform'):
                 for i,(x,z) in enumerate(((1,1),(size-2,1),(1,size+2),(size-2,size+2))):
                     plan['components'].append(primitive('post_'+str(i),x,0,z,1,1,5,'box',trim))
+                add_raised_access(plan)
             if sid=='Xianxia_Island':
                 plan['components'].append(primitive('island',-3,12,-3,size+6,size+10,9,'floating_mass','stone'))
             if sid=='Elven_Treehouse':
                 plan['components'].append(primitive('tree_trunk',size//2-2,0,size//2-2,5,5,13,'cylinder','oak_log',radius=2.5))
+                add_treehouse_access(plan)
             if sid=='Dwarven_Hall':
                 for i,x in enumerate((1,size-2)):
                     plan['components'].append(primitive('brazier_'+str(i),x,1,1,1,1,2,'box','shroomlight'))
@@ -145,12 +199,22 @@ def main():
             if definition['id']==typology:
                 for key,value in [('cultureCardIds',gid),('proportionCardIds',gid)]:
                     if value not in definition.setdefault(key,[]): definition[key].append(value)
+        site_constraints = ([
+            'Fixed-site example: pile bases are anchor+0, deck floor is anchor+5; use terrain_strategy=PRESERVE to retain authored geometry.',
+            'Water example assumes a bed at anchor-1, water no higher than anchor+3 and a bank at deck elevation; deeper or uneven sites require separate fitting.',
+            'Use the authored access components: steps for Stilt_Timber, elevated bank walkway for Water_Platform; do not infer an access route from style alone.'
+        ] if sid in ('Stilt_Timber','Water_Platform') else [])
+        if sid == 'Elven_Treehouse':
+            site_constraints = [
+                'Single treehouse: trunk base is anchor+0, floor is anchor+13, with an authored straight timber approach on negative z.',
+                'Use terrain_strategy=PRESERVE for this fixed-site composition; do not claim a spiral stair, canopy bridge network or populated tree city.'
+            ]
         save(ASSETS/'culture_cards'/f'{gid}.json',dict(id=gid,styleId=sid,intents=['STYLE_PRESET'],keywords=aliases,synonyms={},
              keywordWeights={a:12 for a in aliases},negativeKeywords=['不要'+cn,'not '+en],proportionCardId=gid,
              structuralTypologyId=typology,llmPlanExampleRefs=names,exampleRefs=[],archetypes=[dict(name=gid,constraints=[
                  'Use style_profile='+sid+'; original fictional/vernacular composition, not a named landmark.',
                  'Use roof_type='+roof_type+', wall_pattern='+pattern+'; explicit user requirements take priority.',
-                 'See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components.'])]))
+                 'See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components.', *site_constraints])]))
         save(ASSETS/'proportion_cards'/f'{gid}.json',dict(id=gid,typology=typology,matchKeywords=aliases,
              ratios=dict(height_to_width=dict(min=.2,ideal=.6,max=2),depth_to_width=dict(min=.5,ideal=1,max=1.6),
                          window_wall_ratio=dict(min=0,ideal=ratio,max=.5)),openingGrammar=dict(window_aspect=['rectangular']),

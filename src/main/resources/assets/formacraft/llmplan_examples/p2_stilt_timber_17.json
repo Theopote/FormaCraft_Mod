@@ -12,7 +12,7 @@
     "global_constraints": {
       "facing": "SOUTH",
       "symmetry": "MIRROR_X",
-      "terrain_strategy": "ADAPTIVE"
+      "terrain_strategy": "PRESERVE"
     },
     "layout": {
       "skeleton_type": "COMPOUND",
@@ -44,7 +44,9 @@
           "depth": 21,
           "height": 12
         },
-        "features": [],
+        "features": [
+          "entrance"
+        ],
         "params": {
           "wall_block": "minecraft:spruce_planks",
           "roof_block": "minecraft:dark_oak_planks",
@@ -162,6 +164,186 @@
         "features": [],
         "params": {
           "component_id": "post_3",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 7,
+          "y": 5,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 3,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_landing",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 7,
+          "y": 0,
+          "z": -8
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_step_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 7,
+          "y": 1,
+          "z": -7
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_step_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 7,
+          "y": 2,
+          "z": -6
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_step_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 7,
+          "y": 3,
+          "z": -5
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_step_3",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 7,
+          "y": 4,
+          "z": -4
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_step_4",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": 9,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 7,
+          "depth": 3,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_canopy",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": 0,
+          "z": -2
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 9
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_canopy_post_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:spruce_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 11,
+          "y": 0,
+          "z": -2
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 9
+        },
+        "features": [],
+        "params": {
+          "component_id": "access_canopy_post_1",
           "anchor_mode": "min_corner",
           "kind": "box",
           "material": "minecraft:spruce_log"

@@ -34,7 +34,9 @@
       "constraints": [
         "Use style_profile=Elven_Treehouse; original fictional/vernacular composition, not a named landmark.",
         "Use roof_type=cone, wall_pattern=timber_frame; explicit user requirements take priority.",
-        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components.",
+        "Single treehouse: trunk base is anchor+0, floor is anchor+13, with an authored straight timber approach on negative z.",
+        "Use terrain_strategy=PRESERVE for this fixed-site composition; do not claim a spiral stair, canopy bridge network or populated tree city."
       ]
     }
   ]

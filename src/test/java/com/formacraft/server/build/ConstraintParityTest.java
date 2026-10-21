@@ -124,6 +124,111 @@ class ConstraintParityTest {
     @BeforeAll static void bootstrap() { MinecraftRegistryTestBootstrap.initialize(); }
 
     @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={13,21})
+    void treehouseTrunkAccessAndAccessRemovalRemainConnectedAndLocal(int width) throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var file=java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_elven_treehouse_"+width+".json");
+        var plan=mapper.readValue(file.toFile(),LlmPlan.class);
+        assertEquals(GlobalConstraints.TerrainStrategy.PRESERVE,plan.globalConstraints().terrainStrategy());
+        var patches=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
+        assertFalse(patches.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        var blocks=com.formacraft.test.PatchTestSnapshot.blocks(patches);
+        int center=width/2;
+        for(int y=0;y<13;y++) assertEquals("minecraft:oak_log",blocks.get(new Vec3i(center,y,center)));
+        assertNotNull(blocks.get(new Vec3i(center,13,center)),"trunk must contact the floor");
+        // The full three-wide run must join the landing, doorway and interior.
+        for(int z=-16;z<=2;z++) {
+            int floor=z < -3 ? z+16 : 13;
+            for(int x=center-1;x<=center+1;x++) assertWalkCell(blocks,x,floor,z);
+        }
+        for(int step=1;step<13;step++) {
+            assertNotNull(blocks.get(new Vec3i(center,step-1,-16+step)),"adjacent treads must share a face");
+        }
+        var blocked=new HashMap<>(blocks);blocked.put(new Vec3i(center,8,-10),"minecraft:stone");
+        assertThrows(AssertionError.class,()->assertWalkCell(blocked,center,6,-10));
+        var missing=new HashMap<>(blocks);missing.remove(new Vec3i(center,6,-10));
+        assertThrows(AssertionError.class,()->assertWalkCell(missing,center,6,-10));
+        var noAccess=mapper.readValue(file.toFile(),LlmPlan.class);
+        noAccess.components().removeIf(c->String.valueOf(c.params().get("component_id")).startsWith("tree_access_"));
+        var withoutPatches=ComponentPlanCompiler.compile(noAccess,ORIGIN,null,null,false);
+        assertFalse(withoutPatches.isEmpty());
+        var without=com.formacraft.test.PatchTestSnapshot.blocks(withoutPatches);
+        var positions=new HashSet<>(blocks.keySet());positions.addAll(without.keySet());
+        int changes=0;
+        for(var pos:positions) if(!Objects.equals(blocks.get(pos),without.get(pos))) {
+            changes++;
+            assertTrue(pos.z()<0,"removing the approach must preserve house/trunk: "+pos);
+        }
+        assertTrue(changes>0);
+        var min=ORIGIN.add(center-1,-32,-16);var max=ORIGIN.add(width-1,64,width+3);
+        var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
+        assertFalse(expected.isEmpty());assertTrue(expected.size()<patches.size());
+        assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
+        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"stilt_timber,13", "stilt_timber,17", "stilt_timber,21", "water_platform,13", "water_platform,21"})
+    void raisedTimberExamplesKeepSupportsClearanceAndAuthoredAccess(String style, int width) throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var plan = mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_" + style + "_" + width + ".json").toFile(), LlmPlan.class);
+        assertEquals(GlobalConstraints.TerrainStrategy.PRESERVE, plan.globalConstraints().terrainStrategy());
+        var patches = ComponentPlanCompiler.compile(plan, ORIGIN, null, null, false);
+        assertFalse(patches.isEmpty(), () -> String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        var blocks = com.formacraft.test.PatchTestSnapshot.blocks(patches);
+        int depth = width + 4;
+        String post = "water_platform".equals(style) ? "minecraft:oak_log" : "minecraft:spruce_log";
+        var posts = Set.of(new Vec3i(1,0,1), new Vec3i(width-2,0,1),
+                new Vec3i(1,0,depth-2), new Vec3i(width-2,0,depth-2));
+        for (var column : posts) {
+            for (int y=0;y<5;y++) assertEquals(post, blocks.get(new Vec3i(column.x(),y,column.z())));
+            assertNotNull(blocks.get(new Vec3i(column.x(),5,column.z())), "post must meet the raised floor");
+        }
+        for (var component : plan.components()) {
+            String id = String.valueOf(component.params().get("component_id"));
+            if (!id.startsWith("access_post_") && !id.startsWith("access_canopy_post_")) continue;
+            var base = component.relativePosition(); int height = component.dimensions().height();
+            for (int y=0;y<height;y++) assertEquals(post,blocks.get(new Vec3i(base.x(),base.y()+y,base.z())));
+            assertNotNull(blocks.get(new Vec3i(base.x(),base.y()+height,base.z())), "access post must meet deck/canopy");
+        }
+        // Fixed bed at -1 and water at 0..3: raw patch writes, including air/removal,
+        // must leave every non-pile column under the dwelling untouched.
+        for (var patch : patches) {
+            assertTrue(patch.dy() >= 0, "fixture must not excavate the synthetic bed");
+            if (patch.dx()>=0 && patch.dx()<width && patch.dz()>=0 && patch.dz()<depth && patch.dy()<5) {
+                assertTrue(posts.contains(new Vec3i(patch.dx(),0,patch.dz())), "write outside support column: " + patch);
+                assertEquals(BlockPatch.PLACE, patch.action());
+                assertEquals(post, patch.targetBlock());
+            }
+        }
+        for (int z=-8;z<=2;z++) {
+            int floor = "stilt_timber".equals(style) && z < -3 ? z+8 : 5;
+            assertWalkCell(blocks,width/2,floor,z);
+        }
+        var blocked = new HashMap<>(blocks);
+        blocked.put(new Vec3i(width/2,6,-2), "minecraft:stone");
+        assertThrows(AssertionError.class, () -> assertWalkCell(blocked,width/2,5,-2));
+        var gap = new HashMap<>(blocks); gap.remove(new Vec3i(width/2,5,-2));
+        assertThrows(AssertionError.class, () -> assertWalkCell(gap,width/2,5,-2));
+        var terrain = new com.formacraft.common.compiler.postprocess.TerrainAdaptationPostProcessor(null,null);
+        assertSame(patches, terrain.process(patches,
+                com.formacraft.common.compiler.postprocess.PostProcessContext.create(plan,ORIGIN)));
+        var min=ORIGIN.add(0,-32,-8); var max=ORIGIN.add(width/2,64,depth-1);
+        var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
+        assertFalse(expected.isEmpty()); assertTrue(expected.size()<patches.size());
+        assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
+        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
+    }
+
+    private static void assertWalkCell(Map<Vec3i,String> blocks,int x,int floor,int z) {
+        assertNotNull(blocks.get(new Vec3i(x,floor,z)), "missing tread at " + x + "," + floor + "," + z);
+        assertNull(blocks.get(new Vec3i(x,floor+1,z)), "feet clearance at " + z);
+        assertNull(blocks.get(new Vec3i(x,floor+2,z)), "head clearance at " + z);
+    }
+
+    @ParameterizedTest
     @CsvSource({"13,17", "21,15"})
     void huizhouGablesCompileAsSteppedWallsAndEditsStayOnEndPlanes(int width, int depth) throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
