@@ -56,7 +56,8 @@ def ensure_loaded(path: Optional[Path] = None) -> None:
 
     p = path or _default_json_path()
     try:
-        raw = json.loads(p.read_text(encoding="utf-8"))
+        from .user_style_packs import read_asset
+        raw = read_asset(p)
         profiles = raw.get("profiles") or {}
         out: Dict[str, StyleProfileDef] = {}
         for style_id, v in profiles.items():
@@ -150,7 +151,8 @@ def ensure_palettes_loaded(path: Optional[Path] = None) -> None:
         return
     p = path or _default_palette_json_path()
     try:
-        raw = json.loads(p.read_text(encoding="utf-8"))
+        from .user_style_packs import read_asset
+        raw = read_asset(p)
         palettes = raw.get("palettes") or {}
         _PALETTE_IDS = {str(k) for k in palettes.keys() if k is not None and str(k).strip()}
     except Exception:
@@ -317,7 +319,8 @@ def palette_prompt_block(max_items: int = 30, query_text: Optional[str] = None) 
         / "palette_catalog_v1.json"
     )
     try:
-        raw = json.loads(p.read_text(encoding="utf-8"))
+        from .user_style_packs import read_asset
+        raw = read_asset(p)
         palettes = raw.get("palettes") or {}
         if not palettes:
             return ""

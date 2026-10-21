@@ -113,6 +113,7 @@ public final class BackendAutoStarter {
         snapshot.backendWorkDir = cfg.backendWorkDir;
         snapshot.pythonExecutable = cfg.pythonExecutable;
         snapshot.backendPort = cfg.backendPort;
+        snapshot.userStylePacksDirectory = com.formacraft.common.style.UserStylePacks.configuredDirectory().toString();
         status = "正在启动／检查后端…";
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -463,6 +464,7 @@ public final class BackendAutoStarter {
 
             try {
                 ProcessBuilder pb = new ProcessBuilder(cmd);
+                pb.environment().put("FORMACRAFT_STYLE_PACKS_DIR", java.nio.file.Path.of(cfg.userStylePacksDirectory).toAbsolutePath().normalize().toString());
                 pb.directory(wd);
                 pb.redirectErrorStream(true);
                 pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));

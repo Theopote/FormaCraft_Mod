@@ -30,7 +30,8 @@ def _find_repo_assets_dir() -> Optional[Path]:
 
 
 def _load_json(p: Path) -> Any:
-    return json.loads(p.read_text(encoding="utf-8"))
+    from .user_style_packs import read_asset
+    return read_asset(p)
 
 
 def _str_list(v: Any) -> List[str]:
@@ -141,7 +142,8 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
     from .style_identity import canonical_style_id, negated_style_ids
     rejected_styles = negated_style_ids(q)
     hits: List[CultureHit] = []
-    for p in sorted(cards_dir.glob("*.json")):
+    from .user_style_packs import asset_files, asset_exists
+    for p in asset_files(cards_dir):
         try:
             c = _load_json(p)
         except Exception:
@@ -218,7 +220,7 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
                 continue
             used.add(ex)
             ex_path = ex_dir / ex
-            if ex_path.exists():
+            if asset_exists(ex_path):
                 try:
                     ex_obj = _load_json(ex_path)
                     few_shots.append(_compact_example(ex_obj))
@@ -235,7 +237,7 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
     proportion_card_id: Optional[str] = None
     patch_card_id: Optional[str] = None
     if best:
-        for cp in cards_dir.glob("*.json"):
+        for cp in asset_files(cards_dir):
             try:
                 card = _load_json(cp)
             except Exception:
@@ -264,7 +266,7 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
                 patch_card_id = pkid
             for ref in _str_list(card.get("llmPlanExampleRefs")):
                 ex_path = llmplan_dir / ref
-                if not ex_path.exists():
+                if not asset_exists(ex_path):
                     continue
                 try:
                     ex_obj = _load_json(ex_path)

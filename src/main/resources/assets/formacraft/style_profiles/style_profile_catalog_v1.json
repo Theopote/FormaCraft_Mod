@@ -4576,6 +4576,68 @@
         "symmetry_preference": "mirror",
         "silhouette_strength": "high"
       }
+    },
+    "Chinese_Vernacular_Siheyuan": {
+      "meta": {
+        "display_name": "Northern Chinese Siheyuan",
+        "family": "Eastern",
+        "tags": [
+          "vernacular",
+          "siheyuan",
+          "courtyard",
+          "gray_brick"
+        ],
+        "description": "Northern courtyard dwelling with gray brick walls, tiled roofs and inward-facing wings"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:stone_bricks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "frame": [
+            "minecraft:dark_oak_log"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:dark_oak_planks"
+          ],
+          "cap": [
+            "minecraft:deepslate_tile_slab"
+          ]
+        },
+        "components": {
+          "courtyard": true,
+          "windows": "lattice_small_high"
+        },
+        "algorithm": {
+          "generator": "courtyard_house",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "residential",
+          "courtyard"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "medium"
+      }
     }
   }
 }

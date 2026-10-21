@@ -1,9 +1,9 @@
 {
   "id": "siheyuan_courtyard",
-  "styleId": "Chinese_Vernacular_Huizhou",
+  "styleId": "Chinese_Vernacular_Siheyuan",
   "intents": ["COURTYARD", "SIHEYUAN", "四合院", "院落住宅"],
   "keywords": [
-    "四合院", "带院子", "带院子的", "院子", "中庭", "天井",
+    "四合院", "带院子", "带院子的", "院子", "中庭",
     "北方四合院", "北京四合院", "传统院落", "合院",
     "siheyuan", "courtyard house", "chinese courtyard", "enclosed courtyard"
   ],
@@ -26,7 +26,7 @@
   "negativeKeywords": [
     "体育场", "城堡", "大教堂", "摩天楼", "stadium", "castle", "skyscraper",
     "cottage", "小石头房子", "7x7",
-    "明清官式", "官式院落", "官式建筑群落", "mingqing courtyard"
+    "明清官式", "官式院落", "官式建筑群落", "mingqing courtyard", "徽派", "徽州", "huizhou", "Hui-style"
   ],
   "proportionCardId": "siheyuan_courtyard",
   "llmPlanExampleRefs": ["siheyuan_courtyard_compositional.json"],

@@ -1,0 +1,28 @@
+{
+  "id": "lake_hall",
+  "name": "Lakeside timber",
+  "style": "lake_hall",
+  "palette": {
+    "wall": "minecraft:spruce_planks",
+    "roof": "minecraft:dark_oak_planks",
+    "floor": "minecraft:oak_planks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:cobblestone",
+    "trim": "minecraft:stripped_spruce_log",
+    "pillar": "minecraft:spruce_log",
+    "cap": "minecraft:dark_oak_slab",
+    "door": "minecraft:spruce_door",
+    "roof_trim": "minecraft:dark_oak_log",
+    "stairs": "minecraft:dark_oak_stairs",
+    "roof_slab": "minecraft:dark_oak_slab"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.24,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "double",
+    "floorHeight": 5,
+    "preferSymmetry": true
+  }
+}

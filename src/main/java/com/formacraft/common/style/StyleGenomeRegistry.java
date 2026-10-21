@@ -38,7 +38,7 @@ public final class StyleGenomeRegistry {
 
     private static StyleGenome loadFromResources(String id) {
         String path = "/assets/formacraft/style_genomes/" + id + ".json";
-        try (InputStream in = StyleGenomeRegistry.class.getResourceAsStream(path)) {
+        try (InputStream in = UserStylePacks.open(path)) {
             if (in == null) {
                 FormacraftMod.LOGGER.warn("StyleGenome not found on classpath: {}", path);
                 StyleGenome g = new StyleGenome();

@@ -10,6 +10,42 @@ from pathlib import Path
 class SiheyuanCultureTest(unittest.TestCase):
     SIHEYUAN_PROMPT = "盖一个带院子的四合院"
 
+    def test_regional_identities_and_refusals(self):
+        from app.services.keyword_culture_retriever import retrieve
+        from app.services.style_identity import canonical_style_id
+        from app.services.style_profile_registry import get_style_profile
+
+        cases = [
+            ("北京四合院", "siheyuan_courtyard", "Chinese_Vernacular_Siheyuan"),
+            ("siheyuan", "siheyuan_courtyard", "Chinese_Vernacular_Siheyuan"),
+            ("徽派民居", "huizhou_vernacular", "Chinese_Vernacular_Huizhou"),
+            ("Huizhou dwelling", "huizhou_vernacular", "Chinese_Vernacular_Huizhou"),
+        ]
+        for prompt, card_id, style_id in cases:
+            with self.subTest(prompt=prompt):
+                hit = retrieve(prompt, topK=1, fewShotK=0)["hits"][0]
+                self.assertEqual((hit["id"], hit["styleId"]), (card_id, style_id))
+                self.assertIsNotNone(get_style_profile(style_id))
+        self.assertEqual(canonical_style_id("北京四合院"), "Chinese_Vernacular_Siheyuan")
+        for prompt, forbidden in [("要四合院，不要徽派", "Chinese_Vernacular_Huizhou"),
+                                  ("要徽派，不要四合院", "Chinese_Vernacular_Siheyuan"),
+                                  ("Huizhou dwelling, no siheyuan", "Chinese_Vernacular_Siheyuan"),
+                                  ("siheyuan, no Huizhou", "Chinese_Vernacular_Huizhou")]:
+            with self.subTest(prompt=prompt):
+                self.assertNotIn(forbidden, [h["styleId"] for h in retrieve(prompt, topK=100, fewShotK=0)["hits"]])
+
+    def test_siheyuan_example_does_not_inherit_huizhou_ornaments(self):
+        from app.services.keyword_culture_retriever import retrieve
+        from app.services.style_profile_registry import get_style_profile
+        assets = Path(__file__).resolve().parents[2] / "src/main/resources/assets/formacraft"
+        example = json.loads((assets / "llmplan_examples/siheyuan_courtyard_compositional.json").read_text(encoding="utf-8"))["plan"]
+        self.assertEqual(example["style_profile"], "Chinese_Vernacular_Siheyuan")
+        self.assertNotIn("horse_head_gable", example["style_attributes"]["decorative_elements"])
+        defaults = get_style_profile(example["style_profile"]).defaults
+        self.assertEqual(defaults["materials"]["wall"], ["minecraft:stone_bricks"])
+        self.assertNotIn("ornament_profile", defaults["components"])
+        self.assertEqual(retrieve(self.SIHEYUAN_PROMPT)["hits"][0]["styleId"], example["style_profile"])
+
     def test_siheyuan_culture_card(self):
         from app.services.keyword_culture_retriever import retrieve
 

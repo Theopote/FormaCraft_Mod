@@ -93,8 +93,9 @@ def validate_ornament_contract(definition: dict) -> None:
 def _load_contracts(directory: Path) -> dict:
     contracts = {}
     reports = set()
-    for path in sorted(directory.glob('*.json')):
-        definition = json.loads(path.read_text(encoding='utf-8'))
+    from .user_style_packs import asset_files, read_asset
+    for path in asset_files(directory):
+        definition = read_asset(path)
         validate_ornament_contract(definition)
         if definition['id'] != path.stem:
             raise ValueError(f'{path.name}: contract id must match filename')

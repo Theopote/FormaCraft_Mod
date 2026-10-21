@@ -58,7 +58,9 @@
     ],
     "Chinese_Vernacular_Huizhou": [
       "徽派",
-      "徽州"
+      "徽州",
+      "Huizhou",
+      "Hui-style"
     ],
     "Chinese_Imperial_Official": [
       "中式官式",
@@ -225,6 +227,13 @@
       "暗黑魔物堡",
       "dark fantasy fortress",
       "dark_fortress"
+    ],
+    "Chinese_Vernacular_Siheyuan": [
+      "四合院",
+      "北方四合院",
+      "北京四合院",
+      "siheyuan",
+      "Beijing courtyard house"
     ]
   },
   "generic_building_types": [

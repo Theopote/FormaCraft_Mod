@@ -1,0 +1,103 @@
+{
+  "palettes": {
+    "lake_palette": {
+      "meta": {
+        "display_name": "阿尔卑斯木屋",
+        "tags": [
+          "阿尔卑斯木屋",
+          "阿尔卑斯木构",
+          "alpine chalet",
+          "alpine timber",
+          "alpine_chalet"
+        ],
+        "description": "Deterministic role palette for authored style fixtures."
+      },
+      "parts": {
+        "WALL_BASE": [
+          {
+            "id": "minecraft:spruce_planks",
+            "weight": 100
+          }
+        ],
+        "WALL_FOUNDATION": [
+          {
+            "id": "minecraft:cobblestone",
+            "weight": 100
+          }
+        ],
+        "FRAME": [
+          {
+            "id": "minecraft:stripped_spruce_log",
+            "weight": 100
+          }
+        ],
+        "PILLAR": [
+          {
+            "id": "minecraft:spruce_log",
+            "weight": 100
+          }
+        ],
+        "STRUCTURAL_BEAM": [
+          {
+            "id": "minecraft:stripped_spruce_log",
+            "weight": 100
+          }
+        ],
+        "ROOF_SLOPE": [
+          {
+            "id": "minecraft:dark_oak_stairs",
+            "weight": 100
+          }
+        ],
+        "ROOF_TILE": [
+          {
+            "id": "minecraft:dark_oak_planks",
+            "weight": 100
+          }
+        ],
+        "FLOORING": [
+          {
+            "id": "minecraft:oak_planks",
+            "weight": 100
+          }
+        ],
+        "FLOOR_SLAB": [
+          {
+            "id": "minecraft:dark_oak_slab",
+            "weight": 100
+          }
+        ],
+        "WINDOW": [
+          {
+            "id": "minecraft:glass_pane",
+            "weight": 100
+          }
+        ],
+        "FACADE_CURTAIN": [
+          {
+            "id": "minecraft:glass_pane",
+            "weight": 100
+          }
+        ],
+        "DECOR_DETAIL": [
+          {
+            "id": "minecraft:stripped_spruce_log",
+            "weight": 100
+          }
+        ],
+        "INTERNAL_LIGHT": [
+          {
+            "id": "minecraft:sea_lantern",
+            "weight": 100
+          }
+        ],
+        "LIGHTING": [
+          {
+            "id": "minecraft:sea_lantern",
+            "weight": 100
+          }
+        ]
+      }
+    }
+  }
+}

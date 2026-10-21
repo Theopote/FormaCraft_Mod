@@ -69,6 +69,18 @@ public class SettingsConfig {
     public String backendWorkDir = "python_backend";
     /** Uvicorn 端口（默认 8000） */
     public int backendPort = 8000;
+    /** Additive JSON style packs; changes apply after game/backend restart. */
+    public String userStylePacksDirectory = "config/formacraft/style_packs";
+
+    /** Common registries can initialize before the client loads its other settings. */
+    public static String persistedUserStylePacksDirectory() {
+        try (var reader=java.nio.file.Files.newBufferedReader(CONFIG_FILE.toPath(),java.nio.charset.StandardCharsets.UTF_8)) {
+            var data=com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+            if(data.has("userStylePacksDirectory") && data.get("userStylePacksDirectory").isJsonPrimitive())
+                return data.get("userStylePacksDirectory").getAsString();
+        } catch(java.io.IOException | RuntimeException ignored) {}
+        return "config/formacraft/style_packs";
+    }
 
     /**
      * 建筑研究网络搜索（优先于后端环境变量）。
@@ -99,6 +111,7 @@ public class SettingsConfig {
         pythonExecutable = "";
         backendWorkDir = "python_backend";
         backendPort = 8000;
+        userStylePacksDirectory = "config/formacraft/style_packs";
         searchProvider = "auto";
         searchApiKey = "";
         googleCseCx = "";
@@ -118,6 +131,7 @@ public class SettingsConfig {
         this.pythonExecutable = other.pythonExecutable != null ? other.pythonExecutable : "";
         this.backendWorkDir = other.backendWorkDir != null ? other.backendWorkDir : "python_backend";
         this.backendPort = other.backendPort > 0 ? other.backendPort : 8000;
+        this.userStylePacksDirectory = other.userStylePacksDirectory != null ? other.userStylePacksDirectory : "config/formacraft/style_packs";
         this.searchProvider = other.searchProvider != null ? other.searchProvider : "auto";
         this.searchApiKey = other.searchApiKey != null ? other.searchApiKey : "";
         this.googleCseCx = other.googleCseCx != null ? other.googleCseCx : "";

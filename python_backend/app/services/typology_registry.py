@@ -91,7 +91,8 @@ def _str_tuple(v: Any) -> Tuple[str, ...]:
 
 def _load_from_json(path: Path) -> None:
     global _LOADED
-    data = json.loads(path.read_text(encoding="utf-8"))
+    from .user_style_packs import read_asset
+    data = read_asset(path)
     typologies = data.get("typologies") or []
     for item in typologies:
         if not isinstance(item, dict):
@@ -208,9 +209,18 @@ def typology_for_culture_card(culture_card_id: str) -> Optional[str]:
     cid = (culture_card_id or "").strip()
     if not cid:
         return None
+    import re
+    if not re.fullmatch(r'[A-Za-z0-9_-]+', cid):
+        return None
     for t in _REGISTRY.values():
         if cid in t.culture_card_ids:
             return t.id
+    from .user_style_packs import ASSETS, read_asset, asset_exists
+    card_path = ASSETS/'culture_cards'/f'{cid}.json'
+    if asset_exists(card_path):
+        target = read_asset(card_path).get('structuralTypologyId')
+        if target in _REGISTRY:
+            return target
     entry = get_migration(cid)
     return entry.typology_id if entry else None
 

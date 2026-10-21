@@ -138,6 +138,7 @@ tasks.named('test') {
 }
 
 tasks.register('constraintParityTest', Test) {
+	dependsOn 'userStylePackTest'
 	group = 'verification'
 	description = 'Compare Patch/Build shared region constraints, clipping behavior, and style-plan replay.'
 	testClassesDirs = sourceSets.test.output.classesDirs
@@ -150,6 +151,16 @@ tasks.register('constraintParityTest', Test) {
 		includeTestsMatching 'com.formacraft.server.build.FloatingMassTest'
 		includeTestsMatching 'com.formacraft.server.build.StyleWallPatternTest'
 	}
+}
+
+tasks.register('userStylePackTest', Test) {
+	group = 'verification'
+	description = 'Replay a user style pack in an isolated runtime with startup assets enabled.'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	systemProperty 'formacraft.stylePacksDir', file('docs/examples/style-packs').absolutePath
+	filter { includeTestsMatching 'com.formacraft.server.build.UserStylePackRuntimeTest' }
 }
 
 java {

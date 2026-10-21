@@ -3,11 +3,12 @@ import json
 import re
 from functools import lru_cache
 from pathlib import Path
+from .user_style_packs import read_asset
 
 @lru_cache(maxsize=1)
 def identity_catalog():
     path=Path(__file__).resolve().parents[3]/'src/main/resources/assets/formacraft/style_profiles/style_identity_catalog_v1.json'
-    return json.loads(path.read_text(encoding='utf-8'))
+    return read_asset(path)
 
 
 def generic_style_pattern():

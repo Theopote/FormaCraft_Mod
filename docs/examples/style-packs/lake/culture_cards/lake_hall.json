@@ -1,0 +1,33 @@
+{
+  "id": "lake_hall",
+  "styleId": "lake_hall",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "lakeside timber",
+    "湖畔木屋"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "lakeside timber": 12
+  },
+  "negativeKeywords": [
+    "not lakeside timber"
+  ],
+  "proportionCardId": "lake_hall",
+  "llmPlanExampleRefs": [
+    "lake_small.json",
+    "lake_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "lake_hall",
+      "constraints": [
+        "Use style_profile=lake_hall and ordinary hosted components. This is an original user style, not a landmark."
+      ]
+    }
+  ],
+  "structuralTypologyId": "lake_house"
+}

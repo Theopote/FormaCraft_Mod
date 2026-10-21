@@ -2,12 +2,19 @@
 
 This document tracks phase completion separately from passing incremental CI.
 
+The six-axis product acceptance checklist and per-profile asset inventory are in
+[`style-capability-matrix.md`](style-capability-matrix.md). Offline phase completion
+does not certify live preview/build, visual identity or style-preserving local edits.
+The northern siheyuan identity now has its own profile and culture-card binding;
+Huizhou retains a separate culture card. Dedicated Huizhou silhouette compilation
+and live visual comparison remain pending.
+
 | Phase | State | Delivered | Remaining |
 | --- | --- | --- | --- |
 | P0 | Implemented | Catalog-driven planner defaults and generic markers; shared material aliases; twelve palette roles | Preserve regression coverage as assets grow |
 | P1 | Complete: local asset/execution acceptance | Declarative ornament contracts; scoped style priority; 20 genomes, 45 culture cards, 16 typologies; golden, negative, diversity and parity gates | Live sampling and visual/historical fidelity are outside this acceptance |
 | P2 | Complete: offline foundation baseline | Four roof generators, floating skeleton/primitive, 11 D/E packs, wall patterns, luminous material policy, 17 visual candidates. See `style-p2-acceptance.md` | Live-world/visual acceptance and more elaborate fantasy compositions remain outside this baseline |
-| P3 | Incomplete | An internal manifest links bundled assets and tests | User-pack format, discovery/loading/validation, Settings integration, contribution workflow |
+| P3 | Complete: startup JSON baseline | Additive pack format/validation, Java/Python loaders, Settings directory check/save, example pack and contribution workflow. See `style-p3-acceptance.md` | In-game click/visual acceptance; optional hot reload, archives and distribution services |
 
 Bundled counts at P1 acceptance:
 
@@ -40,4 +47,5 @@ Final P1 validation: 340 Python tests, 67 CI golden scenarios, four CI diversity
 scenarios (existing stadium plus A/B/C style families), 58 Java parity/adapter
 tests, and 45 culture-card validations passed. See `style-p1-acceptance.md` for
 the scope and reproduction commands. P2 offline baseline acceptance is recorded
-in `style-p2-acceptance.md`; P3 remains incomplete.
+in `style-p2-acceptance.md`; P3 startup baseline acceptance is recorded in
+`style-p3-acceptance.md`.

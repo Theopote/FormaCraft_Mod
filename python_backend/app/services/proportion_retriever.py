@@ -60,9 +60,10 @@ def _load_cards() -> List[Dict[str, Any]]:
         logger.warning("proportion_cards directory missing under %s", assets)
         return []
     out: List[Dict[str, Any]] = []
-    for p in sorted(card_dir.glob("*.json")):
+    from .user_style_packs import asset_files, read_asset
+    for p in asset_files(card_dir):
         try:
-            data = json.loads(p.read_text(encoding="utf-8"))
+            data = read_asset(p)
             if isinstance(data, dict) and data.get("id"):
                 out.append(data)
         except Exception:

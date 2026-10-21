@@ -12,7 +12,7 @@ public final class StyleIdentityRegistry {
     private static final Map<String,String> ALIASES=load();
     private static Map<String,String> load() {
         Map<String,String> aliases=new LinkedHashMap<>();
-        try(var stream=StyleIdentityRegistry.class.getResourceAsStream("/assets/formacraft/style_profiles/style_identity_catalog_v1.json")) {
+        try(var stream=UserStylePacks.open("/assets/formacraft/style_profiles/style_identity_catalog_v1.json")) {
             if(stream==null) throw new IllegalStateException("Missing architectural style identity catalog");
             JsonObject root=JsonParser.parseString(new String(stream.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject();
             root.getAsJsonObject("aliases").entrySet().forEach(e->aliases.put(e.getKey(),e.getValue().getAsString()));

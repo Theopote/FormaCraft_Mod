@@ -1,0 +1,17 @@
+{
+  "schema": "formacraft.user_style_pack.v1",
+  "id": "lake",
+  "files": [
+    "culture_cards/lake_hall.json",
+    "llmplan_examples/lake_large.json",
+    "llmplan_examples/lake_small.json",
+    "ornament_contracts/lake_decor.json",
+    "palettes/palette_catalog_v1.json",
+    "proportion_cards/lake_hall.json",
+    "structural_typologies/structural_typologies_v1.json",
+    "style_genomes/lake_hall.json",
+    "style_profiles/style_identity_catalog_v1.json",
+    "style_profiles/style_profile_catalog_v1.json",
+    "style_visual_cases/catalog_v1.json"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "schema":"formacraft.ornament_contract.v1",
+  "id":"lake_decor",
+  "application":"standalone",
+  "target":{"component_type":"MASS_MAIN","style_ids":["lake_hall"]},
+  "unresolved_scope_pattern":"左栋|右栋|left building|right building",
+  "report":{"key":"lake_decor_report","schema":"formacraft.lake_decor.v1"},
+  "toggles":[{"property":"no_complex_decor","positive":"不要复杂装饰|\\bno complex decoration\\b","negative":"允许复杂装饰|\\ballow complex decoration\\b","positive_verification_level":"plan_parameters_only"}]
+}

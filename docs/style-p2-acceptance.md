@@ -3,7 +3,9 @@
 P2's foundational execution scope is implemented: roof vocabulary, an executable
 floating skeleton, D/E authored packs, wall vocabulary, luminous materials, and
 visual candidates. P3 user-pack discovery/loading and Settings integration remain
-unimplemented. This acceptance does not certify historical or visual fidelity.
+unimplemented at this P2 acceptance. The subsequent P3 startup implementation is
+recorded in `style-p3-acceptance.md`. This acceptance does not certify historical
+or visual fidelity.
 
 ## Delivered packs
 

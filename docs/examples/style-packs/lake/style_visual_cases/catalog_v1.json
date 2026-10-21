@@ -1,0 +1,20 @@
+{
+  "cases": [
+    {
+      "id": "lake_case",
+      "style_id": "lake_hall",
+      "plan_fixture": "lake_small.json",
+      "feature_groups": {
+        "roof": [
+          "broad lakeside gable"
+        ],
+        "walls": [
+          "timber lakeside walls"
+        ],
+        "base": [
+          "stone waterside plinth"
+        ]
+      }
+    }
+  ]
+}

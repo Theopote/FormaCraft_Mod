@@ -162,7 +162,7 @@ public final class StructuralTypologyRegistry {
         String path = "/assets/formacraft/structural_typologies/structural_typologies_v1.json";
         List<TypologyDef> typologies = new ArrayList<>();
         Map<String, MigrationEntry> migration = new LinkedHashMap<>();
-        try (InputStream in = StructuralTypologyRegistry.class.getResourceAsStream(path)) {
+        try (InputStream in = com.formacraft.common.style.UserStylePacks.open(path)) {
             if (in == null) {
                 cachedTypologies = List.of();
                 cachedMigration = Map.of();

@@ -60,4 +60,5 @@ fixture schemas. Golden output still reports 154 SOFT warnings.
 
 D/E style packs, luminous material policy and wall vocabulary were subsequently
 delivered; see `style-p2-acceptance.md` for final offline baseline acceptance.
-P3 user-pack loading and Settings integration remain separate and incomplete.
+P3 user-pack loading and Settings integration were subsequently implemented as
+the startup baseline documented in `style-p3-acceptance.md`.

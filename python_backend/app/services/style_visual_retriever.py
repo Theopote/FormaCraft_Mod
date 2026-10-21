@@ -12,7 +12,8 @@ CATALOG_PATH = Path(__file__).resolve().parents[3] / 'src/main/resources/assets/
 
 @lru_cache(maxsize=1)
 def visual_case_catalog():
-    data = json.loads(CATALOG_PATH.read_text(encoding='utf-8'))
+    from .user_style_packs import read_asset
+    data = read_asset(CATALOG_PATH)
     if data.get('version') != 1:
         raise ValueError('Unsupported visual case catalog version')
     cases = data['cases']

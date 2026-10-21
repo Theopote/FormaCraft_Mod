@@ -17,6 +17,13 @@ def root():
 def health():
     return {"ok": True}
 
+
+@app.get("/style-packs")
+def style_packs():
+    from .services.user_style_packs import snapshot
+    _, reports = snapshot()
+    return {"packs": reports, "activation": "restart_game_and_backend"}
+
 # Minecraft HTTP clients do not require CORS. Opt in only for browser debugging.
 app.add_middleware(
     CORSMiddleware,

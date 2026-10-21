@@ -3,13 +3,13 @@
   "promptHints": ["四合院", "带院子", "siheyuan", "courtyard house"],
   "plan": {
     "mode": "build",
-    "style_profile": "Chinese_Vernacular_Huizhou",
+    "style_profile": "Chinese_Vernacular_Siheyuan",
     "style_attributes": {
-      "wall_color": "white",
+      "wall_color": "gray",
       "roof_color": "black",
-      "wall_material": "white_plaster",
+      "wall_material": "minecraft:stone_bricks",
       "roof_material": "dark_tile",
-      "decorative_elements": ["horse_head_gable", "lattice_window", "paifang_gate"]
+      "decorative_elements": ["lattice_window", "courtyard_gate"]
     },
     "proportion_hints": {
       "typology": "siheyuan_courtyard",

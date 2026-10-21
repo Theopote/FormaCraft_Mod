@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://formacraft.local/schemas/user-style-pack-v1",
+  "title":"FormaCraft user style pack v1 manifest",
+  "type":"object",
+  "required":["schema","id","files"],
+  "properties":{
+    "schema":{"const":"formacraft.user_style_pack.v1"},
+    "id":{"type":"string","pattern":"^[a-z][a-z0-9_]{1,31}$"},
+    "name":{"type":"string"},
+    "version":{"type":"string"},
+    "license":{"type":"string"},
+    "files":{"type":"array","minItems":1,"maxItems":128,"uniqueItems":true,"items":{"type":"string","pattern":"^[a-z_]+/[A-Za-z0-9_]+\\.json$"}}
+  },
+  "additionalProperties":false
+}

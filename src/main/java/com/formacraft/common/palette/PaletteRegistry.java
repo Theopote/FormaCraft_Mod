@@ -22,7 +22,7 @@ public final class PaletteRegistry {
 
     public static synchronized void ensureLoaded() {
         if (loaded) return;
-        try (InputStream in = PaletteRegistry.class.getResourceAsStream(RESOURCE_PATH)) {
+        try (InputStream in = com.formacraft.common.style.UserStylePacks.open(RESOURCE_PATH)) {
             if (in == null) {
                 FormacraftMod.LOGGER.warn("PaletteRegistry: resource not found: {}", RESOURCE_PATH);
                 loaded = true;
