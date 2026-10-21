@@ -6,8 +6,9 @@ The six-axis product acceptance checklist and per-profile asset inventory are in
 [`style-capability-matrix.md`](style-capability-matrix.md). Offline phase completion
 does not certify live preview/build, visual identity or style-preserving local edits.
 The northern siheyuan identity now has its own profile and culture-card binding;
-Huizhou retains a separate culture card. Dedicated Huizhou silhouette compilation
-and live visual comparison remain pending.
+Huizhou retains a separate culture card and now has two compiled dwelling fixtures
+with stepped gables, explicit gable opt-out and Patch/Build clipping checks.
+Live visual comparison and a complete tianjing compound remain pending.
 
 | Phase | State | Delivered | Remaining |
 | --- | --- | --- | --- |

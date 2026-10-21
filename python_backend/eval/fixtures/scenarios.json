@@ -1586,5 +1586,25 @@
       "E",
       "dark_fortress"
     ]
+  },
+  {
+    "id": "huizhou_vernacular_13",
+    "prompt": "build a Huizhou dwelling with horse-head gables",
+    "plan_fixture": "plans/huizhou_vernacular_13.json",
+    "ci": true,
+    "tags": [
+      "regional_identity",
+      "huizhou"
+    ]
+  },
+  {
+    "id": "huizhou_vernacular_21",
+    "prompt": "build a Huizhou dwelling with horse-head gables",
+    "plan_fixture": "plans/huizhou_vernacular_21.json",
+    "ci": true,
+    "tags": [
+      "regional_identity",
+      "huizhou"
+    ]
   }
 ]

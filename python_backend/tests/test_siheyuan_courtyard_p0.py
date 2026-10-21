@@ -10,6 +10,51 @@ from pathlib import Path
 class SiheyuanCultureTest(unittest.TestCase):
     SIHEYUAN_PROMPT = "盖一个带院子的四合院"
 
+    def test_huizhou_examples_and_scoped_gable_opt_out(self):
+        from copy import deepcopy
+        from app.services.keyword_culture_retriever import retrieve
+        from app.services.ornament_contract import apply_ornament_contracts
+        from app.models.llm_plan import validate_llm_plan_dict
+        from eval.golden_eval import evaluate_plan
+
+        root = Path(__file__).resolve().parents[2]
+        assets = root / "src/main/resources/assets/formacraft"
+        card = json.loads((assets / "culture_cards/huizhou_vernacular.json").read_text(encoding="utf-8"))
+        for name in card["llmPlanExampleRefs"]:
+            plan = json.loads((root / "python_backend/eval/fixtures/plans" / name).read_text(encoding="utf-8"))
+            self.assertEqual(plan, json.loads((assets / "llmplan_examples" / name).read_text(encoding="utf-8"))["plan"])
+            validate_llm_plan_dict(plan)
+            self.assertFalse(evaluate_plan(plan, label=name, prompt="build a Huizhou dwelling").hard_failures)
+            roof = plan["components"][1]
+            for text in ("不要马头墙", "不要增加马头墙", "without horse-head gables", "do not include horse-head walls"):
+                copy = deepcopy(plan)
+                apply_ornament_contracts(copy, text)
+                self.assertFalse(copy["components"][1]["params"]["horse_head_walls"])
+                self.assertEqual(copy["components"][0], plan["components"][0])
+            for text in ("保留马头墙", "include horse-head walls"):
+                copy = deepcopy(plan)
+                copy["components"][1]["params"]["horse_head_walls"] = False
+                apply_ornament_contracts(copy, text)
+                self.assertTrue(copy["components"][1]["params"]["horse_head_walls"])
+            for local_style in ("Chinese_Vernacular_Siheyuan", "Modern_International"):
+                copy = deepcopy(plan)
+                copy["components"][1]["params"]["style_profile"] = local_style
+                apply_ornament_contracts(copy, "不要马头墙")
+                self.assertTrue(copy["components"][1]["params"]["horse_head_walls"])
+            copy = deepcopy(plan)
+            copy["components"].append(deepcopy(roof))
+            apply_ornament_contracts(copy, "不要马头墙")
+            self.assertTrue(copy["components"][1]["params"]["horse_head_walls"])
+            self.assertEqual(copy["proportion_hints"]["huizhou_gable_contract"]["requirements"][0]["status"], "unresolved_building_scope")
+            copy = deepcopy(plan)
+            apply_ornament_contracts(copy, "右栋不要马头墙")
+            self.assertTrue(copy["components"][1]["params"]["horse_head_walls"])
+            self.assertEqual(copy["proportion_hints"]["huizhou_gable_contract"]["requirements"][0]["status"], "unresolved_building_scope")
+        for prompt in ("徽派民居", "Huizhou dwelling"):
+            rag = retrieve(prompt, topK=1)
+            self.assertEqual(rag["proportionCardId"], "huizhou_vernacular")
+            self.assertTrue(rag["llmPlanFewShots"])
+
     def test_regional_identities_and_refusals(self):
         from app.services.keyword_culture_retriever import retrieve
         from app.services.style_identity import canonical_style_id

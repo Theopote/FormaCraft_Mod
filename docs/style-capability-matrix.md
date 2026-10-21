@@ -69,12 +69,28 @@ Counts and references below are generated from bundled profiles, culture cards a
 | Scope | Intent | Parameters | Geometry | Preview/build | Visual identity | Local edits |
 | --- | --- | --- | --- | --- | --- | --- |
 | 25 manifest styles | Bilingual/refusal cases: test_style_p1_acceptance | Fixture/schema checks: same suite | Shared plan replay and constraint parity; P2 acceptance | Pending live evidence | Pending reviewed screenshots | Pending per-style world evidence |
-| Northern siheyuan / Huizhou split | test_siheyuan_courtyard_p0 regional cases | Siheyuan gray-brick defaults and ornament isolation assertions | Existing courtyard golden checks enclosure only; distinct Huizhou geometry pending | Pending | Pending | Pending |
+| Northern siheyuan / Huizhou split | test_siheyuan_courtyard_p0 regional cases | Gray-brick defaults, isolated ornaments, bilingual gable toggle and ambiguous-scope refusal | Two Huizhou dwelling fixtures compile; stepped/capped symmetric end walls, attachment, hollow attic and Patch/Build clipping checked in ConstraintParityTest | Pending | Pending | Gable disable replay preserves all blocks outside upper end planes; world edit chain pending |
 | Startup user packs | test_user_style_packs sample integration | Sample defaults/ornament tests | UserStylePackRuntimeTest sample compilation/clipping | Settings clicks and live build pending | Pending | Pending |
 
 ## Next acceptance queue
 
-1. Northern siheyuan vs Huizhou: distinguish gray-brick enclosed courtyard from white-wall/horse-head-gable dwelling; add dedicated Huizhou geometry fixtures before asserting that silhouette executes.
+Regional split validation on 2026-10-22: initial 20-test regional/P1/user-pack
+suite passed; 35 adjacent identity/catalog/pack/planning/temple tests passed;
+five focused regional culture tests passed after the final material correction.
+The regional suite replayed all 101 CI goldens with zero HARD failures and 254
+existing SOFT warnings. Live rendering and world placement were not exercised.
+
+Huizhou follow-up: two dedicated dwelling examples now live in the culture card
+and CI scenarios (outside the 25-style manifest). The regional/ornament/user-pack
+Python run passed 22 tests; after additional refusal/scope cases, 14 focused tests
+passed. CI golden replay passed 103 HARD scenarios with 262 SOFT warnings.
+`constraintParityTest` passed 96 tests and its isolated `userStylePackTest`
+dependency passed four tests. The new full-compiler tests cover both ridge
+orientations, stepped/capped symmetric gables, attachment, hollow attic,
+gable-disable block locality and shared clipping parity. This is offline block
+evidence; live world edits, historical fidelity and screenshots remain pending.
+
+1. Northern siheyuan vs Huizhou: compare live gray-brick courtyard and white-wall/horse-head-gable dwelling; complete tianjing compounds still require dedicated examples and acceptance. `huizhou_vernacular_13.json` and `huizhou_vernacular_21.json` now cover rectangular dwellings with both ridge orientations, not complete courtyard compounds.
 2. Water/stilt: test terrain clearance, pile contact, shore access and preservation of existing water/underwater blocks.
 3. Dwarven hall: current barrel-vaulted above-ground composition is not underground excavation; test excavation separately.
 4. Elven treehouse: current trunk/deck support does not establish connected bridges, spiral access or a tree city.

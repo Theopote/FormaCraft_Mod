@@ -1,0 +1,28 @@
+{
+  "id": "huizhou_vernacular",
+  "typology": "huizhou_vernacular",
+  "matchKeywords": [
+    "徽派",
+    "徽州",
+    "Huizhou",
+    "Hui-style"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 0.2,
+      "ideal": 0.45,
+      "max": 1
+    },
+    "depth_to_width": {
+      "min": 0.5,
+      "ideal": 1,
+      "max": 1.6
+    },
+    "window_wall_ratio": {
+      "min": 0,
+      "ideal": 0.18,
+      "max": 0.4
+    }
+  },
+  "aiInstruction": "Rectangular white-wall dwelling with tiled pitched roof and attached stepped firewalls. Does not certify a courtyard compound."
+}

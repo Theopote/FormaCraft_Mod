@@ -123,6 +123,56 @@ class ConstraintParityTest {
     private static final BlockPos ORIGIN = new BlockPos(100, 64, -40);
     @BeforeAll static void bootstrap() { MinecraftRegistryTestBootstrap.initialize(); }
 
+    @ParameterizedTest
+    @CsvSource({"13,17", "21,15"})
+    void huizhouGablesCompileAsSteppedWallsAndEditsStayOnEndPlanes(int width, int depth) throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var file = java.nio.file.Path.of("python_backend/eval/fixtures/plans/huizhou_vernacular_" + width + ".json");
+        var enabledPlan = mapper.readValue(file.toFile(), LlmPlan.class);
+        var enabled = ComponentPlanCompiler.compile(enabledPlan, ORIGIN, null, null, false);
+        assertFalse(enabled.isEmpty(), () -> String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        var on = com.formacraft.test.PatchTestSnapshot.blocks(enabled);
+        var disabledPlan = mapper.readValue(file.toFile(), LlmPlan.class);
+        disabledPlan.components().get(1).params().put("horse_head_walls", false);
+        var disabled = ComponentPlanCompiler.compile(disabledPlan, ORIGIN, null, null, false);
+        assertFalse(disabled.isEmpty());
+        var off = com.formacraft.test.PatchTestSnapshot.blocks(disabled);
+        boolean alongDepth = depth >= width;
+        int span = Math.min(width, depth), length = Math.max(width, depth);
+        var tops = new ArrayList<Integer>();
+        for (int across = 0; across < span; across++) {
+            int x = alongDepth ? across : 0, z = alongDepth ? 0 : across;
+            int top = on.keySet().stream().filter(p -> p.x() == x && p.z() == z)
+                    .mapToInt(Vec3i::y).max().orElseThrow();
+            tops.add(top);
+            assertEquals("minecraft:deepslate_tiles", on.get(new Vec3i(x, top, z)));
+            assertEquals("minecraft:white_concrete", on.get(new Vec3i(x, top - 1, z)));
+            for (int y = 5; y <= top; y++) {
+                assertNotNull(on.get(new Vec3i(x, y, z)), "gable wall must remain attached");
+                assertEquals(on.get(new Vec3i(x, y, z)), on.get(new Vec3i(
+                        alongDepth ? across : length - 1, y, alongDepth ? length - 1 : across)));
+            }
+        }
+        assertTrue(new HashSet<>(tops).size() >= 3, "must have multiple terraces");
+        assertTrue(tops.get(span / 2) > tops.getFirst());
+        for (int i = 0; i < span; i++) assertEquals(tops.get(i), tops.get(span - 1 - i));
+        var all = new HashSet<>(on.keySet()); all.addAll(off.keySet());
+        int changed = 0;
+        for (var pos : all) if (!Objects.equals(on.get(pos), off.get(pos))) {
+            changed++;
+            assertTrue(pos.y() >= 5 && (alongDepth ? pos.z() == 0 || pos.z() == depth - 1
+                    : pos.x() == 0 || pos.x() == width - 1), "edit escaped gable planes: " + pos);
+        }
+        assertTrue(changed > 0, "disabling gables must change compiled blocks");
+        assertNull(on.get(new Vec3i(width / 2, 6, depth / 2)), "attic interior must remain hollow");
+        var min = ORIGIN.add(0, -32, 0); var max = ORIGIN.add(width / 2, 32, depth - 1);
+        var expected = allowed(enabled, ORIGIN, new BuildConstraints(min, max, null, List.of()));
+        assertFalse(expected.isEmpty()); assertTrue(expected.size() < enabled.size());
+        assertEquals(expected, ServerPatchFilter.filter(ORIGIN, enabled, List.of(), null, true, min, max).accepted);
+        assertEquals(expected, PatchFilterPipeline.createDefault().apply(enabled, ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min, max), null, List.of()))));
+    }
+
     @Test void allP1GenomeRolesReachTheRuntimeAdapterWithoutFallback() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         var ids = new HashSet<>(List.of("default", "rustic_wood", "medieval_stone", "mingqing_official",
