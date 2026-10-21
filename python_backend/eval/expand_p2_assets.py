@@ -94,13 +94,21 @@ def add_treehouse_access(plan):
         dimensions=dict(width=5,depth=1,height=4),features=['entrance'],
         params=dict(component_id='tree_entrance',host_id=body['params']['component_id'],
                     anchor_mode='min_corner',facing='SOUTH',door_width=3,door_height=3,canopy_depth=0)))
-    plan['components'].append(primitive('tree_access_landing',center-1,elevation-1,-3,
-                                        3,3,2,'box','birch_planks'))
+    # Five structural columns leave three clear walking columns between guards.
+    plan['components'].append(primitive('tree_access_landing',center-2,elevation-1,-3,
+                                        5,3,2,'box','birch_planks'))
+    for side, x in enumerate((center-2,center+2)):
+        plan['components'].append(primitive('tree_access_guard_landing_'+str(side),x,elevation+1,-3,
+                                            1,3,2,'box','stripped_birch_log'))
     for step in range(elevation):
         # Two-course treads share vertical faces, forming a continuous wooden run.
         bottom = max(0, step-1)
-        plan['components'].append(primitive('tree_access_step_'+str(step),center-1,bottom,
-                                            -elevation-3+step,3,1,step-bottom+1,'box','birch_planks'))
+        z = -elevation-3+step
+        plan['components'].append(primitive('tree_access_step_'+str(step),center-2,bottom,
+                                            z,5,1,step-bottom+1,'box','birch_planks'))
+        for side, x in enumerate((center-2,center+2)):
+            plan['components'].append(primitive(f'tree_access_guard_{step}_{side}',x,step+1,z,
+                                                1,1,2,'box','stripped_birch_log'))
 
 
 def main():
@@ -194,6 +202,9 @@ def main():
                    palette_id=palette_id,family=family,aliases=aliases,prompts=['生成一座'+cn,'build a '+en],
                    negative_prompt='不要'+cn,plans=names[:2],roof_type=roof_type,expected_wall=palette['wall'],expected_roof=palette['roof'],expected_window=palette['window'])
         if len(names)>2: entry['diversity_plans']=names[2:]
+        previous = next((s for s in manifest['styles'] if s['style_id']==sid), {})
+        if previous.get('variant_cards'):
+            entry['variant_cards'] = copy.deepcopy(previous['variant_cards'])
         manifest['styles']=[s for s in manifest['styles'] if s['style_id']!=sid]+[entry]
         for definition in typologies['typologies']:
             if definition['id']==typology:

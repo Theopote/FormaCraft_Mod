@@ -725,7 +725,23 @@
       "roof_type": "barrel_vault",
       "expected_wall": "minecraft:polished_deepslate",
       "expected_roof": "minecraft:deepslate_tiles",
-      "expected_window": "minecraft:glass_pane"
+      "expected_window": "minecraft:glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "dwarven_underground_hall",
+          "proportion_card_id": "dwarven_hall",
+          "typology_id": "timber_gable_house",
+          "prompts": [
+            "生成一座地下矮人石殿",
+            "build an underground dwarven hall"
+          ],
+          "negative_prompt": "不要矮人石殿",
+          "plans": [
+            "dwarven_underground_13.json",
+            "dwarven_underground_21.json"
+          ]
+        }
+      ]
     },
     {
       "style_id": "Elven_Treehouse",

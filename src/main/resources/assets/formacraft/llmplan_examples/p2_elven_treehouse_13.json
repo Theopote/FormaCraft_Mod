@@ -138,12 +138,12 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
           "y": 12,
           "z": -3
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 3,
           "height": 2
         },
@@ -158,12 +158,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 14,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 3,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_landing_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 14,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 3,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_landing_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 0,
           "z": -16
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 1
         },
@@ -178,12 +218,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 1,
+          "z": -16
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_0_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 1,
+          "z": -16
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_0_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 0,
           "z": -15
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -198,12 +278,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 2,
+          "z": -15
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_1_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 2,
+          "z": -15
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_1_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 1,
           "z": -14
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -218,12 +338,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 3,
+          "z": -14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 3,
+          "z": -14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 2,
           "z": -13
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -238,12 +398,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 4,
+          "z": -13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_3_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 4,
+          "z": -13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_3_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 3,
           "z": -12
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -258,12 +458,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 5,
+          "z": -12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_4_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 5,
+          "z": -12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_4_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 4,
           "z": -11
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -278,12 +518,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 6,
+          "z": -11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_5_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 6,
+          "z": -11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_5_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 5,
           "z": -10
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -298,12 +578,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 7,
+          "z": -10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_6_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 7,
+          "z": -10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_6_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 6,
           "z": -9
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -318,12 +638,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 8,
+          "z": -9
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_7_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 8,
+          "z": -9
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_7_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 7,
           "z": -8
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -338,12 +698,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 9,
+          "z": -8
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_8_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 9,
+          "z": -8
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_8_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 8,
           "z": -7
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -358,12 +758,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 10,
+          "z": -7
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_9_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 10,
+          "z": -7
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_9_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 9,
           "z": -6
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -378,12 +818,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 11,
+          "z": -6
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_10_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 11,
+          "z": -6
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_10_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 10,
           "z": -5
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -398,12 +878,52 @@
       {
         "component_type": "PRIMITIVE",
         "relative_position": {
-          "x": 5,
+          "x": 4,
+          "y": 12,
+          "z": -5
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_11_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 12,
+          "z": -5
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_11_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
           "y": 11,
           "z": -4
         },
         "dimensions": {
-          "width": 3,
+          "width": 5,
           "depth": 1,
           "height": 2
         },
@@ -413,6 +933,46 @@
           "anchor_mode": "min_corner",
           "kind": "box",
           "material": "minecraft:birch_planks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
+          "y": 13,
+          "z": -4
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_12_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": 13,
+          "z": -4
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "tree_access_guard_12_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stripped_birch_log"
         }
       }
     ]

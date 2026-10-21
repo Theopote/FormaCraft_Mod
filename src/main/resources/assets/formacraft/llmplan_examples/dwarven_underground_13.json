@@ -1,0 +1,1205 @@
+{
+  "description": "Fixed-site underground vaulted hall with an excavated approach.",
+  "promptHints": [
+    "地下矮人石殿",
+    "underground dwarven hall"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Dwarven_Hall",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "PRESERVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "timber_gable_house",
+      "proportion_card_id": "dwarven_hall",
+      "height_to_width": 0.7692307692307693,
+      "depth_to_width": 1.3076923076923077,
+      "window_wall_ratio": 0
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:polished_deepslate",
+      "roof_material": "minecraft:deepslate_tiles",
+      "floor_material": "minecraft:stone_bricks"
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": -20,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 10
+        },
+        "features": [
+          "entrance"
+        ],
+        "params": {
+          "wall_block": "minecraft:polished_deepslate",
+          "roof_block": "minecraft:deepslate_tiles",
+          "floor_block": "minecraft:stone_bricks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:chiseled_stone_bricks",
+          "pillar_block": "minecraft:chiseled_stone_bricks",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0,
+          "facade_profile": "none",
+          "wall_pattern": "smooth",
+          "floor_height": 9,
+          "component_id": "dwarven_hall",
+          "anchor_mode": "min_corner",
+          "floor_count": 1,
+          "hollow": true,
+          "suppress_windows": true,
+          "plan_type": "none",
+          "shape": "rectangle"
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": -11,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 6
+        },
+        "features": [],
+        "params": {
+          "roof_type": "barrel_vault",
+          "overhang": 0,
+          "roof_block": "minecraft:deepslate_tiles",
+          "component_id": "dwarven_hall_roof",
+          "host_id": "dwarven_hall",
+          "anchor_mode": "min_corner",
+          "roof_height": 6,
+          "wall_block": "minecraft:polished_deepslate"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 1,
+          "y": -19,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "brazier_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:shroomlight"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 11,
+          "y": -19,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "brazier_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:shroomlight"
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 4,
+          "y": -19,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 1,
+          "height": 4
+        },
+        "features": [
+          "entrance"
+        ],
+        "params": {
+          "component_id": "underground_entrance",
+          "host_id": "dwarven_hall",
+          "anchor_mode": "min_corner",
+          "facing": "SOUTH",
+          "door_width": 3,
+          "door_height": 3,
+          "canopy_depth": 0
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 2,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 3,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_3",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_4",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_5",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 6,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_6",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 7,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_7",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 8,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_8",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 9,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_9",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 10,
+          "y": -11,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 15,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "vault_excavation_10",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air",
+          "host_id": "dwarven_hall",
+          "allow_patch_overwrite": true
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": 1,
+          "z": -23
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -1,
+          "z": -23
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": 0,
+          "z": -22
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -2,
+          "z": -22
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -1,
+          "z": -21
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -3,
+          "z": -21
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -2,
+          "z": -20
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_3",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -4,
+          "z": -20
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_3",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -3,
+          "z": -19
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_4",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -5,
+          "z": -19
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_4",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -4,
+          "z": -18
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_5",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -6,
+          "z": -18
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_5",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -5,
+          "z": -17
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_6",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -7,
+          "z": -17
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_6",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -6,
+          "z": -16
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_7",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -8,
+          "z": -16
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_7",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -7,
+          "z": -15
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_8",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -9,
+          "z": -15
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_8",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -8,
+          "z": -14
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_9",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -10,
+          "z": -14
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_9",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -9,
+          "z": -13
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_10",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -11,
+          "z": -13
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_10",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -10,
+          "z": -12
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_11",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -12,
+          "z": -12
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_11",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -11,
+          "z": -11
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_12",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -13,
+          "z": -11
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_12",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -12,
+          "z": -10
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_13",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -14,
+          "z": -10
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_13",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -13,
+          "z": -9
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_14",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -15,
+          "z": -9
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_14",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -14,
+          "z": -8
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_15",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -16,
+          "z": -8
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_15",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -15,
+          "z": -7
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_16",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -17,
+          "z": -7
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_16",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -16,
+          "z": -6
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_17",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -18,
+          "z": -6
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_17",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -17,
+          "z": -5
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_18",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -19,
+          "z": -5
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_18",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -18,
+          "z": -4
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_19",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -20,
+          "z": -4
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_tread_19",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -20,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 3,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "underground_landing",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 5,
+          "y": -19,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 3,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "approach_excavation_landing",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:air"
+        }
+      }
+    ]
+  }
+}

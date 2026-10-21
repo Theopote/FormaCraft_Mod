@@ -125,6 +125,67 @@ class ConstraintParityTest {
 
     @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(ints={13,21})
+    void undergroundDwarvenHallExcavatesSeededRockWithinItsBounds(int width) throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var file=java.nio.file.Path.of("python_backend/eval/fixtures/plans/dwarven_underground_"+width+".json");
+        var plan=mapper.readValue(file.toFile(),LlmPlan.class);
+        assertEquals(GlobalConstraints.TerrainStrategy.PRESERVE,plan.globalConstraints().terrainStrategy());
+        var patches=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
+        assertFalse(patches.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        int depth=width+4, center=width/2;
+        var stone=new HashMap<Vec3i,String>();
+        for(int x=-1;x<=width;x++) for(int z=-24;z<=depth;z++) for(int y=-22;y<=0;y++)
+            stone.put(new Vec3i(x,y,z),"minecraft:stone");
+        var world=replayOn(stone,patches);
+        for(var patch:patches) {
+            assertTrue(patch.dx()>=0 && patch.dx()<width && patch.dz()>=-23 && patch.dz()<depth
+                    && patch.dy()>=-21 && patch.dy()<=3,"operation escaped authored envelope: "+patch);
+            if(patch.dy()>0) assertTrue(BlockPatch.REMOVE.equals(patch.action()) || "minecraft:air".equals(patch.targetBlock()),
+                    "no invented building above the reference surface");
+        }
+        for(int x=1;x<width-1;x++) for(int z=1;z<depth-1;z++) for(int y=-19;y<=-12;y++) {
+            boolean brazier=(x==1 || x==width-2) && z==1 && y<=-18;
+            assertEquals(brazier?"minecraft:shroomlight":null,world.get(new Vec3i(x,y,z)),"room rock at "+x+","+y+","+z);
+        }
+        for(int z=-23;z<=2;z++) {
+            int floor=z < -3 ? -(z+23) : -20;
+            for(int x=center-1;x<=center+1;x++) assertWalkCell(world,x,floor,z);
+        }
+        assertNull(world.get(new Vec3i(center,-7,depth/2)),"rock under vault apex must be excavated");
+        assertEquals("minecraft:deepslate_tiles",world.get(new Vec3i(center,-6,depth/2)),"vault lining must survive");
+        assertEquals("minecraft:stone",world.get(new Vec3i(center,-5,depth/2)),"natural cover must survive");
+        assertEquals("minecraft:stone",world.get(new Vec3i(-1,-10,depth/2)),"outside rock must survive");
+        var roof=plan.components().get(1);
+        var shell=new com.formacraft.common.generation.component.impl.RoofGenerator().generate(
+                new com.formacraft.common.compiler.semantic.SemanticComponent("ROOF",null,roof,"Dwarven_Hall"));
+        // Gable sealing may deliberately overwrite earlier roof operations; compare
+        // the final shell state rather than every intermediate write in the list.
+        for(var block:com.formacraft.test.PatchTestSnapshot.blocks(shell).entrySet())
+            assertEquals(block.getValue(),world.get(block.getKey()),"vault shell punctured at "+block.getKey());
+        var without=mapper.readValue(file.toFile(),LlmPlan.class);
+        without.components().removeIf(c->String.valueOf(c.params().get("component_id")).startsWith("vault_excavation_"));
+        var unexcavated=replayOn(stone,ComponentPlanCompiler.compile(without,ORIGIN,null,null,false));
+        assertEquals("minecraft:stone",unexcavated.get(new Vec3i(center,-7,depth/2)),"control must detect omitted excavation");
+        var min=ORIGIN.add(0,-21,-23);var max=ORIGIN.add(center,3,depth-1);
+        var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
+        assertFalse(expected.isEmpty());assertTrue(expected.size()<patches.size());
+        assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
+        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
+    }
+
+    private static Map<Vec3i,String> replayOn(Map<Vec3i,String> initial,List<BlockPatch> patches) {
+        var result=new HashMap<>(initial);
+        for(var patch:patches) {
+            var pos=new Vec3i(patch.dx(),patch.dy(),patch.dz());
+            if(BlockPatch.REMOVE.equals(patch.action()) || "minecraft:air".equals(patch.targetBlock())) result.remove(pos);
+            else result.put(pos,patch.targetBlock());
+        }
+        return result;
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={13,21})
     void treehouseTrunkAccessAndAccessRemovalRemainConnectedAndLocal(int width) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var file=java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_elven_treehouse_"+width+".json");
@@ -144,6 +205,22 @@ class ConstraintParityTest {
         for(int step=1;step<13;step++) {
             assertNotNull(blocks.get(new Vec3i(center,step-1,-16+step)),"adjacent treads must share a face");
         }
+        assertTreehouseGuards(blocks,center);
+        var missingGuard=new HashMap<>(blocks);missingGuard.remove(new Vec3i(center-2,7,-10));
+        assertThrows(AssertionError.class,()->assertTreehouseGuards(missingGuard,center));
+        var noGuards=mapper.readValue(file.toFile(),LlmPlan.class);
+        noGuards.components().removeIf(c->String.valueOf(c.params().get("component_id")).startsWith("tree_access_guard_"));
+        var barePatches=ComponentPlanCompiler.compile(noGuards,ORIGIN,null,null,false);
+        assertFalse(barePatches.isEmpty());
+        var bare=com.formacraft.test.PatchTestSnapshot.blocks(barePatches);
+        var guardPositions=new HashSet<>(blocks.keySet());guardPositions.addAll(bare.keySet());
+        int guardChanges=0;
+        for(var pos:guardPositions) if(!Objects.equals(blocks.get(pos),bare.get(pos))) {
+            guardChanges++;
+            assertTrue(pos.z()>=-16 && pos.z()<0 && Math.abs(pos.x()-center)==2,
+                    "guard-only edit escaped its side columns: "+pos);
+        }
+        assertTrue(guardChanges>0);
         var blocked=new HashMap<>(blocks);blocked.put(new Vec3i(center,8,-10),"minecraft:stone");
         assertThrows(AssertionError.class,()->assertWalkCell(blocked,center,6,-10));
         var missing=new HashMap<>(blocks);missing.remove(new Vec3i(center,6,-10));
@@ -226,6 +303,17 @@ class ConstraintParityTest {
         assertNotNull(blocks.get(new Vec3i(x,floor,z)), "missing tread at " + x + "," + floor + "," + z);
         assertNull(blocks.get(new Vec3i(x,floor+1,z)), "feet clearance at " + z);
         assertNull(blocks.get(new Vec3i(x,floor+2,z)), "head clearance at " + z);
+    }
+
+    private static void assertTreehouseGuards(Map<Vec3i,String> blocks,int center) {
+        for(int z=-16;z<0;z++) {
+            int floor=z < -3 ? z+16 : 13;
+            for(int x:new int[]{center-2,center+2}) {
+                assertNotNull(blocks.get(new Vec3i(x,floor,z)),"guard must sit on a tread or landing");
+                for(int y=floor+1;y<=floor+2;y++)
+                    assertEquals("minecraft:stripped_birch_log",blocks.get(new Vec3i(x,y,z)),"gap in guard at "+x+","+y+","+z);
+            }
+        }
     }
 
     @ParameterizedTest

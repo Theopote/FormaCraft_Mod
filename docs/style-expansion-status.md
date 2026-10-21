@@ -20,6 +20,11 @@ approach to the elevated entrance; their support/access and compiler edit-locali
 checks are documented in [`style-treehouse-acceptance.md`](style-treehouse-acceptance.md).
 This does not establish a spiral stair or a multi-tree city.
 
+A separate dwarven underground program now links two dry-stone excavation
+fixtures while retaining the above-ground hall examples. Its synthetic stone
+replay and live-world limits are recorded in
+[`style-dwarven-underground-acceptance.md`](style-dwarven-underground-acceptance.md).
+
 | Phase | State | Delivered | Remaining |
 | --- | --- | --- | --- |
 | P0 | Implemented | Catalog-driven planner defaults and generic markers; shared material aliases; twelve palette roles | Preserve regression coverage as assets grow |

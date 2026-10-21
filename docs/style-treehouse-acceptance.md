@@ -7,7 +7,10 @@ not evidence of a generated tree city, spiral stair or canopy bridge network.
 ## Composition
 
 The trunk occupies local y=0..12 and contacts the dwelling floor at y=13.
-A three-block-wide wooden run rises from z=-16, floor y=0 to z=-4, floor y=12.
+A wooden run with three clear walking columns rises from z=-16, floor y=0 to
+z=-4, floor y=12. Its supporting treads are five blocks wide; two-high solid
+stripped-birch guard walls occupy the two outside columns. The landing has the
+same guarded cross-section, leaving its entrance and ground approach open.
 A landing at z=-3..-1 joins the existing negative-z entrance and interior floor.
 An explicit hosted entrance declares a three-block-wide opening; the small
 dwelling's inferred default entrance was narrower than the approach.
@@ -28,6 +31,11 @@ controls inject an obstructed head cell and remove a tread. Removing all authore
 access components and recompiling must preserve all dwelling and trunk blocks;
 changes are restricted to the external negative-z approach. Patch and Build
 region clipping are compared on the same compiled operations.
+
+The guard checks assert support beneath each guard, two solid blocks above each
+edge tread and continuity through the landing. A missing-guard control must
+fail. A separate recompile with only guard components removed must change only
+the two external guard columns, preserving treads, entrance, house and trunk.
 
 `test_p2_style_assets` checks schema validity, equality with linked few-shots and
 idempotent rebuilding by `add_treehouse_access`. The main authoring utility uses
@@ -50,7 +58,7 @@ The three-wide entrance clearance assertions remain enabled for both sizes.
 
 ## Remaining acceptance
 
-Live walking/collision behavior, fall protection, site fitting, preview/build
+Live walking/collision behavior, jumping or climbing at the guards, site fitting, preview/build
 agreement and the user-facing edit chain remain unverified. This offline removal
 test demonstrates compilation locality, not completion of world editing.
 Spiral access, multiple trees, continuous canopy bridges and populated tree-city

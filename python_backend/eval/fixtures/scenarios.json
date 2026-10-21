@@ -1606,5 +1606,27 @@
       "regional_identity",
       "huizhou"
     ]
+  },
+  {
+    "id": "dwarven_underground_13",
+    "prompt": "build an underground dwarven hall",
+    "plan_fixture": "plans/dwarven_underground_13.json",
+    "ci": true,
+    "tags": [
+      "E",
+      "underground",
+      "excavation"
+    ]
+  },
+  {
+    "id": "dwarven_underground_21",
+    "prompt": "build an underground dwarven hall",
+    "plan_fixture": "plans/dwarven_underground_21.json",
+    "ci": true,
+    "tags": [
+      "E",
+      "underground",
+      "excavation"
+    ]
   }
 ]

@@ -33,7 +33,7 @@ Counts and references below are generated from bundled profiles, culture cards a
 | Dark_Fortress | dark_fortress | p2_dark_fortress_13.json, p2_dark_fortress_21.json |
 | Deconstructivism_Zaha | - | - |
 | Desert_Adobe | desert_adobe | p2_desert_adobe_13.json, p2_desert_adobe_21.json |
-| Dwarven_Hall | dwarven_hall | p2_dwarven_hall_13.json, p2_dwarven_hall_21.json |
+| Dwarven_Hall | dwarven_hall, dwarven_underground_hall | p2_dwarven_hall_13.json, p2_dwarven_hall_21.json; underground program: dwarven_underground_13.json, dwarven_underground_21.json |
 | Elven_Treehouse | elven_treehouse | p2_elven_treehouse_13.json, p2_elven_treehouse_21.json |
 | FUTURISTIC | - | - |
 | Fantasy_Elven | - | - |
@@ -71,7 +71,8 @@ Counts and references below are generated from bundled profiles, culture cards a
 | 25 manifest styles | Bilingual/refusal cases: test_style_p1_acceptance | Fixture/schema checks: same suite | Shared plan replay and constraint parity; P2 acceptance | Pending live evidence | Pending reviewed screenshots | Pending per-style world evidence |
 | Northern siheyuan / Huizhou split | test_siheyuan_courtyard_p0 regional cases | Gray-brick defaults, isolated ornaments, bilingual gable toggle and ambiguous-scope refusal | Two Huizhou dwelling fixtures compile; stepped/capped symmetric end walls, attachment, hollow attic and Patch/Build clipping checked in ConstraintParityTest | Pending | Pending | Gable disable replay preserves all blocks outside upper end planes; world edit chain pending |
 | Stilt timber / Water platform fixed sites | Existing manifest bilingual/refusal tests | Explicit PRESERVE elevations and authored access; helper/few-shot equality tests | Five fixtures: pile/deck contact, entrance path and two-cell air clearance, no raw underfloor writes outside piles, clipping parity | Pending terrain/water simulation | Pending | Pending world edits |
-| Single elven treehouse | Existing manifest bilingual/refusal tests | Explicit PRESERVE heights and authored timber access; helper/few-shot equality | Two fixtures: trunk/floor contact, connected three-wide treads, landing/entrance clearance and clipping parity | Pending live site/walking checks | Pending | Access-removal compiler replay checks dwelling/trunk locality; world editing pending |
+| Single elven treehouse | Existing manifest bilingual/refusal tests | Explicit PRESERVE heights and authored timber access; helper/few-shot equality | Two fixtures: trunk/floor contact, three clear walking columns, two-high supported edge guards, landing/entrance clearance and clipping parity | Pending live site/walking/collision checks | Pending | Access-removal and guard-only removal replays check block locality; world editing pending |
+| Underground dwarven hall program | Bilingual culture retrieval, refusal and generic classification | Fixed surface/floor heights, explicit excavation, hosted overwrite authorization | Two variants replay into solid stone: room/approach excavation, vault shell/cover, write bounds and clipping parity | Pending live excavation and fluids | Pending | Omitted-excavation control covered; user/world edit chain pending |
 | Startup user packs | test_user_style_packs sample integration | Sample defaults/ornament tests | UserStylePackRuntimeTest sample compilation/clipping | Settings clicks and live build pending | Pending | Pending |
 
 ## Next acceptance queue
@@ -94,8 +95,8 @@ evidence; live world edits, historical fidelity and screenshots remain pending.
 
 1. Northern siheyuan vs Huizhou: compare live gray-brick courtyard and white-wall/horse-head-gable dwelling; complete tianjing compounds still require dedicated examples and acceptance. `huizhou_vernacular_13.json` and `huizhou_vernacular_21.json` now cover rectangular dwellings with both ridge orientations, not complete courtyard compounds.
 2. Water/stilt: fixed-site pile contact, entrance access and untouched underfloor non-pile columns now have offline assertions. Validate arbitrary bed/bank/water levels, automatic landing passes and live water updates next; see [fixed-site acceptance](style-raised-timber-acceptance.md).
-3. Dwarven hall: current barrel-vaulted above-ground composition is not underground excavation; test excavation separately.
-4. Elven treehouse: single-tree support and straight timber access now have dedicated fixtures and offline assertions. Live walking, fall protection and site fitting remain; connected canopy bridges, spiral access and a tree city require additional compositions. See [single-treehouse acceptance](style-treehouse-acceptance.md).
+3. Dwarven hall: original above-ground examples remain; two dedicated underground program fixtures now exercise dry-stone excavation and a descending approach. Live fluids, site selection, permissions and world edits remain pending. See [underground acceptance](style-dwarven-underground-acceptance.md).
+4. Elven treehouse: single-tree support, guarded straight timber access and a guarded landing now have dedicated fixtures and offline assertions. Live walking/collision and site fitting remain; connected canopy bridges, spiral access and a tree city require additional compositions. See [single-treehouse acceptance](style-treehouse-acceptance.md).
 5. Cyberpunk: luminous registry blocks and disable behavior have offline coverage; record actual night rendering and passage visibility.
 6. Deconstructivism: declared profile/algorithm does not establish continuous curved geometry.
 7. Local edits: replay roof/material/opening changes for each accepted style, then compare unaffected components and actual built blocks.

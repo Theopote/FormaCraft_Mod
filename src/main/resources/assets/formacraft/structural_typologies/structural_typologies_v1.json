@@ -1216,7 +1216,8 @@
         "dwarven_hall",
         "elven_treehouse",
         "steampunk_hall",
-        "dark_fortress"
+        "dark_fortress",
+        "dwarven_underground_hall"
       ],
       "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=gable only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=timber_gable_house. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     },
