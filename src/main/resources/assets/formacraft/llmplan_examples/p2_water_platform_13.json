@@ -1,0 +1,172 @@
+{
+  "id": "p2_water_platform_13",
+  "prompt": "build a water platform house",
+  "plan": {
+    "mode": "build",
+    "style_profile": "Water_Platform",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "timber_gable_house",
+      "proportion_card_id": "water_platform",
+      "height_to_width": 0.6153846153846154,
+      "depth_to_width": 1.3076923076923077,
+      "window_wall_ratio": 0.08
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:oak_planks",
+      "roof_material": "minecraft:spruce_planks",
+      "floor_material": "minecraft:stone_bricks"
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:oak_planks",
+          "roof_block": "minecraft:spruce_planks",
+          "floor_block": "minecraft:stone_bricks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:oak_log",
+          "pillar_block": "minecraft:oak_log",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.08,
+          "facade_profile": "none",
+          "wall_pattern": "timber_frame",
+          "floor_height": 4,
+          "component_id": "water_platform",
+          "anchor_mode": "min_corner",
+          "floor_count": 2,
+          "hollow": true
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 12,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "roof_type": "gable",
+          "overhang": 0,
+          "roof_block": "minecraft:spruce_planks",
+          "component_id": "water_platform_roof",
+          "host_id": "water_platform",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 1,
+          "y": 0,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "component_id": "post_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:oak_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 11,
+          "y": 0,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "component_id": "post_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:oak_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 1,
+          "y": 0,
+          "z": 15
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "component_id": "post_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:oak_log"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 11,
+          "y": 0,
+          "z": 15
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "component_id": "post_3",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:oak_log"
+        }
+      }
+    ]
+  }
+}

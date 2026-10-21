@@ -1,0 +1,39 @@
+{
+  "id": "water_platform",
+  "styleId": "Water_Platform",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "水上木屋",
+    "water platform house",
+    "water_platform"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "水上木屋": 12,
+    "water platform house": 12,
+    "water_platform": 12
+  },
+  "negativeKeywords": [
+    "不要水上木屋",
+    "not water platform house"
+  ],
+  "proportionCardId": "water_platform",
+  "structuralTypologyId": "timber_gable_house",
+  "llmPlanExampleRefs": [
+    "p2_water_platform_13.json",
+    "p2_water_platform_21.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "water_platform",
+      "constraints": [
+        "Use style_profile=Water_Platform; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=gable, wall_pattern=timber_frame; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

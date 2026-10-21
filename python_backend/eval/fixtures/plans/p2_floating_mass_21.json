@@ -1,0 +1,36 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 21,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "kind": "floating_mass",
+        "material": "minecraft:stone",
+        "component_id": "island",
+        "anchor_mode": "min_corner"
+      }
+    }
+  ]
+}

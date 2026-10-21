@@ -1,0 +1,39 @@
+{
+  "id": "dark_fortress",
+  "styleId": "Dark_Fortress",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "暗黑魔物堡",
+    "dark fantasy fortress",
+    "dark_fortress"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "暗黑魔物堡": 12,
+    "dark fantasy fortress": 12,
+    "dark_fortress": 12
+  },
+  "negativeKeywords": [
+    "不要暗黑魔物堡",
+    "not dark fantasy fortress"
+  ],
+  "proportionCardId": "dark_fortress",
+  "structuralTypologyId": "timber_gable_house",
+  "llmPlanExampleRefs": [
+    "p2_dark_fortress_13.json",
+    "p2_dark_fortress_21.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "dark_fortress",
+      "constraints": [
+        "Use style_profile=Dark_Fortress; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=gable, wall_pattern=smooth; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

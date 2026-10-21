@@ -109,10 +109,14 @@
       "希腊罗马古典"
     ],
     "Steampunk": [
-      "蒸汽朋克"
+      "蒸汽朋克",
+      "steampunk hall",
+      "steampunk_hall"
     ],
     "Cyberpunk": [
-      "赛博朋克"
+      "赛博朋克",
+      "cyberpunk block",
+      "cyberpunk_block"
     ],
     "Industrial_Brick_Hall": [
       "红砖工业",
@@ -175,6 +179,52 @@
       "neoclassical civic",
       "neoclassical architecture",
       "neoclassical_civic"
+    ],
+    "Desert_Adobe": [
+      "沙漠泥砖",
+      "desert adobe",
+      "desert_adobe"
+    ],
+    "Prairie_Earth": [
+      "草原土坯",
+      "prairie earth house",
+      "prairie_earth"
+    ],
+    "Arctic_Igloo": [
+      "冰屋",
+      "arctic igloo",
+      "arctic_igloo"
+    ],
+    "Stilt_Timber": [
+      "吊脚木楼",
+      "stilt timber house",
+      "stilt_timber"
+    ],
+    "Water_Platform": [
+      "水上木屋",
+      "water platform house",
+      "water_platform"
+    ],
+    "Xianxia_Island": [
+      "仙侠悬浮岛",
+      "xianxia floating island",
+      "xianxia_island"
+    ],
+    "Dwarven_Hall": [
+      "矮人石殿",
+      "dwarven stone hall",
+      "dwarven_hall"
+    ],
+    "Elven_Treehouse": [
+      "精灵树城",
+      "elven forest city",
+      "elven_treehouse",
+      "elven treehouse"
+    ],
+    "Dark_Fortress": [
+      "暗黑魔物堡",
+      "dark fantasy fortress",
+      "dark_fortress"
     ]
   },
   "generic_building_types": [

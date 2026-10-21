@@ -1,0 +1,110 @@
+{
+  "mode": "build",
+  "style_profile": "Cyberpunk",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "flat_roof_pavilion",
+    "proportion_card_id": "cyberpunk_block",
+    "height_to_width": 0.38095238095238093,
+    "depth_to_width": 1.1904761904761905,
+    "window_wall_ratio": 0.22
+  },
+  "style_attributes": {
+    "wall_material": "minecraft:black_concrete",
+    "roof_material": "minecraft:gray_concrete",
+    "floor_material": "minecraft:stone_bricks"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 25,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "wall_block": "minecraft:black_concrete",
+        "roof_block": "minecraft:gray_concrete",
+        "floor_block": "minecraft:stone_bricks",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:stone_bricks",
+        "trim_block": "minecraft:cyan_concrete",
+        "pillar_block": "minecraft:cyan_concrete",
+        "roof_type": "none",
+        "window_style": "pane",
+        "window_ratio": 0.22,
+        "facade_profile": "none",
+        "wall_pattern": "neon_bands",
+        "floor_height": 4,
+        "emissive_enabled": true,
+        "emissive_block": "minecraft:sea_lantern",
+        "component_id": "cyberpunk_block",
+        "anchor_mode": "min_corner",
+        "floor_count": 2,
+        "hollow": true
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 7,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 21,
+        "depth": 25,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "roof_type": "flat",
+        "overhang": 0,
+        "roof_block": "minecraft:gray_concrete",
+        "component_id": "cyberpunk_block_roof",
+        "host_id": "cyberpunk_block",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 16,
+        "y": 10,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "offset_roof_pod",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:black_concrete"
+      }
+    }
+  ]
+}

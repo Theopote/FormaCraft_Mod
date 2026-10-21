@@ -29,9 +29,17 @@ def validate_ornament_contract(definition: dict) -> None:
         raise ValueError('ornament contract requires an id')
     target = definition.get('target') or {}
     if (not isinstance(target, dict) or not isinstance(target.get('component_type'), str)
-            or not isinstance(target.get('typology_id'), str)
-            or not target['component_type'] or not target['typology_id']):
+            or not target['component_type']):
         raise ValueError('ornament contract requires a component type and typology')
+    styles = target.get('style_ids')
+    if 'typology_id' in target and (not isinstance(target['typology_id'], str) or not target['typology_id']):
+        raise ValueError('ornament typology_id must be a nonempty string')
+    if styles is not None and (not isinstance(styles, list) or not styles
+                              or any(not isinstance(style, str) or not style for style in styles)):
+        raise ValueError('ornament style_ids must be a nonempty string list')
+    if not isinstance(target.get('typology_id'), str) or not target.get('typology_id'):
+        if not styles:
+            raise ValueError('ornament contract requires a typology or style_ids')
     if definition.get('application') not in ('standalone', 'collect'):
         raise ValueError('ornament contract application must be standalone or collect')
     _pattern(definition.get('unresolved_scope_pattern'), 'unresolved_scope_pattern')
@@ -105,10 +113,15 @@ def get_ornament_contract(contract_id: str) -> dict:
 
 def ornament_targets(plan: dict, definition: dict) -> list[dict]:
     target = definition['target']
+    from .style_identity import canonical_style_id
+    styles = {canonical_style_id(style) for style in target.get('style_ids', [])}
     return [component for component in plan.get('components', []) if isinstance(component, dict)
             and component.get('component_type') == target['component_type']
-            and ((component.get('params') or {}).get('typology_id') == target['typology_id']
-                 or f"typology:{target['typology_id']}" in (component.get('features') or []))]
+            and (not target.get('typology_id')
+                 or (component.get('params') or {}).get('typology_id') == target['typology_id']
+                 or f"typology:{target['typology_id']}" in (component.get('features') or []))
+            and (not styles or canonical_style_id((component.get('params') or {}).get('style_profile')
+                 or component.get('style_profile') or component.get('_style_hint') or plan.get('style_profile')) in styles)]
 
 
 def has_unresolved_ornament_scope(text: str, definition: dict) -> bool:

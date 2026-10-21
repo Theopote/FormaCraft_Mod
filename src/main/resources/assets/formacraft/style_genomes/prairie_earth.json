@@ -1,0 +1,27 @@
+{
+  "id": "prairie_earth",
+  "name": "prairie earth house",
+  "style": "Prairie_Earth",
+  "palette": {
+    "wall": "minecraft:packed_mud",
+    "roof": "minecraft:mud_bricks",
+    "floor": "minecraft:stone_bricks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:stone_bricks",
+    "trim": "minecraft:oak_log",
+    "pillar": "minecraft:oak_log",
+    "cap": "minecraft:stone_brick_slab",
+    "door": "minecraft:oak_door",
+    "roof_trim": "minecraft:oak_log",
+    "stairs": "minecraft:stone_brick_stairs",
+    "roof_slab": "minecraft:stone_brick_slab"
+  },
+  "params": {
+    "roofType": "flat",
+    "windowRatio": 0.08,
+    "windowStyle": "pane",
+    "wallPattern": "smooth",
+    "floorHeight": 4,
+    "preferSymmetry": true
+  }
+}

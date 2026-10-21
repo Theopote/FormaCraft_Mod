@@ -555,6 +555,13 @@ public class MassMainGenerator implements ComponentGenerator {
                         }
                     }
 
+                    if ((part == SemanticPart.WALL || part == SemanticPart.WALL_BASE)
+                            && isExteriorWallPosition(localX, localZ, footprint)
+                            && !com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null,massParams)) {
+                        block = com.formacraft.common.generation.component.util.StyleWallPattern.apply(
+                                block, getBlockForPart(SemanticPart.WALL_ACCENT,semantic,palette), massParams,
+                                localX,y,localZ,width,depth,userFloorHeight);
+                    }
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + mass.offsetX + localX,
@@ -800,6 +807,12 @@ public class MassMainGenerator implements ComponentGenerator {
      * 获取方块（优先使用动态解析，回退到传统 Palette）
      */
     private String getBlockForPart(SemanticPart part, SemanticComponent semantic, Palette palette) {
+        if (semantic.source() != null && (part == SemanticPart.WALL_ACCENT || part == SemanticPart.WINDOW)) {
+            String explicit = part == SemanticPart.WALL_ACCENT
+                    ? getParamString(semantic.source().params(), "trim_block")
+                    : getParamString(semantic.source().params(), "glass_block", "window_block");
+            if (explicit != null && !explicit.isBlank()) return explicit.contains(":") ? explicit : "minecraft:"+explicit;
+        }
         // Exact per-building material choices precede style-derived palettes.
         String materialKey = switch (part) {
             case WALL, WALL_BASE, WALL_ACCENT -> "wall_block";

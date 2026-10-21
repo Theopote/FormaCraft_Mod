@@ -10,6 +10,17 @@ public class SkeletonContractRegistry {
     private static final Map<SkeletonType, SkeletonContract> CONTRACTS = new HashMap<>();
     
     static {
+        register(new SimpleContract(SkeletonType.FLOATING_MASS)
+            .requiredAnchors("origin")
+            .requiresTerrainSampling(false)
+            .allowsOverlap(false)
+            .prefersSymmetry(true)
+            .supportsIrregularShape(false)
+            .isMultiLevel(true)
+            .requiresCenter(false)
+            .supportsBranches(false)
+            .description("Elevated island: tapered underside and level platform, no terrain supports")
+        );
         // ===== Linear / Path =====
         register(new SimpleContract(SkeletonType.LINEAR_PATH)
             .requiredAnchors("start", "end")

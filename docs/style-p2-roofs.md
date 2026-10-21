@@ -28,6 +28,7 @@ tests, 75 golden scenarios passing HARD checks, four diversity scenarios and the
 Java constraint suite (including all four P2 roof tests). Golden output contains
 142 SOFT warnings; passing HARD checks does not imply warning-free visual output.
 
-This is the roof substage of P2. Fantasy skeletons, D/E style assets, wall-pattern
-vocabulary, emissive strategies and vision-case integration remain outstanding.
+This is the roof substage of P2. Subsequent floating skeleton and visual retrieval
+work is recorded in `style-p2-floating-vision.md`. D/E style assets, wall-pattern
+vocabulary and emissive strategies are now covered by `style-p2-acceptance.md`.
 Offline execution checks do not establish visual fidelity or live-world behavior.

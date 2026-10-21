@@ -6,7 +6,7 @@ This document tracks phase completion separately from passing incremental CI.
 | --- | --- | --- | --- |
 | P0 | Implemented | Catalog-driven planner defaults and generic markers; shared material aliases; twelve palette roles | Preserve regression coverage as assets grow |
 | P1 | Complete: local asset/execution acceptance | Declarative ornament contracts; scoped style priority; 20 genomes, 45 culture cards, 16 typologies; golden, negative, diversity and parity gates | Live sampling and visual/historical fidelity are outside this acceptance |
-| P2 | In progress | Four new roof generators, bilingual contracts and eight dual-size plans; see `style-p2-roofs.md` | D/E assets, wall vocabulary, fantasy skeletons/generators, emissive material strategy, visual-case integration |
+| P2 | Complete: offline foundation baseline | Four roof generators, floating skeleton/primitive, 11 D/E packs, wall patterns, luminous material policy, 17 visual candidates. See `style-p2-acceptance.md` | Live-world/visual acceptance and more elaborate fantasy compositions remain outside this baseline |
 | P3 | Incomplete | An internal manifest links bundled assets and tests | User-pack format, discovery/loading/validation, Settings integration, contribution workflow |
 
 Bundled counts at P1 acceptance:
@@ -39,4 +39,5 @@ routing, or completion of later phases.
 Final P1 validation: 340 Python tests, 67 CI golden scenarios, four CI diversity
 scenarios (existing stadium plus A/B/C style families), 58 Java parity/adapter
 tests, and 45 culture-card validations passed. See `style-p1-acceptance.md` for
-the scope and reproduction commands. P2/P3 remain incomplete.
+the scope and reproduction commands. P2 offline baseline acceptance is recorded
+in `style-p2-acceptance.md`; P3 remains incomplete.

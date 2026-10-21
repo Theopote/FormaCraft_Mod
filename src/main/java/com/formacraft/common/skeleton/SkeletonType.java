@@ -50,6 +50,9 @@ public enum SkeletonType {
     /** 台地式（梯田、山城） */
     TERRACED,
 
+    /** Unsupported by terrain: an elevated island with a downward taper. */
+    FLOATING_MASS,
+
     // ===== Composite =====
     /** 主从结构（寺庙群、校园、园区） */
     HIERARCHICAL_TREE,

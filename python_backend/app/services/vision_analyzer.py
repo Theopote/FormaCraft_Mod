@@ -16,6 +16,7 @@ from ..models.reference_blueprint import (
 )
 from ..models.request import BuildRequest, ReferenceInput
 from .url_safety import UnsafeUrlError, safe_http_get, validate_reference_url
+from .style_visual_retriever import retrieve_visual_cases
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +338,15 @@ def merge_visual_into_profile(
 ) -> BuildingProfile:
     """将 VisualAnalysis（含 ReferenceBlueprint）合并进 BuildingProfile。"""
     data = profile.model_dump()
+    candidates = retrieve_visual_cases(
+        visual.form_observations + visual.massing + visual.materials + visual.distinctive_elements,
+        confidence=visual.confidence,
+    )
+    # Similarity is advisory. Preserve explicit/model identities and never create
+    # verified style evidence or geometry defaults from a local example match.
+    if candidates:
+        data['research_notes'] = ((data.get('research_notes') or '') +
+            '\n[Visual style candidates] ' + json.dumps(candidates, ensure_ascii=False)).strip()
     # Vision naming wins for image references: classifiers/rule synth may have
     # already filled a generic or search-derived name before merge runs.
     if visual.building_name:

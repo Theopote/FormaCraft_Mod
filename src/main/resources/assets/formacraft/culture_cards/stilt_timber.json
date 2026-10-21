@@ -1,0 +1,40 @@
+{
+  "id": "stilt_timber",
+  "styleId": "Stilt_Timber",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "吊脚木楼",
+    "stilt timber house",
+    "stilt_timber"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "吊脚木楼": 12,
+    "stilt timber house": 12,
+    "stilt_timber": 12
+  },
+  "negativeKeywords": [
+    "不要吊脚木楼",
+    "not stilt timber house"
+  ],
+  "proportionCardId": "stilt_timber",
+  "structuralTypologyId": "timber_gable_house",
+  "llmPlanExampleRefs": [
+    "p2_stilt_timber_13.json",
+    "p2_stilt_timber_21.json",
+    "p2_stilt_timber_17.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "stilt_timber",
+      "constraints": [
+        "Use style_profile=Stilt_Timber; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=gable, wall_pattern=timber_frame; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

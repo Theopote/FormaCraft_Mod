@@ -1,0 +1,328 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "gothic_cathedral",
+      "style_id": "Gothic_Cathedral",
+      "plan_fixture": "gothic_cathedral_golden.json",
+      "feature_groups": {
+        "openings": [
+          "pointed arches",
+          "尖拱"
+        ],
+        "supports": [
+          "flying buttresses",
+          "飞扶壁"
+        ],
+        "windows": [
+          "rose window",
+          "玫瑰窗"
+        ]
+      }
+    },
+    {
+      "id": "tang_timber",
+      "style_id": "Tang_Dynasty_Timber",
+      "plan_fixture": "tang_timber_compact.json",
+      "feature_groups": {
+        "roof": [
+          "deep eaves",
+          "深出檐"
+        ],
+        "structure": [
+          "large bracket sets",
+          "大型斗拱"
+        ],
+        "massing": [
+          "timber hall",
+          "木构大殿"
+        ]
+      }
+    },
+    {
+      "id": "industrial_brick",
+      "style_id": "Industrial_Structure",
+      "plan_fixture": "industrial_brick_compact.json",
+      "feature_groups": {
+        "material": [
+          "red brick",
+          "红砖"
+        ],
+        "structure": [
+          "steel trusses",
+          "钢桁架"
+        ],
+        "openings": [
+          "factory windows",
+          "厂房窗"
+        ]
+      }
+    },
+    {
+      "id": "alpine_chalet",
+      "style_id": "Alpine_Chalet",
+      "plan_fixture": "alpine_chalet_compact.json",
+      "feature_groups": {
+        "roof": [
+          "wide gable roof",
+          "宽双坡顶"
+        ],
+        "material": [
+          "timber cladding",
+          "木板覆面"
+        ],
+        "ornament": [
+          "timber balcony",
+          "木阳台"
+        ]
+      }
+    },
+    {
+      "id": "art_deco",
+      "style_id": "Art_Deco",
+      "plan_fixture": "art_deco_vertical_compact.json",
+      "feature_groups": {
+        "massing": [
+          "stepped crown",
+          "阶梯冠部"
+        ],
+        "openings": [
+          "vertical window strips",
+          "竖向条窗"
+        ],
+        "ornament": [
+          "geometric ornament",
+          "几何装饰"
+        ]
+      }
+    },
+    {
+      "id": "brutalist",
+      "style_id": "Brutalism",
+      "plan_fixture": "brutalist_concrete_compact.json",
+      "feature_groups": {
+        "material": [
+          "exposed concrete",
+          "清水混凝土"
+        ],
+        "massing": [
+          "massive concrete volumes",
+          "厚重混凝土体量"
+        ],
+        "openings": [
+          "deep window reveals",
+          "深窗洞"
+        ]
+      }
+    },
+    {
+      "id": "desert_adobe",
+      "style_id": "Desert_Adobe",
+      "plan_fixture": "p2_desert_adobe_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "adobe walls",
+          "泥砖墙"
+        ],
+        "feature_1": [
+          "small shaded openings",
+          "小型遮阳窗"
+        ],
+        "feature_2": [
+          "flat earthen roof",
+          "泥土平顶"
+        ]
+      }
+    },
+    {
+      "id": "prairie_earth",
+      "style_id": "Prairie_Earth",
+      "plan_fixture": "p2_prairie_earth_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "packed earth walls",
+          "夯土墙"
+        ],
+        "feature_1": [
+          "low earthen volume",
+          "低矮土坯体量"
+        ],
+        "feature_2": [
+          "flat mud roof",
+          "土坯平顶"
+        ]
+      }
+    },
+    {
+      "id": "arctic_igloo",
+      "style_id": "Arctic_Igloo",
+      "plan_fixture": "p2_arctic_igloo_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "snow dome",
+          "积雪穹顶"
+        ],
+        "feature_1": [
+          "ice entrance",
+          "冰屋入口"
+        ],
+        "feature_2": [
+          "circular snow walls",
+          "圆形雪墙"
+        ]
+      }
+    },
+    {
+      "id": "stilt_timber",
+      "style_id": "Stilt_Timber",
+      "plan_fixture": "p2_stilt_timber_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "exposed timber stilts",
+          "外露木支柱"
+        ],
+        "feature_1": [
+          "raised timber deck",
+          "架空木平台"
+        ],
+        "feature_2": [
+          "gable timber hall",
+          "双坡木楼"
+        ]
+      }
+    },
+    {
+      "id": "water_platform",
+      "style_id": "Water_Platform",
+      "plan_fixture": "p2_water_platform_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "water platform",
+          "水上平台"
+        ],
+        "feature_1": [
+          "raised timber deck",
+          "架空木平台"
+        ],
+        "feature_2": [
+          "waterside timber posts",
+          "临水木支柱"
+        ]
+      }
+    },
+    {
+      "id": "xianxia_island",
+      "style_id": "Xianxia_Island",
+      "plan_fixture": "p2_xianxia_island_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "floating inverted island",
+          "倒锥悬浮岛"
+        ],
+        "feature_1": [
+          "flying eaves",
+          "夸张飞檐"
+        ],
+        "feature_2": [
+          "island pavilion",
+          "岛上楼阁"
+        ]
+      }
+    },
+    {
+      "id": "dwarven_hall",
+      "style_id": "Dwarven_Hall",
+      "plan_fixture": "p2_dwarven_hall_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "massive stone hall",
+          "巨型石殿"
+        ],
+        "feature_1": [
+          "barrel stone vault",
+          "石质筒拱"
+        ],
+        "feature_2": [
+          "brazier columns",
+          "火盆列"
+        ]
+      }
+    },
+    {
+      "id": "elven_treehouse",
+      "style_id": "Elven_Treehouse",
+      "plan_fixture": "p2_elven_treehouse_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "giant tree trunk",
+          "巨型树干"
+        ],
+        "feature_1": [
+          "tree canopy roof",
+          "树冠屋顶"
+        ],
+        "feature_2": [
+          "elevated tree deck",
+          "树上平台"
+        ]
+      }
+    },
+    {
+      "id": "cyberpunk_block",
+      "style_id": "Cyberpunk",
+      "plan_fixture": "p2_cyberpunk_block_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "black concrete facade",
+          "黑色混凝土立面"
+        ],
+        "feature_1": [
+          "neon light bands",
+          "霓虹灯带"
+        ],
+        "feature_2": [
+          "offset rooftop pods",
+          "错位屋顶舱"
+        ]
+      }
+    },
+    {
+      "id": "steampunk_hall",
+      "style_id": "Steampunk",
+      "plan_fixture": "p2_steampunk_hall_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "copper roof",
+          "铜屋顶"
+        ],
+        "feature_1": [
+          "industrial chimney",
+          "工业烟囱"
+        ],
+        "feature_2": [
+          "brick workshop",
+          "红砖工坊"
+        ]
+      }
+    },
+    {
+      "id": "dark_fortress",
+      "style_id": "Dark_Fortress",
+      "plan_fixture": "p2_dark_fortress_13.json",
+      "feature_groups": {
+        "feature_0": [
+          "blackstone fortress",
+          "黑石堡垒"
+        ],
+        "feature_1": [
+          "sharp stone spikes",
+          "尖锐石刺"
+        ],
+        "feature_2": [
+          "obsidian trim",
+          "黑曜石饰边"
+        ]
+      }
+    }
+  ]
+}

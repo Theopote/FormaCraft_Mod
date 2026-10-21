@@ -1300,5 +1300,291 @@
       "steep_thatch"
     ],
     "ci": true
+  },
+  {
+    "id": "p2_floating_mass_13",
+    "prompt": "Generate a floating island above the anchor",
+    "plan_fixture": "plans/p2_floating_mass_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "fantasy",
+      "floating_mass"
+    ]
+  },
+  {
+    "id": "p2_floating_mass_21",
+    "prompt": "Generate a floating island above the anchor",
+    "plan_fixture": "plans/p2_floating_mass_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "fantasy",
+      "floating_mass"
+    ]
+  },
+  {
+    "id": "p2_desert_adobe_13",
+    "prompt": "build a desert adobe",
+    "plan_fixture": "plans/p2_desert_adobe_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "desert_adobe"
+    ]
+  },
+  {
+    "id": "p2_desert_adobe_21",
+    "prompt": "build a desert adobe",
+    "plan_fixture": "plans/p2_desert_adobe_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "desert_adobe"
+    ]
+  },
+  {
+    "id": "p2_prairie_earth_13",
+    "prompt": "build a prairie earth house",
+    "plan_fixture": "plans/p2_prairie_earth_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "prairie_earth"
+    ]
+  },
+  {
+    "id": "p2_prairie_earth_21",
+    "prompt": "build a prairie earth house",
+    "plan_fixture": "plans/p2_prairie_earth_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "prairie_earth"
+    ]
+  },
+  {
+    "id": "p2_arctic_igloo_13",
+    "prompt": "build a arctic igloo",
+    "plan_fixture": "plans/p2_arctic_igloo_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "arctic_igloo"
+    ]
+  },
+  {
+    "id": "p2_arctic_igloo_21",
+    "prompt": "build a arctic igloo",
+    "plan_fixture": "plans/p2_arctic_igloo_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "arctic_igloo"
+    ]
+  },
+  {
+    "id": "p2_stilt_timber_13",
+    "prompt": "build a stilt timber house",
+    "plan_fixture": "plans/p2_stilt_timber_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "stilt_timber"
+    ]
+  },
+  {
+    "id": "p2_stilt_timber_21",
+    "prompt": "build a stilt timber house",
+    "plan_fixture": "plans/p2_stilt_timber_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "stilt_timber"
+    ]
+  },
+  {
+    "id": "p2_stilt_timber_17",
+    "prompt": "build a stilt timber house",
+    "plan_fixture": "plans/p2_stilt_timber_17.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "stilt_timber"
+    ]
+  },
+  {
+    "id": "p2_water_platform_13",
+    "prompt": "build a water platform house",
+    "plan_fixture": "plans/p2_water_platform_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "water_platform"
+    ]
+  },
+  {
+    "id": "p2_water_platform_21",
+    "prompt": "build a water platform house",
+    "plan_fixture": "plans/p2_water_platform_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "D",
+      "water_platform"
+    ]
+  },
+  {
+    "id": "p2_xianxia_island_13",
+    "prompt": "build a xianxia floating island",
+    "plan_fixture": "plans/p2_xianxia_island_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "xianxia_island"
+    ]
+  },
+  {
+    "id": "p2_xianxia_island_21",
+    "prompt": "build a xianxia floating island",
+    "plan_fixture": "plans/p2_xianxia_island_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "xianxia_island"
+    ]
+  },
+  {
+    "id": "p2_dwarven_hall_13",
+    "prompt": "build a dwarven stone hall",
+    "plan_fixture": "plans/p2_dwarven_hall_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "dwarven_hall"
+    ]
+  },
+  {
+    "id": "p2_dwarven_hall_21",
+    "prompt": "build a dwarven stone hall",
+    "plan_fixture": "plans/p2_dwarven_hall_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "dwarven_hall"
+    ]
+  },
+  {
+    "id": "p2_elven_treehouse_13",
+    "prompt": "build a elven forest city",
+    "plan_fixture": "plans/p2_elven_treehouse_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "elven_treehouse"
+    ]
+  },
+  {
+    "id": "p2_elven_treehouse_21",
+    "prompt": "build a elven forest city",
+    "plan_fixture": "plans/p2_elven_treehouse_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "elven_treehouse"
+    ]
+  },
+  {
+    "id": "p2_cyberpunk_block_13",
+    "prompt": "build a cyberpunk block",
+    "plan_fixture": "plans/p2_cyberpunk_block_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "cyberpunk_block"
+    ]
+  },
+  {
+    "id": "p2_cyberpunk_block_21",
+    "prompt": "build a cyberpunk block",
+    "plan_fixture": "plans/p2_cyberpunk_block_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "cyberpunk_block"
+    ]
+  },
+  {
+    "id": "p2_cyberpunk_block_17",
+    "prompt": "build a cyberpunk block",
+    "plan_fixture": "plans/p2_cyberpunk_block_17.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "cyberpunk_block"
+    ]
+  },
+  {
+    "id": "p2_steampunk_hall_13",
+    "prompt": "build a steampunk hall",
+    "plan_fixture": "plans/p2_steampunk_hall_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "steampunk_hall"
+    ]
+  },
+  {
+    "id": "p2_steampunk_hall_21",
+    "prompt": "build a steampunk hall",
+    "plan_fixture": "plans/p2_steampunk_hall_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "steampunk_hall"
+    ]
+  },
+  {
+    "id": "p2_dark_fortress_13",
+    "prompt": "build a dark fantasy fortress",
+    "plan_fixture": "plans/p2_dark_fortress_13.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "dark_fortress"
+    ]
+  },
+  {
+    "id": "p2_dark_fortress_21",
+    "prompt": "build a dark fantasy fortress",
+    "plan_fixture": "plans/p2_dark_fortress_21.json",
+    "ci": true,
+    "tags": [
+      "p2",
+      "E",
+      "dark_fortress"
+    ]
   }
 ]

@@ -20,7 +20,8 @@ public enum ShapeKind {
     TRIANGLE,
     /** M3：Voronoi 细胞 / Möbius 带体素近似 */
     VORONOI,
-    MOBIUS;
+    MOBIUS,
+    FLOATING_MASS;
 
     public static ShapeKind parse(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -40,6 +41,7 @@ public enum ShapeKind {
             case "triangle", "tri" -> TRIANGLE;
             case "voronoi", "cells", "cellular", "honeycomb" -> VORONOI;
             case "mobius", "möbius", "moebius", "mobius_strip" -> MOBIUS;
+            case "floating_mass", "floating_island" -> FLOATING_MASS;
             default -> BOX;
         };
     }

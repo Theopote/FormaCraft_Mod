@@ -147,6 +147,8 @@ tasks.register('constraintParityTest', Test) {
 		includeTestsMatching 'com.formacraft.server.build.ConstraintParityTest'
 		includeTestsMatching 'com.formacraft.server.build.MutationRegionPolicyTest'
 		includeTestsMatching 'com.formacraft.server.build.P2RoofGeometryTest'
+		includeTestsMatching 'com.formacraft.server.build.FloatingMassTest'
+		includeTestsMatching 'com.formacraft.server.build.StyleWallPatternTest'
 	}
 }
 

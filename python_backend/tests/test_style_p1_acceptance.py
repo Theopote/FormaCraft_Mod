@@ -85,11 +85,11 @@ class StyleP1AcceptanceTest(unittest.TestCase):
             self.assertEqual(feature.implementation_status, 'unverified')
             self.assertEqual(compile_style_feature_defaults(validated)[0]['params'], {})
 
-    def test_three_family_diversity_is_real_and_duplicates_fail(self):
+    def test_five_family_diversity_is_real_and_duplicates_fail(self):
         scenarios = json.loads((FIXTURES/'diversity_scenarios.json').read_text(encoding='utf-8'))
         selected = [scenario for scenario in scenarios if scenario['id'].startswith('style_family_')]
         self.assertEqual({scenario['id'] for scenario in selected},
-                         {'style_family_A_diversity', 'style_family_B_diversity', 'style_family_C_diversity'})
+                         {f'style_family_{family}_diversity' for family in 'ABCDE'})
         for scenario in selected:
             plans = [json.loads((FIXTURES/name).read_text(encoding='utf-8')) for name in scenario['plan_fixtures']]
             metrics = evaluate_diversity(plans, thresholds=DiversityThresholds(**scenario['thresholds']))

@@ -23,7 +23,7 @@ class StylePackExpansionTest(unittest.TestCase):
         cls.styles = json.loads((ASSETS / 'style_profiles/style_pack_manifest_v1.json').read_text(encoding='utf-8'))['styles']
 
     def test_identity_profiles_and_twelve_role_genomes_agree(self):
-        self.assertEqual({s['family'] for s in self.styles}, {'A', 'B', 'C'})
+        self.assertEqual({s['family'] for s in self.styles}, {'A', 'B', 'C', 'D', 'E'})
         for entry in self.styles:
             with self.subTest(style=entry['style_id']):
                 profile = get_style_profile(entry['style_id'])

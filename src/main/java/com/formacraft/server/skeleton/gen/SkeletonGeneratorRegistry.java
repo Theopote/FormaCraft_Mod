@@ -52,6 +52,7 @@ public final class SkeletonGeneratorRegistry {
         reg.register(SkeletonType.ENCLOSURE, new EnclosureGenerator());
         reg.register(SkeletonType.SPAN_SUSPENSION, new SpanSuspensionGenerator());
         reg.register(SkeletonType.TERRACED, new TerracedGenerator());
+        reg.register(SkeletonType.FLOATING_MASS, new FloatingMassGenerator());
         reg.register(SkeletonType.HIERARCHICAL_TREE, new HierarchicalTreeGenerator());
         reg.register(SkeletonType.COMPOUND, new CompoundGenerator(reg)); // 递归用 registry
         

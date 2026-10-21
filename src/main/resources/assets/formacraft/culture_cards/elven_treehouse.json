@@ -1,0 +1,41 @@
+{
+  "id": "elven_treehouse",
+  "styleId": "Elven_Treehouse",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "精灵树城",
+    "elven forest city",
+    "elven_treehouse",
+    "elven treehouse"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "精灵树城": 12,
+    "elven forest city": 12,
+    "elven_treehouse": 12,
+    "elven treehouse": 12
+  },
+  "negativeKeywords": [
+    "不要精灵树城",
+    "not elven forest city"
+  ],
+  "proportionCardId": "elven_treehouse",
+  "structuralTypologyId": "timber_gable_house",
+  "llmPlanExampleRefs": [
+    "p2_elven_treehouse_13.json",
+    "p2_elven_treehouse_21.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "elven_treehouse",
+      "constraints": [
+        "Use style_profile=Elven_Treehouse; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=cone, wall_pattern=timber_frame; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

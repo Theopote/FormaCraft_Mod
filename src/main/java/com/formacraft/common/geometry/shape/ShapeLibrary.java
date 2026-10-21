@@ -137,6 +137,13 @@ public final class ShapeLibrary {
             case TRIANGLE -> insideExtrudedTriangle(spec, lx, ly, lz);
             case VORONOI -> insideVoronoi(spec, lx, ly, lz, voronoiSeeds);
             case MOBIUS -> insideMobius(spec, lx, ly, lz);
+            case FLOATING_MASS -> {
+                double t = heightT(spec, ly);
+                double rx = Math.max(.5, spec.halfX());
+                double rz = Math.max(.5, spec.halfZ());
+                double radius = .12 + .88 * Math.pow(Math.max(0, t), .65);
+                yield t >= 0 && t <= 1 && (lx*lx/(rx*rx) + lz*lz/(rz*rz)) <= radius*radius + .02;
+            }
         };
     }
 
@@ -383,6 +390,14 @@ public final class ShapeLibrary {
             ShapeSpec spec, double lx, double ly, double lz, VoronoiSeeds voronoiSeeds
     ) {
         double t = spec.wallThickness();
+        if (spec.kind() == ShapeKind.FLOATING_MASS) {
+            double layer = ly + spec.halfY();
+            if (layer < t || layer > spec.height()-1-t) return false;
+            double radius = .12 + .88 * Math.pow(heightT(spec,ly), .65);
+            double rx = spec.halfX()*radius-t;
+            double rz = spec.halfZ()*radius-t;
+            return rx>0 && rz>0 && lx*lx/(rx*rx)+lz*lz/(rz*rz)<1;
+        }
         ShapeSpec inner = new ShapeSpec(
                 spec.kind(), spec.width(), spec.depth(), spec.height(),
                 false, spec.wallThickness(), spec.sides(),

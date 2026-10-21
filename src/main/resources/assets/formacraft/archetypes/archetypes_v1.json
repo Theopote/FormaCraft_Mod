@@ -447,6 +447,8 @@
     },
     {
       "id": "cyberpunk_megablock",
+      "properNounAliases": ["赛博朋克大楼", "cyberpunk megablock", "cyberpunk tower"],
+      "genericAliases": ["赛博朋克"],
       "aliases": ["赛博朋克", "赛博朋克大楼", "cyberpunk megablock", "cyberpunk tower"],
       "category": "LANDMARK",
       "generatorId": "cyberpunk_megablock",

@@ -32,6 +32,8 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 _UNITTEST_MODULES: Tuple[str, ...] = (
+    "tests.test_p2_style_assets",
+    "tests.test_style_visual_retriever",
     "tests.test_p2_roofs",
     "tests.test_style_pack_expansion",
     "tests.test_constraint_parity_gate",
@@ -135,6 +137,7 @@ def run_shape_fixtures() -> int:
     ]
     patterns = (
         "primitive_cylinder.json",
+        "primitive_floating_mass.json",
         "primitive_sphere.json",
         "primitive_csg_box_cylinder.json",
         "primitive_voronoi_plate.json",

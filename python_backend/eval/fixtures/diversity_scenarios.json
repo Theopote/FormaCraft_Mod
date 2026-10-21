@@ -100,5 +100,45 @@
       "Authored parameter alternatives for one style prompt; not live LLM samples.",
       "The third alternative changes actual envelope geometry, not just an ignored seed."
     ]
+  },
+  {
+    "id": "style_family_D_diversity",
+    "prompt": "build a stilt timber house",
+    "plan_fixtures": [
+      "plans/p2_stilt_timber_13.json",
+      "plans/p2_stilt_timber_21.json",
+      "plans/p2_stilt_timber_17.json"
+    ],
+    "thresholds": {
+      "min_samples": 3,
+      "min_unique_ratio": 1.0,
+      "min_mean_distance": 0.12,
+      "min_routing_unique": 1,
+      "require_routing_diversity": false
+    },
+    "ci": true,
+    "notes": [
+      "Authored size and envelope alternatives for one style request; not live model samples."
+    ]
+  },
+  {
+    "id": "style_family_E_diversity",
+    "prompt": "build a cyberpunk block",
+    "plan_fixtures": [
+      "plans/p2_cyberpunk_block_13.json",
+      "plans/p2_cyberpunk_block_21.json",
+      "plans/p2_cyberpunk_block_17.json"
+    ],
+    "thresholds": {
+      "min_samples": 3,
+      "min_unique_ratio": 1.0,
+      "min_mean_distance": 0.12,
+      "min_routing_unique": 1,
+      "require_routing_diversity": false
+    },
+    "ci": true,
+    "notes": [
+      "Authored size and envelope alternatives for one style request; not live model samples."
+    ]
   }
 ]

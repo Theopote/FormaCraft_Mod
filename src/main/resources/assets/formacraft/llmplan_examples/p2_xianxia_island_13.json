@@ -1,0 +1,112 @@
+{
+  "id": "p2_xianxia_island_13",
+  "prompt": "build a xianxia floating island",
+  "plan": {
+    "mode": "build",
+    "style_profile": "Xianxia_Island",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "timber_gable_house",
+      "proportion_card_id": "xianxia_island",
+      "height_to_width": 0.6153846153846154,
+      "depth_to_width": 1.3076923076923077,
+      "window_wall_ratio": 0.22
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:quartz_block",
+      "roof_material": "minecraft:dark_prismarine",
+      "floor_material": "minecraft:stone_bricks"
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 21,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:quartz_block",
+          "roof_block": "minecraft:dark_prismarine",
+          "floor_block": "minecraft:stone_bricks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:crimson_planks",
+          "pillar_block": "minecraft:crimson_planks",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.22,
+          "facade_profile": "none",
+          "wall_pattern": "smooth",
+          "floor_height": 4,
+          "component_id": "xianxia_island",
+          "anchor_mode": "min_corner",
+          "floor_count": 2,
+          "hollow": true
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 28,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "roof_type": "hip",
+          "overhang": 0,
+          "roof_block": "minecraft:dark_prismarine",
+          "component_id": "xianxia_island_roof",
+          "host_id": "xianxia_island",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 12,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 19,
+          "depth": 23,
+          "height": 9
+        },
+        "features": [],
+        "params": {
+          "component_id": "island",
+          "anchor_mode": "min_corner",
+          "kind": "floating_mass",
+          "material": "minecraft:stone"
+        }
+      }
+    ]
+  }
+}

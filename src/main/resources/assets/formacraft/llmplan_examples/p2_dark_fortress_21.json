@@ -1,0 +1,134 @@
+{
+  "id": "p2_dark_fortress_21",
+  "prompt": "build a dark fantasy fortress",
+  "plan": {
+    "mode": "build",
+    "style_profile": "Dark_Fortress",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "timber_gable_house",
+      "proportion_card_id": "dark_fortress",
+      "height_to_width": 0.38095238095238093,
+      "depth_to_width": 1.1904761904761905,
+      "window_wall_ratio": 0.22
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:blackstone",
+      "roof_material": "minecraft:polished_blackstone",
+      "floor_material": "minecraft:stone_bricks"
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 25,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:blackstone",
+          "roof_block": "minecraft:polished_blackstone",
+          "floor_block": "minecraft:stone_bricks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:crying_obsidian",
+          "pillar_block": "minecraft:crying_obsidian",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.22,
+          "facade_profile": "none",
+          "wall_pattern": "smooth",
+          "floor_height": 4,
+          "component_id": "dark_fortress",
+          "anchor_mode": "min_corner",
+          "floor_count": 2,
+          "hollow": true
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 7,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 25,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "roof_type": "gable",
+          "overhang": 0,
+          "roof_block": "minecraft:polished_blackstone",
+          "component_id": "dark_fortress_roof",
+          "host_id": "dark_fortress",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 0,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 3,
+          "height": 19
+        },
+        "features": [],
+        "params": {
+          "component_id": "spike_0",
+          "anchor_mode": "min_corner",
+          "kind": "cone",
+          "material": "minecraft:blackstone",
+          "radius": 1.5
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 21,
+          "y": 0,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 3,
+          "height": 19
+        },
+        "features": [],
+        "params": {
+          "component_id": "spike_1",
+          "anchor_mode": "min_corner",
+          "kind": "cone",
+          "material": "minecraft:blackstone",
+          "radius": 1.5
+        }
+      }
+    ]
+  }
+}
