@@ -25,7 +25,7 @@ final class FbdEvaluator {
 
     Compilation run() {
         statements(list(program.get("main"), "/main"), new HashMap<>(), "main", "/main", 0);
-        if (commands.stream().noneMatch(c -> !Set.of("PUSH_ORIGIN", "POP_ORIGIN").contains(c.op().get("op"))))
+        if (commands.stream().allMatch(c -> Set.of("PUSH_ORIGIN", "POP_ORIGIN").contains(c.op().get("op"))))
             throw error("empty_program", "evaluate", null, "/main", "Program emits no geometry");
         return new Compilation(commands, cost, steps);
     }
@@ -129,10 +129,18 @@ final class FbdEvaluator {
         if (op.equals("||") && ((Boolean) a)) return true;
         var values = new ArrayList<Object>(); values.add(a);
         for (int i = 1; i < args.size(); i++) values.add(expr(args.get(i), env, instance, id, path + "/args/" + i));
-        if (op.equals("!")) return !((Boolean) a);
-        if (op.equals("&&") || op.equals("||")) return values.get(1);
-        if (op.equals("==") || op.equals("!=")) {
-            boolean same = a.equals(values.get(1)); return op.equals("==") == same;
+        switch (op) {
+            case "!" -> {
+                return !((Boolean) a);
+            }
+            case "&&", "||" -> {
+                return values.get(1);
+            }
+            case "==", "!=" -> {
+                boolean same = a instanceof Number number
+                        ? number.doubleValue() == ((Number) values.get(1)).doubleValue() : a.equals(values.get(1));
+                return op.equals("==") == same;
+            }
         }
         double x = ((Number) a).doubleValue();
         double y = values.size() > 1 ? ((Number) values.get(1)).doubleValue() : 0;

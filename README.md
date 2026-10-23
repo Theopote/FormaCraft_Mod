@@ -170,6 +170,8 @@ See [python_backend/README.md](python_backend/README.md) for the full list.
 
 ## Contributing
 
+Experimental procedural geometry: see [FBD](docs/FBD_EXPERIMENTAL.md).
+
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 Run the full backend test suite with the pinned test dependencies:

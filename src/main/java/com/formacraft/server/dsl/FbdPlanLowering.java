@@ -36,6 +36,12 @@ public final class FbdPlanLowering {
                     throw new FbdException("ambiguous_authority", "parse", null, "", "FBD cannot select a library or landmark generator");
                 for (String alternative : ALTERNATIVES) if (c.params().containsKey(alternative))
                     throw new FbdException("ambiguous_authority", "parse", null, "", "fbd_program cannot coexist with " + alternative);
+                for (Component other : components) {
+                    if (other != null && other != c && Objects.equals(other.slotId(), c.slotId())
+                            && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
+                            "ROOF", "ROOF_STRUCTURE", "FACADE_WINDOWS", "ENTRANCE", "ASSEMBLY").contains(other.componentType()))
+                        throw new FbdException("ambiguous_authority", "parse", null, "", "FBD requires its own primary slot; do not silently discard another building component");
+                }
                 var compiled = FbdCompiler.compile(c.params().get("fbd_program"));
                 totalCost += compiled.cost(); totalSteps += compiled.steps(); totalCommands += compiled.commands().size();
                 if (totalCost > Math.min(FbdLimits.DEFAULT.samples(), FbdLimits.DEFAULT.writes())

@@ -44,6 +44,15 @@ class FbdProgramTest(unittest.TestCase):
         with self.assertRaises(LlmPlanValidationError):
             validate_llm_plan_dict(p)
 
+    def test_full_llmplan_normalization_preserves_the_program_ast(self):
+        from app.services.ai_planner import _normalize_llm_plan_output
+        p = self.plan()
+        original = deepcopy(p['components'][0]['params']['fbd_program'])
+        normalized = _normalize_llm_plan_output(deepcopy(p), None)
+        self.assertEqual(original, normalized['components'][0]['params']['fbd_program'])
+        self.assertNotIn('assembly', normalized['components'][0]['params'])
+        validate_llm_plan_dict(normalized)
+
     def test_fbd_prompt_is_opt_in_and_uses_correct_shared_ranges(self):
         with patch.dict('os.environ', {'LLMPLAN_FBD': 'off'}):
             self.assertEqual('', fbd_prompt_block())

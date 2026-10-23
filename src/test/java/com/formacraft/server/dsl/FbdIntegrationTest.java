@@ -97,11 +97,28 @@ class FbdIntegrationTest {
             assertEquals("E_FBD_AMBIGUOUS_AUTHORITY", AssemblyCompileDiagnostics.get().code());
         }
         AssemblyCompileDiagnostics.clear();
+        var bad = component("ASSEMBLY", Map.of("fbd_program", program(Map.of("stmt", "call", "id", "bad", "fn", "missing", "args", Map.of()))));
+        var otherSlot = new Component(bad.componentType(), "other", bad.relativePosition(), bad.dimensions(), bad.features(), bad.params());
         assertTrue(FbdPlanLowering.lower(List.of(component("ASSEMBLY", Map.of("fbd_program", p)),
-                component("ASSEMBLY", Map.of("fbd_program", program(Map.of("stmt", "call", "id", "bad", "fn", "missing", "args", Map.of())))))).isEmpty());
+                otherSlot)).isEmpty());
         assertEquals("E_FBD_UNKNOWN_FUNCTION", AssemblyCompileDiagnostics.get().code());
         assertEquals("bad", AssemblyCompileDiagnostics.get().details().get("node"));
         assertTrue(AssemblyCompileDiagnostics.get().path().startsWith("/components/1/params/fbd_program/"));
+    }
+
+    @Test void proceduralAuthorityDoesNotSilentlyStripAnOrdinaryBodyFromTheSameSlot() {
+        assertTrue(FbdPlanLowering.lower(List.of(component("ASSEMBLY", Map.of("fbd_program", program(shell("a")))),
+                component("MASS_MAIN", Map.of()))).isEmpty());
+        assertEquals("E_FBD_AMBIGUOUS_AUTHORITY", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test void multipleSmallProgramsCannotBypassThePlanGeometryBudget() {
+        var components = new ArrayList<Component>();
+        for (int i = 0; i < 3; i++) components.add(new Component("ASSEMBLY", "slot" + i, new Vec3i(0,0,0),
+                new Dimensions(35,35,25), List.of(), Map.of("fbd_program", program(Map.of("stmt", "emit", "id", "body", "op", "SHELL_BOX",
+                    "params", Map.of("w",35,"d",35,"h",24))))));
+        assertTrue(FbdPlanLowering.lower(components).isEmpty());
+        assertEquals("E_FBD_BUDGET_EXCEEDED", AssemblyCompileDiagnostics.get().code());
     }
 
     @Test void realPlanCompilerRejectsBadProgramBeforeAnyWorldOrGeneratorIsNeeded() {

@@ -1,0 +1,70 @@
+# FBD：受限过程式几何实验
+
+FBD 保留 `outputFormat=llmplan`。显式 `ASSEMBLY` 构件通过
+`params.fbd_program` 提供程序，Java 将其展开为 Assembly 指令，随后沿用
+BlockPatch、现有区域约束、预览票据、确认和撤销路径。
+
+## 启用与输入
+
+默认不向模型推荐 FBD。后端设置 `LLMPLAN_FBD=on` 后，LlmPlan 上下文会加入
+语言摘要和共享原语签名。Java 始终独立校验显式传入的程序，不信任后端检查结果。
+示例计划位于
+[`repeated_pavilions.llmplan.json`](../src/main/resources/assets/formacraft/fbd/examples/repeated_pavilions.llmplan.json)。
+
+同一构件的程序不能与 `assembly/ops/graph/components/macro/preset/presetId/skeleton`
+载荷、构件库请求或另一生成权威并存。`_server_fbd_compilation` 是服务端保留字段。
+不同槽中的普通语义构件仍可使用原有流程。
+
+## 首版语言边界
+
+- 语句：`let / if / repeat / with_frame / call / emit`；所有语句 ID 全局唯一，最长 64 字符。
+- 函数调用图必须无环；函数仅接收显式参数，不捕获调用者局部变量。
+- `let` 在当前块内不可重复绑定；子块可遮蔽外层绑定。`i` 保留为循环索引，不能被参数或 let 重新定义。
+- `int` 是有溢出检查的有符号 32 位数；seed 是非负有符号 64 位数。
+  `scalar` 是有限 double；int/int 向零截断，`floor` 是唯一 scalar→int 转换。
+  三角函数以度为单位，使用 StrictMath。除零、溢出、非有限结果均失败。
+- `with_frame` 只平移，继承构件朝向；不支持程序内旋转。随机数由 seed、稳定语句 ID、调用/循环实例路径和标签经 SHA-256 派生。
+- **不支持递归、世界查询、宿主调用、文件或网络访问。** 不执行 Python、JavaScript 或 Java 源代码。
+
+三个原语的参数、枚举与范围由
+[`primitives_v0.json`](../src/main/resources/assets/formacraft/fbd/primitives_v0.json)
+统一定义。结构 Schema 由 `python python_backend/tools/export_fbd_schema.py` 生成；
+Java 类型、调用图和运行预算校验仍是权威。
+
+材质值仅可为 `wall/window/floor/roof/slab/accent`，通过类型化角色进入既有调色板，
+不将角色名称当作方块 ID。HIP 与 GABLE 都调用当前通用坡顶算法，不代表独立屋顶求解器。
+SHELL_BOX 有既有楼板、窗带、顶板行为；这些原语不保证入口、室内动线或建筑功能完整。
+需要这些能力的请求应继续使用普通语义构件。
+
+## 预算、失败与诊断
+
+默认限制为 64 KiB 输入、2000 个 JSON 值、24 层输入/执行深度、200000 求值步、
+5000 次累计循环、20000 条展开指令、2000000 次实际几何采样、200000 次候选写入。
+标识符长度也受限，避免循环展开放大来源信息的内存开销。
+
+每个原语先检查包含空气写入和采样的保守工作量上界；各 FBD 构件的上界、求值步和指令数
+还会在计划级累计检查。原语循环内另有实际采样和候选写入计量、中断检查。
+保守上界可能提前拒绝实际输出较小的程序，不会截断输出并冒充成功。
+
+编译或执行失败不返回可应用的部分建筑。错误沿现有 `CapabilityGap` 返回，使用
+`E_FBD_*` 错误码；`details` 包含 `code/stage/node/path/message`，预算错误还可包含
+`layer/limit/actual`。Schema 见
+[`diagnostic.schema.json`](../src/main/resources/assets/formacraft/fbd/diagnostic.schema.json)。
+后端不会给 FBD 自动注入普通 Assembly preset，也不会在 schema 修复失败后用简化建筑替换程序。
+
+当前版本只重编译未应用程序的预览；**不提供已落地程序建筑的替换编辑**。
+也未接入 Java 几何诊断自动回送 LLM、视觉批判或自动多轮渲染。
+同一程序重放还依赖相同引擎与资产版本、调色板及外部上下文；seed 本身不是完整重放存档。
+节点与实例来源映射目前位于展开指令中，尚未持久化为游戏存档。
+
+## 验证
+
+```bash
+./gradlew test --tests 'com.formacraft.common.dsl.*' --tests 'com.formacraft.server.dsl.*'
+cd python_backend
+python -m pytest tests/test_fbd_program.py
+```
+
+引用示例中的三个无查询程序在真实原语执行器中测试；原第四个地形查询示例作为拒绝用例保留。
+测试还覆盖十二个原反例、四个朝向、材质角色、确定性、预算中断、来源诊断和计划失败传播。
+这些自动化验证不替代游戏内预览、确认、撤销及专服验收。

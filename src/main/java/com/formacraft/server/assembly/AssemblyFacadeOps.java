@@ -88,14 +88,15 @@ public final class AssemblyFacadeOps {
             }
         }
 
-        if ("NORTH".equals(face)) {
-            applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, ax0, ax1, ay0, ay1, az0, true, adapter);
-        } else if ("SOUTH".equals(face)) {
-            applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, ax0, ax1, ay0, ay1, az1, true, adapter);
-        } else if ("WEST".equals(face)) {
-            applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, az0, az1, ay0, ay1, ax0, false, adapter);
-        } else if ("EAST".equals(face)) {
-            applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, az0, az1, ay0, ay1, ax1, false, adapter);
+        switch (face) {
+            case "NORTH" ->
+                    applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, ax0, ax1, ay0, ay1, az0, true, adapter);
+            case "SOUTH" ->
+                    applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, ax0, ax1, ay0, ay1, az1, true, adapter);
+            case "WEST" ->
+                    applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, az0, az1, ay0, ay1, ax0, false, adapter);
+            case "EAST" ->
+                    applyPatternPlane(out, ctx, origin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, az0, az1, ay0, ay1, ax1, false, adapter);
         }
     }
 

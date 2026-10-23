@@ -1,0 +1,122 @@
+{
+  "mode": "build",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "style_profile": "DEFAULT",
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "slots": [
+      {
+        "slot_id": "procedural",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "ASSEMBLY",
+      "slot_id": "procedural",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 9,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "pavilion_row",
+        "generation_authority": "ASSEMBLY",
+        "fbd_program": {
+          "dialect": "fbd/0",
+          "seed": 42,
+          "functions": [
+            {
+              "name": "pavilion",
+              "params": [],
+              "body": [
+                {
+                  "stmt": "emit",
+                  "id": "shell",
+                  "op": "SHELL_BOX",
+                  "params": {
+                    "w": 7,
+                    "d": 7,
+                    "h": 6,
+                    "floorStep": 6,
+                    "wall": "wall",
+                    "window": "window",
+                    "floor": "floor",
+                    "roof": "slab"
+                  }
+                },
+                {
+                  "stmt": "emit",
+                  "id": "roof",
+                  "op": "ROOF_COVER",
+                  "params": {
+                    "type": "FLAT",
+                    "w": 7,
+                    "d": 7,
+                    "y": 7,
+                    "overhang": 1,
+                    "slab": "slab"
+                  }
+                }
+              ]
+            }
+          ],
+          "main": [
+            {
+              "stmt": "repeat",
+              "id": "pavilions",
+              "times": 3,
+              "body": [
+                {
+                  "stmt": "with_frame",
+                  "id": "frame",
+                  "origin": [
+                    {
+                      "expr": "*",
+                      "args": [
+                        {
+                          "expr": "-",
+                          "args": [
+                            "$i",
+                            1
+                          ]
+                        },
+                        10
+                      ]
+                    },
+                    0,
+                    0
+                  ],
+                  "body": [
+                    {
+                      "stmt": "call",
+                      "id": "place",
+                      "fn": "pavilion",
+                      "args": {}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
