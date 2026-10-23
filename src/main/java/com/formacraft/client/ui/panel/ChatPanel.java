@@ -1,9 +1,9 @@
 package com.formacraft.client.ui.panel;
 
-import com.formacraft.ai.context.BrushContext;
-import com.formacraft.ai.context.SelectionContext;
-import com.formacraft.ai.prompt.PromptAssembler;
-import com.formacraft.ai.prompt.PromptMode;
+import com.formacraft.client.ai.context.BrushContext;
+import com.formacraft.client.ai.context.SelectionContext;
+import com.formacraft.client.ai.prompt.PromptAssembler;
+import com.formacraft.client.ai.prompt.PromptMode;
 import com.formacraft.client.component.ClientComponentCatalogState;
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.network.FormaCraftClientNetworking;

@@ -60,6 +60,7 @@ public class ClientInitializer implements ClientModInitializer {
         LayoutSiteHudOverlay.register();
         // 初始化面板（设置监听器等）
         FormaCraftHudOverlay.initialize();
+        com.formacraft.client.item.FormaCraftToolInteraction.register();
         // 注册输入事件处理器
         InputEventHandler.register();
 

@@ -1,7 +1,7 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
-import com.formacraft.ai.context.OutlineContext;
-import com.formacraft.ai.context.SelectionContext;
+import com.formacraft.client.ai.context.OutlineContext;
+import com.formacraft.client.ai.context.SelectionContext;
 import com.formacraft.client.tool.PathTool;
 import com.formacraft.common.terrain.TerrainPolicy;
 import com.formacraft.common.terrain.TerrainStrategy;

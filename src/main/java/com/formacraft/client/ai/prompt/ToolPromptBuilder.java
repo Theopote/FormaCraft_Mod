@@ -1,12 +1,12 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
-import com.formacraft.ai.context.BrushContext;
-import com.formacraft.ai.context.OutlineContext;
-import com.formacraft.ai.context.OutlineAttachmentContext;
-import com.formacraft.ai.context.ProtectedZoneContext;
-import com.formacraft.ai.context.SelectionContext;
-import com.formacraft.ai.context.SemanticLabelContext;
-import com.formacraft.ai.context.SymmetryContext;
+import com.formacraft.client.ai.context.BrushContext;
+import com.formacraft.client.ai.context.OutlineContext;
+import com.formacraft.client.ai.context.OutlineAttachmentContext;
+import com.formacraft.client.ai.context.ProtectedZoneContext;
+import com.formacraft.client.ai.context.SelectionContext;
+import com.formacraft.client.ai.context.SemanticLabelContext;
+import com.formacraft.client.ai.context.SymmetryContext;
 import com.formacraft.client.tool.PathTool;
 import com.formacraft.common.skeleton.PathSkeleton;
 

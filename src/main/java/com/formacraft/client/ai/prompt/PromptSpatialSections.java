@@ -1,4 +1,4 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.skeleton.PathSkeleton;
@@ -246,7 +246,7 @@ Interpret all relative positions with anchor as origin (0,0,0).
      * 选区（Selection）
      */
     static String selectionBlock(PromptContext ctx) {
-        if (!com.formacraft.ai.context.SelectionContext.hasSelection()) {
+        if (!com.formacraft.client.ai.context.SelectionContext.hasSelection()) {
             return "";
         }
 
@@ -263,7 +263,7 @@ SELECTION CONSTRAINT:
      * 轮廓（Footprint）
      */
     static String footprintBlock(PromptContext ctx) {
-        if (!com.formacraft.ai.context.OutlineContext.hasOutline()) {
+        if (!com.formacraft.client.ai.context.OutlineContext.hasOutline()) {
             return "";
         }
 
@@ -280,7 +280,7 @@ FOOTPRINT CONSTRAINT:
      * 禁区（No-Build Zones）
      */
     static String noBuildBlock(PromptContext ctx) {
-        if (!com.formacraft.ai.context.ProtectedZoneContext.hasZones()) {
+        if (!com.formacraft.client.ai.context.ProtectedZoneContext.hasZones()) {
             return "";
         }
 
@@ -297,7 +297,7 @@ NO-BUILD ZONES:
      * 对称 / 镜像
      */
     static String symmetryBlock(PromptContext ctx) {
-        if (!com.formacraft.ai.context.SymmetryContext.enabled()) {
+        if (!com.formacraft.client.ai.context.SymmetryContext.enabled()) {
             return "";
         }
 
@@ -318,7 +318,7 @@ SYMMETRY CONSTRAINT:
      * 这里只提供通用的语义区域说明
      */
     static String semanticBlock(PromptContext ctx) {
-        if (!com.formacraft.ai.context.SemanticLabelContext.hasLabels()) {
+        if (!com.formacraft.client.ai.context.SemanticLabelContext.hasLabels()) {
             return "";
         }
 

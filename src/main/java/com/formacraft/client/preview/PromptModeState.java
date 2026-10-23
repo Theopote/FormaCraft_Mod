@@ -1,6 +1,6 @@
 package com.formacraft.client.preview;
 
-import com.formacraft.ai.prompt.PromptMode;
+import com.formacraft.client.ai.prompt.PromptMode;
 
 /**
  * 客户端 PromptMode 状态（用于把 UI 模式贯穿到 PatchFilter/Preview 等链路）。

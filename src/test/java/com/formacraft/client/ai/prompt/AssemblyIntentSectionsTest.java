@@ -1,4 +1,4 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
 import org.junit.jupiter.api.Test;
 

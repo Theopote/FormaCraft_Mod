@@ -1,7 +1,6 @@
 package com.formacraft.server.networking;
 
 import com.formacraft.FormacraftMod;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.PacketByteBuf;
@@ -39,10 +38,4 @@ public class ModPacket {
         });
     }
 
-    @Deprecated
-    public static void sendToServer(PacketByteBuf buf) {
-        byte[] data = new byte[buf.readableBytes()];
-        buf.getBytes(buf.readerIndex(), data);
-        ClientPlayNetworking.send(new SyncPayload(data));
-    }
 }

@@ -1,4 +1,4 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
 /**
  * Fixed system-role prompt blocks (identity, ComponentQuery, socket constraints).

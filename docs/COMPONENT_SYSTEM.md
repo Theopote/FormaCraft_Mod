@@ -541,7 +541,7 @@ AI 只回答：
 **实现状态：** ✅ 已实现 Prompt 注入
 
 ```java
-// src/main/java/com/formacraft/ai/prompt/PromptAssembler.java
+// src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java
 public class PromptAssembler {
     // 将构件库信息注入到 AI Prompt
     public String assemblePrompt(BuildContext ctx, PromptMode mode);

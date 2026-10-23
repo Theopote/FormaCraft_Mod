@@ -72,7 +72,7 @@ Preview / Apply ←────────────┘
 - **功能**：收集工具状态，用于约束生成
 
 #### 1.3 Prompt 组装
-- **位置**：`com.formacraft.ai.prompt.PromptAssembler`
+- **位置**：`com.formacraft.client.ai.prompt.PromptAssembler`
 - **功能**：将用户输入和工具状态组装成 LLM Prompt
 - **输出**：结构化的 Prompt（包含约束、意图、输出格式）
 

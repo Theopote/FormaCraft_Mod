@@ -388,7 +388,7 @@ public class MyCustomTool implements FormacraftTool {
 - ✅ 拼接 System Prompt + User Prompt
 - ✅ 约束 LLM 输出格式
 
-**位置**: `com.formacraft.ai.prompt.PromptAssembler`
+**位置**: `com.formacraft.client.ai.prompt.PromptAssembler`
 
 ### 5.2 Prompt 的职责分工
 

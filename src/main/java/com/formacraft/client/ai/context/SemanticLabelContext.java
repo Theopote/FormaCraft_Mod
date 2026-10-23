@@ -1,4 +1,4 @@
-package com.formacraft.ai.context;
+package com.formacraft.client.ai.context;
 
 import com.formacraft.client.tool.SemanticLabelTool;
 import net.minecraft.util.math.BlockPos;

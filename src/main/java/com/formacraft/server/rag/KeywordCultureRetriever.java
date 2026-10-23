@@ -4,7 +4,9 @@ import java.util.*;
 
 /**
  * Minimal keyword-based retriever:
- * prompt -> topK culture cards + exampleRefs + a macro/assembly draft.
+ * prompt -> topK Assembly-compatible culture cards + exampleRefs + a macro/assembly draft.
+ * LlmPlan-only cards remain available in the repository and Python planner, but
+ * must not displace cards that supply examples in this retriever's output DSL.
  */
 public final class KeywordCultureRetriever {
     private final CultureCardRepository repo;
@@ -39,6 +41,7 @@ public final class KeywordCultureRetriever {
 
         List<Hit> hits = new ArrayList<>();
         for (CultureCard c : repo.allCards()) {
+            if (!c.supportsAssemblyRetrieval()) continue;
             double score = 0;
             ArrayList<String> matched = new ArrayList<>();
             ArrayList<String> matchedNeg = new ArrayList<>();

@@ -1,8 +1,5 @@
-package com.formacraft.client.item;
+package com.formacraft.common.item;
 
-import com.formacraft.client.ui.FormacraftUIState;
-import com.formacraft.client.ui.FormaCraftHudOverlay;
-import com.formacraft.client.ui.panel.PanelType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.util.ActionResult;
@@ -17,12 +14,6 @@ public class FormaCraftToolItem extends Item {
 
     @Override
     public ActionResult use(World world, PlayerEntity user, Hand hand) {
-        if (world.isClient()) {
-            FormacraftUIState.toggle();
-            if (FormacraftUIState.isOpen) {
-                FormaCraftHudOverlay.activePanel = PanelType.CHAT;
-            }
-        }
         return ActionResult.SUCCESS;
     }
 }

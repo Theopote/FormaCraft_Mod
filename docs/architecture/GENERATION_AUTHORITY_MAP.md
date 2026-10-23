@@ -53,7 +53,7 @@ flowchart TD
 
 | Source | What it decides | Should be |
 |--------|-----------------|-----------|
-| [PromptAssembler.java](../../src/main/java/com/formacraft/ai/prompt/PromptAssembler.java) | Assembly vs landmark prompt blocks | Hints only (hard ASSEMBLY rule behind `formacraft.prompt.assemblyHardMandate`) |
+| [PromptAssembler.java](../../src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java) | Assembly vs landmark prompt blocks | Hints only (hard ASSEMBLY rule behind `formacraft.prompt.assemblyHardMandate`) |
 | [build.py](../../python_backend/app/routes/build.py) | llmplan vs buildingspec | Primary discriminator (`outputFormat`) |
 | [BuildingSpecRoutingPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/BuildingSpecRoutingPolicy.java) | Client-side skip LlmPlan | Adapter-only scenarios |
 | [GeneratorRouter.java](../../src/main/java/com/formacraft/server/generation/structure/router/GeneratorRouter.java) | Structure generator | `routeDecision()` — no silent house/tower unless `allow_legacy_fallback` |

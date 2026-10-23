@@ -49,7 +49,7 @@
     },
     {
       "id": "prompt_assembler",
-      "class": "com.formacraft.ai.prompt.PromptAssembler",
+      "class": "com.formacraft.client.ai.prompt.PromptAssembler",
       "role": "Java-side prompt / routing hints"
     },
     {

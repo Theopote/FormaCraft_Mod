@@ -151,11 +151,14 @@ class BroadTypologyAliasTest(unittest.TestCase):
         rc = classify_building_request_local("建造乌镇")
         self.assertTrue(rc.is_specific_real_building)
 
-    def test_jiangnan_explicit_still_routes_module(self):
-        self.assertEqual(
-            resolve_landmark_module_for_intent("江南水乡"),
-            "jiangnan_water_town",
-        )
+    def test_jiangnan_family_is_a_generic_hint_not_a_module_route(self):
+        # The regional specialist catalog deliberately moved this family to
+        # genericAliases; named towns still require research (tested above).
+        match = detect_archetype_local("江南水乡")
+        self.assertIsNotNone(match)
+        self.assertIn("generic_typology", match.reason_tags)
+        self.assertFalse(match.qualifies_for_module_route())
+        self.assertIsNone(resolve_landmark_module_for_intent("江南水乡"))
 
     def test_himeji_not_generic_japanese_castle_module(self):
         self.assertIsNone(resolve_landmark_module_for_intent("姬路城"))

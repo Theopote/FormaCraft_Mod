@@ -1,4 +1,4 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
 import com.formacraft.server.memory.ProjectMemory;
 

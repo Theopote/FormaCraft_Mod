@@ -140,6 +140,7 @@ public final class CultureCardRepository {
         Map<String, Double> keywordWeights = doubleMap(m.get("keywordWeights"));
         List<String> negativeKeywords = strList(m.get("negativeKeywords"));
         List<String> exampleRefs = strList(m.get("exampleRefs"));
+        List<String> llmPlanExampleRefs = strList(m.get("llmPlanExampleRefs"));
 
         List<CultureCard.CultureArchetype> archetypes = new ArrayList<>();
         Object archObj = m.get("archetypes");
@@ -162,7 +163,8 @@ public final class CultureCardRepository {
             }
         }
 
-        return new CultureCard(id, styleId, intents, keywords, synonyms, keywordWeights, negativeKeywords, exampleRefs, archetypes);
+        return new CultureCard(id, styleId, intents, keywords, synonyms, keywordWeights, negativeKeywords,
+                exampleRefs, llmPlanExampleRefs, archetypes);
     }
 
     private static String str(Object v, String def) {

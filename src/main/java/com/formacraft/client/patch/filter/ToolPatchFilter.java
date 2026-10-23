@@ -1,7 +1,7 @@
 package com.formacraft.client.patch.filter;
 
 import com.formacraft.common.buildcontext.BuildContext;
-import com.formacraft.ai.context.BrushContext;
+import com.formacraft.client.ai.context.BrushContext;
 import com.formacraft.client.patch.filter.rules.BrushRegionRule;
 import com.formacraft.client.patch.filter.rules.OutlineRule;
 import com.formacraft.client.patch.filter.rules.ProtectedZoneRule;

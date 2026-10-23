@@ -1,6 +1,6 @@
 package com.formacraft.client.patch.filter.rules;
 
-import com.formacraft.ai.context.BrushContext;
+import com.formacraft.client.ai.context.BrushContext;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.filter.PatchRule;
 import com.formacraft.common.patch.filter.PatchRuleContext;

@@ -1,4 +1,4 @@
-package com.formacraft.ai;
+package com.formacraft.client.ai;
 
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;

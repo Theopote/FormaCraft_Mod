@@ -205,7 +205,7 @@ for (WallSegment wall : ctx.getWalls()) {
 
 ### 11. PromptAssembler 集成
 
-**位置**：`src/main/java/com/formacraft/ai/prompt/PromptAssembler.java`
+**位置**：`src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java`
 
 **核心功能**：
 - Socket System Prompt（AI 看到约束）

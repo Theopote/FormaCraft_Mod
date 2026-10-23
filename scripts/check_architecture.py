@@ -13,24 +13,34 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 JAVA = ROOT / "src/main/java/com/formacraft"
-REFERENCE = re.compile(r"\bcom\.formacraft\.(client|server)\b")
+REFERENCE = re.compile(
+    r"\bcom\.formacraft\.(client|server)\b"
+    r"|\bnet\.minecraft\.client\b|\bnet\.fabricmc\.fabric\.api\.client\b"
+)
 # Preserve line numbers while excluding comments and Java string/character literals.
 NON_CODE = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'')
 
 
-def violations(root: Path) -> list[str]:
+def client_mixin_sources(config: dict) -> set[str]:
+    """Only classes explicitly declared in the mixin config's client list are client-only."""
+    package = config["package"].removeprefix("com.formacraft.").replace(".", "/")
+    return {f"{package}/{name.replace('.', '/')}.java" for name in config.get("client", [])}
+
+
+def violations(root: Path, *, client_only_sources: set[str] = frozenset()) -> list[str]:
     errors = []
-    for layer, forbidden in (("common", {"client", "server"}), ("server", {"client"})):
-        for path in sorted((root / layer).rglob("*.java")):
-            source = path.read_text(encoding="utf-8-sig")
-            code = NON_CODE.sub(lambda match: "\n" * match.group().count("\n"), source)
-            for match in REFERENCE.finditer(code):
-                if match.group(1) in forbidden:
-                    errors.append(f"{path.relative_to(root).as_posix()}: {layer} references {match.group(1)}")
     for path in sorted(root.rglob("*.java")):
-        if path.relative_to(root).as_posix() == "common/world/BlockMutationAccess.java":
-            continue
+        relative = path.relative_to(root).as_posix()
         code = NON_CODE.sub(lambda m: "\n" * m.group().count("\n"), path.read_text(encoding="utf-8-sig"))
+        layer = relative.split("/")[0] if "/" in relative else "root"
+        if layer != "client" and relative not in client_only_sources:
+            forbidden = {"client", "server"} if layer == "common" else {"client"}
+            for match in REFERENCE.finditer(code):
+                target = match.group(1) or "client"
+                if target in forbidden:
+                    errors.append(f"{relative}: {layer} references {target}")
+        if relative == "common/world/BlockMutationAccess.java":
+            continue
         for match in re.finditer(r"\.\s*setBlockState\s*\(([^;]*)", code):
             # World writes take position + state; Voxel setters take one argument.
             depth = 0
@@ -50,7 +60,8 @@ def main() -> int:
     if not JAVA.is_dir():
         print(f"Missing Java source root: {JAVA}", file=sys.stderr)
         return 1
-    actual = Counter(violations(JAVA))
+    mixins = json.loads((ROOT / "src/main/resources/formacraft.mixins.json").read_text(encoding="utf-8"))
+    actual = Counter(violations(JAVA, client_only_sources=client_mixin_sources(mixins)))
     baseline = Counter(json.loads((ROOT / "config/architecture-debt.json").read_text(encoding="utf-8")))
     errors = actual - baseline
     stale = baseline - actual

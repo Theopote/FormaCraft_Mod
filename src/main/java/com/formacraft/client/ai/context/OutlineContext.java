@@ -1,4 +1,4 @@
-package com.formacraft.ai.context;
+package com.formacraft.client.ai.context;
 
 import com.formacraft.client.tool.OutlineMode;
 import com.formacraft.client.tool.OutlineTool;

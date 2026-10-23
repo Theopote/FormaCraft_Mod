@@ -20,7 +20,7 @@
 
 ### 1. ComponentQuery System Prompt（独立方法）
 
-**位置**：`src/main/java/com/formacraft/ai/prompt/PromptAssembler.java`
+**位置**：`src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java`
 
 **方法**：`componentQuerySystemPrompt()`
 
@@ -42,7 +42,7 @@
 
 ### 2. JSON Schema 更新
 
-**位置**：`src/main/java/com/formacraft/ai/prompt/PromptAssembler.java` - `systemRole()`
+**位置**：`src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java` - `systemRole()`
 
 **更新内容**：
 - ✅ 使用 `openingWidth/openingHeight` 而不是嵌套的 `opening` 对象
@@ -58,7 +58,7 @@
 
 ### 3. Prompt 注入位置
 
-**位置**：`src/main/java/com/formacraft/ai/prompt/PromptAssembler.java` - `buildFinalPrompt()`
+**位置**：`src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java` - `buildFinalPrompt()`
 
 **注入顺序**：
 1. System Role（AI 身份）

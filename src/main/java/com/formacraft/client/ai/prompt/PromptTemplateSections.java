@@ -1,4 +1,4 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
 /**
  * Structured JSON template and user-intent blocks for the final prompt.
@@ -26,7 +26,7 @@ final class PromptTemplateSections {
         String facing = (bc != null && bc.facing != null) ? bc.facing.name() : "SOUTH";
 
         // 获取 symmetry
-        String symmetry = com.formacraft.ai.context.SymmetryContext.enabled() ? "MIRROR_X" : "NONE";
+        String symmetry = com.formacraft.client.ai.context.SymmetryContext.enabled() ? "MIRROR_X" : "NONE";
 
         // 获取 terrain strategy
         String terrainStrategy = (ctx.terrainPolicy != null && ctx.terrainPolicy.strategy != null)

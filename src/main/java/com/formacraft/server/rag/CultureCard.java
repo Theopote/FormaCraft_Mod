@@ -17,8 +17,16 @@ public record CultureCard(
         Map<String, Double> keywordWeights,
         List<String> negativeKeywords,
         List<String> exampleRefs,
+        List<String> llmPlanExampleRefs,
         List<CultureArchetype> archetypes
 ) {
+    /** LlmPlan-only cards cannot supply examples for the legacy Assembly DSL. */
+    public boolean supportsAssemblyRetrieval() {
+        return llmPlanExampleRefs.isEmpty()
+                || !exampleRefs.isEmpty()
+                || archetypes.stream().anyMatch(a -> a.exampleRef() != null && !a.exampleRef().isBlank());
+    }
+
     public record CultureArchetype(
             String name,
             String exampleRef,

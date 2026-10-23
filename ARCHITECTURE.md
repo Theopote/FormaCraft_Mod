@@ -49,7 +49,7 @@ ChatPanel
 
 - ✅ **主干（新功能默认）**：LlmPlan → `server.compiler.ComponentPlanCompiler` / `common.compiler.PlanProgramCompiler` + 生成器 → `BlockPatch`；BuildingSpec 等兼容入口仍存在
 - 🟡 **精品库（Phase 5 并入主干）**：`server.generation.structure` 地标生成器 —— 目标是改造成"LlmPlan 可调用的命名模块"，而非独立的 BuildingSpec 并行路径
-- 🔴 **Quarantine / 待删除**：`common.assembly.AutoAssembler`、`server.cluster.ClusterLayoutPlanner`、`common.layout.PathClusterLayoutPlanner`、`common.mass` 占位实现、`ConfirmBuildPacket` 双轨确认、`com.formacraft.ai` 死 service 子集（保留 `ai.prompt.*` / `ai.context.*`）
+- 🔴 **Quarantine / 待删除**：`common.assembly.AutoAssembler`、`server.cluster.ClusterLayoutPlanner`、`common.layout.PathClusterLayoutPlanner`、`common.mass` 占位实现、`ConfirmBuildPacket` 双轨确认；客户端 Prompt/工具上下文已迁入 `client.ai.*`
 
 **新功能默认路径：** 只往 LlmPlan schema / ComponentPlanCompiler / 生成器上加；需要 bespoke 造型时，改为把生成器注册为 LlmPlan 可引用的模块，禁止新增第二条 spec 格式或第二套确认流程。
 
@@ -91,7 +91,7 @@ ChatPanel
    - 目标维度：体量（massing：主体块的层叠/退台）、立面节奏（facade rhythm：开窗间距/壁柱）、屋顶（类型/坡度/出檐）、材质分层（勒脚/墙身/檐口不同材质）。
    - 每加一个字段，必须同步：Python 模型校验 + Java DTO/解析 + `ComponentPlanCompiler`/生成器消费 + 下方 eval 断言。
 
-3. **Prompt 与 few-shot**（Java 端 `com.formacraft.ai.prompt.PromptAssembler` 系列——系统 prompt 在 Java 组装后随 `requestText` 下发）
+3. **Prompt 与 few-shot**（Java 端 `com.formacraft.client.ai.prompt.PromptAssembler` 系列——系统 prompt 在 Java 组装后随 `requestText` 下发）
    - 补高质量 golden 样例（覆盖 1.6 清单的代表场景），提升 LLM plan 的稳定性与几何丰富度。
    - few-shot 必须落在**当前合法 schema** 内，避免诱导 LLM 输出解析器会拒绝的字段。
 
@@ -146,6 +146,8 @@ Minecraft World
 | **`com.formacraft.common.*`** | 纯数据模型、DTO、算法、网络 payload 定义与 codec | `import com.formacraft.server.*`、`import com.formacraft.client.*`；直接访问 `ServerWorld`、玩家实体、UI 组件 |
 | **`com.formacraft.server.*`** | 世界写入、服务端网络处理、AI 编排、预览票据 | 依赖 client 渲染或 HUD |
 | **`com.formacraft.client.*`** | UI、工具交互、预览渲染、客户端网络发送 | 直接修改服务端世界状态 |
+
+**边界门禁范围**：所有 Java 源文件均受检查，根包及 `config`、`tools` 等包不得引用客户端实现或客户端 API。`client.*` 和 `formacraft.mixins.json` 的 `client` 列表中逐个声明的 mixin 属于客户端；世界写入检查仍覆盖这些文件。工具物品定义位于 `common.item`，打开 UI 的行为仅在客户端初始化时注册。
 
 **跨层数据传递**统一走 common 侧 DTO，不在上层之间互相引用实现类：
 
@@ -458,7 +460,7 @@ public static String assemble(String userInput, PromptMode mode) {
 }
 ```
 
-**位置**: `com.formacraft.ai.prompt.PromptAssembler`
+**位置**: `com.formacraft.client.ai.prompt.PromptAssembler`
 
 ---
 

@@ -1,6 +1,6 @@
-package com.formacraft.ai.prompt;
+package com.formacraft.client.ai.prompt;
 
-import com.formacraft.ai.context.SelectionContext;
+import com.formacraft.client.ai.context.SelectionContext;
 
 /**
  * Prompt 拼接器：把用户自然语言增强为“可控、可解析”的结构化 Prompt。
