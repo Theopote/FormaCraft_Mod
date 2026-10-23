@@ -3,6 +3,8 @@
   "archetypes": [
     {
       "id": "tulou",
+      "properNounAliases": [],
+      "genericAliases": ["土楼", "福建土楼", "永定土楼", "永定", "tulou", "fujian tulou", "yongding tulou"],
       "aliases": ["土楼", "福建土楼", "永定土楼", "永定", "tulou", "fujian tulou", "yongding tulou"],
       "category": "LANDMARK",
       "generatorId": "tulou",
@@ -363,8 +365,8 @@
     },
     {
       "id": "jiangnan_water_town",
-      "properNounAliases": ["江南水乡", "江南水镇", "jiangnan water town"],
-      "genericAliases": ["水镇", "water town", "canal town"],
+      "properNounAliases": [],
+      "genericAliases": ["江南水乡", "江南水镇", "jiangnan water town", "水镇", "water town", "canal town"],
       "aliases": ["江南水乡", "江南水镇", "jiangnan water town", "water town", "canal town"],
       "category": "LANDMARK",
       "generatorId": "jiangnan_water_town",

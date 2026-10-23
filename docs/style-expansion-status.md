@@ -1,5 +1,17 @@
 # Style expansion delivery status
 
+2026-10-23 regional follow-up: Jiangnan quay, Romanesque arcade hall and Tudor
+timber-frame house bundles add six plans to the manifest (now 28 styles).
+See [specialist acceptance](style-regional-specialists-acceptance.md) for the
+bounded geometry and remaining live/historical review. The earlier missing
+specialist-asset queue below is superseded by this incremental delivery.
+
+2026-10-23 follow-up: dedicated Tulou culture/proportion cards, an earthen
+palette and two existing-native-generator blueprint examples were added outside
+the manifest. See [Tulou acceptance](style-tulou-acceptance.md). Live capture
+failed; this does not complete live acceptance. Jiangnan, Romanesque and Tudor
+specialist assets were subsequently added in the regional follow-up above.
+
 This document tracks phase completion separately from passing incremental CI.
 
 The six-axis product acceptance checklist and per-profile asset inventory are in

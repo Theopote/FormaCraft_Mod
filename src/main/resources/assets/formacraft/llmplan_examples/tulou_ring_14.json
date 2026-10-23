@@ -1,0 +1,67 @@
+{
+  "description": "Native Tulou blueprint: earth ring, open courtyard and timber floors.",
+  "promptHints": [
+    "客家圆形土楼",
+    "hakka circular tulou"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Chinese_Vernacular_Tulou",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "NONE",
+      "terrain_strategy": "PRESERVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "tulou_ring",
+      "proportion_card_id": "tulou_ring",
+      "height_to_width": 0.4827586206896552,
+      "courtyard_ratio": 0.5102040816326531
+    },
+    "components": [
+      {
+        "component_type": "STRUCTURE",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 29,
+          "depth": 29,
+          "height": 20
+        },
+        "features": [
+          "structure_generator:tulou"
+        ],
+        "params": {
+          "component_id": "tulou_native",
+          "anchor_mode": "min_corner",
+          "blueprint": {
+            "blueprint_type": "tulou",
+            "overall_dimensions": {
+              "radius": 14,
+              "floors": 3,
+              "door_facing": "SOUTH"
+            },
+            "parameters": {
+              "ringThickness": 4,
+              "detailLevel": "aesthetic"
+            }
+          },
+          "paletteId": "PALETTE_TULOU_EARTH_A"
+        }
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # Style capability acceptance matrix
 
-Updated 2026-10-22. Asset presence and offline fixture coverage do not certify stable end-to-end support.
+Updated 2026-10-23. Asset presence and offline fixture coverage do not certify stable end-to-end support.
 
 ## Acceptance axes
 
@@ -26,9 +26,9 @@ Counts and references below are generated from bundled profiles, culture cards a
 | Brutalism | brutalist_civic | brutalist_concrete_compact.json, brutalist_concrete_large.json |
 | Chinese_Imperial_Official | mingqing_courtyard, temple_of_heaven | - |
 | Chinese_Vernacular_Huizhou | huizhou_vernacular | - |
-| Chinese_Vernacular_Jiangnan_WaterTown | - | - |
+| Chinese_Vernacular_Jiangnan_WaterTown | jiangnan_quay | jiangnan_quay_17.json, jiangnan_quay_25.json |
 | Chinese_Vernacular_Siheyuan | siheyuan_courtyard | - |
-| Chinese_Vernacular_Tulou | - | - |
+| Chinese_Vernacular_Tulou | tulou_ring | tulou_ring_10.json, tulou_ring_14.json (outside manifest) |
 | Cyberpunk | cyberpunk_block | p2_cyberpunk_block_13.json, p2_cyberpunk_block_21.json |
 | Dark_Fortress | dark_fortress | p2_dark_fortress_13.json, p2_dark_fortress_21.json |
 | Deconstructivism_Zaha | - | - |
@@ -54,6 +54,8 @@ Counts and references below are generated from bundled profiles, culture cards a
 | Prairie_Earth | prairie_earth | p2_prairie_earth_13.json, p2_prairie_earth_21.json |
 | Prairie_House | prairie_community_library, prairie_house | prairie_horizontal_compact.json, prairie_horizontal_large.json |
 | RUSTIC | - | - |
+| Romanesque | romanesque_hall | romanesque_hall_17.json, romanesque_hall_25.json |
+| Tudor | tudor_house | tudor_house_17.json, tudor_house_25.json |
 | Renaissance_Classical | renaissance_palazzo | renaissance_stone_compact.json, renaissance_stone_large.json |
 | Scandinavian_Timber | nordic_forest_lodge, scandinavian_timber_house | scandinavian_timber_compact.json, scandinavian_timber_large.json |
 | Steampunk | steampunk_hall | p2_steampunk_hall_13.json, p2_steampunk_hall_21.json |
@@ -68,14 +70,20 @@ Counts and references below are generated from bundled profiles, culture cards a
 
 | Scope | Intent | Parameters | Geometry | Preview/build | Visual identity | Local edits |
 | --- | --- | --- | --- | --- | --- | --- |
-| 25 manifest styles | Bilingual/refusal cases: test_style_p1_acceptance | Fixture/schema checks: same suite | Shared plan replay and constraint parity; P2 acceptance | Pending live evidence | Pending reviewed screenshots | Pending per-style world evidence |
+| 28 manifest styles | Bilingual/refusal cases: test_style_p1_acceptance | Fixture/schema checks: same suite | Shared plan replay and constraint parity; P2 acceptance | Pending live evidence | Pending reviewed screenshots | Pending per-style world evidence |
 | Northern siheyuan / Huizhou split | test_siheyuan_courtyard_p0 regional cases | Gray-brick defaults, isolated ornaments, bilingual gable toggle and ambiguous-scope refusal | Two Huizhou dwelling fixtures compile; stepped/capped symmetric end walls, attachment, hollow attic and Patch/Build clipping checked in ConstraintParityTest | Pending | Pending | Gable disable replay preserves all blocks outside upper end planes; world edit chain pending |
 | Stilt timber / Water platform fixed sites | Existing manifest bilingual/refusal tests | Explicit PRESERVE elevations and authored access; helper/few-shot equality tests | Five fixtures: pile/deck contact, entrance path and two-cell air clearance, no raw underfloor writes outside piles, clipping parity | Pending terrain/water simulation | Pending | Pending world edits |
 | Single elven treehouse | Existing manifest bilingual/refusal tests | Explicit PRESERVE heights and authored timber access; helper/few-shot equality | Two fixtures: trunk/floor contact, three clear walking columns, two-high supported edge guards, landing/entrance clearance and clipping parity | Pending live site/walking/collision checks | Pending | Access-removal and guard-only removal replays check block locality; world editing pending |
 | Underground dwarven hall program | Bilingual culture retrieval, refusal and generic classification | Fixed surface/floor heights, explicit excavation, hosted overwrite authorization | Two variants replay into solid stone: room/approach excavation, vault shell/cover, write bounds and clipping parity | Pending live excavation and fluids | Pending | Omitted-excavation control covered; user/world edit chain pending |
 | Startup user packs | test_user_style_packs sample integration | Sample defaults/ornament tests | UserStylePackRuntimeTest sample compilation/clipping | Settings clicks and live build pending | Pending | Pending |
+| Tulou native blueprint | Bilingual retrieval/refusal and generic classification | Dedicated earthen palette; two radius/floor variants and proportion card | Native compiler/generator replay checks ring floors, courtyard and clipping | Pending live adapter/placement | Pending | Pending world edits |
+| Jiangnan / Romanesque / Tudor specialists | Manifest bilingual/refusal tests; Jiangnan generic vs named-town boundary tests | Dedicated palette/genome/profile and proportion cards | Six compiled fixtures; quay clearance, round arcade, exposed frame and clipping tests | Pending | Pending | Arcade/frame removal replays; world editing pending |
 
 ## Next acceptance queue
+
+Tulou now has a dedicated specialist asset bundle outside the style manifest;
+see [Tulou acceptance](style-tulou-acceptance.md). Development-client capture
+failed on 2026-10-23, so live evidence remains pending.
 
 Regional split validation on 2026-10-22: initial 20-test regional/P1/user-pack
 suite passed; 35 adjacent identity/catalog/pack/planning/temple tests passed;

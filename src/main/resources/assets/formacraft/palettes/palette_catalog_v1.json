@@ -6384,6 +6384,295 @@
           }
         ]
       }
+    },
+    "PALETTE_TULOU_EARTH_A": {
+      "meta": {
+        "display_name": "Tulou earth and timber",
+        "tags": [
+          "tulou",
+          "earthen",
+          "courtyard"
+        ]
+      },
+      "parts": {
+        "WALL_BASE": [
+          {
+            "id": "minecraft:packed_mud",
+            "weight": 100
+          }
+        ],
+        "WALL_FOUNDATION": [
+          {
+            "id": "minecraft:cobblestone",
+            "weight": 100
+          }
+        ],
+        "FLOORING": [
+          {
+            "id": "minecraft:spruce_planks",
+            "weight": 100
+          }
+        ],
+        "FLOOR": [
+          {
+            "id": "minecraft:spruce_planks",
+            "weight": 100
+          }
+        ],
+        "ROOF_TILE": [
+          {
+            "id": "minecraft:deepslate_tiles",
+            "weight": 100
+          }
+        ],
+        "ROOF": [
+          {
+            "id": "minecraft:deepslate_tiles",
+            "weight": 100
+          }
+        ],
+        "WINDOW": [
+          {
+            "id": "minecraft:glass_pane",
+            "weight": 100
+          }
+        ]
+      }
+    },
+    "PALETTE_JIANGNAN_QUAY": {
+      "meta": {
+        "display_name": "江南水乡",
+        "tags": [
+          "江南水乡",
+          "jiangnan water town",
+          "jiangnan_quay",
+          "江南民居"
+        ]
+      },
+      "parts": {
+        "WALL_BASE": [
+          {
+            "id": "minecraft:white_terracotta",
+            "weight": 100
+          }
+        ],
+        "WALL": [
+          {
+            "id": "minecraft:white_terracotta",
+            "weight": 100
+          }
+        ],
+        "WALL_FOUNDATION": [
+          {
+            "id": "minecraft:cobblestone",
+            "weight": 100
+          }
+        ],
+        "FLOOR": [
+          {
+            "id": "minecraft:oak_planks",
+            "weight": 100
+          }
+        ],
+        "ROOF": [
+          {
+            "id": "minecraft:deepslate_tiles",
+            "weight": 100
+          }
+        ],
+        "ROOF_SURFACE": [
+          {
+            "id": "minecraft:deepslate_tiles",
+            "weight": 100
+          }
+        ],
+        "WINDOW": [
+          {
+            "id": "minecraft:glass_pane",
+            "weight": 100
+          }
+        ],
+        "PILLAR": [
+          {
+            "id": "minecraft:dark_oak_log",
+            "weight": 100
+          }
+        ],
+        "FRAME": [
+          {
+            "id": "minecraft:dark_oak_log",
+            "weight": 100
+          }
+        ],
+        "TRIM": [
+          {
+            "id": "minecraft:dark_oak_log",
+            "weight": 100
+          }
+        ],
+        "DOOR": [
+          {
+            "id": "minecraft:spruce_door",
+            "weight": 100
+          }
+        ]
+      }
+    },
+    "PALETTE_ROMANESQUE_HALL": {
+      "meta": {
+        "display_name": "罗马风",
+        "tags": [
+          "罗马风",
+          "romanesque hall",
+          "romanesque_hall"
+        ]
+      },
+      "parts": {
+        "WALL_BASE": [
+          {
+            "id": "minecraft:stone_bricks",
+            "weight": 100
+          }
+        ],
+        "WALL": [
+          {
+            "id": "minecraft:stone_bricks",
+            "weight": 100
+          }
+        ],
+        "WALL_FOUNDATION": [
+          {
+            "id": "minecraft:cobblestone",
+            "weight": 100
+          }
+        ],
+        "FLOOR": [
+          {
+            "id": "minecraft:oak_planks",
+            "weight": 100
+          }
+        ],
+        "ROOF": [
+          {
+            "id": "minecraft:deepslate_tiles",
+            "weight": 100
+          }
+        ],
+        "ROOF_SURFACE": [
+          {
+            "id": "minecraft:deepslate_tiles",
+            "weight": 100
+          }
+        ],
+        "WINDOW": [
+          {
+            "id": "minecraft:glass_pane",
+            "weight": 100
+          }
+        ],
+        "PILLAR": [
+          {
+            "id": "minecraft:chiseled_stone_bricks",
+            "weight": 100
+          }
+        ],
+        "FRAME": [
+          {
+            "id": "minecraft:chiseled_stone_bricks",
+            "weight": 100
+          }
+        ],
+        "TRIM": [
+          {
+            "id": "minecraft:chiseled_stone_bricks",
+            "weight": 100
+          }
+        ],
+        "DOOR": [
+          {
+            "id": "minecraft:spruce_door",
+            "weight": 100
+          }
+        ]
+      }
+    },
+    "PALETTE_TUDOR_HOUSE": {
+      "meta": {
+        "display_name": "都铎",
+        "tags": [
+          "都铎",
+          "tudor house",
+          "tudor_house"
+        ]
+      },
+      "parts": {
+        "WALL_BASE": [
+          {
+            "id": "minecraft:white_terracotta",
+            "weight": 100
+          }
+        ],
+        "WALL": [
+          {
+            "id": "minecraft:white_terracotta",
+            "weight": 100
+          }
+        ],
+        "WALL_FOUNDATION": [
+          {
+            "id": "minecraft:cobblestone",
+            "weight": 100
+          }
+        ],
+        "FLOOR": [
+          {
+            "id": "minecraft:oak_planks",
+            "weight": 100
+          }
+        ],
+        "ROOF": [
+          {
+            "id": "minecraft:dark_oak_planks",
+            "weight": 100
+          }
+        ],
+        "ROOF_SURFACE": [
+          {
+            "id": "minecraft:dark_oak_planks",
+            "weight": 100
+          }
+        ],
+        "WINDOW": [
+          {
+            "id": "minecraft:glass_pane",
+            "weight": 100
+          }
+        ],
+        "PILLAR": [
+          {
+            "id": "minecraft:dark_oak_log",
+            "weight": 100
+          }
+        ],
+        "FRAME": [
+          {
+            "id": "minecraft:dark_oak_log",
+            "weight": 100
+          }
+        ],
+        "TRIM": [
+          {
+            "id": "minecraft:dark_oak_log",
+            "weight": 100
+          }
+        ],
+        "DOOR": [
+          {
+            "id": "minecraft:spruce_door",
+            "weight": 100
+          }
+        ]
+      }
     }
   }
 }

@@ -1,0 +1,192 @@
+
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :generateLog4jConfig UP-TO-DATE
+> Task :generateRemapClasspath UP-TO-DATE
+> Task :generateDLIConfig UP-TO-DATE
+> Task :configureLaunch UP-TO-DATE
+> Task :downloadAssets UP-TO-DATE
+> Task :configureClientLaunch UP-TO-DATE
+
+> Task :runClient
+[22:01:27] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 1.21.10 with Fabric Loader 0.17.3
+[22:01:28] [main/INFO] (FabricLoader) Loading 51 mods:
+	- fabric-api 0.136.0+1.21.10
+	- fabric-api-base 1.0.0+14b92d896f
+	- fabric-api-lookup-api-v1 1.6.106+d17682156f
+	- fabric-biome-api-v1 16.1.0+c2417d4f6f
+	- fabric-block-api-v1 1.1.5+d17682156f
+	- fabric-block-view-api-v2 1.0.34+e4fd1b926f
+	- fabric-client-gametest-api-v1 4.2.13+14b92d896f
+	- fabric-command-api-v2 2.4.0+c0ab2d5d6f
+	- fabric-content-registries-v0 10.2.4+b6a242646f
+	- fabric-convention-tags-v1 2.1.48+7f945d5b6f
+	- fabric-convention-tags-v2 2.16.0+552403eb6f
+	- fabric-crash-report-info-v1 0.3.18+33df5e6e6f
+	- fabric-data-attachment-api-v1 1.8.30+68e881bd6f
+	- fabric-data-generation-api-v1 23.2.24+d8b85ef16f
+	- fabric-dimensions-v1 4.0.22+38b9cc196f
+	- fabric-entity-events-v1 2.1.13+fde3702c6f
+	- fabric-events-interaction-v0 4.0.36+5ba217126f
+	- fabric-game-rule-api-v1 1.1.1+e47eaae56f
+	- fabric-gametest-api-v1 3.1.19+33df5e6e6f
+	- fabric-item-api-v1 11.5.9+9bce411b6f
+	- fabric-item-group-api-v1 4.2.25+86b3ae576f
+	- fabric-key-binding-api-v1 1.1.1+b3ba9c486f
+	- fabric-lifecycle-events-v1 2.6.9+33df5e6e6f
+	- fabric-loot-api-v2 3.0.65+3f89f5a56f
+	- fabric-loot-api-v3 2.0.12+d17682156f
+	- fabric-message-api-v1 6.1.7+3154c1c86f
+	- fabric-model-loading-api-v1 6.0.2+3ffd6ef06f
+	- fabric-networking-api-v1 5.1.0+b095d8db6f
+	- fabric-object-builder-api-v1 21.1.26+9bce411b6f
+	- fabric-particles-v1 4.2.3+a0ee59a46f
+	- fabric-recipe-api-v1 8.1.27+d17682156f
+	- fabric-registry-sync-v0 6.1.42+679c8c5c6f
+	- fabric-renderer-api-v1 7.2.0+3706cdf36f
+	- fabric-renderer-indigo 4.1.1+d7df91576f
+	- fabric-rendering-fluids-v1 3.1.38+86b3ae576f
+	- fabric-rendering-v1 16.0.2+19a99b056f
+	- fabric-resource-conditions-api-v1 5.0.28+33df5e6e6f
+	- fabric-resource-loader-v0 3.2.3+3388a3b26f
+	- fabric-resource-loader-v1 1.0.3+8cc86c156f
+	- fabric-screen-api-v1 3.1.0+9c82a7986f
+	- fabric-screen-handler-api-v1 1.3.151+d17682156f
+	- fabric-serialization-api-v1 1.0.0+d857c9766f
+	- fabric-sound-api-v1 1.0.45+328a75ba6f
+	- fabric-tag-api-v1 1.2.11+2fa446b26f
+	- fabric-transfer-api-v1 6.0.15+79ec2c126f
+	- fabric-transitive-access-wideners-v1 6.5.3+41eb43436f
+	- fabricloader 0.17.3
+	- formacraft 1.0.0
+	- java 25
+	- minecraft 1.21.10
+	- mixinextras 0.5.0
+[22:01:28] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.16.5+mixin.0.8.7/80fc3a9f592673cea87f4cd702f87991c6c9fe4d/sponge-mixin-0.16.5+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[22:01:28] [main/INFO] (FabricLoader/Mixin) Loaded Fabric development mappings for mixin remapper!
+[22:01:28] [main/INFO] (FabricLoader/Mixin) Compatibility level set to JAVA_21
+[22:01:32] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.sun.jna.Native in an unnamed module (file:/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/net.java.dev.jna/jna/5.15.0/1ee1d80ff44f08280188f7c0e740d57207841ac/jna-5.15.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+[22:01:34] [Datafixer Bootstrap/INFO] (Minecraft) 278 Datafixer optimizations took 850 milliseconds
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[22:01:49] [Render thread/INFO] (Minecraft) Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[22:01:49] [Render thread/INFO] (Minecraft) Setting user: Player266
+[22:01:49] [Render thread/INFO] (formacraft) FormaCraft initialized!
+[22:01:49] [Render thread/INFO] (formacraft) FormaCraft config loaded successfully
+[22:01:49] [Render thread/INFO] (formacraft) Initializing Skeleton System...
+[22:01:49] [Render thread/INFO] (formacraft)   ✓ DefaultPalettes initialized
+[22:01:49] [Render thread/INFO] (formacraft)   ✓ DefaultStyleProfiles initialized
+[22:01:49] [Render thread/INFO] (formacraft)   ✓ SkeletonSemanticRegistry initialized
+[22:01:49] [Render thread/INFO] (formacraft)   ✓ ComponentAssemblerRegistry initialized
+[22:01:49] [Render thread/INFO] (formacraft)   ✓ SkeletonExecutor registered
+[22:01:49] [Render thread/INFO] (formacraft) Skeleton System initialization complete!
+[22:01:49] [Render thread/INFO] (formacraft) Initializing Component Group System...
+[22:01:49] [Render thread/INFO] (formacraft)   ✓ Component groups registered: 3
+[22:01:49] [Render thread/INFO] (formacraft) Initializing Component System...
+[22:01:50] [Render thread/INFO] (formacraft) Initializing default ComponentArchetypes...
+[22:01:50] [Render thread/INFO] (formacraft) Initialized 3 default ComponentArchetypes
+[22:01:50] [Render thread/INFO] (formacraft) Loaded 1 persisted ComponentArchetypes from F:\development\formacraft-1.21.10\run\config\formacraft\archetypes
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ Component archetypes initialized
+[22:01:50] [Render thread/INFO] (formacraft) Initializing BuildingMass System...
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ BuildingMass core classes ready
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ BuildingMassComposition ready
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ MassFilledChecker ready
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ MassToSkeletonDeriver ready
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ LayeredSocketDeriver ready
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ FacadeRhythmProcessor ready
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ MultiLayerRhythmProcessor ready
+[22:01:50] [Render thread/INFO] (formacraft) FacadeRhythmPresetLibrary: Initialized 6 presets
+[22:01:50] [Render thread/INFO] (formacraft)   ✓ FacadeRhythmPresetLibrary ready
+[22:01:50] [Render thread/INFO] (formacraft) BuildingMass System initialization complete!
+[22:01:50] [Render thread/INFO] (formacraft) AssemblyPresetRegistry: loaded 3 assembly preset(s)
+[22:01:50] [Render thread/INFO] (formacraft) AssemblySchemaExporter: schema v3 with 22 components, 3 presets, 33 ops
+[22:01:51] [Render thread/INFO] (formacraft) Initializing Debug Overlay Renderers...
+[22:01:51] [Render thread/INFO] (formacraft)   ✓ PlanDebugRenderer registered
+[22:01:51] [Render thread/INFO] (formacraft)   ✓ StructuralDebugRenderer registered
+[22:01:51] [Render thread/INFO] (formacraft) Debug Overlay Renderers initialization complete!
+[22:01:51] [Render thread/INFO] (Indigo) [Indigo] Registering Indigo renderer!
+[22:01:51] [Render thread/INFO] (Minecraft) [STDERR]: [LWJGL] [ThreadLocalUtil] Unsupported JNI version detected, this may result in a crash. Please inform LWJGL developers.
+[22:01:52] [Render thread/INFO] (Minecraft) Backend library: LWJGL version 3.3.3-snapshot
+[22:01:54] [Render thread/INFO] (Minecraft) Using optional rendering extensions: GL_ARB_buffer_storage, GL_KHR_debug, GL_ARB_vertex_attrib_binding, GL_ARB_direct_state_access
+[22:01:56] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-view-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v1, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-item-group-api-v1, fabric-key-binding-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v2, fabric-loot-api-v3, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-screen-handler-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, formacraft
+[22:01:57] [Download-1/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[22:01:57] [Worker-Main-5/INFO] (Minecraft) Found unifont_all_no_pua-16.0.03.hex, loading
+[22:01:57] [Worker-Main-7/INFO] (Minecraft) Found unifont_pua-16.0.03.hex, loading
+[22:01:57] [Worker-Main-3/INFO] (Minecraft) Found unifont_jp_patch-16.0.03.hex, loading
+[22:02:00] [Render thread/INFO] (Minecraft) OpenAL initialized on device OpenAL Soft on 扬声器 (J09 Stereo)
+[22:02:00] [Render thread/INFO] (Minecraft) Sound engine started
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 1024x512x4 minecraft:textures/atlas/blocks.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/chest.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/beds.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 64x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 256x256x0 minecraft:textures/atlas/signs.png-atlas
+[22:02:00] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[22:02:00] [ForkJoinPool.commonPool-worker-1/INFO] (formacraft) [BackendAutoStarter] starting: F:\development\formacraft-1.21.10\python_backend\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info --loop app.server_runtime:loop_factory --env-file .env (cwd=F:\development\formacraft-1.21.10\python_backend)
+[22:02:01] [IO-Worker-1/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[22:07:46] [Render thread/INFO] (Minecraft) Loaded 1461 recipes
+[22:07:46] [Render thread/INFO] (Minecraft) Loaded 1574 advancements
+[22:07:46] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 65 new biomes in 3.068 ms
+[22:07:46] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 1.21.10
+[22:07:46] [Server thread/INFO] (Minecraft) Generating keypair
+[22:07:47] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[22:07:49] [Server thread/INFO] (Minecraft) Loading 49 chunks for player spawn...
+[22:07:49] [Server thread/INFO] (Minecraft) 准备生成区域中：16%
+[22:07:49] [Server thread/INFO] (Minecraft) 准备生成区域中：16%
+[22:07:49] [Server thread/INFO] (Minecraft) 准备生成区域中：16%
+[22:07:49] [Server thread/INFO] (Minecraft) 准备生成区域中：16%
+[22:07:49] [Server thread/INFO] (Minecraft) 准备生成区域中：16%
+[22:07:49] [Server thread/INFO] (Minecraft) 准备生成区域中：59%
+[22:07:50] [Server thread/INFO] (Minecraft) Time elapsed: 2913 ms
+[22:07:50] [Server thread/INFO] (Minecraft) Player266[local:E:bd98d358] logged in with entity id 64 at (38.08729306300717, 80.03260094158935, -2248.82871892786)
+[22:07:50] [Server thread/INFO] (Minecraft) Player266加入了游戏
+[22:07:50] [Server thread/INFO] (Minecraft) Player266达成了目标[天空即为极限]
+[22:07:51] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[22:07:51] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[22:07:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Player266达成了目标[天空即为极限]
+[22:07:51] [Render thread/INFO] (Minecraft) Loaded 14 advancements
+[22:07:51] [Server thread/INFO] (Minecraft) Changing view distance to 12, from 10
+[22:07:51] [Server thread/INFO] (Minecraft) Changing simulation distance to 12, from 0
+[22:07:52] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[22:07:53] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[22:07:53] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 32 reached during a single frame. New capacity will be 64.
+[22:07:53] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 64 reached during a single frame. New capacity will be 128.
+[22:07:54] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 128 reached during a single frame. New capacity will be 256.
+[22:07:54] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 256 reached during a single frame. New capacity will be 512.
+[22:07:56] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 512 reached during a single frame. New capacity will be 1024.
+[22:07:59] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 1024 reached during a single frame. New capacity will be 2048.
+[22:09:47] [Render thread/INFO] (Minecraft) Stopping!
+[22:09:47] [Server thread/INFO] (Minecraft) Player266 lost connection: 连接中断
+[22:09:47] [Server thread/INFO] (Minecraft) Player266退出了游戏
+[22:09:47] [Server thread/INFO] (Minecraft) Stopping singleplayer server as player logged out
+[22:09:47] [Server thread/INFO] (Minecraft) Stopping server
+[22:09:47] [Server thread/INFO] (Minecraft) Saving players
+[22:09:47] [Server thread/INFO] (Minecraft) Saving worlds
+[22:09:48] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[新的世界]'/minecraft:overworld
+[22:09:49] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[新的世界]'/minecraft:the_end
+[22:09:49] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[新的世界]'/minecraft:the_nether
+[22:09:49] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (新的世界): All chunks are saved
+[22:09:49] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[22:09:49] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[22:09:49] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[22:09:50] [ForkJoinPool.commonPool-worker-2/INFO] (formacraft) [BackendAutoStarter] backend process exited. code=1 (see logs/formacraft_orchestrator.log)
+
+BUILD SUCCESSFUL in 9m 14s
+7 actionable tasks: 1 executed, 6 up-to-date

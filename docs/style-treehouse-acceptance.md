@@ -56,6 +56,15 @@ HARD checks with 258 SOFT warnings. Six diversity scenarios passed. The final
 Java run passed 103 constraint/geometry tests plus four isolated user-pack tests.
 The three-wide entrance clearance assertions remain enabled for both sizes.
 
+Guard follow-up confirmed on 2026-10-23: 12 affected Python tests passed;
+105 CI goldens passed HARD checks with 262 SOFT warnings. The completed Java
+run passed 107 constraint/geometry tests and four isolated user-pack tests.
+Both treehouse sizes retain three clear walking columns between supported
+two-high guard walls. Missing-guard rejection, guard-only removal locality,
+whole-access removal locality and Patch/Build clipping assertions passed.
+These are compiled-block checks; live player collision and fall behavior were
+not exercised.
+
 ## Remaining acceptance
 
 Live walking/collision behavior, jumping or climbing at the guards, site fitting, preview/build

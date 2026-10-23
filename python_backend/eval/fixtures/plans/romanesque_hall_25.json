@@ -1,0 +1,859 @@
+{
+  "mode": "build",
+  "style_profile": "Romanesque",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "PRESERVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "masonry_palazzo",
+    "proportion_card_id": "romanesque_hall",
+    "height_to_width": 0.4,
+    "window_wall_ratio": 0.15
+  },
+  "style_attributes": {
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:oak_planks"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 29,
+        "height": 10
+      },
+      "features": [
+        "entrance"
+      ],
+      "params": {
+        "wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_block": "minecraft:oak_planks",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:chiseled_stone_bricks",
+        "pillar_block": "minecraft:chiseled_stone_bricks",
+        "roof_type": "none",
+        "window_style": "pane",
+        "window_ratio": 0.15,
+        "wall_pattern": "smooth",
+        "facade_profile": "none",
+        "floor_height": 4,
+        "component_id": "romanesque_hall",
+        "anchor_mode": "min_corner",
+        "floor_count": 2,
+        "hollow": true
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 9,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 29,
+        "height": 7
+      },
+      "features": [],
+      "params": {
+        "roof_type": "gable",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "component_id": "romanesque_hall_roof",
+        "host_id": "romanesque_hall",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 11,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "romanesque_hall_entry",
+        "host_id": "romanesque_hall",
+        "facing": "SOUTH",
+        "door_width": 3,
+        "door_height": 3,
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 1,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 1,
+        "height": 10
+      },
+      "features": [],
+      "params": {
+        "window_style": "pane",
+        "window_ratio": 0.24,
+        "window_block": "minecraft:glass_pane",
+        "component_id": "romanesque_hall_windows",
+        "host_id": "romanesque_hall",
+        "facing": "NORTH",
+        "wall": "front",
+        "floor_count": 2,
+        "floor_height": 4,
+        "window_width": 2,
+        "window_height": 2,
+        "window_per_wall": 2
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 7,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-5_5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 8,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-4_5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 8,
+        "y": 6,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-4_6",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 8,
+        "y": 7,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-4_7",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 8,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-4_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 9,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-3_5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 9,
+        "y": 6,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-3_6",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 9,
+        "y": 7,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-3_7",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 9,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-3_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 9,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-3_9",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 10,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-2_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 10,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-2_9",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 11,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-1_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 11,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_-1_9",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 12,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_0_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 12,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_0_9",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 12,
+        "y": 10,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_0_10",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 13,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_1_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 13,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_1_9",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 14,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_2_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 14,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_2_9",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 15,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_3_5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 15,
+        "y": 6,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_3_6",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 15,
+        "y": 7,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_3_7",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 15,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_3_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 15,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_3_9",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 16,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_4_5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 16,
+        "y": 6,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_4_6",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 16,
+        "y": 7,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_4_7",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 16,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_4_8",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 17,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_5_5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 7,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_pier_-5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_pier_-4",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 16,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_pier_4",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 17,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_pier_5",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 6,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "arc_walk",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    }
+  ]
+}

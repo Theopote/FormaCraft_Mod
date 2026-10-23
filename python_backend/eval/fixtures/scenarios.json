@@ -1628,5 +1628,93 @@
       "underground",
       "excavation"
     ]
+  },
+  {
+    "id": "tulou_ring_10",
+    "prompt": "build a hakka circular tulou",
+    "plan_fixture": "plans/tulou_ring_10.json",
+    "ci": true,
+    "tags": [
+      "A",
+      "tulou",
+      "native_blueprint"
+    ]
+  },
+  {
+    "id": "tulou_ring_14",
+    "prompt": "build a hakka circular tulou",
+    "plan_fixture": "plans/tulou_ring_14.json",
+    "ci": true,
+    "tags": [
+      "A",
+      "tulou",
+      "native_blueprint"
+    ]
+  },
+  {
+    "id": "jiangnan_quay_17",
+    "prompt": "build a jiangnan water town",
+    "plan_fixture": "plans/jiangnan_quay_17.json",
+    "ci": true,
+    "tags": [
+      "A",
+      "jiangnan_quay",
+      "specialist"
+    ]
+  },
+  {
+    "id": "jiangnan_quay_25",
+    "prompt": "build a jiangnan water town",
+    "plan_fixture": "plans/jiangnan_quay_25.json",
+    "ci": true,
+    "tags": [
+      "A",
+      "jiangnan_quay",
+      "specialist"
+    ]
+  },
+  {
+    "id": "romanesque_hall_17",
+    "prompt": "build a romanesque hall",
+    "plan_fixture": "plans/romanesque_hall_17.json",
+    "ci": true,
+    "tags": [
+      "B",
+      "romanesque_hall",
+      "specialist"
+    ]
+  },
+  {
+    "id": "romanesque_hall_25",
+    "prompt": "build a romanesque hall",
+    "plan_fixture": "plans/romanesque_hall_25.json",
+    "ci": true,
+    "tags": [
+      "B",
+      "romanesque_hall",
+      "specialist"
+    ]
+  },
+  {
+    "id": "tudor_house_17",
+    "prompt": "build a tudor house",
+    "plan_fixture": "plans/tudor_house_17.json",
+    "ci": true,
+    "tags": [
+      "B",
+      "tudor_house",
+      "specialist"
+    ]
+  },
+  {
+    "id": "tudor_house_25",
+    "prompt": "build a tudor house",
+    "plan_fixture": "plans/tudor_house_25.json",
+    "ci": true,
+    "tags": [
+      "B",
+      "tudor_house",
+      "specialist"
+    ]
   }
 ]

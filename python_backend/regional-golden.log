@@ -1,0 +1,1936 @@
+
+=== modern_elliptical_stadium | ��ê��λ�������ִ�������Բ��������������: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] stadium_landmark_or_curved_mass (soft)
+  [OK] stadium_radial_layout (soft)
+  [OK] stadium_inner_field (soft)
+  [OK] elliptical_shape_params (HARD)
+  [OK] stadium_seating_expressed (HARD)
+  [OK] stadium_high_fidelity_ellipse (soft)
+  [WARN] stadium_paving_or_landmark_field (soft) �� �ڳ�����ʽ PAVING ����� typology stadium_bowl ·�ɣ�void_ratio alone �������γɳ��ظ�
+  [OK] genome_shape_consistency (HARD)
+  [WARN] has_proportion_hints (soft) �� missing proportion_hints for stadium_bowl
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== cottage_small_stone | ��һ�� 7x7 ��Сʯͷ���ӣ����źʹ���: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (HARD)
+  [OK] has_windows (HARD)
+  [OK] has_roof (HARD)
+  [OK] component_richness (HARD)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (HARD)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_proportion_hints (HARD)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] derived_height_to_width (soft)
+  [OK] derived_depth_to_width (soft)
+  [OK] has_enclosure_mass (HARD)
+  [OK] has_entrance_component (HARD)
+  [OK] cottage_has_windows (soft)
+
+=== medieval_castle_compositional | ��һ��������ʯͷ�Ǳ�������¥�ͳ�ǽ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [WARN] has_roof (soft) �� types=['MASS_MAIN', 'TOWER', 'TOWER', 'WALL', 'ENTRANCE', 'FACADE_WINDOWS']
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_proportion_hints (HARD)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] has_enclosure_mass (HARD)
+  [OK] has_entrance_component (soft)
+  [OK] castle_has_defensive_shell (HARD)
+
+=== primitive_voronoi_3d | ��һ����ά voronoi �����塭: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['PRIMITIVE']
+  [WARN] has_roof (soft) �� types=['PRIMITIVE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (HARD)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['PRIMITIVE']
+
+=== siheyuan_courtyard | ��һ����Ժ�ӵ��ĺ�Ժ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (HARD)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (HARD)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_courtyard_component (HARD)
+  [OK] siheyuan_courtyard_skeleton (HARD)
+  [OK] siheyuan_enclosure_layout (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] derived_height_to_width (soft)
+  [OK] has_enclosure_mass (HARD)
+  [OK] has_entrance_component (soft)
+  [OK] siheyuan_has_courtyard (soft)
+  [OK] siheyuan_wing_masses (soft)
+
+=== square_tower_five_story | ��һ�� 5 ��ķ�����������ƽ̨��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (HARD)
+  [OK] has_windows (HARD)
+  [WARN] has_roof (soft) �� types=['MASS_MAIN', 'TERRACE', 'ENTRANCE', 'FACADE_WINDOWS']
+  [OK] component_richness (HARD)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] tower_vertical_skeleton (HARD)
+  [OK] tower_square_footprint (HARD)
+  [OK] tower_five_floors (HARD)
+  [OK] tower_top_platform (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] derived_height_to_width (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+  [OK] tower_has_top_platform (soft)
+  [OK] tower_square_mass (soft)
+
+=== temple_of_heaven | ��һ����̳��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 detail_level=aesthetic
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] temple_landmark_or_radial_mass (HARD)
+  [OK] temple_radial_layout (HARD)
+  [OK] temple_circular_form (HARD)
+  [OK] temple_tier_expressed (HARD)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] temple_has_typology_or_module (soft)
+  [OK] typology_fixture_structure_route (soft)
+
+=== patch_roof_red | ���ݶ����ɺ�ɫ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] patch_mode (soft)
+  [OK] patch_has_ops (HARD)
+  [OK] patch_targets_roof (HARD)
+  [OK] patch_roof_color_red (HARD)
+  [OK] patch_minimal_scope (HARD)
+  [OK] patch_no_full_rebuild (HARD)
+
+=== assembly_spiral_preset | ԭ�������t��������Ҫ�ر�ģ�飬�����ɼ��α���Ǿء�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['ASSEMBLY']
+  [WARN] has_windows (soft) �� types=['ASSEMBLY']
+  [WARN] has_roof (soft) �� types=['ASSEMBLY']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (HARD)
+  [OK] assembly_primary_component (HARD)
+  [OK] no_nested_assembly_in_mass (HARD)
+  [OK] spiral_twist_expressed (soft)
+  [OK] assembly_no_conflicting_mass_stack (HARD)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['ASSEMBLY']
+
+=== assembly_bridge_preset | ԭ�������ţ���Ҫ�ر꣬���Լ 48��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['ASSEMBLY']
+  [WARN] has_windows (soft) �� types=['ASSEMBLY']
+  [WARN] has_roof (soft) �� types=['ASSEMBLY']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (HARD)
+  [OK] assembly_primary_component (HARD)
+  [OK] no_nested_assembly_in_mass (HARD)
+  [OK] assembly_no_conflicting_mass_stack (HARD)
+  [OK] bridge_assembly_preset (soft)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['ASSEMBLY']
+
+=== assembly_gothic_shell | ���ؿ�����������ASSEMBLY graph S��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['ASSEMBLY']
+  [WARN] has_windows (soft) �� types=['ASSEMBLY']
+  [WARN] has_roof (soft) �� types=['ASSEMBLY']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (HARD)
+  [OK] assembly_primary_component (HARD)
+  [OK] no_nested_assembly_in_mass (HARD)
+  [OK] spiral_twist_expressed (soft)
+  [OK] assembly_no_conflicting_mass_stack (HARD)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['ASSEMBLY']
+
+=== assembly_capability_gap_explicit | ��һ����ǰ���治֧�ֵĸ�������������塭: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] capability_gap_status (HARD)
+  [OK] capability_gap_object (HARD)
+  [OK] capability_gap_code (HARD)
+  [OK] capability_gap_message (HARD)
+  [OK] capability_gap_suggestions (soft)
+  [OK] has_anchor (HARD)
+
+=== famen_pagoda | ��ê��λ�����ɷ�������������: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 detail_level=refined
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== giant_wild_goose_pagoda | ��ê��λ�����ɴ�������: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 detail_level=aesthetic
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== foguang_temple_hall | ��ê��λ�����ɷ���´�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== birds_nest_stadium | ��ê��λ�������������ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] stadium_landmark_or_curved_mass (soft)
+  [OK] stadium_radial_layout (soft)
+  [OK] stadium_inner_field (soft)
+  [OK] stadium_seating_expressed (HARD)
+  [OK] stadium_high_fidelity_ellipse (soft)
+  [OK] stadium_paving_or_landmark_field (soft)
+  [OK] genome_shape_consistency (HARD)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== golden_gate_bridge | ��ê��λ�����ɾɽ�ɽ���Ŵ��š�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 detail_level=aesthetic
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== gothic_cathedral | ����һ�����ش���á�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== mingqing_courtyard | ����һ�������ʽԺ�䡭: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== castle_compound | ����һ�������ͳǱ���: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] has_enclosure_mass (HARD)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] castle_has_defensive_shell (HARD)
+  [OK] typology_fixture_structure_route (soft)
+
+=== modern_skyscraper | ����һ��Ħ��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] typology_structure_route (HARD)
+  [OK] no_migrated_module (HARD)
+  [OK] typology_proportion_hints (HARD)
+  [OK] has_proportion_hints (HARD)
+  [OK] typology_skeleton_match (HARD)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+  [OK] typology_fixture_structure_route (soft)
+
+=== tang_timber_compact | ����һ���Ʒ�ľ����: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== tang_timber_large | ����һ���Ʒ�ľ����: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== renaissance_stone_compact | ����һ�����ո���լۡ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== renaissance_stone_large | ����һ�����ո���լۡ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== art_deco_vertical_compact | ����װ��������̨��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== art_deco_vertical_large | ����װ��������̨��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== brutalist_concrete_compact | ����һ����Ұ�����¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== brutalist_concrete_large | ����һ����Ұ�����¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== industrial_brick_compact | ����һ����ש��ҵ��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== industrial_brick_large | ����һ����ש��ҵ��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== japanese_timber_compact | ����һ����ʽ��ͳľ�ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== japanese_timber_large | ����һ����ʽ��ͳľ�ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== scandinavian_timber_compact | ����һ����ŷľ�ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== scandinavian_timber_large | ����һ����ŷľ�ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== mediterranean_stucco_compact | ����һ�����к����������: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== mediterranean_stucco_large | ����һ�����к����������: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== georgian_brick_compact | ����һ����������ש��լۡ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== georgian_brick_large | ����һ����������ש��լۡ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== prairie_horizontal_compact | ����һ����ԭʽסլ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== prairie_horizontal_large | ����һ����ԭʽסլ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== midcentury_pavilion_compact | ����һ��������Ҷסլ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== midcentury_pavilion_large | ����һ��������Ҷסլ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== alpine_chalet_compact | ����һ��������˹ľ�ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== alpine_chalet_large | ����һ��������˹ľ�ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== neoclassical_civic_compact | ����һ���¹ŵ����¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== neoclassical_civic_large | ����һ���¹ŵ����¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== international_glass_compact | ����һ���ִ�����ʽ��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== international_glass_large | ����һ���ִ�����ʽ��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== tang_study_hall_compact | ����һ���Ʒ���Ժ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== tang_study_hall_large | ����һ���Ʒ���Ժ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== japanese_rural_inn_compact | ����һ���ͷ�����ùݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== japanese_rural_inn_large | ����һ���ͷ�����ùݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== nordic_forest_lodge_compact | ����һ����ŷľ��ɭ��ɽׯ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== nordic_forest_lodge_large | ����һ����ŷľ��ɭ��ɽׯ��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== mediterranean_guesthouse_compact | ����һ�����к�������ᡭ: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== mediterranean_guesthouse_large | ����һ�����к�������ᡭ: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== georgian_civic_hall_compact | ����һ������������ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== georgian_civic_hall_large | ����һ������������ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== prairie_community_library_compact | ����һ����ԭʽ����ͼ��ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== prairie_community_library_large | ����һ����ԭʽ����ͼ��ݡ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== midcentury_visitor_center_compact | ����һ��������Ҷ�ο����ġ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== midcentury_visitor_center_large | ����һ��������Ҷ�ο����ġ�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== tang_timber_diversity | ����һ���Ʒ�ľ����: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== neoclassical_civic_diversity | ����һ���¹ŵ����¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== international_glass_diversity | ����һ���ִ�����ʽ��¥��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== mixed_garden_chapel | ��ʽ԰�����һ������С���á�: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'ENTRANCE', 'ENTRANCE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== p2_gambrel_13 | Build a hall with gambre��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_gambrel_21 | Build a hall with gambre��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_barrel_vault_13 | Build a hall with barrel��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_barrel_vault_21 | Build a hall with barrel��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_onion_dome_13 | Build a hall with onion_��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_onion_dome_21 | Build a hall with onion_��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_steep_thatch_13 | Build a hall with steep_��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_steep_thatch_21 | Build a hall with steep_��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_floating_mass_13 | Generate a floating isla��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['PRIMITIVE']
+  [WARN] has_roof (soft) �� types=['PRIMITIVE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['PRIMITIVE']
+
+=== p2_floating_mass_21 | Generate a floating isla��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['PRIMITIVE']
+  [WARN] has_roof (soft) �� types=['PRIMITIVE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['PRIMITIVE']
+
+=== p2_desert_adobe_13 | build a desert adobe��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_desert_adobe_21 | build a desert adobe��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_prairie_earth_13 | build a prairie earth ho��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_prairie_earth_21 | build a prairie earth ho��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_arctic_igloo_13 | build a arctic igloo��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [WARN] not_too_short (soft) �� #0 MASS_MAIN height=3<4
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_arctic_igloo_21 | build a arctic igloo��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [WARN] not_too_short (soft) �� #0 MASS_MAIN height=3<4
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== p2_stilt_timber_13 | build a stilt timber hou��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_stilt_timber_21 | build a stilt timber hou��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_stilt_timber_17 | build a stilt timber hou��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_water_platform_13 | build a water platform h��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_water_platform_21 | build a water platform h��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_xianxia_island_13 | build a xianxia floating��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+
+=== p2_xianxia_island_21 | build a xianxia floating��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+
+=== p2_dwarven_hall_13 | build a dwarven stone ha��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_dwarven_hall_21 | build a dwarven stone ha��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_elven_treehouse_13 | build a elven forest cit��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== p2_elven_treehouse_21 | build a elven forest cit��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== p2_cyberpunk_block_13 | build a cyberpunk block��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=neon_bands
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+
+=== p2_cyberpunk_block_21 | build a cyberpunk block��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=neon_bands
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+
+=== p2_cyberpunk_block_17 | build a cyberpunk block��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=neon_bands
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']
+
+=== p2_steampunk_hall_13 | build a steampunk hall��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_steampunk_hall_21 | build a steampunk hall��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_dark_fortress_13 | build a dark fantasy for��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_proportion_hints (soft)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] castle_has_defensive_shell (soft) �� tower/wall + mass expected; types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+
+=== p2_dark_fortress_21 | build a dark fantasy for��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_proportion_hints (soft)
+  [OK] void_ratio_typology (soft)
+  [OK] window_aspect_typology (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+  [WARN] castle_has_defensive_shell (soft) �� tower/wall + mass expected; types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']
+
+=== huizhou_vernacular_13 | build a Huizhou dwelling��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== huizhou_vernacular_21 | build a Huizhou dwelling��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['MASS_MAIN', 'ROOF']
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [WARN] has_entrance_component (soft) �� types=['MASS_MAIN', 'ROOF']
+
+=== dwarven_underground_13 | build an underground dwa��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== dwarven_underground_21 | build an underground dwa��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [WARN] has_windows (soft) �� types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== tulou_ring_10 | build a hakka circular t��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== tulou_ring_14 | build a hakka circular t��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [WARN] has_entrance (soft) �� types=['STRUCTURE']
+  [WARN] has_windows (soft) �� types=['STRUCTURE']
+  [WARN] has_roof (soft) �� types=['STRUCTURE']
+  [WARN] component_richness (soft) �� components=1 slots=0
+  [OK] not_too_short (soft)
+  [OK] facade_params_valid (soft)
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [WARN] has_enclosure_mass (soft) �� enclosure_components=0
+  [WARN] has_entrance_component (soft) �� types=['STRUCTURE']
+
+=== jiangnan_quay_17 | build a jiangnan water t��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== jiangnan_quay_25 | build a jiangnan water t��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== romanesque_hall_17 | build a romanesque hall��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== romanesque_hall_25 | build a romanesque hall��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=smooth
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== tudor_house_17 | build a tudor house��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+=== tudor_house_25 | build a tudor house��: PASS ===
+  [OK] schema_valid (HARD)
+  [OK] has_anchor (HARD)
+  [OK] has_geometry (HARD)
+  [OK] dimensions_sane (HARD)
+  [OK] has_entrance (soft)
+  [OK] has_windows (soft)
+  [OK] has_roof (soft)
+  [OK] component_richness (soft)
+  [OK] not_too_short (soft)
+  [WARN] facade_params_valid (soft) �� #0 wall_pattern=timber_frame
+  [OK] assembly_params_valid (soft)
+  [OK] assembly_graph_dsl_valid (soft)
+  [OK] has_enclosure_mass (soft)
+  [OK] has_entrance_component (soft)
+
+---- ���ܣ�113/113 ͨ�� HARD ���ԣ�HARD ʧ�� 0 �SOFT �澯 280 �� ----

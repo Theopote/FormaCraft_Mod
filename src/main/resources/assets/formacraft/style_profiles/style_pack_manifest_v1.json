@@ -854,6 +854,88 @@
       "expected_wall": "minecraft:blackstone",
       "expected_roof": "minecraft:polished_blackstone",
       "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+      "genome_id": "jiangnan_quay",
+      "culture_card_id": "jiangnan_quay",
+      "proportion_card_id": "jiangnan_quay",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_JIANGNAN_QUAY",
+      "family": "A",
+      "aliases": [
+        "江南水乡",
+        "jiangnan water town",
+        "jiangnan_quay",
+        "江南民居"
+      ],
+      "prompts": [
+        "生成一座江南水乡",
+        "build a jiangnan water town"
+      ],
+      "negative_prompt": "不要江南水乡",
+      "plans": [
+        "jiangnan_quay_17.json",
+        "jiangnan_quay_25.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:white_terracotta",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Romanesque",
+      "genome_id": "romanesque_hall",
+      "culture_card_id": "romanesque_hall",
+      "proportion_card_id": "romanesque_hall",
+      "typology_id": "masonry_palazzo",
+      "palette_id": "PALETTE_ROMANESQUE_HALL",
+      "family": "B",
+      "aliases": [
+        "罗马风",
+        "romanesque hall",
+        "romanesque_hall"
+      ],
+      "prompts": [
+        "生成一座罗马风",
+        "build a romanesque hall"
+      ],
+      "negative_prompt": "不要罗马风",
+      "plans": [
+        "romanesque_hall_17.json",
+        "romanesque_hall_25.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:stone_bricks",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Tudor",
+      "genome_id": "tudor_house",
+      "culture_card_id": "tudor_house",
+      "proportion_card_id": "tudor_house",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_TUDOR_HOUSE",
+      "family": "B",
+      "aliases": [
+        "都铎",
+        "tudor house",
+        "tudor_house"
+      ],
+      "prompts": [
+        "生成一座都铎",
+        "build a tudor house"
+      ],
+      "negative_prompt": "不要都铎",
+      "plans": [
+        "tudor_house_17.json",
+        "tudor_house_25.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:white_terracotta",
+      "expected_roof": "minecraft:dark_oak_planks",
+      "expected_window": "minecraft:glass_pane"
     }
   ]
 }

@@ -124,6 +124,92 @@ class ConstraintParityTest {
     @BeforeAll static void bootstrap() { MinecraftRegistryTestBootstrap.initialize(); }
 
     @ParameterizedTest
+    @CsvSource({"jiangnan_quay,17", "jiangnan_quay,25", "romanesque_hall,17", "romanesque_hall,25", "tudor_house,17", "tudor_house,25"})
+    void regionalSpecialistsRetainDistinctGeometryAndLocalEdits(String style,int size) throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var file=java.nio.file.Path.of("python_backend/eval/fixtures/plans",style+"_"+size+".json").toFile();
+        var tree=mapper.readTree(file);
+        var plan=mapper.treeToValue(tree,LlmPlan.class);
+        var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
+        assertFalse(raw.isEmpty());
+        var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
+        int center=size/2;
+        if(style.equals("jiangnan_quay")) {
+            for(int x=1;x<size-1;x++) for(int z=-5;z<0;z++) {
+                assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(x,0,z)),"continuous quay surface");
+                assertNull(blocks.get(new Vec3i(x,1,z)),"clear walking space above quay");
+                assertNull(blocks.get(new Vec3i(x,2,z)),"two-cell walking clearance");
+            }
+            assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(center,-1,-6)),"water access step");
+            assertNull(blocks.get(new Vec3i(center,0,-8)),"channel space remains unfilled");
+        } else if(style.equals("romanesque_hall")) {
+            assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(center,10,-4)),"round arch crown");
+            for(int y=1;y<8;y++) assertNull(blocks.get(new Vec3i(center,y,-4)),"clear arcade passage");
+            assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(center-5,3,-4)),"supported arcade pier");
+            var components=(com.fasterxml.jackson.databind.node.ArrayNode)tree.get("components");
+            for(int i=components.size()-1;i>=0;i--)
+                if(components.get(i).path("params").path("component_id").asText().startsWith("arc_")
+                        && !components.get(i).path("params").path("component_id").asText().equals("arc_walk")) components.remove(i);
+            var edited=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),ORIGIN,null,null,false));
+            assertNull(edited.get(new Vec3i(center,10,-4)));
+            assertTrue(edited.size()<blocks.size());
+            for(var block:edited.entrySet()) assertEquals(blocks.get(block.getKey()),block.getValue(),"arcade removal preserves all remaining blocks");
+        } else {
+            assertTrue(blocks.values().stream().anyMatch(v->v.startsWith("minecraft:dark_oak_log")),"exposed frame");
+            ((com.fasterxml.jackson.databind.node.ObjectNode)tree.get("components").get(0).get("params")).put("wall_pattern","smooth");
+            var edited=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),ORIGIN,null,null,false));
+            assertEquals(blocks.keySet(),edited.keySet(),"frame toggle preserves occupied shape");
+            int changes=0;
+            for(var block:blocks.entrySet()) {
+                var after=edited.get(block.getKey());
+                if(!block.getValue().equals(after)) {
+                    changes++;
+                    assertTrue(block.getValue().startsWith("minecraft:dark_oak_log"));
+                    assertEquals("minecraft:white_terracotta",after,"only frame infill changes");
+                }
+            }
+            assertTrue(changes>20,"frame toggle must visibly alter the facade");
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({"10,2", "14,3"})
+    void nativeTulouBlueprintRetainsEarthenRingFloorsAndOpenCourtyard(int radius,int floors) throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var plan=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/tulou_ring_"+radius+".json").toFile(),LlmPlan.class);
+        var component=plan.components().getFirst();
+        var parent=new com.formacraft.common.model.build.BuildingSpec();
+        parent.setStyle(com.formacraft.common.model.build.BuildingStyle.ASIAN);
+        parent.setExtra(new HashMap<>(Map.of("styleProfileId",plan.styleProfile(),"paletteId",component.params().get("paletteId"))));
+        @SuppressWarnings("unchecked") var blueprint=(Map<String,Object>)component.params().get("blueprint");
+        var compiler=new com.formacraft.server.generation.structure.blueprint.TulouBlueprintCompiler();
+        assertTrue(compiler.supports(parent,blueprint));
+        var nativePlan=(com.formacraft.common.skeleton.compound.GeneratorBackedPlan)compiler.compile(parent,blueprint);
+        assertEquals(radius,nativePlan.spec.getFootprint().getRadius());
+        assertEquals(floors,nativePlan.spec.getFloors());
+        var generator=new com.formacraft.server.generation.structure.TulouGenerator();
+        var structure=generator.generate(nativePlan.spec,ORIGIN,null);
+        var patches=com.formacraft.common.typology.TypologyPatchBridge.toBlockPatches(structure,ORIGIN);
+        assertFalse(patches.isEmpty());
+        var blocks=com.formacraft.test.PatchTestSnapshot.blocks(patches);
+        assertTrue(blocks.values().stream().filter(v->v.startsWith("minecraft:packed_mud")).count()>100,
+                "dedicated earthen palette must reach native wall geometry");
+        assertTrue(blocks.values().stream().anyMatch(v->v.startsWith("minecraft:deepslate_tiles")));
+        // The native courtyard contains a central well and lantern through y=3.
+        for(int y=4;y<=floors*4+7;y++) assertNull(blocks.get(new Vec3i(0,y,0)),"courtyard must stay open above its furniture");
+        for(int y=1;y<=floors*4+7;y++) assertNull(blocks.get(new Vec3i(2,y,0)),"courtyard beside the well must stay open to sky");
+        for(int floor=0;floor<floors;floor++)
+            assertTrue(blocks.getOrDefault(new Vec3i(radius-2,1+floor*4,0),"").startsWith("minecraft:spruce_planks"),
+                    "annular floor band must exist at every declared storey");
+        var min=ORIGIN.add(0,-8,-radius-8);var max=ORIGIN.add(radius+8,64,radius+8);
+        var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
+        assertFalse(expected.isEmpty());assertTrue(expected.size()<patches.size());
+        assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
+        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
+    }
+
+    @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(ints={13,21})
     void undergroundDwarvenHallExcavatesSeededRockWithinItsBounds(int width) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
