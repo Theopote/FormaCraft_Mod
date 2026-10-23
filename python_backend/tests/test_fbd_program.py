@@ -69,6 +69,69 @@ class FbdProgramTest(unittest.TestCase):
         schema = json.loads((ROOT / 'src/main/resources/assets/formacraft/fbd/program.schema.json').read_text(encoding='utf-8'))
         self.assertEqual(module.build_schema(), schema)
 
+    def test_explicit_request_enables_complete_contract_without_environment_flag(self):
+        from app.services.fbd_capabilities import fbd_system_prompt, requests_fbd
+        with patch.dict('os.environ', {'LLMPLAN_FBD': 'off'}):
+            self.assertTrue(requests_fbd('请使用实验性 FBD，用 repeat 建造三座小亭'))
+            self.assertFalse(requests_fbd('建造三座小亭'))
+            self.assertTrue(requests_fbd('请用FBD生成'))
+            self.assertFalse(requests_fbd('不要使用 FBD，建造普通小亭'))
+            prompt = fbd_system_prompt('请使用 FBD')
+            self.assertIn('params.fbd_program', prompt)
+            self.assertIn('"stmt":"repeat"', prompt)
+            self.assertIn('generation_authority="ASSEMBLY"', prompt)
+            self.assertIn('h>=6', prompt)
+            self.assertIn('2000000 candidate samples', prompt)
+
+    def test_dedicated_prompt_preserves_placement_without_old_schema_or_credentials(self):
+        from app.services.fbd_capabilities import fbd_request_prompt
+        req = SimpleNamespace(userMessage='请使用 FBD', player={'pos': {'x': 10, 'y': 64, 'z': 20}, 'facing': 'WEST'},
+                              selection={'min': {'x': 0, 'y': 60, 'z': 0}}, apiKey='secret',
+                              requestText='legacy preset instructions', chatHistory=['old request'])
+        prompt = fbd_request_prompt(req)
+        self.assertIn('WEST', prompt)
+        self.assertIn('selection', prompt)
+        for value in ('secret', 'legacy preset instructions', 'old request'):
+            self.assertNotIn(value, prompt)
+
+    def test_legacy_plan_cannot_satisfy_an_explicit_fbd_request(self):
+        from app.services.llm_plan_repair import repair_llm_plan_validation
+        p = self.plan()
+        p['components'][0]['params'].pop('fbd_program')
+        result = repair_llm_plan_validation(p, None, user_text='请使用 FBD', building_profile=None,
+                                           normalize_fn=lambda value, _: value)
+        self.assertEqual('capability_gap', result['plan_status'])
+        self.assertIn('requires ASSEMBLY.params.fbd_program', result['error'])
+
+    def test_explicit_gap_is_not_reinterpreted_as_a_legacy_assembly_repair(self):
+        from app.services.assembly_plan_repair import maybe_repair_assembly_plan
+        gap = {'plan_status': 'capability_gap', 'error': 'FBD program missing'}
+        with patch('app.services.assembly_plan_repair.normalize_and_validate_assembly_plan', side_effect=AssertionError('legacy repair')):
+            result = maybe_repair_assembly_plan(Mock(), 'test', [], gap, '请使用 FBD',
+                call_with_timeout=Mock(), timeout_sec=1, prefer_json_object=True, normalize_fn=Mock(), req=None)
+        self.assertEqual(gap, result)
+
+    def test_explicit_fbd_request_can_be_repaired_to_a_program(self):
+        from app.services.llm_plan_repair import repair_llm_plan_validation
+        p = self.plan()
+        p['components'][0]['params'].pop('fbd_program')
+        response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(self.plan())))])
+        with patch('app.models.llm_plan_json_schema.call_chat_with_llm_plan_response_formats', return_value=(response, 'json_object')) as remote:
+            result = repair_llm_plan_validation(p, None, user_text='请使用 FBD', building_profile=None,
+                normalize_fn=lambda value, _: value, client=Mock(), model='test',
+                messages=[{'role': 'user', 'content': '请使用 FBD'}], call_with_timeout=Mock())
+        self.assertEqual(1, remote.call_count)
+        self.assertIn('fbd_program', result['components'][0]['params'])
+
+    def test_program_normalization_never_clamps_envelope_or_adds_semantic_geometry(self):
+        from app.services.ai_planner import _normalize_llm_plan_output
+        p = self.plan()
+        req = SimpleNamespace(userMessage='请使用 FBD 建造两座小屋，一座 FLAT 一座 GABLE 坡屋顶', requestText='')
+        with patch('app.services.building_contract.apply_building_contract', side_effect=AssertionError('legacy contract')):
+            normalized = _normalize_llm_plan_output(p, req, building_profile=Mock())
+        self.assertEqual(p, normalized)
+        self.assertIsNot(p['components'][0]['params'], normalized['components'][0]['params'])
+
     def test_schema_failure_never_falls_back_to_a_different_profile_building(self):
         from app.models.building_profile import BuildingProfile
         from app.services.llm_plan_repair import repair_llm_plan_validation

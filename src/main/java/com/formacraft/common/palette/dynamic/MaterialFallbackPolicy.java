@@ -34,6 +34,9 @@ public final class MaterialFallbackPolicy {
     }
 
     private static Object normalizeValue(String key, Object value) {
+        // FBD has its own typed roles and expressions. Treat its AST as opaque:
+        // e.g. floor="floor" is a role, not an unresolved Minecraft block ID.
+        if ("fbd_program".equals(key)) return value;
         if (value instanceof Map<?, ?> map) {
             var copy = new LinkedHashMap<String, Object>();
             map.forEach((k, v) -> copy.put(String.valueOf(k), normalizeValue(String.valueOf(k), v)));

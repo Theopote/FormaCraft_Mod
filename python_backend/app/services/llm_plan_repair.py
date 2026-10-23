@@ -202,12 +202,12 @@ def repair_llm_plan_validation(
     Each completion is capped at 4096 tokens and 45 seconds per API attempt.
     Never raises LlmPlanValidationError.
     """
-    from .fbd_capabilities import has_fbd_program
-    preserve_fbd = has_fbd_program(plan)
+    from .fbd_capabilities import has_fbd_program, requests_fbd
+    preserve_fbd = has_fbd_program(plan) or requests_fbd(user_text)
     normalized = normalize_fn(plan, req)
     errors = _try_validate(normalized)
-    if preserve_fbd and not has_fbd_program(normalized):
-        errors = ["Normalization must preserve FBD procedural authority"]
+    if preserve_fbd and not has_fbd_program(normalized) and normalized.get('plan_status') != 'capability_gap':
+        errors = ["FBD request requires ASSEMBLY.params.fbd_program; preserve procedural authority, do not substitute legacy geometry"]
     if not errors:
         return normalized
 
@@ -251,7 +251,7 @@ def repair_llm_plan_validation(
                     raise ValueError("LlmPlan repair response must be an object")
                 repaired_norm = normalize_fn(repaired, req)
                 repaired_errors = _try_validate(repaired_norm)
-                if preserve_fbd and not has_fbd_program(repaired_norm):
+                if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':
                     repaired_errors = ["FBD repair must preserve procedural authority; do not replace the program with another building"]
                 if not repaired_errors:
                     logger.info("LlmPlan recovered via LLM validation repair")

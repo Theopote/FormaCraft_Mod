@@ -164,6 +164,8 @@ def maybe_repair_assembly_plan(
     normalize_fn: Any,
     req: Any,
 ) -> Dict[str, Any]:
+    if str(plan.get('plan_status') or '').lower() == 'capability_gap':
+        return plan
     plan, issues = normalize_and_validate_assembly_plan(plan, user_text)
     from .fbd_capabilities import has_fbd_program
     if has_fbd_program(plan):

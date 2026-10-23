@@ -1095,6 +1095,11 @@ def _normalize_llm_plan_output(
 ) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return raw
+    from .fbd_capabilities import is_fbd_only_plan
+    if is_fbd_only_plan(raw):
+        # Legacy enrichment changes geometry/authority and cannot inspect program bodies.
+        from copy import deepcopy
+        return deepcopy(raw)
     plan = dict(raw)
     default_genome = BuildingGenome().model_dump()
     if req is not None:
@@ -4731,7 +4736,7 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     """
     parts: list[str] = []
     from .fbd_capabilities import fbd_prompt_block
-    fbd_capabilities = fbd_prompt_block()
+    fbd_capabilities = fbd_prompt_block(getattr(req, 'userMessage', '') or '')
     if fbd_capabilities:
         parts.append(fbd_capabilities)
     from .building_contract import extract_requirements, request_text
@@ -5135,6 +5140,12 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             except Exception as e:
                 logger.warning("Plan stage augmentation skipped: %s", e)
 
+        from .fbd_capabilities import requests_fbd, fbd_system_prompt, fbd_request_prompt
+        if requests_fbd(getattr(req, 'userMessage', '') or ''):
+            system_prompt = fbd_system_prompt(req.userMessage)
+            user_prompt = fbd_request_prompt(req)
+            logger.info("LlmPlan route=fbd explicit request; using dedicated procedural contract")
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -5220,7 +5231,9 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         except Exception as e:
             logger.warning("Assembly capability_gap finalize skipped: %s", e)
         from .building_contract import apply_building_contract, request_text
-        normalized = apply_building_contract(normalized, request_text(req), finalize=True)
+        from .fbd_capabilities import is_fbd_only_plan
+        if normalized.get('plan_status') != 'capability_gap' and not is_fbd_only_plan(normalized):
+            normalized = apply_building_contract(normalized, request_text(req), finalize=True)
         normalize_ms = (time.monotonic() - _t_norm) * 1000.0
         logger.info(
             "LlmPlan timing: search=%.0fms llm=%.0fms normalize=%.0fms model=%s fmt=%s",

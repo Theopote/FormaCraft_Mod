@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formacraft.common.dsl.*;
 import com.formacraft.common.llm.dto.*;
+import com.formacraft.common.llm.parser.LlmPlanParser;
+import com.formacraft.common.palette.dynamic.MaterialFallbackPolicy;
 import com.formacraft.server.assembly.*;
 import com.formacraft.server.compiler.ComponentPlanCompiler;
 import com.formacraft.server.generation.component.impl.AssemblyPatchGenerator;
@@ -74,6 +76,42 @@ class FbdIntegrationTest {
             assertFalse(blocks.isEmpty(), name);
             assertTrue(blocks.size() <= compiled.cost(), name);
         }
+    }
+
+    @Test void realGameResponsesSurviveMaterialPreprocessingBeforeLoweringAndExecution() throws Exception {
+        var mapper = new ObjectMapper();
+        var responses = mapper.readTree(Files.readString(Path.of("src/test/resources/game_replays/fbd_20261024.json")));
+        assertEquals(3, responses.size());
+        for (var response : responses) {
+            AssemblyCompileDiagnostics.clear();
+            var parsed = LlmPlanParser.parse(response.toString());
+            var normalized = MaterialFallbackPolicy.normalize(parsed);
+            for (int i = 0; i < parsed.components().size(); i++)
+                assertEquals(parsed.components().get(i).params().get("fbd_program"),
+                        normalized.components().get(i).params().get("fbd_program"));
+            var lowered = FbdPlanLowering.lower(normalized.components());
+            assertFalse(AssemblyCompileDiagnostics.hasGap(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+            assertEquals(parsed.components().size(), lowered.size());
+            for (var component : lowered) {
+                var compilation = (FbdCompiler.Compilation) component.params().get(FbdPlanLowering.COMPILED);
+                var blocks = new MetaAssemblyEngine().executeGeometry(FbdAssemblyAdapter.spec(compilation),
+                        new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.NORTH, null,
+                                new FbdExecutionBudget(FbdLimits.DEFAULT)));
+                assertFalse(blocks.isEmpty());
+                assertTrue(blocks.stream().anyMatch(b -> b.getTargetState().isOf(Blocks.STONE_BRICKS)));
+            }
+        }
+    }
+
+    @Test void materialFallbackStillNormalizesOrdinaryParamsBesideAnOpaqueProgram() {
+        var ast = program(Map.of("stmt", "let", "id", "floor", "name", "floor", "value", "floor"), shell("shell"));
+        var params = Map.<String, Object>of("fbd_program", ast, "floor", "floor");
+        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).anchor(new Vec3i(0,64,0))
+                .styleProfile("DEFAULT").components(List.of(component("ASSEMBLY", params))).build();
+        var normalized = MaterialFallbackPolicy.normalize(plan);
+        assertSame(ast, normalized.components().getFirst().params().get("fbd_program"));
+        assertEquals("minecraft:stone_bricks", normalized.components().getFirst().params().get("floor"));
+        assertEquals("floor", params.get("floor"));
     }
 
     @Test void actualWriteAndSamplingLoopsAbortWithTheOriginatingNode() {

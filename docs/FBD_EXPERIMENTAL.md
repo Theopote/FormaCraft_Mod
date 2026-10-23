@@ -6,8 +6,12 @@ BlockPatch、现有区域约束、预览票据、确认和撤销路径。
 
 ## 启用与输入
 
-默认不向模型推荐 FBD。后端设置 `LLMPLAN_FBD=on` 后，LlmPlan 上下文会加入
-语言摘要和共享原语签名。Java 始终独立校验显式传入的程序，不信任后端检查结果。
+默认不向普通请求推荐 FBD。后端设置 `LLMPLAN_FBD=on` 后，LlmPlan 上下文会加入
+语言摘要和共享原语签名。当前玩家消息明确要求使用 FBD 时，无需环境开关，后端使用专用
+程序契约和可执行示例，保留玩家位置、朝向和选区，避免旧预设提示覆盖程序要求。
+模型漏掉 `params.fbd_program` 时最多修复两轮，仍失败则返回能力缺口，不替换为普通建筑。
+纯 FBD 计划不进入 MASS/ROOF 专用的语义补全与契约改写；这不代表其建筑功能已通过验证。
+Java 始终独立校验显式传入的程序，不信任后端检查结果。
 示例计划位于
 [`repeated_pavilions.llmplan.json`](../src/main/resources/assets/formacraft/fbd/examples/repeated_pavilions.llmplan.json)。
 
