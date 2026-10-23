@@ -14,15 +14,8 @@ jobs:
         with:
           java-version: '21'
           distribution: 'microsoft'
-      - name: make gradle wrapper executable
-        run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
-      - name: ShapeLibrary & OpeningGrammar unit tests
-        run: >-
-          ./gradlew test
-          --tests "com.formacraft.common.geometry.shape.ShapeLibraryTest"
-          --tests "com.formacraft.common.proportion.OpeningGrammarResolverTest"
       - name: setup python
         uses: actions/setup-python@v5
         with:
@@ -34,11 +27,15 @@ jobs:
           python scripts/check_generation_entrypoints.py
       - name: python backend smoke
         run: |
-          pip install -r python_backend/requirements.lock
+          pip install -r python_backend/requirements-test.lock
           python python_backend/tools/spec_contract_smoke.py
+      - name: all python backend tests
+        working-directory: python_backend
+        run: python -m pytest tests -q --junitxml=../build/test-results/python/pytest.xml
       - name: eval quality gate
         working-directory: python_backend
-        run: python -m eval.ci_gate
+        # The full pytest suite above includes the curated unittest modules.
+        run: python -m eval.ci_gate --quick
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:

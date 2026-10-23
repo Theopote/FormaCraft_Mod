@@ -172,6 +172,19 @@ See [python_backend/README.md](python_backend/README.md) for the full list.
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
+Run the full backend test suite with the pinned test dependencies:
+
+```bash
+cd python_backend
+pip install -r requirements-test.lock
+python -m pytest tests -q
+python -m eval.ci_gate --quick
+```
+
+The last command runs the scenario and Java constraint-parity gates after the full
+test suite. See [CI verification contracts](docs/architecture/CI_VERIFICATION.md)
+for retrieval formats and regression snapshot rules.
+
 Areas where help is especially valuable:
 
 - AI / prompt design
