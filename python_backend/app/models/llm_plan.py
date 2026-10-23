@@ -174,6 +174,25 @@ class ComponentModel(BaseModel):
     features: List[str] = Field(default_factory=list)
     params: Dict[str, Any] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def validate_fbd_authority(self) -> "ComponentModel":
+        if '_server_fbd_compilation' in self.params:
+            raise ValueError('FBD server compilation metadata is reserved')
+        if 'fbd_program' not in self.params:
+            return self
+        if self.component_type != 'ASSEMBLY':
+            raise ValueError('fbd_program requires component_type=ASSEMBLY')
+        for alternative in ('assembly', 'ops', 'graph', 'components', 'macro', 'preset', 'presetId', 'skeleton'):
+            if alternative in self.params:
+                raise ValueError(f'fbd_program cannot coexist with {alternative}')
+        program = self.params['fbd_program']
+        if not isinstance(program, dict) or program.get('dialect') != 'fbd/0':
+            raise ValueError('fbd_program requires an fbd/0 object')
+        if self.params.get('generation_authority', 'ASSEMBLY') != 'ASSEMBLY':
+            raise ValueError('FBD generation_authority must be ASSEMBLY')
+        # Java is authoritative for AST fields, types, expansion and geometry budgets.
+        return self
+
     @field_validator("features", mode="before")
     @classmethod
     def validate_features(cls, value: Any) -> List[str]:

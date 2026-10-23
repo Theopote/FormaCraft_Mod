@@ -40,6 +40,7 @@ public final class AssemblyShellOps {
             double cosA = Math.cos(angle), sinA = Math.sin(angle);
             for (int x = -halfW + 1; x <= halfW - 1; x++) {
                 for (int z = -halfD + 1; z <= halfD - 1; z++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     int finalX = hasTwist ? (int) Math.round(x * cosA - z * sinA) : x;
                     int finalZ = hasTwist ? (int) Math.round(x * sinA + z * cosA) : z;
                     adapter.put(out, ctx, origin, finalX, yy, finalZ, Blocks.AIR.getDefaultState());
@@ -57,6 +58,7 @@ public final class AssemblyShellOps {
 
             for (int x = -halfW; x <= halfW; x++) {
                 for (int z = -halfD; z <= halfD; z++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     boolean edge = (Math.abs(x) == halfW) || (Math.abs(z) == halfD);
                     if (!edge) continue;
 
@@ -86,6 +88,7 @@ public final class AssemblyShellOps {
 
             for (int x = -halfW + 1; x <= halfW - 1; x++) {
                 for (int z = -halfD + 1; z <= halfD - 1; z++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     int finalX = x;
                     int finalZ = z;
                     if (hasTwist) {
@@ -106,6 +109,7 @@ public final class AssemblyShellOps {
             double sinA = Math.sin(angle);
             for (int x = -halfW; x <= halfW; x++) {
                 for (int z = -halfD; z <= halfD; z++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     int finalX = x;
                     int finalZ = z;
                     if (hasTwist) {

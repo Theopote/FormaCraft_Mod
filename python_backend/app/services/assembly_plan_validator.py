@@ -104,6 +104,8 @@ def auto_apply_assembly_presets(plan: Dict[str, Any], user_text: Optional[str]) 
         if not isinstance(params, dict):
             params = {}
             comp["params"] = params
+        if 'fbd_program' in params:
+            continue  # Procedural authority must never acquire a guessed preset.
         payload = _assembly_payload(params)
         if payload is None:
             payload = {}
@@ -141,6 +143,15 @@ def validate_assembly_plan(plan: Dict[str, Any]) -> List[AssemblyPlanIssue]:
 
 def _validate_assembly_component(issues: List[AssemblyPlanIssue], comp: Dict[str, Any], idx: int) -> None:
     params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+    if 'fbd_program' in params:
+        from ..models.llm_plan import ComponentModel
+        from pydantic import ValidationError
+        try:
+            ComponentModel.model_validate(comp)
+        except ValidationError as exc:
+            issues.append(AssemblyPlanIssue(f'components[{idx}].params.fbd_program',
+                                            'E_FBD_ENVELOPE', str(exc)))
+        return  # Java validates this AST; the legacy Assembly DSL validator must not reinterpret it.
     payload = _assembly_payload(params)
     base = f"components[{idx}]"
     if payload is None:

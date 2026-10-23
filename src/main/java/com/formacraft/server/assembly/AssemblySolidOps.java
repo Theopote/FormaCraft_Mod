@@ -117,13 +117,17 @@ public final class AssemblySolidOps {
         int z0 = -hz - overhang, z1 = hz + overhang;
 
         if (type.contains("FLAT")) {
-            for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) adapter.put(out, ctx, origin, x, yBase, z, slab);
+            for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) {
+                MetaAssemblyEngine.meterSample(ctx); adapter.put(out, ctx, origin, x, yBase, z, slab);
+            }
             return;
         }
 
         boolean ridgeAlongX = w >= d;
         if (!(roof.getBlock() instanceof StairsBlock)) {
-            for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) adapter.put(out, ctx, origin, x, yBase, z, roof);
+            for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) {
+                MetaAssemblyEngine.meterSample(ctx); adapter.put(out, ctx, origin, x, yBase, z, roof);
+            }
             return;
         }
 
@@ -141,6 +145,7 @@ public final class AssemblySolidOps {
                 BlockState sN = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.NORTH) : roof;
                 BlockState sS = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.SOUTH) : roof;
                 for (int x = x0; x <= x1; x++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     int finalY = y + (cornerLiftY > 0 && (x == x0 || x == x1) ? cornerLiftY : 0);
                     adapter.put(out, ctx, origin, x, finalY, zz0, sS);
                     adapter.put(out, ctx, origin, x, finalY, zz1, sN);
@@ -160,6 +165,7 @@ public final class AssemblySolidOps {
                 BlockState sW = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.WEST) : roof;
                 BlockState sE = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.EAST) : roof;
                 for (int z = z0; z <= z1; z++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     int finalY = y + (cornerLiftY > 0 && (z == z0 || z == z1) ? cornerLiftY : 0);
                     adapter.put(out, ctx, origin, xx0, finalY, z, sE);
                     adapter.put(out, ctx, origin, xx1, finalY, z, sW);

@@ -1,0 +1,24 @@
+{
+  "dialect": "fbd/0",
+  "seed": 1,
+  "main": [
+    {
+      "stmt": "repeat",
+      "id": "f1",
+      "times": -1,
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "f2",
+          "op": "SHELL_BOX",
+          "params": {
+            "w": 6,
+            "d": 6,
+            "h": 6,
+            "wall": "wall"
+          }
+        }
+      ]
+    }
+  ]
+}

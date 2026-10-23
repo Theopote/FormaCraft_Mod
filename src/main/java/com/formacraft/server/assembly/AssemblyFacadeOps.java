@@ -373,6 +373,7 @@ public final class AssemblyFacadeOps {
         int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
         for (int y = ay0; y <= ay1; y++) {
             for (int u = au0; u <= au1; u++) {
+                MetaAssemblyEngine.meterSample(ctx);
                 boolean place;
                 BlockState mat = accent;
 

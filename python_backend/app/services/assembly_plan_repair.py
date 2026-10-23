@@ -165,6 +165,10 @@ def maybe_repair_assembly_plan(
     req: Any,
 ) -> Dict[str, Any]:
     plan, issues = normalize_and_validate_assembly_plan(plan, user_text)
+    from .fbd_capabilities import has_fbd_program
+    if has_fbd_program(plan):
+        # The legacy repair prompt asks for presets; never use it to rewrite FBD.
+        return finalize_assembly_plan_or_gap(plan, user_text)
     errors = [i for i in issues if i.severity == "ERROR"]
     if not errors:
         return plan

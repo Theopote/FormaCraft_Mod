@@ -25,7 +25,12 @@ public final class MetaAssemblyEngine {
     public record Context(ServerWorld world,
                           BlockPos origin,
                           Direction entranceFacing,
-                          String paletteId) {}
+                          String paletteId,
+                          com.formacraft.server.dsl.FbdExecutionBudget fbdBudget) {
+        public Context(ServerWorld world, BlockPos origin, Direction entranceFacing, String paletteId) {
+            this(world, origin, entranceFacing, paletteId, null);
+        }
+    }
 
     private static final AssemblyFacadeOps.Adapter FACADE_OPS_ADAPTER = new AssemblyFacadeOps.Adapter() {
         @Override
@@ -308,7 +313,8 @@ public final class MetaAssemblyEngine {
     public List<PlannedBlock> executeGeometry(AssemblySpec spec, Context ctx) {
         if (spec == null || ctx == null || ctx.origin == null) throw new IllegalArgumentException("Geometry context required");
         if (ctx.paletteId != null && !ctx.paletteId.isBlank()) throw new IllegalArgumentException("Geometry verification requires explicit materials");
-        var supported = java.util.Set.of("PUSH_ORIGIN", "POP_ORIGIN", "CYLINDER", "STAIR_SYSTEM", "CLEAR_BOX");
+        var supported = java.util.Set.of("PUSH_ORIGIN", "POP_ORIGIN", "CYLINDER", "STAIR_SYSTEM", "CLEAR_BOX",
+                "SHELL_BOX", "ROOF_COVER", "SURFACE_PATTERN");
         for (var op : spec.ops) if (!supported.contains(str(op.get("op"), "").toUpperCase(java.util.Locale.ROOT)))
             throw new IllegalArgumentException("World-dependent or unsupported geometry operation: " + op.get("op"));
         return executeOperations(spec, ctx);
@@ -320,6 +326,8 @@ public final class MetaAssemblyEngine {
         List<AssemblyCirculationConstraints.Flight> flights = new ArrayList<>();
         BlockPos curOrigin = ctx.origin;
         for (Map<String, Object> op : spec.ops) {
+            if (ctx.fbdBudget != null) ctx.fbdBudget.operation(
+                    (String) op.get("_fbd_node"), (String) op.get("_fbd_instance"), (String) op.get("_fbd_path"));
             int start = out.size();
             curOrigin = applyOp(out, ctx, originStack, curOrigin, op);
             if (op != null && "STAIR_SYSTEM".equalsIgnoreCase(str(op.get("op"), "")))
@@ -341,6 +349,18 @@ public final class MetaAssemblyEngine {
                 int dy = i(op.get("dy"), 0);
                 int dz = i(op.get("dz"), 0);
                 originStack.push(curOrigin);
+                if (ctx.fbdBudget != null) {
+                    try {
+                        // FBD frames inherit component facing; legacy Assembly offsets retain their old semantics.
+                        BlockPos translated = PlacementUtil.local(BlockPos.ORIGIN, ctx.entranceFacing, dx, dy, dz);
+                        dx = translated.getX(); dy = translated.getY(); dz = translated.getZ();
+                        return new BlockPos(Math.addExact(curOrigin.getX(), dx), Math.addExact(curOrigin.getY(), dy),
+                                Math.addExact(curOrigin.getZ(), dz));
+                    } catch (ArithmeticException overflow) {
+                        throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry",
+                                (String) op.get("_fbd_node"), (String) op.get("_fbd_path"), "Frame coordinate overflow");
+                    }
+                }
                 return curOrigin.add(dx, dy, dz);
             }
             case "POP_ORIGIN" -> {
@@ -635,8 +655,20 @@ public final class MetaAssemblyEngine {
 
     private static void put(List<PlannedBlock> out, Context ctx, BlockPos origin, int x, int y, int z, BlockState s) {
         if (s == null) return;
+        if (ctx.fbdBudget != null) {
+            long reach = Math.max(Math.abs((long) x), Math.abs((long) z));
+            if ((long) origin.getX() - reach < Integer.MIN_VALUE || (long) origin.getX() + reach > Integer.MAX_VALUE
+                    || (long) origin.getZ() - reach < Integer.MIN_VALUE || (long) origin.getZ() + reach > Integer.MAX_VALUE
+                    || (long) origin.getY() + y < Integer.MIN_VALUE || (long) origin.getY() + y > Integer.MAX_VALUE)
+                throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry", null, "", "Coordinate overflow");
+        }
         BlockPos p = PlacementUtil.local(origin, ctx.entranceFacing, x, y, z);
+        if (ctx.fbdBudget != null) ctx.fbdBudget.beforeWrite(p);
         out.add(new PlannedBlock(p, PlacementUtil.rotateState(s, ctx.entranceFacing)));
+    }
+
+    public static void meterSample(Context ctx) {
+        if (ctx.fbdBudget != null) ctx.fbdBudget.sample();
     }
 
     private static void fillBox(List<PlannedBlock> out, Context ctx, BlockPos origin, int x0, int y0, int z0, int x1, int y1, int z1, BlockState s) {
@@ -649,6 +681,24 @@ public final class MetaAssemblyEngine {
     private static BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
         // allow explicit override: e.g. { "wall": "minecraft:stone_bricks" }
         Object ov = op.get(overrideKey);
+        if (ov instanceof com.formacraft.common.dsl.FbdPrimitives.Role role) {
+            String key = switch (role.name()) {
+                case "wall" -> "WALL_BASE"; case "window" -> "WINDOW";
+                case "floor" -> "FLOORING"; case "roof" -> "ROOF_TILE";
+                case "slab" -> "FLOOR_SLAB"; case "accent" -> "FACADE_ACCENT";
+                default -> throw new IllegalArgumentException("Unknown FBD material role");
+            };
+            BlockState roleFallback = switch (role.name()) {
+                case "wall" -> Blocks.STONE_BRICKS.getDefaultState();
+                case "window" -> Blocks.GLASS_PANE.getDefaultState();
+                case "floor" -> Blocks.SMOOTH_STONE.getDefaultState();
+                case "roof" -> Blocks.STONE_BRICK_STAIRS.getDefaultState();
+                case "slab" -> Blocks.SMOOTH_STONE_SLAB.getDefaultState();
+                default -> Blocks.STONE_BRICK_WALL.getDefaultState();
+            };
+            return ctx.paletteId != null && !ctx.paletteId.isBlank()
+                    ? PaletteResolver.pick(ctx.world, ctx.paletteId, key, ctx.origin, salt, roleFallback) : roleFallback;
+        }
         if (ov != null) {
             BlockState parsed = parseBlockId(ctx.world, String.valueOf(ov).trim());
             if (parsed != null) return parsed;

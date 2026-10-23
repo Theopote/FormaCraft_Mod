@@ -104,45 +104,52 @@ public final class AssemblyPatchGenerator {
                     ));
         }
 
-        AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
-        AssemblyPresetApplier.ApplyResult presetApplied = AssemblyPresetApplier.apply(norm.normalized());
-        for (AssemblyValidationIssue issue : presetApplied.issues()) {
-            if (issue.severity() == AssemblyValidationIssue.Severity.ERROR) {
-                return failFromIssue(issue, List.of("Fix preset id or presetParams.", "See ai-assembly-schema.json presets."));
+        var fbd = component.params() == null ? null : component.params().get(com.formacraft.server.dsl.FbdPlanLowering.COMPILED);
+        AssemblySpec spec;
+        if (fbd instanceof com.formacraft.common.dsl.FbdCompiler.Compilation compilation) {
+            spec = com.formacraft.server.dsl.FbdAssemblyAdapter.spec(compilation);
+        } else {
+            AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
+            AssemblyPresetApplier.ApplyResult presetApplied = AssemblyPresetApplier.apply(norm.normalized());
+            for (AssemblyValidationIssue issue : presetApplied.issues()) {
+                if (issue.severity() == AssemblyValidationIssue.Severity.ERROR) {
+                    return failFromIssue(issue, List.of("Fix preset id or presetParams.", "See ai-assembly-schema.json presets."));
+                }
             }
-        }
-        AssemblyMacroApplyResult macroApplied = AssemblyMacroApplier.apply(presetApplied.applied());
-        Object applied = macroApplied.applied();
+            AssemblyMacroApplyResult macroApplied = AssemblyMacroApplier.apply(presetApplied.applied());
+            Object applied = macroApplied.applied();
 
-        List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
-        List<AssemblyValidationIssue> errors = issues.stream()
-                .filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR)
-                .toList();
-        if (!errors.isEmpty()) {
-            FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: validation failed ({} errors). Hints:\n{}",
-                    errors.size(), AssemblyValidationRepairHints.formatForPrompt(issues));
-            AssemblyValidationIssue first = errors.getFirst();
-            List<String> suggestions = errors.stream()
-                    .limit(4)
-                    .map(i -> i.code() + ": " + i.message())
-                    .collect(Collectors.toList());
-            return failFromIssue(first, suggestions);
-        }
+            List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
+            List<AssemblyValidationIssue> errors = issues.stream()
+                    .filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR)
+                    .toList();
+            if (!errors.isEmpty()) {
+                FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: validation failed ({} errors). Hints:\n{}",
+                        errors.size(), AssemblyValidationRepairHints.formatForPrompt(issues));
+                AssemblyValidationIssue first = errors.getFirst();
+                List<String> suggestions = errors.stream()
+                        .limit(4)
+                        .map(i -> i.code() + ": " + i.message())
+                        .collect(Collectors.toList());
+                return failFromIssue(first, suggestions);
+            }
 
-        BuildingSpec footprintHint = buildFootprintHint(component);
-        AssemblySpec spec = AssemblySpec.fromExtra(applied);
-        if (spec == null || spec.ops == null || spec.ops.isEmpty()) {
-            spec = MetaAssemblyCompiler.compile(applied, footprintHint);
-        }
-        if (spec == null || spec.ops == null || spec.ops.isEmpty()) {
-            return fail("E_ASSEMBLY_COMPILE_EMPTY",
-                    "Could not compile assembly graph/ops to executable MetaAssembly ops",
-                    "components[].params.assembly",
-                    List.of(
-                            "Ensure graph.components[] types match exported schema.",
-                            "Or use a known preset shorthand.",
-                            "Return plan_status=capability_gap if geometry is unsupported."
-                    ));
+            BuildingSpec footprintHint = buildFootprintHint(component);
+            spec = AssemblySpec.fromExtra(applied);
+            if (spec == null || spec.ops == null || spec.ops.isEmpty()) {
+                spec = MetaAssemblyCompiler.compile(applied, footprintHint);
+            }
+            if (spec == null || spec.ops == null || spec.ops.isEmpty()) {
+                return fail("E_ASSEMBLY_COMPILE_EMPTY",
+                        "Could not compile assembly graph/ops to executable MetaAssembly ops",
+                        "components[].params.assembly",
+                        List.of(
+                                "Ensure graph.components[] types match exported schema.",
+                                "Or use a known preset shorthand.",
+                                "Return plan_status=capability_gap if geometry is unsupported."
+                        ));
+            }
+
         }
 
         Vec3i rp = component.relativePosition();
@@ -155,8 +162,13 @@ public final class AssemblyPatchGenerator {
         try {
             blocks = engine.execute(
                 spec,
-                new MetaAssemblyEngine.Context(world, origin, entrance, paletteId)
+                new MetaAssemblyEngine.Context(world, origin, entrance, paletteId,
+                    fbd instanceof com.formacraft.common.dsl.FbdCompiler.Compilation
+                        ? new com.formacraft.server.dsl.FbdExecutionBudget(com.formacraft.common.dsl.FbdLimits.DEFAULT) : null)
             );
+        } catch (com.formacraft.common.dsl.FbdException failure) {
+            com.formacraft.server.dsl.FbdPlanLowering.report(failure, "components[].params.fbd_program");
+            return GenerateResult.failed(AssemblyCompileDiagnostics.get());
         } catch (AssemblyCirculationConstraints.Conflict conflict) {
             return fail("E_ASSEMBLY_CIRCULATION_CONFLICT", conflict.getMessage(),
                     "components[].params.assembly", List.of("Separate conflicting flights and landings; generate shell/floors before stairs."));

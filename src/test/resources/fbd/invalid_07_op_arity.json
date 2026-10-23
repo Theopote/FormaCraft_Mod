@@ -1,0 +1,17 @@
+{
+  "dialect": "fbd/0",
+  "seed": 1,
+  "main": [
+    {
+      "stmt": "let",
+      "id": "a1",
+      "name": "x",
+      "value": {
+        "expr": "+",
+        "args": [
+          1
+        ]
+      }
+    }
+  ]
+}

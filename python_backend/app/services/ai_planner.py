@@ -4730,6 +4730,10 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     与 BuildingSpec 路径保持一致。全部为本地操作，不引入网络延迟。
     """
     parts: list[str] = []
+    from .fbd_capabilities import fbd_prompt_block
+    fbd_capabilities = fbd_prompt_block()
+    if fbd_capabilities:
+        parts.append(fbd_capabilities)
     from .building_contract import extract_requirements, request_text
     requirements = extract_requirements(request_text(req))
     if requirements:

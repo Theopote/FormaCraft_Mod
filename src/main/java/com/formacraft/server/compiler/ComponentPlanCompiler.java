@@ -1225,6 +1225,9 @@ public final class ComponentPlanCompiler {
             return new PreparedComponents(normalized, Set.of());
         }
 
+        normalized = com.formacraft.server.dsl.FbdPlanLowering.lower(normalized);
+        if (AssemblyCompileDiagnostics.hasGap()) return new PreparedComponents(List.of(), Set.of());
+
         List<Component> components = new ArrayList<>();
         Set<String> massSlots = new HashSet<>();
         for (Component c : normalized) {
