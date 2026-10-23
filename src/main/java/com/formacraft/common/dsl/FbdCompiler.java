@@ -1,6 +1,7 @@
 package com.formacraft.common.dsl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /** Pure, bounded JSON-AST compilation. No world access or host-language evaluation. */
@@ -29,31 +30,41 @@ public final class FbdCompiler {
         var pending = new ArrayDeque<Entry>();
         pending.push(new Entry(raw, 0));
         int nodes = 0;
+        long bytes = 0;
         while (!pending.isEmpty()) {
             Entry e = pending.pop();
             if (++nodes > limits.nodes() || e.depth() > limits.depth())
                 throw error("budget_exceeded", "parse", null, "", "Input node/depth budget exceeded");
             if (e.value() instanceof Map<?, ?> map) {
+                bytes += 2L + Math.max(0, map.size() - 1);
                 if (map.size() > limits.nodes() - nodes - pending.size())
                     throw error("budget_exceeded", "parse", null, "", "Input node budget exceeded");
                 for (var item : map.entrySet()) {
                     if (!(item.getKey() instanceof String key) || key.length() > limits.bytes())
                         throw error("schema_violation", "parse", null, "", "Expected bounded string keys");
+                    bytes += key.getBytes(StandardCharsets.UTF_8).length + 3L;
                     pending.push(new Entry(item.getValue(), e.depth() + 1));
                 }
             } else if (e.value() instanceof List<?> list) {
+                bytes += 2L + Math.max(0, list.size() - 1);
                 if (list.size() > limits.nodes() - nodes - pending.size())
                     throw error("budget_exceeded", "parse", null, "", "Input node budget exceeded");
                 for (Object value : list) pending.push(new Entry(value, e.depth() + 1));
             } else if (e.value() instanceof String s) {
                 if (s.length() > limits.bytes()) throw error("budget_exceeded", "parse", null, "", "String too large");
+                bytes += s.getBytes(StandardCharsets.UTF_8).length + 2L;
             } else if (!(e.value() instanceof Number) && !(e.value() instanceof Boolean)) {
                 throw error("schema_violation", "parse", null, "", "Only JSON values are allowed (null is unsupported)");
+            } else {
+                bytes += e.value().toString().length();
             }
+            if (bytes > limits.bytes()) throw FbdException.budget("parse", null, "", "input_bytes", limits.bytes(), bytes);
         }
         try {
-            if (new ObjectMapper().writeValueAsBytes(raw).length > limits.bytes())
-                throw error("budget_exceeded", "parse", null, "", "Input byte budget exceeded");
+            // The lower-bound pass bounds this allocation even for heavily escaped strings.
+            int exactBytes = new ObjectMapper().writeValueAsBytes(raw).length;
+            if (exactBytes > limits.bytes())
+                throw FbdException.budget("parse", null, "", "input_bytes", limits.bytes(), exactBytes);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw error("schema_violation", "parse", null, "", "Program is not JSON data");
         }

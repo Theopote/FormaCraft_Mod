@@ -124,4 +124,13 @@ class FbdCompilerTest {
         var loop = FbdCompiler.compile(program(Map.of("stmt", "repeat", "id", "loop", "times", 2, "body", List.of(roof))));
         assertNotEquals(loop.commands().getFirst().op().get("cornerLift"), loop.commands().get(1).op().get("cornerLift"));
     }
+
+    @Test void aggregateInputBytesAreBoundedBeforeSerializingTheAst() {
+        var p = Map.of("dialect", "fbd/0", "seed", 1, "main", List.of(),
+                "a", "x".repeat(40000), "b", "x".repeat(40000));
+        var error = assertThrows(FbdException.class, () -> FbdCompiler.compile(p));
+        assertEquals("budget_exceeded", error.code);
+        assertEquals("input_bytes", error.diagnostic().get("layer"));
+        assertTrue(((Number) error.diagnostic().get("actual")).longValue() > 65536);
+    }
 }
