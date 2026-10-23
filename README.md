@@ -54,7 +54,7 @@ cd FormaCraft_Mod
 cd python_backend
 cp .env.example .env
 # Edit .env — set OPENAI_API_KEY or another LLM provider
-pip install -r requirements.txt
+pip install -r requirements.lock
 ```
 
 Without an API key, the backend falls back to rule-based generation so you can still run and test locally.

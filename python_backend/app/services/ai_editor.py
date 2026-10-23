@@ -3,6 +3,7 @@ AI Editor Service
 增量编辑 CitySpec 和 BuildingSpec
 """
 import os
+import logging
 import json
 from typing import Optional
 
@@ -18,6 +19,9 @@ from ..models.building_spec import BuildingSpec
 from .llm_client import get_client_from_fields, build_config
 
 
+logger = logging.getLogger(__name__)
+
+
 def _clamp_temperature(v: Optional[float], default: float) -> float:
     try:
         if v is None:
@@ -28,7 +32,7 @@ def _clamp_temperature(v: Optional[float], default: float) -> float:
         if f > 1.0:
             return 1.0
         return f
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return default
 
 
@@ -177,8 +181,8 @@ Player command:
         
         return updated
         
-    except Exception as e:
-        print(f"LLM call for city edit failed: {e}, returning original spec")
+    except Exception:
+        logger.exception("LLM city edit failed; preserving current spec")
         return current  # 失败时返回原始 spec
 
 
@@ -240,7 +244,7 @@ Player command:
         
         return updated
         
-    except Exception as e:
-        print(f"LLM call for building edit failed: {e}, returning original spec")
+    except Exception:
+        logger.exception("LLM building edit failed; preserving current spec")
         return current
 

@@ -342,6 +342,7 @@ def call_chat_with_llm_plan_response_formats(
     timeout_sec: float,
     prefer_json_object: bool = False,
     transient_retries: int = 0,
+    max_tokens: int | None = None,
 ) -> Tuple[Any, str]:
     """
     Call chat.completions.create with json_schema first (if enabled), then json_object.
@@ -373,7 +374,8 @@ def call_chat_with_llm_plan_response_formats(
                                       if callable(getattr(client, 'with_options', None)) else client)
                     response = call_with_timeout(
                         lambda rf=response_format, api=attempt_client, msgs=attempt_messages: api.chat.completions.create(
-                            model=model, messages=msgs, response_format=rf, temperature=temperature),
+                            model=model, messages=msgs, response_format=rf, temperature=temperature,
+                            **({"max_tokens": max_tokens} if max_tokens is not None else {})),
                         attempt_timeout,
                     )
                     break

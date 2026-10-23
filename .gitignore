@@ -36,6 +36,9 @@ bin/
 
 run/
 logs/
+*.log
+# Deliberate parser fixture, not a runtime log.
+!scripts/sample_llmplan_metrics.log
 
 # java
 

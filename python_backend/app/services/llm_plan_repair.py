@@ -2,10 +2,11 @@
 LlmPlan schema validation repair and graceful degradation.
 
 Open-world builds should not 502 when the LLM emits slightly invalid JSON;
-prefer sanitize → profile fallback → capability_gap.
+prefer sanitize → bounded LLM repair → profile fallback → capability_gap.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any, Callable, Dict, List, Optional
@@ -197,7 +198,8 @@ def repair_llm_plan_validation(
     prefer_json_object: bool = False,
 ) -> Dict[str, Any]:
     """
-    Validate normalized plan; on failure degrade to profile fallback or capability_gap.
+    Validate, attempt at most two LLM repairs, then degrade to profile or capability_gap.
+    Each completion is capped at 4096 tokens and 45 seconds per API attempt.
     Never raises LlmPlanValidationError.
     """
     normalized = normalize_fn(plan, req)
@@ -207,14 +209,6 @@ def repair_llm_plan_validation(
 
     logger.warning("LlmPlan validation failed (%d issues), attempting recovery: %s", len(errors), errors[:3])
 
-    if building_profile is not None:
-        fallback = build_minimal_plan_from_profile(building_profile, req, user_text)
-        fallback_norm = normalize_fn(fallback, req)
-        fallback_errors = _try_validate(fallback_norm)
-        if not fallback_errors:
-            logger.info("LlmPlan recovered via BuildingProfile compositional fallback")
-            return fallback_norm
-
     if (
         LLMPLAN_VALIDATION_REPAIR_LLM
         and client is not None
@@ -222,37 +216,53 @@ def repair_llm_plan_validation(
         and messages
         and call_with_timeout is not None
     ):
-        try:
-            from .ai_planner import call_chat_with_llm_plan_response_formats
-            import json
+        from ..models.llm_plan_json_schema import call_chat_with_llm_plan_response_formats
 
-            repair_user = (
-                "Your previous LlmPlan JSON failed schema validation. Fix ONLY the reported issues.\n"
-                "Errors:\n- "
-                + "\n- ".join(errors[:8])
-                + "\n\nReturn a single corrected LlmPlan JSON object."
-            )
-            repair_messages = list(messages)
-            repair_messages.append({"role": "assistant", "content": json.dumps(normalized, ensure_ascii=False)})
-            repair_messages.append({"role": "user", "content": repair_user})
-            response, _fmt = call_chat_with_llm_plan_response_formats(
-                client,
-                model=model,
-                messages=repair_messages,
-                temperature=0.2,
-                call_with_timeout=call_with_timeout,
-                timeout_sec=timeout_sec,
-                prefer_json_object=prefer_json_object,
-            )
-            raw = response.choices[0].message.content
-            if raw and str(raw).strip():
+        for attempt in range(1, 3):
+            try:
+                repair_user = (
+                    "Your previous LlmPlan JSON failed schema validation. Fix ONLY the reported issues.\n"
+                    "Errors:\n- "
+                    + "\n- ".join(errors[:8])
+                    + "\n\nReturn a single corrected LlmPlan JSON object."
+                )
+                repair_messages = list(messages)
+                repair_messages.append({"role": "assistant", "content": json.dumps(normalized, ensure_ascii=False)})
+                repair_messages.append({"role": "user", "content": repair_user})
+                response, _fmt = call_chat_with_llm_plan_response_formats(
+                    client,
+                    model=model,
+                    messages=repair_messages,
+                    temperature=0.2,
+                    call_with_timeout=call_with_timeout,
+                    timeout_sec=min(timeout_sec, 45.0),
+                    max_tokens=4096,
+                    prefer_json_object=prefer_json_object,
+                )
+                raw = response.choices[0].message.content
+                if not raw or not str(raw).strip():
+                    raise ValueError("Empty LlmPlan repair response")
                 repaired = json.loads(raw)
+                if not isinstance(repaired, dict):
+                    raise ValueError("LlmPlan repair response must be an object")
                 repaired_norm = normalize_fn(repaired, req)
                 repaired_errors = _try_validate(repaired_norm)
                 if not repaired_errors:
                     logger.info("LlmPlan recovered via LLM validation repair")
                     return repaired_norm
-        except Exception as exc:
-            logger.warning("LlmPlan LLM validation repair failed: %s", exc)
+                normalized, errors = repaired_norm, repaired_errors
+            except (TypeError, ValueError):
+                logger.exception("LlmPlan repair round %d returned invalid data", attempt)
+            except Exception:
+                logger.exception("LlmPlan repair round %d failed; stopping remote repair", attempt)
+                break
+
+    if building_profile is not None:
+        fallback = build_minimal_plan_from_profile(building_profile, req, user_text)
+        fallback_norm = normalize_fn(fallback, req)
+        fallback_errors = _try_validate(fallback_norm)
+        if not fallback_errors:
+            logger.info("LlmPlan recovered via BuildingProfile compositional fallback")
+            return fallback_norm
 
     return emit_validation_gap(normalized, errors, building_profile)
