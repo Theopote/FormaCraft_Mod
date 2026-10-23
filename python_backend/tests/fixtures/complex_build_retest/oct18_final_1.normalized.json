@@ -448,7 +448,17 @@
         "component_id": "bank_north",
         "reason": "bank_landing_deck_datum"
       }
-    ]
+    ],
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
   },
   "genome": {
     "genomeVersion": "1.0",

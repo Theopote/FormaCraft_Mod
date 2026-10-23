@@ -358,7 +358,17 @@
         "component_id": "bridge_deck",
         "reason": "connection_height_in_blocks"
       }
-    ]
+    ],
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
   },
   "genome": {
     "genomeVersion": "1.0",

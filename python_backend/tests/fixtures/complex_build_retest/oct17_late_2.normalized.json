@@ -1,1 +1,1166 @@
-{"mode": "build", "style_profile": "Gothic_Cathedral", "style_attributes": {"wall_color": "#8a8a8a", "roof_color": "#2f2f33", "accent_color": "#7f5fb0", "wall_material": "minecraft:stone_bricks", "roof_material": "minecraft:deepslate_tiles", "floor_material": "minecraft:dark_oak_planks", "decorative_elements": ["pointed_arch", "rose_window", "stone_buttress", "stained_glass", "vertical_tracery"]}, "distinguishing_features": ["twin square flanking towers", "central pointed-arch entrance", "large rose window above entrance", "continuous pointed side windows", "two-story side reading galleries", "central five-block-wide aisle", "stained glass embedded in real openings", "exterior buttresses between windows"], "anchor": {"x": -124, "y": 67, "z": -237}, "genome": {"genomeVersion": "1.0", "archetype": {"id": "gothic_library", "confidence": 0.92}, "topology": {"layout": "basilica", "composition": "central_hall_with_twin_towers", "axis": "east_west", "levels": "two_story_galleries"}, "structure": {"type": "masonry", "massiveness": 0.85, "voidRatio": 0.25, "supports": "buttresses"}, "form": {"repetition": "bays", "progression": "symmetrical", "curvature": "pointed_arch", "rhythm": "regular"}, "symmetry": {"type": "BILATERAL", "order": 2, "mirror": null}, "modules": ["entrance", "rose_window", "pointed_windows", "buttresses", "towers", "roof", "galleries", "stairs"], "materials": {"primary": "stone", "secondary": "wood", "accent": "stained_glass", "textureBias": "carved", "extra": null}, "culturalStyle": {"region": "europe", "era": "gothic", "keywords": ["gothic", "cathedral", "library", "stained_glass"]}, "constraints": {"maxHeight": 24, "respectTerrain": true, "insideSelectionOnly": false, "noModifyZones": null}, "aiHints": {"reference": null, "priority": ["symmetry", "pointed_arch", "stained_glass", "buttresses"], "avoid": ["solid_walls", "blocked_windows", "stadium"], "extra": null}}, "global_constraints": {"facing": "EAST", "symmetry": "MIRROR_X", "terrain_strategy": "ADAPTIVE"}, "proportion_hints": {"typology": "gothic_cathedral_hall", "nave_length_to_width": 1.48, "tower_height_to_nave": 1.5, "spire_to_tower": 0.0, "window_aspect": ["pointed_arch", "rose_window", "vertical_strip"], "min_enclosure_coverage": 0.75, "max_void_ratio": 0.35, "building_contract": {"schema": "formacraft.building_contract.v1", "requirements": [{"id": "req_length", "property": "length", "value": 31, "unit": "blocks", "source": "user_explicit", "source_text": ["长31格"], "scope": "all_main_masses", "priority": "hard", "status": "planned", "dimension_subject": "building_envelope", "target_components": ["library_main"], "mismatched_components": []}, {"id": "req_width", "property": "width", "value": 21, "unit": "blocks", "source": "user_explicit", "source_text": ["宽21格"], "scope": "all_main_masses", "priority": "hard", "status": "planned", "dimension_subject": "building_envelope", "target_components": ["library_main"], "mismatched_components": []}, {"id": "req_floor_count", "property": "floor_count", "value": 2, "unit": "floors", "source": "user_explicit", "source_text": ["二层"], "scope": "all_main_masses", "priority": "hard", "status": "planned", "target_components": ["library_main"], "mismatched_components": []}], "diagnostics": [], "validation_stage": "plan", "scope_bindings": {"named_main_body": ["library_main"], "named_tower": ["north_tower", "south_tower"]}, "resolved_buildings": [{"component_id": "library_main", "slot_id": "main", "local_origin": {"x": -15, "y": 0, "z": -10}, "plan_origin": {"x": -15, "y": 0, "z": -10}, "dimensions": {"width": 31, "depth": 21, "height": 16}, "floor_ys_local": [0, 8], "roof_y_local": 15, "floor_layout_fits": true, "coordinate_stage": "plan", "geometry_status": "parameters_only", "multi_mass": {"parts": [{"part_id": "library_main", "local_origin": {"x": -15, "y": 0, "z": -10}, "dimensions": {"width": 31, "depth": 21, "height": 16}, "roof_y_local": 15}], "envelope_local": {"min_x": -15, "min_z": -10, "max_x": 16, "max_z": 11, "min_y": 0, "max_y": 16}, "footprint_status": "rectangular_union", "outline_local": [{"direction": "EAST", "plane": 16, "start": -10, "end": 11}, {"direction": "NORTH", "plane": -10, "start": -15, "end": 16}, {"direction": "SOUTH", "plane": 11, "start": -15, "end": 16}, {"direction": "WEST", "plane": -15, "start": -10, "end": 11}], "direction_convention": "minecraft_world", "coverage_status": "parameters_only"}}]}, "architecture_intent": {"schema": "formacraft.architecture_intent.v1", "stage": "request_observation", "precedence": ["explicit_request", "purpose_rules", "style_defaults", "material_defaults"], "style_identities": [{"requested_id": "Gothic_Cathedral", "identity_id": "Gothic_Cathedral", "status": "canonical", "profile_id": "Gothic_Cathedral"}], "scopes": [{"scope": "global", "text": "在锚点生成一座哥特式图书馆， 主体长31格、宽21格， 中部大厅高16格， 两侧各有一座高24格的方形塔楼 。建筑使用灰色石材、 深色屋顶和彩色玻璃， 正立面左右对称。 中央设置尖拱入口、 入口上方的大型圆形花窗， 两侧设置连续尖拱窗、 扶壁和竖向装饰。 内部大厅保持挑高， 两侧设置二层阅读回廊， 通过楼梯连接； 中央保留至少5格宽的通道。 补充书架、照明、 塔楼楼板与屋顶细节。 彩色玻璃应嵌入真实窗洞， 扶壁和装饰不要堵住门窗。", "purposes": [{"id": "library", "phrase": "图书馆", "start": 10, "status": "requested", "part": "building"}], "styles": [{"id": "Gothic_Cathedral", "phrase": "哥特式", "start": 7, "status": "requested", "part": "building"}], "structures": [{"id": "tower", "phrase": "塔楼", "start": 51, "status": "requested", "part": "building"}, {"id": "tower", "phrase": "塔楼", "start": 181, "status": "requested", "part": "building"}]}], "original_text": "在锚点生成一座哥特式图书馆，\n主体长31格、宽21格，\n中部大厅高16格，\n两侧各有一座高24格的方形塔楼\n。建筑使用灰色石材、\n深色屋顶和彩色玻璃，\n正立面左右对称。\n中央设置尖拱入口、\n入口上方的大型圆形花窗，\n两侧设置连续尖拱窗、\n扶壁和竖向装饰。\n内部大厅保持挑高，\n两侧设置二层阅读回廊，\n通过楼梯连接；\n中央保留至少5格宽的通道。\n补充书架、照明、\n塔楼楼板与屋顶细节。\n彩色玻璃应嵌入真实窗洞，\n扶壁和装饰不要堵住门窗。", "scope_binding": "lexical_not_component_binding", "unrecognized_text_preserved": true, "limits": ["Alias coverage is finite.", "Observations do not certify generated style or functional rooms."], "materials": []}, "window_language_report": {"schema": "formacraft.window_language.v1", "requirements": []}, "building_use_intent": {"schema": "formacraft.building_use.v1", "detected_uses": [], "scope_status": "unspecified", "bindings": [], "verification_level": "intent_only", "geometry_verified": false}, "building_use_audit": {"schema": "formacraft.building_use_audit.v1", "verification_level": "plan_components_only", "blocking": false, "buildings": []}, "gothic_building_contract": {"schema": "formacraft.gothic_building.v1", "requirements": [], "verification_level": "plan_parameters_only"}, "connection_repairs": [{"component_id": "north_tower", "reason": "integrated_tower_host"}, {"component_id": "north_tower_floor_8", "reason": "tower_floor_host"}, {"component_id": "north_tower_floor_16", "reason": "tower_floor_host"}, {"component_id": "south_tower", "reason": "integrated_tower_host"}, {"component_id": "south_tower_floor_8", "reason": "tower_floor_host"}, {"component_id": "south_tower_floor_16", "reason": "tower_floor_host"}]}, "layout": {"skeleton_type": "GRID_BAY", "path_based": false, "slots": [{"slot_id": "main", "anchor": {"x": 0, "y": 0, "z": 0}, "facing": "EAST", "component_preset": "MASS_MAIN", "size": {"width": 31, "depth": 21, "height": 24}}]}, "components": [{"component_type": "MASS_MAIN", "slot_id": "main", "relative_position": {"x": -15, "y": 0, "z": -10}, "dimensions": {"width": 31, "depth": 21, "height": 16}, "features": ["gothic_library_nave", "hollow_shell", "central_aisle_width_5", "twin_tower_integrated_front"], "params": {"component_id": "library_main", "anchor_mode": "min_corner", "shape": "rectangle", "plan_type": "none", "floor_count": 2, "floor_height": 8, "length": 31, "width": 21, "wall_block": "minecraft:stone_bricks", "floor_block": "minecraft:dark_oak_planks", "roof_block": "minecraft:deepslate_tiles", "roof_type": "gable", "entrance_type": "pointed_arch", "window_style": "pointed_arch", "facade_profile": "pointed_bay", "void_ratio": 0.25, "window_ratio": 0.35, "building_id": "library_main"}}, {"component_type": "ROOF", "slot_id": "main", "relative_position": {"x": -15, "y": 16, "z": -10}, "dimensions": {"width": 31, "depth": 21, "height": 6}, "features": ["attached_roof", "steep_gable_roof"], "params": {"component_id": "library_main_roof", "host_id": "library_main", "anchor_mode": "min_corner", "roof_type": "gable", "roof_block": "minecraft:deepslate_tiles", "ridge_axis": "X", "eave_overhang": 1, "roof_height": 6, "overhang": 2, "building_id": "library_main"}}, {"component_type": "TOWER", "slot_id": "main", "relative_position": {"x": 9, "y": 0, "z": 4}, "dimensions": {"width": 7, "depth": 7, "height": 24}, "features": ["flanking_tower", "square_gothic_tower", "front_symmetry"], "params": {"component_id": "north_tower", "anchor_mode": "min_corner", "tower_shape": "square", "floor_count": 6, "floor_height": 4, "wall_block": "minecraft:stone_bricks", "floor_block": "minecraft:dark_oak_planks", "roof_type": "pyramid", "roof_block": "minecraft:deepslate_tiles", "roof_height": 5, "window_style": "pointed_arch", "glass_block": "minecraft:light_blue_stained_glass", "building_id": "north_tower", "host_id": "library_main"}}, {"component_type": "TOWER", "slot_id": "main", "relative_position": {"x": 9, "y": 0, "z": -10}, "dimensions": {"width": 7, "depth": 7, "height": 24}, "features": ["flanking_tower", "square_gothic_tower", "front_symmetry"], "params": {"component_id": "south_tower", "anchor_mode": "min_corner", "tower_shape": "square", "floor_count": 6, "floor_height": 4, "wall_block": "minecraft:stone_bricks", "floor_block": "minecraft:dark_oak_planks", "roof_type": "pyramid", "roof_block": "minecraft:deepslate_tiles", "roof_height": 5, "window_style": "pointed_arch", "glass_block": "minecraft:light_blue_stained_glass", "building_id": "south_tower", "host_id": "library_main"}}, {"component_type": "MASS_SECONDARY", "slot_id": "main", "relative_position": {"x": -15, "y": 8, "z": 3}, "dimensions": {"width": 24, "depth": 8, "height": 16}, "features": ["two_story_gallery", "floor_plate", "north_gallery"], "params": {"component_id": "gallery_floor_north", "host_id": "library_main", "anchor_mode": "min_corner", "extrude_mode": "plate", "plate_role": "gallery", "floor_block": "minecraft:dark_oak_planks", "floor_height": 8, "shape": "rectangle", "roof_type": "gable", "window_ratio": 0.35, "void_ratio": 0.25, "facade_profile": "vertical_pilasters", "wall_pattern": "gradient", "floor_count": 2, "building_id": "library_main"}}, {"component_type": "MASS_SECONDARY", "slot_id": "main", "relative_position": {"x": -15, "y": 8, "z": -10}, "dimensions": {"width": 24, "depth": 8, "height": 16}, "features": ["two_story_gallery", "floor_plate", "south_gallery"], "params": {"component_id": "gallery_floor_south", "host_id": "library_main", "anchor_mode": "min_corner", "extrude_mode": "plate", "plate_role": "gallery", "floor_block": "minecraft:dark_oak_planks", "floor_height": 8, "shape": "rectangle", "roof_type": "gable", "window_ratio": 0.35, "void_ratio": 0.25, "facade_profile": "vertical_pilasters", "wall_pattern": "gradient", "floor_count": 2, "building_id": "library_main"}}, {"component_type": "MASS_SECONDARY", "slot_id": "main", "relative_position": {"x": 9, "y": 8, "z": 4}, "dimensions": {"width": 7, "depth": 7, "height": 6}, "features": ["tower_floor_plate", "north_tower_level_2"], "params": {"component_id": "north_tower_floor_8", "host_id": "north_tower", "anchor_mode": "min_corner", "extrude_mode": "plate", "plate_role": "interior", "floor_block": "minecraft:dark_oak_planks", "shape": "rectangle", "roof_type": "gable", "window_ratio": 0.35, "void_ratio": 0.25, "floor_height": 3, "facade_profile": "vertical_pilasters", "wall_pattern": "gradient", "floor_count": 2, "building_id": "north_tower"}}, {"component_type": "MASS_SECONDARY", "slot_id": "main", "relative_position": {"x": 9, "y": 16, "z": 4}, "dimensions": {"width": 7, "depth": 7, "height": 6}, "features": ["tower_floor_plate", "north_tower_level_4"], "params": {"component_id": "north_tower_floor_16", "host_id": "north_tower", "anchor_mode": "min_corner", "extrude_mode": "plate", "plate_role": "interior", "floor_block": "minecraft:dark_oak_planks", "shape": "rectangle", "roof_type": "gable", "window_ratio": 0.35, "void_ratio": 0.25, "floor_height": 3, "facade_profile": "vertical_pilasters", "wall_pattern": "gradient", "floor_count": 2, "building_id": "north_tower"}}, {"component_type": "MASS_SECONDARY", "slot_id": "main", "relative_position": {"x": 9, "y": 8, "z": -10}, "dimensions": {"width": 7, "depth": 7, "height": 6}, "features": ["tower_floor_plate", "south_tower_level_2"], "params": {"component_id": "south_tower_floor_8", "host_id": "south_tower", "anchor_mode": "min_corner", "extrude_mode": "plate", "plate_role": "interior", "floor_block": "minecraft:dark_oak_planks", "shape": "rectangle", "roof_type": "gable", "window_ratio": 0.35, "void_ratio": 0.25, "floor_height": 3, "facade_profile": "vertical_pilasters", "wall_pattern": "gradient", "floor_count": 2, "building_id": "south_tower"}}, {"component_type": "MASS_SECONDARY", "slot_id": "main", "relative_position": {"x": 9, "y": 16, "z": -10}, "dimensions": {"width": 7, "depth": 7, "height": 6}, "features": ["tower_floor_plate", "south_tower_level_4"], "params": {"component_id": "south_tower_floor_16", "host_id": "south_tower", "anchor_mode": "min_corner", "extrude_mode": "plate", "plate_role": "interior", "floor_block": "minecraft:dark_oak_planks", "shape": "rectangle", "roof_type": "gable", "window_ratio": 0.35, "void_ratio": 0.25, "floor_height": 3, "facade_profile": "vertical_pilasters", "wall_pattern": "gradient", "floor_count": 2, "building_id": "south_tower"}}, {"component_type": "ENTRANCE", "slot_id": "main", "relative_position": {"x": 15, "y": 0, "z": -2}, "dimensions": {"width": 5, "depth": 1, "height": 6}, "features": ["central_pointed_arch_entrance", "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"pointed_arch\", \"gothic\", \"heavy\", \"stone_frame\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 5, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"gray stone\"}, \"constraints\": {\"mustHave\": [\"pointed_arch\"], \"forbiddenTags\": [\"modern\", \"glass_curtain\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"], "params": {"component_id": "east_entrance", "host_id": "library_main", "anchor_mode": "min_corner", "entrance_type": "pointed_arch", "door_block": "minecraft:dark_oak_door", "frame_block": "minecraft:stone_bricks", "door_width": 3, "door_height": 4, "building_id": "library_main"}}, {"component_type": "FACADE_WINDOWS", "slot_id": "main", "relative_position": {"x": 15, "y": 7, "z": -3}, "dimensions": {"width": 7, "depth": 1, "height": 7}, "features": ["large_rose_window", "stained_glass_embedded", "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"rose_window\", \"stained_glass\", \"round\", \"gothic\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 7, \"openingHeight\": 7, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"stained glass\"}, \"constraints\": {\"mustHave\": [\"rose_window\", \"stained_glass\"], \"forbiddenTags\": [\"solid\", \"opaque\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"], "params": {"component_id": "east_rose_window", "host_id": "library_main", "anchor_mode": "min_corner", "wall_side": "EAST", "window_style": "rose_window", "glass_block": "minecraft:red_stained_glass", "frame_block": "minecraft:stone_bricks", "window_ratio": 0.5, "rhythm": "regular", "building_id": "library_main"}}, {"component_type": "FACADE_WINDOWS", "slot_id": "main", "relative_position": {"x": -15, "y": 3, "z": 10}, "dimensions": {"width": 24, "depth": 1, "height": 8}, "features": ["continuous_pointed_windows", "stained_glass_embedded", "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"pointed_arch\", \"stained_glass\", \"vertical_strip\", \"gothic\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"stained glass\"}, \"constraints\": {\"mustHave\": [\"pointed_arch\", \"stained_glass\"], \"forbiddenTags\": [\"solid\", \"opaque\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"], "params": {"component_id": "side_windows_north", "host_id": "library_main", "anchor_mode": "min_corner", "wall_side": "NORTH", "window_style": "pointed_arch", "window_spacing": 4, "window_width": 2, "window_height": 6, "sill_height": 3, "glass_block": "minecraft:light_blue_stained_glass", "frame_block": "minecraft:stone_bricks", "window_ratio": 0.35, "rhythm": "regular", "building_id": "library_main"}}, {"component_type": "FACADE_WINDOWS", "slot_id": "main", "relative_position": {"x": -15, "y": 3, "z": -10}, "dimensions": {"width": 24, "depth": 1, "height": 8}, "features": ["continuous_pointed_windows", "stained_glass_embedded", "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"pointed_arch\", \"stained_glass\", \"vertical_strip\", \"gothic\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"stained glass\"}, \"constraints\": {\"mustHave\": [\"pointed_arch\", \"stained_glass\"], \"forbiddenTags\": [\"solid\", \"opaque\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"], "params": {"component_id": "side_windows_south", "host_id": "library_main", "anchor_mode": "min_corner", "wall_side": "SOUTH", "window_style": "pointed_arch", "window_spacing": 4, "window_width": 2, "window_height": 6, "sill_height": 3, "glass_block": "minecraft:light_blue_stained_glass", "frame_block": "minecraft:stone_bricks", "window_ratio": 0.35, "rhythm": "regular", "building_id": "library_main"}}, {"component_type": "DECOR_DETAIL", "slot_id": "main", "relative_position": {"x": -15, "y": 0, "z": 10}, "dimensions": {"width": 24, "depth": 2, "height": 14}, "features": ["exterior_buttresses", "between_window_bays", "component_request:{\"component_query\": {\"semantic\": {\"role\": \"column\", \"tags\": [\"buttress\", \"slender\", \"gothic\", \"stone\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"gray stone\"}, \"constraints\": {\"mustHave\": [\"buttress\"], \"forbiddenTags\": [\"window_blocker\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"], "params": {"component_id": "buttresses_north", "host_id": "library_main", "anchor_mode": "min_corner", "decor_type": "buttress_array", "side": "NORTH", "spacing": 5, "element_width": 1, "element_depth": 2, "element_height": 14, "material": "minecraft:stone_bricks", "avoid_openings": true, "building_id": "library_main"}}, {"component_type": "DECOR_DETAIL", "slot_id": "main", "relative_position": {"x": -15, "y": 0, "z": -12}, "dimensions": {"width": 24, "depth": 2, "height": 14}, "features": ["exterior_buttresses", "between_window_bays"], "params": {"component_id": "buttresses_south", "host_id": "library_main", "anchor_mode": "min_corner", "decor_type": "buttress_array", "side": "SOUTH", "spacing": 5, "element_width": 1, "element_depth": 2, "element_height": 14, "material": "minecraft:stone_bricks", "avoid_openings": true, "building_id": "library_main"}}, {"component_type": "DECOR_DETAIL", "slot_id": "main", "relative_position": {"x": 15, "y": 0, "z": -3}, "dimensions": {"width": 1, "depth": 7, "height": 16}, "features": ["east_vertical_tracery", "facade_ornament"], "params": {"component_id": "east_vertical_tracery", "host_id": "library_main", "anchor_mode": "min_corner", "decor_type": "vertical_tracery", "side": "EAST", "material": "minecraft:stone_bricks", "avoid_openings": true, "building_id": "library_main"}}, {"component_type": "DECOR_DETAIL", "slot_id": "main", "relative_position": {"x": -12, "y": 1, "z": 8}, "dimensions": {"width": 20, "depth": 1, "height": 4}, "features": ["bookshelf_wall", "north_gallery_interior"], "params": {"component_id": "north_bookshelf_wall", "host_id": "library_main", "anchor_mode": "min_corner", "decor_type": "bookshelf_series", "material": "minecraft:bookshelf", "side": "NORTH_INTERIOR", "building_id": "library_main"}}, {"component_type": "DECOR_DETAIL", "slot_id": "main", "relative_position": {"x": -12, "y": 1, "z": -9}, "dimensions": {"width": 20, "depth": 1, "height": 4}, "features": ["bookshelf_wall", "south_gallery_interior"], "params": {"component_id": "south_bookshelf_wall", "host_id": "library_main", "anchor_mode": "min_corner", "decor_type": "bookshelf_series", "material": "minecraft:bookshelf", "side": "SOUTH_INTERIOR", "building_id": "library_main"}}, {"component_type": "DECOR_DETAIL", "slot_id": "main", "relative_position": {"x": -12, "y": 12, "z": 0}, "dimensions": {"width": 24, "depth": 1, "height": 1}, "features": ["central_aisle_lighting", "hanging_lantern_row"], "params": {"component_id": "central_lantern_row", "host_id": "library_main", "anchor_mode": "min_corner", "decor_type": "lantern_row", "light_block": "minecraft:lantern", "spacing": 4, "building_id": "library_main"}}, {"component_type": "STRUCTURE", "slot_id": "main", "relative_position": {"x": 0, "y": 0, "z": 0}, "dimensions": {"width": 8, "depth": 3, "height": 8}, "features": ["stair:straight_single_run", "interior_stair", "north_gallery_access"], "params": {"component_id": "north_gallery_stair", "host_id": "library_main", "from": {"x": -12, "y": 0, "z": 6}, "to": {"x": -4, "y": 8, "z": 6}, "width": 3, "stairs": "minecraft:oak_stairs", "floor": "minecraft:dark_oak_planks", "clearHeight": 2, "landing_length": 3, "building_id": "library_main"}}, {"component_type": "STRUCTURE", "slot_id": "main", "relative_position": {"x": 0, "y": 0, "z": 0}, "dimensions": {"width": 8, "depth": 3, "height": 8}, "features": ["stair:straight_single_run", "interior_stair", "south_gallery_access"], "params": {"component_id": "south_gallery_stair", "host_id": "library_main", "from": {"x": -12, "y": 0, "z": -6}, "to": {"x": -4, "y": 8, "z": -6}, "width": 3, "stairs": "minecraft:oak_stairs", "floor": "minecraft:dark_oak_planks", "clearHeight": 2, "landing_length": 3, "building_id": "library_main"}}], "kind": "llmplan"}
+{
+  "mode": "build",
+  "style_profile": "Gothic_Cathedral",
+  "style_attributes": {
+    "wall_color": "#8a8a8a",
+    "roof_color": "#2f2f33",
+    "accent_color": "#7f5fb0",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:dark_oak_planks",
+    "decorative_elements": [
+      "pointed_arch",
+      "rose_window",
+      "stone_buttress",
+      "stained_glass",
+      "vertical_tracery"
+    ]
+  },
+  "distinguishing_features": [
+    "twin square flanking towers",
+    "central pointed-arch entrance",
+    "large rose window above entrance",
+    "continuous pointed side windows",
+    "two-story side reading galleries",
+    "central five-block-wide aisle",
+    "stained glass embedded in real openings",
+    "exterior buttresses between windows"
+  ],
+  "anchor": {
+    "x": -124,
+    "y": 67,
+    "z": -237
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "gothic_library",
+      "confidence": 0.92
+    },
+    "topology": {
+      "layout": "basilica",
+      "composition": "central_hall_with_twin_towers",
+      "axis": "east_west",
+      "levels": "two_story_galleries"
+    },
+    "structure": {
+      "type": "masonry",
+      "massiveness": 0.85,
+      "voidRatio": 0.25,
+      "supports": "buttresses"
+    },
+    "form": {
+      "repetition": "bays",
+      "progression": "symmetrical",
+      "curvature": "pointed_arch",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "BILATERAL",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "entrance",
+      "rose_window",
+      "pointed_windows",
+      "buttresses",
+      "towers",
+      "roof",
+      "galleries",
+      "stairs"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "stained_glass",
+      "textureBias": "carved",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "europe",
+      "era": "gothic",
+      "keywords": [
+        "gothic",
+        "cathedral",
+        "library",
+        "stained_glass"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 24,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "symmetry",
+        "pointed_arch",
+        "stained_glass",
+        "buttresses"
+      ],
+      "avoid": [
+        "solid_walls",
+        "blocked_windows",
+        "stadium"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "gothic_cathedral_hall",
+    "nave_length_to_width": 1.48,
+    "tower_height_to_nave": 1.5,
+    "spire_to_tower": 0.0,
+    "window_aspect": [
+      "pointed_arch",
+      "rose_window",
+      "vertical_strip"
+    ],
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.35,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_length",
+          "property": "length",
+          "value": 31,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "长31格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "library_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_width",
+          "property": "width",
+          "value": 21,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽21格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "library_main"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "二层"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "library_main"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "library_main"
+        ],
+        "named_tower": [
+          "north_tower",
+          "south_tower"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "library_main",
+          "slot_id": "main",
+          "local_origin": {
+            "x": -15,
+            "y": 0,
+            "z": -10
+          },
+          "plan_origin": {
+            "x": -15,
+            "y": 0,
+            "z": -10
+          },
+          "dimensions": {
+            "width": 31,
+            "depth": 21,
+            "height": 16
+          },
+          "floor_ys_local": [
+            0,
+            8
+          ],
+          "roof_y_local": 15,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "library_main",
+                "local_origin": {
+                  "x": -15,
+                  "y": 0,
+                  "z": -10
+                },
+                "dimensions": {
+                  "width": 31,
+                  "depth": 21,
+                  "height": 16
+                },
+                "roof_y_local": 15
+              }
+            ],
+            "envelope_local": {
+              "min_x": -15,
+              "min_z": -10,
+              "max_x": 16,
+              "max_z": 11,
+              "min_y": 0,
+              "max_y": 16
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 16,
+                "start": -10,
+                "end": 11
+              },
+              {
+                "direction": "NORTH",
+                "plane": -10,
+                "start": -15,
+                "end": 16
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 11,
+                "start": -15,
+                "end": 16
+              },
+              {
+                "direction": "WEST",
+                "plane": -15,
+                "start": -10,
+                "end": 11
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Gothic_Cathedral",
+          "identity_id": "Gothic_Cathedral",
+          "status": "canonical",
+          "profile_id": "Gothic_Cathedral"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "在锚点生成一座哥特式图书馆， 主体长31格、宽21格， 中部大厅高16格， 两侧各有一座高24格的方形塔楼 。建筑使用灰色石材、 深色屋顶和彩色玻璃， 正立面左右对称。 中央设置尖拱入口、 入口上方的大型圆形花窗， 两侧设置连续尖拱窗、 扶壁和竖向装饰。 内部大厅保持挑高， 两侧设置二层阅读回廊， 通过楼梯连接； 中央保留至少5格宽的通道。 补充书架、照明、 塔楼楼板与屋顶细节。 彩色玻璃应嵌入真实窗洞， 扶壁和装饰不要堵住门窗。",
+          "purposes": [
+            {
+              "id": "library",
+              "phrase": "图书馆",
+              "start": 10,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Gothic_Cathedral",
+              "phrase": "哥特式",
+              "start": 7,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": [
+            {
+              "id": "tower",
+              "phrase": "塔楼",
+              "start": 51,
+              "status": "requested",
+              "part": "building"
+            },
+            {
+              "id": "tower",
+              "phrase": "塔楼",
+              "start": 181,
+              "status": "requested",
+              "part": "building"
+            }
+          ]
+        }
+      ],
+      "original_text": "在锚点生成一座哥特式图书馆，\n主体长31格、宽21格，\n中部大厅高16格，\n两侧各有一座高24格的方形塔楼\n。建筑使用灰色石材、\n深色屋顶和彩色玻璃，\n正立面左右对称。\n中央设置尖拱入口、\n入口上方的大型圆形花窗，\n两侧设置连续尖拱窗、\n扶壁和竖向装饰。\n内部大厅保持挑高，\n两侧设置二层阅读回廊，\n通过楼梯连接；\n中央保留至少5格宽的通道。\n补充书架、照明、\n塔楼楼板与屋顶细节。\n彩色玻璃应嵌入真实窗洞，\n扶壁和装饰不要堵住门窗。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "connection_repairs": [
+      {
+        "component_id": "north_tower",
+        "reason": "integrated_tower_host"
+      },
+      {
+        "component_id": "north_tower_floor_8",
+        "reason": "tower_floor_host"
+      },
+      {
+        "component_id": "north_tower_floor_16",
+        "reason": "tower_floor_host"
+      },
+      {
+        "component_id": "south_tower",
+        "reason": "integrated_tower_host"
+      },
+      {
+        "component_id": "south_tower_floor_8",
+        "reason": "tower_floor_host"
+      },
+      {
+        "component_id": "south_tower_floor_16",
+        "reason": "tower_floor_host"
+      }
+    ],
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
+  },
+  "layout": {
+    "skeleton_type": "GRID_BAY",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "component_preset": "MASS_MAIN",
+        "size": {
+          "width": 31,
+          "depth": 21,
+          "height": 24
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 31,
+        "depth": 21,
+        "height": 16
+      },
+      "features": [
+        "gothic_library_nave",
+        "hollow_shell",
+        "central_aisle_width_5",
+        "twin_tower_integrated_front"
+      ],
+      "params": {
+        "component_id": "library_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 8,
+        "length": 31,
+        "width": 21,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_type": "gable",
+        "entrance_type": "pointed_arch",
+        "window_style": "pointed_arch",
+        "facade_profile": "pointed_bay",
+        "void_ratio": 0.25,
+        "window_ratio": 0.35,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 16,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 31,
+        "depth": 21,
+        "height": 6
+      },
+      "features": [
+        "attached_roof",
+        "steep_gable_roof"
+      ],
+      "params": {
+        "component_id": "library_main_roof",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "roof_block": "minecraft:deepslate_tiles",
+        "ridge_axis": "X",
+        "eave_overhang": 1,
+        "roof_height": 6,
+        "overhang": 2,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 24
+      },
+      "features": [
+        "flanking_tower",
+        "square_gothic_tower",
+        "front_symmetry"
+      ],
+      "params": {
+        "component_id": "north_tower",
+        "anchor_mode": "min_corner",
+        "tower_shape": "square",
+        "floor_count": 6,
+        "floor_height": 4,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_type": "pyramid",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 5,
+        "window_style": "pointed_arch",
+        "glass_block": "minecraft:light_blue_stained_glass",
+        "building_id": "north_tower",
+        "host_id": "library_main"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 24
+      },
+      "features": [
+        "flanking_tower",
+        "square_gothic_tower",
+        "front_symmetry"
+      ],
+      "params": {
+        "component_id": "south_tower",
+        "anchor_mode": "min_corner",
+        "tower_shape": "square",
+        "floor_count": 6,
+        "floor_height": 4,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_type": "pyramid",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 5,
+        "window_style": "pointed_arch",
+        "glass_block": "minecraft:light_blue_stained_glass",
+        "building_id": "south_tower",
+        "host_id": "library_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 8,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 8,
+        "height": 16
+      },
+      "features": [
+        "two_story_gallery",
+        "floor_plate",
+        "north_gallery"
+      ],
+      "params": {
+        "component_id": "gallery_floor_north",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "gallery",
+        "floor_block": "minecraft:dark_oak_planks",
+        "floor_height": 8,
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "floor_count": 2,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 8,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 8,
+        "height": 16
+      },
+      "features": [
+        "two_story_gallery",
+        "floor_plate",
+        "south_gallery"
+      ],
+      "params": {
+        "component_id": "gallery_floor_south",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "gallery",
+        "floor_block": "minecraft:dark_oak_planks",
+        "floor_height": 8,
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "floor_count": 2,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 8,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 6
+      },
+      "features": [
+        "tower_floor_plate",
+        "north_tower_level_2"
+      ],
+      "params": {
+        "component_id": "north_tower_floor_8",
+        "host_id": "north_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "interior",
+        "floor_block": "minecraft:dark_oak_planks",
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "floor_height": 3,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "floor_count": 2,
+        "building_id": "north_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 16,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 6
+      },
+      "features": [
+        "tower_floor_plate",
+        "north_tower_level_4"
+      ],
+      "params": {
+        "component_id": "north_tower_floor_16",
+        "host_id": "north_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "interior",
+        "floor_block": "minecraft:dark_oak_planks",
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "floor_height": 3,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "floor_count": 2,
+        "building_id": "north_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 8,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 6
+      },
+      "features": [
+        "tower_floor_plate",
+        "south_tower_level_2"
+      ],
+      "params": {
+        "component_id": "south_tower_floor_8",
+        "host_id": "south_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "interior",
+        "floor_block": "minecraft:dark_oak_planks",
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "floor_height": 3,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "floor_count": 2,
+        "building_id": "south_tower"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 9,
+        "y": 16,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 6
+      },
+      "features": [
+        "tower_floor_plate",
+        "south_tower_level_4"
+      ],
+      "params": {
+        "component_id": "south_tower_floor_16",
+        "host_id": "south_tower",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "interior",
+        "floor_block": "minecraft:dark_oak_planks",
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "floor_height": 3,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "floor_count": 2,
+        "building_id": "south_tower"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 15,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "central_pointed_arch_entrance",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"pointed_arch\", \"gothic\", \"heavy\", \"stone_frame\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 5, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"gray stone\"}, \"constraints\": {\"mustHave\": [\"pointed_arch\"], \"forbiddenTags\": [\"modern\", \"glass_curtain\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "east_entrance",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "entrance_type": "pointed_arch",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:stone_bricks",
+        "door_width": 3,
+        "door_height": 4,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 15,
+        "y": 7,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 1,
+        "height": 7
+      },
+      "features": [
+        "large_rose_window",
+        "stained_glass_embedded",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"rose_window\", \"stained_glass\", \"round\", \"gothic\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 7, \"openingHeight\": 7, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"stained glass\"}, \"constraints\": {\"mustHave\": [\"rose_window\", \"stained_glass\"], \"forbiddenTags\": [\"solid\", \"opaque\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "east_rose_window",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "wall_side": "EAST",
+        "window_style": "rose_window",
+        "glass_block": "minecraft:red_stained_glass",
+        "frame_block": "minecraft:stone_bricks",
+        "window_ratio": 0.5,
+        "rhythm": "regular",
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 3,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 1,
+        "height": 8
+      },
+      "features": [
+        "continuous_pointed_windows",
+        "stained_glass_embedded",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"pointed_arch\", \"stained_glass\", \"vertical_strip\", \"gothic\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"stained glass\"}, \"constraints\": {\"mustHave\": [\"pointed_arch\", \"stained_glass\"], \"forbiddenTags\": [\"solid\", \"opaque\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "side_windows_north",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "wall_side": "NORTH",
+        "window_style": "pointed_arch",
+        "window_spacing": 4,
+        "window_width": 2,
+        "window_height": 6,
+        "sill_height": 3,
+        "glass_block": "minecraft:light_blue_stained_glass",
+        "frame_block": "minecraft:stone_bricks",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 3,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 1,
+        "height": 8
+      },
+      "features": [
+        "continuous_pointed_windows",
+        "stained_glass_embedded",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"pointed_arch\", \"stained_glass\", \"vertical_strip\", \"gothic\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 6, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"stained glass\"}, \"constraints\": {\"mustHave\": [\"pointed_arch\", \"stained_glass\"], \"forbiddenTags\": [\"solid\", \"opaque\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "side_windows_south",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "wall_side": "SOUTH",
+        "window_style": "pointed_arch",
+        "window_spacing": 4,
+        "window_width": 2,
+        "window_height": 6,
+        "sill_height": 3,
+        "glass_block": "minecraft:light_blue_stained_glass",
+        "frame_block": "minecraft:stone_bricks",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 0,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 2,
+        "height": 14
+      },
+      "features": [
+        "exterior_buttresses",
+        "between_window_bays",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"column\", \"tags\": [\"buttress\", \"slender\", \"gothic\", \"stone\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Gothic_Cathedral\", \"materialTone\": \"gray stone\"}, \"constraints\": {\"mustHave\": [\"buttress\"], \"forbiddenTags\": [\"window_blocker\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "buttresses_north",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "decor_type": "buttress_array",
+        "side": "NORTH",
+        "spacing": 5,
+        "element_width": 1,
+        "element_depth": 2,
+        "element_height": 14,
+        "material": "minecraft:stone_bricks",
+        "avoid_openings": true,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -15,
+        "y": 0,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 2,
+        "height": 14
+      },
+      "features": [
+        "exterior_buttresses",
+        "between_window_bays"
+      ],
+      "params": {
+        "component_id": "buttresses_south",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "decor_type": "buttress_array",
+        "side": "SOUTH",
+        "spacing": 5,
+        "element_width": 1,
+        "element_depth": 2,
+        "element_height": 14,
+        "material": "minecraft:stone_bricks",
+        "avoid_openings": true,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 15,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 7,
+        "height": 16
+      },
+      "features": [
+        "east_vertical_tracery",
+        "facade_ornament"
+      ],
+      "params": {
+        "component_id": "east_vertical_tracery",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "decor_type": "vertical_tracery",
+        "side": "EAST",
+        "material": "minecraft:stone_bricks",
+        "avoid_openings": true,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -12,
+        "y": 1,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "bookshelf_wall",
+        "north_gallery_interior"
+      ],
+      "params": {
+        "component_id": "north_bookshelf_wall",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "decor_type": "bookshelf_series",
+        "material": "minecraft:bookshelf",
+        "side": "NORTH_INTERIOR",
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -12,
+        "y": 1,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "bookshelf_wall",
+        "south_gallery_interior"
+      ],
+      "params": {
+        "component_id": "south_bookshelf_wall",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "decor_type": "bookshelf_series",
+        "material": "minecraft:bookshelf",
+        "side": "SOUTH_INTERIOR",
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -12,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "central_aisle_lighting",
+        "hanging_lantern_row"
+      ],
+      "params": {
+        "component_id": "central_lantern_row",
+        "host_id": "library_main",
+        "anchor_mode": "min_corner",
+        "decor_type": "lantern_row",
+        "light_block": "minecraft:lantern",
+        "spacing": 4,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 3,
+        "height": 8
+      },
+      "features": [
+        "stair:straight_single_run",
+        "interior_stair",
+        "north_gallery_access"
+      ],
+      "params": {
+        "component_id": "north_gallery_stair",
+        "host_id": "library_main",
+        "from": {
+          "x": -12,
+          "y": 0,
+          "z": 6
+        },
+        "to": {
+          "x": -4,
+          "y": 8,
+          "z": 6
+        },
+        "width": 3,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:dark_oak_planks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "building_id": "library_main"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 3,
+        "height": 8
+      },
+      "features": [
+        "stair:straight_single_run",
+        "interior_stair",
+        "south_gallery_access"
+      ],
+      "params": {
+        "component_id": "south_gallery_stair",
+        "host_id": "library_main",
+        "from": {
+          "x": -12,
+          "y": 0,
+          "z": -6
+        },
+        "to": {
+          "x": -4,
+          "y": 8,
+          "z": -6
+        },
+        "width": 3,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:dark_oak_planks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "building_id": "library_main"
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

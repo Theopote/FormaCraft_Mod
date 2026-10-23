@@ -957,6 +957,16 @@
       "schema": "formacraft.style_feature_report.v1",
       "verification_level": "plan_parameters_only",
       "features": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
     }
   },
   "player_fidelity_notice_zh": "组合式生成「建造一座由三个错层体块组成的\n山坡天文观测站，\n使用白色混凝土、\n石砖和深色玻璃。\n下层接待楼约15×13格，\n高6格，」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",

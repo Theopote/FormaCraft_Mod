@@ -1181,7 +1181,17 @@
         "component_id": "bridge_deck",
         "reason": "ground_bridge_floor_datum"
       }
-    ]
+    ],
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
   },
   "player_fidelity_notice_zh": "组合式生成「筑群」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
   "kind": "llmplan"

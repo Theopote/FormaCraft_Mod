@@ -1106,7 +1106,17 @@
         "component_id": "bridge_plate#target_landing",
         "reason": "bridge_target_landing"
       }
-    ]
+    ],
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
   },
   "player_fidelity_notice_zh": "组合式生成「车间约27×17格」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
   "kind": "llmplan"

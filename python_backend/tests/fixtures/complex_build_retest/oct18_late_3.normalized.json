@@ -500,6 +500,16 @@
       "schema": "formacraft.style_feature_report.v1",
       "verification_level": "plan_parameters_only",
       "features": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
     }
   },
   "layout": {
