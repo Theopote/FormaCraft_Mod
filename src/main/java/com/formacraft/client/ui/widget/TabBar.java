@@ -136,8 +136,8 @@ public class TabBar {
      */
     private void drawTab(DrawContext ctx, int x, int y, int width, TabInfo tab, boolean isActive, boolean isHovered) {
         int height = TAB_HEIGHT;
-        // Inactive sits slightly lower and ends on the content seam; active aligns with the frame.
-        int top = y + (isActive ? 0 : 2);
+        // Same top edge as the screen; inactive ends on the content seam (outside the frame).
+        int top = y;
         int bottom = y + height - (isActive ? 0 : 1);
         int bg = isActive ? UiTheme.TAB_SELECTED_BG
                 : isHovered ? UiTheme.TAB_HOVER_BG : UiTheme.TAB_UNSELECTED_BG;
