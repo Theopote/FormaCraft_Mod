@@ -11,8 +11,6 @@ import static com.formacraft.client.ui.panel.settings.SettingsPanelLayout.*;
 
 /** LLM / backend connection fields in the settings panel. */
 public final class SettingsConnectionSection {
-    private static final int BUTTON_GAP_SMALL = 4;
-
     private SettingsConnectionSection() {}
 
     public static int drawSection(SettingsPanelRenderHost host, DrawContext ctx, int x, int y, int w) {

@@ -193,12 +193,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             pendingBaseUrlDropdownOverlay = false;
             pendingModelDropdownOverlay = false;
 
-            // 标题
-            ctx.drawTextWithShadow(client.textRenderer,
-                    Text.translatable("formacraft.settings.title"),
-                    x, y, COLOR_WHITE);
-            y += TITLE_HEIGHT;
-
             y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("LLM 与后端"), x, y, w);
             y = SettingsConnectionSection.drawSection(this, ctx, x, y, w);
             y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("建筑研究搜索"), x, y, w);

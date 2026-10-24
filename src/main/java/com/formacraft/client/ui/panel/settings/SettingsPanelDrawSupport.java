@@ -26,7 +26,7 @@ public final class SettingsPanelDrawSupport {
     public static int drawSectionHeader(MinecraftClient client, DrawContext ctx, Text title, int x, int y, int w) {
         y += SECTION_DIVIDER_PAD;
         ctx.drawTextWithShadow(client.textRenderer, title, x, y, COLOR_GRAY);
-        y += client.textRenderer.fontHeight + 2;
+        y += client.textRenderer.fontHeight + 1;
         int lineY = y;
         ctx.fill(x, lineY, x + w, lineY + 1, UiTheme.DIVIDER_SUBTLE);
         return lineY + 1 + SECTION_DIVIDER_PAD;

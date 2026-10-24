@@ -1,24 +1,23 @@
 package com.formacraft.client.ui.panel.settings;
 
-import com.formacraft.client.ui.UiTheme;
-
 /** Shared layout constants for {@link com.formacraft.client.ui.panel.SettingsPanel}. */
 public final class SettingsPanelLayout {
-    public static final int CONTENT_PADDING = UiTheme.CONTENT_PADDING;
+    /** 设置侧栏比通用面板更紧凑，避免 160px 宽下显得松散。 */
+    public static final int CONTENT_PADDING = 6;
     public static final int BUTTON_HEIGHT = 16;
-    public static final int BUTTON_GAP = 6;
-    public static final int BUTTON_GAP_SMALL = 4;
+    public static final int BUTTON_GAP = 4;
+    public static final int BUTTON_GAP_SMALL = 3;
     public static final int INPUT_HEIGHT = 16;
-    public static final int LABEL_OFFSET = INPUT_HEIGHT + 2;
-    /** 相邻字段组之间的垂直间距（控件行顶 → 下一 label 顶，与两行字段一致）。 */
-    public static final int GROUP_GAP = 6;
+    /** label 行高：与控件同高，中间不另加空隙。 */
+    public static final int LABEL_OFFSET = INPUT_HEIGHT;
+    /** 相邻字段组之间的垂直间距（控件行顶 → 下一 label 顶）。 */
+    public static final int GROUP_GAP = 2;
     public static final int FIELD_SPACING = LABEL_OFFSET + GROUP_GAP;
 
     /** 分组标题 + 水平线 的上下留白 */
-    public static final int SECTION_DIVIDER_PAD = 5;
+    public static final int SECTION_DIVIDER_PAD = 2;
 
-    public static final int TITLE_HEIGHT = 20;
-    public static final int BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + 4;
+    public static final int BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + 2;
 
     /** 两行字段（label + 控件）之后，下一组 label 的 Y。 */
     public static int afterTwoRowField(int labelY) {
@@ -37,7 +36,7 @@ public final class SettingsPanelLayout {
 
     /** 分组标题区总高度（供命中测试与 drawSectionHeader 对齐）。 */
     public static int sectionHeaderHeight(net.minecraft.client.MinecraftClient client) {
-        return SECTION_DIVIDER_PAD + client.textRenderer.fontHeight + 2 + 1 + SECTION_DIVIDER_PAD;
+        return SECTION_DIVIDER_PAD + client.textRenderer.fontHeight + 1 + 1 + SECTION_DIVIDER_PAD;
     }
 
     public static final int COLOR_WHITE = 0xFFFFFFFF;

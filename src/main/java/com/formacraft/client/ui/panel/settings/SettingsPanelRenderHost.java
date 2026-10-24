@@ -129,7 +129,7 @@ public interface SettingsPanelRenderHost {
     /** 内容区可用宽度（已减两侧内边距）。 */
     int contentWidth();
 
-    /** 内容区顶部 Y（标题绘制起点，未加 TITLE_HEIGHT）。 */
+    /** 内容区顶部 Y（首个分组标题的绘制起点）。 */
     int contentTopY();
 
     boolean isMouseOver(double mouseX, double mouseY);

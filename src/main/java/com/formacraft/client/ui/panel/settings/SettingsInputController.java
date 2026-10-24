@@ -78,10 +78,7 @@ public final class SettingsInputController {
 
         host.setActiveSlider(null);
 
-        // drawContents 里先画标题，再 y += TITLE_HEIGHT
-        y += TITLE_HEIGHT;
-
-        // 分组：LLM 与后端
+        // 分组：LLM 与后端（无顶部标题）
         y += sectionHeaderHeight(host.client());
 
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
@@ -531,7 +528,6 @@ public final class SettingsInputController {
         int y = host.contentTopY() + CONTENT_PADDING - host.scrollY();
         int w = host.contentWidth();
 
-        y += TITLE_HEIGHT;
         y += sectionHeaderHeight(host.client());
 
         int orchLabelY = y;
@@ -590,7 +586,6 @@ public final class SettingsInputController {
         int y = host.contentTopY() + CONTENT_PADDING - host.scrollY();
         int w = host.contentWidth();
 
-        y += TITLE_HEIGHT;
         y += sectionHeaderHeight(host.client());
 
         y += LABEL_OFFSET + FIELD_SPACING;
