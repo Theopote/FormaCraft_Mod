@@ -855,6 +855,13 @@ public class ChatPanel extends BasePanel {
         return inputBox != null && inputBox.isFocused();
     }
 
+    /** 预览确认弹出时取消输入焦点，避免吞掉 WASD。 */
+    public void blurInput() {
+        if (inputBox != null) {
+            inputBox.setFocused(false);
+        }
+    }
+
     // ==========================
     //  核心逻辑：发送消息 & 调 AI
     // ==========================

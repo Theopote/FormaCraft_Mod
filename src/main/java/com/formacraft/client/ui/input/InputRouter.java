@@ -259,19 +259,11 @@ public class InputRouter {
     public static boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
         // 🔒 预览锁定：
         // - 鼠标/字符输入/滚轮全部拦截
-        // - 键盘只消费 ESC/Enter/CtrlZ/CtrlY，其它键放行给游戏（WASD 可用）
+        // - 键盘：ESC/Enter/CtrlZ/CtrlY 给确认面板；侧栏内可继续打字；其余放行 WASD
         if (isPreviewLocked()) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
                 BuildConfirmPanel.INSTANCE.cancel();
                 return true;
-            }
-            if (FormacraftUIState.isOpen
-                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
-                BasePanel panel = getPanel();
-                if (panel != null) {
-                    panel.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
             }
             if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
                 BuildConfirmPanel.INSTANCE.confirm();
@@ -287,6 +279,15 @@ public class InputRouter {
             if (ctrl && keyCode == GLFW.GLFW_KEY_Y) {
                 FormaCraftClientNetworking.sendPatchRedo();
                 return true;
+            }
+            // 仅当指针在侧栏内、或输入框仍要键盘时，才把按键交给面板；
+            // 否则不要 return true，否则会吞掉 WASD，玩家无法绕预览走动。
+            if (FormacraftUIState.isOpen) {
+                BasePanel panel = getPanel();
+                if (panel != null && (isMouseInsideUI() || panel.wantsKeyboardInput())) {
+                    panel.keyPressed(keyCode, scanCode, modifiers);
+                    return true;
+                }
             }
             return false; // 其它键放行（WASD/Space/Shift 等）
         }
@@ -337,14 +338,15 @@ public class InputRouter {
     /** 字符输入事件 */
     public static boolean onCharTyped(char chr, int modifiers) {
         if (isPreviewLocked()) {
-            if (FormacraftUIState.isOpen
-                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
+            // 与按键一致：只在侧栏/输入焦点时吃字符，避免误吞；移动键本身不走 onChar。
+            if (FormacraftUIState.isOpen) {
                 BasePanel panel = getPanel();
-                if (panel != null) {
+                if (panel != null && (isMouseInsideUI() || panel.wantsKeyboardInput())) {
                     panel.charTyped(chr);
+                    return true;
                 }
             }
-            return true;
+            return true; // 预览锁期间仍不把字符交给原版聊天
         }
         if (!FormacraftUIState.isOpen) return false;
 

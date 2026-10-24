@@ -9,6 +9,7 @@ import com.formacraft.common.model.build.Features;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.logging.FcaLog;
+import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.common.patch.BlockPatch;
@@ -76,20 +77,29 @@ public class BuildConfirmPanel {
     
     private BuildConfirmPanel() {}
 
+    /** 弹出确认条时释放聊天输入焦点，保证 WASD 可绕预览走动。 */
+    private static void releaseChatKeyboardFocus() {
+        if (FormaCraftHudOverlay.CHAT_PANEL != null) {
+            FormaCraftHudOverlay.CHAT_PANEL.blurInput();
+        }
+    }
+
     private boolean clickButton(ButtonWidget button, Click click) {
         return button != null && button.visible && HudClickSupport.click(button, click);
     }
 
     private void layoutBuildButtons(int screenW, int screenH) {
-        // 放在屏幕底部居中，略高于热键栏
-        int btnW = 60; // 原来的一半
+        // 屏幕底部居中；UI 打开时热键栏已隐藏，尽量贴底
+        int btnW = 60;
+        int btnH = 16;
         int spacing = 10;
+        int bottomPad = 8;
         int centerX = screenW / 2;
 
         int confirmX = centerX - btnW - spacing / 2;
         int cancelX = centerX + spacing / 2;
 
-        int btnY = screenH - 56; // 经验值：避免遮挡热键栏
+        int btnY = screenH - btnH - bottomPad;
         if (btnY < 16) btnY = 16;
 
         confirmButton.setPosition(confirmX, btnY);
@@ -141,6 +151,7 @@ public class BuildConfirmPanel {
         this.patchList = null;
         this.buildId = UUID.randomUUID();
         this.visible = true;
+        releaseChatKeyboardFocus();
 
         // 激活世界预览（与确认面板生命周期绑定）
         BuildingPreviewState.show(spec);
@@ -161,6 +172,7 @@ public class BuildConfirmPanel {
         this.visible = true;
         this.previewQualityError = previewQualityErrorHint;
         this.previewForceArmed = false;
+        releaseChatKeyboardFocus();
         PreviewModalState.lockBuild();
     }
 
@@ -197,6 +209,7 @@ public class BuildConfirmPanel {
         this.patchCanRedo = true;
 
         PatchPreviewState.setPreview(this.patchOrigin, this.patchList, this.rejectedPatchList);
+        releaseChatKeyboardFocus();
         PreviewModalState.lockPatch();
     }
     
