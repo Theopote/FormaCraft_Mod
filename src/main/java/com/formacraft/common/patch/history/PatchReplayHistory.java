@@ -111,17 +111,29 @@ public final class PatchReplayHistory {
                     actualBefore.put(pos, unconfirmedBefore);
                     actualAfter.put(pos, current);
                 }
-                if (current.equals(item.getValue())) { same++; iterator.remove(); continue; }
+                if (ReplaySnapshotMatcher.matches(current, item.getValue())) { same++; iterator.remove(); continue; }
                 BlockSnapshot expectedSource = expected.get(pos);
-                if (expectedSource != null && !current.equals(expectedSource)) { conflicts++; continue; }
+                if (expectedSource != null && !ReplaySnapshotMatcher.matches(current, expectedSource)) {
+                    if (++conflicts <= 5) com.formacraft.FormacraftMod.LOGGER.warn(
+                            "History {} conflict at {}: expected={}, actual={}, transaction={}",
+                            reversing ? "undo" : "redo", pos, expectedSource.state(), current.state(), entry.transactionId);
+                    continue;
+                }
                 entry.unconfirmed.put(pos, current);
                 var write = access.writeSnapshot(pos, item.getValue());
                 BlockSnapshot after = access.getSnapshot(pos);
                 entry.unconfirmed.remove(pos);
                 actualBefore.putIfAbsent(pos, current);
                 actualAfter.put(pos, after);
-                if (after.equals(item.getValue()) && write.isFullSuccess()) iterator.remove();
-                if (!write.isFullSuccess() || !after.equals(item.getValue())) failed++;
+                boolean matchesTarget = ReplaySnapshotMatcher.matches(after, item.getValue());
+                boolean derivedPaneState = matchesTarget && !after.equals(item.getValue())
+                        && item.getValue().blockEntityNbt() == null;
+                boolean restored = matchesTarget && (write.isFullSuccess()
+                        || derivedPaneState && write == com.formacraft.common.world.SnapshotWriteResult.STATE_ONLY);
+                if (restored) iterator.remove();
+                else if (++failed <= 5) com.formacraft.FormacraftMod.LOGGER.warn(
+                        "History {} write incomplete at {}: result={}, target={}, actual={}, transaction={}",
+                        reversing ? "undo" : "redo", pos, write, item.getValue().state(), after.state(), entry.transactionId);
             } catch (RuntimeException exception) {
                 failed++;
                 com.formacraft.FormacraftMod.LOGGER.warn("History replay failed at {}; position retained for retry", pos, exception);
