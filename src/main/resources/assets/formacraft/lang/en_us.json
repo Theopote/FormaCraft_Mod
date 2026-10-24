@@ -1,4 +1,6 @@
 {
+  "item.formacraft.formacraft_tool": "FormaCraft Stylus",
+  "item.formacraft.formacraft_tool.desc": "Open the FormaCraft builder panel",
   "formacraft.title": "FormaCraft Builder",
   "formacraft.button.generate": "Generate Building",
   "formacraft.tab.chat": "Chat",

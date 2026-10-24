@@ -1,4 +1,6 @@
 {
+  "item.formacraft.formacraft_tool": "FormaCraft 塑形笔",
+  "item.formacraft.formacraft_tool.desc": "打开 FormaCraft 建造面板",
   "formacraft.title": "FormaCraft 建筑生成器",
   "formacraft.button.generate": "生成建筑",
   "formacraft.tab.chat": "聊天",
