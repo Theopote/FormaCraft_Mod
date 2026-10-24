@@ -1,0 +1,63 @@
+{
+  "description": "佛光寺东大殿 → foguang_temple_hall 专用模块（七开间唐代木构 few-shot）",
+  "promptHints": ["佛光寺", "佛光寺大殿", "东大殿", "foguang temple", "tang timber hall"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Tang_Dynasty_Timber",
+    "style_attributes": {
+      "wall_color": "red",
+      "roof_color": "grey",
+      "wall_material": "wood",
+      "roof_material": "grey_tile",
+      "floor_material": "stone",
+      "decorative_elements": ["bracket_sets", "dougong", "eaves", "column_grid"]
+    },
+    "proportion_hints": {
+      "typology": "foguang_temple_hall",
+      "bay_count_x": 7,
+      "bay_count_z": 4,
+      "depth_to_width": 0.57,
+      "height_to_width": 0.52,
+      "roof_to_body_height": 0.45,
+      "min_enclosure_coverage": 0.82
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "genome": {
+      "genomeVersion": "1.0",
+      "archetype": { "id": "foguang_temple_hall", "confidence": 0.92 },
+      "topology": { "layout": "rectangular", "composition": "single", "axis": "longitudinal", "levels": "single" },
+      "form": { "repetition": "bay_grid", "progression": "horizontal", "curvature": "angular", "rhythm": "regular" },
+      "symmetry": { "type": "mirror", "order": 2, "mirror": true },
+      "materials": { "primary": "wood", "secondary": "stone", "accent": "red_lacquer", "textureBias": "natural" },
+      "culturalStyle": { "region": "chinese", "era": "tang", "keywords": ["temple", "timber", "wudian", "dougong"] }
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "GRID_BAY",
+      "path_based": false,
+      "slots": []
+    },
+    "components": [
+      {
+        "component_type": "MODULE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 27, "depth": 21, "height": 16 },
+        "features": ["landmark:foguang_temple_hall"],
+        "params": {
+          "module_id": "foguang_temple_hall",
+          "baysX": 7,
+          "baysZ": 4,
+          "width": 21,
+          "depth": 15,
+          "hallHeight": 7,
+          "includeSubEaves": true,
+          "facing": "SOUTH"
+        }
+      }
+    ]
+  }
+}

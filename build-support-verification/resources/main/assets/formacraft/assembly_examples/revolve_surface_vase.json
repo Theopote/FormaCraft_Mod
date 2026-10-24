@@ -1,0 +1,23 @@
+{
+  "entranceFacing": "EAST",
+  "ops": [
+    {
+      "op": "REVOLVE_SURFACE",
+      "segments": 64,
+      "angleDeg": 360,
+      "thickness": 2,
+      "connectSamples": true,
+      "material": "minecraft:smooth_quartz",
+      "profilePoints": [
+        {"x": 2, "y": 0},
+        {"x": 4, "y": 2},
+        {"x": 6, "y": 6},
+        {"x": 3, "y": 10},
+        {"x": 5, "y": 14},
+        {"x": 2, "y": 18}
+      ]
+    }
+  ]
+}
+
+

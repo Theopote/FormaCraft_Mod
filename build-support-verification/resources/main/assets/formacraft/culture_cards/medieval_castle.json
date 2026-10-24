@@ -1,0 +1,39 @@
+{
+  "id": "medieval_castle",
+  "styleId": "Medieval_Castle",
+  "intents": ["CASTLE", "FORTRESS", "城堡", "要塞"],
+  "keywords": [
+    "城堡", "要塞", "堡垒", "塔楼", "城墙", "垛口", "门楼", "角塔",
+    "castle", "fortress", "keep", "battlements", "medieval castle", "stone fortress"
+  ],
+  "synonyms": {
+    "城堡": ["castle", "fortress", "keep"],
+    "塔楼": ["tower", "donjon"],
+    "城墙": ["curtain wall", "rampart", "wall segment"],
+    "垛口": ["battlements", "crenellations"]
+  },
+  "keywordWeights": {
+    "城堡": 6.5,
+    "castle": 6.0,
+    "medieval castle": 6.5,
+    "fortress": 5.5,
+    "塔楼": 5.0,
+    "城墙": 4.5,
+    "要塞": 5.0
+  },
+  "negativeKeywords": ["现代", "玻璃幕墙", "体育场", "住宅", "别墅", "modern", "stadium", "cottage"],
+  "proportionCardId": "castle_wall",
+  "llmPlanExampleRefs": ["medieval_castle_compositional.json"],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "compositional_castle",
+      "constraints": [
+        "优先组合式：MASS_MAIN keep + TOWER×2~4 + WALL + ENTRANCE 门楼",
+        "输出 proportion_hints：wall_height_to_thickness≈6, tower slenderness≈4",
+        "窄缝窗 window_aspect=vertical_strip；min_enclosure_coverage≥0.88",
+        "仅用户指名具体地标城堡时才用 MODULE/blueprint 精品库"
+      ]
+    }
+  ]
+}

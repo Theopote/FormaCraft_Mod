@@ -1,0 +1,91 @@
+{
+  "description": "Authored diversity alternative, not a live model sample",
+  "promptHints": [
+    "生成一座唐风木构大殿",
+    "build a tang timber hall"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Tang_Dynasty_Timber",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "GRID",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "tailiang_timber_hall",
+      "proportion_card_id": "tang_timber_hall",
+      "window_wall_ratio": 0.18,
+      "height_to_width": 0.4666666666666667,
+      "depth_to_width": 0.8,
+      "window_aspect": "rectangular",
+      "bay_count_x": 5,
+      "bay_count_z": 3
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:dark_oak_planks",
+      "roof_material": "minecraft:deepslate_tiles",
+      "floor_material": "minecraft:polished_andesite",
+      "decorative_elements": [
+        "column_grid",
+        "dougong",
+        "eaves"
+      ]
+    },
+    "components": [
+      {
+        "component_type": "STRUCTURE",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 18,
+          "height": 16
+        },
+        "features": [
+          "typology:tailiang_timber_hall"
+        ],
+        "params": {
+          "paletteId": "PALETTE_TANG_TIMBER_A",
+          "wall_block": "minecraft:dark_oak_planks",
+          "roof_block": "minecraft:deepslate_tiles",
+          "floor_block": "minecraft:polished_andesite",
+          "window_block": "minecraft:spruce_fence",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:spruce_planks",
+          "pillar_block": "minecraft:dark_oak_log",
+          "roof_stairs_block": "minecraft:deepslate_tile_stairs",
+          "roof_slab_block": "minecraft:deepslate_tile_slab",
+          "includeBrackets": true,
+          "includePainting": false,
+          "typology_id": "tailiang_timber_hall",
+          "component_id": "hall",
+          "width": 15,
+          "depth": 12,
+          "baysX": 5,
+          "baysZ": 3,
+          "hallHeight": 7,
+          "roofType": "wudian",
+          "roofOverhang": 2,
+          "includeSubEaves": true,
+          "facing": "SOUTH",
+          "anchorMode": "corner",
+          "designSeed": 103
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "entranceFacing": "EAST",
+  "ops": [
+    {
+      "op": "MARCHING_CUBES",
+      "kind": "TORUS",
+      "center": { "x": 0, "y": 16, "z": 0 },
+      "majorR": 10,
+      "minorR": 4,
+      "x0": -18, "x1": 18,
+      "y0": 4, "y1": 28,
+      "z0": -18, "z1": 18,
+      "iso": 0,
+      "fill": 2,
+      "material": "minecraft:white_concrete"
+    }
+  ]
+}
+
+

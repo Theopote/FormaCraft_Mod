@@ -1,0 +1,39 @@
+{
+  "id": "prairie_earth",
+  "styleId": "Prairie_Earth",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "草原土坯",
+    "prairie earth house",
+    "prairie_earth"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "草原土坯": 12,
+    "prairie earth house": 12,
+    "prairie_earth": 12
+  },
+  "negativeKeywords": [
+    "不要草原土坯",
+    "not prairie earth house"
+  ],
+  "proportionCardId": "prairie_earth",
+  "structuralTypologyId": "flat_roof_pavilion",
+  "llmPlanExampleRefs": [
+    "p2_prairie_earth_13.json",
+    "p2_prairie_earth_21.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "prairie_earth",
+      "constraints": [
+        "Use style_profile=Prairie_Earth; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=flat, wall_pattern=smooth; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

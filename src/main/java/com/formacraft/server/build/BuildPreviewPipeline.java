@@ -50,7 +50,7 @@ public final class BuildPreviewPipeline {
                                  List<AssemblyCirculationConstraints.Flight> circulation, boolean landingPrepared) {
         BuildQualityReport report = GradedQualityChecker.checkStructure(generated, spec, world, landingPrepared);
         tagPhase(report, "initial");
-        report.logIssues(generated != null ? generated.getDescription() : "structure");
+        report.logIssues((generated != null ? generated.getDescription() : "structure") + " (initial)");
 
         if (!report.allowPreview()) {
             storeReport(player, report);
@@ -100,6 +100,7 @@ public final class BuildPreviewPipeline {
         BuildQualityReport finalReport = GradedQualityChecker.checkStructure(
                 structure, spec, world, landingPrepared);
         report = finalizedReport(report, finalReport);
+        report.logIssues((generated != null ? generated.getDescription() : "structure") + " (final preview)");
         if (!report.allowPreview()) {
             report.add(BuildQualitySeverity.FATAL, "E_FINAL_QUALITY_FAILED",
                     "自动修复或裁剪后最终质量检查未通过，已拒绝预览");

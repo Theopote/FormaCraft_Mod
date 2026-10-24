@@ -1,0 +1,39 @@
+{
+  "id": "desert_adobe",
+  "styleId": "Desert_Adobe",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "沙漠泥砖",
+    "desert adobe",
+    "desert_adobe"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "沙漠泥砖": 12,
+    "desert adobe": 12,
+    "desert_adobe": 12
+  },
+  "negativeKeywords": [
+    "不要沙漠泥砖",
+    "not desert adobe"
+  ],
+  "proportionCardId": "desert_adobe",
+  "structuralTypologyId": "flat_roof_pavilion",
+  "llmPlanExampleRefs": [
+    "p2_desert_adobe_13.json",
+    "p2_desert_adobe_21.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "desert_adobe",
+      "constraints": [
+        "Use style_profile=Desert_Adobe; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=flat, wall_pattern=smooth; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

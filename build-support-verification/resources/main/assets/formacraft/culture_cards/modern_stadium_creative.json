@@ -1,0 +1,43 @@
+{
+  "id": "modern_stadium_creative",
+  "styleId": "Modern_Stadium_Creative",
+  "intents": ["STADIUM", "ARENA", "原创体育场"],
+  "keywords": [
+    "原创体育场",
+    "独特体育馆",
+    "现代体育场",
+    "椭圆体育场",
+    "creative stadium",
+    "unique arena",
+    "original stadium"
+  ],
+  "synonyms": {
+    "原创": ["original", "unique", "creative", "custom"],
+    "体育场": ["stadium", "arena", "sports venue"]
+  },
+  "keywordWeights": {
+    "原创": 8.0,
+    "独特": 7.0,
+    "原创体育场": 9.0,
+    "creative stadium": 7.0,
+    "unique arena": 7.0,
+    "椭圆": 4.0,
+    "体育场": 5.0
+  },
+  "negativeKeywords": ["鸟巢", "国家体育场", "bird's nest", "birds nest", "地标"],
+  "exampleRefs": [],
+  "llmPlanExampleRefs": [
+    "modern_stadium_creative_compositional.json"
+  ],
+  "archetypes": [
+    {
+      "name": "creative_elliptical_stadium",
+      "constraints": [
+        "用户要原创/独特：禁止强制 landmark MODULE",
+        "用 MASS_MAIN shape=circle 或 rounded_rect + params.masses[] 分层表达看台",
+        "加 PAVING 内场、ROOF 雨棚、多个 ENTRANCE",
+        "每次变化 facade_profile、入口数量、masses 偏移与 style_attributes"
+      ]
+    }
+  ]
+}

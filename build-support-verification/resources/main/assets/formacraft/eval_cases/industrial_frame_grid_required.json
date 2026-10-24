@@ -1,0 +1,35 @@
+{
+  "id": "industrial_frame_grid_required",
+  "prompt": "生成一个工业结构表现主义建筑：骨骼外露、钢框架、可见结构、桁架系统",
+  "assembly": {
+    "entranceFacing": "SOUTH",
+    "graph": {
+      "components": [
+        { "id": "Core", "type": "SHELL_BOX", "at": { "x": 0, "y": 0, "z": 0 }, "w": 18, "d": 14, "h": 20 }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Industrial_Structural",
+        "intent": "工业",
+        "density": 0.6,
+        "symmetry": 0.7,
+        "verticality": 0.55,
+        "transparency": 0.5,
+        "structureExposure": 0.95
+      }
+    }
+  },
+  "expect": {
+    "expectedCultureCardId": "industrial_structural",
+    "mustOps": ["FRAME_GRID_3D"],
+    "mustMacro": {
+      "style.styleId": "Industrial_Structural",
+      "style.structureExposure": 0.95
+    },
+    "mustNotOps": ["ROSE_WINDOW", "ARCH_WINDOW", "FACADE_GRID"],
+    "maxOps": 800
+  }
+}
+

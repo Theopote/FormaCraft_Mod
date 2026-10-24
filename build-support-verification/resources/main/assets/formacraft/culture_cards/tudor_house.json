@@ -1,0 +1,40 @@
+{
+  "id": "tudor_house",
+  "styleId": "Tudor",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "都铎",
+    "tudor house",
+    "tudor_house"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "都铎": 18,
+    "tudor house": 18,
+    "tudor_house": 18
+  },
+  "negativeKeywords": [
+    "不要都铎",
+    "not tudor house",
+    "without tudor house"
+  ],
+  "proportionCardId": "tudor_house",
+  "structuralTypologyId": "timber_gable_house",
+  "llmPlanExampleRefs": [
+    "tudor_house_17.json",
+    "tudor_house_25.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "tudor_house",
+      "constraints": [
+        "Use style_profile=Tudor and preserve explicit user instructions.",
+        "Exposed timber framing is supported; jettied upper floors and historical fidelity are unverified.",
+        "Use compositional components with host_id; no new native interpreter is claimed."
+      ]
+    }
+  ]
+}

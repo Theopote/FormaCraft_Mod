@@ -1,0 +1,34 @@
+{
+  "id": "courtyard_compound",
+  "typology": "courtyard_compound",
+  "matchKeywords": [
+    "明清官式", "官式院落", "官式建筑群落", "明清四合院",
+    "ming qing courtyard", "mingqing courtyard", "official courtyard compound"
+  ],
+  "ratios": {
+    "courtyard_ratio": {
+      "min": 0.25,
+      "ideal": 0.38,
+      "max": 0.5,
+      "desc": "内院面积/总占地"
+    },
+    "hall_depth_to_width": {
+      "min": 0.35,
+      "ideal": 0.55,
+      "max": 0.75,
+      "desc": "正房深/宽"
+    },
+    "enclosure_coverage": {
+      "min": 0.7,
+      "ideal": 0.85,
+      "max": 0.95,
+      "desc": "围墙围合覆盖率"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["horizontal_strip", "lattice_panel"],
+    "min_enclosure_coverage": 0.8,
+    "max_void_ratio": 0.45
+  },
+  "aiInstruction": "Research width, depth, includePaths, pathWidth before STRUCTURE typology:courtyard_compound. layout.skeleton_type=COMPOUND; global_constraints.symmetry=MIRROR_X. 指名明清官式院落时 reference_landmark=mingqing_courtyard。民居四合院走 siheyuan compositional，勿与此 preset 混用。"
+}

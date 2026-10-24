@@ -1,0 +1,52 @@
+{
+  "id": "birds_nest_stadium",
+  "styleId": "Modern_Stadium_Elliptical",
+  "intents": ["STADIUM", "LANDMARK", "鸟巢", "国家体育场"],
+  "keywords": [
+    "鸟巢",
+    "鸟巢体育馆",
+    "国家体育场",
+    "bird's nest",
+    "birds nest",
+    "birds_nest",
+    "national stadium",
+    "beijing national stadium",
+    "herzog de meuron stadium"
+  ],
+  "synonyms": {
+    "鸟巢": ["bird's nest stadium", "birds nest stadium", "beijing birds nest", "national stadium beijing"],
+    "国家体育场": ["national stadium", "beijing national stadium", "olympic stadium beijing"]
+  },
+  "keywordWeights": {
+    "鸟巢": 10.0,
+    "鸟巢体育馆": 9.5,
+    "国家体育场": 9.0,
+    "birds nest": 8.5,
+    "bird's nest": 8.5,
+    "national stadium": 7.0,
+    "beijing national stadium": 7.5
+  },
+  "negativeKeywords": [
+    "哥特", "教堂", "四合院", "古建", "寺庙", "住宅", "别墅",
+    "zaha", "扎哈", "原创", "不要地标", "unique design"
+  ],
+  "proportionCardId": "stadium_bowl",
+  "structuralTypologyId": "stadium_bowl",
+  "llmPlanExampleRefs": [
+    "modern_stadium_elliptical_typology.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "birds_nest_stadium_bowl",
+      "constraints": [
+        "MANDATORY: structural_typology=stadium_bowl + STRUCTURE/typology params（椭圆碗状参数化解释器）",
+        "reference_landmark=birds_nest_stadium 作比例锚点；禁止 MODULE/landmark:birds_nest_stadium 硬路由",
+        "params: width≈60, depth≈80, height≈28, meshStructure=true, bowlSteepness≈0.38, facing=SOUTH",
+        "layout.skeleton_type=RADIAL_RING；global_constraints.symmetry=RADIAL",
+        "输出 proportion_hints：typology=stadium_bowl, bowl_depth_to_width≈0.38, height_to_major_axis≈0.48",
+        "禁止用单一 MASS_MAIN 方盒代替椭圆看台"
+      ]
+    }
+  ]
+}

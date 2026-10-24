@@ -1,0 +1,39 @@
+{
+  "id": "gothic_cathedral",
+  "name": "哥特大教堂",
+  "nameEn": "Gothic Cathedral (generic preset)",
+  "aliases": [
+    "哥特大教堂",
+    "gothic cathedral",
+    "哥特式大教堂"
+  ],
+  "category": "LANDMARK",
+  "style": "Gothic",
+  "styleId": "Gothic_Cathedral",
+  "features": {
+    "shape": "longitudinal",
+    "form": "cruciform_hint",
+    "structuralType": "stone_vaulted_hall",
+    "materials": ["stone", "stained_glass", "slate"],
+    "scale": "large",
+    "distinctiveElements": [
+      "twin front towers",
+      "pointed spires",
+      "rose window",
+      "flying buttresses",
+      "nave and side aisles",
+      "vertical emphasis"
+    ]
+  },
+  "dimensions": {
+    "typicalWidth": 25,
+    "typicalDepth": 45,
+    "typicalWallHeight": 16,
+    "typicalTowerHeight": 20,
+    "footprintShape": "rectangle",
+    "aspectRatio": "1:1.8"
+  },
+  "llmPlanRouting": {
+    "instruction": "指名哥特大教堂 → MANDATORY STRUCTURE+typology:gothic_cathedral_hall（reference_landmark=gothic_cathedral）；泛哥特教堂 → RECOMMENDED typology 或 assembly macro；巴黎圣母院/科隆等 researchOnly 不走此 preset"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "cottage_refined",
+  "styleId": "Cottage_Rural",
+  "intents": ["COTTAGE", "HOUSE", "住宅", "小房子"],
+  "keywords": [
+    "小房子", "小房", "精品房", "小屋", "村舍", "农舍", "石头房子",
+    "cottage", "small house", "cozy house", "带门和窗", "7x7"
+  ],
+  "synonyms": {
+    "小房子": ["small house", "tiny house", "little house"],
+    "石头房子": ["stone house", "stone cottage"],
+    "村舍": ["village house", "rustic house"]
+  },
+  "keywordWeights": {
+    "小房子": 6.0,
+    "石头房子": 5.5,
+    "cottage": 5.0,
+    "7x7": 4.0,
+    "带门和窗": 4.0,
+    "small house": 5.0
+  },
+  "negativeKeywords": ["城堡", "大教堂", "体育场", "摩天楼", "castle", "stadium", "skyscraper"],
+  "proportionCardId": "cottage_refined",
+  "llmPlanExampleRefs": ["cottage_refined_small.json"],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "small_stone_cottage",
+      "constraints": [
+        "LlmPlan: MASS_MAIN + ROOF + ENTRANCE + FACADE_WINDOWS（4 组件起步）",
+        "输出 proportion_hints（height_to_width≈0.65, window_wall_ratio≈0.2）",
+        "尺寸典型 7×7×5 或 9×11×6；必须有门和窗",
+        "禁止大面积 void_ratio；min_enclosure_coverage≥0.82"
+      ]
+    }
+  ]
+}

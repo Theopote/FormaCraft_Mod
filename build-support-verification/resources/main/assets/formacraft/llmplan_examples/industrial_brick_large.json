@@ -1,0 +1,149 @@
+{
+  "description": "红砖工业厂房 large",
+  "promptHints": [
+    "生成一座红砖工业大楼",
+    "build an industrial brick hall"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Industrial_Brick_Hall",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "industrial_brick_hall",
+      "proportion_card_id": "industrial_brick_hall",
+      "window_wall_ratio": 0.4,
+      "height_to_width": 0.4444444444444444,
+      "depth_to_width": 0.7037037037037037,
+      "window_aspect": "rectangular"
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:bricks",
+      "roof_material": "minecraft:deepslate_tiles",
+      "floor_material": "minecraft:stone_bricks",
+      "decorative_elements": [
+        "exposed_frame"
+      ]
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 27,
+          "depth": 19,
+          "height": 12
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:bricks",
+          "roof_block": "minecraft:deepslate_tiles",
+          "floor_block": "minecraft:stone_bricks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:iron_block",
+          "pillar_block": "minecraft:polished_andesite",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.4,
+          "facade_profile": "mullion_grid",
+          "floor_height": 6,
+          "component_id": "palazzo",
+          "anchor_mode": "min_corner",
+          "shape": "rectangle",
+          "plan_type": "none",
+          "floor_count": 2,
+          "void_ratio": 0.05
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 11,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 27,
+          "depth": 19,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "roof_type": "gable",
+          "overhang": 0,
+          "roof_block": "minecraft:deepslate_tiles",
+          "component_id": "palazzo_roof",
+          "host_id": "palazzo",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 12,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "entry",
+          "host_id": "palazzo",
+          "facing": "NORTH",
+          "door_width": 2,
+          "door_height": 3
+        }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": {
+          "x": 1,
+          "y": 2,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 25,
+          "depth": 1,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "window_style": "pane",
+          "window_ratio": 0.4,
+          "window_block": "minecraft:glass_pane",
+          "component_id": "windows",
+          "host_id": "palazzo",
+          "facing": "NORTH",
+          "wall": "front",
+          "floor_count": 2,
+          "floor_height": 5,
+          "window_width": 2,
+          "window_height": 2,
+          "window_per_wall": 5
+        }
+      }
+    ]
+  }
+}

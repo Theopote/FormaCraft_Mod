@@ -1,0 +1,28 @@
+{
+  "id": "georgian_brick",
+  "name": "乔治王朝砖宅",
+  "style": "MEDIEVAL",
+  "palette": {
+    "wall": "minecraft:bricks",
+    "roof": "minecraft:deepslate_tiles",
+    "floor": "minecraft:dark_oak_planks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:stone_bricks",
+    "trim": "minecraft:smooth_quartz",
+    "pillar": "minecraft:smooth_quartz",
+    "cap": "minecraft:smooth_quartz_slab",
+    "door": "minecraft:dark_oak_door",
+    "roof_trim": "minecraft:smooth_quartz",
+    "stairs": "minecraft:deepslate_tile_stairs",
+    "roof_slab": "minecraft:deepslate_tile_slab"
+  },
+  "params": {
+    "roofType": "hip",
+    "windowRatio": 0.3,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "double",
+    "floorHeight": 5,
+    "preferSymmetry": true
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "huizhou_vernacular",
+  "styleId": "Chinese_Vernacular_Huizhou",
+  "intents": [
+    "HUIZHOU",
+    "徽派民居"
+  ],
+  "keywords": [
+    "徽派",
+    "徽州",
+    "huizhou",
+    "Hui-style",
+    "马头墙"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "徽派": 9,
+    "徽州": 9,
+    "huizhou": 9,
+    "Hui-style": 9,
+    "马头墙": 6
+  },
+  "negativeKeywords": [
+    "北方四合院",
+    "北京四合院",
+    "siheyuan"
+  ],
+  "exampleRefs": [],
+  "llmPlanExampleRefs": [
+    "huizhou_vernacular_13.json",
+    "huizhou_vernacular_21.json"
+  ],
+  "archetypes": [
+    {
+      "name": "huizhou_gabled_dwelling",
+      "constraints": [
+        "白墙黑瓦、天井与马头墙是徽派风格线索；不得用北方四合院身份替代。",
+        "Explicit user materials and layout override style defaults.",
+        "Examples demonstrate a rectangular dwelling and stepped firewalls, not a full tianjing compound. Preserve explicit horse_head_walls=false."
+      ]
+    }
+  ],
+  "proportionCardId": "huizhou_vernacular"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "mingqing_courtyard",
+  "name": "明清官式院落",
+  "nameEn": "Ming-Qing Official Courtyard Compound",
+  "aliases": [
+    "明清官式院落",
+    "明清官式建筑群落",
+    "明清四合院",
+    "ming qing courtyard",
+    "mingqing courtyard"
+  ],
+  "category": "LANDMARK",
+  "style": "Chinese Imperial Official",
+  "styleId": "Chinese_Imperial_Official",
+  "features": {
+    "shape": "rectangular_enclosure",
+    "form": "symmetric_compound",
+    "structuralType": "courtyard_walled_cluster",
+    "materials": ["brick", "tile", "stone", "wood"],
+    "scale": "medium",
+    "distinctiveElements": [
+      "red wall enclosure",
+      "central courtyard void",
+      "north-facing main hall",
+      "east-west side wings",
+      "south gatehouse",
+      "symmetric axial layout"
+    ]
+  },
+  "dimensions": {
+    "typicalWidth": 32,
+    "typicalDepth": 28,
+    "typicalHeight": 10,
+    "footprintShape": "rectangle",
+    "aspectRatio": "8:7"
+  },
+  "llmPlanRouting": {
+    "instruction": "指名明清官式院落/官式建筑群落 → MANDATORY STRUCTURE+typology:courtyard_compound（reference_landmark=mingqing_courtyard）；民居四合院/siheyuan → compositional COURTYARD+MASS_WING，勿混用"
+  }
+}

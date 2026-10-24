@@ -1,0 +1,44 @@
+{
+  "id": "neoclassical_civic_hall",
+  "styleId": "Neoclassical_Civic",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "新古典公共建筑",
+    "新古典风格",
+    "neoclassical civic",
+    "neoclassical architecture",
+    "neoclassical_civic"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "新古典公共建筑": 12,
+    "新古典风格": 12,
+    "neoclassical civic": 12,
+    "neoclassical architecture": 12,
+    "neoclassical_civic": 12
+  },
+  "negativeKeywords": [
+    "不要新古典公共建筑",
+    "not neoclassical architecture"
+  ],
+  "proportionCardId": "neoclassical_civic_hall",
+  "llmPlanExampleRefs": [
+    "neoclassical_civic_compact.json",
+    "neoclassical_civic_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "neoclassical_civic",
+      "constraints": [
+        "Use style_profile=Neoclassical_Civic, proportion_hints.typology=masonry_palazzo; original style request, not a landmark.",
+        "Use hip roof, facade_profile=vertical_pilasters, window_ratio=0.25; bind attachments by host_id.",
+        "Preserve explicit user requirements. Use composition, not native STRUCTURE or MODULE.",
+        "Authored voxel interpretation: no cantilever, classical colonnade or curtain-wall solver is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "masonry_palazzo"
+}

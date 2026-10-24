@@ -1,0 +1,32 @@
+{
+  "id": "japanese_rag_validation",
+  "prompt": "生成一个日式传统建筑：天守阁、层叠屋檐、深色瓦、禅意",
+  "assembly": {
+    "entranceFacing": "SOUTH",
+    "graph": {
+      "components": [
+        { "id": "Main", "type": "SHELL_BOX", "at": { "x": 0, "y": 0, "z": 0 }, "w": 16, "d": 12, "h": 18 }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Japanese_Traditional",
+        "intent": "禅意",
+        "density": 0.5,
+        "symmetry": 0.6,
+        "verticality": 0.4,
+        "transparency": 0.3,
+        "structureExposure": 0.2
+      }
+    }
+  },
+  "expect": {
+    "expectedCultureCardId": "japanese_traditional",
+    "mustMacro": {
+      "style.styleId": "Japanese_Traditional"
+    },
+    "maxOps": 400
+  }
+}
+

@@ -1,0 +1,27 @@
+{
+  "id": "water_platform",
+  "name": "water platform house",
+  "style": "Water_Platform",
+  "palette": {
+    "wall": "minecraft:oak_planks",
+    "roof": "minecraft:spruce_planks",
+    "floor": "minecraft:stone_bricks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:stone_bricks",
+    "trim": "minecraft:oak_log",
+    "pillar": "minecraft:oak_log",
+    "cap": "minecraft:stone_brick_slab",
+    "door": "minecraft:oak_door",
+    "roof_trim": "minecraft:oak_log",
+    "stairs": "minecraft:stone_brick_stairs",
+    "roof_slab": "minecraft:stone_brick_slab"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.08,
+    "windowStyle": "pane",
+    "wallPattern": "timber_frame",
+    "floorHeight": 4,
+    "preferSymmetry": true
+  }
+}

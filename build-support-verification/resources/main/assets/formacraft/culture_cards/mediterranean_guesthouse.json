@@ -1,0 +1,37 @@
+{
+  "id": "mediterranean_guesthouse",
+  "styleId": "Mediterranean_Stucco",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "地中海灰泥客舍",
+    "mediterranean stucco guesthouse"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "地中海灰泥客舍": 30,
+    "mediterranean stucco guesthouse": 30
+  },
+  "negativeKeywords": [
+    "不要地中海灰泥客舍",
+    "not mediterranean stucco guesthouse"
+  ],
+  "proportionCardId": "mediterranean_guesthouse",
+  "llmPlanExampleRefs": [
+    "mediterranean_guesthouse_compact.json",
+    "mediterranean_guesthouse_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "mediterranean_guesthouse",
+      "constraints": [
+        "Use style_profile=Mediterranean_Stucco, proportion_hints.typology=stucco_tile_house; original 地中海灰泥客舍 exterior request.",
+        "Use the dedicated envelope examples; preserve host bindings and explicit user requirements.",
+        "Exterior program proportions only; no furniture, room-use, accessibility or structural verification is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "stucco_tile_house"
+}

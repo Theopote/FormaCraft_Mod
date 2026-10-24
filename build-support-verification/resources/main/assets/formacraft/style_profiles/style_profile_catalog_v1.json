@@ -1,0 +1,5020 @@
+{
+  "version": "1.0",
+  "description": "Formacraft Style Profile Catalog — architectural genetic presets (v1)",
+  "profiles": {
+    "Tang_Dynasty_Timber": {
+      "meta": {
+        "display_name": "唐风木构",
+        "family": "Eastern",
+        "tags": [
+          "唐风",
+          "唐风木构",
+          "tang",
+          "tang_timber"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "chinese",
+            "era": "tang"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "hip"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:dark_oak_planks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "floor": [
+            "minecraft:polished_andesite"
+          ],
+          "window": [
+            "minecraft:spruce_fence"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:spruce_planks"
+          ],
+          "pillar": [
+            "minecraft:dark_oak_log"
+          ],
+          "cap": [
+            "minecraft:deepslate_tile_slab"
+          ],
+          "door": [
+            "minecraft:dark_oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:spruce_planks"
+          ],
+          "stairs": [
+            "minecraft:deepslate_tile_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:deepslate_tile_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_TANG_TIMBER_A",
+          "facade_profile": "base_plinth"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:dark_oak_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:spruce_fence",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_planks",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "hip",
+            "window_style": "lattice",
+            "window_ratio": 0.18,
+            "facade_profile": "base_plinth",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:dark_oak_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:spruce_fence",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_planks",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "hip",
+            "window_style": "lattice",
+            "window_ratio": 0.18,
+            "facade_profile": "base_plinth",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:dark_oak_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:spruce_fence",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_planks",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "hip",
+            "window_style": "lattice",
+            "window_ratio": 0.18,
+            "facade_profile": "base_plinth",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:dark_oak_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:spruce_fence",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_planks",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "hip",
+            "window_style": "lattice",
+            "window_ratio": 0.18,
+            "facade_profile": "base_plinth",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "hip",
+            "overhang": 2,
+            "roof_block": "minecraft:deepslate_tiles"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "lattice",
+            "window_ratio": 0.18,
+            "window_block": "minecraft:spruce_fence"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_TANG_TIMBER_A",
+            "wall_block": "minecraft:dark_oak_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:spruce_fence",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_planks",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_stairs_block": "minecraft:deepslate_tile_stairs",
+            "roof_slab_block": "minecraft:deepslate_tile_slab",
+            "includeBrackets": true,
+            "includePainting": false
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "hall",
+          "residential",
+          "civic"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Renaissance_Classical": {
+      "meta": {
+        "display_name": "文艺复兴立面",
+        "family": "Western",
+        "tags": [
+          "文艺复兴",
+          "文艺复兴风格",
+          "renaissance",
+          "renaissance_stone"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "european",
+            "era": "renaissance"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "hip"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:smooth_sandstone"
+          ],
+          "roof": [
+            "minecraft:dark_oak_planks"
+          ],
+          "floor": [
+            "minecraft:polished_andesite"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:cut_sandstone"
+          ],
+          "pillar": [
+            "minecraft:smooth_sandstone"
+          ],
+          "cap": [
+            "minecraft:smooth_sandstone_slab"
+          ],
+          "door": [
+            "minecraft:dark_oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:cut_sandstone"
+          ],
+          "stairs": [
+            "minecraft:dark_oak_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:dark_oak_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_RENAISSANCE_STONE_A",
+          "facade_profile": "vertical_pilasters"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cut_sandstone",
+            "pillar_block": "minecraft:smooth_sandstone",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cut_sandstone",
+            "pillar_block": "minecraft:smooth_sandstone",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cut_sandstone",
+            "pillar_block": "minecraft:smooth_sandstone",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:polished_andesite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cut_sandstone",
+            "pillar_block": "minecraft:smooth_sandstone",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "hip",
+            "overhang": 1,
+            "roof_block": "minecraft:dark_oak_planks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "window_block": "minecraft:glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_RENAISSANCE_STONE_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "hall",
+          "residential",
+          "civic"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Art_Deco": {
+      "meta": {
+        "display_name": "Art Deco 退台塔楼",
+        "family": "Modern",
+        "tags": [
+          "装饰艺术",
+          "装饰艺术风格",
+          "modern",
+          "art_deco_vertical"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "international",
+            "era": "modern"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:cut_sandstone"
+          ],
+          "roof": [
+            "minecraft:smooth_sandstone"
+          ],
+          "floor": [
+            "minecraft:smooth_stone"
+          ],
+          "window": [
+            "minecraft:light_blue_stained_glass"
+          ],
+          "foundation": [
+            "minecraft:smooth_stone"
+          ],
+          "trim": [
+            "minecraft:chiseled_sandstone"
+          ],
+          "pillar": [
+            "minecraft:cut_sandstone"
+          ],
+          "cap": [
+            "minecraft:smooth_sandstone_slab"
+          ],
+          "door": [
+            "minecraft:iron_door"
+          ],
+          "roof_trim": [
+            "minecraft:chiseled_sandstone"
+          ],
+          "stairs": [
+            "minecraft:sandstone_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:smooth_sandstone_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_ART_DECO_A",
+          "facade_profile": "vertical_pilasters"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:cut_sandstone",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_blue_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:chiseled_sandstone",
+            "pillar_block": "minecraft:cut_sandstone",
+            "roof_type": "flat",
+            "window_style": "slit",
+            "window_ratio": 0.35,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:cut_sandstone",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_blue_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:chiseled_sandstone",
+            "pillar_block": "minecraft:cut_sandstone",
+            "roof_type": "flat",
+            "window_style": "slit",
+            "window_ratio": 0.35,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:cut_sandstone",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_blue_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:chiseled_sandstone",
+            "pillar_block": "minecraft:cut_sandstone",
+            "roof_type": "flat",
+            "window_style": "slit",
+            "window_ratio": 0.35,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:cut_sandstone",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_blue_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:chiseled_sandstone",
+            "pillar_block": "minecraft:cut_sandstone",
+            "roof_type": "flat",
+            "window_style": "slit",
+            "window_ratio": 0.35,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 1,
+            "roof_block": "minecraft:smooth_sandstone"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "slit",
+            "window_ratio": 0.35,
+            "window_block": "minecraft:light_blue_stained_glass"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_ART_DECO_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "office",
+          "tower"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Legacy_Classical_Facade": {
+      "meta": {
+        "display_name": "Legacy classical facade"
+      },
+      "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_WING": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "SIDE_WING": {
+            "facade_profile": "vertical_pilasters"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "RUSTIC": {
+      "meta": {
+        "display_name": "RUSTIC",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "rustic",
+            "era": "traditional"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "FUTURISTIC": {
+      "meta": {
+        "display_name": "FUTURISTIC",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "modern",
+            "era": "modern"
+          }
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_WING": {
+            "facade_profile": "mullion_grid"
+          },
+          "SIDE_WING": {
+            "facade_profile": "mullion_grid"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "MODERN": {
+      "meta": {
+        "display_name": "MODERN",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "modern",
+            "era": "modern"
+          }
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_WING": {
+            "facade_profile": "mullion_grid"
+          },
+          "SIDE_WING": {
+            "facade_profile": "mullion_grid"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "MEDIEVAL": {
+      "meta": {
+        "display_name": "MEDIEVAL",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "european",
+            "era": "medieval"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "ASIAN": {
+      "meta": {
+        "display_name": "ASIAN",
+        "description": "Legacy BuildingStyle compatibility defaults"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "chinese",
+            "era": "traditional"
+          }
+        }
+      },
+      "constraints": {}
+    },
+    "Chinese_Imperial_Official": {
+      "meta": {
+        "display_name": "Chinese Imperial Architecture",
+        "family": "Eastern",
+        "tags": [
+          "imperial",
+          "axial",
+          "courtyard",
+          "official"
+        ],
+        "description": "Formal Chinese imperial architecture with strict symmetry and ceremonial layout"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "hip"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:red_concrete",
+            "minecraft:red_terracotta"
+          ],
+          "roof": [
+            "minecraft:yellow_concrete",
+            "minecraft:gold_block"
+          ],
+          "frame": [
+            "minecraft:dark_oak_log"
+          ],
+          "floor": [
+            "minecraft:quartz_block"
+          ],
+          "foundation": [
+            "minecraft:quartz_block"
+          ],
+          "trim": [
+            "minecraft:polished_blackstone"
+          ],
+          "cap": [
+            "minecraft:polished_blackstone_slab"
+          ]
+        },
+        "components": {
+          "courtyard": true,
+          "windows": "small_high",
+          "portal": "paifang",
+          "eaves": "flying_eaves",
+          "palette_id": "PALETTE_CHINESE_IMPERIAL_A",
+          "facade_profile": "base_plinth",
+          "ornament_profile": "chinese_plaque",
+          "balcony": "none"
+        },
+        "algorithm": {
+          "generator": "courtyard_temple",
+          "quality": "high"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "temple",
+          "palace",
+          "hall"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Chinese_Vernacular_Tulou": {
+      "meta": {
+        "display_name": "Chinese Tulou",
+        "family": "Eastern",
+        "tags": [
+          "vernacular",
+          "tulou",
+          "fortified",
+          "courtyard"
+        ],
+        "description": "Large enclosed communal dwellings with thick earthen walls"
+      },
+      "defaults": {
+        "geometry": {
+          "shape": "circle",
+          "hollow": true,
+          "symmetry": "radial",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:packed_mud",
+            "minecraft:brown_terracotta"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "frame": [
+            "minecraft:spruce_log"
+          ],
+          "floor": [
+            "minecraft:spruce_planks"
+          ],
+          "foundation": [
+            "minecraft:cobblestone"
+          ],
+          "trim": [
+            "minecraft:spruce_planks"
+          ],
+          "cap": [
+            "minecraft:dark_oak_slab"
+          ]
+        },
+        "components": {
+          "courtyard": true,
+          "balcony": "inner_ring",
+          "windows": "small_high",
+          "portal": "stone_arch",
+          "palette_id": "PALETTE_TULOU_EARTH_A"
+        },
+        "algorithm": {
+          "generator": "tulou",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "residential",
+          "fortress"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "radial",
+        "silhouette_strength": "high"
+      }
+    },
+    "Japanese_Traditional": {
+      "meta": {
+        "display_name": "Japanese Traditional",
+        "family": "Eastern",
+        "tags": [
+          "japanese",
+          "wood",
+          "lightweight",
+          "zen"
+        ],
+        "description": "Lightweight wooden structures emphasizing horizontality and nature integration"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "japanese",
+            "era": "traditional"
+          }
+        },
+        "geometry": {
+          "symmetry": "none",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:birch_planks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "floor": [
+            "minecraft:birch_planks"
+          ],
+          "window": [
+            "minecraft:white_stained_glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone"
+          ],
+          "trim": [
+            "minecraft:spruce_log"
+          ],
+          "pillar": [
+            "minecraft:spruce_log"
+          ],
+          "cap": [
+            "minecraft:deepslate_tile_slab"
+          ],
+          "door": [
+            "minecraft:spruce_door"
+          ],
+          "roof_trim": [
+            "minecraft:spruce_planks"
+          ],
+          "stairs": [
+            "minecraft:deepslate_tile_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:deepslate_tile_slab"
+          ],
+          "frame": [
+            "minecraft:spruce_log"
+          ],
+          "accent": [
+            "minecraft:white_stained_glass_pane"
+          ]
+        },
+        "components": {
+          "courtyard": false,
+          "windows": "shoji",
+          "portal": "torii",
+          "eaves": "flying_eaves",
+          "palette_id": "PALETTE_JAPANESE_TIMBER_A",
+          "ornament_profile": "shrine_lanterns",
+          "balcony": "outer",
+          "facade_profile": "base_plinth"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:stone",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:stone",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:stone",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:stone",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "overhang": 2,
+            "roof_block": "minecraft:deepslate_tiles"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "window_block": "minecraft:white_stained_glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_JAPANESE_TIMBER_A"
+          }
+        },
+        "algorithm": {
+          "generator": "wooden_frame",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "shrine",
+          "temple"
+        ],
+        "terrain_policy": "follow",
+        "symmetry_preference": "none",
+        "silhouette_strength": "medium"
+      }
+    },
+    "Gothic_Cathedral": {
+      "meta": {
+        "display_name": "Gothic Cathedral",
+        "family": "Western",
+        "tags": [
+          "gothic",
+          "vertical",
+          "religious",
+          "stone"
+        ],
+        "description": "Highly vertical religious architecture with spires and stained glass"
+      },
+      "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_WING": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "SIDE_WING": {
+            "facade_profile": "vertical_pilasters"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "spires"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:stone_bricks",
+            "minecraft:cracked_stone_bricks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "accent": [
+            "minecraft:red_stained_glass_pane"
+          ],
+          "floor": [
+            "minecraft:polished_andesite"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:polished_blackstone"
+          ],
+          "cap": [
+            "minecraft:polished_blackstone_slab"
+          ]
+        },
+        "components": {
+          "windows": "rose_window",
+          "portal": "gothic_pointed",
+          "facade_profile": "vertical_pilasters",
+          "ornament_profile": "castle_banners",
+          "palette_id": "PALETTE_GOTHIC_CATHEDRAL_A",
+          "balcony": "none",
+          "buttresses": true,
+          "mullions": true,
+          "pointed_arch_windows": true
+        },
+        "algorithm": {
+          "generator": "cathedral",
+          "quality": "high"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "cathedral",
+          "church"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Medieval_Castle": {
+      "meta": {
+        "display_name": "Medieval Castle",
+        "family": "Western",
+        "tags": [
+          "castle",
+          "defensive",
+          "medieval"
+        ],
+        "description": "Fortified medieval structures with towers and battlements"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:stone_bricks",
+            "minecraft:mossy_stone_bricks"
+          ],
+          "roof": [
+            "minecraft:stone_slab"
+          ],
+          "frame": [
+            "minecraft:spruce_log"
+          ],
+          "floor": [
+            "minecraft:cobblestone"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:stone_brick_wall"
+          ],
+          "cap": [
+            "minecraft:stone_slab"
+          ]
+        },
+        "components": {
+          "windows": "slit_bars",
+          "portal": "stone_arch",
+          "eaves": "battlement",
+          "palette_id": "PALETTE_STONE_FORTRESS_A",
+          "ornament_profile": "castle_banners",
+          "defense": {
+            "battlement": true,
+            "tower_count": 4
+          }
+        },
+        "banner": {
+          "enabled": true,
+          "color": "black"
+        },
+        "algorithm": {
+          "generator": "castle",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "castle",
+          "wall",
+          "fortress"
+        ],
+        "terrain_policy": "follow",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Modern_International": {
+      "meta": {
+        "display_name": "Modern International Style",
+        "family": "Modern",
+        "tags": [
+          "modern",
+          "glass",
+          "minimal"
+        ],
+        "description": "Minimalist modern architecture with boxy forms and glass curtain walls"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "international",
+            "era": "international_glass"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:white_concrete"
+          ],
+          "roof": [
+            "minecraft:smooth_stone"
+          ],
+          "floor": [
+            "minecraft:smooth_stone"
+          ],
+          "window": [
+            "minecraft:light_gray_stained_glass_pane"
+          ],
+          "foundation": [
+            "minecraft:smooth_stone"
+          ],
+          "trim": [
+            "minecraft:polished_andesite"
+          ],
+          "pillar": [
+            "minecraft:iron_block"
+          ],
+          "cap": [
+            "minecraft:smooth_stone_slab"
+          ],
+          "door": [
+            "minecraft:iron_door"
+          ],
+          "roof_trim": [
+            "minecraft:polished_andesite"
+          ],
+          "stairs": [
+            "minecraft:stone_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:smooth_stone_slab"
+          ],
+          "accent": [
+            "minecraft:glass",
+            "minecraft:light_gray_stained_glass"
+          ]
+        },
+        "components": {
+          "windows": "curtain_wall",
+          "portal": "modern_frame",
+          "eaves": "parapet",
+          "facade_profile": "mullion_grid",
+          "ornament_profile": "none",
+          "palette_id": "PALETTE_INTERNATIONAL_GLASS_A"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_gray_stained_glass_pane",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.48,
+            "facade_profile": "mullion_grid",
+            "floor_height": 5
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_gray_stained_glass_pane",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.48,
+            "facade_profile": "mullion_grid",
+            "floor_height": 5
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_gray_stained_glass_pane",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.48,
+            "facade_profile": "mullion_grid",
+            "floor_height": 5
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:light_gray_stained_glass_pane",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.48,
+            "facade_profile": "mullion_grid",
+            "floor_height": 5
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 0,
+            "roof_block": "minecraft:smooth_stone"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.48,
+            "window_block": "minecraft:light_gray_stained_glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_INTERNATIONAL_GLASS_A"
+          }
+        },
+        "algorithm": {
+          "generator": "block_stack",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "office",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "medium"
+      }
+    },
+    "Brutalism": {
+      "meta": {
+        "display_name": "Brutalism",
+        "family": "Modern",
+        "tags": [
+          "brutalism",
+          "concrete",
+          "massive"
+        ],
+        "description": "Heavy, raw concrete architecture emphasizing mass and repetition"
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "international",
+            "era": "modern"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:gray_concrete",
+            "minecraft:smooth_stone"
+          ],
+          "roof": [
+            "minecraft:smooth_stone"
+          ],
+          "floor": [
+            "minecraft:smooth_stone"
+          ],
+          "window": [
+            "minecraft:gray_stained_glass"
+          ],
+          "foundation": [
+            "minecraft:smooth_stone"
+          ],
+          "trim": [
+            "minecraft:polished_andesite"
+          ],
+          "pillar": [
+            "minecraft:gray_concrete"
+          ],
+          "cap": [
+            "minecraft:smooth_stone_slab"
+          ],
+          "door": [
+            "minecraft:iron_door"
+          ],
+          "roof_trim": [
+            "minecraft:polished_andesite"
+          ],
+          "stairs": [
+            "minecraft:stone_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:smooth_stone_slab"
+          ],
+          "accent": [
+            "minecraft:iron_block"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_BRUTALIST_CONCRETE_A",
+          "facade_profile": "module_grid",
+          "windows": "slit",
+          "portal": "modern_frame",
+          "eaves": "parapet"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:gray_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:gray_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:gray_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.16,
+            "facade_profile": "module_grid",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:gray_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:gray_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:gray_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.16,
+            "facade_profile": "module_grid",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:gray_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:gray_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:gray_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.16,
+            "facade_profile": "module_grid",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:gray_concrete",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:smooth_stone",
+            "window_block": "minecraft:gray_stained_glass",
+            "foundation_block": "minecraft:smooth_stone",
+            "trim_block": "minecraft:polished_andesite",
+            "pillar_block": "minecraft:gray_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.16,
+            "facade_profile": "module_grid",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 1,
+            "roof_block": "minecraft:smooth_stone"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.16,
+            "window_block": "minecraft:gray_stained_glass"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_BRUTALIST_CONCRETE_A"
+          }
+        },
+        "algorithm": {
+          "generator": "modular_stack",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "office",
+          "government"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "medium"
+      }
+    },
+    "Deconstructivism_Zaha": {
+      "meta": {
+        "display_name": "Zaha-style Deconstructivism",
+        "family": "Modern",
+        "tags": [
+          "parametric",
+          "fluid",
+          "deconstructivism"
+        ],
+        "description": "Fluid, non-linear parametric architecture with strong motion"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "none",
+          "shape": "freeform"
+        },
+        "materials": {
+          "wall": [
+            "minecraft:white_concrete",
+            "minecraft:quartz_block"
+          ],
+          "accent": [
+            "minecraft:light_blue_stained_glass"
+          ],
+          "floor": [
+            "minecraft:quartz_block"
+          ],
+          "foundation": [
+            "minecraft:smooth_quartz"
+          ],
+          "trim": [
+            "minecraft:quartz_pillar"
+          ],
+          "cap": [
+            "minecraft:smooth_quartz_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_PARAMETRIC_WHITE_A"
+        },
+        "algorithm": {
+          "generator": "parametric_surface",
+          "voxelizer": "bezier",
+          "quality": "high"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "gallery",
+          "office"
+        ],
+        "terrain_policy": "follow",
+        "symmetry_preference": "none",
+        "silhouette_strength": "high"
+      }
+    },
+    "Industrial_Structure": {
+      "meta": {
+        "display_name": "Industrial Structure",
+        "family": "Modern",
+        "tags": [
+          "industrial",
+          "bridge",
+          "structure"
+        ],
+        "description": "Exposed structural systems like bridges and towers"
+      },
+      "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "mullion_grid"
+          },
+          "MASS_WING": {
+            "facade_profile": "mullion_grid"
+          },
+          "SIDE_WING": {
+            "facade_profile": "mullion_grid"
+          }
+        },
+        "materials": {
+          "frame": [
+            "minecraft:iron_bars",
+            "minecraft:iron_block"
+          ],
+          "accent": [
+            "minecraft:copper_block"
+          ]
+        },
+        "components": {
+          "eaves": "none",
+          "ornament_profile": "industrial_signage",
+          "palette_id": "PALETTE_INDUSTRIAL_STEEL_A"
+        },
+        "algorithm": {
+          "generator": "truss",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "bridge",
+          "tower"
+        ],
+        "terrain_policy": "follow",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Fantasy_Elven": {
+      "meta": {
+        "display_name": "Elven / Organic",
+        "family": "Fantasy",
+        "tags": [
+          "organic",
+          "elven",
+          "nature"
+        ],
+        "description": "Organic fantasy architecture integrated with nature"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "none",
+          "shape": "freeform"
+        },
+        "materials": {
+          "wall": [
+            "minecraft:oak_log",
+            "minecraft:birch_log"
+          ],
+          "accent": [
+            "minecraft:oak_leaves",
+            "minecraft:cave_vines",
+            "minecraft:glow_lichen"
+          ],
+          "floor": [
+            "minecraft:moss_block"
+          ],
+          "foundation": [
+            "minecraft:dirt"
+          ],
+          "trim": [
+            "minecraft:mossy_cobblestone"
+          ],
+          "cap": [
+            "minecraft:mossy_cobblestone_slab"
+          ]
+        },
+        "components": {
+          "windows": "stained",
+          "portal": "organic_arch",
+          "eaves": "organic_vines",
+          "ornament_profile": "organic_lanterns",
+          "palette_id": "PALETTE_ELVEN_ORGANIC_A"
+        },
+        "algorithm": {
+          "generator": "organic_growth",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "treehouse",
+          "village"
+        ],
+        "terrain_policy": "follow",
+        "symmetry_preference": "none",
+        "silhouette_strength": "medium"
+      }
+    },
+    "Greco_Roman_Classical": {
+      "meta": {
+        "display_name": "Greco-Roman Classical",
+        "family": "Western",
+        "tags": [
+          "classical",
+          "greco_roman",
+          "colonnade",
+          "pediment",
+          "marble"
+        ],
+        "description": "Classical temples with colonnades, pediments, and clean proportional geometry"
+      },
+      "defaults": {
+        "component_params": {
+          "MASS_MAIN": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_SECONDARY": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "MASS_WING": {
+            "facade_profile": "vertical_pilasters"
+          },
+          "SIDE_WING": {
+            "facade_profile": "vertical_pilasters"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:smooth_quartz",
+            "minecraft:quartz_block"
+          ],
+          "roof": [
+            "minecraft:smooth_quartz_slab"
+          ],
+          "floor": [
+            "minecraft:smooth_quartz"
+          ],
+          "foundation": [
+            "minecraft:smooth_quartz"
+          ],
+          "trim": [
+            "minecraft:quartz_pillar"
+          ],
+          "cap": [
+            "minecraft:quartz_slab"
+          ]
+        },
+        "components": {
+          "columns": "dense",
+          "column_order": "doric",
+          "peristyle": true,
+          "stylobate": true,
+          "pediment": true,
+          "windows": "none",
+          "palette_id": "PALETTE_CLASSICAL_MARBLE_A"
+        },
+        "algorithm": {
+          "generator": "classical_temple",
+          "quality": "high"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "temple",
+          "hall",
+          "monument"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Chinese_Vernacular_Huizhou": {
+      "meta": {
+        "display_name": "Chinese Huizhou (White Wall / Black Tile)",
+        "family": "Eastern",
+        "tags": [
+          "vernacular",
+          "huizhou",
+          "white_wall",
+          "black_tile",
+          "horse_head_wall"
+        ],
+        "description": "Huizhou-style vernacular buildings with white walls, black tiles, and horse-head gables"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:white_concrete",
+            "minecraft:calcite"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles",
+            "minecraft:polished_deepslate"
+          ],
+          "frame": [
+            "minecraft:dark_oak_log"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:blackstone_wall"
+          ],
+          "cap": [
+            "minecraft:deepslate_tile_slab"
+          ]
+        },
+        "components": {
+          "courtyard": true,
+          "windows": "lattice_small_high",
+          "portal": "paifang",
+          "eaves": "flying_eaves",
+          "palette_id": "PALETTE_HUIZHOU_WHITE_BLACK_A",
+          "facade_profile": "base_plinth",
+          "ornament_profile": "huizhou_horsehead",
+          "balcony": "none"
+        },
+        "algorithm": {
+          "generator": "courtyard_house",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "residential",
+          "courtyard"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "medium"
+      }
+    },
+    "Chinese_Vernacular_Jiangnan_WaterTown": {
+      "meta": {
+        "display_name": "江南水乡",
+        "family": "A",
+        "tags": [
+          "江南水乡",
+          "jiangnan water town",
+          "jiangnan_quay",
+          "江南民居"
+        ],
+        "description": "Bounded authored voxel interpretation; live and historical review pending."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "A",
+            "era": "jiangnan_quay"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:white_terracotta"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "floor": [
+            "minecraft:oak_planks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:cobblestone"
+          ],
+          "trim": [
+            "minecraft:dark_oak_log"
+          ],
+          "pillar": [
+            "minecraft:dark_oak_log"
+          ],
+          "cap": [
+            "minecraft:dark_oak_slab"
+          ],
+          "door": [
+            "minecraft:spruce_door"
+          ],
+          "roof_trim": [
+            "minecraft:dark_oak_log"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_JIANGNAN_QUAY",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "roof_block": "minecraft:deepslate_tiles",
+            "overhang": 1
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Steampunk": {
+      "meta": {
+        "display_name": "蒸汽朋克",
+        "family": "E",
+        "tags": [
+          "蒸汽朋克",
+          "steampunk hall",
+          "steampunk_hall"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "fantasy",
+            "era": "steampunk_hall"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gambrel"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:bricks"
+          ],
+          "roof": [
+            "minecraft:cut_copper"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:waxed_cut_copper"
+          ],
+          "pillar": [
+            "minecraft:waxed_cut_copper"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:waxed_cut_copper"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_STEAMPUNK",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:cut_copper",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:waxed_cut_copper",
+            "pillar_block": "minecraft:waxed_cut_copper",
+            "roof_type": "gambrel",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:cut_copper",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:waxed_cut_copper",
+            "pillar_block": "minecraft:waxed_cut_copper",
+            "roof_type": "gambrel",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:cut_copper",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:waxed_cut_copper",
+            "pillar_block": "minecraft:waxed_cut_copper",
+            "roof_type": "gambrel",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:cut_copper",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:waxed_cut_copper",
+            "pillar_block": "minecraft:waxed_cut_copper",
+            "roof_type": "gambrel",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gambrel",
+            "overhang": 0,
+            "roof_block": "minecraft:cut_copper"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Cyberpunk": {
+      "meta": {
+        "display_name": "赛博朋克",
+        "family": "E",
+        "tags": [
+          "赛博朋克",
+          "cyberpunk block",
+          "cyberpunk_block"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "fantasy",
+            "era": "cyberpunk_block"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:black_concrete"
+          ],
+          "roof": [
+            "minecraft:gray_concrete"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:cyan_concrete"
+          ],
+          "pillar": [
+            "minecraft:cyan_concrete"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:cyan_concrete"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_CYBERPUNK",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:black_concrete",
+            "roof_block": "minecraft:gray_concrete",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cyan_concrete",
+            "pillar_block": "minecraft:cyan_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "neon_bands",
+            "floor_height": 4,
+            "emissive_enabled": true,
+            "emissive_block": "minecraft:sea_lantern"
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:black_concrete",
+            "roof_block": "minecraft:gray_concrete",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cyan_concrete",
+            "pillar_block": "minecraft:cyan_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "neon_bands",
+            "floor_height": 4,
+            "emissive_enabled": true,
+            "emissive_block": "minecraft:sea_lantern"
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:black_concrete",
+            "roof_block": "minecraft:gray_concrete",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cyan_concrete",
+            "pillar_block": "minecraft:cyan_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "neon_bands",
+            "floor_height": 4,
+            "emissive_enabled": true,
+            "emissive_block": "minecraft:sea_lantern"
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:black_concrete",
+            "roof_block": "minecraft:gray_concrete",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:cyan_concrete",
+            "pillar_block": "minecraft:cyan_concrete",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "neon_bands",
+            "floor_height": 4,
+            "emissive_enabled": true,
+            "emissive_block": "minecraft:sea_lantern"
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 0,
+            "roof_block": "minecraft:gray_concrete"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Industrial_Brick_Hall": {
+      "meta": {
+        "display_name": "红砖工业厂房",
+        "family": "Modern",
+        "tags": [
+          "红砖工业",
+          "砖砌工业",
+          "industrial brick",
+          "brick factory",
+          "industrial_brick"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "international",
+            "era": "modern"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:bricks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:iron_block"
+          ],
+          "pillar": [
+            "minecraft:polished_andesite"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:iron_door"
+          ],
+          "roof_trim": [
+            "minecraft:iron_block"
+          ],
+          "stairs": [
+            "minecraft:deepslate_tile_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:deepslate_tile_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_INDUSTRIAL_BRICK_A",
+          "facade_profile": "mullion_grid"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:iron_block",
+            "pillar_block": "minecraft:polished_andesite",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.4,
+            "facade_profile": "mullion_grid",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:iron_block",
+            "pillar_block": "minecraft:polished_andesite",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.4,
+            "facade_profile": "mullion_grid",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:iron_block",
+            "pillar_block": "minecraft:polished_andesite",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.4,
+            "facade_profile": "mullion_grid",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:iron_block",
+            "pillar_block": "minecraft:polished_andesite",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.4,
+            "facade_profile": "mullion_grid",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "overhang": 1,
+            "roof_block": "minecraft:deepslate_tiles"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.4,
+            "window_block": "minecraft:glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_INDUSTRIAL_BRICK_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "hall",
+          "warehouse",
+          "factory"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Scandinavian_Timber": {
+      "meta": {
+        "display_name": "北欧木屋",
+        "family": "European",
+        "tags": [
+          "北欧木屋",
+          "北欧木构",
+          "斯堪的纳维亚木屋",
+          "scandinavian timber",
+          "nordic timber",
+          "scandinavian_timber"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "nordic",
+            "era": "traditional"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:stripped_spruce_wood"
+          ],
+          "roof": [
+            "minecraft:spruce_planks"
+          ],
+          "floor": [
+            "minecraft:birch_planks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:cobbled_deepslate"
+          ],
+          "trim": [
+            "minecraft:stripped_oak_log"
+          ],
+          "pillar": [
+            "minecraft:stripped_spruce_log"
+          ],
+          "cap": [
+            "minecraft:spruce_slab"
+          ],
+          "door": [
+            "minecraft:spruce_door"
+          ],
+          "roof_trim": [
+            "minecraft:stripped_oak_log"
+          ],
+          "stairs": [
+            "minecraft:spruce_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:spruce_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_SCANDINAVIAN_TIMBER_A",
+          "facade_profile": "base_plinth"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:stripped_spruce_wood",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobbled_deepslate",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:stripped_spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "base_plinth",
+            "floor_height": 7
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:stripped_spruce_wood",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobbled_deepslate",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:stripped_spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "base_plinth",
+            "floor_height": 7
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:stripped_spruce_wood",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobbled_deepslate",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:stripped_spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "base_plinth",
+            "floor_height": 7
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:stripped_spruce_wood",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:birch_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobbled_deepslate",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:stripped_spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "base_plinth",
+            "floor_height": 7
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "overhang": 1,
+            "roof_block": "minecraft:spruce_planks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "window_block": "minecraft:glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_SCANDINAVIAN_TIMBER_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "cottage",
+          "hall"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Mediterranean_Stucco": {
+      "meta": {
+        "display_name": "地中海灰泥住宅",
+        "family": "European",
+        "tags": [
+          "地中海灰泥",
+          "地中海风格",
+          "mediterranean stucco",
+          "mediterranean style",
+          "mediterranean_stucco"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "mediterranean",
+            "era": "vernacular"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "hip"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:white_concrete"
+          ],
+          "roof": [
+            "minecraft:terracotta"
+          ],
+          "floor": [
+            "minecraft:smooth_sandstone"
+          ],
+          "window": [
+            "minecraft:white_stained_glass_pane"
+          ],
+          "foundation": [
+            "minecraft:sandstone"
+          ],
+          "trim": [
+            "minecraft:smooth_sandstone"
+          ],
+          "pillar": [
+            "minecraft:smooth_quartz"
+          ],
+          "cap": [
+            "minecraft:smooth_sandstone_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:bricks"
+          ],
+          "stairs": [
+            "minecraft:brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_MEDITERRANEAN_STUCCO_A",
+          "facade_profile": "base_plinth"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:terracotta",
+            "floor_block": "minecraft:smooth_sandstone",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:sandstone",
+            "trim_block": "minecraft:smooth_sandstone",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:terracotta",
+            "floor_block": "minecraft:smooth_sandstone",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:sandstone",
+            "trim_block": "minecraft:smooth_sandstone",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:terracotta",
+            "floor_block": "minecraft:smooth_sandstone",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:sandstone",
+            "trim_block": "minecraft:smooth_sandstone",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:white_concrete",
+            "roof_block": "minecraft:terracotta",
+            "floor_block": "minecraft:smooth_sandstone",
+            "window_block": "minecraft:white_stained_glass_pane",
+            "foundation_block": "minecraft:sandstone",
+            "trim_block": "minecraft:smooth_sandstone",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "ROOF": {
+            "roof_type": "hip",
+            "overhang": 1,
+            "roof_block": "minecraft:terracotta"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "window_block": "minecraft:white_stained_glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_MEDITERRANEAN_STUCCO_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Georgian_Brick": {
+      "meta": {
+        "display_name": "乔治王朝砖宅",
+        "family": "European",
+        "tags": [
+          "乔治王朝",
+          "乔治王朝砖砌",
+          "乔治王朝风格",
+          "georgian brick",
+          "georgian architecture",
+          "georgian_brick"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "british",
+            "era": "georgian"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "hip"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:bricks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "floor": [
+            "minecraft:dark_oak_planks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:smooth_quartz"
+          ],
+          "pillar": [
+            "minecraft:smooth_quartz"
+          ],
+          "cap": [
+            "minecraft:smooth_quartz_slab"
+          ],
+          "door": [
+            "minecraft:dark_oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:smooth_quartz"
+          ],
+          "stairs": [
+            "minecraft:deepslate_tile_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:deepslate_tile_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_GEORGIAN_BRICK_A",
+          "facade_profile": "vertical_pilasters"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:smooth_quartz",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:smooth_quartz",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:smooth_quartz",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:smooth_quartz",
+            "pillar_block": "minecraft:smooth_quartz",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "ROOF": {
+            "roof_type": "hip",
+            "overhang": 1,
+            "roof_block": "minecraft:deepslate_tiles"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.3,
+            "window_block": "minecraft:glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_GEORGIAN_BRICK_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Prairie_House": {
+      "meta": {
+        "display_name": "草原式住宅",
+        "family": "Modern",
+        "tags": [
+          "草原式住宅",
+          "草原式",
+          "草原学派住宅",
+          "prairie house",
+          "prairie architecture",
+          "prairie_horizontal"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "north_american",
+            "era": "prairie"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:brown_terracotta"
+          ],
+          "roof": [
+            "minecraft:dark_oak_planks"
+          ],
+          "floor": [
+            "minecraft:oak_planks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:stripped_oak_wood"
+          ],
+          "pillar": [
+            "minecraft:dark_oak_log"
+          ],
+          "cap": [
+            "minecraft:dark_oak_slab"
+          ],
+          "door": [
+            "minecraft:dark_oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:dark_oak_planks"
+          ],
+          "stairs": [
+            "minecraft:dark_oak_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:dark_oak_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_PRAIRIE_HORIZONTAL_A",
+          "facade_profile": "base_plinth"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:brown_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_oak_wood",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:brown_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_oak_wood",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:brown_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_oak_wood",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:brown_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_oak_wood",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "facade_profile": "base_plinth",
+            "floor_height": 6
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 2,
+            "roof_block": "minecraft:dark_oak_planks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.28,
+            "window_block": "minecraft:glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_PRAIRIE_HORIZONTAL_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Midcentury_House": {
+      "meta": {
+        "display_name": "世纪中叶住宅",
+        "family": "Modern",
+        "tags": [
+          "世纪中叶住宅",
+          "世纪中叶风格",
+          "midcentury house",
+          "mid-century house",
+          "midcentury_pavilion"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "north_american",
+            "era": "midcentury"
+          }
+        },
+        "geometry": {
+          "symmetry": "none",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:smooth_sandstone"
+          ],
+          "roof": [
+            "minecraft:smooth_stone"
+          ],
+          "floor": [
+            "minecraft:dark_oak_planks"
+          ],
+          "window": [
+            "minecraft:light_blue_stained_glass_pane"
+          ],
+          "foundation": [
+            "minecraft:polished_andesite"
+          ],
+          "trim": [
+            "minecraft:stripped_oak_log"
+          ],
+          "pillar": [
+            "minecraft:iron_block"
+          ],
+          "cap": [
+            "minecraft:smooth_stone_slab"
+          ],
+          "door": [
+            "minecraft:birch_door"
+          ],
+          "roof_trim": [
+            "minecraft:stripped_oak_log"
+          ],
+          "stairs": [
+            "minecraft:stone_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:smooth_stone_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_MIDCENTURY_PAVILION_A",
+          "facade_profile": "mullion_grid"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:light_blue_stained_glass_pane",
+            "foundation_block": "minecraft:polished_andesite",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.42,
+            "facade_profile": "mullion_grid",
+            "floor_height": 7
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:light_blue_stained_glass_pane",
+            "foundation_block": "minecraft:polished_andesite",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.42,
+            "facade_profile": "mullion_grid",
+            "floor_height": 7
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:light_blue_stained_glass_pane",
+            "foundation_block": "minecraft:polished_andesite",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.42,
+            "facade_profile": "mullion_grid",
+            "floor_height": 7
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:smooth_sandstone",
+            "roof_block": "minecraft:smooth_stone",
+            "floor_block": "minecraft:dark_oak_planks",
+            "window_block": "minecraft:light_blue_stained_glass_pane",
+            "foundation_block": "minecraft:polished_andesite",
+            "trim_block": "minecraft:stripped_oak_log",
+            "pillar_block": "minecraft:iron_block",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.42,
+            "facade_profile": "mullion_grid",
+            "floor_height": 7
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 1,
+            "roof_block": "minecraft:smooth_stone"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.42,
+            "window_block": "minecraft:light_blue_stained_glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_MIDCENTURY_PAVILION_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "none",
+        "silhouette_strength": "high"
+      }
+    },
+    "Alpine_Chalet": {
+      "meta": {
+        "display_name": "阿尔卑斯木屋",
+        "family": "European",
+        "tags": [
+          "阿尔卑斯木屋",
+          "阿尔卑斯木构",
+          "alpine chalet",
+          "alpine timber",
+          "alpine_chalet"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "european",
+            "era": "alpine_chalet"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:spruce_planks"
+          ],
+          "roof": [
+            "minecraft:dark_oak_planks"
+          ],
+          "floor": [
+            "minecraft:oak_planks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:cobblestone"
+          ],
+          "trim": [
+            "minecraft:stripped_spruce_log"
+          ],
+          "pillar": [
+            "minecraft:spruce_log"
+          ],
+          "cap": [
+            "minecraft:dark_oak_slab"
+          ],
+          "door": [
+            "minecraft:spruce_door"
+          ],
+          "roof_trim": [
+            "minecraft:dark_oak_log"
+          ],
+          "stairs": [
+            "minecraft:dark_oak_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:dark_oak_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_ALPINE_CHALET_A",
+          "facade_profile": "base_plinth"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:stripped_spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:stripped_spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:stripped_spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:stripped_spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "facade_profile": "base_plinth",
+            "floor_height": 5
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "overhang": 2,
+            "roof_block": "minecraft:dark_oak_planks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.24,
+            "window_block": "minecraft:glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_ALPINE_CHALET_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Neoclassical_Civic": {
+      "meta": {
+        "display_name": "新古典公共建筑",
+        "family": "European",
+        "tags": [
+          "新古典公共建筑",
+          "新古典风格",
+          "neoclassical civic",
+          "neoclassical architecture",
+          "neoclassical_civic"
+        ],
+        "description": "Authored voxel style preset using existing geometry and registered block materials."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "european",
+            "era": "neoclassical_civic"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "hip"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:smooth_quartz"
+          ],
+          "roof": [
+            "minecraft:stone_bricks"
+          ],
+          "floor": [
+            "minecraft:polished_diorite"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:smooth_quartz"
+          ],
+          "trim": [
+            "minecraft:quartz_pillar"
+          ],
+          "pillar": [
+            "minecraft:quartz_pillar"
+          ],
+          "cap": [
+            "minecraft:quartz_slab"
+          ],
+          "door": [
+            "minecraft:dark_oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:quartz_pillar"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_NEOCLASSICAL_CIVIC_A",
+          "facade_profile": "vertical_pilasters"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:smooth_quartz",
+            "roof_block": "minecraft:stone_bricks",
+            "floor_block": "minecraft:polished_diorite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:smooth_quartz",
+            "trim_block": "minecraft:quartz_pillar",
+            "pillar_block": "minecraft:quartz_pillar",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:smooth_quartz",
+            "roof_block": "minecraft:stone_bricks",
+            "floor_block": "minecraft:polished_diorite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:smooth_quartz",
+            "trim_block": "minecraft:quartz_pillar",
+            "pillar_block": "minecraft:quartz_pillar",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:smooth_quartz",
+            "roof_block": "minecraft:stone_bricks",
+            "floor_block": "minecraft:polished_diorite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:smooth_quartz",
+            "trim_block": "minecraft:quartz_pillar",
+            "pillar_block": "minecraft:quartz_pillar",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:smooth_quartz",
+            "roof_block": "minecraft:stone_bricks",
+            "floor_block": "minecraft:polished_diorite",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:smooth_quartz",
+            "trim_block": "minecraft:quartz_pillar",
+            "pillar_block": "minecraft:quartz_pillar",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "facade_profile": "vertical_pilasters",
+            "floor_height": 5
+          },
+          "ROOF": {
+            "roof_type": "hip",
+            "overhang": 1,
+            "roof_block": "minecraft:stone_bricks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.25,
+            "window_block": "minecraft:glass_pane"
+          },
+          "STRUCTURE": {
+            "paletteId": "PALETTE_NEOCLASSICAL_CIVIC_A"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Desert_Adobe": {
+      "meta": {
+        "display_name": "沙漠泥砖",
+        "family": "D",
+        "tags": [
+          "沙漠泥砖",
+          "desert adobe",
+          "desert_adobe"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "vernacular",
+            "era": "desert_adobe"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:mud_bricks"
+          ],
+          "roof": [
+            "minecraft:smooth_sandstone"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:packed_mud"
+          ],
+          "pillar": [
+            "minecraft:packed_mud"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:packed_mud"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_DESERT_ADOBE",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:mud_bricks",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_mud",
+            "pillar_block": "minecraft:packed_mud",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:mud_bricks",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_mud",
+            "pillar_block": "minecraft:packed_mud",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:mud_bricks",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_mud",
+            "pillar_block": "minecraft:packed_mud",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:mud_bricks",
+            "roof_block": "minecraft:smooth_sandstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_mud",
+            "pillar_block": "minecraft:packed_mud",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 0,
+            "roof_block": "minecraft:smooth_sandstone"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Prairie_Earth": {
+      "meta": {
+        "display_name": "草原土坯",
+        "family": "D",
+        "tags": [
+          "草原土坯",
+          "prairie earth house",
+          "prairie_earth"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "vernacular",
+            "era": "prairie_earth"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "flat"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:packed_mud"
+          ],
+          "roof": [
+            "minecraft:mud_bricks"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:oak_log"
+          ],
+          "pillar": [
+            "minecraft:oak_log"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:oak_log"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_PRAIRIE_EARTH",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:packed_mud",
+            "roof_block": "minecraft:mud_bricks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:packed_mud",
+            "roof_block": "minecraft:mud_bricks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:packed_mud",
+            "roof_block": "minecraft:mud_bricks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:packed_mud",
+            "roof_block": "minecraft:mud_bricks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "flat",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "flat",
+            "overhang": 0,
+            "roof_block": "minecraft:mud_bricks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Arctic_Igloo": {
+      "meta": {
+        "display_name": "冰屋",
+        "family": "D",
+        "tags": [
+          "冰屋",
+          "arctic igloo",
+          "arctic_igloo"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "vernacular",
+            "era": "arctic_igloo"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "dome"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:snow_block"
+          ],
+          "roof": [
+            "minecraft:snow_block"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:packed_ice"
+          ],
+          "pillar": [
+            "minecraft:packed_ice"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:packed_ice"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_ARCTIC_IGLOO",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:snow_block",
+            "roof_block": "minecraft:snow_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_ice",
+            "pillar_block": "minecraft:packed_ice",
+            "roof_type": "dome",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:snow_block",
+            "roof_block": "minecraft:snow_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_ice",
+            "pillar_block": "minecraft:packed_ice",
+            "roof_type": "dome",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:snow_block",
+            "roof_block": "minecraft:snow_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_ice",
+            "pillar_block": "minecraft:packed_ice",
+            "roof_type": "dome",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:snow_block",
+            "roof_block": "minecraft:snow_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:packed_ice",
+            "pillar_block": "minecraft:packed_ice",
+            "roof_type": "dome",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "dome",
+            "overhang": 0,
+            "roof_block": "minecraft:snow_block"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Stilt_Timber": {
+      "meta": {
+        "display_name": "吊脚木楼",
+        "family": "D",
+        "tags": [
+          "吊脚木楼",
+          "stilt timber house",
+          "stilt_timber"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "vernacular",
+            "era": "stilt_timber"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:spruce_planks"
+          ],
+          "roof": [
+            "minecraft:dark_oak_planks"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:spruce_log"
+          ],
+          "pillar": [
+            "minecraft:spruce_log"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:spruce_log"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_STILT_TIMBER",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:spruce_planks",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:spruce_log",
+            "pillar_block": "minecraft:spruce_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "overhang": 0,
+            "roof_block": "minecraft:dark_oak_planks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Water_Platform": {
+      "meta": {
+        "display_name": "水上木屋",
+        "family": "D",
+        "tags": [
+          "水上木屋",
+          "water platform house",
+          "water_platform"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "vernacular",
+            "era": "water_platform"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:oak_planks"
+          ],
+          "roof": [
+            "minecraft:spruce_planks"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:oak_log"
+          ],
+          "pillar": [
+            "minecraft:oak_log"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:oak_log"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_WATER_PLATFORM",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:oak_planks",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:oak_planks",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:oak_planks",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:oak_planks",
+            "roof_block": "minecraft:spruce_planks",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:oak_log",
+            "pillar_block": "minecraft:oak_log",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "overhang": 0,
+            "roof_block": "minecraft:spruce_planks"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.08,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Xianxia_Island": {
+      "meta": {
+        "display_name": "仙侠悬浮岛",
+        "family": "E",
+        "tags": [
+          "仙侠悬浮岛",
+          "xianxia floating island",
+          "xianxia_island"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "fantasy",
+            "era": "xianxia_island"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "hip"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:quartz_block"
+          ],
+          "roof": [
+            "minecraft:dark_prismarine"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:crimson_planks"
+          ],
+          "pillar": [
+            "minecraft:crimson_planks"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:crimson_planks"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_XIANXIA_ISLAND",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:quartz_block",
+            "roof_block": "minecraft:dark_prismarine",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crimson_planks",
+            "pillar_block": "minecraft:crimson_planks",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:quartz_block",
+            "roof_block": "minecraft:dark_prismarine",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crimson_planks",
+            "pillar_block": "minecraft:crimson_planks",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:quartz_block",
+            "roof_block": "minecraft:dark_prismarine",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crimson_planks",
+            "pillar_block": "minecraft:crimson_planks",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:quartz_block",
+            "roof_block": "minecraft:dark_prismarine",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crimson_planks",
+            "pillar_block": "minecraft:crimson_planks",
+            "roof_type": "hip",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "hip",
+            "overhang": 0,
+            "roof_block": "minecraft:dark_prismarine"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Dwarven_Hall": {
+      "meta": {
+        "display_name": "矮人石殿",
+        "family": "E",
+        "tags": [
+          "矮人石殿",
+          "dwarven stone hall",
+          "dwarven_hall"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "fantasy",
+            "era": "dwarven_hall"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "barrel_vault"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:polished_deepslate"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:chiseled_stone_bricks"
+          ],
+          "pillar": [
+            "minecraft:chiseled_stone_bricks"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:chiseled_stone_bricks"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_DWARVEN_HALL",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:polished_deepslate",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "barrel_vault",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:polished_deepslate",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "barrel_vault",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:polished_deepslate",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "barrel_vault",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:polished_deepslate",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "barrel_vault",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "barrel_vault",
+            "overhang": 0,
+            "roof_block": "minecraft:deepslate_tiles"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Elven_Treehouse": {
+      "meta": {
+        "display_name": "精灵树城",
+        "family": "E",
+        "tags": [
+          "精灵树城",
+          "elven forest city",
+          "elven_treehouse",
+          "elven treehouse"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "fantasy",
+            "era": "elven_treehouse"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "cone"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:birch_planks"
+          ],
+          "roof": [
+            "minecraft:moss_block"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:stripped_birch_log"
+          ],
+          "pillar": [
+            "minecraft:stripped_birch_log"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:stripped_birch_log"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_ELVEN_TREEHOUSE",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:moss_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_birch_log",
+            "pillar_block": "minecraft:stripped_birch_log",
+            "roof_type": "cone",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:moss_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_birch_log",
+            "pillar_block": "minecraft:stripped_birch_log",
+            "roof_type": "cone",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:moss_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_birch_log",
+            "pillar_block": "minecraft:stripped_birch_log",
+            "roof_type": "cone",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:birch_planks",
+            "roof_block": "minecraft:moss_block",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:stripped_birch_log",
+            "pillar_block": "minecraft:stripped_birch_log",
+            "roof_type": "cone",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "timber_frame",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "cone",
+            "overhang": 0,
+            "roof_block": "minecraft:moss_block"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Dark_Fortress": {
+      "meta": {
+        "display_name": "暗黑魔物堡",
+        "family": "E",
+        "tags": [
+          "暗黑魔物堡",
+          "dark fantasy fortress",
+          "dark_fortress"
+        ],
+        "description": "Authored original voxel style; not a historical reconstruction."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "fantasy",
+            "era": "dark_fortress"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:blackstone"
+          ],
+          "roof": [
+            "minecraft:polished_blackstone"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:crying_obsidian"
+          ],
+          "pillar": [
+            "minecraft:crying_obsidian"
+          ],
+          "cap": [
+            "minecraft:stone_brick_slab"
+          ],
+          "door": [
+            "minecraft:oak_door"
+          ],
+          "roof_trim": [
+            "minecraft:crying_obsidian"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_DARK_FORTRESS",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:blackstone",
+            "roof_block": "minecraft:polished_blackstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crying_obsidian",
+            "pillar_block": "minecraft:crying_obsidian",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:blackstone",
+            "roof_block": "minecraft:polished_blackstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crying_obsidian",
+            "pillar_block": "minecraft:crying_obsidian",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:blackstone",
+            "roof_block": "minecraft:polished_blackstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crying_obsidian",
+            "pillar_block": "minecraft:crying_obsidian",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:blackstone",
+            "roof_block": "minecraft:polished_blackstone",
+            "floor_block": "minecraft:stone_bricks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:stone_bricks",
+            "trim_block": "minecraft:crying_obsidian",
+            "pillar_block": "minecraft:crying_obsidian",
+            "roof_type": "gable",
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "facade_profile": "none",
+            "wall_pattern": "smooth",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "overhang": 0,
+            "roof_block": "minecraft:polished_blackstone"
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.22,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Chinese_Vernacular_Siheyuan": {
+      "meta": {
+        "display_name": "Northern Chinese Siheyuan",
+        "family": "Eastern",
+        "tags": [
+          "vernacular",
+          "siheyuan",
+          "courtyard",
+          "gray_brick"
+        ],
+        "description": "Northern courtyard dwelling with gray brick walls, tiled roofs and inward-facing wings"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:stone_bricks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "frame": [
+            "minecraft:dark_oak_log"
+          ],
+          "floor": [
+            "minecraft:stone_bricks"
+          ],
+          "foundation": [
+            "minecraft:stone_bricks"
+          ],
+          "trim": [
+            "minecraft:dark_oak_planks"
+          ],
+          "cap": [
+            "minecraft:deepslate_tile_slab"
+          ]
+        },
+        "components": {
+          "courtyard": true,
+          "windows": "lattice_small_high"
+        },
+        "algorithm": {
+          "generator": "courtyard_house",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "residential",
+          "courtyard"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "medium"
+      }
+    },
+    "Romanesque": {
+      "meta": {
+        "display_name": "罗马风",
+        "family": "B",
+        "tags": [
+          "罗马风",
+          "romanesque hall",
+          "romanesque_hall"
+        ],
+        "description": "Bounded authored voxel interpretation; live and historical review pending."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "B",
+            "era": "romanesque_hall"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:stone_bricks"
+          ],
+          "roof": [
+            "minecraft:deepslate_tiles"
+          ],
+          "floor": [
+            "minecraft:oak_planks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:cobblestone"
+          ],
+          "trim": [
+            "minecraft:chiseled_stone_bricks"
+          ],
+          "pillar": [
+            "minecraft:chiseled_stone_bricks"
+          ],
+          "cap": [
+            "minecraft:dark_oak_slab"
+          ],
+          "door": [
+            "minecraft:spruce_door"
+          ],
+          "roof_trim": [
+            "minecraft:chiseled_stone_bricks"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_ROMANESQUE_HALL",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:stone_bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:stone_bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:stone_bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:stone_bricks",
+            "roof_block": "minecraft:deepslate_tiles",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:chiseled_stone_bricks",
+            "pillar_block": "minecraft:chiseled_stone_bricks",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "smooth",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "roof_block": "minecraft:deepslate_tiles",
+            "overhang": 1
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+    "Tudor": {
+      "meta": {
+        "display_name": "都铎",
+        "family": "B",
+        "tags": [
+          "都铎",
+          "tudor house",
+          "tudor_house"
+        ],
+        "description": "Bounded authored voxel interpretation; live and historical review pending."
+      },
+      "defaults": {
+        "genome": {
+          "culturalStyle": {
+            "region": "B",
+            "era": "tudor_house"
+          }
+        },
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": {
+            "type": "gable"
+          }
+        },
+        "materials": {
+          "wall": [
+            "minecraft:white_terracotta"
+          ],
+          "roof": [
+            "minecraft:dark_oak_planks"
+          ],
+          "floor": [
+            "minecraft:oak_planks"
+          ],
+          "window": [
+            "minecraft:glass_pane"
+          ],
+          "foundation": [
+            "minecraft:cobblestone"
+          ],
+          "trim": [
+            "minecraft:dark_oak_log"
+          ],
+          "pillar": [
+            "minecraft:dark_oak_log"
+          ],
+          "cap": [
+            "minecraft:dark_oak_slab"
+          ],
+          "door": [
+            "minecraft:spruce_door"
+          ],
+          "roof_trim": [
+            "minecraft:dark_oak_log"
+          ],
+          "stairs": [
+            "minecraft:stone_brick_stairs"
+          ],
+          "roof_slab": [
+            "minecraft:stone_brick_slab"
+          ]
+        },
+        "components": {
+          "palette_id": "PALETTE_TUDOR_HOUSE",
+          "facade_profile": "none"
+        },
+        "component_params": {
+          "MASS_MAIN": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "timber_frame",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "MASS_SECONDARY": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "timber_frame",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "MASS_WING": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "timber_frame",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "SIDE_WING": {
+            "wall_block": "minecraft:white_terracotta",
+            "roof_block": "minecraft:dark_oak_planks",
+            "floor_block": "minecraft:oak_planks",
+            "window_block": "minecraft:glass_pane",
+            "foundation_block": "minecraft:cobblestone",
+            "trim_block": "minecraft:dark_oak_log",
+            "pillar_block": "minecraft:dark_oak_log",
+            "roof_type": "none",
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "wall_pattern": "timber_frame",
+            "facade_profile": "none",
+            "floor_height": 4
+          },
+          "ROOF": {
+            "roof_type": "gable",
+            "roof_block": "minecraft:dark_oak_planks",
+            "overhang": 1
+          },
+          "FACADE_WINDOWS": {
+            "window_style": "pane",
+            "window_ratio": 0.15,
+            "window_block": "minecraft:glass_pane"
+          }
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": [
+          "house",
+          "villa",
+          "residential"
+        ],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    }
+  }
+}

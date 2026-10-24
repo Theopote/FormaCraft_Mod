@@ -1,0 +1,98 @@
+{
+  "schema": "formacraft.ornament_contract.v1",
+  "id": "gothic",
+  "application": "standalone",
+  "target": {
+    "component_type": "STRUCTURE",
+    "typology_id": "gothic_cathedral_hall"
+  },
+  "unresolved_scope_pattern": "左栋|右栋|第.+?栋|东侧建筑|西侧建筑",
+  "report": {
+    "key": "gothic_building_contract",
+    "schema": "formacraft.gothic_building.v1"
+  },
+  "toggles": [
+    {
+      "property": "includeVaultShell",
+      "negative": "(?:不要|不设|取消)(?:设置|增加|采用)?(?:薄)?拱顶壳体|\\b(?:no |(?:do not|don't) include )vault shell\\b",
+      "positive": "(?:设置|增加|采用)(?:薄)?拱顶壳体|\\binclude vault shell\\b"
+    },
+    {
+      "property": "includeApse",
+      "negative": "(?:不要|不设|取消)(?:设置|增加|采用)?(?:折角)?后殿|\\b(?:no |(?:do not|don't) include )(?:faceted )?apse\\b",
+      "positive": "(?:设置|增加|采用)折角后殿|\\binclude faceted apse\\b"
+    },
+    {
+      "property": "includeChoir",
+      "negative": "(?:不要|不设|取消)(?:设置|增加|采用)?唱诗席|\\b(?:no |(?:do not|don't) include )choir\\b",
+      "positive": "(?:设置|增加|采用)唱诗席|\\binclude choir\\b"
+    },
+    {
+      "property": "includeEntranceSteps",
+      "negative": "(?:不要|不设|取消)(?:设置|增加|采用)?(?:入口)?(?:大)?台阶|\\b(?:no |(?:do not|don't) include )entrance steps\\b"
+    },
+    {
+      "property": "includeRibVault",
+      "negative": "(?:不要|不设|不生成|取消)(?:设置|增加|采用)?(?:室内)?肋拱|\\b(?:no |(?:do not|don't) include )rib vault\\b",
+      "positive": "(?:设置|增加|采用)(?:室内)?肋拱|\\binclude rib vault\\b",
+      "positive_verification_level": "plan_parameters_only"
+    },
+    {
+      "property": "includeWindowTracery",
+      "negative": "(?:不要|不设|不生成|取消)(?:设置|增加|采用)?窗花|\\b(?:no |(?:do not|don't) include )(?:window )?tracery\\b"
+    },
+    {
+      "property": "includeWindows",
+      "negative": "(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\\b(?:no |(?:do not|don't) include )windows anywhere\\b"
+    },
+    {
+      "property": "includeRoseWindow",
+      "negative": "(?:不要|不设|不生成|取消)(?:设置|增加|采用)?玫瑰(?:花)?窗|\\b(?:no |(?:do not|don't) include )rose window\\b|(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\\b(?:no |(?:do not|don't) include )windows anywhere\\b"
+    },
+    {
+      "property": "includeButtresses",
+      "negative": "(?:不要|不设|不生成|取消)(?:设置|增加|采用)?(?:飞)?扶壁|\\b(?:no |(?:do not|don't) include )(?:flying )?buttresses\\b"
+    },
+    {
+      "property": "includeTowers",
+      "negative": "(?:不要|不设|不生成|取消)(?:设置|增加|采用)?双塔|\\b(?:no |(?:do not|don't) include )twin towers\\b"
+    }
+  ],
+  "choices": [
+    {
+      "pattern": "单塔|single tower",
+      "unless": "(?:不要|不设|取消)(?:设置|增加|采用)?单塔|\\b(?:no |(?:do not|don't) include )single tower\\b",
+      "params": {
+        "towerArrangement": "single",
+        "includeTowers": true
+      },
+      "report_overrides": [
+        {
+          "property": "includeTowers",
+          "updates": {
+            "value": true,
+            "overridden_by": "explicit_single_tower"
+          }
+        }
+      ]
+    },
+    {
+      "pattern": "无塔|不要任何塔|no towers",
+      "params": {
+        "towerArrangement": "none"
+      }
+    },
+    {
+      "pattern": "设置双塔|采用双塔|twin towers",
+      "unless": "(?:不要|不设|取消)(?:设置|增加|采用)?双塔|\\b(?:no |(?:do not|don't) include )twin towers\\b",
+      "params": {
+        "towerArrangement": "twin"
+      }
+    }
+  ],
+  "building_requirement_bindings": {
+    "width": "width",
+    "depth": "depth",
+    "entrance_facing": "facing"
+  }
+}

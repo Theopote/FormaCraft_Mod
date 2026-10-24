@@ -1,0 +1,43 @@
+{
+  "asset_id": "chinese_roof_finial",
+  "version": "1.0",
+  "tags": ["Chinese", "Roof", "Terminator", "Traditional", "Decoration"],
+  "category": "TERMINATOR",
+  "size": [2, 2, 2],
+  "anchor": "BOTTOM_CENTER",
+  "is_flexible": false,
+  "generator_class": null,
+  "material_variables": {
+    "$roof_material": "ROOF_TILE",
+    "$roof_accent": "ROOF_EDGE",
+    "$decoration": "DECOR_DETAIL"
+  },
+  "blocks": [
+    {
+      "pos": [0, 0, 0],
+      "type": "$roof_material",
+      "state": {}
+    },
+    {
+      "pos": [1, 0, 0],
+      "type": "$roof_material",
+      "state": {}
+    },
+    {
+      "pos": [0, 1, 0],
+      "type": "$roof_accent",
+      "state": {}
+    },
+    {
+      "pos": [1, 1, 0],
+      "type": "$roof_accent",
+      "state": {}
+    },
+    {
+      "pos": [0, 1, 1],
+      "type": "$decoration",
+      "state": {}
+    }
+  ]
+}
+

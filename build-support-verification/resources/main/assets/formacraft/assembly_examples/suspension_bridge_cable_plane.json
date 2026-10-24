@@ -1,0 +1,53 @@
+{
+  "paletteId": "PALETTE_INDUSTRIAL_STEEL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "TowerA",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": -3 },
+        "w": 4, "d": 6, "h": 28,
+        "wall": "iron_block",
+        "floor": "smooth_stone",
+        "roof": "iron_block"
+      },
+      {
+        "id": "TowerB",
+        "type": "SHELL_BOX",
+        "at": { "x": 40, "y": 0, "z": -3 },
+        "w": 4, "d": 6, "h": 28,
+        "wall": "iron_block",
+        "floor": "smooth_stone",
+        "roof": "iron_block"
+      },
+      {
+        "id": "Deck",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 10, "z": -1 },
+        "w": 44, "d": 2, "h": 2,
+        "wall": "smooth_stone",
+        "floor": "smooth_stone",
+        "roof": "smooth_stone_slab"
+      },
+      {
+        "id": "MainCables",
+        "type": "TENSION_CABLE",
+        "from": { "x": 2, "y": 26, "z": 0 },
+        "to": { "x": 42, "y": 26, "z": 0 },
+        "sag": 10,
+        "thickness": 1,
+        "material": "STRUCTURAL_CABLE",
+        "hangersEvery": 6,
+        "hangersToY": 12,
+        "hangersMaterial": "STRUCTURAL_CABLE",
+        "cableCount": 2,
+        "cableSpacing": 6,
+        "cableAxis": "Z"
+      }
+    ],
+    "connections": []
+  }
+}
+
+

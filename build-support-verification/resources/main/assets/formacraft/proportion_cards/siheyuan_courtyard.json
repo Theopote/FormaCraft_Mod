@@ -1,0 +1,40 @@
+{
+  "id": "siheyuan_courtyard",
+  "typology": "siheyuan_courtyard",
+  "matchKeywords": [
+    "四合院", "带院子", "带院子的", "院子", "中庭", "合院", "北方四合院",
+    "siheyuan", "courtyard house", "chinese courtyard", "enclosed courtyard"
+  ],
+  "ratios": {
+    "courtyard_ratio": {
+      "min": 0.22,
+      "ideal": 0.35,
+      "max": 0.55,
+      "desc": "内院面积 / 总占地（不宜过小或过大）"
+    },
+    "height_to_width": {
+      "min": 0.3,
+      "ideal": 0.45,
+      "max": 0.75,
+      "desc": "正房高度/面宽（单层或低层为主）"
+    },
+    "wing_depth_to_court": {
+      "min": 0.35,
+      "ideal": 0.55,
+      "max": 0.85,
+      "desc": "厢房进深 / 内院宽度"
+    },
+    "window_wall_ratio": {
+      "min": 0.1,
+      "ideal": 0.18,
+      "max": 0.32,
+      "desc": "面向内院/外街的开窗比例（格扇窗，非幕墙）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["square", "horizontal_strip"],
+    "min_enclosure_coverage": 0.78,
+    "max_void_ratio": 0.2
+  },
+  "aiInstruction": "Compositional LlmPlan with explicit COURTYARD/COURTYARD_SPACE at center, north MASS_MAIN hall, east/west MASS_WING, south ENTRANCE gate. skeleton_type=COURTYARD. Output proportion_hints with courtyard_ratio and wing layout. Each wing: ROOF + FACADE_WINDOWS facing the courtyard. Do NOT use a single solid MASS box; enclosure must wrap the courtyard."
+}

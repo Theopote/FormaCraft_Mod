@@ -1,0 +1,28 @@
+{
+  "id": "art_deco_vertical",
+  "name": "Art Deco 退台塔楼",
+  "style": "MODERN",
+  "palette": {
+    "wall": "minecraft:cut_sandstone",
+    "roof": "minecraft:smooth_sandstone",
+    "floor": "minecraft:smooth_stone",
+    "window": "minecraft:light_blue_stained_glass",
+    "foundation": "minecraft:smooth_stone",
+    "trim": "minecraft:chiseled_sandstone",
+    "pillar": "minecraft:cut_sandstone",
+    "cap": "minecraft:smooth_sandstone_slab",
+    "door": "minecraft:iron_door",
+    "roof_trim": "minecraft:chiseled_sandstone",
+    "stairs": "minecraft:sandstone_stairs",
+    "roof_slab": "minecraft:smooth_sandstone_slab"
+  },
+  "params": {
+    "roofType": "flat",
+    "windowRatio": 0.35,
+    "windowStyle": "pane",
+    "wallPattern": "striped",
+    "doorStyle": "double",
+    "floorHeight": 4,
+    "preferSymmetry": true
+  }
+}

@@ -232,7 +232,14 @@ public final class TerrainFit {
                                                  int clearHeight,
                                                  boolean allowWaterEdit,
                                                  boolean allowLavaEdit) {
-        if (world == null || footprint == null || footprint.isEmpty()) return List.of();
+        if (world == null) return List.of();
+        return adaptivePadOnTerrain(world::getBlockState, footprint, targetY, fill, padDepth, clearHeight, allowWaterEdit, allowLavaEdit);
+    }
+
+    static List<PlannedBlock> adaptivePadOnTerrain(java.util.function.Function<BlockPos, BlockState> terrain,
+                                                  List<BlockPos> footprint, int targetY, BlockState fill,
+                                                  int padDepth, int clearHeight, boolean allowWaterEdit, boolean allowLavaEdit) {
+        if (footprint == null || footprint.isEmpty()) return List.of();
         BlockState fillState = (fill != null) ? fill : Blocks.COBBLESTONE.getDefaultState();
         int pad = Math.max(0, Math.min(6, padDepth));
         int clear = Math.max(0, Math.min(16, clearHeight));
@@ -248,7 +255,7 @@ public final class TerrainFit {
             for (int y = targetY - pad; y <= targetY; y++) {
                 BlockPos p = new BlockPos(x, y, z);
                 if (!BuildConstraintContext.allow(p)) continue;
-                BlockState cur = world.getBlockState(p);
+                BlockState cur = terrain.apply(p);
                 boolean isAir = cur.isAir();
                 boolean isWater = cur.getBlock() == Blocks.WATER;
                 boolean isLava = cur.getBlock() == Blocks.LAVA;
@@ -262,7 +269,7 @@ public final class TerrainFit {
 
             BlockPos surface = new BlockPos(x, targetY, z);
             if (BuildConstraintContext.allow(surface)) {
-                BlockState cur = world.getBlockState(surface);
+                BlockState cur = terrain.apply(surface);
                 if (!cur.isAir() && isObstacle(cur)) {
                     out.add(new PlannedBlock(surface, fillState));
                     fillCount++;
@@ -272,7 +279,7 @@ public final class TerrainFit {
             for (int y = targetY + 1; y <= targetY + clear; y++) {
                 BlockPos p = new BlockPos(x, y, z);
                 if (!BuildConstraintContext.allow(p)) continue;
-                BlockState cur = world.getBlockState(p);
+                BlockState cur = terrain.apply(p);
                 if (!cur.isAir() && isObstacle(cur)) {
                     out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
                     clearCount++;
