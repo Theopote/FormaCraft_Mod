@@ -27,12 +27,15 @@ public class TabBar {
     // 标签内部不再额外 padding，确保按钮实际高度=16
     private static final int TAB_PADDING = 0;
     private static final int TAB_SIZE = TAB_HEIGHT;
-    
+
     private final List<TabInfo> tabs = new ArrayList<>();
     private final MinecraftClient client;
     private int x;
     private int y;
     private int maxWidth = Integer.MAX_VALUE;
+    /** Last active tab bounds from {@link #render}, or null if none visible. */
+    @Nullable
+    private TabBounds activeBounds;
 
     /**
      * 标签信息
@@ -41,9 +44,13 @@ public class TabBar {
      * @param tooltip 悬停提示
      * @param width   标签宽度
      */
-        public record TabInfo(PanelType type, BufferedImage icon, Text tooltip, int width) {
+    public record TabInfo(PanelType type, BufferedImage icon, Text tooltip, int width) {
     }
-    
+
+    /** Active tab rectangle used by the panel chrome outline. */
+    public record TabBounds(int x, int y, int width, int height) {
+    }
+
     public TabBar(MinecraftClient client) {
         this.client = client;
 
@@ -70,7 +77,7 @@ public class TabBar {
             return null;
         }
     }
-    
+
     /**
      * 设置标签栏位置和可用宽度（超出宽度的尾部 Tab 不绘制、不可点击）
      */
@@ -83,7 +90,7 @@ public class TabBar {
     private boolean tabFits(int tabX, TabInfo tab) {
         return tabX + tab.width <= x + maxWidth;
     }
-    
+
     /**
      * 渲染标签栏（先画未选中，最后画选中，实现层级效果）
      */
@@ -91,6 +98,7 @@ public class TabBar {
         int currentX = x + TAB_PADDING;
         TabInfo activeTab = null;
         int activeX = 0;
+        activeBounds = null;
 
         // 第一遍：只画未选中
         for (TabInfo tab : tabs) {
@@ -106,42 +114,41 @@ public class TabBar {
             currentX += tab.width + TAB_GAP;
         }
 
-        // Leave the selected tab open to the content without repainting alpha.
-        int dividerY = y + TAB_HEIGHT - 1;
-        int gapLeft = activeTab == null ? x + maxWidth : activeX + 1;
-        ctx.fill(x, dividerY, gapLeft, dividerY + 1, UiTheme.DIVIDER_TOOLBAR);
-        if (activeTab != null) {
-            ctx.fill(activeX + activeTab.width - 1, dividerY,
-                    x + maxWidth, dividerY + 1, UiTheme.DIVIDER_TOOLBAR);
-        }
+        // Content-top seam is drawn by the panel chrome (with a gap under the active tab).
 
-        // 最后画选中标签（覆盖在上面）
+        // 最后画选中标签（覆盖在上面；外轮廓由面板灰边框统一绘制）
         if (activeTab != null) {
+            activeBounds = new TabBounds(activeX, y + TAB_PADDING, activeTab.width, TAB_HEIGHT);
             boolean isHovered = isMouseOverTab(activeX, activeTab, mouseX, mouseY);
             drawTab(ctx, activeX, y + TAB_PADDING, activeTab.width, activeTab, true, isHovered);
         }
     }
-    
+
+    /** Bounds of the visible active tab after the last {@link #render}, or null. */
+    @Nullable
+    public TabBounds getActiveTabBounds() {
+        return activeBounds;
+    }
+
     /**
-     * 绘制单个标签（选中标签与内容区连通）
+     * 绘制单个标签。
+     * 未选中：自带标签边框色；选中：只画内容，轮廓交给面板整体灰边框。
      */
     private void drawTab(DrawContext ctx, int x, int y, int width, TabInfo tab, boolean isActive, boolean isHovered) {
         int height = TAB_HEIGHT;
-        int top = y + (isActive ? 1 : 3);
-        int bottom = y + height;
+        // Inactive sits slightly lower and ends on the content seam; active aligns with the frame.
+        int top = y + (isActive ? 0 : 2);
+        int bottom = y + height - (isActive ? 0 : 1);
         int bg = isActive ? UiTheme.TAB_SELECTED_BG
                 : isHovered ? UiTheme.TAB_HOVER_BG : UiTheme.TAB_UNSELECTED_BG;
-        if (!isActive) ctx.fill(x, top, x + width, bottom, bg);
-        ctx.fill(x, top, x + width, top + 1, isActive ? UiTheme.ACCENT : UiTheme.BORDER);
-        if (isActive) {
-            ctx.fill(x, top + 1, x + 1, bottom, UiTheme.DIVIDER_TOOLBAR);
-            ctx.fill(x + width - 1, top + 1, x + width, bottom, UiTheme.DIVIDER_TOOLBAR);
-            // The toolbar surface has the same opacity as the content below.
-        } else {
+        if (!isActive) {
+            ctx.fill(x, top, x + width, bottom, bg);
+            ctx.fill(x, top, x + width, top + 1, UiTheme.BORDER);
             ctx.fill(x, top + 1, x + 1, bottom - 1, UiTheme.BORDER);
-            ctx.fill(x + width - 1, top + 1, x + width, bottom, 0xFF555555);
-            ctx.fill(x, bottom - 1, x + width, bottom, 0xFF555555);
+            ctx.fill(x + width - 1, top + 1, x + width, bottom, UiTheme.BORDER_SHADOW);
+            ctx.fill(x, bottom - 1, x + width, bottom, UiTheme.BORDER_SHADOW);
         }
+        // Active: no local border — UiTheme.drawTabbedPanelBorder draws the shared frame.
 
         // 渲染 PNG 图标（居中）
         if (tab.icon != null) {
@@ -151,13 +158,13 @@ public class TabBar {
             ImageRenderer.renderScaled(ctx, tab.icon, iconX, iconY, iconSize, iconSize);
         }
     }
-    
+
     private boolean isMouseOverTab(int tabX, TabInfo tab, double mouseX, double mouseY) {
         int tabY = y + TAB_PADDING;
         return mouseX >= tabX && mouseX < tabX + tab.width &&
                mouseY >= tabY && mouseY < tabY + TAB_HEIGHT;
     }
-    
+
     /**
      * 处理鼠标点击
      * @return 点击的标签类型，如果未点击任何标签则返回 null
@@ -165,9 +172,9 @@ public class TabBar {
     @Nullable
     public PanelType handleMouseClick(double mouseX, double mouseY, int button) {
         if (button != 0) return null;
-        
+
         int currentX = x + TAB_PADDING;
-        
+
         for (TabInfo tab : tabs) {
             if (!tabFits(currentX, tab)) {
                 break;
@@ -177,17 +184,17 @@ public class TabBar {
             }
             currentX += tab.width + TAB_GAP;
         }
-        
+
         return null;
     }
-    
+
     /**
      * 获取悬停标签的提示文本
      */
     @Nullable
     public Text getHoveredTooltip(double mouseX, double mouseY) {
         int currentX = x + TAB_PADDING;
-        
+
         for (TabInfo tab : tabs) {
             if (!tabFits(currentX, tab)) {
                 break;
@@ -197,10 +204,10 @@ public class TabBar {
             }
             currentX += tab.width + TAB_GAP;
         }
-        
+
         return null;
     }
-    
+
     public int getHeight() {
         return TAB_HEIGHT;
     }

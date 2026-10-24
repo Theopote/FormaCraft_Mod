@@ -149,7 +149,7 @@ public abstract class BasePanel {
 
         // Draw chrome after content so every panel preserves the frame and tab seam.
         drawToolbar(ctx);
-        UiTheme.drawPanelBorder(ctx, panelX, panelY, panelX + panelWidth, panelY + panelHeight);
+        drawExpandedPanelBorder(ctx);
 
         // Tooltip 一定要最后画，避免被遮罩/内容覆盖
         // 只要面板可见就显示 tooltip（包括折叠状态，因为折叠时也有按钮）
@@ -208,10 +208,27 @@ public abstract class BasePanel {
     // 背景与边框
     // --------------------------------------------------------------------
     /**
-     * 绘制边框（最终边框在内容之后补绘，底色由各面板绘制一次）
+     * 早期背景占位；展开态最终边框在工具栏之后由 {@link #drawExpandedPanelBorder} 补绘，
+     * 以便轮廓贴合激活标签而不包住未激活标签/工具按钮。
      */
     protected void drawBackground(DrawContext ctx) {
-        UiTheme.drawPanelBorder(ctx, panelX, panelY, panelX + panelWidth, panelY + panelHeight);
+        // no-op: border is drawn after chrome
+    }
+
+    /**
+     * 灰色轮廓：内容区 + 激活标签的上/左/右；未激活标签与右侧按钮在轮廓外。
+     */
+    private void drawExpandedPanelBorder(DrawContext ctx) {
+        int contentTop = panelY + TOOLBAR_HEIGHT - 1;
+        int x1 = panelX + panelWidth;
+        int y1 = panelY + panelHeight;
+        TabBar.TabBounds active = tabBar.getActiveTabBounds();
+        if (active != null) {
+            UiTheme.drawTabbedPanelBorder(ctx, panelX, contentTop, x1, y1,
+                    active.x(), active.y(), active.width());
+        } else {
+            UiTheme.drawPanelBorder(ctx, panelX, contentTop, x1, y1);
+        }
     }
 
     // --------------------------------------------------------------------
@@ -243,15 +260,8 @@ public abstract class BasePanel {
         int bw = panelWidth;
         int bh = TOOLBAR_HEIGHT;
 
-        // 标签区域背景（与未选中标签匹配）
+        // 标签区域背景（轮廓外的未激活标签/按钮落在此条上）
         ctx.fill(bx, by, bx + bw, by + bh, UiTheme.TOOLBAR_BG);
-
-        // 顶部分隔线
-        ctx.fill(bx, by, bx + bw, by + 1, UiTheme.BORDER);
-
-        // 注意：底部分隔线会在标签绘制时被选中标签覆盖
-        // 这样选中标签能自然地"打通"工具栏底部，与内容区连成一片
-        // TabBar draws this divider with an opening beneath the active tab.
 
         ToolbarLayout layout = computeToolbarLayout();
         int tabBarWidth = Math.max(0, bw - layout.buttonAreaWidth() - TOOLBAR_PADDING * 2);

@@ -24,6 +24,7 @@ public final class UiTheme {
     public static final int DIVIDER_SECTION = 0xFF7A7A7A;
     public static final int DIVIDER_SUBTLE = 0xFF444444;
     public static final int BORDER = 0xFFB0B0B0;
+    public static final int BORDER_SHADOW = 0xFF555555;
     public static final int ACCENT = 0xFFFFFFFF;
     public static final int TEXT = 0xFFFFFFFF;
     public static final int TOOLBAR_BG = 0x80101010;
@@ -48,9 +49,51 @@ public final class UiTheme {
     public static void drawPanelBorder(DrawContext ctx, int x0, int y0, int x1, int y1) {
         if (x1 <= x0 || y1 <= y0) return;
         ctx.fill(x0, y0, x1, y0 + 1, BORDER);
-        ctx.fill(x0, y1 - 1, x1, y1, 0xFF555555);
+        ctx.fill(x0, y1 - 1, x1, y1, BORDER_SHADOW);
         ctx.fill(x0, y0, x0 + 1, y1, BORDER);
-        ctx.fill(x1 - 1, y0, x1, y1, 0xFF555555);
+        ctx.fill(x1 - 1, y0, x1, y1, BORDER_SHADOW);
+    }
+
+    /**
+     * Content-frame border that rises around the active tab only.
+     * Inactive tabs / toolbar buttons stay outside the outline.
+     *
+     * @param contentTop y of the content-area top edge (shared seam under tabs)
+     * @param tabX       active tab left, or {@code Integer.MIN_VALUE} if none
+     * @param tabY       active tab top
+     * @param tabW       active tab width
+     */
+    public static void drawTabbedPanelBorder(DrawContext ctx,
+                                             int x0, int contentTop, int x1, int y1,
+                                             int tabX, int tabY, int tabW) {
+        if (x1 <= x0 || y1 <= contentTop) return;
+
+        boolean hasTab = tabW > 0 && tabX > Integer.MIN_VALUE
+                && tabX < x1 && tabX + tabW > x0;
+
+        // Content left / right / bottom
+        ctx.fill(x0, contentTop, x0 + 1, y1, BORDER);
+        ctx.fill(x1 - 1, contentTop, x1, y1, BORDER_SHADOW);
+        ctx.fill(x0, y1 - 1, x1, y1, BORDER_SHADOW);
+
+        if (!hasTab) {
+            ctx.fill(x0, contentTop, x1, contentTop + 1, BORDER);
+            return;
+        }
+
+        int tabRight = tabX + tabW;
+        // Content top with opening under the active tab
+        if (tabX > x0) {
+            ctx.fill(x0, contentTop, tabX + 1, contentTop + 1, BORDER);
+        }
+        if (tabRight < x1) {
+            ctx.fill(tabRight - 1, contentTop, x1, contentTop + 1, BORDER);
+        }
+
+        // Active tab: top + left + right (same gray as the content frame)
+        ctx.fill(tabX, tabY, tabRight, tabY + 1, BORDER);
+        ctx.fill(tabX, tabY, tabX + 1, contentTop + 1, BORDER);
+        ctx.fill(tabRight - 1, tabY, tabRight, contentTop + 1, BORDER);
     }
 
     /**
