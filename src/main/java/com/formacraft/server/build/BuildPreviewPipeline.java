@@ -99,15 +99,7 @@ public final class BuildPreviewPipeline {
         // 最终交付结构复检（修复/裁剪之后）
         BuildQualityReport finalReport = GradedQualityChecker.checkStructure(
                 structure, spec, world, landingPrepared);
-        for (var issue : finalReport.issues()) {
-            if (issue == null) continue;
-            String code = issue.code() == null ? "FINAL" : "FINAL_" + issue.code();
-            report.add(issue.severity(), code, "[final] " + issue.message());
-        }
-        // 终检指标覆盖（不 mergeFrom，避免初检计数翻倍）
-        report.stats().floatingColumns = Math.max(report.stats().floatingColumns, finalReport.stats().floatingColumns);
-        report.stats().illegalBlocks = Math.max(report.stats().illegalBlocks, finalReport.stats().illegalBlocks);
-        report.stats().totalBlocks = countSolid(clipped);
+        report = finalizedReport(report, finalReport);
         if (!report.allowPreview()) {
             report.add(BuildQualitySeverity.FATAL, "E_FINAL_QUALITY_FAILED",
                     "自动修复或裁剪后最终质量检查未通过，已拒绝预览");
@@ -117,6 +109,21 @@ public final class BuildPreviewPipeline {
 
         storeReport(player, report);
         return new Result(structure, report, true);
+    }
+
+    static BuildQualityReport finalizedReport(BuildQualityReport initial, BuildQualityReport delivered) {
+        if (initial.hasFatal()) return initial;
+        // Initial findings describe the input, not the repaired preview's apply permission.
+        for (var issue : initial.issues())
+            delivered.add(BuildQualitySeverity.INFO, "INITIAL_" + issue.code(), "[before repair] " + issue.message());
+        var from = initial.stats();
+        var to = delivered.stats();
+        to.repairedColumns = from.repairedColumns;
+        to.supportBlocksAdded = from.supportBlocksAdded;
+        to.clippedByConstraint = from.clippedByConstraint;
+        to.rejectedPatches = from.rejectedPatches;
+        to.duplicatePositions = Math.max(to.duplicatePositions, from.duplicatePositions);
+        return delivered;
     }
 
     static boolean validateCirculation(List<PlannedBlock> blocks,

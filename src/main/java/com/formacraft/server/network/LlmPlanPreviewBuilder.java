@@ -313,6 +313,8 @@ public final class LlmPlanPreviewBuilder {
             } else {
                 // ========== 地形平整：在生成建筑之后平整地坪 ==========
                 boolean terrainPadApplied = false;
+                boolean procedural = llmPlan.components() != null && llmPlan.components().stream().anyMatch(c ->
+                        c != null && c.params() != null && c.params().containsKey("fbd_program"));
                 boolean wantsStiltFoundation = LlmPlanTerrainBounds.wantsStiltFoundation(req);
                 // 获取地形策略
                 GlobalConstraints.TerrainStrategy terrainStrategy =
@@ -394,6 +396,9 @@ public final class LlmPlanPreviewBuilder {
                         final BlockState finalFillMaterial = fillMaterial;
                         final com.formacraft.server.terrain.BuildingOccupancyMask occupancy =
                                 com.formacraft.server.terrain.BuildingOccupancyMask.fromSolidBlocks(plannedBlocks);
+                        final List<BlockPos> proceduralFootprint = procedural
+                                ? com.formacraft.server.build.StructureSupportAnalysis.unsupportedBases(
+                                        plannedBlocks, p -> Blocks.AIR.getDefaultState()) : List.of();
                         List<PlannedBlock> terrainPadBlocks = BuildConstraintContext.withRequest(req, () -> {
                             List<PlannedBlock> out = new ArrayList<>();
                             java.util.LinkedHashSet<BlockPos> cleared = new java.util.LinkedHashSet<>();
@@ -406,6 +411,10 @@ public final class LlmPlanPreviewBuilder {
                             if (terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
                                 out.addAll(TerrainFit.balancedPad(
                                         serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
+                            } else if (procedural) {
+                                // Only bearing columns, not roof overhangs or gaps between independent pavilions.
+                                out.addAll(TerrainFit.adaptivePad(serverWorld, proceduralFootprint, finalTargetY,
+                                        finalFillMaterial, padDepth, 0, true, true));
                             } else if (analysis.range() > 1) {
                                 out.addAll(TerrainFit.adaptivePad(
                                         serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
@@ -434,6 +443,8 @@ public final class LlmPlanPreviewBuilder {
                             }
                             return out;
                         });
+                        if (procedural && terrainStrategy == GlobalConstraints.TerrainStrategy.ADAPTIVE)
+                            terrainPadApplied = true; // A second rectangular pad would fill the gaps again.
 
                         // 将地坪平整的方块添加到结果的最前面（确保先清理地形，再放置建筑）
                         if (!terrainPadBlocks.isEmpty()) {
@@ -534,7 +545,8 @@ public final class LlmPlanPreviewBuilder {
                     );
 
                     boolean skipPadFoundation = terrainPadApplied
-                            && (finalFd.type() == FoundationType.FLAT_PAD || finalFd.type() == FoundationType.STEPPED);
+                            && (finalFd.type() == FoundationType.FLAT_PAD || finalFd.type() == FoundationType.STEPPED
+                                || procedural && strategy == GlobalConstraints.TerrainStrategy.ADAPTIVE && !wantsStiltFoundation);
                     List<PlannedBlock> terrainPrep = skipPadFoundation ? List.of()
                             : BuildConstraintContext.withRequest(req, () -> switch (finalFd.type()) {
                                 case STILT -> TerrainAdaptationEngine.anchorPillars(

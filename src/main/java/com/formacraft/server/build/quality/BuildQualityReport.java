@@ -78,7 +78,8 @@ public final class BuildQualityReport {
         }
         if (stats.repairedColumns > 0) {
             parts.add("修复 " + stats.repairedColumns + " 个悬空构件");
-        } else if (stats.floatingColumns > 0) {
+        }
+        if (stats.floatingColumns > 0) {
             parts.add("仍有 " + stats.floatingColumns + " 个悬空柱未修复");
         }
         if (stats.supportBlocksAdded > 0) {

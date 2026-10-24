@@ -319,8 +319,9 @@ public final class TerrainFit {
             for (int z = origin.getZ() - halfD; z <= origin.getZ() + halfD; z++) {
                 int topY = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, x, z);
 
-                if (topY < targetY) {
-                    int fillStart = Math.max(topY + 1, targetY - pad);
+                if (topY <= targetY) {
+                    // Heightmap topY is the first air cell, not the top solid cell.
+                    int fillStart = padFillStart(topY, targetY, pad);
                     for (int y = fillStart; y <= targetY; y++) {
                         BlockPos p = new BlockPos(x, y, z);
                         if (!BuildConstraintContext.allow(p)) continue;
@@ -376,6 +377,10 @@ public final class TerrainFit {
             BuildReportContext.addTerrainPad(fillCount, clearCount);
         }
         return out;
+    }
+
+    static int padFillStart(int firstAirY, int targetY, int padDepth) {
+        return Math.max(firstAirY, targetY - padDepth);
     }
 
     private static boolean isObstacle(BlockState state) {

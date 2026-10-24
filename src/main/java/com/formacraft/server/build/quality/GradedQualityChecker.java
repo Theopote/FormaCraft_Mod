@@ -193,38 +193,8 @@ public final class GradedQualityChecker {
     private static void checkFloatingColumns(List<PlannedBlock> blocks, ServerWorld world, BuildQualityReport report) {
         if (world == null || blocks.isEmpty()) return;
 
-        Map<Long, Integer> minYByXZ = new HashMap<>();
-        Map<Long, BlockPos> sampleByXZ = new HashMap<>();
-        int overallMinY = Integer.MAX_VALUE;
-
-        for (PlannedBlock block : blocks) {
-            if (block == null) continue;
-            BlockPos pos = block.getPos();
-            if (pos == null || block.getTargetState() == null) continue;
-            if (block.getTargetState().getBlock() == Blocks.AIR) continue;
-            overallMinY = Math.min(overallMinY, pos.getY());
-            long key = xzKey(pos.getX(), pos.getZ());
-            Integer cur = minYByXZ.get(key);
-            if (cur == null || pos.getY() < cur) {
-                minYByXZ.put(key, pos.getY());
-                sampleByXZ.put(key, pos);
-            }
-        }
-        if (overallMinY == Integer.MAX_VALUE) return;
-
-        int baseBandMaxY = overallMinY + 2;
-        int floating = 0;
-
-        for (Map.Entry<Long, Integer> col : minYByXZ.entrySet()) {
-            int yMin = col.getValue();
-            if (yMin > baseBandMaxY) continue;
-            BlockPos sample = sampleByXZ.get(col.getKey());
-            if (sample == null) continue;
-            BlockPos below = sample.add(0, -1, 0);
-            if (!hasSupportBelow(blocks, world, below)) {
-                floating++;
-            }
-        }
+        int floating = com.formacraft.server.build.StructureSupportAnalysis
+                .unsupportedBases(blocks, world::getBlockState).size();
 
         report.stats().floatingColumns = floating;
         if (floating >= BuildQualityReport.floatingErrorColumns()) {
@@ -234,17 +204,6 @@ public final class GradedQualityChecker {
             report.add(BuildQualitySeverity.WARNING, "FLOATING",
                     "检测到 " + floating + " 个底层悬空柱");
         }
-    }
-
-    private static boolean hasSupportBelow(List<PlannedBlock> blocks, ServerWorld world, BlockPos below) {
-        for (PlannedBlock pb : blocks) {
-            if (pb == null) continue;
-            BlockPos p = pb.getPos();
-            if (below.equals(p) && pb.getTargetState() != null && pb.getTargetState().getBlock() != Blocks.AIR) {
-                return true;
-            }
-        }
-        return !world.getBlockState(below).isAir();
     }
 
     private static long xzKey(int x, int z) {

@@ -51,39 +51,13 @@ public final class BuildAutoRepair {
             return new Result(original == null ? List.of() : deduplicateBlocks(original), 0, 0, 0, 0, "");
         }
 
-        // Final state per position (later planned blocks override earlier ones).
-        Map<BlockPos, BlockState> finalState = new HashMap<>(Math.max(1024, original.size() * 2));
-        int overallMinY = Integer.MAX_VALUE;
-        for (PlannedBlock pb : original) {
-            if (pb == null) continue;
-            BlockPos p = pb.getPos();
-            BlockState s = pb.getTargetState();
-            if (p == null || s == null) continue;
-            finalState.put(p, s);
-            if (s.getBlock() != Blocks.AIR) {
-                overallMinY = Math.min(overallMinY, p.getY());
-            }
-        }
-        if (overallMinY == Integer.MAX_VALUE) {
-            return new Result(deduplicateBlocks(original), 0, 0, 0, 0, "");
-        }
+        return applyToTerrain(world::getBlockState, world.getBottomY(), resolveSupportBlock(world, style), original, repairFloating);
+    }
 
-        // Only consider columns whose bottom-most block is near the base band (avoid fixing roof/cap-only overhang columns).
-        int baseBandMaxY = overallMinY + 2;
-
-        // Compute bottom-most Y per (x,z).
-        Map<Long, Integer> minYByXZ = new HashMap<>();
-        for (Map.Entry<BlockPos, BlockState> e : finalState.entrySet()) {
-            BlockPos p = e.getKey();
-            BlockState s = e.getValue();
-            if (s == null || s.getBlock() == Blocks.AIR) continue;
-            long key = xzKey(p.getX(), p.getZ());
-            int y = p.getY();
-            Integer cur = minYByXZ.get(key);
-            if (cur == null || y < cur) minYByXZ.put(key, y);
-        }
-
-        BlockState support = resolveSupportBlock(world, style);
+    static Result applyToTerrain(java.util.function.Function<BlockPos, BlockState> terrain, int bottomY,
+                                 BlockState support, List<PlannedBlock> original, boolean repairFloating) {
+        Map<BlockPos, BlockState> finalState = StructureSupportAnalysis.finalStates(original);
+        var unsupported = repairFloating ? StructureSupportAnalysis.unsupportedBases(original, terrain) : List.<BlockPos>of();
 
         final int maxDepth = 24;
         final int maxColumnsToFix = 256;
@@ -95,35 +69,17 @@ public final class BuildAutoRepair {
 
         List<PlannedBlock> extras = new ArrayList<>();
 
-        for (Map.Entry<Long, Integer> col : minYByXZ.entrySet()) {
-            if (!repairFloating) break; // Landing planner has already chosen shallow fill / sparse piers.
+        for (BlockPos base : unsupported) {
             if (fixedColumns >= maxColumnsToFix) break;
+            int x = base.getX(), z = base.getZ(), yMin = base.getY();
 
-            long key = col.getKey();
-            int x = (int) (key >> 32);
-            int z = (int) key;
-            int yMin = col.getValue();
+            int bottomLimit = Math.max(bottomY, yMin - maxDepth);
 
-            if (yMin > baseBandMaxY) continue;
-
-            // Skip if already supported directly below.
-            BlockPos below = new BlockPos(x, yMin - 1, z);
-            BlockState plannedBelow = finalState.get(below);
-            if (plannedBelow != null && plannedBelow.getBlock() != Blocks.AIR) continue;
-            if (!world.getBlockState(below).isAir()) continue;
-
-            int bottomLimit = Math.max(world.getBottomY(), yMin - maxDepth);
-
-            // Find a support point (planned or world) within maxDepth.
+            // Planned removals and fluids cannot serve as a support point.
             int supportY = Integer.MIN_VALUE;
             for (int y = yMin - 1; y >= bottomLimit; y--) {
                 BlockPos p = new BlockPos(x, y, z);
-                BlockState ps = finalState.get(p);
-                if (ps != null && ps.getBlock() != Blocks.AIR) {
-                    supportY = y;
-                    break;
-                }
-                if (!world.getBlockState(p).isAir()) {
+                if (StructureSupportAnalysis.carriesSupport(StructureSupportAnalysis.effectiveState(finalState, terrain, p))) {
                     supportY = y;
                     break;
                 }
@@ -171,7 +127,7 @@ public final class BuildAutoRepair {
 
             // Only place if the world is empty and no non-air planned block already occupies it.
             if (plannedUp != null && plannedUp.getBlock() != Blocks.AIR) continue;
-            if (!world.getBlockState(up).isAir()) continue;
+            if (!StructureSupportAnalysis.effectiveState(finalState, terrain, up).isAir()) continue;
 
             BlockState upper = s.with(Properties.DOUBLE_BLOCK_HALF, net.minecraft.block.enums.DoubleBlockHalf.UPPER);
             extras.add(new PlannedBlock(up, upper));
@@ -198,15 +154,15 @@ public final class BuildAutoRepair {
             BlockPos frontLower = p.offset(facing);
             BlockPos frontUpper = frontLower.up();
 
-            entranceClears += tryCarveAir(world, finalState, extras, frontLower);
-            entranceClears += tryCarveAir(world, finalState, extras, frontUpper);
+            entranceClears += tryCarveAir(terrain, finalState, extras, frontLower);
+            entranceClears += tryCarveAir(terrain, finalState, extras, frontUpper);
 
             // inside (opposite direction)
             Direction insideDir = facing.getOpposite();
             BlockPos backLower = p.offset(insideDir);
             BlockPos backUpper = backLower.up();
-            entranceClears += tryCarveAir(world, finalState, extras, backLower);
-            entranceClears += tryCarveAir(world, finalState, extras, backUpper);
+            entranceClears += tryCarveAir(terrain, finalState, extras, backLower);
+            entranceClears += tryCarveAir(terrain, finalState, extras, backUpper);
         }
 
         if (extras.isEmpty()) {
@@ -279,7 +235,7 @@ public final class BuildAutoRepair {
         }
     }
 
-    private static int tryCarveAir(ServerWorld world,
+    private static int tryCarveAir(java.util.function.Function<BlockPos, BlockState> terrain,
                                   Map<BlockPos, BlockState> finalState,
                                   List<PlannedBlock> extras,
                                   BlockPos p) {
@@ -287,7 +243,7 @@ public final class BuildAutoRepair {
         if (!BuildConstraintContext.allow(p)) return 0;
         BlockState planned = finalState.get(p);
         if (planned != null && planned.getBlock() != Blocks.AIR) return 0; // don't override generator intent
-        if (world.getBlockState(p).isAir()) return 0;
+        if (StructureSupportAnalysis.effectiveState(finalState, terrain, p).isAir()) return 0;
         extras.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
         finalState.put(p, Blocks.AIR.getDefaultState());
         return 1;
