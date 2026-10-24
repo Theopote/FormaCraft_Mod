@@ -4,39 +4,67 @@ import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.input.InputRouter;
 import net.minecraft.client.option.KeyBinding;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * KeyBinding Mixin
- * <p>
- * 拦截 KeyBinding 的更新，当 UI 打开且鼠标在 UI 内时，阻止 KeyBinding 状态更新，
- * 防止残留的按键状态导致玩家继续移动（惯性问题）。
+ * FormaCraft UI 打开时限制 KeyBinding：
+ * <ul>
+ *   <li>鼠标在面板内：全部按键视为未按下（避免 WASD 惯性、方便打字）</li>
+ *   <li>鼠标在世界侧：仅保留移动（WASD/Shift/空格）与鼠标世界交互键；E 等失效</li>
+ * </ul>
  */
 @Mixin(KeyBinding.class)
 public class KeyBindingMixin {
 
+    @Shadow
+    private boolean pressed;
+
+    @Shadow
+    private int timesPressed;
+
     /**
-     * 拦截 updatePressedStates 方法
-     * <p>
-     * 当 UI 打开且鼠标在 UI 内时，阻止 KeyBinding 状态更新，
-     * 防止 WASD 等按键的残留状态导致玩家继续移动。
+     * 面板内时仍阻止批量轮询更新，避免残留状态。
      */
     @Inject(method = "updatePressedStates", at = @At("HEAD"), cancellable = true)
-    private static void onUpdatePressedStates(CallbackInfo ci) {
-        // 如果 UI 未打开，不处理，让游戏正常更新 KeyBinding
-        if (!FormacraftUIState.isOpen) {
-            return;
-        }
-
-        // 检查鼠标是否在 UI 内
-        boolean inside = InputRouter.isMouseInsideUI();
-
-        if (inside) {
-            // 鼠标在 UI 内：阻止 KeyBinding 状态更新，防止残留按键导致玩家移动
+    private static void formacraft$blockUpdateWhenPointerOnUi(CallbackInfo ci) {
+        if (!FormacraftUIState.isOpen) return;
+        if (InputRouter.isMouseInsideUI()) {
             ci.cancel();
         }
-        // 如果鼠标在 UI 外，不拦截，允许正常更新 KeyBinding
+    }
+
+    @Inject(method = "setPressed", at = @At("HEAD"), cancellable = true)
+    private void formacraft$restrictSetPressed(boolean pressed, CallbackInfo ci) {
+        if (!FormacraftUIState.isOpen) return;
+        if (!isCurrentlyAllowed((KeyBinding) (Object) this)) {
+            this.pressed = false;
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "isPressed", at = @At("HEAD"), cancellable = true)
+    private void formacraft$restrictIsPressed(CallbackInfoReturnable<Boolean> cir) {
+        if (!FormacraftUIState.isOpen) return;
+        if (!isCurrentlyAllowed((KeyBinding) (Object) this)) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "wasPressed", at = @At("HEAD"), cancellable = true)
+    private void formacraft$restrictWasPressed(CallbackInfoReturnable<Boolean> cir) {
+        if (!FormacraftUIState.isOpen) return;
+        if (!isCurrentlyAllowed((KeyBinding) (Object) this)) {
+            this.timesPressed = 0;
+            cir.setReturnValue(false);
+        }
+    }
+
+    private static boolean isCurrentlyAllowed(KeyBinding binding) {
+        return FormacraftUIState.isAllowedKeyBindingWhileUiOpen(binding)
+                && !InputRouter.isMouseInsideUI();
     }
 }

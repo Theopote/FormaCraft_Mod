@@ -6,10 +6,13 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PatchOccupancyPlazaTest {
+    @BeforeAll static void bootstrap() { MinecraftRegistryTestBootstrap.initialize(); }
     @Test void plazaYieldsToBuildingWithoutGrantingOverwriteAuthority() {
         var index = new PatchOccupancyIndex();
         var mass = component("MASS_MAIN");

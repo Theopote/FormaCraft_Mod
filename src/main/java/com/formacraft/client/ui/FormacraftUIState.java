@@ -5,6 +5,7 @@ import com.formacraft.common.logging.FcaLog;
 import com.formacraft.client.ui.panel.PanelType;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
 import org.lwjgl.glfw.GLFW;
 
@@ -22,7 +23,10 @@ public class FormacraftUIState {
         isOpen = !isOpen;
         updateCursor();
         updatePauseOnLostFocus();
-        if (!isOpen) {
+        if (isOpen) {
+            // 打开时清掉背包等残留，避免 E 等键“粘住”
+            clearAllKeyBindings();
+        } else {
             if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE) {
                 ComponentTool.INSTANCE.getState().cancelCapture();
             }
@@ -35,6 +39,7 @@ public class FormacraftUIState {
         isOpen = true;
         updateCursor();
         updatePauseOnLostFocus();
+        clearAllKeyBindings();
     }
 
     public static void close() {
@@ -46,6 +51,27 @@ public class FormacraftUIState {
         }
         // UI关闭时，清除所有按键状态，防止残留状态导致玩家继续移动
         clearAllKeyBindings();
+    }
+
+    /**
+     * UI 打开且鼠标在世界侧时仍允许的按键：
+     * WASD / 空格 / Shift，以及攻击/使用/中键取物（保证方块高亮与世界点击）。
+     * 背包（E）等其它游戏键一律禁用。
+     */
+    public static boolean isAllowedKeyBindingWhileUiOpen(KeyBinding binding) {
+        if (binding == null) return false;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.options == null) return false;
+        GameOptions o = client.options;
+        return binding == o.forwardKey
+                || binding == o.backKey
+                || binding == o.leftKey
+                || binding == o.rightKey
+                || binding == o.jumpKey
+                || binding == o.sneakKey
+                || binding == o.attackKey
+                || binding == o.useKey
+                || binding == o.pickItemKey;
     }
     
     /**
