@@ -11,6 +11,7 @@ import java.util.Map;
 public final class ComponentFootprintMask {
 
     /** @deprecated use {@link ResolvedFootprint.FootprintShape} */
+    @Deprecated
     public enum FootprintShape {
         RECTANGLE,
         CIRCLE,
@@ -18,6 +19,7 @@ public final class ComponentFootprintMask {
     }
 
     /** @deprecated use {@link ResolvedFootprint.PlanPattern} */
+    @Deprecated
     public enum PlanPattern {
         NONE,
         CROSS,

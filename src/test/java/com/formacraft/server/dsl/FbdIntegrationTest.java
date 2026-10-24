@@ -8,6 +8,10 @@ import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.palette.dynamic.MaterialFallbackPolicy;
 import com.formacraft.server.assembly.*;
 import com.formacraft.server.compiler.ComponentPlanCompiler;
+import com.formacraft.server.compiler.PatchOccupancyIndex;
+import com.formacraft.server.compiler.PatchConflictValidator;
+import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.generation.component.impl.AssemblyPatchGenerator;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.Blocks;
@@ -112,6 +116,50 @@ class FbdIntegrationTest {
         assertSame(ast, normalized.components().getFirst().params().get("fbd_program"));
         assertEquals("minecraft:stone_bricks", normalized.components().getFirst().params().get("floor"));
         assertEquals("floor", params.get("floor"));
+    }
+
+    @Test void latestGamePlansPassPatchMergeWithoutGrantingOverwritePrivileges() throws Exception {
+        var mapper = new ObjectMapper();
+        var responses = mapper.readTree(Files.readString(Path.of("src/test/resources/game_replays/fbd_20261024_patch_merge.json")));
+        assertEquals(5, responses.size());
+        for (var response : responses) {
+            AssemblyCompileDiagnostics.clear();
+            var parsed = MaterialFallbackPolicy.normalize(LlmPlanParser.parse(response.toString()));
+            var lowered = FbdPlanLowering.lower(parsed.components());
+            assertFalse(AssemblyCompileDiagnostics.hasGap(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+            assertEquals(parsed.components().size(), lowered.size());
+            var occupancy = new PatchOccupancyIndex();
+            var all = new ArrayList<BlockPatch>();
+            for (var component : lowered) {
+                var compilation = (FbdCompiler.Compilation) component.params().get(FbdPlanLowering.COMPILED);
+                var p = component.relativePosition();
+                var blocks = new MetaAssemblyEngine().executeGeometry(FbdAssemblyAdapter.spec(compilation),
+                        new MetaAssemblyEngine.Context(null, new BlockPos(p.x(),p.y(),p.z()), Direction.NORTH, null,
+                                new FbdExecutionBudget(FbdLimits.DEFAULT)));
+                var patches = FbdAssemblyAdapter.finalPatches(blocks);
+                assertFalse(patches.isEmpty());
+                assertEquals(patches.size(), patches.stream().map(b -> new BlockPos(b.dx(),b.dy(),b.dz())).distinct().count());
+                var conflict = occupancy.accept(component, patches);
+                assertTrue(conflict.isEmpty(), conflict::toString);
+                all.addAll(patches);
+            }
+            assertTrue(PatchConflictValidator.inspectAuthorized(all, occupancy).isEmpty());
+        }
+    }
+
+    @Test void programFinalizationKeepsLastStateIncludingRemovalAndDoesNotAuthorizeOtherPrograms() {
+        var pos = BlockPos.ORIGIN;
+        var sequence = List.of(new PlannedBlock(pos, Blocks.STONE.getDefaultState()),
+                new PlannedBlock(pos, Blocks.AIR.getDefaultState()));
+        var patches = FbdAssemblyAdapter.finalPatches(sequence);
+        assertEquals(1, patches.size());
+        assertEquals(BlockPatch.REMOVE, patches.getFirst().action());
+        var occupancy = new PatchOccupancyIndex();
+        var first = component("ASSEMBLY", Map.of("component_id", "a"));
+        var second = component("ASSEMBLY", Map.of("component_id", "b"));
+        assertTrue(occupancy.accept(first, FbdAssemblyAdapter.finalPatches(List.of(new PlannedBlock(pos, Blocks.STONE.getDefaultState())))).isEmpty());
+        assertTrue(occupancy.validate(second, FbdAssemblyAdapter.finalPatches(List.of(new PlannedBlock(pos, Blocks.GLASS.getDefaultState())))).isPresent());
+        assertTrue(occupancy.validate(second, patches).isPresent());
     }
 
     @Test void actualWriteAndSamplingLoopsAbortWithTheOriginatingNode() {

@@ -38,6 +38,8 @@ public final class FbdPlanLowering {
                     throw new FbdException("ambiguous_authority", "parse", null, "", "fbd_program cannot coexist with " + alternative);
                 for (Component other : components) {
                     if (other != null && other != c && Objects.equals(other.slotId(), c.slotId())
+                            && !("ASSEMBLY".equals(other.componentType()) && other.params() != null
+                                && other.params().containsKey("fbd_program"))
                             && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
                             "ROOF", "ROOF_STRUCTURE", "FACADE_WINDOWS", "ENTRANCE", "ASSEMBLY").contains(other.componentType()))
                         throw new FbdException("ambiguous_authority", "parse", null, "", "FBD requires its own primary slot; do not silently discard another building component");

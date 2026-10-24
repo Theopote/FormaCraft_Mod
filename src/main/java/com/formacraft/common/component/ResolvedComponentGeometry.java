@@ -36,6 +36,7 @@ public record ResolvedComponentGeometry(
     }
 
     /** @deprecated prefer {@link #success(ComponentDefinition, List)} so EMPTY policy can apply. */
+    @Deprecated
     public static ResolvedComponentGeometry success(String sourceId, List<BlockPatch> patches) {
         if (patches == null || patches.isEmpty()) {
             return new ResolvedComponentGeometry(

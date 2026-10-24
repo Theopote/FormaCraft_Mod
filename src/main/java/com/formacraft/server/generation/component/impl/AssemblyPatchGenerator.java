@@ -183,7 +183,8 @@ public final class AssemblyPatchGenerator {
                     ));
         }
 
-        List<BlockPatch> out = toPatches(blocks);
+        List<BlockPatch> out = fbd instanceof com.formacraft.common.dsl.FbdCompiler.Compilation
+                ? com.formacraft.server.dsl.FbdAssemblyAdapter.finalPatches(blocks) : toPatches(blocks);
 
         FormacraftMod.LOGGER.info("AssemblyPatchGenerator: generated {} patches for ASSEMBLY component", out.size());
         return GenerateResult.ok(out);

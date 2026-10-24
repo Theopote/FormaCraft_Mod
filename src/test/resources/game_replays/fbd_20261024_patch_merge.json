@@ -1,0 +1,642 @@
+[
+  {
+    "mode": "build",
+    "anchor": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "style_profile": "DEFAULT",
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "slots": [
+        {
+          "slot_id": "pavilion_slot",
+          "anchor": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "facing": "NORTH"
+        }
+      ]
+    },
+    "components": [
+      {
+        "component_type": "ASSEMBLY",
+        "slot_id": "pavilion_slot",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 9,
+          "depth": 9,
+          "height": 7
+        },
+        "features": [],
+        "params": {
+          "component_id": "fbd_flat_pavilion_7x7",
+          "generation_authority": "ASSEMBLY",
+          "fbd_program": {
+            "dialect": "fbd/0",
+            "seed": 0,
+            "functions": [],
+            "main": [
+              {
+                "stmt": "emit",
+                "id": "shell_main",
+                "op": "SHELL_BOX",
+                "params": {
+                  "w": 7,
+                  "d": 7,
+                  "h": 6,
+                  "floorStep": 6,
+                  "wall": "wall",
+                  "window": "window",
+                  "floor": "floor",
+                  "roof": "slab"
+                }
+              },
+              {
+                "stmt": "emit",
+                "id": "roof_flat_main",
+                "op": "ROOF_COVER",
+                "params": {
+                  "type": "FLAT",
+                  "w": 7,
+                  "d": 7,
+                  "y": 6,
+                  "overhang": 1,
+                  "roof": "roof",
+                  "slab": "slab"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "build",
+    "anchor": {
+      "x": 100,
+      "y": 66,
+      "z": -2252
+    },
+    "style_profile": "DEFAULT",
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "slots": [
+        {
+          "slot_id": "pavilions",
+          "anchor": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "facing": "NORTH"
+        }
+      ]
+    },
+    "components": [
+      {
+        "component_type": "ASSEMBLY",
+        "slot_id": "pavilions",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 29,
+          "depth": 9,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "component_id": "three_pavilions",
+          "generation_authority": "ASSEMBLY",
+          "fbd_program": {
+            "dialect": "fbd/0",
+            "seed": 0,
+            "functions": [],
+            "main": [
+              {
+                "stmt": "repeat",
+                "id": "pavilion_row",
+                "times": 3,
+                "body": [
+                  {
+                    "stmt": "with_frame",
+                    "id": "pavilion_frame",
+                    "origin": [
+                      {
+                        "expr": "*",
+                        "args": [
+                          {
+                            "expr": "-",
+                            "args": [
+                              "$i",
+                              1
+                            ]
+                          },
+                          10
+                        ]
+                      },
+                      0,
+                      0
+                    ],
+                    "body": [
+                      {
+                        "stmt": "emit",
+                        "id": "pavilion_shell",
+                        "op": "SHELL_BOX",
+                        "params": {
+                          "w": 7,
+                          "d": 7,
+                          "h": 6,
+                          "wall": "wall",
+                          "window": "window",
+                          "floor": "floor",
+                          "roof": "roof"
+                        }
+                      },
+                      {
+                        "stmt": "emit",
+                        "id": "pavilion_roof",
+                        "op": "ROOF_COVER",
+                        "params": {
+                          "type": "FLAT",
+                          "w": 7,
+                          "d": 7,
+                          "y": 7,
+                          "overhang": 1,
+                          "slab": "slab"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "build",
+    "anchor": {
+      "x": 100,
+      "y": 66,
+      "z": -2252
+    },
+    "style_profile": "DEFAULT",
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "slots": [
+        {
+          "slot_id": "cottage_pair",
+          "anchor": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "facing": "NORTH"
+        }
+      ]
+    },
+    "components": [
+      {
+        "component_type": "ASSEMBLY",
+        "slot_id": "cottage_pair",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 11,
+          "depth": 9,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "component_id": "cottage_flat",
+          "generation_authority": "ASSEMBLY",
+          "fbd_program": {
+            "dialect": "fbd/0",
+            "seed": 42,
+            "functions": [],
+            "main": [
+              {
+                "stmt": "emit",
+                "id": "flat_shell",
+                "op": "SHELL_BOX",
+                "params": {
+                  "w": 9,
+                  "d": 7,
+                  "h": 6,
+                  "floorStep": 6,
+                  "wall": "wall",
+                  "window": "window",
+                  "floor": "floor",
+                  "roof": "wall"
+                }
+              },
+              {
+                "stmt": "emit",
+                "id": "flat_roof",
+                "op": "ROOF_COVER",
+                "params": {
+                  "type": "FLAT",
+                  "w": 9,
+                  "d": 7,
+                  "y": 7,
+                  "overhang": 1,
+                  "rise": 1,
+                  "roof": "wall",
+                  "slab": "wall"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "component_type": "ASSEMBLY",
+        "slot_id": "cottage_pair",
+        "relative_position": {
+          "x": 16,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 11,
+          "depth": 9,
+          "height": 11
+        },
+        "features": [],
+        "params": {
+          "component_id": "cottage_gable",
+          "generation_authority": "ASSEMBLY",
+          "fbd_program": {
+            "dialect": "fbd/0",
+            "seed": 42,
+            "functions": [],
+            "main": [
+              {
+                "stmt": "emit",
+                "id": "gable_shell",
+                "op": "SHELL_BOX",
+                "params": {
+                  "w": 9,
+                  "d": 7,
+                  "h": 6,
+                  "floorStep": 6,
+                  "wall": "wall",
+                  "window": "window",
+                  "floor": "floor",
+                  "roof": "wall"
+                }
+              },
+              {
+                "stmt": "emit",
+                "id": "gable_roof",
+                "op": "ROOF_COVER",
+                "params": {
+                  "type": "GABLE",
+                  "w": 9,
+                  "d": 7,
+                  "y": 7,
+                  "overhang": 1,
+                  "rise": 3,
+                  "roof": "wall",
+                  "slab": "wall"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "build",
+    "anchor": {
+      "x": 100,
+      "y": 66,
+      "z": -2252
+    },
+    "style_profile": "DEFAULT",
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "slots": [
+        {
+          "slot_id": "procedural",
+          "anchor": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "facing": "NORTH"
+        }
+      ]
+    },
+    "components": [
+      {
+        "component_type": "ASSEMBLY",
+        "slot_id": "procedural",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 19,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "component_id": "asymmetric_three_pavilions",
+          "generation_authority": "ASSEMBLY",
+          "fbd_program": {
+            "dialect": "fbd/0",
+            "seed": 0,
+            "functions": [],
+            "main": [
+              {
+                "stmt": "with_frame",
+                "id": "frame_main",
+                "origin": [
+                  0,
+                  0,
+                  0
+                ],
+                "body": [
+                  {
+                    "stmt": "emit",
+                    "id": "main_shell",
+                    "op": "SHELL_BOX",
+                    "params": {
+                      "w": 9,
+                      "d": 7,
+                      "h": 6,
+                      "floorStep": 6,
+                      "wall": "wall",
+                      "window": "window",
+                      "floor": "floor",
+                      "roof": "slab"
+                    }
+                  },
+                  {
+                    "stmt": "emit",
+                    "id": "main_roof",
+                    "op": "ROOF_COVER",
+                    "params": {
+                      "type": "FLAT",
+                      "w": 9,
+                      "d": 7,
+                      "y": 7,
+                      "overhang": 1,
+                      "slab": "slab"
+                    }
+                  }
+                ]
+              },
+              {
+                "stmt": "with_frame",
+                "id": "frame_right",
+                "origin": [
+                  14,
+                  0,
+                  0
+                ],
+                "body": [
+                  {
+                    "stmt": "emit",
+                    "id": "right_shell",
+                    "op": "SHELL_BOX",
+                    "params": {
+                      "w": 5,
+                      "d": 5,
+                      "h": 6,
+                      "floorStep": 5,
+                      "wall": "wall",
+                      "window": "window",
+                      "floor": "floor",
+                      "roof": "slab"
+                    }
+                  },
+                  {
+                    "stmt": "emit",
+                    "id": "right_roof",
+                    "op": "ROOF_COVER",
+                    "params": {
+                      "type": "FLAT",
+                      "w": 5,
+                      "d": 5,
+                      "y": 7,
+                      "overhang": 1,
+                      "slab": "slab"
+                    }
+                  }
+                ]
+              },
+              {
+                "stmt": "with_frame",
+                "id": "frame_front",
+                "origin": [
+                  0,
+                  0,
+                  12
+                ],
+                "body": [
+                  {
+                    "stmt": "emit",
+                    "id": "front_shell",
+                    "op": "SHELL_BOX",
+                    "params": {
+                      "w": 7,
+                      "d": 5,
+                      "h": 8,
+                      "floorStep": 6,
+                      "wall": "wall",
+                      "window": "window",
+                      "floor": "floor",
+                      "roof": "slab"
+                    }
+                  },
+                  {
+                    "stmt": "emit",
+                    "id": "front_roof",
+                    "op": "ROOF_COVER",
+                    "params": {
+                      "type": "FLAT",
+                      "w": 7,
+                      "d": 5,
+                      "y": 9,
+                      "overhang": 1,
+                      "slab": "slab"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "build",
+    "anchor": {
+      "x": 141,
+      "y": 72,
+      "z": -2264
+    },
+    "style_profile": "DEFAULT",
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "slots": [
+        {
+          "slot_id": "pavilions",
+          "anchor": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "facing": "NORTH"
+        }
+      ]
+    },
+    "components": [
+      {
+        "component_type": "ASSEMBLY",
+        "slot_id": "pavilions",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 55,
+          "depth": 7,
+          "height": 12
+        },
+        "features": [],
+        "params": {
+          "component_id": "five_flat_pavilions",
+          "generation_authority": "ASSEMBLY",
+          "fbd_program": {
+            "dialect": "fbd/0",
+            "seed": 42,
+            "functions": [],
+            "main": [
+              {
+                "stmt": "repeat",
+                "id": "repeat_pavilions",
+                "times": 5,
+                "body": [
+                  {
+                    "stmt": "with_frame",
+                    "id": "frame_pavilion",
+                    "origin": [
+                      {
+                        "expr": "+",
+                        "args": [
+                          3,
+                          {
+                            "expr": "*",
+                            "args": [
+                              "$i",
+                              12
+                            ]
+                          }
+                        ]
+                      },
+                      0,
+                      3
+                    ],
+                    "body": [
+                      {
+                        "stmt": "let",
+                        "id": "let_height",
+                        "name": "h",
+                        "value": {
+                          "expr": "min",
+                          "args": [
+                            10,
+                            {
+                              "expr": "floor",
+                              "args": [
+                                {
+                                  "expr": "+",
+                                  "args": [
+                                    6,
+                                    {
+                                      "expr": "*",
+                                      "args": [
+                                        {
+                                          "rand": "pavilion_wall_height"
+                                        },
+                                        5
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "stmt": "emit",
+                        "id": "emit_shell",
+                        "op": "SHELL_BOX",
+                        "params": {
+                          "w": 7,
+                          "d": 7,
+                          "h": "$h",
+                          "floorStep": 6,
+                          "wall": "wall",
+                          "window": "window",
+                          "floor": "floor",
+                          "roof": "roof"
+                        }
+                      },
+                      {
+                        "stmt": "emit",
+                        "id": "emit_roof",
+                        "op": "ROOF_COVER",
+                        "params": {
+                          "type": "FLAT",
+                          "w": 7,
+                          "d": 7,
+                          "y": {
+                            "expr": "+",
+                            "args": [
+                              "$h",
+                              1
+                            ]
+                          },
+                          "overhang": 0,
+                          "roof": "roof",
+                          "slab": "slab"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+]
