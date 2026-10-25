@@ -1676,7 +1676,7 @@ public final class ComponentPlanCompiler {
             Component aligned = switch (type) {
                 case "FACADE_WINDOWS" -> alignFacadeToMass(c, mass, plan, facing);
                 case "ENTRANCE" -> ExteriorStairEndpointRepair.preservesAuthoredDoor(c,mass,components)
-                        ? c : alignEntranceToMass(c, mass, plan, facing);
+                        ? ExteriorStairEndpointRepair.preserveDoor(c) : alignEntranceToMass(c, mass, plan, facing);
                 case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
                 case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
                 case "DECOR_DETAIL", "CHIMNEY" -> alignHostedDetail(c, mass);

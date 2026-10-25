@@ -34,3 +34,31 @@ bounded validation-repair loop before Java compilation. If they remain
 unresolved, the original design is returned as a capability gap rather than
 replaced by a generic profile fallback. Six focused Python tests passed,
 including mocked successful repair and unresolved-conflict preservation.
+
+## Latest offline result
+
+The shore-cabin replay now preserves a valid explicitly anchored Z-face door
+associated with an exterior stair, including the door-frame span required by
+the entrance generator. The reversed flight rises toward that doorway rather
+than away from it. The logged plan compiles with circulation checks enabled.
+The Chinese request marker `高脚` now selects stilt landing, whose rigid
+placement branch retains authored elevation (`dy=0`) rather than lowering the
+raised cabin as an ordinary house.
+
+Validation completed in an isolated Gradle output directory:
+
+- 30 targeted Java tests passed, including both logged shore-cabin plans.
+- 133 constraint-parity and user-style-pack tests passed.
+- Two additional complete logged-plan replays passed: Huizhou and pavilions.
+- Six focused Python validation/repair tests passed; consistency tests are
+  registered in `ci_gate.py`.
+
+The exterior-collision test class now initializes Minecraft registries itself,
+removing its dependence on another test running first. Earlier order-dependent
+registry failures are not counted as passing runs.
+
+These results supersede the earlier offline-open notes above. They do not
+certify live water updates, actual walking, appearance, preview/build agreement
+or Undo. Restart both the Java client and Python backend before repeating the
+original player prompts. Fortress repair remains bounded: if the model does
+not resolve the contradiction, it must still return a capability gap.

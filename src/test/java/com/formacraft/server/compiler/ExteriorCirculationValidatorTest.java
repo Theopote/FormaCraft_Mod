@@ -12,6 +12,8 @@ import com.formacraft.common.llm.dto.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorCirculationValidatorTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void initializeRegistries() { MinecraftRegistryTestBootstrap.initialize(); }
     @Test void interiorStairMayJoinSharedFoundationTopOnlyInsideItsHost() {
         var host=new Component("MASS_MAIN","hall",new Vec3i(0,1,0),new Dimensions(8,8,10),List.of(),
                 Map.of("component_id","hall","anchor_mode","min_corner"));

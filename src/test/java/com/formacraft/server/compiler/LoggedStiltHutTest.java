@@ -28,8 +28,9 @@ class LoggedStiltHutTest {
         int topZ=stair.relativePosition().z()+((Number)top.get("z")).intValue();
         assertEquals(1,Math.abs(topX-door.relativePosition().x())+Math.abs(topZ-door.relativePosition().z()));
         AssemblyCompileDiagnostics.clear();
-        assertFalse(ComponentPlanCompiler.compile(plan,BlockPos.ORIGIN,null,null,false).isEmpty());
+        var blocks=ComponentPlanCompiler.compile(plan,BlockPos.ORIGIN,null,null,false);
         assertNull(AssemblyCompileDiagnostics.get());
+        assertFalse(blocks.isEmpty());
     }
     @BeforeAll static void initialize() { MinecraftRegistryTestBootstrap.initialize(); }
     @AfterEach void clear() { AssemblyCompileDiagnostics.clear(); }

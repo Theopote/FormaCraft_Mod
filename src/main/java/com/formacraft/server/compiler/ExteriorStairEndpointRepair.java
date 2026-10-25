@@ -13,10 +13,11 @@ final class ExteriorStairEndpointRepair {
                 || !Objects.equals(door.params().get("host_id"),body.params().get("component_id"))) return false;
         var origin=com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveMinCornerOrigin(body);
         if(origin==null) return false;
+        if(Set.of("EAST","WEST").contains(String.valueOf(door.params().get("facing")))) return false;
         var pos=door.relativePosition(); var size=body.dimensions();
         // Preserve a fully authored Z-face doorway and its connected exterior approach.
         if(pos.z()!=origin.z() && pos.z()!=origin.z()+size.depth()-1) return false;
-        if(pos.x()<origin.x() || pos.x()+door.dimensions().width()>origin.x()+size.width()
+        if(pos.x()<origin.x() || pos.x()+openingWidth(door)>origin.x()+size.width()
                 || pos.y()<origin.y() || pos.y()+door.dimensions().height()>origin.y()+size.height()) return false;
         for(var c:components) {
             if(c==null || c.params()==null || c.relativePosition()==null
@@ -30,6 +31,17 @@ final class ExteriorStairEndpointRepair {
             }
         }
         return false;
+    }
+    static Component preserveDoor(Component door) {
+        var d=door.dimensions();
+        return new Component(door.componentType(),door.slotId(),door.relativePosition(),
+                new com.formacraft.common.llm.dto.Dimensions(openingWidth(door),d.depth(),d.height()),
+                door.features(),door.params());
+    }
+    private static int openingWidth(Component door) {
+        int width=com.formacraft.common.generation.component.util.ComponentParamParsers.intParam(
+                door.params(),2,"door_width","doorWidth");
+        return Math.max(door.dimensions().width(),Math.max(3,width+1));
     }
     static void apply(List<Component> components) {
         for(int i=0;i<components.size();i++) {
