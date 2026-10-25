@@ -37,7 +37,9 @@ public final class AssemblyCirculationOps {
         boolean support = adapter.bool(op.get("support"), true);
         int dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
         int run = Math.max(Math.abs(dx), Math.abs(dz));
-        long planned = (long) (run + 1) * width * (1 + (support ? 1 : 0) + (carve ? clearH : 0));
+        // Rising steps also carve the previous column (transition headroom / floor openings).
+        long planned = (long) (run + 1) * width * (1 + (support ? 1 : 0) + (carve ? clearH : 0))
+                + (carve ? (long) run * width * clearH : 0);
         if (planned > 100_000) throw new IllegalArgumentException("STAIR_SYSTEM exceeds 100000 planned block operations");
         BlockState stairMat = adapter.pick(ctx, op, "stairs", "STAIR", 0xA57470L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
         BlockState floorMat = adapter.pick(ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
@@ -50,6 +52,7 @@ public final class AssemblyCirculationOps {
             : (dz >= 0 ? Direction.SOUTH : Direction.NORTH);
         Direction lateral = direction.getAxis() == Direction.Axis.X ? Direction.SOUTH : Direction.EAST;
         int previousY = a[1];
+        int prevX = a[0], prevZ = a[2];
         int firstOffset = -(width / 2);
         for (int i = 0; i <= run; i++) {
             int x = a[0] + direction.getOffsetX() * i;
@@ -57,14 +60,35 @@ public final class AssemblyCirculationOps {
             int y = run == 0 ? a[1] : (int) Math.round(a[1] + dy * (i / (double) run));
             BlockState tread = y == previousY ? floorMat : stairMat.with(
                 net.minecraft.state.property.Properties.HORIZONTAL_FACING, y > previousY ? direction : direction.getOpposite());
+            boolean rising = i > 0 && y > previousY;
+            boolean descending = i > 0 && y < previousY;
             for (int lane = 0; lane < width; lane++) {
                 int offset = firstOffset + lane;
                 int wx = x + lateral.getOffsetX() * offset, wz = z + lateral.getOffsetZ() * offset;
                 // Every sample, including both endpoints, owns its tread, support and clearance.
                 adapter.put(out, ctx, origin, wx, y, wz, tread);
                 if (support) adapter.put(out, ctx, origin, wx, y - 1, wz, supportMat);
-                if (carve) for (int h = 1; h <= clearH; h++) adapter.put(out, ctx, origin, wx, y + h, wz, Blocks.AIR.getDefaultState());
+                if (carve) {
+                    for (int h = 1; h <= clearH; h++)
+                        adapter.put(out, ctx, origin, wx, y + h, wz, Blocks.AIR.getDefaultState());
+                    // Upward: keep the previous column clear through the new headroom so floor
+                    // openings include step-up body clearance (avoids head-hits on the slab edge).
+                    if (rising) {
+                        int pwx = prevX + lateral.getOffsetX() * offset;
+                        int pwz = prevZ + lateral.getOffsetZ() * offset;
+                        for (int h = 1; h <= clearH; h++)
+                            adapter.put(out, ctx, origin, pwx, y + h, pwz, Blocks.AIR.getDefaultState());
+                    }
+                    // Downward: clear the destination column at the previous (higher) headroom so
+                    // the floor hole stays open when stepping down onto the lower tread.
+                    if (descending) {
+                        for (int h = 1; h <= clearH; h++)
+                            adapter.put(out, ctx, origin, wx, previousY + h, wz, Blocks.AIR.getDefaultState());
+                    }
+                }
             }
+            prevX = x;
+            prevZ = z;
             previousY = y;
         }
     }

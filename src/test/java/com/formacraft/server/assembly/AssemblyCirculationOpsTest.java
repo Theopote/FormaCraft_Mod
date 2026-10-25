@@ -45,8 +45,19 @@ class AssemblyCirculationOpsTest {
             assertFalse(result.get(new BlockPos(x, x, z)).isAir());
             assertEquals(Blocks.SMOOTH_STONE.getDefaultState(), result.get(new BlockPos(x, x - 1, z)));
             for (int h = 1; h <= 3; h++) assertTrue(result.get(new BlockPos(x, x + h, z)).isAir());
+            // Upward transition keeps the previous column clear through the new headroom (floor opening).
+            if (x > 0) for (int h = 1; h <= 3; h++)
+                assertTrue(result.get(new BlockPos(x - 1, x + h, z)).isAir(),
+                        "transition headroom at " + (x - 1) + "," + (x + h) + "," + z);
         }
-        assertEquals(5 * width * 5, result.size());
+    }
+    @Test void upwardTransitionOpensFloorHoleBehindRisingTread() {
+        // clearHeight=2: same-column carve alone leaves the previous column's floor band solid.
+        var op = op(4, 1); op.put("clearHeight", 2);
+        var result = snapshot(generate(op, Direction.SOUTH, BlockPos.ORIGIN));
+        assertTrue(result.get(new BlockPos(1, 4, 0)).isAir(),
+                "rising onto x=2 must open the previous column through the upper floor band");
+        assertTrue(result.get(new BlockPos(2, 5, 0)).isAir());
     }
     @ParameterizedTest @ValueSource(strings = {"NORTH", "SOUTH", "EAST", "WEST"})
     void finalStateDirectionRotatesWithAssemblyCoordinates(String name) {

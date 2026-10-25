@@ -44,7 +44,8 @@ public final class StraightStairComponentGenerator {
                 op.put("from", low);
             }
             int landing = integer(op.getOrDefault("landing_length", 1));
-            int clear = integer(op.getOrDefault("clearHeight", 2));
+            // Match STAIR_SYSTEM default (3): two standing cells plus one upward-transition cell.
+            int clear = integer(op.getOrDefault("clearHeight", op.getOrDefault("clear_h", 3)));
             if (width < 1 || width > 15 || landing < 1 || landing > 16 || clear < 2 || clear > 16)
                 throw new IllegalArgumentException("Stair width must be 1..15, landing_length 1..16 and clearHeight 2..16");
             op.put("carve", true); op.put("clearHeight", clear);
