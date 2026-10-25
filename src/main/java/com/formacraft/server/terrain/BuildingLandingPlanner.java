@@ -328,6 +328,16 @@ public final class BuildingLandingPlanner {
                         supports++;
                     }
                 }
+                // Always strip plants/snow sitting on the foundation deck (incl. tall-plant tops).
+                for (int y=bottom; y<=bottom+2; y++) {
+                    BlockPos p=new BlockPos(x,y,z);
+                    BlockState planned=finalBlocks.get(p);
+                    if (planned!=null && !planned.isAir()) continue;
+                    PlannedBlock edit=prep.get(p);
+                    if (edit!=null && !edit.getTargetState().isAir()) continue;
+                    if (isSurfaceDecoration(cached.state(p)) && !add(prep,p,Blocks.AIR.getDefaultState()))
+                        return failure(input, "地基表面清理与保护区域冲突，请移动建筑。");
+                }
                 // Clear occupied columns up to the authored roof when the user allows above-foundation edits.
                 if (policy.clearAboveFoundation()) {
                     for (int y=b.minY(); y<=top; y++) {
@@ -536,6 +546,24 @@ public final class BuildingLandingPlanner {
         out.put(p,new PlannedBlock(p,s,com.formacraft.common.build.GeometrySource.generated("landing")));
         return true;
     }
+
+    /** Plants, snow, and similar clutter that should not remain on a foundation deck. */
+    static boolean isSurfaceDecoration(BlockState state) {
+        if (state==null || state.isAir() || !state.getFluidState().isEmpty()) return false;
+        var block=state.getBlock();
+        // instanceof avoids BlockTags, which are unbound in lightweight unit tests.
+        return block instanceof net.minecraft.block.PlantBlock
+                || block instanceof net.minecraft.block.LeavesBlock
+                || block instanceof net.minecraft.block.SugarCaneBlock
+                || block instanceof net.minecraft.block.CactusBlock
+                || block instanceof net.minecraft.block.BambooBlock
+                || block instanceof net.minecraft.block.SnowBlock
+                || state.isOf(Blocks.VINE)
+                || state.isOf(Blocks.MOSS_CARPET)
+                || state.isOf(Blocks.BROWN_MUSHROOM)
+                || state.isOf(Blocks.RED_MUSHROOM);
+    }
+
     private static Result failure(List<PlannedBlock> input,String problem) { return new Result(input,0,problem,0,0); }
     private static long key(int x,int z) { return ((long)x<<32) ^ (z & 0xffffffffL); }
 }

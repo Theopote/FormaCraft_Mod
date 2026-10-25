@@ -391,27 +391,26 @@ public final class TerrainFit {
     }
 
     private static boolean isObstacle(BlockState state) {
-        // keep this intentionally small and conservative; we only clear common natural blockers.
-        return state.isOf(Blocks.OAK_LOG)
-                || state.isOf(Blocks.OAK_LEAVES)
-                || state.isOf(Blocks.SPRUCE_LOG)
-                || state.isOf(Blocks.SPRUCE_LEAVES)
-                || state.isOf(Blocks.BIRCH_LOG)
-                || state.isOf(Blocks.BIRCH_LEAVES)
-                || state.isOf(Blocks.JUNGLE_LOG)
-                || state.isOf(Blocks.JUNGLE_LEAVES)
-                || state.isOf(Blocks.ACACIA_LOG)
-                || state.isOf(Blocks.ACACIA_LEAVES)
-                || state.isOf(Blocks.DARK_OAK_LOG)
-                || state.isOf(Blocks.DARK_OAK_LEAVES)
-                || state.isOf(Blocks.MANGROVE_LOG)
-                || state.isOf(Blocks.MANGROVE_LEAVES)
-                || state.isOf(Blocks.GRASS_BLOCK)
-                || state.isOf(Blocks.SHORT_GRASS)
-                || state.isOf(Blocks.TALL_GRASS)
-                || state.isOf(Blocks.FERN)
-                || state.isOf(Blocks.LARGE_FERN)
-                || state.isOf(Blocks.VINE);
+        // Clear natural clutter above the pad; grass_block at the pad surface is replaced by fill.
+        if (state == null || state.isAir() || !state.getFluidState().isEmpty()) return false;
+        if (state.isOf(Blocks.GRASS_BLOCK)) return true;
+        var block = state.getBlock();
+        if (block instanceof net.minecraft.block.PlantBlock
+                || block instanceof net.minecraft.block.LeavesBlock
+                || block instanceof net.minecraft.block.SugarCaneBlock
+                || block instanceof net.minecraft.block.CactusBlock
+                || block instanceof net.minecraft.block.BambooBlock
+                || block instanceof net.minecraft.block.SnowBlock
+                || state.isOf(Blocks.VINE)
+                || state.isOf(Blocks.MOSS_CARPET)
+                || state.isOf(Blocks.BROWN_MUSHROOM)
+                || state.isOf(Blocks.RED_MUSHROOM)) {
+            return true;
+        }
+        // Common logs (LeavesBlock already covers foliage).
+        return state.isOf(Blocks.OAK_LOG) || state.isOf(Blocks.SPRUCE_LOG) || state.isOf(Blocks.BIRCH_LOG)
+                || state.isOf(Blocks.JUNGLE_LOG) || state.isOf(Blocks.ACACIA_LOG) || state.isOf(Blocks.DARK_OAK_LOG)
+                || state.isOf(Blocks.MANGROVE_LOG) || state.isOf(Blocks.CHERRY_LOG);
     }
 }
 

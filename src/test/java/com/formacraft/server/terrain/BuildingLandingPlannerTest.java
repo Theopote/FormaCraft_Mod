@@ -334,6 +334,26 @@ class BuildingLandingPlannerTest {
         assertFalse(finalMap(retaining.blocks()).containsKey(new BlockPos(-1,70,3)),
                 "retaining fill also follows building height");
     }
+    @Test void foundationDeckClearsPlantsEvenWhenAboveFoundationClearIsDisabled() {
+        var s=site(0,64); var input=house(s,false);
+        BuildingLandingPlanner.Ground terrain=new BuildingLandingPlanner.Ground() {
+            public int surfaceY(int x,int z){return 64;}
+            public int bottomY(){return -64;}
+            public BlockState state(BlockPos p){
+                if(p.getY()==65) return Blocks.SHORT_GRASS.getDefaultState();
+                if(p.getY()==66) return Blocks.POPPY.getDefaultState();
+                return p.getY()<64?Blocks.STONE.getDefaultState():Blocks.AIR.getDefaultState();
+            }
+        };
+        var policy=new TerrainSupportPolicy(TerrainSupportPolicy.Mode.AUTO,false,null,
+                TerrainSupportPolicy.CutMode.SLOPE,false);
+        var result=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
+                false,Blocks.COBBLESTONE.getDefaultState(),policy);
+        assertNull(result.problem());
+        var blocks=finalMap(result.blocks());
+        assertTrue(blocks.get(new BlockPos(4,65,3)).isAir(),"grass on the foundation deck must be cleared");
+        assertTrue(blocks.get(new BlockPos(4,66,3)).isAir(),"flowers above the deck must be cleared");
+    }
     @Test void explicitNoClearAboveFoundationSkipsTerrainCutsAboveFloor() {
         var s=site(0,64); var input=house(s,false);
         var terrain=ground((x,z)->x<0?74:70);
