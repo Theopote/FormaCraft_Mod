@@ -25,5 +25,11 @@ class TerrainSupportPolicyTest {
         assertEquals(TerrainSupportPolicy.CutMode.VERTICAL,policy("墙边采用直立切坡，不要边坡").cutMode());
         assertEquals(TerrainSupportPolicy.CutMode.RETAINING,policy("墙边设置挡土墙").cutMode());
     }
+    @Test void clearAboveFoundationDefaultsOnAndHonorsExplicitOptOut() {
+        assertTrue(policy("生成教堂").clearAboveFoundation());
+        assertFalse(policy("靠山建造一座小屋，不要清理建筑地基以上的方块").clearAboveFoundation());
+        assertFalse(policy("保留地基以上地形").clearAboveFoundation());
+        assertFalse(policy("don't clear above the foundation").clearAboveFoundation());
+    }
     @Test void unknownExplicitSupportMaterialIsNotReplaced(){assertThrows(IllegalArgumentException.class,()->policy("支柱使用minecraft:missing_support"));}
 }

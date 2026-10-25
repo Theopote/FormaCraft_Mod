@@ -314,19 +314,40 @@ class BuildingLandingPlannerTest {
             assertTrue(bounds.width()==35 || bounds.width()==45);
         }
     }
-    @Test void naturalSlopeExtendsBeyondFourBlocksAndExplicitCutChoicesAreRespected() {
+    @Test void naturalSlopeStopsAtFiveBlocksAndFollowsBuildingHeight() {
         var s=site(0,64); var input=house(s,false);
         var terrain=ground((x,z)->x<0?74:64);
         var slope=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
                 false,Blocks.COBBLESTONE.getDefaultState());
         assertNull(slope.problem());
-        assertTrue(finalMap(slope.blocks()).get(new BlockPos(-6,73,3)).isAir(),"deep cuts need a longer slope transition");
+        var slopeBlocks=finalMap(slope.blocks());
+        assertTrue(slopeBlocks.get(new BlockPos(-1,64,3)).isAir(),"adjacent berm clears within building height");
+        assertTrue(slopeBlocks.get(new BlockPos(-5,68,3)).isAir(),"slope reach includes the fifth block");
+        assertFalse(slopeBlocks.containsKey(new BlockPos(-6,68,3)),"slope reach must not exceed five blocks");
+        assertFalse(slopeBlocks.containsKey(new BlockPos(-1,70,3)),"height clear stops at the building envelope");
         var vertical=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
                 false,Blocks.COBBLESTONE.getDefaultState(),new TerrainSupportPolicy(TerrainSupportPolicy.Mode.AUTO,false,null,TerrainSupportPolicy.CutMode.VERTICAL));
-        assertFalse(finalMap(vertical.blocks()).containsKey(new BlockPos(-6,73,3)),"explicit vertical cut preserves surrounding wall");
+        assertFalse(finalMap(vertical.blocks()).containsKey(new BlockPos(-1,64,3)),"explicit vertical cut preserves surrounding wall");
         var retaining=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
                 false,Blocks.COBBLESTONE.getDefaultState(),new TerrainSupportPolicy(TerrainSupportPolicy.Mode.AUTO,false,null,TerrainSupportPolicy.CutMode.RETAINING));
-        assertTrue(finalMap(retaining.blocks()).get(new BlockPos(-1,70,3)).isOf(Blocks.COBBLESTONE));
+        assertTrue(finalMap(retaining.blocks()).get(new BlockPos(-1,64,3)).isOf(Blocks.COBBLESTONE));
+        assertFalse(finalMap(retaining.blocks()).containsKey(new BlockPos(-1,70,3)),
+                "retaining fill also follows building height");
+    }
+    @Test void explicitNoClearAboveFoundationSkipsTerrainCutsAboveFloor() {
+        var s=site(0,64); var input=house(s,false);
+        var terrain=ground((x,z)->x<0?74:70);
+        var policy=new TerrainSupportPolicy(TerrainSupportPolicy.Mode.AUTO,false,null,
+                TerrainSupportPolicy.CutMode.SLOPE,false);
+        var result=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
+                false,Blocks.COBBLESTONE.getDefaultState(),policy);
+        assertNull(result.problem());
+        var blocks=finalMap(result.blocks());
+        assertFalse(blocks.containsKey(new BlockPos(-1,64,3)),"no slope clear when user forbids above-foundation edits");
+        assertTrue(result.blocks().stream().noneMatch(p ->
+                        p.getSource()!=null && "landing".equals(p.getSource().producer())
+                                && p.getTargetState().isAir() && p.getPos().getY()>=64),
+                "landing must not emit above-foundation air clears");
     }
     @Test void patchPlansDoNotAcquireAutomaticLandingTranslations() {
         var component=new com.formacraft.common.llm.dto.Component("MASS_MAIN",null,

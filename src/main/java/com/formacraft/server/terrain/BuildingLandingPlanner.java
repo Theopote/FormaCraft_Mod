@@ -18,6 +18,8 @@ public final class BuildingLandingPlanner {
     private BuildingLandingPlanner() {}
     private static final int MAX_SUPPORT = 96;
     private static final int MAX_CUT = 32;
+    /** Horizontal reach of automatic slope / berm cuts around a single building. */
+    private static final int MAX_SLOPE_DISTANCE = 5;
     private static final int MAX_AREA = 16384;
     private static final int MAX_EDITS = 200000;
 
@@ -326,23 +328,28 @@ public final class BuildingLandingPlanner {
                         supports++;
                     }
                 }
-                // Only clear the occupied column, up to its actual roof, never the inter-building gap.
-                for (int y=b.minY(); y<=top; y++) {
-                    BlockPos p = new BlockPos(x,y,z);
-                    if (!cached.state(p).isAir() && !add(prep,p,Blocks.AIR.getDefaultState()))
-                        return failure(input, "建筑占地与保护区域冲突，请移动建筑。");
+                // Clear occupied columns up to the authored roof when the user allows above-foundation edits.
+                if (policy.clearAboveFoundation()) {
+                    for (int y=b.minY(); y<=top; y++) {
+                        BlockPos p = new BlockPos(x,y,z);
+                        if (!cached.state(p).isAir() && !add(prep,p,Blocks.AIR.getDefaultState()))
+                            return failure(input, "建筑占地与保护区域冲突，请移动建筑。");
+                    }
                 }
                 if (prep.size()>MAX_EDITS) return failure(input, "地形改动过多，建议缩小建筑或分批生成。");
             }
-            if (transition && sites.size()==1 && policy.cutMode()!=TerrainSupportPolicy.CutMode.VERTICAL) {
-                var slope=b.expand(MAX_CUT);
+            if (transition && sites.size()==1 && policy.clearAboveFoundation()
+                    && policy.cutMode()!=TerrainSupportPolicy.CutMode.VERTICAL) {
+                var slope=b.expand(MAX_SLOPE_DISTANCE);
+                int clearCeiling=b.maxY()+1; // Height clears follow the building envelope, not the mountain tip.
                 for(int x=slope.minX();x<=slope.maxX();x++) for(int z=slope.minZ();z<=slope.maxZ();z++) {
                     int distance=Math.max(Math.max(b.minX()-x,x-b.maxX()),Math.max(b.minZ()-z,z-b.maxZ()));
-                    if(distance<1) continue;
+                    if(distance<1 || distance>MAX_SLOPE_DISTANCE) continue;
                     int allowed=policy.cutMode()==TerrainSupportPolicy.CutMode.RETAINING?b.minY():b.minY()+distance-1;
-                    int top=cached.surfaceY(x,z);
+                    int surface=cached.surfaceY(x,z);
+                    int top=Math.min(surface,clearCeiling);
                     if(policy.cutMode()==TerrainSupportPolicy.CutMode.RETAINING && distance!=1) continue;
-                    if(top-allowed>MAX_CUT) continue;
+                    if(surface-allowed>MAX_CUT) continue;
                     if(top<=allowed) continue;
                     if(policy.cutMode()==TerrainSupportPolicy.CutMode.RETAINING) {
                         for(int y=allowed;y<top;y++) {

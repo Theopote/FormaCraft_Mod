@@ -8,10 +8,14 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /** User choices apply to automatic terrain work, not authored building components. */
-public record TerrainSupportPolicy(Mode mode, boolean access, BlockState material, CutMode cutMode) {
+public record TerrainSupportPolicy(Mode mode, boolean access, BlockState material, CutMode cutMode,
+                                   boolean clearAboveFoundation) {
     public enum CutMode { SLOPE, VERTICAL, RETAINING }
     public TerrainSupportPolicy(Mode mode, boolean access, BlockState material) {
-        this(mode,access,material,CutMode.SLOPE);
+        this(mode,access,material,CutMode.SLOPE,true);
+    }
+    public TerrainSupportPolicy(Mode mode, boolean access, BlockState material, CutMode cutMode) {
+        this(mode,access,material,cutMode,true);
     }
     public enum Mode { AUTO, VERTICAL, DIAGONAL, SOLID }
     public static TerrainSupportPolicy automatic() { return new TerrainSupportPolicy(Mode.AUTO,false,null); }
@@ -43,6 +47,13 @@ public record TerrainSupportPolicy(Mode mode, boolean access, BlockState materia
         CutMode cut=CutMode.SLOPE;
         if(Pattern.compile("直立切坡|垂直切坡|不要边坡|不削坡|保留陡壁").matcher(text).find()) cut=CutMode.VERTICAL;
         else if(Pattern.compile("(?<!不要)(?<!不用)(?:采用|设置|使用|增加)挡土墙").matcher(text).find()) cut=CutMode.RETAINING;
-        return new TerrainSupportPolicy(mode,access,material,cut);
+        // Default clears terrain within the building height; opt out only when the user asks explicitly.
+        boolean clearAbove=true;
+        if(Pattern.compile("(不要|不用|不需要|禁止).{0,16}(清理|清空|清除|挖掉|削掉|挖除).{0,16}(建筑)?(地基|基础)以上"
+                +"|(保留|保持).{0,8}(建筑)?(地基|基础)以上"
+                +"|(建筑)?(地基|基础)以上.{0,8}(不要|不用|不)(清理|清空|清除|挖)"
+                +"|don'?tclearabove(the)?foundation|preserve(terrain)?above(the)?foundation").matcher(text).find())
+            clearAbove=false;
+        return new TerrainSupportPolicy(mode,access,material,cut,clearAbove);
     }
 }
