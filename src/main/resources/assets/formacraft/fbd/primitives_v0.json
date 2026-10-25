@@ -6,8 +6,11 @@
     "floorStep": {"type":"int","min":3,"max":8},
     "twistTurns": {"type":"scalar","min":-2,"max":2},
     "twistPhase": {"type":"scalar","min":0,"max":1},
+    "wallMode": {"type":"enum","enum":["SOLID","COLONNADE","OPEN","PILLARS","POSTS"]},
+    "openness": {"type":"scalar","min":0,"max":1},
+    "postSpacing": {"type":"int","min":1,"max":8},
     "wall": {"type":"role"}, "window": {"type":"role"},
-    "floor": {"type":"role"}, "roof": {"type":"role"}
+    "floor": {"type":"role"}, "roof": {"type":"role"}, "post": {"type":"role"}
   },
   "ROOF_COVER": {
     "type": {"type":"enum","required":true,"enum":["FLAT","GABLE","HIP"]},

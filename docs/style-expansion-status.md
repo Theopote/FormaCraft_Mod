@@ -1,5 +1,22 @@
 # Style expansion delivery status
 
+2026-10-25 live acceptance reconciliation: the
+[capability matrix](style-capability-matrix.md#live-workflow-gate-status) now
+links the player-recorded failures and distinguishes fixes awaiting retest from
+observed passes. Shared PATCH, preview/build, Undo and fence gates remain open;
+offline fixture acceptance does not close them.
+
+Live retry on 2026-10-25: the development client compiled and launched
+Minecraft 1.21.10. Native window capture failed with `FrameArrived timed out:
+timed out waiting on channel`; refreshing window selection and retrying once
+failed with `window capture timed out: timed out waiting on channel`. No game
+inputs or world changes followed, and no live acceptance pass was recorded.
+
+Targeted offline follow-up passed 19 tests (13 `GenerationAuthorityTest`, four
+`LlmPlanParserGenerationAuthorityTest`, two `WallFenceLineTest`), with zero
+failures/errors. This checks routing and linear-fence regressions only; PATCH
+payload handling, Undo and live rendering were not certified by this run.
+
 2026-10-25 earthen upper-storey follow-up: four Desert_Adobe/Prairie_Earth
 examples add explicit hosted stairs and guarded landings. Body/roof height
 increases one block to retain clearance. See [stair acceptance](style-earth-house-stairs-acceptance.md)

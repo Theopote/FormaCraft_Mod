@@ -2,6 +2,25 @@
 
 Updated 2026-10-25. Asset presence and offline fixture coverage do not certify stable end-to-end support.
 
+## Live workflow gate status
+
+The [2026-10-25 player findings](phase1/INGAME_FINDINGS_2026_10_25.md)
+record the tested baseline `ff7039cd` and subsequent afternoon observations.
+These observations do not certify the dedicated style fixtures below. Fixes
+reported in that document require a new recorded game session before promotion.
+
+| Gate | Recorded result | Required next evidence |
+| --- | --- | --- |
+| Incremental edit avoids whole-building rebuild | Earlier failure; afternoon PATCH guard safely rejected an unsupported payload | Retest the new local `components[]` to BlockPatch path: opening appears at the existing host and unrelated blocks remain unchanged |
+| Preview agrees with confirmed build | Suspected mismatches; comparison incomplete | Same ticket, anchor and plan; record preview and actual placed blocks, including terrain skips |
+| Undo restores the prior world | Incomplete lakeside Undo; connection-state and water conflicts recorded | Capture pre-build state, build, Undo and compare affected cells, including water and fence connections |
+| Assembly routing | Cabin authority conflict observed; fix reported, pending retest | Confirm the cabin plan reaches the assembly executor without authority conflict |
+| Fence material and placement | Oak fence became a wall/stone platform; fix reported, pending retest | Confirm linear oak fence blocks and absence of an unsolicited stone pad |
+| Pavilion and landmark identity | Open pavilion, pagoda openings and Temple of Heaven proportions remain deficient | Daylight views and block inspection against the requested openings, columns and roof proportions |
+
+Passing offline style tests does not close these shared workflow gates. No new
+live pass is claimed by this matrix update.
+
 ## Acceptance axes
 
 | Axis | Required evidence |

@@ -115,11 +115,12 @@ public final class LlmPlanPreviewBuilder {
                     && llmPlan.usesComponentMode()
                     && isIncrementalComponentPatch(llmPlan)
                     && !llmPlan.usesPlanProgramMode()) {
-                BlockPos patchOrigin = resolvePatchOrigin(player, req, origin, llmPlan);
+                LlmPlan patchPlan = sanitizeIncrementalPatchPlan(llmPlan);
+                BlockPos patchOrigin = resolvePatchOrigin(player, req, origin, patchPlan);
                 com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
                         new com.formacraft.common.terrain.TerrainStrategySampler();
                 var compilation = ComponentPlanCompiler.compileWithCirculation(
-                        llmPlan, patchOrigin, serverWorld, terrainSampler, false);
+                        patchPlan, patchOrigin, serverWorld, terrainSampler, false);
                 var compileFailure = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
                 if (compileFailure != null) {
                     reportCapabilityGap(player, req, hbAlive, compileFailure);
@@ -133,7 +134,7 @@ public final class LlmPlanPreviewBuilder {
                             "增量 components[] 编译结果为空，无法应用局部修改。"));
                     return true;
                 }
-                return issueComponentOrBlockPatchPreview(player, req, origin, llmPlan, hbAlive, compiled);
+                return issueComponentOrBlockPatchPreview(player, req, origin, patchPlan, hbAlive, compiled);
             }
 
             // Phase 1 A2：增量请求不得静默整栋重建（屋顶原点、二次生成等）。
@@ -727,6 +728,90 @@ public final class LlmPlanPreviewBuilder {
             }
         }
         return true;
+    }
+
+    /**
+     * Incremental patch satellites often arrive with style library tags
+     * ({@code component_request:…}). Those conflict with envelope protection on
+     * FACADE_WINDOWS/ENTRANCE. Strip library requests so the registry generator runs.
+     */
+    private static LlmPlan sanitizeIncrementalPatchPlan(LlmPlan plan) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty()) {
+            return plan;
+        }
+        List<com.formacraft.common.llm.dto.Component> cleaned = new ArrayList<>(plan.components().size());
+        boolean anyChanged = false;
+        for (com.formacraft.common.llm.dto.Component c : plan.components()) {
+            if (c == null) {
+                cleaned.add(null);
+                continue;
+            }
+            boolean dirty = false;
+            List<String> features = c.features();
+            List<String> keptFeatures = features;
+            if (features != null && !features.isEmpty()) {
+                List<String> kept = new ArrayList<>(features.size());
+                for (String f : features) {
+                    if (f == null) continue;
+                    String lower = f.toLowerCase(Locale.ROOT);
+                    if (lower.startsWith("component_request:") || lower.startsWith("group_request:")) {
+                        dirty = true;
+                        continue;
+                    }
+                    kept.add(f);
+                }
+                if (dirty) {
+                    keptFeatures = kept;
+                }
+            }
+            java.util.Map<String, Object> params = c.params() == null
+                    ? new java.util.HashMap<>()
+                    : new java.util.HashMap<>(c.params());
+            if (!Boolean.TRUE.equals(params.get("allow_envelope_attach"))) {
+                params.put("allow_envelope_attach", true);
+                dirty = true;
+            }
+            if (dirty) {
+                anyChanged = true;
+                cleaned.add(new com.formacraft.common.llm.dto.Component(
+                        c.componentType(),
+                        c.slotId(),
+                        c.relativePosition(),
+                        c.dimensions(),
+                        keptFeatures,
+                        params));
+            } else {
+                cleaned.add(c);
+            }
+        }
+        if (!anyChanged) {
+            return plan;
+        }
+        return new LlmPlan(
+                plan.mode(),
+                plan.styleProfile(),
+                plan.anchor(),
+                plan.globalConstraints(),
+                plan.layout(),
+                cleaned,
+                plan.genome(),
+                plan.styleAttributes(),
+                plan.proportionHints(),
+                plan.alignmentAndSymmetry(),
+                plan.targetSlotId(),
+                plan.allowedArea(),
+                plan.patch(),
+                plan.planProgram(),
+                plan.planSkeleton(),
+                plan.planStatus(),
+                plan.error(),
+                plan.capabilityGap(),
+                plan.playerFidelityNoticeZh(),
+                plan.distinguishingFeatures(),
+                plan.enrichmentGuard(),
+                plan.planMeta(),
+                plan.designSources()
+        );
     }
 
     /**

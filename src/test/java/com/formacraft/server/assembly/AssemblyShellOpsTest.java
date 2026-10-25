@@ -39,6 +39,35 @@ class AssemblyShellOpsTest {
         for (var block : out) map.put(block.getPos(), block.getTargetState());
         return map;
     }
+    @Test
+    void colonnadeWallModePlacesCornerPostsWithoutSolidWallFill() {
+        var op = shell(0);
+        op.put("wallMode", "COLONNADE");
+        op.put("postSpacing", 2);
+        var result = snapshot(generate(op));
+        // Corner posts present through height (w=15→halfW=7, d=11→halfD=5)
+        assertEquals(Blocks.STONE_BRICKS.getDefaultState(), result.get(new BlockPos(-7, 3, -5)));
+        assertEquals(Blocks.STONE_BRICKS.getDefaultState(), result.get(new BlockPos(7, 3, 5)));
+        // Mid-bay on west edge between posts (z=0, y=3) must stay open — solid shell would fill it
+        assertTrue(!result.containsKey(new BlockPos(-7, 3, 0)) || result.get(new BlockPos(-7, 3, 0)).isAir());
+        long edgeWallCells = result.entrySet().stream()
+                .filter(e -> e.getKey().getX() == -7 && e.getKey().getY() >= 1 && e.getKey().getY() < 9)
+                .filter(e -> !e.getValue().isAir())
+                .count();
+        // Solid shell ≈ 8*11=88; colonnade ≈ 6 posts * 8 tall ≈ 48.
+        assertTrue(edgeWallCells < 70, "expected open colonnade, got " + edgeWallCells + " west-edge cells");
+        assertTrue(edgeWallCells >= 4, "expected at least corner/bay posts on west edge");
+    }
+
+    @Test
+    void highOpennessAlsoSelectsColonnade() {
+        var op = shell(0);
+        op.put("openness", 0.8);
+        var result = snapshot(generate(op));
+        assertEquals(Blocks.STONE_BRICKS.getDefaultState(), result.get(new BlockPos(-7, 2, -5)));
+        assertTrue(!result.containsKey(new BlockPos(-7, 2, 0)) || result.get(new BlockPos(-7, 2, 0)).isAir());
+    }
+
     @ParameterizedTest @ValueSource(doubles = {0, 0.25, -0.25})
     void everyFloorAndRoofSurviveInteriorClearing(double twist) {
         var result = snapshot(generate(shell(twist)));

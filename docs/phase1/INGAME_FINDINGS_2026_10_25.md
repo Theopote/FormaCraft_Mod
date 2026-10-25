@@ -110,5 +110,6 @@ History redo conflict … expected=tall_seagrass … actual=water
 1. **P0 已改（待重测）**：`generation_authority` — ASSEMBLY 形组件在 plan_meta=COMPONENTS 时推断为 ASSEMBLY，避免 cabin_assembly 冲突。  
 2. **P0 已改（待重测）**：`mode=patch` + 局部增量 `components[]`（如 `FACADE_WINDOWS`）→ 编译为 BlockPatch → `PatchPreviewService` Ticket；MASS/ASSEMBLY 仍走重建拒绝闸。  
 3. **P0 已改（待重测）**：`WALL`+`oak_fence`/railing → 线性栅栏；纯栅栏计划跳过地形石台 pad。  
-4. **P1**：FBD 亭廊——柱廊空洞 + 连续坡顶（valid≠好看）。  
-5. **P1**：地标/描述拟合——层间券窗、出檐深度等从属性推导，不写死单体。
+4. **P1 已改（待重测）**：FBD 亭廊——`SHELL_BOX wallMode=COLONNADE`（或 openness≥0.65）出角柱/开间柱；提示与示例已改，勿用 SURFACE_PATTERN 假柱。  
+5. **P0 续（待重测）**：增量开窗剥离 `component_request`，避免 `E_COMPONENT_REQUEST_CONFLICT`。  
+6. **P1**：地标/描述拟合——层间券窗、出檐深度等从属性推导，不写死单体。

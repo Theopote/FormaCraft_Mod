@@ -55,7 +55,10 @@
                     "d": 7,
                     "h": 6,
                     "floorStep": 6,
+                    "wallMode": "COLONNADE",
+                    "postSpacing": 2,
                     "wall": "wall",
+                    "post": "accent",
                     "window": "window",
                     "floor": "floor",
                     "roof": "slab"

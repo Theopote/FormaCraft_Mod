@@ -44,6 +44,8 @@ def fbd_prompt_block(user_text: str = '') -> str:
         'Budget: 64KiB input,2000 JSON values,depth24,5000 cumulative repeats,200000 evaluation steps,20000 expanded ops, '
         '2000000 candidate samples and 200000 candidate writes. Prefer compact programs, not thousands of repeated emits. '
         'SHELL_BOX requires w,d>=5 and h>=6; do not silently enlarge a smaller explicit request: report capability_gap. '
+        'Open pavilions / 亭 / colonnades MUST use SHELL_BOX wallMode="COLONNADE" (or openness>=0.65) so corner/bay posts appear; '
+        'do not fake pillars with SURFACE_PATTERN GRID on a solid shell. Optional postSpacing (default 2) and post role. '
         'These shell/roof/pattern primitives alone do not guarantee entrances or connected interiors; '
         'use ordinary semantic components when their functional guarantees are needed. '
         'Exact supported primitive signatures: ' + json.dumps(signatures, separators=(',', ':')) + '\n'

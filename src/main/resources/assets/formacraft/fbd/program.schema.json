@@ -310,6 +310,83 @@
                       }
                     ]
                   },
+                  "wallMode": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "SOLID",
+                          "COLONNADE",
+                          "OPEN",
+                          "PILLARS",
+                          "POSTS"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 65,
+                        "pattern": "^\\$[a-zA-Z][a-zA-Z0-9_]*$"
+                      },
+                      {
+                        "$ref": "#/$defs/exprObject"
+                      }
+                    ]
+                  },
+                  "openness": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 65,
+                        "pattern": "^\\$[a-zA-Z][a-zA-Z0-9_]*$"
+                      },
+                      {
+                        "$ref": "#/$defs/exprObject"
+                      }
+                    ]
+                  },
+                  "postSpacing": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 8
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 65,
+                        "pattern": "^\\$[a-zA-Z][a-zA-Z0-9_]*$"
+                      },
+                      {
+                        "$ref": "#/$defs/exprObject"
+                      }
+                    ]
+                  },
+                  "post": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "wall",
+                          "window",
+                          "floor",
+                          "roof",
+                          "slab",
+                          "accent"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 65,
+                        "pattern": "^\\$[a-zA-Z][a-zA-Z0-9_]*$"
+                      },
+                      {
+                        "$ref": "#/$defs/exprObject"
+                      }
+                    ]
+                  },
                   "wall": {
                     "anyOf": [
                       {
