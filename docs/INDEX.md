@@ -15,6 +15,8 @@
 | [refactoring/REGRESSION_BASELINE.md](refactoring/REGRESSION_BASELINE.md) | 第二轮回归恢复、剩余建筑行为与测试环境问题 |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 系统总览、分层规则、质量门、Canonical Pipeline 声明 |
 | [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) | LlmPlan → 放置方块的**唯一流程真相**（类名、阶段、分支） |
+| [phase1/GOLDEN_PATH_AUDIT.md](phase1/GOLDEN_PATH_AUDIT.md) | Phase 1：四条建造流、双栈债、P0/P1 清单（2026-10-25） |
+| [phase1/INGAME_ACCEPTANCE_MATRIX.md](phase1/INGAME_ACCEPTANCE_MATRIX.md) | Phase 1：游戏内 Preview/Confirm/Undo 验收矩阵 |
 | [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md) | 泛化优先原则、已具备能力、代码差距清单、演进方向 |
 | [LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md](LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md) | 设计哲学："AI 规划，Java 实现" |
 | [MEMORY_TRANSACTION_CONTRACT.md](MEMORY_TRANSACTION_CONTRACT.md) | Memory 维度隔离、旧数据与普通撤销事务接入边界 |

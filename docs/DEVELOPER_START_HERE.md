@@ -31,6 +31,8 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 
 验证细节和下一轮检查顺序见 [测试与建筑验收](TESTING_AND_BUILDING_ACCEPTANCE.md)。
 
+当前产品阶段（Golden Path 稳定化）见 [Phase 1 审计](phase1/GOLDEN_PATH_AUDIT.md) 与 [游戏内验收矩阵](phase1/INGAME_ACCEPTANCE_MATRIX.md)；离线 CI 不能代替矩阵填写。
+
 ## 本地验证
 
 仓库根执行 `python scripts/test_check_architecture.py`、`python scripts/check_architecture.py` 和 Windows `./gradlew.bat check`（Unix 用 `./gradlew check`）。使用仓库 Wrapper，不依赖机器上的 Gradle 版本。

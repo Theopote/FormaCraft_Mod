@@ -39,7 +39,7 @@
 - **恢复分级**：`FULL` / `STATE_ONLY` / 失败计数；STATE_ONLY → `ROLLBACK_INCOMPLETE`。
 - **WriteScope**：`PostProcessWriteScope`（volume ∪ surface ∪ seed；carve 排除 clearance）；越权 `out_of_scope_*`。
 - **净空**：`ProtectedClearanceRestorer` 产出可审计 `ProcessorDelta`。
-- **未做**：`BuildTask` 分 Tick 全批原子回滚（后续轮次）。
+- **未做**：`BuildTask` 分 Tick 全批原子回滚（后续轮次）。Phase 1 跟踪见 [Golden Path 审计](phase1/GOLDEN_PATH_AUDIT.md)。
 
 ### 第四十六批（2026-10-15）— 后处理 WritePolicy 与分处理器增量
 
