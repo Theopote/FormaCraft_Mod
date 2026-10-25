@@ -78,7 +78,7 @@ public final class LlmPlanTerrainBounds {
     /** Translate solids and air together; their relative geometry must stay unchanged. */
     public static List<PlannedBlock> translateBlocks(List<PlannedBlock> blocks, int dy) {
         if (dy == 0) return blocks;
-        return blocks.stream().map(b -> new PlannedBlock(b.getPos().up(dy), b.getTargetState())).toList();
+        return blocks.stream().map(b -> new PlannedBlock(b.getPos().up(dy), b.getTargetState(), b.getSource())).toList();
     }
 
     public static Bounds computePlannedBlockBounds(List<PlannedBlock> plannedBlocks) {

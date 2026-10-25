@@ -526,7 +526,7 @@ public final class BuildingLandingPlanner {
 
     private static boolean add(Map<BlockPos,PlannedBlock> out, BlockPos p, BlockState s) {
         if (!BuildConstraintContext.allow(p)) return false;
-        out.put(p,new PlannedBlock(p,s));
+        out.put(p,new PlannedBlock(p,s,com.formacraft.common.build.GeometrySource.generated("landing")));
         return true;
     }
     private static Result failure(List<PlannedBlock> input,String problem) { return new Result(input,0,problem,0,0); }

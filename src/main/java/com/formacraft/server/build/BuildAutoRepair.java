@@ -96,7 +96,7 @@ public final class BuildAutoRepair {
                 BlockState ps = finalState.get(p);
                 if (ps != null && ps.getBlock() != Blocks.AIR) continue;
 
-                extras.add(new PlannedBlock(p, support));
+                extras.add(new PlannedBlock(p, support, com.formacraft.common.build.GeometrySource.generated("support_repair")));
                 finalState.put(p, support);
                 added++;
                 anyPlaced = true;
@@ -130,7 +130,7 @@ public final class BuildAutoRepair {
             if (!StructureSupportAnalysis.effectiveState(finalState, terrain, up).isAir()) continue;
 
             BlockState upper = s.with(Properties.DOUBLE_BLOCK_HALF, net.minecraft.block.enums.DoubleBlockHalf.UPPER);
-            extras.add(new PlannedBlock(up, upper));
+            extras.add(new PlannedBlock(up, upper, com.formacraft.common.build.GeometrySource.generated("door_repair")));
             finalState.put(up, upper);
             doorsFixed++;
         }
@@ -188,23 +188,18 @@ public final class BuildAutoRepair {
         if (blocks == null || blocks.isEmpty()) return blocks == null ? List.of() : blocks;
         
         // 使用 Map 去重：相同位置的方块，后面的覆盖前面的
-        Map<BlockPos, BlockState> finalStates = new HashMap<>(blocks.size());
+        Map<BlockPos, PlannedBlock> finalStates = new HashMap<>(blocks.size());
         for (PlannedBlock block : blocks) {
             if (block == null) continue;
             BlockPos pos = block.getPos();
             BlockState state = block.getTargetState();
             if (pos != null && state != null) {
-                finalStates.put(pos, state);
+                finalStates.put(pos, block);
             }
         }
         
         // 转换回 PlannedBlock 列表
-        List<PlannedBlock> deduplicated = new ArrayList<>(finalStates.size());
-        for (Map.Entry<BlockPos, BlockState> entry : finalStates.entrySet()) {
-            deduplicated.add(new PlannedBlock(entry.getKey(), entry.getValue()));
-        }
-        
-        return deduplicated;
+        return new ArrayList<>(finalStates.values());
     }
 
     private static long xzKey(int x, int z) {
@@ -244,7 +239,7 @@ public final class BuildAutoRepair {
         BlockState planned = finalState.get(p);
         if (planned != null && planned.getBlock() != Blocks.AIR) return 0; // don't override generator intent
         if (StructureSupportAnalysis.effectiveState(finalState, terrain, p).isAir()) return 0;
-        extras.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+        extras.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("entrance_clearance")));
         finalState.put(p, Blocks.AIR.getDefaultState());
         return 1;
     }

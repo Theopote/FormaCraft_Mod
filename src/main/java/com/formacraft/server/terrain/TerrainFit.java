@@ -190,7 +190,7 @@ public final class TerrainFit {
                     if (isAir
                             || (allowWaterEdit && isWater)
                             || (allowLavaEdit && isLava)) {
-                        out.add(new PlannedBlock(p, fillState));
+                        out.add(new PlannedBlock(p, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                         fillCount++;
                     }
                 }
@@ -200,7 +200,7 @@ public final class TerrainFit {
                 if (BuildConstraintContext.allow(surface)) {
                     BlockState cur = world.getBlockState(surface);
                     if (!cur.isAir() && isObstacle(cur)) {
-                        out.add(new PlannedBlock(surface, fillState));
+                        out.add(new PlannedBlock(surface, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                         fillCount++;
                     }
                 }
@@ -211,7 +211,7 @@ public final class TerrainFit {
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
                     if (!cur.isAir() && isObstacle(cur)) {
-                        out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                        out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                         clearCount++;
                     }
                 }
@@ -262,7 +262,7 @@ public final class TerrainFit {
                 if (isAir
                         || (allowWaterEdit && isWater)
                         || (allowLavaEdit && isLava)) {
-                    out.add(new PlannedBlock(p, fillState));
+                    out.add(new PlannedBlock(p, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                     fillCount++;
                 }
             }
@@ -271,7 +271,7 @@ public final class TerrainFit {
             if (BuildConstraintContext.allow(surface)) {
                 BlockState cur = terrain.apply(surface);
                 if (!cur.isAir() && isObstacle(cur)) {
-                    out.add(new PlannedBlock(surface, fillState));
+                    out.add(new PlannedBlock(surface, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                     fillCount++;
                 }
             }
@@ -281,7 +281,7 @@ public final class TerrainFit {
                 if (!BuildConstraintContext.allow(p)) continue;
                 BlockState cur = terrain.apply(p);
                 if (!cur.isAir() && isObstacle(cur)) {
-                    out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                    out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                     clearCount++;
                 }
             }
@@ -339,7 +339,7 @@ public final class TerrainFit {
                         if (isAir
                                 || (allowWaterEdit && isWater)
                                 || (allowLavaEdit && isLava)) {
-                            out.add(new PlannedBlock(p, fillState));
+                            out.add(new PlannedBlock(p, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                             fillCount++;
                         }
                     }
@@ -350,7 +350,7 @@ public final class TerrainFit {
                         if (!BuildConstraintContext.allow(p)) continue;
                         BlockState cur = world.getBlockState(p);
                         if (!cur.isAir()) {
-                            out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                            out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                             clearCount++;
                         }
                     }
@@ -361,7 +361,7 @@ public final class TerrainFit {
                 if (BuildConstraintContext.allow(surface)) {
                     BlockState cur = world.getBlockState(surface);
                     if (!cur.isAir() && isObstacle(cur)) {
-                        out.add(new PlannedBlock(surface, fillState));
+                        out.add(new PlannedBlock(surface, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                         fillCount++;
                     }
                 }
@@ -373,7 +373,7 @@ public final class TerrainFit {
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
                     if (!cur.isAir() && isObstacle(cur)) {
-                        out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                        out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                         clearCount++;
                     }
                 }

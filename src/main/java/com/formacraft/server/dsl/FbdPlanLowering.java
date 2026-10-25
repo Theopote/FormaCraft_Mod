@@ -9,6 +9,8 @@ import java.util.*;
 /** Explicit opt-in inside LlmPlan, never a second generation/confirmation pipeline. */
 public final class FbdPlanLowering {
     public static final String COMPILED = "_server_fbd_compilation";
+    public static final String SOURCE = "_server_fbd_source";
+    public record SourceContext(String componentPath, String slotId) {}
     private static final Set<String> ALTERNATIVES = Set.of("assembly", "ops", "graph", "components", "macro", "preset", "presetId", "skeleton");
     private FbdPlanLowering() {}
 
@@ -17,9 +19,9 @@ public final class FbdPlanLowering {
         long totalCost = 0, totalSteps = 0, totalCommands = 0;
         for (int i = 0; i < components.size(); i++) {
             Component c = components.get(i);
-            if (c != null && c.params() != null && c.params().containsKey(COMPILED)) {
+            if (c != null && c.params() != null && (c.params().containsKey(COMPILED) || c.params().containsKey(SOURCE))) {
                 report(new FbdException("reserved_field", "parse", null, "", "Server compilation metadata cannot be supplied by a plan"),
-                        "/components/" + i + "/params/" + COMPILED);
+                        "/components/" + i + "/params/" + (c.params().containsKey(COMPILED) ? COMPILED : SOURCE));
                 return List.of();
             }
             if (c == null || c.params() == null || !c.params().containsKey("fbd_program")) {
@@ -52,6 +54,7 @@ public final class FbdPlanLowering {
                 var params = new HashMap<String, Object>(c.params());
                 params.remove("fbd_program");
                 params.put(COMPILED, compiled);
+                params.put(SOURCE, new SourceContext("/components/" + i, c.slotId()));
                 params.put("generation_authority", "ASSEMBLY");
                 // Route hints see data, while the actual generator uses the trusted Compilation.
                 params.put("assembly", Map.of("ops", compiled.commands().stream().map(FbdCompiler.Command::op).toList()));

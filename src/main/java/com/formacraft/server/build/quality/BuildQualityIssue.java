@@ -2,7 +2,7 @@ package com.formacraft.server.build.quality;
 
 import java.util.List;
 
-/** Bounded, JSON-safe geometry evidence. Positions are world coordinates, not inferred AST sources. */
+/** Bounded, JSON-safe geometry evidence. World coordinates carry optional compiler provenance, never inferred AST ownership. */
 public record BuildQualityIssue(BuildQualitySeverity severity, String code, String message,
                                 String phase, int affectedCount, List<Position> positions, List<Origin> origins) {
     public static final int MAX_SAMPLES = 8;

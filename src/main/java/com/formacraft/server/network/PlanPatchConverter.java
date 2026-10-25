@@ -53,7 +53,7 @@ public final class PlanPatchConverter {
             }
             var state = BlockPatchTargetResolver.resolve(patch);
             if (state != null) {
-                blocks.add(new PlannedBlock(origin.add(patch.dx(), patch.dy(), patch.dz()), state));
+                blocks.add(new PlannedBlock(origin.add(patch.dx(), patch.dy(), patch.dz()), state, patch.source()));
                 continue;
             }
             invalid++;

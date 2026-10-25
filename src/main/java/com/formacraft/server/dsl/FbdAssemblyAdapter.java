@@ -23,15 +23,23 @@ public final class FbdAssemblyAdapter {
         for (var block : finalStates.values()) {
             var pos = block.getPos();
             patches.add(new BlockPatch(block.getTargetState().isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE,
-                    pos.getX(), pos.getY(), pos.getZ(), BlockStateStringUtil.fromState(block.getTargetState())));
+                    pos.getX(), pos.getY(), pos.getZ(), BlockStateStringUtil.fromState(block.getTargetState()), block.getSource()));
         }
         return patches;
     }
 
     public static AssemblySpec spec(FbdCompiler.Compilation compilation) {
+        return spec(compilation, null);
+    }
+
+    public static AssemblySpec spec(FbdCompiler.Compilation compilation, FbdPlanLowering.SourceContext source) {
         var ops = new ArrayList<Map<String, Object>>();
         for (var command : compilation.commands()) {
             var op = new LinkedHashMap<String, Object>(command.op());
+            if (source != null) {
+                op.put("_fbd_component", source.componentPath());
+                op.put("_fbd_slot", source.slotId());
+            }
             op.put("_fbd_node", command.node());
             op.put("_fbd_instance", command.instance());
             op.put("_fbd_path", command.path());

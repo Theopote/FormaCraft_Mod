@@ -107,7 +107,9 @@ public final class AssemblyPatchGenerator {
         var fbd = component.params() == null ? null : component.params().get(com.formacraft.server.dsl.FbdPlanLowering.COMPILED);
         AssemblySpec spec;
         if (fbd instanceof com.formacraft.common.dsl.FbdCompiler.Compilation compilation) {
-            spec = com.formacraft.server.dsl.FbdAssemblyAdapter.spec(compilation);
+            spec = com.formacraft.server.dsl.FbdAssemblyAdapter.spec(compilation,
+                    component.params().get(com.formacraft.server.dsl.FbdPlanLowering.SOURCE)
+                        instanceof com.formacraft.server.dsl.FbdPlanLowering.SourceContext source ? source : null);
         } else {
             AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
             AssemblyPresetApplier.ApplyResult presetApplied = AssemblyPresetApplier.apply(norm.normalized());

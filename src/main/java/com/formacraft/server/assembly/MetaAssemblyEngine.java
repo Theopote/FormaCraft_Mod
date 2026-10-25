@@ -330,6 +330,18 @@ public final class MetaAssemblyEngine {
                     (String) op.get("_fbd_node"), (String) op.get("_fbd_instance"), (String) op.get("_fbd_path"));
             int start = out.size();
             curOrigin = applyOp(out, ctx, originStack, curOrigin, op);
+            // Only the typed FBD execution route may attach compiler-origin provenance.
+            if (ctx.fbdBudget != null && op.get("_fbd_node") instanceof String node) {
+                String component = (String) op.get("_fbd_component");
+                String path = (String) op.get("_fbd_path");
+                var source = new com.formacraft.common.build.GeometrySource(component,
+                        (String) op.get("_fbd_slot"), node, (String) op.get("_fbd_instance"),
+                        component == null ? path : component + "/params/fbd_program" + path, "fbd");
+                for (int i = start; i < out.size(); i++) {
+                    var block = out.get(i);
+                    out.set(i, new PlannedBlock(block.getPos(), block.getTargetState(), source));
+                }
+            }
             if (op != null && "STAIR_SYSTEM".equalsIgnoreCase(str(op.get("op"), "")))
                 flights.add(AssemblyCirculationConstraints.capture(out, start));
         }

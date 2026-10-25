@@ -10,11 +10,21 @@ import net.minecraft.util.math.BlockPos;
 public class PlannedBlock {
     private final BlockPos pos;
     private final BlockState targetState;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private final transient GeometrySource source;
 
     public PlannedBlock(BlockPos pos, BlockState targetState) {
+        this(pos, targetState, null);
+    }
+
+    public PlannedBlock(BlockPos pos, BlockState targetState, GeometrySource source) {
         this.pos = pos;
         this.targetState = targetState;
+        this.source = source;
     }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public GeometrySource getSource() { return source; }
 
     public BlockPos getPos() {
         return pos;

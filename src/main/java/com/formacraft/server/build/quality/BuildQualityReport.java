@@ -48,13 +48,17 @@ public final class BuildQualityReport {
     }
 
     public void locate(List<com.formacraft.common.build.PlannedBlock> blocks) {
+        // Index only the bounded evidence samples, not every generated block.
+        var wanted = new java.util.HashMap<net.minecraft.util.math.BlockPos, BuildQualityIssue.Position>();
+        for (var issue : issues) if (!issue.code().startsWith("INITIAL_"))
+            for (var p : issue.positions()) wanted.put(new net.minecraft.util.math.BlockPos(p.x(),p.y(),p.z()),p);
         var sources = new java.util.HashMap<BuildQualityIssue.Position, com.formacraft.common.build.GeometrySource>();
         for (var block : blocks) {
             if (block == null || block.getPos() == null) continue;
-            var p = block.getPos();
-            sources.put(new BuildQualityIssue.Position(p.getX(),p.getY(),p.getZ()), block.getSource());
+            var sample = wanted.get(block.getPos());
+            if (sample != null) sources.put(sample,block.getSource());
         }
-        issues.replaceAll(issue -> issue.locate(sources));
+        issues.replaceAll(issue -> issue.code().startsWith("INITIAL_") ? issue : issue.locate(sources));
     }
 
     public void merge(BuildQualityReport other) {

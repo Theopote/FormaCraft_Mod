@@ -750,13 +750,7 @@ public final class ComponentPlanCompiler {
                     if (slotAnchor != null) {
                         for (BlockPatch patch : patches) {
                             if (patch != null) {
-                                shiftedPatches.add(new BlockPatch(
-                                        patch.action(),
-                                        slotAnchor.x() + patch.dx(),
-                                        slotAnchor.y() + patch.dy(),
-                                        slotAnchor.z() + patch.dz(),
-                                        patch.targetBlock()
-                                ));
+                                shiftedPatches.add(patch.translated(slotAnchor.x(), slotAnchor.y(), slotAnchor.z()));
                             }
                         }
                     } else {

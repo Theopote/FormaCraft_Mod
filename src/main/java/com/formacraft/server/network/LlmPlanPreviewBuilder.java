@@ -436,7 +436,7 @@ public final class LlmPlanPreviewBuilder {
                                         if (!com.formacraft.server.build.BuildConstraintContext.allow(clearPos)) continue;
                                         net.minecraft.block.BlockState current = serverWorld.getBlockState(clearPos);
                                         if (!current.isAir()) {
-                                            out.add(new PlannedBlock(clearPos, Blocks.AIR.getDefaultState()));
+                                            out.add(new PlannedBlock(clearPos, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                                         }
                                     }
                                 }
