@@ -37,6 +37,10 @@ public final class BlockPatch {
         return new BlockPatch(action, dx+x, dy+y, dz+z, targetBlock, source);
     }
 
+    public BlockPatch withSource(GeometrySource newSource) {
+        return new BlockPatch(action, dx, dy, dz, targetBlock, newSource);
+    }
+
     @Override public boolean equals(Object other) {
         return other instanceof BlockPatch p && dx == p.dx && dy == p.dy && dz == p.dz
                 && Objects.equals(action,p.action) && Objects.equals(targetBlock,p.targetBlock);

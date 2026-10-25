@@ -99,6 +99,12 @@ public final class LlmPlanPreviewBuilder {
             boolean patchRequest = req.getPromptMode() != null
                     && !"BUILD".equalsIgnoreCase(req.getPromptMode().trim());
 
+            // Phase 1 building-aware: roof material replace is server-owned (not unconstrained LLM patches).
+            if (patchRequest
+                    && com.formacraft.server.edit.RoofMaterialReplaceIntent.matches(req.getUserMessage())) {
+                return tryServerOwnedRoofMaterialReplace(player, req, origin, serverWorld, hbAlive);
+            }
+
             // patch.blocks 专用：走 PreviewTicket（增量 Patch 预览 + ticket 确认）
             if (llmPlan.mode() == LlmPlan.Mode.patch
                     && llmPlan.patch() != null
@@ -816,6 +822,95 @@ public final class LlmPlanPreviewBuilder {
                 plan.planMeta(),
                 plan.designSources()
         );
+    }
+
+    /**
+     * Server-owned Phase-1 roof material replace: AI message supplies material intent only.
+     * Always returns true once the intent matches (success preview or explicit refusal).
+     */
+    private static boolean tryServerOwnedRoofMaterialReplace(
+            ServerPlayerEntity player,
+            FormaRequest req,
+            BlockPos origin,
+            ServerWorld serverWorld,
+            AtomicBoolean hbAlive
+    ) {
+        hbAlive.set(false);
+        var memoryManager = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+        if (memoryManager == null) {
+            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_memory_unavailable");
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "建筑记忆系统未就绪，无法安全执行屋顶材质替换。"));
+            return true;
+        }
+
+        String material = com.formacraft.server.edit.RoofMaterialReplaceIntent
+                .materialPhrase(req.getUserMessage())
+                .orElse(req.getUserMessage());
+        var dim = serverWorld.getRegistryKey().getValue();
+        BlockPos lookAt = origin != null ? origin : player.getBlockPos();
+        var query = new com.formacraft.server.edit.BuildingTargetResolver.Query(
+                dim,
+                null,
+                req.getSelectionMin(),
+                req.getSelectionMax(),
+                lookAt,
+                32.0
+        );
+
+        var service = new com.formacraft.server.edit.BuildingEditService(memoryManager);
+        var target = service.targets().resolve(query);
+        if (!target.ok()) {
+            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_target_" + target.failure());
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    com.formacraft.server.edit.BuildingTargetResolver.refusalMessage(target)
+                            .orElse("无法确定要修改的建筑。")));
+            return true;
+        }
+
+        var memory = memoryManager.getMemory(target.instance().buildingId().toString());
+        var roof = com.formacraft.server.edit.BuildingPartIndex.fromMemory(memory).roof();
+        java.util.Map<BlockPos, String> live = new java.util.LinkedHashMap<>();
+        for (BlockPos cell : roof.cells()) {
+            BlockState state = serverWorld.getBlockState(cell);
+            live.put(cell, com.formacraft.common.component.transform.BlockStateStringUtil.fromState(state));
+        }
+
+        var prepared = service.prepareRoofMaterialReplace(query, material, live, null);
+        if (!prepared.ok()) {
+            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_roof_refused");
+            String msg = prepared.refusals().isEmpty()
+                    ? "屋顶材质替换被拒绝。"
+                    : String.join("；", prepared.refusals());
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg));
+            return true;
+        }
+
+        com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
+        com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
+        boolean restrict = req.getPromptMode() != null
+                && "MODIFY_REGION".equalsIgnoreCase(req.getPromptMode().trim());
+        var ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
+                player,
+                prepared.building().origin(),
+                prepared.patches(),
+                com.formacraft.server.state.PlayerProtectedZoneStorage.get(player),
+                com.formacraft.server.state.PlayerOutlineStorage.get(player),
+                restrict,
+                req.getSelectionMin(),
+                req.getSelectionMax()
+        );
+        if (ticket == null) {
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "屋顶材质替换预览创建失败。"));
+            return true;
+        }
+        com.formacraft.server.edit.BuildingEditService.bindPendingToTicket(ticket.id(), prepared);
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                "屋顶材质替换预览已就绪（仅屋顶方块；确认后可 Undo/Redo）"));
+        LlmPlanRoutingMetrics.recordSuccess(player, req, prepared.patches().size(), prepared.patches().size());
+        return true;
     }
 
     /**

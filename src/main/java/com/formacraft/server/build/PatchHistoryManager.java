@@ -179,6 +179,28 @@ public final class PatchHistoryManager {
                             impact.getMaxPos()
                     );
                 }
+                // Merge roof provenance cells into Memory part index (Phase 1).
+                ProjectMemory after = impact.getTargetBuilding() == null
+                        ? null
+                        : memoryManager.getMemory(impact.getTargetBuilding().toString());
+                if (after != null) {
+                    var roofFromPatches = com.formacraft.server.edit.BuildingPartIndex
+                            .fromRoofPatches(origin, patches);
+                    if (!roofFromPatches.roof().isEmpty()) {
+                        var existing = com.formacraft.server.edit.BuildingPartIndex.fromMemory(after);
+                        java.util.LinkedHashSet<net.minecraft.util.math.BlockPos> cells =
+                                new java.util.LinkedHashSet<>(existing.roof().cells());
+                        cells.addAll(roofFromPatches.roof().cells());
+                        java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, String> states =
+                                new java.util.LinkedHashMap<>(existing.roof().recordedStates());
+                        states.putAll(roofFromPatches.roof().recordedStates());
+                        com.formacraft.server.edit.BuildingEditService.attachRoofIndex(
+                                after,
+                                com.formacraft.server.edit.BuildingPartIndex.ofRoofCells(
+                                        java.util.List.copyOf(cells), states));
+                        memoryManager.updateMemory(after);
+                    }
+                }
             }
         } catch (Exception e) {
             FormacraftMod.LOGGER.warn("Failed to update memory from patch: {}", e.getMessage());

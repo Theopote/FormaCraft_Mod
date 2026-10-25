@@ -47,17 +47,23 @@ Baseline: `bd4ae4b439ea` · 2026-10-25
 ## 4. Remaining risks
 
 1. Many generators still omit `GeometrySource` on PlannedBlock/BlockPatch → new builds may register **empty** roof indices until provenance is threaded through the compiler. Edits then correctly refuse rather than guess.
-2. `BuildRequestProcessor` / Python prompt are not yet forced through `BuildingEditService` as the sole PATCH path; callers must `prepareRoofMaterialReplace` → `issuePreview` → `bindPendingToTicket`. Apply SUCCESS commits revision via `BuildingEditPendingRegistry`.
-3. Authorization is allow-list based (`allowedCells` = roof only); non-roof writes are rejected without enumerating the full AABB.
+2. Authorization is allow-list based (`allowedCells` = roof only); non-roof writes are rejected without enumerating the full AABB.
+3. Generators that still omit `GeometrySource` may leave empty roof indices until a successful roof-stamped compile/apply merges cells into Memory.
 
-## 5. Suggested caller sequence (Phase 1)
+## 5. Wired caller sequence (Phase 1)
+
+PATCH + roof-material intent（`RoofMaterialReplaceIntent`）在 `LlmPlanPreviewBuilder.tryBuildPreview` 中优先走服务端路径：
 
 ```
-targetQuery + materialIntent
-  → BuildingEditService.prepareRoofMaterialReplace(...)
-  → if ok: PatchPreviewService.issuePreview(patches...)
-  → BuildingEditService.bindPendingToTicket(ticketId, prepared)
-  → player Confirm → Apply SUCCESS → commitSuccessfulRoofEdit (automatic)
+userMessage matches roof material replace
+  → BuildingTargetResolver
+  → capture live roof BlockStates
+  → BuildingEditService.prepareRoofMaterialReplace
+  → PatchPreviewService.issuePreview
+  → bindPendingToTicket
+  → Confirm/Apply SUCCESS → commitSuccessfulRoofEdit
   → Cancel / failed Apply → pending dropped; Memory revision unchanged
 ```
+
+ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` provenance；`PatchHistoryManager` 在 Apply 后把屋顶格合并进 Memory 部位索引。
 

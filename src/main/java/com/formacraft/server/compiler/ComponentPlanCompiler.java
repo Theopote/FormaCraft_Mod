@@ -840,6 +840,26 @@ public final class ComponentPlanCompiler {
                     }
                     patchOccupancy.commit(c, shiftedPatches, connectorAccess);
 
+                    // Phase 1 building-edit: stamp roof provenance for part-index registration.
+                    if (isRoofType(normalizedType)) {
+                        var roofSource = new com.formacraft.common.build.GeometrySource(
+                                normalizedType,
+                                c.slotId(),
+                                null,
+                                paramIdentity(c),
+                                null,
+                                "ROOF_COMPONENT");
+                        for (int i = 0; i < shiftedPatches.size(); i++) {
+                            BlockPatch p = shiftedPatches.get(i);
+                            if (p == null) continue;
+                            if (p.source() == null
+                                    || !com.formacraft.server.edit.BuildingPartIndex
+                                    .isRoofProvenance(p.source(), normalizedType)) {
+                                shiftedPatches.set(i, p.withSource(roofSource));
+                            }
+                        }
+                    }
+
                     // Commit boundary: patches + ledgers + protected sets together.
                     result.addAll(shiftedPatches);
                     if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)) {
