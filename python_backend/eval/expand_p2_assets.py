@@ -52,14 +52,29 @@ def primitive(name, x,y,z,w,d,h,kind,block,**extra):
 
 
 def add_dark_fortress_towers(plan):
-    """Two hollow defensive tower shells; occupied tower circulation is not claimed."""
+    """Two hollow towers connected to the hall at ground level; upper access is pending."""
     body=plan['components'][0]; size=body['dimensions']['width']; depth=body['dimensions']['depth']
-    plan['components']=[c for c in plan['components'] if not c.get('params',{}).get('component_id','').startswith('guard_tower_')]
+    plan['global_constraints']['terrain_strategy']='PRESERVE'
+    body['params']['wall_thickness']=1
+    plan['components']=[c for c in plan['components'] if not c.get('params',{}).get('component_id','').startswith(('guard_tower_','fortress_access_'))]
     for i,x in enumerate((-5,size)):
         plan['components'].append(dict(component_type='TOWER',relative_position=dict(x=x,y=0,z=depth-6),
             dimensions=dict(width=5,depth=5,height=14),features=[],params=dict(component_id=f'guard_tower_{i}',
             anchor_mode='min_corner',wall_block='minecraft:blackstone',floor_block='minecraft:stone_bricks',
             hollow=True,wall_thickness=1,floor_count=1)))
+    def portal(name,host,x,z,w,d,facing):
+        plan['components'].append(dict(component_type='ENTRANCE',relative_position=dict(x=x,y=1,z=z),
+            dimensions=dict(width=w,depth=d,height=4),features=['entrance'],params=dict(component_id=name,
+            host_id=host,anchor_mode='min_corner',facing=facing,door_width=3,door_height=3,canopy_depth=0)))
+    host=body['params']['component_id']; z=depth-4
+    portal('fortress_access_entry',host,size//2-2,0,5,1,'SOUTH')
+    portal('fortress_access_left',host,0,z-2,1,5,'EAST')
+    portal('fortress_access_right',host,size-1,z-2,1,5,'WEST')
+    portal('guard_tower_portal_0','guard_tower_0',-2,z-2,2,5,'WEST')
+    portal('guard_tower_portal_1','guard_tower_1',size,z-2,2,5,'EAST')
+    plan['components'].append(primitive('fortress_access_entry_floor',size//2-2,0,-3,5,3,1,'box','stone_bricks'))
+    for i,x in enumerate((-2,size)):
+        plan['components'].append(primitive('fortress_access_threshold_'+str(i),x,0,z-2,2,5,1,'box','stone_bricks'))
 
 
 def add_raised_access(plan):
@@ -231,6 +246,11 @@ def main():
             site_constraints = [
                 'Single treehouse: trunk base is anchor+0, floor is anchor+13, with an authored straight timber approach on negative z.',
                 'Use terrain_strategy=PRESERVE for this fixed-site composition; do not claim a spiral stair, canopy bridge network or populated tree city.'
+            ]
+        if sid == 'Dark_Fortress':
+            site_constraints = [
+                'Fixed dry level reference site with terrain_strategy=PRESERVE: exterior entrance leads through the hall to both hollow ground-level tower rooms.',
+                'Preserve the explicit hall/tower portals and supported threshold floors. Upper tower access, stairs and live terrain fitting remain unverified.'
             ]
         save(ASSETS/'culture_cards'/f'{gid}.json',dict(id=gid,styleId=sid,intents=['STYLE_PRESET'],keywords=aliases,synonyms={},
              keywordWeights={a:12 for a in aliases},negativeKeywords=['不要'+cn,'not '+en],proportionCardId=gid,

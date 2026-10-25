@@ -76,10 +76,15 @@ Counts and references below are generated from bundled profiles, culture cards a
 | Single elven treehouse | Existing manifest bilingual/refusal tests | Explicit PRESERVE heights and authored timber access; helper/few-shot equality | Two fixtures: trunk/floor contact, three clear walking columns, two-high supported edge guards, landing/entrance clearance and clipping parity | Pending live site/walking/collision checks | Pending | Access-removal and guard-only removal replays check block locality; world editing pending |
 | Underground dwarven hall program | Bilingual culture retrieval, refusal and generic classification | Fixed surface/floor heights, explicit excavation, hosted overwrite authorization | Two variants replay into solid stone: room/approach excavation, vault shell/cover, write bounds and clipping parity | Pending live excavation and fluids | Pending | Omitted-excavation control covered; user/world edit chain pending |
 | Startup user packs | test_user_style_packs sample integration | Sample defaults/ornament tests | UserStylePackRuntimeTest sample compilation/clipping | Settings clicks and live build pending | Pending | Pending |
+| Dark fortress ground-level tower access | Existing manifest bilingual/refusal cases | Fixed dry level site, explicit entrance/portal/threshold components | Two complete compiler replays prove exterior-to-hall-to-both-towers ground paths, supported clearances and shared clipping | Pending | Pending | Closing left tower portal blocks only its access; right remains reachable and unrelated existing blocks retain materials; world editing pending |
 | Tulou native blueprint | Bilingual retrieval/refusal and generic classification | Dedicated earthen palette; two radius/floor variants and proportion card | Native compiler/generator replay checks ring floors, courtyard and clipping | Pending live adapter/placement | Pending | Pending world edits |
 | Jiangnan / Romanesque / Tudor specialists | Manifest bilingual/refusal tests; Jiangnan generic vs named-town boundary tests | Dedicated palette/genome/profile and proportion cards | Six compiled fixtures; quay clearance, round arcade, exposed frame and clipping tests | Pending | Pending | Arcade/frame removal replays; world editing pending |
 
 ## Next acceptance queue
+
+Dark-fortress ground access is now authored with scoped portals and supported
+thresholds; see [ground-access acceptance](style-dark-fortress-access-acceptance.md).
+Upper tower access and live-world walking/edit evidence remain pending.
 
 Skywell-window follow-up: explicit inward lattice windows now supplement the
 front/rear halls without occupying side-wing corner posts. Dark-fortress

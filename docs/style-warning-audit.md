@@ -14,15 +14,17 @@ utility preserves this change. Geometry regression is required for this fix.
 The original 113 scenarios initially fell to 240 warnings. Two Huizhou skywell
 examples temporarily added two window-presence warnings (242 total). Both now
 have explicit inward lattice windows; the dark-fortress fixtures also gained
-two real hollow defensive tower shells each. The current inventory contains
-**238 warnings across 115 scenarios**, with no HARD failures in the audit replay.
+two real hollow defensive tower shells each.
+The tower ground-access follow-up adds explicit exterior/hall/tower portals,
+resolving four entrance-presence occurrences. The inventory now contains
+**234 warnings across 115 scenarios**, with no HARD failures in the audit replay.
 No check was waived or deleted; no failure was marked skipped/passed without a
 corresponding validator or fixture correction.
 
 | Remaining follow-up | Warning occurrences |
 | --- | ---: |
 | Route-specific geometry/program evidence required | 133 |
-| Composition or intent review required | 104 |
+| Composition or intent review required | 100 |
 | Missing proportion metadata in a historical captured stadium fixture | 1 |
 
 These categories are triage, not confirmed exemptions or completed fixes. A
@@ -40,8 +42,11 @@ windows but now include explicitly authored inward lattice windows.
 The two dark-fortress defensive-shell warnings were addressed by changing the
 fixtures and few-shots, not the evaluator: each now has two hollow circular
 blackstone TOWER components with continuous walls and a floor. Tower stairs,
-occupied tower access and complete defensive circulation remain pending; the
+upper tower access and complete defensive circulation remain pending; the
 presence check alone does not certify an operational fortress.
+
+See [ground-level tower access](style-dark-fortress-access-acceptance.md) for the
+subsequent exterior-to-hall-to-tower path and portal-close negative control.
 
 Window/tower follow-up validation: 16 related Python tests, 125 Java geometry
 and region-constraint tests, four isolated user-pack tests and 17 adjacent

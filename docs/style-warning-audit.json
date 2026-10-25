@@ -1,19 +1,19 @@
 {
   "scenarios": 115,
   "hard_failures": [],
-  "warning_count": 238,
+  "warning_count": 234,
   "by_check": {
     "component_richness": 25,
     "has_enclosure_mass": 8,
-    "has_entrance": 57,
-    "has_entrance_component": 57,
+    "has_entrance": 55,
+    "has_entrance_component": 55,
     "has_proportion_hints": 1,
     "has_roof": 27,
     "has_windows": 62,
     "stadium_paving_or_landmark_field": 1
   },
   "by_category": {
-    "composition_or_intent_review_required": 104,
+    "composition_or_intent_review_required": 100,
     "parameter_or_fixture_defect": 1,
     "route_specific_evidence_required": 133
   },
@@ -1929,37 +1929,10 @@
     {
       "scenario": "p2_dark_fortress_13",
       "fixture": "plans/p2_dark_fortress_13.json",
-      "check": "has_entrance",
-      "category": "composition_or_intent_review_required",
-      "status": "unresolved",
-      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER']",
-      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
-    },
-    {
-      "scenario": "p2_dark_fortress_13",
-      "fixture": "plans/p2_dark_fortress_13.json",
       "check": "has_windows",
       "category": "composition_or_intent_review_required",
       "status": "unresolved",
-      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER']",
-      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
-    },
-    {
-      "scenario": "p2_dark_fortress_13",
-      "fixture": "plans/p2_dark_fortress_13.json",
-      "check": "has_entrance_component",
-      "category": "composition_or_intent_review_required",
-      "status": "unresolved",
-      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER']",
-      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
-    },
-    {
-      "scenario": "p2_dark_fortress_21",
-      "fixture": "plans/p2_dark_fortress_21.json",
-      "check": "has_entrance",
-      "category": "composition_or_intent_review_required",
-      "status": "unresolved",
-      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER']",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
       "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
     },
     {
@@ -1968,16 +1941,7 @@
       "check": "has_windows",
       "category": "composition_or_intent_review_required",
       "status": "unresolved",
-      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER']",
-      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
-    },
-    {
-      "scenario": "p2_dark_fortress_21",
-      "fixture": "plans/p2_dark_fortress_21.json",
-      "check": "has_entrance_component",
-      "category": "composition_or_intent_review_required",
-      "status": "unresolved",
-      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER']",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'TOWER', 'TOWER', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
       "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
     },
     {

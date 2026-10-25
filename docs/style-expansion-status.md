@@ -1,5 +1,10 @@
 # Style expansion delivery status
 
+2026-10-25 tower-access follow-up: two dark-fortress examples now explicitly
+connect the exterior, hall and ground-level tower rooms. The warning inventory
+is 234 occurrences across 115 scenarios; see [access acceptance](style-dark-fortress-access-acceptance.md)
+for its offline scope and remaining upper-tower/live checks.
+
 2026-10-25 second follow-up: both skywell compounds now have explicit inward
 lattice windows; dark-fortress examples add two hollow defensive tower shells
 each. The warning inventory is now 238 occurrences across 115 scenarios.

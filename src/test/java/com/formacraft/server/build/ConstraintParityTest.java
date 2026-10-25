@@ -30,19 +30,51 @@ class ConstraintParityTest {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var plan=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_dark_fortress_"+size+".json").toFile(),LlmPlan.class);
         var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
-        assertFalse(raw.isEmpty());
+        assertFalse(raw.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
         var towers=plan.components().stream().filter(c->"TOWER".equals(c.componentType())).toList();
         assertEquals(2,towers.size());
-        for(var tower:towers) {
+        for(int i=0;i<towers.size();i++) {
+            var tower=towers.get(i);
             var p=tower.relativePosition();int cx=p.x()+2,cz=p.z()+2;
             assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(cx,0,cz)));
             for(int y=1;y<14;y++) {
                 assertNull(blocks.get(new Vec3i(cx,y,cz)),"hollow tower core");
-                assertEquals("minecraft:blackstone",blocks.get(new Vec3i(cx-2,y,cz)),"continuous tower shell");
-                assertEquals("minecraft:blackstone",blocks.get(new Vec3i(cx+2,y,cz)),"continuous tower shell");
+                int outside=i==0?cx-2:cx+2,inside=i==0?cx+2:cx-2;
+                assertEquals("minecraft:blackstone",blocks.get(new Vec3i(outside,y,cz)),"outer tower shell");
+                if(y<=3)assertNull(blocks.get(new Vec3i(inside,y,cz)),"tower portal clearance");
+                else if(y>=5)assertEquals("minecraft:blackstone",blocks.get(new Vec3i(inside,y,cz)),"shell above doorway");
             }
         }
+        var start=new Vec3i(size/2,1,-2);
+        var reachable=fortressGroundReach(blocks,start,size,size+4);
+        int z=plan.components().getFirst().dimensions().depth()-4;
+        assertTrue(reachable.contains(new Vec3i(-3,1,z)),"left tower reachable from exterior through hall");
+        assertTrue(reachable.contains(new Vec3i(size+2,1,z)),"right tower reachable from exterior through hall");
+        var tree=mapper.valueToTree(plan);
+        var components=(com.fasterxml.jackson.databind.node.ArrayNode)tree.get("components");
+        for(int i=components.size()-1;i>=0;i--)
+            if("guard_tower_portal_0".equals(components.get(i).path("params").path("component_id").asText()))components.remove(i);
+        var closed=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),ORIGIN,null,null,false));
+        assertFalse(closed.isEmpty());
+        var closedReach=fortressGroundReach(closed,start,size,size+4);
+        assertFalse(closedReach.contains(new Vec3i(-3,1,z)),"closed left portal must break left tower access");
+        assertTrue(closedReach.contains(new Vec3i(size+2,1,z)),"right tower remains accessible");
+        for(var cell:blocks.keySet())if(cell.x()<-2||cell.x()>-1||cell.y()<1||cell.y()>4||cell.z()<z-2||cell.z()>z+2)
+            assertEquals(blocks.get(cell),closed.get(cell),"closing one tower portal preserves unrelated blocks");
+    }
+
+    private static Set<Vec3i> fortressGroundReach(Map<Vec3i,String> blocks,Vec3i start,int size,int maxX) {
+        var visited=new HashSet<Vec3i>();var queue=new ArrayDeque<Vec3i>();queue.add(start);
+        while(!queue.isEmpty()) {
+            var p=queue.removeFirst();
+            if(p.x()<-5||p.x()>maxX||p.z()<-3||p.z()>size+4||visited.contains(p))continue;
+            if(!blocks.containsKey(new Vec3i(p.x(),0,p.z()))||blocks.containsKey(p)||blocks.containsKey(new Vec3i(p.x(),2,p.z())))continue;
+            visited.add(p);
+            queue.add(new Vec3i(p.x()+1,1,p.z()));queue.add(new Vec3i(p.x()-1,1,p.z()));
+            queue.add(new Vec3i(p.x(),1,p.z()+1));queue.add(new Vec3i(p.x(),1,p.z()-1));
+        }
+        return visited;
     }
 
     @ParameterizedTest

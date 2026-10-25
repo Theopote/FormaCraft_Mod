@@ -9,7 +9,7 @@
   "global_constraints": {
     "facing": "SOUTH",
     "symmetry": "MIRROR_X",
-    "terrain_strategy": "ADAPTIVE"
+    "terrain_strategy": "PRESERVE"
   },
   "layout": {
     "skeleton_type": "COMPOUND",
@@ -59,7 +59,8 @@
         "component_id": "dark_fortress",
         "anchor_mode": "min_corner",
         "floor_count": 2,
-        "hollow": true
+        "hollow": true,
+        "wall_thickness": 1
       }
     },
     {
@@ -170,6 +171,191 @@
         "hollow": true,
         "wall_thickness": 1,
         "floor_count": 1
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 4,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "entrance"
+      ],
+      "params": {
+        "component_id": "fortress_access_entry",
+        "host_id": "dark_fortress",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "door_width": 3,
+        "door_height": 3,
+        "canopy_depth": 0
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 5,
+        "height": 4
+      },
+      "features": [
+        "entrance"
+      ],
+      "params": {
+        "component_id": "fortress_access_left",
+        "host_id": "dark_fortress",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "door_width": 3,
+        "door_height": 3,
+        "canopy_depth": 0
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 12,
+        "y": 1,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 5,
+        "height": 4
+      },
+      "features": [
+        "entrance"
+      ],
+      "params": {
+        "component_id": "fortress_access_right",
+        "host_id": "dark_fortress",
+        "anchor_mode": "min_corner",
+        "facing": "WEST",
+        "door_width": 3,
+        "door_height": 3,
+        "canopy_depth": 0
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -2,
+        "y": 1,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 5,
+        "height": 4
+      },
+      "features": [
+        "entrance"
+      ],
+      "params": {
+        "component_id": "guard_tower_portal_0",
+        "host_id": "guard_tower_0",
+        "anchor_mode": "min_corner",
+        "facing": "WEST",
+        "door_width": 3,
+        "door_height": 3,
+        "canopy_depth": 0
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 13,
+        "y": 1,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 5,
+        "height": 4
+      },
+      "features": [
+        "entrance"
+      ],
+      "params": {
+        "component_id": "guard_tower_portal_1",
+        "host_id": "guard_tower_1",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "door_width": 3,
+        "door_height": 3,
+        "canopy_depth": 0
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "fortress_access_entry_floor",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "fortress_access_threshold_0",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 13,
+        "y": 0,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 5,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "fortress_access_threshold_1",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
       }
     }
   ]
