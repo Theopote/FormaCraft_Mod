@@ -18,6 +18,8 @@ LandmarkRoutingPolicy 的 MANDATORY 是历史枚举名，表示指名候选强�
 
 reference_landmark 表示参考关系，不是固定模块执行指令。曲线、轮廓、结构参数、尺寸和 distinguishing_features 仍需经研究与编译验证，建筑类型标签本身不证明复刻准确。
 
+参数合并顺序：typology 默认 → reference_landmark 软先验 → 计划/LLM（后者覆盖）。preset 不锁死复刻；产品方向是搜集尺寸/平面/材质/层数/立面/风格后拟合 typology（设计或按描述复原），不是枚举写死全世界建筑。
+
 ## 兼容与指标
 
 TypologyComponentRouter.extractTypologyId 能从 typology 特征、类型参数和旧 landmark/module ID 迁移得到类型。TypologyRoutingMetrics 不将这种迁移条目计为旧 structure-generator hint；真正保留的固定模块仍按模块识别。

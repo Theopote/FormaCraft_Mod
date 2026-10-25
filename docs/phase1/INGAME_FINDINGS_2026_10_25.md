@@ -90,7 +90,7 @@ History redo conflict … expected=tall_seagrass … actual=water
 ## 下一轮修复优先级（按日志）
 
 1. **P0 已改**：A2 PATCH 路由（待你重测）。  
-2. **P0 地标（本轮已改，待重测）**：终检残余悬空 ≥48 → `FLOATING_RESIDUAL` FATAL（force 不可绕）；`BuildAutoRepair` 柱预算随悬空数放大（≤4096）；大雁塔 preset 强制 square/砖材；天坛屋盖与柱顶共面 + 取消外扩悬空檐圈。  
+2. **P0 地标（本轮已改，待重测）**：终检残余悬空 ≥48 → `FLOATING_RESIDUAL` FATAL（force 不可绕）；`BuildAutoRepair` 柱预算随悬空数放大（≤4096）；地标 preset 仅为软先验（计划参数优先，不写死复刻）；snake_case 属性归一；天坛屋盖与柱顶共面 + 取消外扩悬空檐圈。方向：搜集尺寸/平面/材质/层数/立面/风格后拟合 typology，而非枚举全世界建筑。  
 3. **P1**：FBD 坡顶连续面 + 开敞柱廊语义。  
 4. **P1**：Undo 水域/栅栏邻居更新与快照策略（扩展测试，慎放宽）。  
 5. **P1**：天坛材质别名 `marble_lacquered_wood_glazed_tile` 回退。

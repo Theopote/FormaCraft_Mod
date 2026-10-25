@@ -3,23 +3,20 @@ package com.formacraft.common.typology;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Per-reference-landmark param presets applied after registry defaults merge.
+ * Soft priors for well-known reference landmarks — not locked replicas.
+ *
+ * <p>FormaCraft cannot enumerate the world's buildings. A {@code reference_landmark}
+ * biases typology defaults (typical plan shape, proportions, materials) before the
+ * plan is applied. Merge order must be: typology defaults → {@link #apply} → explicit
+ * plan/LLM ({@code putAll}). Callers apply the plan afterward so description always
+ * wins. Builders then fit a typology from gathered attributes — toward design and
+ * reconstruction from description, not a catalog of hardcoded monuments.
  */
 public final class TypologyReferencePresets {
 
     private static final Map<String, Map<String, Object>> PRESETS = new LinkedHashMap<>();
-
-    /**
-     * Shape / material keys that landmark presets must win over LLM drift
-     * (e.g. footprint_shape vs footprint, oversized height for Dayanta).
-     */
-    private static final Set<String> FORCE_KEYS = Set.of(
-            "footprint", "levels", "baseWidth", "baseRadius", "hallRadius", "tiers",
-            "niche_rhythm", "detailLevel", "bodyBlock", "eaveBlock", "accentBlock", "height"
-    );
 
     static {
         PRESETS.put("famen_pagoda", Map.of(
@@ -119,6 +116,10 @@ public final class TypologyReferencePresets {
 
     private TypologyReferencePresets() {}
 
+    /**
+     * Overlay soft priors onto typology defaults. Must run <em>before</em> plan/LLM
+     * {@code putAll}; otherwise this would clobber explicit description params.
+     */
     public static void apply(Map<String, Object> merged) {
         if (merged == null || merged.isEmpty()) {
             return;
@@ -131,13 +132,7 @@ public final class TypologyReferencePresets {
         if (preset == null) {
             return;
         }
-        for (Map.Entry<String, Object> e : preset.entrySet()) {
-            if (FORCE_KEYS.contains(e.getKey())) {
-                merged.put(e.getKey(), e.getValue());
-            } else {
-                merged.putIfAbsent(e.getKey(), e.getValue());
-            }
-        }
+        merged.putAll(preset);
     }
 
     private static String str(Object v) {
