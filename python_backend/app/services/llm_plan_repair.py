@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional
 from ..models.building_profile import BuildingProfile
 from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
 from ..models.request import BuildRequest
+from .plan_consistency import component_consistency_errors
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +179,7 @@ def emit_validation_gap(
 def _try_validate(normalized: Dict[str, Any]) -> Optional[List[str]]:
     try:
         validate_llm_plan_dict(normalized)
-        return None
+        return component_consistency_errors(normalized) or None
     except LlmPlanValidationError as exc:
         return list(exc.errors)
 
@@ -205,6 +206,7 @@ def repair_llm_plan_validation(
     from .fbd_capabilities import has_fbd_program, requests_fbd
     preserve_fbd = has_fbd_program(plan) or requests_fbd(user_text)
     normalized = normalize_fn(plan, req)
+    preserve_design = bool(component_consistency_errors(normalized))
     errors = _try_validate(normalized)
     if preserve_fbd and not has_fbd_program(normalized) and normalized.get('plan_status') != 'capability_gap':
         errors = ["FBD request requires ASSEMBLY.params.fbd_program; preserve procedural authority, do not substitute legacy geometry"]
@@ -250,6 +252,7 @@ def repair_llm_plan_validation(
                 if not isinstance(repaired, dict):
                     raise ValueError("LlmPlan repair response must be an object")
                 repaired_norm = normalize_fn(repaired, req)
+                preserve_design = preserve_design or bool(component_consistency_errors(repaired_norm))
                 repaired_errors = _try_validate(repaired_norm)
                 if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':
                     repaired_errors = ["FBD repair must preserve procedural authority; do not replace the program with another building"]
@@ -263,7 +266,7 @@ def repair_llm_plan_validation(
                 logger.exception("LlmPlan repair round %d failed; stopping remote repair", attempt)
                 break
 
-    if building_profile is not None and not preserve_fbd:
+    if building_profile is not None and not preserve_fbd and not preserve_design:
         fallback = build_minimal_plan_from_profile(building_profile, req, user_text)
         fallback_norm = normalize_fn(fallback, req)
         fallback_errors = _try_validate(fallback_norm)

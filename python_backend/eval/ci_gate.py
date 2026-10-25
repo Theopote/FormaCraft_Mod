@@ -72,6 +72,7 @@ _UNITTEST_MODULES: Tuple[str, ...] = (
     "tests.test_vision_reference",
     "tests.test_llm_plan_symmetry",
     "tests.test_llm_plan_repair",
+    "tests.test_plan_consistency",
     "tests.test_plan_architectural_enrichment",
     "tests.test_llm_error_humanizer",
     "tests.test_diversity_eval",

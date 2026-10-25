@@ -18,6 +18,13 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LlmPlanTerrainBoundsTest {
+    @Test void loggedHighLegCabinPreservesAuthoredRaisedElevation() {
+        var req=new FormaRequest();
+        req.setUserMessage("在岸边建一座7×7格的高脚木屋，用橡木柱支撑，居住层高于水面");
+        assertTrue(LlmPlanTerrainBounds.wantsStiltFoundation(req));
+        req.setUserMessage("建一座普通木屋");
+        assertFalse(LlmPlanTerrainBounds.wantsStiltFoundation(req));
+    }
 
     @Test
     void oakFenceWallPlanIsLightweightLinear() {

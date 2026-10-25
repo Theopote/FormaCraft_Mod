@@ -67,7 +67,7 @@ public final class LlmPlanTerrainBounds {
         String[] keywords = new String[] {
                 "floating", "cliffside", "cliff", "suspended", "stilt", "stilts",
                 "pillar", "pillars", "hover", "airborne", "sky",
-                "悬空", "架空", "浮空", "凌空", "吊脚", "高架", "悬崖", "峭壁", "崖边"
+                "悬空", "架空", "浮空", "凌空", "吊脚", "高脚", "高架", "悬崖", "峭壁", "崖边"
         };
         for (String k : keywords) {
             if (s.contains(k)) return true;

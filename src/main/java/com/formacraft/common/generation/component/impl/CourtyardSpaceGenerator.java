@@ -31,6 +31,11 @@ public class CourtyardSpaceGenerator implements ComponentGenerator {
 
         Dimensions d = c.dimensions();
         Vec3i rp = c.relativePosition();
+        // Legacy courtyard plans defaulted to min-corner. Honor an explicit
+        // centre anchor without changing that legacy default.
+        if (c.params() != null && "center".equalsIgnoreCase(String.valueOf(c.params().get("anchor_mode")))) {
+            rp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveMinCornerOrigin(c);
+        }
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());

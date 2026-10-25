@@ -22,3 +22,15 @@ Still open: the actual shore-stair plan needs final hosted entrance/landing
 replay and game walking evidence. The Huizhou courtyard/south-wing overwrite
 and fortress entrance opt-out conflict remain rejected, not fixed or waived.
 Successful preview/build, local edits and Undo still require live retesting.
+
+Subsequent follow-up: `COURTYARD_SPACE` now honors an explicitly authored
+`anchor_mode=center` while retaining the legacy min-corner default when absent.
+The logged 16×7 court therefore occupies z=-3..3 rather than z=0..6, avoiding
+the erroneous paving at south-wing z=5. This is a generator-coordinate fix;
+the full compound and live placement still require acceptance.
+
+Hosted entrance opt-out contradictions now enter the backend's existing
+bounded validation-repair loop before Java compilation. If they remain
+unresolved, the original design is returned as a capability gap rather than
+replaced by a generic profile fallback. Six focused Python tests passed,
+including mocked successful repair and unresolved-conflict preservation.
