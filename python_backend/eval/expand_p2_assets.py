@@ -52,10 +52,16 @@ def primitive(name, x,y,z,w,d,h,kind,block,**extra):
 
 
 def add_earth_house_openings(plan):
-    """Explicit small windows and ground-floor access on a fixed dry level site."""
+    """Explicit small windows, entrance and interior stairs on a fixed dry level site."""
     body=plan['components'][0]; width=body['dimensions']['width']; host=body['params']['component_id']
     plan['global_constraints']['terrain_strategy']='PRESERVE'
     body['params'].update(wall_thickness=1,suppress_windows=True,suppress_doors=True)
+    # Keep three-cell stair clearance below the flat roof, including the upper landing.
+    body['dimensions']['height']=9
+    body['params'].update(floor_count=2,floor_height=4)
+    roof=next(c for c in plan['components'] if c['component_type']=='ROOF' and c['params'].get('host_id')==host)
+    roof['relative_position']['y']=body['relative_position']['y']+8
+    plan['proportion_hints']['height_to_width']=9/width
     plan['components']=[c for c in plan['components'] if not c.get('params',{}).get('component_id','').startswith('earth_opening_')]
     plan['components'].append(dict(component_type='ENTRANCE',relative_position=dict(x=width//2-2,y=1,z=0),
         dimensions=dict(width=5,depth=1,height=4),features=['entrance'],params=dict(component_id='earth_opening_entry',
@@ -68,6 +74,14 @@ def add_earth_house_openings(plan):
                 host_id=host,anchor_mode='min_corner',window_style='pane',window_block='minecraft:glass_pane',
                 window_width=1,window_height=1,window_count=1,rows=1,floor_count=1,floor_height=2,
                 window_ratio=.08,suppress_windows=False,reserve_entrance_bay=False)))
+    plan['components'].append(dict(component_type='STAIR_SYSTEM',relative_position=dict(x=width//2-1,y=0,z=3),
+        dimensions=dict(width=3,depth=7,height=8),features=[],params=dict(component_id='earth_opening_stair',
+        host_id=host,anchor_mode='min_corner',width=3,landing_length=2,clearHeight=3,
+        stairs='minecraft:stone_brick_stairs',floor='minecraft:stone_bricks',
+        **{'from':dict(x=1,y=0,z=0),'to':dict(x=1,y=4,z=4)})))
+    for i,x in enumerate((width//2-2,width//2+2)):
+        plan['components'].append(primitive('earth_opening_stair_guard_'+str(i),x,5,4,1,6,2,'box',
+            body['params']['trim_block'].removeprefix('minecraft:'),host_id=host))
 
 
 def add_dark_fortress_towers(plan):
@@ -295,7 +309,7 @@ def main():
         if sid in ('Desert_Adobe','Prairie_Earth'):
             site_constraints = [
                 'Fixed dry level reference site: use PRESERVE, the explicit ground-level entrance and supported approach.',
-                'Keep the four explicitly sized small windows and suppress automatic facade/door defaults. Upper-floor stairs and live terrain fitting require separate acceptance.'
+                'Keep the four small windows, hosted straight stair, floor opening and guarded upper landing. Live terrain, collision and fall protection require separate acceptance.'
             ]
         save(ASSETS/'culture_cards'/f'{gid}.json',dict(id=gid,styleId=sid,intents=['STYLE_PRESET'],keywords=aliases,synonyms={},
              keywordWeights={a:12 for a in aliases},negativeKeywords=['不要'+cn,'not '+en],proportionCardId=gid,

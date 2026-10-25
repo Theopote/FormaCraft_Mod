@@ -1,5 +1,10 @@
 # Style expansion delivery status
 
+2026-10-25 earthen upper-storey follow-up: four Desert_Adobe/Prairie_Earth
+examples add explicit hosted stairs and guarded landings. Body/roof height
+increases one block to retain clearance. See [stair acceptance](style-earth-house-stairs-acceptance.md)
+for the offline scope; live collision/fall-protection review remains pending.
+
 2026-10-25 earth-house follow-up: four existing Desert_Adobe/Prairie_Earth
 examples gain authored entrances, approaches and small windows. See
 [opening acceptance](style-earth-house-openings-acceptance.md). The warning

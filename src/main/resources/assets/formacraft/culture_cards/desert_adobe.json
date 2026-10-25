@@ -34,7 +34,7 @@
         "Use roof_type=flat, wall_pattern=smooth; explicit user requirements take priority.",
         "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components.",
         "Fixed dry level reference site: use PRESERVE, the explicit ground-level entrance and supported approach.",
-        "Keep the four explicitly sized small windows and suppress automatic facade/door defaults. Upper-floor stairs and live terrain fitting require separate acceptance."
+        "Keep the four small windows, hosted straight stair, floor opening and guarded upper landing. Live terrain, collision and fall protection require separate acceptance."
       ]
     }
   ]

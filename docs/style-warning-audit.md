@@ -57,7 +57,10 @@ negative control. Live collision and fall-protection review remain pending.
 
 [Earthen house openings](style-earth-house-openings-acceptance.md) add explicit
 entries and four small windows per example. Ground access and window-disable
-locality have dedicated compiler checks; upper-floor access remains pending.
+locality have dedicated compiler checks. The subsequent
+[upper-storey follow-up](style-earth-house-stairs-acceptance.md) validates hosted
+stairs, floor openings, upper landing access and a stair-removal negative/locality
+control. Live collision and fall-protection acceptance remain pending.
 
 Window/tower follow-up validation: 16 related Python tests, 125 Java geometry
 and region-constraint tests, four isolated user-pack tests and 17 adjacent

@@ -21,6 +21,7 @@ class P2StyleAssetsTest(unittest.TestCase):
                 validate_llm_plan_dict(plan)
                 self.assertEqual(plan,json.loads((ROOT/'src/main/resources/assets/formacraft/llmplan_examples'/name).read_text(encoding='utf-8'))['plan'])
                 self.assertEqual(len([c for c in plan['components'] if c['component_type']=='FACADE_WINDOWS']),4)
+                self.assertEqual(len([c for c in plan['components'] if c['component_type']=='STAIR_SYSTEM']),1)
                 self.assertFalse({'has_entrance','has_entrance_component','has_windows'}&{c.name for c in evaluate_plan(plan).soft_failures})
 
     def test_dark_fortress_shells_rebuild_and_satisfy_defensive_composition(self):

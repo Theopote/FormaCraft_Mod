@@ -37,6 +37,26 @@ class ConstraintParityTest {
             assertTrue(blocks.containsKey(new Vec3i(x,0,z)),"supported approach/entry");
             for(int y=1;y<=3;y++)assertNull(blocks.get(new Vec3i(x,y,z)),"clear approach/door/interior: "+x+","+y+","+z);
         }
+        var upperGoal=new Vec3i(size/2,4,10);
+        assertTrue(fortressStepReach(blocks,new Vec3i(size/2,0,-2),size).contains(upperGoal),"upper storey reachable from approach");
+        for(int x=size/2-1;x<=size/2+1;x++) {
+            assertTrue(blocks.getOrDefault(new Vec3i(x,2,5),"").contains("stone_brick_stairs"),"three-wide stair treads");
+            assertNull(blocks.get(new Vec3i(x,4,4)),"floor opening includes transition headroom");
+            assertNull(blocks.get(new Vec3i(x,7,8)),"upper landing stays below roof");
+        }
+        var noStairTree=tree.deepCopy();
+        var noStairComponents=(com.fasterxml.jackson.databind.node.ArrayNode)noStairTree.get("components");
+        for(int i=noStairComponents.size()-1;i>=0;i--)
+            if("earth_opening_stair".equals(noStairComponents.get(i).path("params").path("component_id").asText()))noStairComponents.remove(i);
+        var noStair=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(noStairTree,LlmPlan.class),ORIGIN,null,null,false));
+        assertFalse(noStair.isEmpty());
+        for(int x=size/2-1;x<=size/2+1;x++)
+            assertEquals("minecraft:stone_bricks",noStair.get(new Vec3i(x,4,4)),"stair removal restores the upper floor opening");
+        assertFalse(fortressStepReach(noStair,new Vec3i(size/2,0,-2),size).contains(upperGoal),"without the stair upper storey must be inaccessible");
+        var stairEditCells=new HashSet<>(blocks.keySet());stairEditCells.addAll(noStair.keySet());
+        for(var cell:stairEditCells)
+            if(cell.x()<size/2-1||cell.x()>size/2+1||cell.z()<3||cell.z()>9||cell.y()<-1||cell.y()>7)
+                assertEquals(blocks.get(cell),noStair.get(cell),"stair removal preserves unrelated blocks: "+cell);
         var windowCells=new HashSet<Vec3i>();
         for(int x:new int[]{size/2-3,size/2+3})for(int y:new int[]{2,6}) {
             var cell=new Vec3i(x,y,0);windowCells.add(cell);

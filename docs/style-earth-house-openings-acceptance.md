@@ -1,5 +1,9 @@
 # Earthen house openings — 2026-10-25
 
+The subsequent [upper-storey follow-up](style-earth-house-stairs-acceptance.md)
+adds a hosted stair, floor opening and guarded upper landing. The opening
+baseline below predates that addition.
+
 Desert_Adobe and Prairie_Earth each retain their width-13 and width-21 examples,
 earth wall palette and flat roof. Four existing plans and their linked few-shots
 now include a three-cell-wide, three-cell-high entrance and a supported external

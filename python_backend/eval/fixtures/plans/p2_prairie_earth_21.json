@@ -19,7 +19,7 @@
   "proportion_hints": {
     "typology": "flat_roof_pavilion",
     "proportion_card_id": "prairie_earth",
-    "height_to_width": 0.38095238095238093,
+    "height_to_width": 0.42857142857142855,
     "depth_to_width": 1.1904761904761905,
     "window_wall_ratio": 0.08
   },
@@ -39,7 +39,7 @@
       "dimensions": {
         "width": 21,
         "depth": 25,
-        "height": 8
+        "height": 9
       },
       "features": [],
       "params": {
@@ -69,7 +69,7 @@
       "component_type": "ROOF",
       "relative_position": {
         "x": 0,
-        "y": 7,
+        "y": 8,
         "z": 0
       },
       "dimensions": {
@@ -250,6 +250,82 @@
         "window_ratio": 0.08,
         "suppress_windows": false,
         "reserve_entrance_bay": false
+      }
+    },
+    {
+      "component_type": "STAIR_SYSTEM",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 7,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_stair",
+        "host_id": "prairie_earth",
+        "anchor_mode": "min_corner",
+        "width": 3,
+        "landing_length": 2,
+        "clearHeight": 3,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:stone_bricks",
+        "from": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 1,
+          "y": 4,
+          "z": 4
+        }
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 8,
+        "y": 5,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 6,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_stair_guard_0",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:oak_log",
+        "host_id": "prairie_earth"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 12,
+        "y": 5,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 6,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_stair_guard_1",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:oak_log",
+        "host_id": "prairie_earth"
       }
     }
   ]
