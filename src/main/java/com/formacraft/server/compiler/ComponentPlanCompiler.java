@@ -1398,9 +1398,10 @@ public final class ComponentPlanCompiler {
                 return new PreparedComponents(List.of(), Set.of());
             }
             boolean connectorBody = c.params() != null && Boolean.TRUE.equals(c.params().get("compiler_connector_body"));
-            boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c) || connectorBody;
+            boolean openFrame = c.params() != null && Boolean.TRUE.equals(c.params().get("open"));
+            boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c) || connectorBody || openFrame;
             boolean entranceDisabled = com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c)
-                    || ("MASS_SECONDARY".equals(type) && c.params() != null
+                    || openFrame || ("MASS_SECONDARY".equals(type) && c.params() != null
                         && c.params().containsKey("tier_index")) || connectorBody;
             OpeningDelegation windowDelegation = collectOpeningDelegation(c, components, inferred, "FACADE_WINDOWS");
             OpeningDelegation doorDelegation = collectOpeningDelegation(c, components, inferred, "ENTRANCE");
@@ -1506,6 +1507,7 @@ public final class ComponentPlanCompiler {
         }
 
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
+        ExteriorStairEndpointRepair.apply(prepared);
         ComponentFoundationEnforcer.apply(prepared);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
@@ -3017,6 +3019,14 @@ public final class ComponentPlanCompiler {
     private static Component normalizeComponent(Component component) {
         if (component == null) {
             return null;
+        }
+        if (component.dimensions()!=null && component.dimensions().height()==1
+                && isMassType(normalizeType(component.componentType())) && component.params()!=null
+                && "none".equalsIgnoreCase(String.valueOf(component.params().get("wall_type")))) {
+            var floorParams=new HashMap<String,Object>(component.params());
+            floorParams.put("extrude_mode","plate");
+            component=new Component(component.componentType(),component.slotId(),component.relativePosition(),
+                    component.dimensions(),component.features(),floorParams);
         }
         if ("MASS_ANCILLARY".equals(normalizeType(component.componentType()))) {
             var params = new HashMap<String, Object>();

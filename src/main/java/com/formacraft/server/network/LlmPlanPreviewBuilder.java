@@ -726,7 +726,8 @@ public final class LlmPlanPreviewBuilder {
             if (REBUILD_COMPONENT_TYPES.contains(type) || type.startsWith("MASS_") || type.contains("ASSEMBLY")) {
                 return false;
             }
-            if (!INCREMENTAL_COMPONENT_TYPES.contains(type)) {
+            if (!INCREMENTAL_COMPONENT_TYPES.contains(type)
+                    && !com.formacraft.common.network.IncrementalPrimitivePolicy.allows(c)) {
                 return false;
             }
         }

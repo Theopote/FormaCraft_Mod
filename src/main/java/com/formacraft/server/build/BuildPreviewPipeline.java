@@ -59,7 +59,7 @@ public final class BuildPreviewPipeline {
 
         List<PlannedBlock> source = generated != null ? generated.getBlocks() : List.of();
         BuildAutoRepair.Result repair = BuildConstraintContext.withRequest(req, () ->
-                BuildAutoRepair.apply(world, style, source, !landingPrepared)
+                BuildAutoRepair.apply(world, style, source, !landingPrepared && allowsAutomaticSupports(req))
         );
 
         mergeRepair(report, repair);
@@ -111,6 +111,17 @@ public final class BuildPreviewPipeline {
 
         storeReport(player, report);
         return new Result(structure, report, true);
+    }
+
+    static boolean allowsAutomaticSupports(FormaRequest req) {
+        if (req == null) return true;
+        String text = req.getUserMessage();
+        if (text == null || text.isBlank()) return true;
+        text = text.replaceAll("\\s+", "");
+        return !java.util.regex.Pattern.compile(
+                "(?:不要|不用|不需要|禁止).{0,24}(?:额外支撑|支撑柱|自动支撑|补支撑)"
+                        + "|(?:no|without)\\s*(?:extra|additional|automatic)\\s*supports?",
+                java.util.regex.Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
 
     static BuildQualityReport finalizedReport(BuildQualityReport initial, BuildQualityReport delivered) {
