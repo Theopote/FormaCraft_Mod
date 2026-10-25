@@ -57,7 +57,7 @@
         "pillar_block": "minecraft:dark_oak_log",
         "roof_type": "none",
         "window_style": "lattice",
-        "window_ratio": 0,
+        "window_ratio": 0.18,
         "facade_profile": "none",
         "wall_pattern": "smooth",
         "floor_height": 5,
@@ -120,7 +120,7 @@
         "pillar_block": "minecraft:dark_oak_log",
         "roof_type": "none",
         "window_style": "lattice",
-        "window_ratio": 0,
+        "window_ratio": 0.18,
         "facade_profile": "none",
         "wall_pattern": "smooth",
         "floor_height": 5,
@@ -183,7 +183,7 @@
         "pillar_block": "minecraft:dark_oak_log",
         "roof_type": "none",
         "window_style": "lattice",
-        "window_ratio": 0,
+        "window_ratio": 0.18,
         "facade_profile": "none",
         "wall_pattern": "smooth",
         "floor_height": 5,
@@ -246,7 +246,7 @@
         "pillar_block": "minecraft:dark_oak_log",
         "roof_type": "none",
         "window_style": "lattice",
-        "window_ratio": 0,
+        "window_ratio": 0.18,
         "facade_profile": "none",
         "wall_pattern": "smooth",
         "floor_height": 5,
@@ -429,6 +429,134 @@
         "door_width": 3,
         "door_height": 3,
         "canopy_depth": 0
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 5,
+        "y": 2,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "lattice"
+      ],
+      "params": {
+        "component_id": "front_window_5_5",
+        "host_id": "front",
+        "anchor_mode": "min_corner",
+        "window_style": "lattice",
+        "window_block": "minecraft:spruce_fence",
+        "window_width": 1,
+        "window_height": 2,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 3,
+        "suppress_windows": false,
+        "window_ratio": 0.18,
+        "reserve_entrance_bay": false
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 11,
+        "y": 2,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "lattice"
+      ],
+      "params": {
+        "component_id": "front_window_11_5",
+        "host_id": "front",
+        "anchor_mode": "min_corner",
+        "window_style": "lattice",
+        "window_block": "minecraft:spruce_fence",
+        "window_width": 1,
+        "window_height": 2,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 3,
+        "suppress_windows": false,
+        "window_ratio": 0.18,
+        "reserve_entrance_bay": false
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 5,
+        "y": 2,
+        "z": 13
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "lattice"
+      ],
+      "params": {
+        "component_id": "rear_window_5_13",
+        "host_id": "rear",
+        "anchor_mode": "min_corner",
+        "window_style": "lattice",
+        "window_block": "minecraft:spruce_fence",
+        "window_width": 1,
+        "window_height": 2,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 3,
+        "suppress_windows": false,
+        "window_ratio": 0.18,
+        "reserve_entrance_bay": false
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 11,
+        "y": 2,
+        "z": 13
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "lattice"
+      ],
+      "params": {
+        "component_id": "rear_window_11_13",
+        "host_id": "rear",
+        "anchor_mode": "min_corner",
+        "window_style": "lattice",
+        "window_block": "minecraft:spruce_fence",
+        "window_width": 1,
+        "window_height": 2,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 3,
+        "suppress_windows": false,
+        "window_ratio": 0.18,
+        "reserve_entrance_bay": false
       }
     }
   ]

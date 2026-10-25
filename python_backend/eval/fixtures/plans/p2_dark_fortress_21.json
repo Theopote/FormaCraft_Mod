@@ -125,6 +125,52 @@
         "material": "minecraft:blackstone",
         "radius": 1.5
       }
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": -5,
+        "y": 0,
+        "z": 19
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 14
+      },
+      "features": [],
+      "params": {
+        "component_id": "guard_tower_0",
+        "anchor_mode": "min_corner",
+        "wall_block": "minecraft:blackstone",
+        "floor_block": "minecraft:stone_bricks",
+        "hollow": true,
+        "wall_thickness": 1,
+        "floor_count": 1
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": {
+        "x": 21,
+        "y": 0,
+        "z": 19
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 14
+      },
+      "features": [],
+      "params": {
+        "component_id": "guard_tower_1",
+        "anchor_mode": "min_corner",
+        "wall_block": "minecraft:blackstone",
+        "floor_block": "minecraft:stone_bricks",
+        "hollow": true,
+        "wall_thickness": 1,
+        "floor_count": 1
+      }
     }
   ]
 }

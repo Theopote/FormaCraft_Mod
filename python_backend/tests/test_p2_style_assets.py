@@ -8,6 +8,19 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 class P2StyleAssetsTest(unittest.TestCase):
+    def test_dark_fortress_shells_rebuild_and_satisfy_defensive_composition(self):
+        from eval.expand_p2_assets import add_dark_fortress_towers
+        from eval.golden_eval import evaluate_plan
+        for width in (13,21):
+            name=f'p2_dark_fortress_{width}.json'
+            plan=json.loads((ROOT/'python_backend/eval/fixtures/plans'/name).read_text(encoding='utf-8'))
+            rebuilt=deepcopy(plan);add_dark_fortress_towers(rebuilt)
+            self.assertEqual(plan,rebuilt)
+            example=json.loads((ROOT/'src/main/resources/assets/formacraft/llmplan_examples'/name).read_text(encoding='utf-8'))
+            self.assertEqual(example['plan'],plan)
+            check=next(c for c in evaluate_plan(plan,prompt='build a dark fantasy fortress').checks if c.name=='castle_has_defensive_shell')
+            self.assertTrue(check.passed)
+
     def test_underground_variants_rebuild_and_keep_explicit_excavation(self):
         from eval.expand_dwarven_underground import underground_plan
         from app.models.llm_plan import validate_llm_plan_dict

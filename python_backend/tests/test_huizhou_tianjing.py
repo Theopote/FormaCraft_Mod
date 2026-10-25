@@ -20,3 +20,5 @@ class HuizhouTianjingTest(unittest.TestCase):
             self.assertIn('plans/'+name,registered)
             self.assertEqual(sum(c['component_type']=='MASS_MAIN' for c in plan['components']),4)
             self.assertEqual(sum(c['component_type']=='ENTRANCE' for c in plan['components']),5)
+            self.assertEqual(sum(c['component_type']=='FACADE_WINDOWS' for c in plan['components']),4)
+            self.assertNotIn('has_windows',[check.name for check in evaluate_plan(plan).soft_failures])

@@ -31,6 +31,7 @@
       "constraints": [
         "Four distinct white-wall/dark-tile wings enclose an open 7x7 skywell. Preserve explicit horse_head_walls=false.",
         "Front passage joins the exterior to the skywell; each other wing has a courtyard portal.",
+        "Four explicit inward lattice windows flank front/rear hall portals; leave narrow side-wing corner posts intact.",
         "Fixed flat dry reference site; no automatic terrain fitting, drainage or historical reconstruction is claimed."
       ]
     }

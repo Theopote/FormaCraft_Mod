@@ -25,6 +25,27 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Region parity is separate from symmetry expansion and Build-only brush/path inputs. */
 class ConstraintParityTest {
     @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={13,21})
+    void darkFortressCompilesTwoHollowDefensiveTowerShells(int size) throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var plan=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_dark_fortress_"+size+".json").toFile(),LlmPlan.class);
+        var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
+        assertFalse(raw.isEmpty());
+        var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
+        var towers=plan.components().stream().filter(c->"TOWER".equals(c.componentType())).toList();
+        assertEquals(2,towers.size());
+        for(var tower:towers) {
+            var p=tower.relativePosition();int cx=p.x()+2,cz=p.z()+2;
+            assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(cx,0,cz)));
+            for(int y=1;y<14;y++) {
+                assertNull(blocks.get(new Vec3i(cx,y,cz)),"hollow tower core");
+                assertEquals("minecraft:blackstone",blocks.get(new Vec3i(cx-2,y,cz)),"continuous tower shell");
+                assertEquals("minecraft:blackstone",blocks.get(new Vec3i(cx+2,y,cz)),"continuous tower shell");
+            }
+        }
+    }
+
+    @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(ints={17,21})
     void huizhouTianjingHasOpenSkyAndReachableFourWings(int size) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
@@ -34,6 +55,28 @@ class ConstraintParityTest {
         assertFalse(raw.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
         int side=(size-7)/2,front=side+1,depth=2*front+7;
+        var windowCells=new HashSet<Vec3i>();
+        for(var c:plan.components()) if("FACADE_WINDOWS".equals(c.componentType())) {
+            var p=c.relativePosition();
+            for(int y=p.y();y<p.y()+2;y++) {
+                var cell=new Vec3i(p.x(),y,p.z());windowCells.add(cell);
+                assertTrue(blocks.getOrDefault(cell,"").startsWith("minecraft:spruce_fence"),"explicit lattice window: "+cell);
+            }
+        }
+        assertEquals(8,windowCells.size());
+        var editedTree=tree.deepCopy();
+        var editedComponents=(com.fasterxml.jackson.databind.node.ArrayNode)editedTree.get("components");
+        for(int i=editedComponents.size()-1;i>=0;i--)
+            if("FACADE_WINDOWS".equals(editedComponents.get(i).path("component_type").asText()))editedComponents.remove(i);
+        for(var c:editedComponents) if("MASS_MAIN".equals(c.path("component_type").asText()))
+            ((com.fasterxml.jackson.databind.node.ObjectNode)c.get("params")).put("window_ratio",0);
+        var withoutWindows=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(
+                mapper.treeToValue(editedTree,LlmPlan.class),ORIGIN,null,null,false));
+        assertEquals(blocks.keySet(),withoutWindows.keySet(),"window removal preserves the wall envelope");
+        for(var cell:blocks.keySet()) {
+            if(windowCells.contains(cell))assertEquals("minecraft:white_concrete",withoutWindows.get(cell));
+            else assertEquals(blocks.get(cell),withoutWindows.get(cell),"window edit must preserve unrelated blocks: "+cell);
+        }
         for(int x=side;x<side+7;x++) for(int z=front;z<front+7;z++) {
             assertTrue(blocks.containsKey(new Vec3i(x,0,z)),"skywell paving");
             for(int y=1;y<16;y++) assertNull(blocks.get(new Vec3i(x,y,z)),"skywell must remain open to sky");

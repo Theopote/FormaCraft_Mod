@@ -51,6 +51,17 @@ def primitive(name, x,y,z,w,d,h,kind,block,**extra):
                 params=dict(component_id=name,anchor_mode='min_corner',kind=kind,material='minecraft:'+block,**extra))
 
 
+def add_dark_fortress_towers(plan):
+    """Two hollow defensive tower shells; occupied tower circulation is not claimed."""
+    body=plan['components'][0]; size=body['dimensions']['width']; depth=body['dimensions']['depth']
+    plan['components']=[c for c in plan['components'] if not c.get('params',{}).get('component_id','').startswith('guard_tower_')]
+    for i,x in enumerate((-5,size)):
+        plan['components'].append(dict(component_type='TOWER',relative_position=dict(x=x,y=0,z=depth-6),
+            dimensions=dict(width=5,depth=5,height=14),features=[],params=dict(component_id=f'guard_tower_{i}',
+            anchor_mode='min_corner',wall_block='minecraft:blackstone',floor_block='minecraft:stone_bricks',
+            hollow=True,wall_thickness=1,floor_count=1)))
+
+
 def add_raised_access(plan):
     """Fixed-site examples: authored elevation, not automatic water/terrain fitting."""
     body = plan['components'][0]
@@ -191,6 +202,7 @@ def main():
             if sid=='Dark_Fortress':
                 for i,x in enumerate((-3,size)):
                     plan['components'].append(primitive('spike_'+str(i),x,0,1,3,3,19,'cone','blackstone',radius=1.5))
+                add_dark_fortress_towers(plan)
             if sid=='Cyberpunk':
                 plan['components'].append(primitive('offset_roof_pod',size-5,body_height+2,2,5,5,5,'box','black_concrete'))
             name=f'p2_{gid}_{size}.json'; names.append(name)

@@ -1,5 +1,10 @@
 # Style expansion delivery status
 
+2026-10-25 second follow-up: both skywell compounds now have explicit inward
+lattice windows; dark-fortress examples add two hollow defensive tower shells
+each. The warning inventory is now 238 occurrences across 115 scenarios.
+See [warning audit](style-warning-audit.md) for the remaining unverified scope.
+
 2026-10-25: evaluator vocabulary parity and igloo height fixes reduce the original
 280 warnings to 240. Two new Huizhou skywell compounds add two retained window
 warnings (242 total across 115 CI scenarios). See [warning inventory](style-warning-audit.md)

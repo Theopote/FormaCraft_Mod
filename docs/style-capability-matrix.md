@@ -81,6 +81,11 @@ Counts and references below are generated from bundled profiles, culture cards a
 
 ## Next acceptance queue
 
+Skywell-window follow-up: explicit inward lattice windows now supplement the
+front/rear halls without occupying side-wing corner posts. Dark-fortress
+fixtures now have two hollow blackstone defensive tower shells each; occupied
+tower access and stairs remain pending. Current warning inventory: 238.
+
 2026-10-25: [warning audit](style-warning-audit.md) inventories every unresolved
 warning; no waivers were introduced. [Four-wing skywell examples](style-huizhou-tianjing-acceptance.md)
 supplement the rectangular Huizhou dwellings. Live and historical review remain pending.

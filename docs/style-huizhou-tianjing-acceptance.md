@@ -27,7 +27,17 @@ outward-facing side portals. The authored fixtures now specify separate front
 and skywell-facing doorways on the front hall and inward-facing wing portals;
 the complete final-block flood fill passes without loosening its assertions.
 
-Automatic windows are suppressed in these examples. Two window-presence
-warnings are explicitly retained in the warning inventory. Detailed lattice
-openings, drainage, historical fidelity, visual identity and game-world edits
-remain pending. No new live-game evidence was obtained in this follow-up.
+Follow-up: each compound now contains four explicitly positioned inward
+spruce-fence lattice windows in the front/rear halls, two blocks high. Narrow
+side-wing corner posts remain intact; the initial side-corner windows were
+removed after the locality test exposed their placement on timber posts. Automatic windows remain
+suppressed; the host ratio permits the explicit facade components. The initial
+ratio=0 conflict was rejected by the compiler and fixed in the authored plan,
+without weakening the explicit-design conflict guard.
+
+Geometry checks require all eight planned window cells to contain the specified
+lattice material. Removing the facade components and explicitly disabling
+windows must restore white wall cells at those locations and preserve every
+other block. The open-sky and four-wing reachability checks still apply.
+Drainage, historical fidelity, visual identity and game-world edits remain
+pending. No new live-game evidence was obtained in this follow-up.
