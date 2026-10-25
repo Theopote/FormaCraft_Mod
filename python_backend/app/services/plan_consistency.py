@@ -6,7 +6,11 @@ import re
 
 def resolve_delegated_entrances(plan: dict[str, Any], user_text: str) -> dict[str, Any]:
     """Separate model inline-door suppression from an explicit user no-entry requirement."""
-    if re.search(r"(?:不要|不设|禁止|不需要)\s*(?:任何|生成|设置)?\s*(?:门|入口)|\bno\s+(?:doors?|entrances?)\b", user_text or "", re.I):
+    no_entry = (r"(?:不要|不设|禁止|不需要)\s*(?:任何|生成|设置)?\s*(?:门(?!框|槛|廊)|入口)"
+                r"|无门(?!框|槛|廊)|无入口|取消入口"
+                r"|\b(?:no|without)\s+(?:any\s+)?(?:doors?|entrances?)\b"
+                r"|\b(?:do not|don't)\s+(?:add|create|generate|include)\s+(?:any\s+)?(?:doors?|entrances?)\b")
+    if any(re.search(no_entry, text, re.I) for text in (user_text or "", re.sub(r"\s+", "", user_text or ""))):
         return plan
     hints = plan.get("proportion_hints")
     hints = hints if isinstance(hints, dict) else {}

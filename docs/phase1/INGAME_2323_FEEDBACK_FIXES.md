@@ -17,3 +17,15 @@
 
 这里的承重柱识别依据计划中的宿主、作用域和柱顶/主体标高，不代表已经实测任意河床接触。
 本轮没有游戏内行走、水体更新、Undo 或截图验收；重测前需重新编译启动 Java 客户端并重启 Python 后端。
+
+## 验证结果
+
+- 定向 JUnit：88 项，零失败、零错误。
+- `constraintParityTest`：135 项，零失败、零错误（包含本轮六项日志回归，与定向运行有重复覆盖）。
+- `userStylePackTest`：4 项，零失败、零错误。
+- Python 一致性与修复测试：8 项通过，包括最新堡垒三处入口委托及明确禁用入口的反例。
+- 折返楼梯完整重放检查左右两塔均有到达平台标高的踏步；玻璃查询经真实清理和编译路径输出四格玻璃。
+
+并行构建下，最终验证同时隔离了 Gradle 项目缓存和输出目录，避免共享执行历史清理彼此的产物：
+`--project-cache-dir .gradle/live-2323-verified-cache --init-script .gradle/live-2323-verified.init.gradle`。
+最终日志为 `live-2323-verified.log`，结果为 `BUILD SUCCESSFUL`。早先缺类或平台角色错误的运行不计为通过。

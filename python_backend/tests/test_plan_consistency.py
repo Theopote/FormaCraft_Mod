@@ -71,6 +71,10 @@ class PlanConsistencyTest(unittest.TestCase):
         self.assertFalse(component_consistency_errors(fixed))
         self.assertEqual("none",p["components"][0]["params"]["entrance_type"])
         self.assertEqual(p,resolve_delegated_entrances(p,"不要入口"))
+        self.assertEqual(p,resolve_delegated_entrances(p,"不\n要入口"))
+        self.assertEqual(p,resolve_delegated_entrances(p,"建一座无门的塔楼"))
+        self.assertEqual(p,resolve_delegated_entrances(p,"without any doors"))
+        self.assertFalse(component_consistency_errors(resolve_delegated_entrances(p,"不要门框")))
 
     def test_latest_fortress_has_all_three_host_entrances_delegated(self):
         from app.services.plan_consistency import resolve_delegated_entrances
