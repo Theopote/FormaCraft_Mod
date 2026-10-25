@@ -1,7 +1,7 @@
 # Phase 1 游戏内验收发现 · 2026-10-25
 
 基线：`ff7039cd`。玩家实测 + 截图；本文件归档问题与根因分诊。  
-**未宣称已在本机复现全部截图场景。** A4 专用服务器日志本轮未在开发机定位到 `latest.log`。
+日志：`run/logs/latest.log`（本机会话约 16:19–16:45）。**未宣称已在本机复现全部截图场景之外的结论。**
 
 ## 严重度总表
 
@@ -87,10 +87,28 @@ History redo conflict … expected=tall_seagrass … actual=water
 - 玻璃走廊：`E_BUILDING_CONTRACT`（req_length/width vs `glass_corridor`）  
 - 铁栏杆：`E_HOST_UNKNOWN`（`railing_post_*` → host `iron_railing_wall`）
 
-## 下一轮修复优先级（按日志）
+## 重测会话 · 16:19–16:45（对照截图）
 
-1. **P0 已改**：A2 PATCH 路由（待你重测）。  
-2. **P0 地标（本轮已改，待重测）**：终检残余悬空 ≥48 → `FLOATING_RESIDUAL` FATAL（force 不可绕）；`BuildAutoRepair` 柱预算随悬空数放大（≤4096）；地标 preset 仅为软先验（计划参数优先，不写死复刻）；snake_case 属性归一；天坛屋盖与柱顶共面 + 取消外扩悬空檐圈。方向：搜集尺寸/平面/材质/层数/立面/风格后拟合 typology，而非枚举全世界建筑。  
-3. **P1**：FBD 坡顶连续面 + 开敞柱廊语义。  
-4. **P1**：Undo 水域/栅栏邻居更新与快照策略（扩展测试，慎放宽）。  
-5. **P1**：天坛材质别名 `marble_lacquered_wood_glazed_tile` 回退。
+| 时间 | 用例 | 日志结论 | 截图对照 | 归类 |
+|------|------|----------|----------|------|
+| 16:22 | 9×7 小木屋 | `E_GENERATION_AUTHORITY_CONFLICT`：`generation_authority=COMPONENTS` 但路由 hint=`ASSEMBLY`（`cabin_assembly`） | 能力缺口红字 | **P0 路由权威** |
+| 16:24 | 增量开窗 | 客户端已判 PATCH；编排返回 `mode=patch` + `FACADE_WINDOWS`；**无**可用 `patch.blocks[]` → `patch_expected_rebuild_rejected`（安全拒绝，未整栋重建） | 红字要求 patch.blocks | **P0 PATCH 载荷契约**：提示允许 components[]，落地只认 blocks[] |
+| 16:27 | FBD 3 亭 | `FBD validation valid=true`；终检修悬空 21、重复 217；落地 966→883 | 实心盒、无四角柱、坡顶残 | **P1 FBD 语义→几何**（路由已进，展开不像亭） |
+| 16:30 | FBD repeat 4 | 同上 valid=true；修 36 / 支撑 92 / 重复 276；放置率 75.6% | 四座石盒+条窗，非柱廊 | 同 A3 |
+| 16:32 | 大雁塔 | `dense_eaves_pagoda`；初始 FLOATING **516** → 终检 **全部修完**（fatal=0 error=0，+1781 支撑） | 方砖塔像了，**每层无券窗** | 悬空门控/预算 **已改善**；缺窗属立面属性未拟合 |
+| 16:33 | 天坛 | `radial_terrace_hall`；初始 FLOATING **1031** → 终检修完（+1102 支撑） | 出檐过小、整体不像 | 悬空 **已改善**；比例/出檐属属性拟合不足（非写死复刻） |
+| 16:37 | 橡木栅栏 10 格 | 计划 `WALL` + `wall_block=oak_fence`，却生成 **156** 块；截图无栅栏、有石台 | 「木栅栏没有生成」 | **P0 材质/构件角色**：栅栏当墙体展开 + 可能加地基 |
+
+### 本轮相对上午的变化
+
+- 大雁塔/天坛终检不再残留数百悬空、也不再依赖 force 叙事（悬空修复预算生效）。  
+- 视觉问题从「悬空崩坏」转为「属性拟合不够」（窗洞、出檐、亭廊开敞）。  
+- A2 安全闸有效（拒绝重建）；下一步应让 `mode=patch` + 局部 `components[]` 也能编译成 `patch.blocks`，或强制编排只出 blocks。
+
+## 下一轮修复优先级（按 16:xx 日志）
+
+1. **P0**：`generation_authority` 与 ASSEMBLY/COMPONENTS 路由对齐（常规住宅勿卡在 cabin_assembly）。  
+2. **P0**：PATCH 契约——`components[]` 增量开窗应能落地，或编排必须产出非空 `patch.blocks[]`。  
+3. **P0**：线性栅栏/栏杆走轻量路径，禁止 `WALL`+地基把 `oak_fence` 吃掉。  
+4. **P1**：FBD 亭廊——柱廊空洞 + 连续坡顶（valid≠好看）。  
+5. **P1**：地标/描述拟合——层间券窗、出檐深度等从属性推导，不写死单体。

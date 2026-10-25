@@ -52,21 +52,21 @@ def primitive(name, x,y,z,w,d,h,kind,block,**extra):
 
 
 def add_dark_fortress_towers(plan):
-    """Two hollow towers connected to the hall at ground level; upper access is pending."""
+    """Fixed-site towers with three straight flights and an open top platform."""
     body=plan['components'][0]; size=body['dimensions']['width']; depth=body['dimensions']['depth']
     plan['global_constraints']['terrain_strategy']='PRESERVE'
     body['params']['wall_thickness']=1
     plan['components']=[c for c in plan['components'] if not c.get('params',{}).get('component_id','').startswith(('guard_tower_','fortress_access_'))]
-    for i,x in enumerate((-5,size)):
-        plan['components'].append(dict(component_type='TOWER',relative_position=dict(x=x,y=0,z=depth-6),
-            dimensions=dict(width=5,depth=5,height=14),features=[],params=dict(component_id=f'guard_tower_{i}',
+    for i,x in enumerate((-9,size)):
+        plan['components'].append(dict(component_type='TOWER',relative_position=dict(x=x,y=0,z=depth-9),
+            dimensions=dict(width=9,depth=9,height=16),features=[],params=dict(component_id=f'guard_tower_{i}',
             anchor_mode='min_corner',wall_block='minecraft:blackstone',floor_block='minecraft:stone_bricks',
             hollow=True,wall_thickness=1,floor_count=1)))
     def portal(name,host,x,z,w,d,facing):
         plan['components'].append(dict(component_type='ENTRANCE',relative_position=dict(x=x,y=1,z=z),
             dimensions=dict(width=w,depth=d,height=4),features=['entrance'],params=dict(component_id=name,
             host_id=host,anchor_mode='min_corner',facing=facing,door_width=3,door_height=3,canopy_depth=0)))
-    host=body['params']['component_id']; z=depth-4
+    host=body['params']['component_id']; z=depth-5
     portal('fortress_access_entry',host,size//2-2,0,5,1,'SOUTH')
     portal('fortress_access_left',host,0,z-2,1,5,'EAST')
     portal('fortress_access_right',host,size-1,z-2,1,5,'WEST')
@@ -75,6 +75,25 @@ def add_dark_fortress_towers(plan):
     plan['components'].append(primitive('fortress_access_entry_floor',size//2-2,0,-3,5,3,1,'box','stone_bricks'))
     for i,x in enumerate((-2,size)):
         plan['components'].append(primitive('fortress_access_threshold_'+str(i),x,0,z-2,2,5,1,'box','stone_bricks'))
+    for i,cx in enumerate((-5,size+4)):
+        # Leave the final flight's approach and arrival open through the deck.
+        for dx in range(-2,3):
+            for dz in range(-2,3):
+                if dx==-1 and dz in (-1,0,1,2): continue
+                plan['components'].append(primitive(f'guard_tower_deck_{i}_{dx}_{dz}',cx+dx,12,z+dz,
+                    1,1,1,'box','stone_bricks'))
+                if max(abs(dx),abs(dz))==2 and (dx,dz) not in ((-1,2),(0,2)):
+                    plan['components'].append(primitive(f'guard_tower_rail_{i}_{dx}_{dz}',cx+dx,13,z+dz,
+                        1,1,2,'box','blackstone'))
+        plan['components'].append(primitive(f'guard_tower_stop_{i}',cx,12,z+3,1,1,3,'box','blackstone'))
+        flights=[((-1,0,-2),(-1,4,2)),((0,4,2),(1,4,2)),
+                 ((1,4,2),(1,8,-2)),((0,8,-2),(-1,8,-2)),((-1,8,-2),(-1,12,2))]
+        for j,(a,b) in enumerate(flights):
+            plan['components'].append(dict(component_type='STAIR_SYSTEM',relative_position=dict(x=cx-2,y=0,z=z-2),
+                dimensions=dict(width=5,depth=5,height=15),features=[],params=dict(component_id=f'guard_tower_stair_{i}_{j}',
+                host_id=f'guard_tower_{i}',anchor_mode='min_corner',width=1,landing_length=1,clearHeight=2,
+                stairs='minecraft:stone_brick_stairs',floor='minecraft:stone_bricks',
+                **{'from':dict(x=a[0]+2,y=a[1],z=a[2]+2),'to':dict(x=b[0]+2,y=b[1],z=b[2]+2)})))
 
 
 def add_raised_access(plan):
@@ -250,7 +269,7 @@ def main():
         if sid == 'Dark_Fortress':
             site_constraints = [
                 'Fixed dry level reference site with terrain_strategy=PRESERVE: exterior entrance leads through the hall to both hollow ground-level tower rooms.',
-                'Preserve the explicit hall/tower portals and supported threshold floors. Upper tower access, stairs and live terrain fitting remain unverified.'
+                'Preserve hall/tower portals, threshold floors, three stair flights, turning landings and deck clearance holes. Live terrain, collision and fall protection require separate acceptance.'
             ]
         save(ASSETS/'culture_cards'/f'{gid}.json',dict(id=gid,styleId=sid,intents=['STYLE_PRESET'],keywords=aliases,synonyms={},
              keywordWeights={a:12 for a in aliases},negativeKeywords=['不要'+cn,'not '+en],proportionCardId=gid,

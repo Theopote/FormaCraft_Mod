@@ -82,6 +82,10 @@ Counts and references below are generated from bundled profiles, culture cards a
 
 ## Next acceptance queue
 
+The [upper-tower follow-up](style-dark-fortress-upper-acceptance.md) adds authored
+straight flights, turning landings and top platforms to the two dark-fortress
+fixtures. Live collision and fall-protection review remain pending.
+
 Dark-fortress ground access is now authored with scoped portals and supported
 thresholds; see [ground-access acceptance](style-dark-fortress-access-acceptance.md).
 Upper tower access and live-world walking/edit evidence remain pending.

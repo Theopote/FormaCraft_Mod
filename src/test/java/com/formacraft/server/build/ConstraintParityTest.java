@@ -36,30 +36,48 @@ class ConstraintParityTest {
         assertEquals(2,towers.size());
         for(int i=0;i<towers.size();i++) {
             var tower=towers.get(i);
-            var p=tower.relativePosition();int cx=p.x()+2,cz=p.z()+2;
+            var p=tower.relativePosition();int cx=p.x()+4,cz=p.z()+4;
             assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(cx,0,cz)));
-            for(int y=1;y<14;y++) {
-                assertNull(blocks.get(new Vec3i(cx,y,cz)),"hollow tower core");
-                int outside=i==0?cx-2:cx+2,inside=i==0?cx+2:cx-2;
+            for(int y=1;y<16;y++) {
+                if(y!=12)assertNull(blocks.get(new Vec3i(cx,y,cz)),"clear tower core above/below the deck");
+                else assertEquals("minecraft:stone_bricks",blocks.get(new Vec3i(cx,y,cz)),"top platform floor");
+                int outside=i==0?cx-4:cx+4,inside=i==0?cx+4:cx-4;
                 assertEquals("minecraft:blackstone",blocks.get(new Vec3i(outside,y,cz)),"outer tower shell");
                 if(y<=3)assertNull(blocks.get(new Vec3i(inside,y,cz)),"tower portal clearance");
                 else if(y>=5)assertEquals("minecraft:blackstone",blocks.get(new Vec3i(inside,y,cz)),"shell above doorway");
             }
         }
         var start=new Vec3i(size/2,1,-2);
-        var reachable=fortressGroundReach(blocks,start,size,size+4);
-        int z=plan.components().getFirst().dimensions().depth()-4;
-        assertTrue(reachable.contains(new Vec3i(-3,1,z)),"left tower reachable from exterior through hall");
-        assertTrue(reachable.contains(new Vec3i(size+2,1,z)),"right tower reachable from exterior through hall");
+        var reachable=fortressGroundReach(blocks,start,size,size+8);
+        int z=plan.components().getFirst().dimensions().depth()-5;
+        assertTrue(reachable.contains(new Vec3i(-5,1,z)),"left tower reachable from exterior through hall");
+        assertTrue(reachable.contains(new Vec3i(size+4,1,z)),"right tower reachable from exterior through hall");
+        var upper=fortressStepReach(blocks,new Vec3i(size/2,0,-2),size);
+        for(int cx:new int[]{-5,size+4}) {
+            assertTrue(upper.contains(new Vec3i(cx,12,z)),"top platform reached through stairs");
+            assertNull(blocks.get(new Vec3i(cx-1,12,z)),"clearance hole above the final flight");
+            assertNull(blocks.get(new Vec3i(cx-1,13,z+1)),"headroom near top landing");
+            assertTrue(blocks.getOrDefault(new Vec3i(cx-1,2,z),"").contains("stone_brick_stairs"));
+            assertTrue(blocks.getOrDefault(new Vec3i(cx+1,6,z),"").contains("facing=north"));
+        }
+        var brokenTree=mapper.valueToTree(plan);
+        var brokenComponents=(com.fasterxml.jackson.databind.node.ArrayNode)brokenTree.get("components");
+        for(int i=brokenComponents.size()-1;i>=0;i--)
+            if("guard_tower_stair_0_2".equals(brokenComponents.get(i).path("params").path("component_id").asText()))brokenComponents.remove(i);
+        var broken=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(brokenTree,LlmPlan.class),ORIGIN,null,null,false));
+        assertFalse(broken.isEmpty());
+        var brokenReach=fortressStepReach(broken,new Vec3i(size/2,0,-2),size);
+        assertFalse(brokenReach.contains(new Vec3i(-5,12,z)),"omitted middle flight must break left upper access");
+        assertTrue(brokenReach.contains(new Vec3i(size+4,12,z)),"right upper access remains intact");
         var tree=mapper.valueToTree(plan);
         var components=(com.fasterxml.jackson.databind.node.ArrayNode)tree.get("components");
         for(int i=components.size()-1;i>=0;i--)
             if("guard_tower_portal_0".equals(components.get(i).path("params").path("component_id").asText()))components.remove(i);
         var closed=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),ORIGIN,null,null,false));
         assertFalse(closed.isEmpty());
-        var closedReach=fortressGroundReach(closed,start,size,size+4);
-        assertFalse(closedReach.contains(new Vec3i(-3,1,z)),"closed left portal must break left tower access");
-        assertTrue(closedReach.contains(new Vec3i(size+2,1,z)),"right tower remains accessible");
+        var closedReach=fortressGroundReach(closed,start,size,size+8);
+        assertFalse(closedReach.contains(new Vec3i(-5,1,z)),"closed left portal must break left tower access");
+        assertTrue(closedReach.contains(new Vec3i(size+4,1,z)),"right tower remains accessible");
         for(var cell:blocks.keySet())if(cell.x()<-2||cell.x()>-1||cell.y()<1||cell.y()>4||cell.z()<z-2||cell.z()>z+2)
             assertEquals(blocks.get(cell),closed.get(cell),"closing one tower portal preserves unrelated blocks");
     }
@@ -68,11 +86,26 @@ class ConstraintParityTest {
         var visited=new HashSet<Vec3i>();var queue=new ArrayDeque<Vec3i>();queue.add(start);
         while(!queue.isEmpty()) {
             var p=queue.removeFirst();
-            if(p.x()<-5||p.x()>maxX||p.z()<-3||p.z()>size+4||visited.contains(p))continue;
+            if(p.x()<-9||p.x()>maxX||p.z()<-3||p.z()>size+4||visited.contains(p))continue;
             if(!blocks.containsKey(new Vec3i(p.x(),0,p.z()))||blocks.containsKey(p)||blocks.containsKey(new Vec3i(p.x(),2,p.z())))continue;
             visited.add(p);
             queue.add(new Vec3i(p.x()+1,1,p.z()));queue.add(new Vec3i(p.x()-1,1,p.z()));
             queue.add(new Vec3i(p.x(),1,p.z()+1));queue.add(new Vec3i(p.x(),1,p.z()-1));
+        }
+        return visited;
+    }
+
+    private static Set<Vec3i> fortressStepReach(Map<Vec3i,String> blocks,Vec3i start,int size) {
+        var visited=new HashSet<Vec3i>();var queue=new ArrayDeque<Vec3i>();queue.add(start);
+        while(!queue.isEmpty()) {
+            var p=queue.removeFirst();
+            if(p.x()<-9||p.x()>size+8||p.z()<-3||p.z()>size+4||p.y()<0||p.y()>12||visited.contains(p))continue;
+            if(!blocks.containsKey(p)||blocks.containsKey(new Vec3i(p.x(),p.y()+1,p.z()))||blocks.containsKey(new Vec3i(p.x(),p.y()+2,p.z())))continue;
+            visited.add(p);
+            for(int[] d:new int[][]{{1,0},{-1,0},{0,1},{0,-1}})for(int dy=-1;dy<=1;dy++) {
+                if(dy>0&&blocks.containsKey(new Vec3i(p.x(),p.y()+3,p.z())))continue;
+                queue.add(new Vec3i(p.x()+d[0],p.y()+dy,p.z()+d[1]));
+            }
         }
         return visited;
     }

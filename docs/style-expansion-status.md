@@ -1,5 +1,10 @@
 # Style expansion delivery status
 
+2026-10-25 upper-tower follow-up: dark-fortress examples add three straight
+flights, two turning landings and a top platform per enlarged tower. See
+[upper-tower scope](style-dark-fortress-upper-acceptance.md); no live collision
+or fall-protection certification is claimed.
+
 2026-10-25 tower-access follow-up: two dark-fortress examples now explicitly
 connect the exterior, hall and ground-level tower rooms. The warning inventory
 is 234 occurrences across 115 scenarios; see [access acceptance](style-dark-fortress-access-acceptance.md)

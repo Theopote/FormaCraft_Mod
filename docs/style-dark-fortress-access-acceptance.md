@@ -1,5 +1,9 @@
 # Dark fortress ground-level tower access — 2026-10-25
 
+Subsequent [upper-tower follow-up](style-dark-fortress-upper-acceptance.md)
+enlarges the towers and adds three stair flights, turning landings and a top
+platform. This document records the preceding ground-level baseline.
+
 The width-13 and width-21 examples retain their hall, roof, spikes and two
 hollow circular blackstone towers. Five explicit ENTRANCE components now
 connect the exterior to the hall and the hall to both tower interiors. A short

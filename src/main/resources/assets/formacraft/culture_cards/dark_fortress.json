@@ -34,7 +34,7 @@
         "Use roof_type=gable, wall_pattern=smooth; explicit user requirements take priority.",
         "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components.",
         "Fixed dry level reference site with terrain_strategy=PRESERVE: exterior entrance leads through the hall to both hollow ground-level tower rooms.",
-        "Preserve the explicit hall/tower portals and supported threshold floors. Upper tower access, stairs and live terrain fitting remain unverified."
+        "Preserve hall/tower portals, threshold floors, three stair flights, turning landings and deck clearance holes. Live terrain, collision and fall protection require separate acceptance."
       ]
     }
   ]
