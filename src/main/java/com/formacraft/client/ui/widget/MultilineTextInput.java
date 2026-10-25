@@ -15,6 +15,9 @@ import java.util.List;
  * - 支持选区
  * - 支持多行编辑
  * - 支持复制粘贴（使用 Minecraft 剪贴板）
+ * - 支持 Ctrl+A / 三击全选
+ * - 支持双击选中词语
+ * - 支持拖动选中
  * - 支持方向键导航
  * <p>
  * 可在 HUD Overlay 使用，不依赖 Screen。
@@ -54,6 +57,15 @@ public class MultilineTextInput {
     private int viewLineStart = 0;
     private long lastUserScrollMs = 0L;
 
+    // 多击：双击选词 / 三击全选
+    private long lastClickMs = 0L;
+    private int clickCount = 0;
+    private static final long MULTI_CLICK_MS = 280L;
+
+    // 拖动选区
+    private boolean selecting = false;
+    private long lastDragScrollMs = 0L;
+
     public MultilineTextInput(int x, int y, int w, int h) {
         setBounds(x, y, w, h);
         clear();
@@ -76,39 +88,110 @@ public class MultilineTextInput {
 
     /**
      * 鼠标点击：设置焦点并把光标移动到点击位置（行/列）。
-     * HUD 模式下由 Panel 转发调用。
+     * 单击后可拖动扩展选区；双击选词；三击全选。HUD 模式下由 Panel 转发调用。
      */
     public boolean mouseClicked(double mouseX, double mouseY) {
         if (!isMouseOver(mouseX, mouseY)) {
             setFocused(false);
+            clickCount = 0;
+            selecting = false;
             return false;
         }
 
         setFocused(true);
 
-        // 计算行高（与 render 使用同一套规则）
-        int lineHeight = chatLineHeight();
+        int lineIndex = hitTestLine(mouseY);
+        int col = hitTestColumn(lineIndex, mouseX);
 
-        // 计算点击到哪一行（考虑 viewLineStart）
+        long now = System.currentTimeMillis();
+        if (now - lastClickMs <= MULTI_CLICK_MS) {
+            clickCount++;
+        } else {
+            clickCount = 1;
+        }
+        lastClickMs = now;
+
+        // 点击定位后，让视图尽快跟随光标
+        lastUserScrollMs = 0L;
+
+        if (clickCount >= 3) {
+            selecting = false;
+            selectAll();
+            clickCount = 0;
+            return true;
+        }
+        if (clickCount == 2) {
+            selecting = false;
+            selectWordAt(lineIndex, col);
+            return true;
+        }
+
+        // 单击：落点作为选区锚点，随后拖动可扩展
+        cursorLine = lineIndex;
+        cursorColumn = col;
+        selLineStart = lineIndex;
+        selColStart = col;
+        selLineEnd = lineIndex;
+        selColEnd = col;
+        selecting = true;
+        return true;
+    }
+
+    /** 正在拖动选区（供面板每帧/拖拽事件转发）。 */
+    public boolean isSelecting() {
+        return selecting;
+    }
+
+    /**
+     * 拖动更新选区终点。允许鼠标移出输入框外继续选（并在边缘自动滚行）。
+     */
+    public void mouseDragged(double mouseX, double mouseY) {
+        if (!selecting || !focused) return;
+
+        long now = System.currentTimeMillis();
+        if (mouseY < y && now - lastDragScrollMs >= 50) {
+            scrollByLines(-1);
+            lastDragScrollMs = now;
+        } else if (mouseY > y + height && now - lastDragScrollMs >= 50) {
+            scrollByLines(1);
+            lastDragScrollMs = now;
+        }
+
+        int lineIndex = hitTestLine(mouseY);
+        int col = hitTestColumn(lineIndex, mouseX);
+        cursorLine = lineIndex;
+        cursorColumn = col;
+        selLineEnd = lineIndex;
+        selColEnd = col;
+        lastUserScrollMs = 0L;
+    }
+
+    public void mouseReleased() {
+        selecting = false;
+    }
+
+    private int hitTestLine(double mouseY) {
+        int lineHeight = chatLineHeight();
         int relY = (int) Math.floor(mouseY - (y + 4));
-        int clickedLineOffset = relY < 0 ? 0 : (relY / lineHeight);
+        int clickedLineOffset = relY < 0 ? 0 : (relY / Math.max(1, lineHeight));
+        int maxLinesVisible = Math.max(1, (height - 8) / lineHeight);
+        if (mouseY < y) {
+            clickedLineOffset = 0;
+        } else if (mouseY > y + height) {
+            clickedLineOffset = maxLinesVisible - 1;
+        }
         int lineIndex = viewLineStart + clickedLineOffset;
         if (lineIndex < 0) lineIndex = 0;
         if (lineIndex >= lines.size()) lineIndex = lines.size() - 1;
+        return lineIndex;
+    }
 
-        // 计算点击到哪一列
+    private int hitTestColumn(int lineIndex, double mouseX) {
         String line = lines.get(lineIndex);
         int relX = (int) Math.floor(mouseX - (x + 4));
         if (relX < 0) relX = 0;
         int col = calculateColumnFromX(line, relX);
-
-        cursorLine = lineIndex;
-        cursorColumn = Math.max(0, Math.min(col, line.length()));
-        clearSelection();
-
-        // 点击定位后，让视图尽快跟随光标
-        lastUserScrollMs = 0L;
-        return true;
+        return Math.max(0, Math.min(col, line.length()));
     }
 
     private int calculateColumnFromX(String line, int px) {
@@ -163,6 +246,8 @@ public class MultilineTextInput {
         if (focused) {
             cursorVisible = true;
             blinkTicks = 0;
+        } else {
+            selecting = false;
         }
     }
 
@@ -258,6 +343,69 @@ public class MultilineTextInput {
 
     private boolean hasSelection() {
         return !(selLineStart == selLineEnd && selColStart == selColEnd);
+    }
+
+    private void selectAll() {
+        if (lines.isEmpty()) {
+            clearSelection();
+            return;
+        }
+        selLineStart = 0;
+        selColStart = 0;
+        selLineEnd = lines.size() - 1;
+        selColEnd = lines.get(selLineEnd).length();
+        cursorLine = selLineEnd;
+        cursorColumn = selColEnd;
+    }
+
+    /**
+     * 选中点击位置所在词语（同行内扩展）。
+     * 字母/数字/下划线/汉字等视为词字符；空白与标点各自成组。
+     */
+    private void selectWordAt(int line, int col) {
+        if (line < 0 || line >= lines.size()) {
+            clearSelection();
+            return;
+        }
+        String s = lines.get(line);
+        if (s.isEmpty()) {
+            cursorLine = line;
+            cursorColumn = 0;
+            clearSelection();
+            return;
+        }
+
+        // 点在行尾时，以最后一个字符为锚点
+        int anchor = col >= s.length() ? s.length() - 1 : col;
+        char ch = s.charAt(anchor);
+        int start = anchor;
+        int end = anchor + 1;
+
+        if (isWordChar(ch)) {
+            while (start > 0 && isWordChar(s.charAt(start - 1))) start--;
+            while (end < s.length() && isWordChar(s.charAt(end))) end++;
+        } else if (Character.isWhitespace(ch)) {
+            while (start > 0 && Character.isWhitespace(s.charAt(start - 1))) start--;
+            while (end < s.length() && Character.isWhitespace(s.charAt(end))) end++;
+        } else {
+            while (start > 0 && isPunctuationLike(s.charAt(start - 1))) start--;
+            while (end < s.length() && isPunctuationLike(s.charAt(end))) end++;
+        }
+
+        selLineStart = line;
+        selColStart = start;
+        selLineEnd = line;
+        selColEnd = end;
+        cursorLine = line;
+        cursorColumn = end;
+    }
+
+    private static boolean isWordChar(char c) {
+        return Character.isLetterOrDigit(c) || c == '_' || c == '\'' || c == '’';
+    }
+
+    private static boolean isPunctuationLike(char c) {
+        return !isWordChar(c) && !Character.isWhitespace(c);
     }
 
     private void deleteSelection() {
@@ -476,6 +624,12 @@ public class MultilineTextInput {
         // Backspace
         if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
             backspace();
+            return;
+        }
+
+        // Select all
+        if (ctrl && keyCode == GLFW.GLFW_KEY_A) {
+            selectAll();
             return;
         }
 

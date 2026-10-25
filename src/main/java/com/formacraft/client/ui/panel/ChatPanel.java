@@ -274,6 +274,7 @@ public class ChatPanel extends BasePanel {
         ensureLayout();
         // 拖拽更新选区（不依赖额外鼠标事件：利用 InputRouter.leftDown + 每帧更新）
         tickTextSelectionDrag();
+        tickInputSelectionDrag();
 
         // 每帧推进流式打印（不会阻塞）
         if (currentPrinter != null) {
@@ -507,6 +508,19 @@ public class ChatPanel extends BasePanel {
         }
     }
 
+    private void tickInputSelectionDrag() {
+        if (inputBox == null || !inputBox.isSelecting()) return;
+
+        double mx = InputRouter.getMouseX();
+        double my = InputRouter.getMouseY();
+
+        if (InputRouter.leftDown) {
+            inputBox.mouseDragged(mx, my);
+        } else {
+            inputBox.mouseReleased();
+        }
+    }
+
     /**
      * 绘制 Spec 摘要卡片
      */
@@ -686,10 +700,28 @@ public class ChatPanel extends BasePanel {
             historyIndex = -1;
             selectable.clearSelection();
             selectableMsgIndex = -1;
+            selectingText = false;
             return true;
         }
 
         return false;
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (button == 0 && inputBox != null && inputBox.isSelecting()) {
+            inputBox.mouseDragged(mouseX, mouseY);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (inputBox != null) {
+            inputBox.mouseReleased();
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     private boolean tryStartSelection(double mouseX, double mouseY) {
@@ -769,6 +801,7 @@ public class ChatPanel extends BasePanel {
      * - Backspace：删除一个字符
      * - 方向键、Home/End：光标移动
      * - Ctrl+C/V/X：复制粘贴剪切
+     * - Ctrl+A：全选输入内容
      */
     @Override
     public void keyPressed(int keyCode, int scanCode, int modifiers) {
