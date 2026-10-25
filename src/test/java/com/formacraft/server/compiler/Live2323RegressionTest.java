@@ -23,6 +23,9 @@ class Live2323RegressionTest {
     }
     @Test void fourHighStiltsReachCabinBaseWithoutHeightCap() throws Exception {
         var p=load("stilt"); assertTrue(LlmPlanTerrainBounds.hasAuthoredSupports(p));
+        var built=compile(p);
+        int floor=p.layout().slots().getFirst().anchor().y()+4;
+        assertFalse(built.stream().anyMatch(b->b.dy()<floor && b.targetBlock().contains("cobblestone")));
         for(var c:p.components()) if(c.params()!=null && c.params().containsKey("supports")) {
             var blocks=new DecorDetailGenerator().generate(new SemanticComponent("DECOR_DETAIL",null,c));
             assertEquals(4,blocks.size());
@@ -75,6 +78,10 @@ class Live2323RegressionTest {
             var p=(com.fasterxml.jackson.databind.node.ObjectNode)c.path("params");
             p.put("entrance_type","door");p.put("suppress_doors",true);
         }
-        compile(mapper.treeToValue(tree,LlmPlan.class));
+        var result=compile(mapper.treeToValue(tree,LlmPlan.class));
+        assertTrue(result.stream().anyMatch(b->b.dy()==9 && b.targetBlock().contains("blackstone_stairs")),
+                "Stair treads must reach the authored tower-platform level");
+        for(int side:new int[]{-1,1}) assertTrue(result.stream().anyMatch(b->b.dy()==9
+                && b.dx()*side>0 && b.targetBlock().contains("blackstone_stairs")),"Both towers must reach the deck");
     }
 }

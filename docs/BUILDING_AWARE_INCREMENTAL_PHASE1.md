@@ -86,5 +86,15 @@ ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` p
 3. 预览后手动改一块屋顶再 Confirm → 拒绝  
 4. 同建筑开两个屋顶预览，先后 Confirm → 第二个 revision 拒绝  
 5. Cancel / 断线后 Pending 不残留；他人 Ticket UUID 无法清掉自己的 Pending  
-6. 重启后 Memory 仍有 buildingId / revision / roof cells
+6. 重启后 Memory 仍有 buildingId / revision / roof cells  
+7. （Round 58）建筑编辑 Ticket 在 Pending 丢失后 Confirm 必须拒绝，不得当普通 Patch 落地  
+8. （Round 58）Memory 同步失败提示 `EDIT_MEMORY_SYNC_FAILED`，该建筑暂停增量编辑直至 Undo/修复  
+
+## 7. Round 58 — Ticket 身份与 Memory 一致性
+
+| Item | Status |
+|---|---|
+| 58-01 `PreviewEditKind` 不可变标记；BUILDING 缺 Pending 拒绝 | done |
+| 58-02 `EDIT_MEMORY_SYNC_FAILED` 阻断 + `repairMemorySync` | done（重启后依赖 Memory 元数据持久化） |
+| 自动化 | `BuildingAwareRound58Test` |
 

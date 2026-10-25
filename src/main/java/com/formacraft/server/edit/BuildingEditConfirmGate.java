@@ -4,6 +4,7 @@ import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.memory.MemoryManager;
 import com.formacraft.server.memory.ProjectMemory;
+import com.formacraft.server.preview.PreviewEditKind;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
@@ -19,6 +20,7 @@ import java.util.UUID;
 /**
  * Pre-apply confirm gate for building-aware edits.
  * Must run before world writes; failure rejects Apply entirely.
+ * Building-edit tickets never degrade to ordinary patches when Pending is missing.
  */
 public final class BuildingEditConfirmGate {
     public record Outcome(boolean ok, String message, BuildingEditPendingRegistry.Pending pending) {
@@ -36,6 +38,8 @@ public final class BuildingEditConfirmGate {
     /**
      * Validate a pending building edit against current Memory + live world + ticket patches.
      * Does not consume the pending entry.
+     *
+     * @param editKind stamped on the PreviewTicket at issue time (immutable)
      */
     public static Outcome validateBeforeApply(
             MemoryManager memoryManager,
@@ -44,10 +48,16 @@ public final class BuildingEditConfirmGate {
             Identifier dimension,
             BlockPos origin,
             List<BlockPatch> patches,
+            PreviewEditKind editKind,
             BuildingEditPendingRegistry.Pending pending
     ) {
+        PreviewEditKind kind = editKind == null ? PreviewEditKind.NONE : editKind;
+        if (!kind.requiresBuildingEditPending()) {
+            // Ordinary PATCH / typology tickets: Pending must not be present as a surprise.
+            return Outcome.pass(null);
+        }
         if (pending == null) {
-            return Outcome.pass(null); // ordinary non-building-edit ticket
+            return Outcome.reject("building_edit_pending_missing");
         }
         if (playerId == null || !playerId.equals(pending.playerId())) {
             return Outcome.reject("building_edit_player_mismatch");
@@ -65,6 +75,9 @@ public final class BuildingEditConfirmGate {
         }
         if (!instance.dimension().equals(pending.dimension())) {
             return Outcome.reject("building_edit_dimension_mismatch");
+        }
+        if (BuildingMemoryKeys.isMemorySyncBlocked(memory)) {
+            return Outcome.reject("building_edit_memory_sync_blocked");
         }
         long currentRevision = BuildingMemoryKeys.revisionOf(memory);
         if (currentRevision != pending.baseRevision()) {
@@ -91,6 +104,21 @@ public final class BuildingEditConfirmGate {
             return Outcome.reject(detail);
         }
         return Outcome.pass(pending);
+    }
+
+    /** @deprecated prefer overload with {@link PreviewEditKind}. */
+    @Deprecated
+    public static Outcome validateBeforeApply(
+            MemoryManager memoryManager,
+            ServerWorld world,
+            UUID playerId,
+            Identifier dimension,
+            BlockPos origin,
+            List<BlockPatch> patches,
+            BuildingEditPendingRegistry.Pending pending
+    ) {
+        PreviewEditKind kind = pending == null ? PreviewEditKind.NONE : PreviewEditKind.BUILDING_ROOF_MATERIAL;
+        return validateBeforeApply(memoryManager, world, playerId, dimension, origin, patches, kind, pending);
     }
 
     public static Map<BlockPos, String> captureLive(ServerWorld world, Set<BlockPos> cells) {

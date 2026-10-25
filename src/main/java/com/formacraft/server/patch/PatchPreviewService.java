@@ -55,7 +55,8 @@ public final class PatchPreviewService {
             BlockPos selectionMax
     ) {
         return issuePreview(player, origin, rawPatches, protectedZones, outline,
-                restrictToSelection, selectionMin, selectionMax, true, null);
+                restrictToSelection, selectionMin, selectionMax, true, null,
+                com.formacraft.server.preview.PreviewEditKind.NONE);
     }
 
     public static PreviewTicket issuePreview(
@@ -70,7 +71,8 @@ public final class PatchPreviewService {
             boolean deliverToClient
     ) {
         return issuePreview(player, origin, rawPatches, protectedZones, outline,
-                restrictToSelection, selectionMin, selectionMax, deliverToClient, null);
+                restrictToSelection, selectionMin, selectionMax, deliverToClient, null,
+                com.formacraft.server.preview.PreviewEditKind.NONE);
     }
 
     public static PreviewTicket issuePreview(
@@ -84,6 +86,24 @@ public final class PatchPreviewService {
             BlockPos selectionMax,
             boolean deliverToClient,
             PalacePreviewPlan confirmedPlan
+    ) {
+        return issuePreview(player, origin, rawPatches, protectedZones, outline,
+                restrictToSelection, selectionMin, selectionMax, deliverToClient, confirmedPlan,
+                com.formacraft.server.preview.PreviewEditKind.NONE);
+    }
+
+    public static PreviewTicket issuePreview(
+            ServerPlayerEntity player,
+            BlockPos origin,
+            List<BlockPatch> rawPatches,
+            List<ProtectedZone> protectedZones,
+            OutlineShape outline,
+            boolean restrictToSelection,
+            BlockPos selectionMin,
+            BlockPos selectionMax,
+            boolean deliverToClient,
+            PalacePreviewPlan confirmedPlan,
+            com.formacraft.server.preview.PreviewEditKind editKind
     ) {
         if (player == null || origin == null) {
             return null;
@@ -198,7 +218,8 @@ public final class PatchPreviewService {
         Map<BlockPos, String> expected = PreviewWorldStateCapture.capture(sw, origin, acceptedFinal);
         PreviewTicket ticket = PreviewTicketStorage.create(
                 player.getUuid(), dimension, origin, acceptedFinal, qualitySnap,
-                PLAN_TTL_MS, explicitPlanId, ctx, expected, requiresPlan, requestId);
+                PLAN_TTL_MS, explicitPlanId, ctx, expected, requiresPlan, requestId,
+                editKind == null ? com.formacraft.server.preview.PreviewEditKind.NONE : editKind);
         if (ticket == null) {
             if (requestId != null) ConfirmedPlanRegistry.dropPending(requestId);
             return null;
@@ -328,7 +349,7 @@ public final class PatchPreviewService {
             return false;
         }
 
-        // Round 57: building-edit confirm gate BEFORE ticket consume / world write.
+        // Round 58: EditKind is stamped on the ticket — building edits never degrade to ordinary patch.
         var pendingEditPeek = com.formacraft.server.edit.BuildingEditPendingRegistry.get(ticketId);
         var mm = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
         var confirmGate = com.formacraft.server.edit.BuildingEditConfirmGate.validateBeforeApply(
@@ -338,6 +359,7 @@ public final class PatchPreviewService {
                 currentDim,
                 pending.origin(),
                 patches,
+                pending.editKind(),
                 pendingEditPeek);
         if (!confirmGate.ok()) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
@@ -401,27 +423,45 @@ public final class PatchPreviewService {
             return false;
         }
         // Building-aware Phase 1: bump revision only after successful Apply (never on preview cancel).
+        boolean buildingEdit = ticket.requiresBuildingEditPending();
         var pendingEdit = com.formacraft.server.edit.BuildingEditPendingRegistry.take(ticket.id());
-        if (pendingEdit != null) {
-            if (mm == null) {
+        if (buildingEdit) {
+            if (pendingEdit == null) {
+                // Should be unreachable after ConfirmGate; fail closed if Pending vanished mid-apply.
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                        "世界已写入，但建筑 Memory 不可用，Revision 未更新。请勿重复确认；可 Undo 后重建索引。"
+                        "【EDIT_MEMORY_SYNC_FAILED】世界已写入，但建筑编辑上下文在确认瞬间丢失，Memory 未更新。"
+                                + "该建筑增量编辑已暂停，请 Undo 后重新预览。"
                 ));
-                FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
                 return false;
             }
-            boolean committed = new com.formacraft.server.edit.BuildingEditService(mm).commitSuccessfulRoofEdit(
+            if (mm == null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "【EDIT_MEMORY_SYNC_FAILED】世界 Apply 成功，但 Memory 不可用（EDIT_COMMIT 未完成）。"
+                                + "无法标记建筑同步状态；请 Undo 后重新预览。"
+                ));
+                return false;
+            }
+            var editService = new com.formacraft.server.edit.BuildingEditService(mm);
+            boolean committed = editService.commitSuccessfulRoofEdit(
                     pendingEdit.buildingId(),
                     pendingEdit.dimension(),
                     pendingEdit.baseRevision(),
                     pendingEdit.newRoofStates());
             if (!committed) {
+                editService.markMemorySyncFailed(
+                        pendingEdit.buildingId(),
+                        pendingEdit.dimension(),
+                        pendingEdit.baseRevision(),
+                        pendingEdit.newRoofStates());
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                        "世界已写入，但建筑 Memory/Revision 更新失败。请 Undo 后重新预览，勿视为完整成功。"
+                        "【EDIT_MEMORY_SYNC_FAILED】世界 Apply 成功，建筑 Memory/Revision 提交失败。"
+                                + "未视为完整编辑成功；该建筑增量编辑已暂停，请 Undo 或执行 Memory 修复后再编辑。"
                 ));
-                FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
                 return false;
             }
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                    "【EDIT_COMMIT_SUCCESS】屋顶材质替换已写入世界并同步建筑 Memory。"
+            ));
         }
         FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
         PreviewStorage.clearQualityReport(player);

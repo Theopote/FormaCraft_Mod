@@ -75,6 +75,11 @@ public final class BuildingEditService {
             return new PreparedEdit(building, null, List.of(), null,
                     List.of("指定建筑未登记在 Memory 中，拒绝猜测性全局修改。"));
         }
+        if (BuildingMemoryKeys.isMemorySyncBlocked(memory)) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("该建筑存在未完成的 Memory 同步（EDIT_MEMORY_SYNC_FAILED），"
+                            + "增量编辑已暂停；请 Undo 或修复 Memory 后再试。"));
+        }
 
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
         if (index.roof().isEmpty()) {
@@ -137,8 +142,42 @@ public final class BuildingEditService {
         }
         BuildingPartIndex.ofRoofCells(List.copyOf(index.roof().cells()), states).persistTo(memory);
         BuildingMemoryKeys.bumpRevision(memory);
+        BuildingMemoryKeys.clearMemorySyncFailed(memory);
         memoryManager.updateMemory(memory);
         return true;
+    }
+
+    /**
+     * World Apply succeeded but Memory commit failed: mark building blocked for further
+     * incremental edits until {@link #repairMemorySync} or a successful commit clears it.
+     */
+    public void markMemorySyncFailed(
+            UUID buildingId,
+            Identifier dimension,
+            long expectedBaseRevision,
+            Map<BlockPos, String> newRoofStates
+    ) {
+        if (buildingId == null) return;
+        ProjectMemory memory = memoryManager.getMemory(buildingId.toString());
+        if (memory == null) return;
+        BuildingMemoryKeys.markMemorySyncFailed(memory, dimension, expectedBaseRevision, newRoofStates);
+        memoryManager.updateMemory(memory);
+    }
+
+    /**
+     * Retry Memory commit after EDIT_MEMORY_SYNC_FAILED. Uses stored pending roof states
+     * when {@code newRoofStates} is null. Clears the block on success.
+     */
+    public boolean repairMemorySync(UUID buildingId, Identifier dimension, Map<BlockPos, String> newRoofStates) {
+        if (buildingId == null || dimension == null) return false;
+        ProjectMemory memory = memoryManager.getMemory(buildingId.toString());
+        if (memory == null || !BuildingMemoryKeys.isMemorySyncBlocked(memory)) return false;
+        long base = BuildingMemoryKeys.memorySyncBaseRevision(memory);
+        if (base < 0L) base = BuildingMemoryKeys.revisionOf(memory);
+        Map<BlockPos, String> states = newRoofStates != null
+                ? newRoofStates
+                : BuildingMemoryKeys.memorySyncPendingRoofStates(memory);
+        return commitSuccessfulRoofEdit(buildingId, dimension, base, states);
     }
 
     /** Attach a roof part index when a building is first registered (compile provenance). */

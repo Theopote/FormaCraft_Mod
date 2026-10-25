@@ -1,6 +1,7 @@
 package com.formacraft.server.edit;
 
 import com.formacraft.server.memory.ProjectMemory;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -13,8 +14,93 @@ public final class BuildingMemoryKeys {
     public static final String REVISION = "building_revision";
     public static final String ROOF_CELLS = "part_index_roof_cells";
     public static final String ROOF_STATES = "part_index_roof_states";
+    /** World Apply succeeded but Memory/Revision commit did not — blocks further incremental edits. */
+    public static final String MEMORY_SYNC_PENDING = "building_edit_memory_sync_pending";
+    public static final String MEMORY_SYNC_BASE_REVISION = "building_edit_memory_sync_base_revision";
+    public static final String MEMORY_SYNC_ROOF_STATES = "building_edit_memory_sync_roof_states";
+    public static final String MEMORY_SYNC_DIMENSION = "building_edit_memory_sync_dimension";
 
     private BuildingMemoryKeys() {}
+
+    public static boolean isMemorySyncBlocked(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return false;
+        Object raw = memory.getMetadata().get(MEMORY_SYNC_PENDING);
+        if (raw instanceof Boolean b) return b;
+        return raw != null && Boolean.parseBoolean(String.valueOf(raw).trim());
+    }
+
+    public static void markMemorySyncFailed(
+            ProjectMemory memory,
+            Identifier dimension,
+            long baseRevision,
+            Map<BlockPos, String> pendingRoofStates
+    ) {
+        if (memory == null) return;
+        Map<String, Object> meta = ensureMetadata(memory);
+        meta.put(MEMORY_SYNC_PENDING, Boolean.TRUE);
+        meta.put(MEMORY_SYNC_BASE_REVISION, Math.max(0L, baseRevision));
+        if (dimension != null) {
+            meta.put(MEMORY_SYNC_DIMENSION, dimension.toString());
+        }
+        Map<String, String> packed = new LinkedHashMap<>();
+        if (pendingRoofStates != null) {
+            for (var e : pendingRoofStates.entrySet()) {
+                if (e.getKey() == null || e.getValue() == null) continue;
+                packed.put(cellKey(e.getKey()), e.getValue());
+            }
+        }
+        meta.put(MEMORY_SYNC_ROOF_STATES, packed);
+    }
+
+    public static void clearMemorySyncFailed(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return;
+        memory.getMetadata().remove(MEMORY_SYNC_PENDING);
+        memory.getMetadata().remove(MEMORY_SYNC_BASE_REVISION);
+        memory.getMetadata().remove(MEMORY_SYNC_ROOF_STATES);
+        memory.getMetadata().remove(MEMORY_SYNC_DIMENSION);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<BlockPos, String> memorySyncPendingRoofStates(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return Map.of();
+        Object raw = memory.getMetadata().get(MEMORY_SYNC_ROOF_STATES);
+        if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) return Map.of();
+        Map<BlockPos, String> out = new LinkedHashMap<>();
+        for (var e : map.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null) continue;
+            BlockPos pos = parseCellKey(String.valueOf(e.getKey()));
+            if (pos != null) out.put(pos, String.valueOf(e.getValue()));
+        }
+        return Map.copyOf(out);
+    }
+
+    public static long memorySyncBaseRevision(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return -1L;
+        Object raw = memory.getMetadata().get(MEMORY_SYNC_BASE_REVISION);
+        if (raw instanceof Number n) return Math.max(0L, n.longValue());
+        if (raw != null) {
+            try {
+                return Math.max(0L, Long.parseLong(String.valueOf(raw).trim()));
+            } catch (NumberFormatException ignored) {
+                return -1L;
+            }
+        }
+        return -1L;
+    }
+
+    private static BlockPos parseCellKey(String key) {
+        if (key == null || key.isBlank()) return null;
+        String[] parts = key.split(",");
+        if (parts.length < 3) return null;
+        try {
+            return new BlockPos(
+                    Integer.parseInt(parts[0].trim()),
+                    Integer.parseInt(parts[1].trim()),
+                    Integer.parseInt(parts[2].trim()));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
 
     public static long revisionOf(ProjectMemory memory) {
         if (memory == null || memory.getMetadata() == null) return 0L;

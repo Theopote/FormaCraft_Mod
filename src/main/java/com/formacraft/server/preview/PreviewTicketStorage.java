@@ -108,6 +108,25 @@ public final class PreviewTicketStorage {
             boolean requiresConfirmedPlan,
             UUID generationRequestId
     ) {
+        return create(playerId, dimension, origin, patches, quality, ttlMs,
+                explicitPlanId, contextHash, expectedStates, requiresConfirmedPlan,
+                generationRequestId, PreviewEditKind.NONE);
+    }
+
+    public static PreviewTicket create(
+            UUID playerId,
+            Identifier dimension,
+            BlockPos origin,
+            List<BlockPatch> patches,
+            BuildQualityGate.QualitySnapshot quality,
+            long ttlMs,
+            String explicitPlanId,
+            String contextHash,
+            Map<BlockPos, String> expectedStates,
+            boolean requiresConfirmedPlan,
+            UUID generationRequestId,
+            PreviewEditKind editKind
+    ) {
         if (playerId == null || origin == null || patches == null || patches.isEmpty()) {
             return null;
         }
@@ -126,7 +145,8 @@ public final class PreviewTicketStorage {
                 planId, patchHash, ctx,
                 expectedStates == null ? Map.of() : expectedStates,
                 requiresConfirmedPlan,
-                generationRequestId);
+                generationRequestId,
+                editKind == null ? PreviewEditKind.NONE : editKind);
         TICKETS.put(id, ticket);
         return ticket;
     }

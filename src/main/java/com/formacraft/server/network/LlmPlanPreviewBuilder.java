@@ -903,7 +903,10 @@ public final class LlmPlanPreviewBuilder {
                 com.formacraft.server.state.PlayerOutlineStorage.get(player),
                 restrict,
                 req.getSelectionMin(),
-                req.getSelectionMax()
+                req.getSelectionMax(),
+                true,
+                null,
+                com.formacraft.server.preview.PreviewEditKind.BUILDING_ROOF_MATERIAL
         );
         if (ticket == null) {
             LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
@@ -913,6 +916,12 @@ public final class LlmPlanPreviewBuilder {
         }
         com.formacraft.server.edit.BuildingEditService.bindPendingToTicket(
                 ticket.id(), player.getUuid(), ticket.expiresAtMillis(), prepared);
+        if (com.formacraft.server.edit.BuildingEditPendingRegistry.get(ticket.id()) == null) {
+            com.formacraft.server.patch.PatchPreviewService.cancel(player, ticket.id());
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "屋顶编辑上下文绑定失败，已取消预览。"));
+            return true;
+        }
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                 "屋顶材质替换预览已就绪（仅屋顶方块；确认后可 Undo/Redo）"));
         LlmPlanRoutingMetrics.recordSuccess(player, req, prepared.patches().size(), prepared.patches().size());

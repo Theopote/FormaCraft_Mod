@@ -286,6 +286,8 @@ public final class PatchHistoryManager {
                         var synced = com.formacraft.server.edit.BuildingPartIndex
                                 .syncIndexedStatesFromPatches(existing, origin, reversePatches);
                         synced.persistTo(after);
+                        // Undo restores world; clear blocked Memory-sync so edits can resume.
+                        com.formacraft.server.edit.BuildingMemoryKeys.clearMemorySyncFailed(after);
                         memoryManager.updateMemory(after);
                     }
                 }

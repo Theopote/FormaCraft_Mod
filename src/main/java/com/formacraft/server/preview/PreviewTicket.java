@@ -17,6 +17,9 @@ import java.util.UUID;
  * {@code requiresConfirmedPlan=true} 的票据必须在 Confirm 时找到对应
  * {@link com.formacraft.server.generation.typology.builder.PalacePreviewPlan}，
  * 不得降级为普通 Patch 确认。
+ * <p>
+ * {@link PreviewEditKind#BUILDING_ROOF_MATERIAL} 票据必须在 Confirm 时找到匹配的
+ * BuildingEdit Pending，不得因 Pending 丢失而降级为无作用域 Patch。
  */
 public record PreviewTicket(
         UUID id,
@@ -31,7 +34,8 @@ public record PreviewTicket(
         String contextHash,
         Map<BlockPos, String> expectedStates,
         boolean requiresConfirmedPlan,
-        UUID generationRequestId
+        UUID generationRequestId,
+        PreviewEditKind editKind
 ) {
     public PreviewTicket {
         patches = patches != null
@@ -43,6 +47,7 @@ public record PreviewTicket(
         expectedStates = expectedStates == null
                 ? Map.of()
                 : Map.copyOf(new LinkedHashMap<>(expectedStates));
+        editKind = editKind == null ? PreviewEditKind.NONE : editKind;
     }
 
     /** Backward-compatible constructor (ordinary patch ticket). */
@@ -56,11 +61,15 @@ public record PreviewTicket(
             BuildQualityGate.QualitySnapshot quality
     ) {
         this(id, playerId, dimension, origin, patches, expiresAtMillis, quality,
-                "", "", "", Map.of(), false, null);
+                "", "", "", Map.of(), false, null, PreviewEditKind.NONE);
     }
 
     public boolean isExpired(long nowMillis) {
         return nowMillis > expiresAtMillis;
+    }
+
+    public boolean requiresBuildingEditPending() {
+        return editKind.requiresBuildingEditPending();
     }
 
     /** Recompute patch hash from frozen patches; must match {@link #patchHash()}. */
