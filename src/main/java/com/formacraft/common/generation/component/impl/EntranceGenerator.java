@@ -59,8 +59,25 @@ public class EntranceGenerator implements ComponentGenerator {
                 && (params.containsKey("door_width") || params.containsKey("doorWidth"));
         int requestedDoorWidth = ComponentParamParsers.intParam(params, Math.max(2, width - 2), "door_width", "doorWidth");
         int doorHeight = ComponentParamParsers.intParam(params, Math.max(2, height - 1), "door_height", "doorHeight");
-        int openingSpan = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
-                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST ? depth : width;
+        // Thin shell openings encode the wall normal in dimensions (1×N or N×1). Prefer that over
+        // slot/global facing so a south-wall service opening is not measured along depth=1.
+        int openingSpan;
+        if (width == 1 && depth > 1) {
+            openingSpan = depth;
+            if (facing != com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                    && facing != com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST) {
+                facing = com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST;
+            }
+        } else if (depth == 1 && width > 1) {
+            openingSpan = width;
+            if (facing != com.formacraft.common.llm.dto.GlobalConstraints.Facing.NORTH
+                    && facing != com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH) {
+                facing = com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
+            }
+        } else {
+            openingSpan = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                    || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST ? depth : width;
+        }
 
         int doorWidth;
         if (explicitDoorWidth) {

@@ -39,11 +39,24 @@ public final class RoofMaterialIntent {
             return Optional.of(text.toLowerCase(Locale.ROOT));
         }
         String lower = text.toLowerCase(Locale.ROOT);
+        // Exact key first (case-insensitive for latin keys).
         for (var e : ALIASES.entrySet()) {
-            if (lower.contains(e.getKey()) || text.contains(e.getKey())) {
+            if (lower.equals(e.getKey().toLowerCase(Locale.ROOT)) || text.equals(e.getKey())) {
                 return Optional.of(e.getValue());
             }
         }
+        // Longest substring wins so "深色橡木" is not swallowed by "橡木".
+        String bestKey = null;
+        String bestValue = null;
+        for (var e : ALIASES.entrySet()) {
+            String key = e.getKey();
+            if (!(lower.contains(key.toLowerCase(Locale.ROOT)) || text.contains(key))) continue;
+            if (bestKey == null || key.length() > bestKey.length()) {
+                bestKey = key;
+                bestValue = e.getValue();
+            }
+        }
+        if (bestValue != null) return Optional.of(bestValue);
         // Bare path like dark_oak_planks
         if (lower.matches("[a-z0-9_]+")) {
             return Optional.of("minecraft:" + lower);

@@ -179,9 +179,15 @@ public final class PreviewTicketStorage {
         return c == null ? null : c.ticket();
     }
 
-    /** Cancel / discard a ticket without applying; clears bound plan for this ticket only. */
+    /**
+     * Cancel / discard a ticket without applying; clears bound plan + building-edit Pending.
+     * Ownership is verified first via {@link #consumeForApply}; unauthorized callers cannot drop Pending.
+     */
     public static boolean cancel(UUID ticketId, UUID playerId) {
-        return consumeForApply(ticketId, playerId) != null;
+        TicketConsumption consumed = consumeForApply(ticketId, playerId);
+        if (consumed == null) return false;
+        com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticketId);
+        return true;
     }
 
     public static void purgeExpired() {
@@ -197,10 +203,12 @@ public final class PreviewTicketStorage {
                     if (t.generationRequestId() != null) {
                         ConfirmedPlanRegistry.dropPending(t.generationRequestId());
                     }
+                    com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(t.id());
                 }
             }
         }
         ConfirmedPlanRegistry.purgeExpired();
+        com.formacraft.server.edit.BuildingEditPendingRegistry.purgeExpired();
     }
 
     /** Low-frequency active purge from server tick (idle servers still reclaim). */
@@ -219,15 +227,18 @@ public final class PreviewTicketStorage {
             if (t != null && playerId.equals(t.playerId())) {
                 it.remove();
                 ConfirmedPlanRegistry.removeByTicket(t.id(), playerId);
+                com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(t.id());
             }
         }
         ConfirmedPlanRegistry.clearPlayer(playerId);
+        com.formacraft.server.edit.BuildingEditPendingRegistry.clearPlayer(playerId);
     }
 
     /** Test-only full reset of ticket storage. */
     public static void clearAllForTest() {
         TICKETS.clear();
         ConfirmedPlanRegistry.clearAllForTest();
+        com.formacraft.server.edit.BuildingEditPendingRegistry.clearForTest();
         SERVER_TICK.set(0);
     }
 
@@ -241,5 +252,6 @@ public final class PreviewTicketStorage {
         if (ticket.generationRequestId() != null) {
             ConfirmedPlanRegistry.dropPending(ticket.generationRequestId());
         }
+        com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticket.id());
     }
 }

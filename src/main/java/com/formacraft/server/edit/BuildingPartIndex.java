@@ -62,23 +62,121 @@ public final class BuildingPartIndex {
     /**
      * Build roof cells from relative patches that carry roof provenance
      * (component type ROOF / ROOF_STRUCTURE or producer/path containing roof).
+     * Prefer {@link #fromFinalPatches} when the list may contain later overwrites/removes.
      */
     public static BuildingPartIndex fromRoofPatches(BlockPos origin, List<BlockPatch> patches) {
+        return fromFinalPatches(origin, patches);
+    }
+
+    /**
+     * Roof index from the final effective writes in a patch list (last-write-wins).
+     * A cell is roof only if its last non-skipped write has roof provenance and is not REMOVE.
+     * Later non-roof writers or REMOVEs exclude the cell — matching landed world membership.
+     */
+    public static BuildingPartIndex fromFinalPatches(BlockPos origin, List<BlockPatch> patches) {
         Objects.requireNonNull(origin, "origin");
-        Set<BlockPos> cells = new LinkedHashSet<>();
-        Map<BlockPos, String> states = new LinkedHashMap<>();
+        Map<BlockPos, BlockPatch> lastWrite = new LinkedHashMap<>();
         if (patches != null) {
             for (BlockPatch patch : patches) {
-                if (patch == null || !isRoofProvenance(patch.source(), null)) continue;
-                if (BlockPatch.REMOVE.equals(patch.action())) continue;
-                BlockPos world = origin.add(patch.dx(), patch.dy(), patch.dz());
-                cells.add(world.toImmutable());
-                if (patch.targetBlock() != null && !patch.targetBlock().isBlank()) {
-                    states.put(world.toImmutable(), patch.targetBlock());
-                }
+                if (patch == null) continue;
+                BlockPos world = origin.add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
+                lastWrite.put(world, patch);
+            }
+        }
+        Set<BlockPos> cells = new LinkedHashSet<>();
+        Map<BlockPos, String> states = new LinkedHashMap<>();
+        for (Map.Entry<BlockPos, BlockPatch> e : lastWrite.entrySet()) {
+            BlockPatch patch = e.getValue();
+            if (BlockPatch.REMOVE.equals(patch.action())) continue;
+            if (!isRoofProvenance(patch.source(), null)) continue;
+            BlockPos world = e.getKey();
+            cells.add(world);
+            if (patch.targetBlock() != null && !patch.targetBlock().isBlank()) {
+                states.put(world, patch.targetBlock());
             }
         }
         return new BuildingPartIndex(new RoofPart("roof", cells, states));
+    }
+
+    /**
+     * Merge a final-batch roof index into an existing Memory index.
+     * Touched cells that are not roof in the batch (overwrite / remove) are dropped from the index.
+     * Untouched existing roof cells are preserved.
+     */
+    public static BuildingPartIndex mergeFinalBatch(
+            BuildingPartIndex existing,
+            BlockPos origin,
+            List<BlockPatch> patches
+    ) {
+        BuildingPartIndex base = existing == null
+                ? new BuildingPartIndex(new RoofPart("roof", Set.of(), Map.of()))
+                : existing;
+        if (patches == null || patches.isEmpty()) return base;
+
+        Set<BlockPos> touched = new LinkedHashSet<>();
+        Map<BlockPos, BlockPatch> lastWrite = new LinkedHashMap<>();
+        for (BlockPatch patch : patches) {
+            if (patch == null) continue;
+            BlockPos world = origin.add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
+            touched.add(world);
+            lastWrite.put(world, patch);
+        }
+
+        Set<BlockPos> cells = new LinkedHashSet<>(base.roof().cells());
+        Map<BlockPos, String> states = new LinkedHashMap<>(base.roof().recordedStates());
+        BuildingPartIndex batchRoof = fromFinalPatches(origin, patches);
+
+        for (BlockPos pos : touched) {
+            BlockPatch last = lastWrite.get(pos);
+            if (last == null) continue;
+            if (BlockPatch.REMOVE.equals(last.action())) {
+                cells.remove(pos);
+                states.remove(pos);
+                continue;
+            }
+            if (batchRoof.roof().cells().contains(pos)) {
+                cells.add(pos);
+                String state = batchRoof.roof().recordedStates().get(pos);
+                if (state != null) states.put(pos, state);
+                continue;
+            }
+            // Non-roof final writer: drop former roof membership at this cell.
+            cells.remove(pos);
+            states.remove(pos);
+        }
+        return ofRoofCells(List.copyOf(cells), states);
+    }
+
+    /**
+     * After Undo reverse-patches: refresh recorded states for still-indexed roof cells
+     * without requiring reverse patches to carry roof provenance.
+     */
+    public static BuildingPartIndex syncIndexedStatesFromPatches(
+            BuildingPartIndex existing,
+            BlockPos origin,
+            List<BlockPatch> patches
+    ) {
+        BuildingPartIndex base = existing == null
+                ? new BuildingPartIndex(new RoofPart("roof", Set.of(), Map.of()))
+                : existing;
+        if (base.roof().isEmpty() || patches == null || patches.isEmpty()) return base;
+
+        Set<BlockPos> cells = new LinkedHashSet<>(base.roof().cells());
+        Map<BlockPos, String> states = new LinkedHashMap<>(base.roof().recordedStates());
+        for (BlockPatch patch : patches) {
+            if (patch == null) continue;
+            BlockPos world = origin.add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
+            if (!cells.contains(world)) continue;
+            if (BlockPatch.REMOVE.equals(patch.action())) {
+                cells.remove(world);
+                states.remove(world);
+                continue;
+            }
+            if (patch.targetBlock() != null && !patch.targetBlock().isBlank()) {
+                states.put(world, patch.targetBlock());
+            }
+        }
+        return ofRoofCells(List.copyOf(cells), states);
     }
 
     /** Extract from planned blocks whose GeometrySource marks roof authorship. */

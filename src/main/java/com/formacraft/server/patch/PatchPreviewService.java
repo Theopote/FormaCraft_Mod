@@ -323,6 +323,29 @@ public final class PatchPreviewService {
             ));
         }
 
+        List<BlockPatch> patches = pending.patches();
+        if (patches == null || patches.isEmpty()) {
+            return false;
+        }
+
+        // Round 57: building-edit confirm gate BEFORE ticket consume / world write.
+        var pendingEditPeek = com.formacraft.server.edit.BuildingEditPendingRegistry.get(ticketId);
+        var mm = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+        var confirmGate = com.formacraft.server.edit.BuildingEditConfirmGate.validateBeforeApply(
+                mm,
+                sw,
+                player.getUuid(),
+                currentDim,
+                pending.origin(),
+                patches,
+                pendingEditPeek);
+        if (!confirmGate.ok()) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "建筑编辑确认校验失败：" + confirmGate.message() + "。请重新预览。"
+            ));
+            return false;
+        }
+
         // One-shot consume: ticket + bound plan detached together (no orphan plan).
         PreviewTicketStorage.TicketConsumption consumption =
                 PreviewTicketStorage.consumeForApply(ticketId, player.getUuid());
@@ -357,7 +380,7 @@ public final class PatchPreviewService {
             }
         }
 
-        List<BlockPatch> patches = ticket.patches();
+        patches = ticket.patches();
         if (patches == null || patches.isEmpty()) {
             return false;
         }
@@ -366,28 +389,41 @@ public final class PatchPreviewService {
                 sw, player.getUuid(), ticket.origin(), patches);
         // null is never success — applyWithHistory must return an explicit status.
         if (applyResult == null) {
+            com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticket.id());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "建造执行未返回结果（APPLY_NULL），已拒绝视为成功。"
             ));
             return false;
         }
-        FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
         if (applyResult.status() != BuildExecutionStatus.SUCCESS) {
-            com.formacraft.server.edit.BuildingEditPendingRegistry.drop(ticketId);
+            com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticket.id());
+            FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
             return false;
         }
         // Building-aware Phase 1: bump revision only after successful Apply (never on preview cancel).
         var pendingEdit = com.formacraft.server.edit.BuildingEditPendingRegistry.take(ticket.id());
         if (pendingEdit != null) {
-            var mm = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
-            if (mm != null) {
-                new com.formacraft.server.edit.BuildingEditService(mm).commitSuccessfulRoofEdit(
-                        pendingEdit.buildingId(),
-                        pendingEdit.dimension(),
-                        pendingEdit.baseRevision(),
-                        pendingEdit.newRoofStates());
+            if (mm == null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "世界已写入，但建筑 Memory 不可用，Revision 未更新。请勿重复确认；可 Undo 后重建索引。"
+                ));
+                FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
+                return false;
+            }
+            boolean committed = new com.formacraft.server.edit.BuildingEditService(mm).commitSuccessfulRoofEdit(
+                    pendingEdit.buildingId(),
+                    pendingEdit.dimension(),
+                    pendingEdit.baseRevision(),
+                    pendingEdit.newRoofStates());
+            if (!committed) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "世界已写入，但建筑 Memory/Revision 更新失败。请 Undo 后重新预览，勿视为完整成功。"
+                ));
+                FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
+                return false;
             }
         }
+        FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
         PreviewStorage.clearQualityReport(player);
         return true;
     }
@@ -395,7 +431,7 @@ public final class PatchPreviewService {
     /** Cancel a patch preview ticket (and only its bound plan). */
     public static boolean cancel(ServerPlayerEntity player, UUID ticketId) {
         if (player == null || ticketId == null) return false;
-        com.formacraft.server.edit.BuildingEditPendingRegistry.drop(ticketId);
+        // Ownership verified inside PreviewTicketStorage.cancel → dropVerified Pending.
         return PreviewTicketStorage.cancel(ticketId, player.getUuid());
     }
 

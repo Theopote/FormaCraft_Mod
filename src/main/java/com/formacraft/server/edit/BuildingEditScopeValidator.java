@@ -13,7 +13,7 @@ import java.util.Objects;
 
 /**
  * Independent of the LLM: every effective write must land in allowedCells,
- * and protected / expected states must not be violated.
+ * and protected / expected / live states must not be violated (fail-closed).
  */
 public final class BuildingEditScopeValidator {
     private BuildingEditScopeValidator() {}
@@ -45,6 +45,10 @@ public final class BuildingEditScopeValidator {
             conflicts.add("empty_patch");
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
+        if (liveWorldStates == null) {
+            conflicts.add("live_world_states_missing");
+            return BuildingEditValidation.rejected(conflicts, unexpected);
+        }
 
         BlockPos originPos = origin == null ? BlockPos.ORIGIN : origin;
         boolean anyChange = false;
@@ -71,13 +75,19 @@ public final class BuildingEditScopeValidator {
                 continue;
             }
             String expected = scope.expectedWorldStates().get(world);
-            if (expected != null && liveWorldStates != null) {
-                String live = liveWorldStates.get(world);
-                if (live != null && !statesMatch(expected, live)) {
-                    conflicts.add("world_conflict@" + world.toShortString()
-                            + " expected=" + expected + " live=" + live);
-                    continue;
-                }
+            if (expected == null || expected.isBlank()) {
+                conflicts.add("expected_state_missing@" + world.toShortString());
+                continue;
+            }
+            String live = liveWorldStates.get(world);
+            if (live == null || live.isBlank()) {
+                conflicts.add("live_state_missing@" + world.toShortString());
+                continue;
+            }
+            if (!statesMatch(expected, live)) {
+                conflicts.add("world_conflict@" + world.toShortString()
+                        + " expected=" + expected + " live=" + live);
+                continue;
             }
             anyChange = true;
         }

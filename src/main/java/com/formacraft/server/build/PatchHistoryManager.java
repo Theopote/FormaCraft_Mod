@@ -179,25 +179,21 @@ public final class PatchHistoryManager {
                             impact.getMaxPos()
                     );
                 }
-                // Merge roof provenance cells into Memory part index (Phase 1).
+                // Final-patch roof index: last-write-wins; drops overwritten/removed roof cells.
                 ProjectMemory after = impact.getTargetBuilding() == null
                         ? null
                         : memoryManager.getMemory(impact.getTargetBuilding().toString());
                 if (after != null) {
-                    var roofFromPatches = com.formacraft.server.edit.BuildingPartIndex
-                            .fromRoofPatches(origin, patches);
-                    if (!roofFromPatches.roof().isEmpty()) {
-                        var existing = com.formacraft.server.edit.BuildingPartIndex.fromMemory(after);
-                        java.util.LinkedHashSet<net.minecraft.util.math.BlockPos> cells =
-                                new java.util.LinkedHashSet<>(existing.roof().cells());
-                        cells.addAll(roofFromPatches.roof().cells());
-                        java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, String> states =
-                                new java.util.LinkedHashMap<>(existing.roof().recordedStates());
-                        states.putAll(roofFromPatches.roof().recordedStates());
-                        com.formacraft.server.edit.BuildingEditService.attachRoofIndex(
-                                after,
-                                com.formacraft.server.edit.BuildingPartIndex.ofRoofCells(
-                                        java.util.List.copyOf(cells), states));
+                    var existing = com.formacraft.server.edit.BuildingPartIndex.fromMemory(after);
+                    var merged = com.formacraft.server.edit.BuildingPartIndex.mergeFinalBatch(
+                            existing, origin, patches);
+                    if (!merged.roof().isEmpty() || !existing.roof().isEmpty()) {
+                        // persistTo clears cells when merge emptied the roof (attachRoofIndex skips empty).
+                        merged.persistTo(after);
+                        if (!after.getMetadata().containsKey(
+                                com.formacraft.server.edit.BuildingMemoryKeys.REVISION)) {
+                            com.formacraft.server.edit.BuildingMemoryKeys.setRevision(after, 0L);
+                        }
                         memoryManager.updateMemory(after);
                     }
                 }
@@ -279,6 +275,19 @@ public final class PatchHistoryManager {
                     memoryManager.applyMutation(
                             world.getRegistryKey().getValue(), undoMutation,
                             impact.getMinPos(), impact.getMaxPos());
+                }
+                // Sync roof recorded states for indexed cells (reverse patches often lack provenance).
+                ProjectMemory after = impact.getTargetBuilding() == null
+                        ? null
+                        : memoryManager.getMemory(impact.getTargetBuilding().toString());
+                if (after != null) {
+                    var existing = com.formacraft.server.edit.BuildingPartIndex.fromMemory(after);
+                    if (!existing.roof().isEmpty()) {
+                        var synced = com.formacraft.server.edit.BuildingPartIndex
+                                .syncIndexedStatesFromPatches(existing, origin, reversePatches);
+                        synced.persistTo(after);
+                        memoryManager.updateMemory(after);
+                    }
                 }
             }
         } catch (Exception e) {

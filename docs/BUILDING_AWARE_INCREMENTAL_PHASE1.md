@@ -65,5 +65,26 @@ userMessage matches roof material replace
   → Cancel / failed Apply → pending dropped; Memory revision unchanged
 ```
 
-ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` provenance；`PatchHistoryManager` 在 Apply 后把屋顶格合并进 Memory 部位索引。
+ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` provenance；`PatchHistoryManager` 在 Apply 后按**最终落地 Patch（last-write-wins）**合并屋顶索引（覆盖/删除的屋顶格会移出索引）。
+
+## 6. Round 57 — Confirm / lifecycle / fail-closed
+
+| Item | Status |
+|---|---|
+| 57-01 Confirm 前 revision/scope/live 复核（`BuildingEditConfirmGate`） | done — before ticket consume / world write |
+| 57-02/03 Pending 跟随 Ticket 过期/取消/断线；取消先校验所有权 | done — `PreviewTicketStorage` |
+| 57-04 live 缺失 fail-closed | done — `BuildingEditScopeValidator` |
+| 57-05 最终屋顶来源索引 | done — `BuildingPartIndex.fromFinalPatches` / `mergeFinalBatch` |
+| Memory 更新失败不得报完整成功 | done — Confirm 路径 |
+
+自动化：`BuildingAwareRound57Test`、`BuildingAwareIncrementalPhase1Test`、`RoofMaterialReplaceIntentTest`。
+
+### In-Game checklist（CI 不能代替）
+
+1. 自然语言「屋顶换成深色橡木」→ Preview 仅屋顶变色，墙/楼板不变  
+2. Confirm 成功 → Undo 恢复材质；Redo 再应用；Revision +1  
+3. 预览后手动改一块屋顶再 Confirm → 拒绝  
+4. 同建筑开两个屋顶预览，先后 Confirm → 第二个 revision 拒绝  
+5. Cancel / 断线后 Pending 不残留；他人 Ticket UUID 无法清掉自己的 Pending  
+6. 重启后 Memory 仍有 buildingId / revision / roof cells
 

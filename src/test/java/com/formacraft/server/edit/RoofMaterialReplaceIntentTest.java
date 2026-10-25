@@ -32,4 +32,14 @@ class RoofMaterialReplaceIntentTest {
         assertFalse(RoofMaterialReplaceIntent.matches("把二楼东面的三扇窗户改大"));
         assertFalse(RoofMaterialReplaceIntent.matches("换个门"));
     }
+
+    @Test
+    void darkOakPhraseDoesNotCollapseToOak() {
+        assertEquals("minecraft:dark_oak_planks",
+                RoofMaterialIntent.resolveBlockId("深色橡木").orElseThrow());
+        assertEquals("minecraft:dark_oak_planks",
+                RoofMaterialIntent.resolveBlockId("dark oak").orElseThrow());
+        assertEquals("minecraft:oak_planks",
+                RoofMaterialIntent.resolveBlockId("橡木").orElseThrow());
+    }
 }

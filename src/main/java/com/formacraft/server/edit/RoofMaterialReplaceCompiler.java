@@ -108,6 +108,7 @@ public final class RoofMaterialReplaceCompiler {
         String stem = mat
                 .replaceFirst("_(planks|stairs|slab|wall|fence|bricks|brick|tiles|tile)$", "")
                 .replaceFirst("bricks$", "brick");
-        return path.equals(mat) || path.startsWith(stem + "_") || path.equals(stem);
+        if (stem.isBlank()) return false;
+        return path.equals(mat) || path.equals(stem) || path.startsWith(stem + "_");
     }
 }

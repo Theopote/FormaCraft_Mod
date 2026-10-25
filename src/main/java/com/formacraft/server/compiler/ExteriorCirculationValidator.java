@@ -159,38 +159,60 @@ final class ExteriorCirculationValidator {
                         || pos.getZ()<core.minZ()+hz || pos.getZ()>=core.maxZ()+hz)) result.add(pos);
             }
         }
-        // Declared destination doorway: foundation footing, portal cells, and a
-        // bounded landing intrusion into the target host (not mid-run foreign mass).
+        // Destination doorway: foundation footing, portal cells, and a bounded landing
+        // intrusion into the target host (not mid-run foreign mass).
+        // Link via stair_connection, or spatially when the `to` landing sits in an
+        // authored ENTRANCE on the stair host / target_host (fixture may omit the link).
+        Object destHost = stair.params().get("target_host_id");
+        if (destHost == null) destHost = stair.params().get("host_id");
+        BlockPos toLanding = new BlockPos(
+                offset.getX() + rp.x() + number(to.get("x")),
+                offset.getY() + rp.y() + number(to.get("y")),
+                offset.getZ() + rp.z() + number(to.get("z")));
         for (var door : components) {
-            if (!"ENTRANCE".equals(door.componentType()) || door.params()==null
-                    || !Objects.equals(stair.params().get("component_id"),door.params().get("stair_connection"))
-                    || !Objects.equals(stair.params().get("target_host_id"),door.params().get("host_id"))) continue;
-            var db = ComponentFootprintUtil.bounds(door);
-            var ds = slots.get(door.slotId()); var da=ds==null?null:ds.anchor();
-            int ox=da==null?0:da.x(), oy=da==null?0:da.y(), oz=da==null?0:da.z();
-            if (db==null) continue;
+            if (!"ENTRANCE".equals(door.componentType()) || door.params() == null) continue;
             Object doorHost = door.params().get("host_id");
+            boolean linked = Objects.equals(stair.params().get("component_id"), door.params().get("stair_connection"))
+                    && (Objects.equals(stair.params().get("target_host_id"), doorHost)
+                    || (stair.params().get("target_host_id") == null && Objects.equals(destHost, doorHost)));
+            var db = ComponentFootprintUtil.bounds(door);
+            var ds = slots.get(door.slotId());
+            var da = ds == null ? null : ds.anchor();
+            int ox = da == null ? 0 : da.x(), oy = da == null ? 0 : da.y(), oz = da == null ? 0 : da.z();
+            if (db == null) continue;
+            boolean spatial = !linked
+                    && Objects.equals(destHost, doorHost)
+                    && toLanding.getX() >= db.minX() + ox && toLanding.getX() < db.maxX() + ox
+                    && toLanding.getZ() >= db.minZ() + oz && toLanding.getZ() < db.maxZ() + oz
+                    && toLanding.getY() >= db.minY() + oy - 1 && toLanding.getY() < db.maxY() + oy;
+            if (!linked && !spatial) continue;
             int doorClear = Math.max(clear, Math.max(1, db.maxY() - db.minY()));
-            for(int step=0;step<=(landing>1?landing:0);step++) for(int side=-width/2;side<width-width/2;side++) {
-                for (int y = -1; y <= doorClear; y++) {
-                    var pos = new BlockPos(offset.getX()+rp.x()+number(to.get("x"))+dx*step+(dz!=0?side:0),
-                            offset.getY()+rp.y()+number(to.get("y"))+y,
-                            offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx!=0?side:0));
-                    var previous=occupancy.placeAt(pos);
-                    if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
-                    boolean inPortalBand = pos.getX()>=db.minX()+ox-Math.abs(dx)*landing && pos.getX()<db.maxX()+ox+Math.abs(dx)*landing
-                            && pos.getZ()>=db.minZ()+oz-Math.abs(dz)*landing && pos.getZ()<db.maxZ()+oz+Math.abs(dz)*landing;
-                    boolean hostOwned = Objects.equals(doorHost, previous.owner().params().get("host_id"))
-                            || Objects.equals(doorHost, previous.owner().params().get("component_id"));
-                    if (!hostOwned) continue;
-                    if (y == -1 && "FOUNDATION".equals(previous.writerType()) && inPortalBand) {
-                        result.add(pos);
-                        continue;
-                    }
-                    // Portal + short inward landing may meet the destination host shell.
-                    if (inPortalBand || Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY",
-                            "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(previous.writerType())) {
-                        if (pos.getY() >= db.minY()+oy-1 && pos.getY() < db.maxY()+oy+clear) result.add(pos);
+            for (int step = 0; step <= (landing > 1 ? landing : 0); step++) {
+                for (int side = -width / 2; side < width - width / 2; side++) {
+                    for (int y = -1; y <= doorClear; y++) {
+                        var pos = new BlockPos(offset.getX() + rp.x() + number(to.get("x")) + dx * step + (dz != 0 ? side : 0),
+                                offset.getY() + rp.y() + number(to.get("y")) + y,
+                                offset.getZ() + rp.z() + number(to.get("z")) + dz * step + (dx != 0 ? side : 0));
+                        var previous = occupancy.placeAt(pos);
+                        if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
+                        boolean inPortalBand = pos.getX() >= db.minX() + ox - Math.abs(dx) * landing
+                                && pos.getX() < db.maxX() + ox + Math.abs(dx) * landing
+                                && pos.getZ() >= db.minZ() + oz - Math.abs(dz) * landing
+                                && pos.getZ() < db.maxZ() + oz + Math.abs(dz) * landing;
+                        boolean hostOwned = Objects.equals(doorHost, previous.owner().params().get("host_id"))
+                                || Objects.equals(doorHost, previous.owner().params().get("component_id"));
+                        if (!hostOwned) continue;
+                        if (y == -1 && "FOUNDATION".equals(previous.writerType()) && inPortalBand) {
+                            result.add(pos);
+                            continue;
+                        }
+                        // Portal + short inward landing may meet the destination host shell.
+                        if (inPortalBand || Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY",
+                                "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(previous.writerType())) {
+                            if (pos.getY() >= db.minY() + oy - 1 && pos.getY() < db.maxY() + oy + clear) {
+                                result.add(pos);
+                            }
+                        }
                     }
                 }
             }

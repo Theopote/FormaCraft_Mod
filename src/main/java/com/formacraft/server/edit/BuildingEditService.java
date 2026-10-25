@@ -154,18 +154,28 @@ public final class BuildingEditService {
      * Bind a prepared roof edit to a PreviewTicket. Call after {@code PatchPreviewService.issuePreview}.
      * Memory revision advances only when that ticket Apply returns SUCCESS.
      */
-    public static void bindPendingToTicket(UUID ticketId, PreparedEdit prepared) {
-        if (ticketId == null || prepared == null || !prepared.ok()) return;
+    public static void bindPendingToTicket(
+            UUID ticketId,
+            UUID playerId,
+            long expiresAtMillis,
+            PreparedEdit prepared
+    ) {
+        if (ticketId == null || playerId == null || prepared == null || !prepared.ok()) return;
         Map<BlockPos, String> newStates = new LinkedHashMap<>();
         BlockPos origin = prepared.building().origin();
         for (BlockPatch patch : prepared.patches()) {
             if (patch == null || patch.targetBlock() == null) continue;
             newStates.put(origin.add(patch.dx(), patch.dy(), patch.dz()).toImmutable(), patch.targetBlock());
         }
-        BuildingEditPendingRegistry.put(ticketId, new BuildingEditPendingRegistry.Pending(
+        BuildingEditPendingRegistry.put(new BuildingEditPendingRegistry.Pending(
+                ticketId,
+                playerId,
                 prepared.building().buildingId(),
                 prepared.building().dimension(),
                 prepared.scope().baseRevision(),
-                newStates));
+                prepared.scope().allowedCells(),
+                prepared.scope().expectedWorldStates(),
+                newStates,
+                expiresAtMillis));
     }
 }
