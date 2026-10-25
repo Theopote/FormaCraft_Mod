@@ -7,6 +7,9 @@ import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.server.city.CityBuilder;
 import com.formacraft.server.generation.structure.StructureGenerator;
 import com.formacraft.server.generation.structure.StructureGeneratorFactory;
+import com.formacraft.server.edit.BuildingEditService;
+import com.formacraft.server.edit.BuildingMemoryKeys;
+import com.formacraft.server.edit.BuildingPartIndex;
 import com.formacraft.server.memory.MemoryManager;
 import com.formacraft.server.memory.ProjectMemory;
 import com.formacraft.server.state.PlayerSpecRepository;
@@ -370,7 +373,12 @@ public class BuildExecutionService {
                 ProjectMemory memory = memoryManager.registerBuilding(structure, spec, memoryName, world);
                 if (memory != null) {
                     memoryUuid = memory.getUuid();
-                    FormacraftMod.LOGGER.info("Saved building to memory: {} ({})", memory.getName(), memory.getUuid());
+                    BuildingPartIndex roofIndex = BuildingPartIndex.fromPlannedBlocks(structure.getBlocks());
+                    BuildingEditService.attachRoofIndex(memory, roofIndex);
+                    BuildingMemoryKeys.setRevision(memory, 0L);
+                    memoryManager.updateMemory(memory);
+                    FormacraftMod.LOGGER.info("Saved building to memory: {} ({}) roofCells={}",
+                            memory.getName(), memory.getUuid(), roofIndex.roof().cells().size());
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.warn("Failed to save building to memory: {}", e.getMessage());

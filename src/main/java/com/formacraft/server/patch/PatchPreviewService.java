@@ -373,7 +373,20 @@ public final class PatchPreviewService {
         }
         FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
         if (applyResult.status() != BuildExecutionStatus.SUCCESS) {
+            com.formacraft.server.edit.BuildingEditPendingRegistry.drop(ticketId);
             return false;
+        }
+        // Building-aware Phase 1: bump revision only after successful Apply (never on preview cancel).
+        var pendingEdit = com.formacraft.server.edit.BuildingEditPendingRegistry.take(ticket.id());
+        if (pendingEdit != null) {
+            var mm = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+            if (mm != null) {
+                new com.formacraft.server.edit.BuildingEditService(mm).commitSuccessfulRoofEdit(
+                        pendingEdit.buildingId(),
+                        pendingEdit.dimension(),
+                        pendingEdit.baseRevision(),
+                        pendingEdit.newRoofStates());
+            }
         }
         PreviewStorage.clearQualityReport(player);
         return true;
@@ -382,11 +395,13 @@ public final class PatchPreviewService {
     /** Cancel a patch preview ticket (and only its bound plan). */
     public static boolean cancel(ServerPlayerEntity player, UUID ticketId) {
         if (player == null || ticketId == null) return false;
+        com.formacraft.server.edit.BuildingEditPendingRegistry.drop(ticketId);
         return PreviewTicketStorage.cancel(ticketId, player.getUuid());
     }
 
     /** Cancel all patch tickets for a player (disconnect / forma_cancel). */
     public static void cancelAll(ServerPlayerEntity player) {
+        // Pending building-edit bindings are dropped with ticket cancel paths below.
         if (player == null) return;
         PreviewTicketStorage.clearPlayer(player.getUuid());
     }
