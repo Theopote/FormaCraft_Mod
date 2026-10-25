@@ -3021,14 +3021,15 @@ public final class ComponentPlanCompiler {
         if ("MASS_ANCILLARY".equals(normalizeType(component.componentType()))) {
             var params = new HashMap<String, Object>();
             if (component.params() != null) params.putAll(component.params());
-            params.put("compiler_connector_body", true);
+            boolean solidSupport = Boolean.FALSE.equals(params.get("hollow"));
+            if (!solidSupport) params.put("compiler_connector_body", true);
             params.putIfAbsent("wall_thickness", 1);
             params.put("plan_type", "none");
             // Unspecified-width covered links need one walkable cell between
             // their walls. Do not let a two-cell model default seal the link.
             Dimensions linkDims = component.dimensions();
             int linkWall = ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness");
-            if (linkDims != null && linkWall > 0) {
+            if (!solidSupport && linkDims != null && linkWall > 0) {
                 linkDims = new Dimensions(Math.max(linkDims.width(), 2*linkWall+1),
                         Math.max(linkDims.depth(), 2*linkWall+1), linkDims.height());
             }

@@ -7,6 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class PromptModeResolverTest {
 
     @Test
+    void loggedCabinEditDoesNotBecomeBuild() {
+        assertEquals(PromptMode.PATCH, PromptModeResolver.fromUserText(
+                "修改刚才的小木屋：只在正门右\n侧的墙面增加一扇2格宽、\n2格高的玻璃窗。保持建筑位置、地基、屋顶、门和其他墙面不变。"));
+    }
+
+    @Test
     void incrementalChineseMapsToPatch() {
         assertEquals(PromptMode.PATCH, PromptModeResolver.fromUserText(
                 "只改局部：把这栋小木屋朝南外墙最中间那一段改成玻璃窗带，不要重建整栋"));

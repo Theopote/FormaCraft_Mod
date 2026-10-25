@@ -476,6 +476,7 @@ public final class LlmPlanPreviewBuilder {
 
                 // 地形基础处理（仅 LlmPlan）：根据地形起伏决定台阶/支柱/覆土
                 if (!plannedBlocks.isEmpty()
+                        && !LlmPlanTerrainBounds.isLightweightLinearPlan(llmPlan)
                         && llmPlan.globalConstraints() != null
                         && llmPlan.globalConstraints().terrainStrategy() != null
                         && llmPlan.globalConstraints().terrainStrategy()
@@ -654,7 +655,9 @@ public final class LlmPlanPreviewBuilder {
                     ));
                 }
                 hbAlive.set(false);
-                LlmPlanRoutingMetrics.recordError(player, req, "quality:" + pipeline.report().summaryZh());
+                if (pipeline.report() != null) {
+                    LlmPlanRoutingMetrics.recordError(player, req, "quality:" + pipeline.report().summaryZh());
+                }
                 return true;
             }
 

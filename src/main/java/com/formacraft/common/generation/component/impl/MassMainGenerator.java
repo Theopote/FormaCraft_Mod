@@ -265,10 +265,22 @@ public class MassMainGenerator implements ComponentGenerator {
         FacadeStyle facadeStyle = resolveFacadeStyle(params, semantic, styleProfile);
 
         for (MassConfig mass : massConfigs) {
-            emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof, hasDecor,
+            boolean openRoof = params != null && Boolean.TRUE.equals(params.get("open")) && hasRoof;
+            emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof && !openRoof, hasDecor,
                     windowSpacing, doorFacing, wallThickness, userFloorHeight,
                     facadeStyle, suppressWindowFaces, suppressDoorFaces,
                     suppressWindowRegions, suppressDoorRegions);
+            if (openRoof) {
+                var roofParams = new java.util.HashMap<String,Object>(params);
+                roofParams.put("anchor_mode", "min_corner");
+                roofParams.put("roof_type", roofType);
+                var roof = new Component("ROOF", c.slotId(),
+                        new Vec3i(rp.x()+mass.offsetX, rp.y()+mass.offsetY+mass.height, rp.z()+mass.offsetZ),
+                        new Dimensions(mass.width,mass.depth,Math.max(2,Math.min(mass.width,mass.depth)/2)),
+                        List.of(),roofParams);
+                out.addAll(new RoofGenerator().generate(new SemanticComponent("ROOF", semantic.slot(), roof,
+                        semantic.styleProfile(),semantic.styleAttributes(),semantic.genome())));
+            }
         }
 
         return out;
@@ -371,6 +383,19 @@ public class MassMainGenerator implements ComponentGenerator {
                     }
 
                     if (!footprint.contains(localX, localZ)) {
+                        continue;
+                    }
+
+                    // Explicit open masses are pavilion frames. Do not reinterpret their
+                    // absent walls as a hollow enclosed house (or inject default windows).
+                    if (Boolean.TRUE.equals(massParams.get("open"))) {
+                        boolean post = (x == 0 || x == currentWidth - 1)
+                                && (z == 0 || z == currentDepth - 1);
+                        String block = y == 0 ? getBlockForPart(SemanticPart.FLOOR, semantic, palette)
+                                : post ? getBlockForPart(SemanticPart.WALL, semantic, palette) : "minecraft:air";
+                        out.add(new BlockPatch("minecraft:air".equals(block) ? BlockPatch.REMOVE : BlockPatch.PLACE,
+                                rp.x() + mass.offsetX + localX, rp.y() + mass.offsetY + y,
+                                rp.z() + mass.offsetZ + localZ, block));
                         continue;
                     }
 

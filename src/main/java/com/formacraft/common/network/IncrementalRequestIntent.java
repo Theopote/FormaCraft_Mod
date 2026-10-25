@@ -1,0 +1,18 @@
+package com.formacraft.common.network;
+
+import java.util.regex.Pattern;
+
+/** Shared raw-user intent safeguard; never inspect the assembled schema prompt. */
+public final class IncrementalRequestIntent {
+    private IncrementalRequestIntent() {}
+
+    private static final Pattern EDIT_EXISTING = Pattern.compile(
+            "(?:修改|改动|调整|编辑|修补)\\s*(?:刚才|之前|已有|现有|当前|这栋|这座|这个|那栋|那座)"
+                    + "|(?:只|仅)(?:在|把|将).{0,60}(?:增加|新增|开窗|去掉|移除|替换).{0,100}(?:保持|保留)"
+                    + "|(?:modify|edit|update)\\s+(?:the\\s+)?(?:previous|existing|current|last)\\b",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    public static boolean isIncremental(String text) {
+        return text != null && EDIT_EXISTING.matcher(text.replaceAll("\\s+", " ")).find();
+    }
+}

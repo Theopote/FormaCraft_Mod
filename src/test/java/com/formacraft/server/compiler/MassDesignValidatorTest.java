@@ -18,6 +18,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MassDesignValidatorTest {
 
     @Test
+    void zeroWallThicknessRequiresExplicitOpenPavilion() {
+        var mass = new Component("MASS_MAIN", "body", new Vec3i(0,0,0),
+                new Dimensions(5,5,5), List.of(), Map.of("wall_thickness",0,"open",true,"void_ratio",1.0));
+        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        assertTrue(MassDesignValidator.check(plan,List.of(mass)).isEmpty());
+        var closed = new Component("MASS_MAIN", "body", new Vec3i(0,0,0),
+                new Dimensions(5,5,5), List.of(), Map.of("wall_thickness",0));
+        assertEquals("E_WALL_THICKNESS_INVALID",
+                MassDesignValidator.check(plan,List.of(closed)).orElseThrow().code());
+    }
+
+    @Test
     void rejectsUnfitCourtyardRatio() throws Exception {
         var plan = LlmPlanParser.parseAndValidate(loadFixture("courtyard_ratio_unfit.json"));
         var gap = MassDesignValidator.check(plan, plan.components());

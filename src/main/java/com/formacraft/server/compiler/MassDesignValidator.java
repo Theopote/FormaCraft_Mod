@@ -146,6 +146,9 @@ final class MassDesignValidator {
         }
         Object raw = params.get(presentKey);
         Integer thickness = parseIntStrict(raw);
+        if (thickness != null && thickness == 0 && Boolean.TRUE.equals(params.get("open"))) {
+            return Optional.empty(); // Explicit open pavilion: posts, not a zero-thickness wall.
+        }
         if (thickness == null || thickness <= 0) {
             return Optional.of(new CapabilityGap(
                     "E_WALL_THICKNESS_INVALID",

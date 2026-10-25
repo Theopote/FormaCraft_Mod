@@ -51,6 +51,12 @@ public final class BuildRequestProcessor {
                     com.formacraft.common.component.query.ComponentRetriever.setViewerPlayer(player.getUuid());
                     try {
                     FormaRequest req = payload.request();
+                    // Older clients can still label an explicit edit BUILD. Enforce intent
+                    // before contacting the backend so its response cannot rebuild the host.
+                    if ((req.getPromptMode() == null || "BUILD".equalsIgnoreCase(req.getPromptMode()))
+                            && com.formacraft.common.network.IncrementalRequestIntent.isIncremental(req.getUserMessage())) {
+                        req.setPromptMode("PATCH");
+                    }
                     com.formacraft.server.config.ServerLlmConfig.apply(req, context.server().isDedicated());
                     FormacraftMod.LOGGER.info("Received build request from player {}: {}",
                             player.getName().getString(), BuildingSpecRoutingPolicy.userIntentText(req));

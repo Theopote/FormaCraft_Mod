@@ -23,12 +23,15 @@ public final class PromptModeResolver {
 
     /** Resolve mode from player-visible text (not the assembled system prompt). */
     public static PromptMode fromUserText(String rawUserText) {
-        String text = rawUserText == null ? "" : rawUserText.trim();
+        String text = rawUserText == null ? "" : rawUserText.replaceAll("\\s+", " ").trim();
         if (text.isEmpty()) {
             return PromptMode.BUILD;
         }
         if (REGION_ONLY.matcher(text).find()) {
             return PromptMode.MODIFY_REGION;
+        }
+        if (com.formacraft.common.network.IncrementalRequestIntent.isIncremental(text)) {
+            return PromptMode.PATCH;
         }
         if (INCREMENTAL.matcher(text).find()) {
             return PromptMode.PATCH;
