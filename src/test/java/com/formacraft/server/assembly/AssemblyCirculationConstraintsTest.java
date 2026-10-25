@@ -102,7 +102,7 @@ class AssemblyCirculationConstraintsTest {
         assertFalse(flight.clearance().contains(pos));
     }
 
-    @Test void validatePatchesCollapsesLaterFlightTreadOverEarlierClearance() {
+    @Test void laterFlightTreadFillingEarlierHeadroomIsRejectedInValidatePatches() {
         var earlier = new AssemblyCirculationConstraints.Flight(
                 Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(1, 2, 0)));
         var later = new AssemblyCirculationConstraints.Flight(
@@ -114,13 +114,47 @@ class AssemblyCirculationConstraintsTest {
                         com.formacraft.common.patch.BlockPatch.PLACE, 1, 2, 0, "minecraft:oak_planks"),
                 new com.formacraft.common.patch.BlockPatch(
                         com.formacraft.common.patch.BlockPatch.REMOVE, 1, 3, 0, "minecraft:air"));
-        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(earlier, later)));
-        // Per-op validate stays strict: earlier clearance vs later tread still conflicts.
-        var ops = List.of(
-                new PlannedBlock(new BlockPos(0, 0, 0), Blocks.OAK_PLANKS.getDefaultState()),
-                new PlannedBlock(new BlockPos(1, 2, 0), Blocks.OAK_PLANKS.getDefaultState()),
-                new PlannedBlock(new BlockPos(1, 3, 0), Blocks.AIR.getDefaultState()));
+        var error = assertThrows(AssemblyCirculationConstraints.Conflict.class,
+                () -> AssemblyCirculationConstraints.validatePatches(patches, List.of(earlier, later)));
+        assertTrue(error.getMessage().contains("clearance blocked"));
+    }
+
+    @Test void sharedLandingOccupiedByBothFlightsIsAllowed() {
+        var platform = new BlockPos(2, 4, 0);
+        var first = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(0, 0, 0), platform), Set.of(new BlockPos(0, 1, 0)));
+        var second = new AssemblyCirculationConstraints.Flight(
+                Set.of(platform, new BlockPos(4, 4, 0)), Set.of(new BlockPos(4, 5, 0)));
+        var patches = List.of(
+                place(0, 0, 0, "minecraft:oak_planks"),
+                remove(0, 1, 0),
+                place(2, 4, 0, "minecraft:oak_planks"),
+                place(4, 4, 0, "minecraft:oak_planks"),
+                remove(4, 5, 0));
+        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(first, second)));
+    }
+
+    @Test void omittingEarlierFlightRevokesItsContractAfterExplicitReplace() {
+        var earlier = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(1, 2, 0)));
+        var replacement = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(1, 2, 0)), Set.of(new BlockPos(1, 3, 0)));
+        var patches = List.of(
+                place(1, 2, 0, "minecraft:oak_planks"),
+                remove(1, 3, 0));
+        // Explicit replace: earlier flight omitted from the active contract list.
+        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(replacement)));
         assertThrows(AssemblyCirculationConstraints.Conflict.class,
-                () -> AssemblyCirculationConstraints.validate(ops, List.of(earlier, later)));
+                () -> AssemblyCirculationConstraints.validatePatches(patches, List.of(earlier, replacement)));
+    }
+
+    private static com.formacraft.common.patch.BlockPatch place(int x, int y, int z, String block) {
+        return new com.formacraft.common.patch.BlockPatch(
+                com.formacraft.common.patch.BlockPatch.PLACE, x, y, z, block);
+    }
+
+    private static com.formacraft.common.patch.BlockPatch remove(int x, int y, int z) {
+        return new com.formacraft.common.patch.BlockPatch(
+                com.formacraft.common.patch.BlockPatch.REMOVE, x, y, z, "minecraft:air");
     }
 }

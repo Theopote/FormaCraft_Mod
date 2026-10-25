@@ -301,7 +301,8 @@ public final class PatchOccupancyIndex {
             BlockPos pos = new BlockPos(p.dx(), p.dy(), p.dz());
             if (BlockPatch.REMOVE.equals(p.action())) {
                 PlaceRecord existing = placeMap.get(pos);
-                if (existing != null && !carveOk && !isHostedStairJoin(writer, existing) && !connectorAccess.contains(pos)) {
+                if (existing != null && !carveOk && !isHostedStairJoin(writer, existing, pos)
+                        && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
                             type, p.targetBlock(), "unauthorized_remove"));
                 }
@@ -332,7 +333,7 @@ public final class PatchOccupancyIndex {
                                 && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "TOWER",
                                         "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())));
                 if (!overwriteOk && !chimneyFooting && !connectorAccess.contains(pos)
-                        && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev)) {
+                        && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
                             type, p.targetBlock(), "unauthorized_place_overwrite"));
                 }
@@ -393,17 +394,20 @@ public final class PatchOccupancyIndex {
                 && (tid.equals(ownerId) || tid.equals(ownerHost));
     }
 
-    private static boolean isHostedStairJoin(Component writer, PlaceRecord previous) {
+    private static boolean isHostedStairJoin(Component writer, PlaceRecord previous, BlockPos pos) {
         if (!com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(writer)
                 || writer.params() == null || previous.owner() == null || previous.owner().params() == null) return false;
+        boolean exterior = Boolean.TRUE.equals(writer.params().get("exterior"));
         Object target = writer.params().get("target_host_id");
+        Object prevHost = previous.owner().params().get("host_id");
+        Object prevId = previous.owner().params().get("component_id");
+        Object prevBuilding = previous.owner().params().get("building_id");
         if (target instanceof String targetId && !targetId.isBlank()) {
-            Object prevHost = previous.owner().params().get("host_id");
-            Object prevId = previous.owner().params().get("component_id");
             if (targetId.equals(prevHost) || targetId.equals(prevId)) {
                 if (Set.of("TERRACE", "BALCONY", "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "DECOR_DETAIL",
                         "MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY").contains(previous.writerType())) {
-                    return true;
+                    return !exterior || !isRoofWriter(previous.writerType())
+                            || withinExteriorStairEnvelope(writer, pos);
                 }
             }
             if (targetId.equals(prevHost)
@@ -411,11 +415,14 @@ public final class PatchOccupancyIndex {
                         || "MASS_SECONDARY".equals(previous.writerType())
                             && "plate".equals(previous.owner().params().get("extrude_mode")))) return true;
         }
-        // Exterior connector flights may open roof bands / corridor enclosures across slots.
-        if (Boolean.TRUE.equals(writer.params().get("exterior"))) {
-            if (Set.of("ROOF", "ROOF_STRUCTURE").contains(previous.writerType())) return true;
+        // Exterior corridor enclosures may open across slots; roofs need host link + envelope.
+        if (exterior) {
             if ("DECOR_DETAIL".equals(previous.writerType())
                     && Boolean.TRUE.equals(previous.owner().params().get("corridor_enclosure"))) {
+                return true;
+            }
+            if (isRoofWriter(previous.writerType()) && exteriorRoofLinked(writer, prevHost, prevId, prevBuilding)
+                    && withinExteriorStairEnvelope(writer, pos)) {
                 return true;
             }
         }
@@ -423,14 +430,67 @@ public final class PatchOccupancyIndex {
         if (!(host instanceof String id) || id.isBlank()) return false;
         if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
         Object building = writer.params().get("building_id");
-        if (building != null && building.equals(previous.owner().params().get("building_id"))
-                && Set.of("ROOF", "FOUNDATION", "MASS_SECONDARY", "TERRACE", "BALCONY", "DECOR_DETAIL").contains(previous.writerType())) return true;
+        if (building != null && building.equals(prevBuilding)
+                && Set.of("ROOF", "FOUNDATION", "MASS_SECONDARY", "TERRACE", "BALCONY", "DECOR_DETAIL").contains(previous.writerType())) {
+            return !exterior || !isRoofWriter(previous.writerType()) || withinExteriorStairEnvelope(writer, pos);
+        }
         if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY").contains(previous.writerType())
                 && !"plate".equals(previous.owner().params().get("extrude_mode")))
-            return id.equals(previous.owner().params().get("component_id"));
-        return (Set.of("TERRACE", "BALCONY", "FOUNDATION", "DECOR_DETAIL", "ROOF").contains(previous.writerType())
+            return id.equals(prevId);
+        boolean softJoin = (Set.of("TERRACE", "BALCONY", "FOUNDATION", "DECOR_DETAIL", "ROOF").contains(previous.writerType())
                 || ("MASS_SECONDARY".equals(previous.writerType())
                     && "plate".equals(previous.owner().params().get("extrude_mode"))))
-                && id.equals(previous.owner().params().get("host_id"));
+                && id.equals(prevHost);
+        if (!softJoin) return false;
+        return !exterior || !isRoofWriter(previous.writerType()) || withinExteriorStairEnvelope(writer, pos);
+    }
+
+    private static boolean isRoofWriter(String writerType) {
+        return "ROOF".equals(writerType) || "ROOF_STRUCTURE".equals(writerType);
+    }
+
+    private static boolean exteriorRoofLinked(Component writer, Object prevHost, Object prevId, Object prevBuilding) {
+        Object host = writer.params().get("host_id");
+        Object target = writer.params().get("target_host_id");
+        Object building = writer.params().get("building_id");
+        if (host != null && (host.equals(prevHost) || host.equals(prevId))) return true;
+        if (target != null && (target.equals(prevHost) || target.equals(prevId))) return true;
+        return building != null && (building.equals(prevBuilding) || building.equals(prevHost) || building.equals(prevId));
+    }
+
+    /** Endpoint neighborhood of an exterior flight: run + landing, width, clearHeight(+1 transition). */
+    static boolean withinExteriorStairEnvelope(Component writer, BlockPos pos) {
+        if (writer == null || writer.params() == null || pos == null) return false;
+        Object fromObj = writer.params().get("from");
+        Object toObj = writer.params().get("to");
+        if (!(fromObj instanceof Map<?, ?> from) || !(toObj instanceof Map<?, ?> to)) return false;
+        var rp = writer.relativePosition();
+        int ox = rp == null ? 0 : rp.x(), oy = rp == null ? 0 : rp.y(), oz = rp == null ? 0 : rp.z();
+        int fx = number(from.get("x")), fy = number(from.get("y")), fz = number(from.get("z"));
+        int tx = number(to.get("x")), ty = number(to.get("y")), tz = number(to.get("z"));
+        int dx = Integer.signum(tx - fx), dz = Integer.signum(tz - fz);
+        int run = Math.max(Math.abs(tx - fx), Math.abs(tz - fz));
+        int rise = ty - fy;
+        int width = number(writer.params().getOrDefault("width", 3));
+        int landing = number(writer.params().getOrDefault("landing_length", 1));
+        int clear = number(writer.params().getOrDefault("clearHeight",
+                writer.params().getOrDefault("clear_h", 2))) + 1;
+        for (int sample = 0; sample <= run + Math.max(0, landing); sample++) {
+            int stepY = fy + (int) Math.round(rise * (Math.min(run, sample) / (double) Math.max(1, run)));
+            for (int side = -width / 2; side < width - width / 2; side++) {
+                for (int y = -1; y <= clear; y++) {
+                    int px = ox + fx + dx * sample + (dz != 0 ? side : 0);
+                    int py = oy + stepY + y;
+                    int pz = oz + fz + dz * sample + (dx != 0 ? side : 0);
+                    if (pos.getX() == px && pos.getY() == py && pos.getZ() == pz) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static int number(Object value) {
+        if (value instanceof Number n) return n.intValue();
+        return new java.math.BigDecimal(String.valueOf(value)).intValueExact();
     }
 }

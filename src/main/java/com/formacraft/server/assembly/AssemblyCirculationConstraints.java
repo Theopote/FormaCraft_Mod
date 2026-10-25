@@ -28,14 +28,20 @@ public final class AssemblyCirculationConstraints {
         for (BlockPos pos : flight.clearance()) clearance.add(pos.add(offset));
         return new Flight(occupied, clearance);
     }
+
+    /**
+     * Plan-level check: patch list uses last-write-wins for final voxels, but each flight keeps
+     * its functional contract. A later tread that fills an earlier flight's headroom fails here.
+     * Dropping a contract requires omitting that flight from {@code flights} (explicit replace/delete).
+     */
     public static void validatePatches(List<BlockPatch> patches, List<Flight> flights) {
-        if (flights.isEmpty()) return;
-        // Plan-level: later flights override earlier promises (patch last-write). Keeps per-op
-        // validate() strict for single-assembly regressions that intentionally overlap flights.
-        Flight collapsed = collapse(flights);
+        if (flights == null || flights.isEmpty()) return;
         Set<BlockPos> relevant = new HashSet<>();
-        relevant.addAll(collapsed.occupied());
-        relevant.addAll(collapsed.clearance());
+        for (Flight flight : flights) {
+            if (flight == null) continue;
+            relevant.addAll(flight.occupied());
+            relevant.addAll(flight.clearance());
+        }
         Map<BlockPos, BlockPatch> finalPatches = new LinkedHashMap<>();
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
@@ -51,7 +57,7 @@ public final class AssemblyCirculationConstraints {
             if (state == null) throw new Conflict("STAIR_SYSTEM invalid patch at plan " + pos.toShortString());
             finalOps.add(new PlannedBlock(pos, state));
         }
-        validate(finalOps, List.of(collapsed));
+        validate(finalOps, flights);
     }
 
     public static final class Conflict extends IllegalArgumentException {
@@ -71,7 +77,7 @@ public final class AssemblyCirculationConstraints {
         for (int i = start; i < out.size(); i++) {
             PlannedBlock block = out.get(i);
             BlockPos pos = block.getPos().toImmutable();
-            // Last write wins: a later tread/support must not also remain a clearance promise.
+            // Last write wins within one emission: a later tread must not also remain clearance.
             if (block.getTargetState().isAir()) {
                 occupied.remove(pos);
                 clearance.add(pos);
@@ -84,16 +90,19 @@ public final class AssemblyCirculationConstraints {
     }
 
     public static void validate(List<PlannedBlock> out, List<Flight> flights) {
-        if (flights.isEmpty()) return;
+        if (flights == null || flights.isEmpty()) return;
         Set<BlockPos> relevant = new HashSet<>();
         for (Flight flight : flights) {
-            relevant.addAll(flight.occupied()); relevant.addAll(flight.clearance());
+            if (flight == null) continue;
+            relevant.addAll(flight.occupied());
+            relevant.addAll(flight.clearance());
         }
         Map<BlockPos, BlockState> finalStates = new HashMap<>();
         for (PlannedBlock block : out) if (relevant.contains(block.getPos()))
             finalStates.put(block.getPos(), block.getTargetState());
         for (int i = 0; i < flights.size(); i++) {
             Flight flight = flights.get(i);
+            if (flight == null) continue;
             for (BlockPos pos : flight.occupied()) {
                 BlockState state = finalStates.get(pos);
                 if (state == null || state.isAir()) throw conflict(i, pos, "tread/support removed");
@@ -105,21 +114,27 @@ public final class AssemblyCirculationConstraints {
         }
     }
 
-    /** Merge flights so later promises override earlier ones at the same coordinate. */
-    public static Flight collapse(List<Flight> flights) {
+    /**
+     * Union of flight cells for diagnostics only. Does not revoke per-flight contracts —
+     * use {@link #validate} / {@link #validatePatches} for functional checks.
+     */
+    public static Flight union(List<Flight> flights) {
         Set<BlockPos> occupied = new LinkedHashSet<>();
         Set<BlockPos> clearance = new LinkedHashSet<>();
         if (flights == null) return new Flight(occupied, clearance);
         for (Flight flight : flights) {
             if (flight == null) continue;
-            occupied.removeAll(flight.occupied());
-            occupied.removeAll(flight.clearance());
-            clearance.removeAll(flight.occupied());
-            clearance.removeAll(flight.clearance());
             occupied.addAll(flight.occupied());
             clearance.addAll(flight.clearance());
         }
+        clearance.removeAll(occupied);
         return new Flight(occupied, clearance);
+    }
+
+    /** @deprecated Use {@link #union}; name historically implied contract cancellation. */
+    @Deprecated
+    public static Flight collapse(List<Flight> flights) {
+        return union(flights);
     }
 
     private static Conflict conflict(int flight, BlockPos pos, String reason) {
