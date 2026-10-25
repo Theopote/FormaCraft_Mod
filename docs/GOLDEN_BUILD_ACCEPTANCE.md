@@ -1,15 +1,28 @@
 # Golden build acceptance checklist
 
-Baseline: compiler CI stabilization after 793d9428 stair transition carve.
+Baseline: `fd756ab658d3` (CI green after stair conflict merge). Round 56 keeps last-write-wins for Patch synthesis and validates each remaining flight's **functional** contract (treads/supports + standing headroom) on the final voxel field.
 Automated coverage is listed first. Items that require a live Minecraft client are marked **In-Game Required**.
 
-## Root-cause summary (CI #40188059063)
+## Round 56 — flight contract vs Patch merge
+
+| Check | Automated | Notes |
+|---|---|---|
+| Later tread fills earlier standing headroom | `AssemblyCirculationConstraintsTest.laterFlightTreadFillingEarlierHeadroomIsRejectedInValidatePatches` | Reject |
+| Shared landing occupied by both flights | `sharedLandingOccupiedByBothFlightsIsAllowed` | Allow |
+| Later write repairs same flight | `laterWriteRepairingSameFlightHeadroomIsAllowedInValidatePatches` | Allow |
+| Explicit replace omits old contract | `omittingEarlierFlightRevokesItsContractAfterExplicitReplace` | Allow |
+| Non-headroom over-carve may be claimed | `laterFlightMayClaimNonHeadroomOverCarveInValidatePatches` | Allow (not contract cancel) |
+| Exterior stair roof only in envelope + host link | `ExteriorStairRoofJoinTest` | Reject far / unlinked roof |
+| Whole-building circulation | `StairWholeBuildingCirculationTest`, `ComplexBuildRetest` | Source tests |
+| Preview / Confirm / Apply / Undo / Redo | — | **In-Game Required** (checklist below) |
+
+## Root-cause summary (CI #40188059063 → Round 56)
 
 | Bucket | Codes | Shared fix |
 |---|---|---|
-| CIRCULATION_FAIL | E_PLAN_CIRCULATION_CONFLICT | Plan-level flight collapse (later tread overrides earlier clearance); capture last-write-wins |
+| CIRCULATION_FAIL | E_PLAN_CIRCULATION_CONFLICT | Per-flight functional contracts on final voxels (standing headroom); capture last-write-wins; no collapse that cancels headroom |
 | CIRCULATION_FAIL | E_CIRCULATION_EXTERIOR_CONFLICT | Floor/ceiling clearance envelope skip; exterior connectorAccess clearHeight+1 at door/roof/platform neighborhoods |
-| PATCH_CONFLICT | E_PATCH_CONFLICT | STAIR_SYSTEM/STAIRCASE carve writers; exterior stair join for roof + corridor_enclosure |
+| PATCH_CONFLICT | E_PATCH_CONFLICT | STAIR_SYSTEM/STAIRCASE carve writers; exterior roof join requires host/target link + endpoint envelope |
 | COMPONENT_GEOMETRY_LOSS | (none this batch) | — |
 | POSTPROCESS_FAIL | (none this batch) | — |
 | THRESHOLD_ONLY | (none; failures were empty patches at L70) | Kept size>1000 as coarse floor; semantic checks elsewhere |

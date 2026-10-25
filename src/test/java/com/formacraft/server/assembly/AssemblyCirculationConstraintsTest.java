@@ -103,45 +103,73 @@ class AssemblyCirculationConstraintsTest {
     }
 
     @Test void laterFlightTreadFillingEarlierHeadroomIsRejectedInValidatePatches() {
+        // Standing headroom is clearance directly above a tread (dy 1..2), not lateral over-carve.
         var earlier = new AssemblyCirculationConstraints.Flight(
-                Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(1, 2, 0)));
+                Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(0, 1, 0), new BlockPos(0, 2, 0)));
         var later = new AssemblyCirculationConstraints.Flight(
-                Set.of(new BlockPos(1, 2, 0)), Set.of(new BlockPos(1, 3, 0)));
+                Set.of(new BlockPos(0, 1, 0)), Set.of(new BlockPos(0, 3, 0)));
         var patches = List.of(
-                new com.formacraft.common.patch.BlockPatch(
-                        com.formacraft.common.patch.BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_planks"),
-                new com.formacraft.common.patch.BlockPatch(
-                        com.formacraft.common.patch.BlockPatch.PLACE, 1, 2, 0, "minecraft:oak_planks"),
-                new com.formacraft.common.patch.BlockPatch(
-                        com.formacraft.common.patch.BlockPatch.REMOVE, 1, 3, 0, "minecraft:air"));
+                place(0, 0, 0, "minecraft:oak_planks"),
+                place(0, 1, 0, "minecraft:oak_planks"),
+                remove(0, 3, 0));
         var error = assertThrows(AssemblyCirculationConstraints.Conflict.class,
                 () -> AssemblyCirculationConstraints.validatePatches(patches, List.of(earlier, later)));
-        assertTrue(error.getMessage().contains("clearance blocked"));
+        assertTrue(error.getMessage().contains("headroom blocked"));
+    }
+
+    @Test void laterFlightMayClaimNonHeadroomOverCarveInValidatePatches() {
+        // Rising transition carve may mark y+3 as clearance; a later landing there is not headroom.
+        var earlier = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(0, 0, 0)),
+                Set.of(new BlockPos(0, 1, 0), new BlockPos(0, 2, 0), new BlockPos(0, 3, 0)));
+        var later = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(0, 3, 0)), Set.of(new BlockPos(0, 4, 0)));
+        var patches = List.of(
+                place(0, 0, 0, "minecraft:oak_planks"),
+                remove(0, 1, 0),
+                remove(0, 2, 0),
+                place(0, 3, 0, "minecraft:oak_planks"),
+                remove(0, 4, 0));
+        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(earlier, later)));
     }
 
     @Test void sharedLandingOccupiedByBothFlightsIsAllowed() {
         var platform = new BlockPos(2, 4, 0);
         var first = new AssemblyCirculationConstraints.Flight(
-                Set.of(new BlockPos(0, 0, 0), platform), Set.of(new BlockPos(0, 1, 0)));
+                Set.of(new BlockPos(0, 0, 0), platform), Set.of(new BlockPos(0, 1, 0), new BlockPos(2, 5, 0)));
         var second = new AssemblyCirculationConstraints.Flight(
-                Set.of(platform, new BlockPos(4, 4, 0)), Set.of(new BlockPos(4, 5, 0)));
+                Set.of(platform, new BlockPos(4, 4, 0)), Set.of(new BlockPos(4, 5, 0), new BlockPos(2, 5, 0)));
         var patches = List.of(
                 place(0, 0, 0, "minecraft:oak_planks"),
                 remove(0, 1, 0),
                 place(2, 4, 0, "minecraft:oak_planks"),
+                remove(2, 5, 0),
                 place(4, 4, 0, "minecraft:oak_planks"),
                 remove(4, 5, 0));
         assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(first, second)));
     }
 
+    @Test void laterWriteRepairingSameFlightHeadroomIsAllowedInValidatePatches() {
+        var flight = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(0, 1, 0), new BlockPos(0, 2, 0)));
+        // Transient solid then restored air — final voxels honor the same flight contract.
+        var patches = List.of(
+                place(0, 0, 0, "minecraft:oak_planks"),
+                place(0, 1, 0, "minecraft:stone"),
+                remove(0, 1, 0),
+                remove(0, 2, 0));
+        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(flight)));
+    }
+
     @Test void omittingEarlierFlightRevokesItsContractAfterExplicitReplace() {
         var earlier = new AssemblyCirculationConstraints.Flight(
-                Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(1, 2, 0)));
+                Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(0, 1, 0), new BlockPos(0, 2, 0)));
         var replacement = new AssemblyCirculationConstraints.Flight(
-                Set.of(new BlockPos(1, 2, 0)), Set.of(new BlockPos(1, 3, 0)));
+                Set.of(new BlockPos(0, 1, 0)), Set.of(new BlockPos(0, 2, 0), new BlockPos(0, 3, 0)));
         var patches = List.of(
-                place(1, 2, 0, "minecraft:oak_planks"),
-                remove(1, 3, 0));
+                place(0, 1, 0, "minecraft:oak_planks"),
+                remove(0, 2, 0),
+                remove(0, 3, 0));
         // Explicit replace: earlier flight omitted from the active contract list.
         assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(replacement)));
         assertThrows(AssemblyCirculationConstraints.Conflict.class,

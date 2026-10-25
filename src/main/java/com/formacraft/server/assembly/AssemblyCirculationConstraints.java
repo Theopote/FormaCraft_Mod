@@ -31,7 +31,8 @@ public final class AssemblyCirculationConstraints {
 
     /**
      * Plan-level check: patch list uses last-write-wins for final voxels, but each flight keeps
-     * its functional contract. A later tread that fills an earlier flight's headroom fails here.
+     * its functional contract (treads/supports + standing headroom). Transition over-carve cells
+     * that are not standing headroom may be claimed by a later flight without cancelling this one.
      * Dropping a contract requires omitting that flight from {@code flights} (explicit replace/delete).
      */
     public static void validatePatches(List<BlockPatch> patches, List<Flight> flights) {
@@ -57,7 +58,7 @@ public final class AssemblyCirculationConstraints {
             if (state == null) throw new Conflict("STAIR_SYSTEM invalid patch at plan " + pos.toShortString());
             finalOps.add(new PlannedBlock(pos, state));
         }
-        validate(finalOps, flights);
+        validateFunctional(finalOps, flights);
     }
 
     public static final class Conflict extends IllegalArgumentException {
@@ -68,6 +69,18 @@ public final class AssemblyCirculationConstraints {
         public Flight {
             occupied = Collections.unmodifiableSet(new LinkedHashSet<>(occupied));
             clearance = Collections.unmodifiableSet(new LinkedHashSet<>(clearance));
+        }
+
+        /** Standing headroom: clearance cells directly above an occupied cell (dy 1..2). */
+        public Set<BlockPos> standingHeadroom() {
+            Set<BlockPos> headroom = new LinkedHashSet<>();
+            for (BlockPos tread : occupied) {
+                for (int dy = 1; dy <= 2; dy++) {
+                    BlockPos above = tread.up(dy);
+                    if (clearance.contains(above)) headroom.add(above);
+                }
+            }
+            return headroom;
         }
     }
 
@@ -89,17 +102,13 @@ public final class AssemblyCirculationConstraints {
         return new Flight(occupied, clearance);
     }
 
+    /**
+     * Strict emission check: every captured clearance cell must remain air.
+     * Used inside a single stair assembly where the emission is self-consistent.
+     */
     public static void validate(List<PlannedBlock> out, List<Flight> flights) {
         if (flights == null || flights.isEmpty()) return;
-        Set<BlockPos> relevant = new HashSet<>();
-        for (Flight flight : flights) {
-            if (flight == null) continue;
-            relevant.addAll(flight.occupied());
-            relevant.addAll(flight.clearance());
-        }
-        Map<BlockPos, BlockState> finalStates = new HashMap<>();
-        for (PlannedBlock block : out) if (relevant.contains(block.getPos()))
-            finalStates.put(block.getPos(), block.getTargetState());
+        Map<BlockPos, BlockState> finalStates = finalStates(out, flights);
         for (int i = 0; i < flights.size(); i++) {
             Flight flight = flights.get(i);
             if (flight == null) continue;
@@ -112,6 +121,48 @@ public final class AssemblyCirculationConstraints {
                 if (state == null || !state.isAir()) throw conflict(i, pos, "clearance blocked");
             }
         }
+    }
+
+    /**
+     * Final-building functional check: each remaining flight keeps treads/supports and standing
+     * headroom. Non-headroom carve cells may be overwritten by later flights.
+     */
+    public static void validateFunctional(List<PlannedBlock> out, List<Flight> flights) {
+        if (flights == null || flights.isEmpty()) return;
+        Map<BlockPos, BlockState> finalStates = finalStates(out, flights);
+        for (int i = 0; i < flights.size(); i++) {
+            Flight flight = flights.get(i);
+            if (flight == null) continue;
+            for (BlockPos pos : flight.occupied()) {
+                BlockState state = finalStates.get(pos);
+                if (state == null || state.isAir()) throw conflict(i, pos, "tread/support removed");
+            }
+            if (flight.occupied().isEmpty()) {
+                // Clearance-only contracts (e.g. portal openings) stay fully binding.
+                for (BlockPos pos : flight.clearance()) {
+                    BlockState state = finalStates.get(pos);
+                    if (state == null || !state.isAir()) throw conflict(i, pos, "clearance blocked");
+                }
+                continue;
+            }
+            for (BlockPos pos : flight.standingHeadroom()) {
+                BlockState state = finalStates.get(pos);
+                if (state == null || !state.isAir()) throw conflict(i, pos, "headroom blocked");
+            }
+        }
+    }
+
+    private static Map<BlockPos, BlockState> finalStates(List<PlannedBlock> out, List<Flight> flights) {
+        Set<BlockPos> relevant = new HashSet<>();
+        for (Flight flight : flights) {
+            if (flight == null) continue;
+            relevant.addAll(flight.occupied());
+            relevant.addAll(flight.clearance());
+        }
+        Map<BlockPos, BlockState> finalStates = new HashMap<>();
+        for (PlannedBlock block : out) if (relevant.contains(block.getPos()))
+            finalStates.put(block.getPos(), block.getTargetState());
+        return finalStates;
     }
 
     /**

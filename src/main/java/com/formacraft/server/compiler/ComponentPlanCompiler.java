@@ -76,48 +76,12 @@ public final class ComponentPlanCompiler {
         public Compilation { patches = List.copyOf(patches); circulation = List.copyOf(circulation); }
     }
 
-    /** Pre-reject artifacts when plan-level circulation validation fails (tests / diagnostics). */
-    public record CompileDebug(
-            List<BlockPatch> patches,
-            List<AssemblyCirculationConstraints.Flight> flights,
-            CapabilityGap gap) {
-        public CompileDebug {
-            patches = patches == null ? List.of() : List.copyOf(patches);
-            flights = flights == null ? List.of() : List.copyOf(flights);
-        }
-    }
-
-    @FunctionalInterface
-    private interface DebugSink {
-        void accept(List<BlockPatch> patches, List<AssemblyCirculationConstraints.Flight> flights, CapabilityGap gap);
-    }
-
-    private static final ThreadLocal<DebugSink> DEBUG_SINK = new ThreadLocal<>();
-
     /** Explicit metadata result for preview; coordinates remain relative to the plan origin. */
     public static Compilation compileWithCirculation(LlmPlan plan, BlockPos globalAnchor, ServerWorld world,
                                                       TerrainStrategySampler terrainSampler, boolean applyTerrainAdaptation) {
         var flights = new ArrayList<AssemblyCirculationConstraints.Flight>();
         try (var capture = AssemblyCirculationConstraints.captureTo(flights::addAll)) {
             return new Compilation(compile(plan, globalAnchor, world, terrainSampler, applyTerrainAdaptation), flights);
-        }
-    }
-
-    /** Compiles and, on E_PLAN_CIRCULATION_CONFLICT, returns the discarded patch/flight sets. */
-    public static CompileDebug compileDebug(LlmPlan plan) {
-        CompileDebug[] held = new CompileDebug[1];
-        DEBUG_SINK.set((patches, flights, gap) -> held[0] = new CompileDebug(patches, flights, gap));
-        try {
-            var patches = compile(plan);
-            if (held[0] != null) return held[0];
-            var flights = new ArrayList<AssemblyCirculationConstraints.Flight>();
-            try (var capture = AssemblyCirculationConstraints.captureTo(flights::addAll)) {
-                // publish already happened inside compile; re-compile would duplicate work —
-                // on success path return patches with empty flights unless capture was nested.
-            }
-            return new CompileDebug(patches, List.of(), AssemblyCompileDiagnostics.get());
-        } finally {
-            DEBUG_SINK.remove();
         }
     }
 
@@ -474,12 +438,9 @@ public final class ComponentPlanCompiler {
         try {
             AssemblyCirculationConstraints.validatePatches(result, circulation);
         } catch (AssemblyCirculationConstraints.Conflict conflict) {
-            var gap = new CapabilityGap(
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
                 "E_PLAN_CIRCULATION_CONFLICT", conflict.getMessage(), "components[]",
-                List.of("Separate conflicting components or fix post-processing at stair treads and clearance."));
-            AssemblyCompileDiagnostics.set(gap);
-            DebugSink sink = DEBUG_SINK.get();
-            if (sink != null) sink.accept(List.copyOf(result), List.copyOf(circulation), gap);
+                List.of("Separate conflicting components or fix post-processing at stair treads and clearance.")));
             return List.of();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
@@ -2458,7 +2419,9 @@ public final class ComponentPlanCompiler {
         Map<String, Object> params = new HashMap<>();
         params.put("door_width", doorWidth);
         if (courtyardFacing != null) {
-            params.put("facing", facing.name());
+            if (facing != null) {
+                params.put("facing", facing.name());
+            }
             params.put("entrance_orientation_source", "enclosed_courtyard");
         }
         bindDerived(params, base, "entrance");
