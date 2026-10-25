@@ -125,6 +125,10 @@ public class OrchestratorClient {
      * 向 Python 后端发送建筑请求，按响应形态返回类型安全的 {@link AiPlanResult}。
      */
     public CompletableFuture<AiPlanResult> requestAiPlan(FormaRequest req) {
+        return requestAiPlan(req, phase -> {});
+    }
+
+    public CompletableFuture<AiPlanResult> requestAiPlan(FormaRequest req, java.util.function.Consumer<String> progress) {
         try {
             String json = JsonUtil.toJson(req);
             FormacraftMod.LOGGER.info("Sending request to orchestrator: {}", redactApiKeyForLog(json));
@@ -156,11 +160,44 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
                             throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
+                    }).thenCompose(result -> {
+                        if (result instanceof AiPlanResult.LlmPlan llm && com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llm.plan()))
+                            return com.formacraft.server.dsl.FbdRepairLoop.run(llm.plan(),
+                                    (plan, diagnostic, round) -> requestFbdRepair(req, plan, diagnostic, round), progress)
+                                    .thenApply(repaired -> {
+                                        FormacraftMod.LOGGER.info("FBD validation complete: repairAttempts={}, valid={}",
+                                                repaired.attempts(), !repaired.plan().hasCapabilityGap());
+                                        return (AiPlanResult) new AiPlanResult.LlmPlan(repaired.plan());
+                                    });
+                        return CompletableFuture.completedFuture(result);
                     });
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to create HTTP request", e);
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    private CompletableFuture<com.formacraft.server.dsl.FbdRepairLoop.Patch> requestFbdRepair(
+            FormaRequest req, LlmPlan plan, com.formacraft.common.llm.dto.CapabilityGap diagnostic, int round) {
+        try {
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var body = mapper.createObjectNode();
+            body.set("request", mapper.readTree(JsonUtil.toJson(req)));
+            body.set("plan", mapper.valueToTree(plan)); body.set("diagnostic", mapper.valueToTree(diagnostic));
+            body.put("round", round);
+            var request = HttpRequest.newBuilder().uri(URI.create(endpoint + "/fbd/repair"))
+                    .header("Content-Type", "application/json").timeout(Duration.ofSeconds(50))
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body))).build();
+            FormacraftMod.LOGGER.info("FBD repair round {}/2: code={}, node={}, path={}", round, diagnostic.code(),
+                    diagnostic.details() == null ? null : diagnostic.details().get("node"), diagnostic.path());
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .orTimeout(50, TimeUnit.SECONDS).thenApply(response -> {
+                if (response.statusCode() != 200 || response.body().length() > 16_384)
+                    throw new IllegalArgumentException("FBD repair unavailable or response too large");
+                try { return mapper.readValue(response.body(), com.formacraft.server.dsl.FbdRepairLoop.Patch.class); }
+                catch (Exception e) { throw new IllegalArgumentException("Invalid FBD repair patch", e); }
+            });
+        } catch (Exception e) { return CompletableFuture.failedFuture(e); }
     }
 
     /**

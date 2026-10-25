@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import build, edit, blueprint, history, models, search
+from .routes import build, edit, blueprint, history, models, search, fbd_repair
 
 app = FastAPI(title="FormaCraft Orchestrator", version="0.1.0")
 
@@ -40,3 +40,4 @@ app.include_router(blueprint.router)
 app.include_router(history.router)
 app.include_router(models.router)
 app.include_router(search.router)
+app.include_router(fbd_repair.router)

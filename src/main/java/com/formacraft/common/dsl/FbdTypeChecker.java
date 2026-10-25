@@ -125,7 +125,7 @@ final class FbdTypeChecker {
                     for (String key : params.keySet()) {
                         if (!sig.containsKey(key)) fail("unknown_param", id, p + "/params/" + key, key);
                         Object v = params.get(key);
-                        require((String) sig.get(key).get("type"), expression(v, env, id, p + "/params/" + key), id, p);
+                        require((String) sig.get(key).get("type"), expression(v, env, id, p + "/params/" + key), id, p + "/params/" + key);
                         if (!(v instanceof Map<?, ?>) && !(v instanceof String str && str.startsWith("$")))
                             FbdPrimitives.value(op, key, v, id, p + "/params/" + key);
                     }

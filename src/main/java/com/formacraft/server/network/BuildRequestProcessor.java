@@ -182,7 +182,7 @@ public final class BuildRequestProcessor {
                         long hbStartMs = System.currentTimeMillis();
                         BuildStatusHeartbeat.start(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
-                        orchestrator.requestAiPlan(req)
+                        orchestrator.requestAiPlan(req, hbPhase::set)
                                 .orTimeout(605, TimeUnit.SECONDS)
                                 .exceptionally(ex -> {
                                     hbAlive.set(false);
