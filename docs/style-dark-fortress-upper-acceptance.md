@@ -33,3 +33,8 @@ the suite. No permission widening or unrestricted air primitives were added.
 The fixed dry level reference site still uses PRESERVE. Live walking, stair
 corner feel, fluid/terrain updates, collision and complete fall protection
 remain pending. No new screenshots or actual world-edit evidence were obtained.
+
+Final validation passed: 16 related Python tests, 125 Java geometry/constraint
+tests and four isolated user-pack tests. All 115 CI golden HARD scenarios and
+six diversity scenarios passed. The warning inventory remains 234 occurrences;
+this geometry follow-up does not waive any remaining warning or live review.

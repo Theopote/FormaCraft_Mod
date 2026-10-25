@@ -25,6 +25,8 @@ import com.formacraft.server.terrain.TerrainFit;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -104,39 +106,34 @@ public final class LlmPlanPreviewBuilder {
                     && !llmPlan.patch().blocks().isEmpty()
                     && !llmPlan.usesPlanProgramMode()
                     && (llmPlan.components() == null || llmPlan.components().isEmpty())) {
-                com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
-                com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
+                return issueComponentOrBlockPatchPreview(player, req, origin, llmPlan, hbAlive,
+                        com.formacraft.common.llm.bridge.BlockPatchBridge.toBlockPatches(llmPlan.patch()));
+            }
 
+            // mode=patch + 局部 components[]（如 FACADE_WINDOWS）：编译为 BlockPatch 后走同一 Ticket 路径
+            if (llmPlan.mode() == LlmPlan.Mode.patch
+                    && llmPlan.usesComponentMode()
+                    && isIncrementalComponentPatch(llmPlan)
+                    && !llmPlan.usesPlanProgramMode()) {
                 BlockPos patchOrigin = resolvePatchOrigin(player, req, origin, llmPlan);
-                List<com.formacraft.common.patch.BlockPatch> patchList =
-                        com.formacraft.common.llm.bridge.BlockPatchBridge.toBlockPatches(llmPlan.patch());
-                if (patchList.isEmpty()) {
-                    LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
-                    return false;
+                com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
+                        new com.formacraft.common.terrain.TerrainStrategySampler();
+                var compilation = ComponentPlanCompiler.compileWithCirculation(
+                        llmPlan, patchOrigin, serverWorld, terrainSampler, false);
+                var compileFailure = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
+                if (compileFailure != null) {
+                    reportCapabilityGap(player, req, hbAlive, compileFailure);
+                    return true;
                 }
-
-                boolean restrict = req.getPromptMode() != null
-                        && "MODIFY_REGION".equalsIgnoreCase(req.getPromptMode().trim());
-                var ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
-                        player,
-                        patchOrigin,
-                        patchList,
-                        com.formacraft.server.state.PlayerProtectedZoneStorage.get(player),
-                        com.formacraft.server.state.PlayerOutlineStorage.get(player),
-                        restrict,
-                        req.getSelectionMin(),
-                        req.getSelectionMax()
-                );
-                if (ticket == null) {
-                    LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
-                    return false;
+                List<com.formacraft.common.patch.BlockPatch> compiled = compilation.patches();
+                if (compiled == null || compiled.isEmpty()) {
+                    hbAlive.set(false);
+                    LlmPlanRoutingMetrics.recordError(player, req, "patch_components_empty");
+                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                            "增量 components[] 编译结果为空，无法应用局部修改。"));
+                    return true;
                 }
-
-                hbAlive.set(false);
-                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                        "Patch 预览已就绪：检查改动后点击「应用」（可 Undo/Redo）"));
-                LlmPlanRoutingMetrics.recordSuccess(player, req, patchList.size(), patchList.size());
-                return true;
+                return issueComponentOrBlockPatchPreview(player, req, origin, llmPlan, hbAlive, compiled);
             }
 
             // Phase 1 A2：增量请求不得静默整栋重建（屋顶原点、二次生成等）。
@@ -144,7 +141,7 @@ public final class LlmPlanPreviewBuilder {
                 hbAlive.set(false);
                 LlmPlanRoutingMetrics.recordError(player, req, "patch_expected_rebuild_rejected");
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                        "增量修改需要 LlmPlan mode=patch 且提供 patch.blocks[]。"
+                        "增量修改需要 LlmPlan mode=patch 且提供 patch.blocks[] 或局部 components[]（如开窗）。"
                                 + "后端返回了整栋方案，已拒绝落地以免在屋顶/脚下重建。"
                                 + "请改用「只改局部：…」并确保后端输出 patch，或框选区域后重试。"));
                 return true;
@@ -336,9 +333,11 @@ public final class LlmPlanPreviewBuilder {
                                 ? llmPlan.globalConstraints().terrainStrategy()
                                 : GlobalConstraints.TerrainStrategy.ADAPTIVE;
 
-                // 如果策略是 ADAPTIVE 或 FLATTEN，进行地坪平整
+                // 如果策略是 ADAPTIVE 或 FLATTEN，进行地坪平整（栅栏/栏杆等线性构件跳过，避免 10×10 石台）
                 boolean b = llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null;
-                if ((terrainStrategy == GlobalConstraints.TerrainStrategy.ADAPTIVE || terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN) && !wantsStiltFoundation) {
+                if ((terrainStrategy == GlobalConstraints.TerrainStrategy.ADAPTIVE || terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN)
+                        && !wantsStiltFoundation
+                        && !LlmPlanTerrainBounds.isLightweightLinearPlan(llmPlan)) {
                     Bounds blockBounds = LlmPlanTerrainBounds.computePlannedBlockBounds(plannedBlocks);
                     Bounds componentBounds = LlmPlanTerrainBounds.computeComponentBounds(llmPlan, planOrigin);
                     Bounds padBounds = LlmPlanTerrainBounds.chooseTerrainPadBounds(componentBounds, blockBounds);
@@ -693,6 +692,84 @@ public final class LlmPlanPreviewBuilder {
         } finally {
             com.formacraft.server.preview.GenerationRequestContext.clear();
         }
+    }
+
+    /**
+     * Opening / facade satellite types that are safe as incremental patch.components[] —
+     * never MASS / ASSEMBLY / full-shell rebuilds.
+     */
+    private static final Set<String> INCREMENTAL_COMPONENT_TYPES = Set.of(
+            "FACADE_WINDOWS", "WINDOW", "WINDOWS", "FACADE_OPENING", "FACADE",
+            "ENTRANCE", "DOOR",
+            "SIGNAGE", "DECOR_DETAIL", "DECOR"
+    );
+
+    /** Types that imply whole-building rebuild — reject under mode=patch + components[]. */
+    private static final Set<String> REBUILD_COMPONENT_TYPES = Set.of(
+            "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "TOWER",
+            "ASSEMBLY", "FOUNDATION", "ROOF", "ROOF_STRUCTURE", "WALL", "SHELL_BOX", "BOX_SHELL"
+    );
+
+    private static boolean isIncrementalComponentPatch(LlmPlan plan) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty()) {
+            return false;
+        }
+        for (com.formacraft.common.llm.dto.Component c : plan.components()) {
+            if (c == null || c.componentType() == null || c.componentType().isBlank()) {
+                return false;
+            }
+            String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (REBUILD_COMPONENT_TYPES.contains(type) || type.startsWith("MASS_") || type.contains("ASSEMBLY")) {
+                return false;
+            }
+            if (!INCREMENTAL_COMPONENT_TYPES.contains(type)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Shared PreviewTicket path for patch.blocks[] and compiled incremental components[].
+     */
+    private static boolean issueComponentOrBlockPatchPreview(
+            ServerPlayerEntity player,
+            FormaRequest req,
+            BlockPos origin,
+            LlmPlan llmPlan,
+            AtomicBoolean hbAlive,
+            List<com.formacraft.common.patch.BlockPatch> patchList
+    ) {
+        if (patchList == null || patchList.isEmpty()) {
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+            return false;
+        }
+        com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
+        com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
+
+        BlockPos patchOrigin = resolvePatchOrigin(player, req, origin, llmPlan);
+        boolean restrict = req.getPromptMode() != null
+                && "MODIFY_REGION".equalsIgnoreCase(req.getPromptMode().trim());
+        var ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
+                player,
+                patchOrigin,
+                patchList,
+                com.formacraft.server.state.PlayerProtectedZoneStorage.get(player),
+                com.formacraft.server.state.PlayerOutlineStorage.get(player),
+                restrict,
+                req.getSelectionMin(),
+                req.getSelectionMax()
+        );
+        if (ticket == null) {
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+            return false;
+        }
+
+        hbAlive.set(false);
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                "Patch 预览已就绪：检查改动后点击「应用」（可 Undo/Redo）"));
+        LlmPlanRoutingMetrics.recordSuccess(player, req, patchList.size(), patchList.size());
+        return true;
     }
 
     /**

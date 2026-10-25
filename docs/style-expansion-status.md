@@ -1,5 +1,11 @@
 # Style expansion delivery status
 
+2026-10-25 earth-house follow-up: four existing Desert_Adobe/Prairie_Earth
+examples gain authored entrances, approaches and small windows. See
+[opening acceptance](style-earth-house-openings-acceptance.md). The warning
+inventory now contains 222 occurrences across 115 scenarios; upper-storey
+access and live acceptance remain pending.
+
 2026-10-25 upper-tower follow-up: dark-fortress examples add three straight
 flights, two turning landings and a top platform per enlarged tower. See
 [upper-tower scope](style-dark-fortress-upper-acceptance.md); no live collision

@@ -78,6 +78,13 @@ public final class GenerationRouteContract {
         if (required == ComponentExecutorId.COMPONENT_PIPELINE
                 && (hintExecutor == ComponentExecutorId.SKELETON
                 || hintExecutor == ComponentExecutorId.ASSEMBLY)) {
+            // ASSEMBLY-typed components with a real payload are allowed even if authority
+            // still reads COMPONENTS (legacy plans / unset authority). Do not silent-fallback
+            // unrelated hints — only honor the matching executor.
+            if (hintExecutor == ComponentExecutorId.ASSEMBLY
+                    && ComponentRouteHints.canRunAssembly(semantic, world)) {
+                return Optional.empty();
+            }
             return Optional.of(new GenerationDiagnostic(
                     "generation_authority_conflict",
                     "generation_authority=" + authority + " requires component pipeline but route hint="

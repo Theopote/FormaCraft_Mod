@@ -51,6 +51,25 @@ def primitive(name, x,y,z,w,d,h,kind,block,**extra):
                 params=dict(component_id=name,anchor_mode='min_corner',kind=kind,material='minecraft:'+block,**extra))
 
 
+def add_earth_house_openings(plan):
+    """Explicit small windows and ground-floor access on a fixed dry level site."""
+    body=plan['components'][0]; width=body['dimensions']['width']; host=body['params']['component_id']
+    plan['global_constraints']['terrain_strategy']='PRESERVE'
+    body['params'].update(wall_thickness=1,suppress_windows=True,suppress_doors=True)
+    plan['components']=[c for c in plan['components'] if not c.get('params',{}).get('component_id','').startswith('earth_opening_')]
+    plan['components'].append(dict(component_type='ENTRANCE',relative_position=dict(x=width//2-2,y=1,z=0),
+        dimensions=dict(width=5,depth=1,height=4),features=['entrance'],params=dict(component_id='earth_opening_entry',
+        host_id=host,anchor_mode='min_corner',facing='SOUTH',door_width=3,door_height=3,canopy_depth=0)))
+    plan['components'].append(primitive('earth_opening_approach',width//2-2,0,-3,5,3,1,'box','stone_bricks'))
+    for y in (2,6):
+        for x in (width//2-3,width//2+3):
+            plan['components'].append(dict(component_type='FACADE_WINDOWS',relative_position=dict(x=x,y=y,z=0),
+                dimensions=dict(width=1,depth=1,height=2),features=[],params=dict(component_id=f'earth_opening_window_{x}_{y}',
+                host_id=host,anchor_mode='min_corner',window_style='pane',window_block='minecraft:glass_pane',
+                window_width=1,window_height=1,window_count=1,rows=1,floor_count=1,floor_height=2,
+                window_ratio=.08,suppress_windows=False,reserve_entrance_bay=False)))
+
+
 def add_dark_fortress_towers(plan):
     """Fixed-site towers with three straight flights and an open top platform."""
     body=plan['components'][0]; size=body['dimensions']['width']; depth=body['dimensions']['depth']
@@ -216,6 +235,8 @@ def main():
             if sid=='Arctic_Igloo':
                 top['relative_position']['y']=3
             plan['components']=[body,top]
+            if sid in ('Desert_Adobe','Prairie_Earth'):
+                add_earth_house_openings(plan)
             if sid in ('Stilt_Timber','Water_Platform'):
                 for i,(x,z) in enumerate(((1,1),(size-2,1),(1,size+2),(size-2,size+2))):
                     plan['components'].append(primitive('post_'+str(i),x,0,z,1,1,5,'box',trim))
@@ -270,6 +291,11 @@ def main():
             site_constraints = [
                 'Fixed dry level reference site with terrain_strategy=PRESERVE: exterior entrance leads through the hall to both hollow ground-level tower rooms.',
                 'Preserve hall/tower portals, threshold floors, three stair flights, turning landings and deck clearance holes. Live terrain, collision and fall protection require separate acceptance.'
+            ]
+        if sid in ('Desert_Adobe','Prairie_Earth'):
+            site_constraints = [
+                'Fixed dry level reference site: use PRESERVE, the explicit ground-level entrance and supported approach.',
+                'Keep the four explicitly sized small windows and suppress automatic facade/door defaults. Upper-floor stairs and live terrain fitting require separate acceptance.'
             ]
         save(ASSETS/'culture_cards'/f'{gid}.json',dict(id=gid,styleId=sid,intents=['STYLE_PRESET'],keywords=aliases,synonyms={},
              keywordWeights={a:12 for a in aliases},negativeKeywords=['不要'+cn,'not '+en],proportionCardId=gid,

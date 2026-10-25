@@ -43,6 +43,16 @@ public class WallComponentGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
 
+        String explicitWall = getParamString(c.params(),
+                "wall_block", "wallBlock", "wall_material", "wallMaterial", "material", "block");
+        // Linear fence / bars / railing: place a 1-high, 1-thick run — never solid palette fill or foundation.
+        boolean fenceIntent = isFenceLikeBlock(explicitWall)
+                || hasFeature(c, "fence", "fencing", "railing", "railings", "paling", "picket");
+        if (fenceIntent) {
+            String fenceBlock = isFenceLikeBlock(explicitWall) ? explicitWall : "minecraft:oak_fence";
+            return generateFenceLine(rp, width, depth, height, fenceBlock, c.params());
+        }
+
         String anchorMode = getParamString(c.params(), "anchor_mode", "anchorMode");
         boolean useCornerAnchor = anchorMode != null && anchorMode.toLowerCase(java.util.Locale.ROOT).contains("corner");
         if (!useCornerAnchor) {
@@ -130,7 +140,12 @@ public class WallComponentGenerator implements ComponentGenerator {
                     }
 
                     SemanticPart part = determinePart(y, height, width, depth, x, z);
-                    String block = palette.pick(part);
+                    String block = (explicitWall != null && !explicitWall.isBlank() && y > 0 && y < height - 1)
+                            ? normalizeBlockId(explicitWall)
+                            : palette.pick(part);
+                    if (block == null || block.isBlank()) {
+                        block = explicitWall != null ? normalizeBlockId(explicitWall) : "minecraft:stone_bricks";
+                    }
 
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
@@ -144,6 +159,49 @@ public class WallComponentGenerator implements ComponentGenerator {
         }
 
         return out;
+    }
+
+    /** Single-file fence/bars run along the longer horizontal axis. */
+    private static List<BlockPatch> generateFenceLine(
+            Vec3i rp, int width, int depth, int height, String blockId, Map<String, Object> params) {
+        String block = normalizeBlockId(blockId);
+        int h = Math.max(1, Math.min(2, height)); // fences are 1 (rarely 2) tall
+        boolean alongX = width >= depth;
+        int length = Math.max(1, alongX ? width : depth);
+        String anchorMode = getParamString(params, "anchor_mode", "anchorMode");
+        boolean corner = anchorMode != null && anchorMode.toLowerCase(java.util.Locale.ROOT).contains("corner");
+        int x0 = rp.x();
+        int z0 = rp.z();
+        if (!corner) {
+            if (alongX) {
+                x0 = rp.x() - length / 2;
+            } else {
+                z0 = rp.z() - length / 2;
+            }
+        }
+        List<BlockPatch> out = new ArrayList<>(length * h);
+        for (int i = 0; i < length; i++) {
+            int x = alongX ? x0 + i : x0;
+            int z = alongX ? z0 : z0 + i;
+            for (int y = 0; y < h; y++) {
+                out.add(new BlockPatch(BlockPatch.PLACE, x, rp.y() + y, z, block));
+            }
+        }
+        return out;
+    }
+
+    private static boolean isFenceLikeBlock(String id) {
+        if (id == null || id.isBlank()) return false;
+        String lower = id.toLowerCase(java.util.Locale.ROOT);
+        if (lower.contains("fence_gate")) return false;
+        return lower.contains("fence") || lower.contains("iron_bars") || lower.endsWith("_bars");
+    }
+
+    private static String normalizeBlockId(String id) {
+        if (id == null || id.isBlank()) return "minecraft:oak_fence";
+        String s = id.trim();
+        if (!s.contains(":")) s = "minecraft:" + s;
+        return s;
     }
 
     private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height) {

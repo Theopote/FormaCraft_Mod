@@ -32,7 +32,9 @@
       "constraints": [
         "Use style_profile=Prairie_Earth; original fictional/vernacular composition, not a named landmark.",
         "Use roof_type=flat, wall_pattern=smooth; explicit user requirements take priority.",
-        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components.",
+        "Fixed dry level reference site: use PRESERVE, the explicit ground-level entrance and supported approach.",
+        "Keep the four explicitly sized small windows and suppress automatic facade/door defaults. Upper-floor stairs and live terrain fitting require separate acceptance."
       ]
     }
   ]

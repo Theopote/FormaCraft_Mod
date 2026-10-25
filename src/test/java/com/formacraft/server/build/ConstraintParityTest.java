@@ -25,6 +25,40 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Region parity is separate from symmetry expansion and Build-only brush/path inputs. */
 class ConstraintParityTest {
     @ParameterizedTest
+    @CsvSource({"desert_adobe,13", "desert_adobe,21", "prairie_earth,13", "prairie_earth,21"})
+    void earthHousesHaveClearEntrySmallWindowsAndLocalWindowEdits(String style,int size) throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var tree=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_"+style+"_"+size+".json").toFile());
+        var plan=mapper.treeToValue(tree,LlmPlan.class);
+        var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
+        assertFalse(raw.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
+        for(int x=size/2-1;x<=size/2+1;x++)for(int z=-3;z<=2;z++) {
+            assertTrue(blocks.containsKey(new Vec3i(x,0,z)),"supported approach/entry");
+            for(int y=1;y<=3;y++)assertNull(blocks.get(new Vec3i(x,y,z)),"clear approach/door/interior: "+x+","+y+","+z);
+        }
+        var windowCells=new HashSet<Vec3i>();
+        for(int x:new int[]{size/2-3,size/2+3})for(int y:new int[]{2,6}) {
+            var cell=new Vec3i(x,y,0);windowCells.add(cell);
+            assertTrue(blocks.getOrDefault(cell,"").startsWith("minecraft:glass_pane"),"small authored window: "+cell);
+            assertNull(blocks.get(new Vec3i(x,y,1)),"window must open onto room space");
+        }
+        var edited=tree.deepCopy();
+        var components=(com.fasterxml.jackson.databind.node.ArrayNode)edited.get("components");
+        for(int i=components.size()-1;i>=0;i--)
+            if("FACADE_WINDOWS".equals(components.get(i).path("component_type").asText()))components.remove(i);
+        ((com.fasterxml.jackson.databind.node.ObjectNode)components.get(0).get("params")).put("window_ratio",0);
+        var closed=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(edited,LlmPlan.class),ORIGIN,null,null,false));
+        assertFalse(closed.isEmpty());
+        var cells=new HashSet<>(blocks.keySet());cells.addAll(closed.keySet());
+        String wall=String.valueOf(plan.components().getFirst().params().get("wall_block"));
+        for(var cell:cells) {
+            if(windowCells.contains(cell))assertEquals(wall,closed.get(cell),"window opt-out restores earth wall");
+            else assertEquals(blocks.get(cell),closed.get(cell),"window edit must remain local: "+cell);
+        }
+    }
+
+    @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(ints={13,21})
     void darkFortressCompilesTwoHollowDefensiveTowerShells(int size) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();

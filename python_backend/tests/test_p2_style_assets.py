@@ -8,6 +8,21 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 class P2StyleAssetsTest(unittest.TestCase):
+    def test_earth_house_openings_rebuild_without_default_opening_drift(self):
+        from eval.expand_p2_assets import add_earth_house_openings
+        from app.models.llm_plan import validate_llm_plan_dict
+        from eval.golden_eval import evaluate_plan
+        for style in ('desert_adobe','prairie_earth'):
+            for width in (13,21):
+                name=f'p2_{style}_{width}.json'
+                plan=json.loads((ROOT/'python_backend/eval/fixtures/plans'/name).read_text(encoding='utf-8'))
+                rebuilt=deepcopy(plan);add_earth_house_openings(rebuilt)
+                self.assertEqual(plan,rebuilt)
+                validate_llm_plan_dict(plan)
+                self.assertEqual(plan,json.loads((ROOT/'src/main/resources/assets/formacraft/llmplan_examples'/name).read_text(encoding='utf-8'))['plan'])
+                self.assertEqual(len([c for c in plan['components'] if c['component_type']=='FACADE_WINDOWS']),4)
+                self.assertFalse({'has_entrance','has_entrance_component','has_windows'}&{c.name for c in evaluate_plan(plan).soft_failures})
+
     def test_dark_fortress_shells_rebuild_and_satisfy_defensive_composition(self):
         from eval.expand_p2_assets import add_dark_fortress_towers
         from eval.golden_eval import evaluate_plan

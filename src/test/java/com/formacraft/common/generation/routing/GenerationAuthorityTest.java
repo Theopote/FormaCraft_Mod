@@ -105,6 +105,17 @@ class GenerationAuthorityTest {
         assertFalse(PlanMetaAccess.allowStructureEmptyFallback(mass, Map.of()));
     }
 
+    @Test
+    void assemblyShapedComponentInfersAssemblyOverComponentsPlanMeta() {
+        Component assembly = new Component(
+                "ASSEMBLY", "main", new Vec3i(0, 0, 0), new Dimensions(9, 7, 5), List.of(),
+                Map.of("assembly", Map.of(
+                        "preset", "cabin_assembly",
+                        "components", List.of(Map.of("id", "Main", "type", "SHELL_BOX")))));
+        assertEquals(GenerationAuthority.ASSEMBLY,
+                GenerationAuthority.resolve(assembly, Map.of("generation_authority", "COMPONENTS")));
+    }
+
     private static Component mass(Map<String, Object> params) {
         return new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
                 new Dimensions(12, 10, 8), List.of(), params);

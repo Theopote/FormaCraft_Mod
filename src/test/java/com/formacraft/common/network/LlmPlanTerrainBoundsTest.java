@@ -13,10 +13,34 @@ import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class LlmPlanTerrainBoundsTest {
+
+    @Test
+    void oakFenceWallPlanIsLightweightLinear() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(new Component(
+                        "WALL", "s", new Vec3i(0, 0, 0), new Dimensions(12, 1, 2), List.of(),
+                        Map.of("wall_block", "minecraft:oak_fence"))))
+                .build();
+        assertTrue(LlmPlanTerrainBounds.isLightweightLinearPlan(plan));
+    }
+
+    @Test
+    void massPlusFenceIsNotLightweightLinear() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(
+                        new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(9, 7, 5), null, null),
+                        new Component("WALL", "s", new Vec3i(0, 0, 0), new Dimensions(9, 1, 1), List.of("railing"),
+                                Map.of("wall_block", "minecraft:oak_fence"))))
+                .build();
+        assertFalse(LlmPlanTerrainBounds.isLightweightLinearPlan(plan));
+    }
 
     @Test
     void padHeightFallbackTranslatesRoomsRoofAndAirTogether() {
@@ -75,5 +99,23 @@ class LlmPlanTerrainBoundsTest {
         assertTrue(bounds.width() >= 10);
         assertTrue(bounds.depth() >= 12);
         assertTrue(bounds.height() >= 8);
+    }
+
+    @Test
+    void lightweightFencePlanSkipsTerrainPadClassification() {
+        LlmPlan fence = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(new Component(
+                        "WALL", "s", new Vec3i(0, 0, 0), new Dimensions(12, 1, 2), List.of(),
+                        java.util.Map.of("wall_block", "minecraft:oak_fence"))))
+                .build();
+        assertTrue(LlmPlanTerrainBounds.isLightweightLinearPlan(fence));
+
+        LlmPlan house = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(new Component(
+                        "MASS_MAIN", "main", new Vec3i(0, 0, 0), new Dimensions(10, 8, 12), null, null)))
+                .build();
+        assertFalse(LlmPlanTerrainBounds.isLightweightLinearPlan(house));
     }
 }

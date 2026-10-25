@@ -9,7 +9,7 @@
   "global_constraints": {
     "facing": "SOUTH",
     "symmetry": "MIRROR_X",
-    "terrain_strategy": "ADAPTIVE"
+    "terrain_strategy": "PRESERVE"
   },
   "layout": {
     "skeleton_type": "COMPOUND",
@@ -59,7 +59,10 @@
         "component_id": "prairie_earth",
         "anchor_mode": "min_corner",
         "floor_count": 2,
-        "hollow": true
+        "hollow": true,
+        "wall_thickness": 1,
+        "suppress_windows": true,
+        "suppress_doors": true
       }
     },
     {
@@ -82,6 +85,171 @@
         "component_id": "prairie_earth_roof",
         "host_id": "prairie_earth",
         "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 4,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "entrance"
+      ],
+      "params": {
+        "component_id": "earth_opening_entry",
+        "host_id": "prairie_earth",
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "door_width": 3,
+        "door_height": 3,
+        "canopy_depth": 0
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_approach",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 3,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_window_3_2",
+        "host_id": "prairie_earth",
+        "anchor_mode": "min_corner",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "window_width": 1,
+        "window_height": 1,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 2,
+        "window_ratio": 0.08,
+        "suppress_windows": false,
+        "reserve_entrance_bay": false
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 9,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_window_9_2",
+        "host_id": "prairie_earth",
+        "anchor_mode": "min_corner",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "window_width": 1,
+        "window_height": 1,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 2,
+        "window_ratio": 0.08,
+        "suppress_windows": false,
+        "reserve_entrance_bay": false
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 3,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_window_3_6",
+        "host_id": "prairie_earth",
+        "anchor_mode": "min_corner",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "window_width": 1,
+        "window_height": 1,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 2,
+        "window_ratio": 0.08,
+        "suppress_windows": false,
+        "reserve_entrance_bay": false
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 9,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "earth_opening_window_9_6",
+        "host_id": "prairie_earth",
+        "anchor_mode": "min_corner",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "window_width": 1,
+        "window_height": 1,
+        "window_count": 1,
+        "rows": 1,
+        "floor_count": 1,
+        "floor_height": 2,
+        "window_ratio": 0.08,
+        "suppress_windows": false,
+        "reserve_entrance_bay": false
       }
     }
   ]

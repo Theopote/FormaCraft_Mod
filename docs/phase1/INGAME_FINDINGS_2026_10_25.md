@@ -107,8 +107,8 @@ History redo conflict … expected=tall_seagrass … actual=water
 
 ## 下一轮修复优先级（按 16:xx 日志）
 
-1. **P0**：`generation_authority` 与 ASSEMBLY/COMPONENTS 路由对齐（常规住宅勿卡在 cabin_assembly）。  
-2. **P0**：PATCH 契约——`components[]` 增量开窗应能落地，或编排必须产出非空 `patch.blocks[]`。  
-3. **P0**：线性栅栏/栏杆走轻量路径，禁止 `WALL`+地基把 `oak_fence` 吃掉。  
+1. **P0 已改（待重测）**：`generation_authority` — ASSEMBLY 形组件在 plan_meta=COMPONENTS 时推断为 ASSEMBLY，避免 cabin_assembly 冲突。  
+2. **P0 已改（待重测）**：`mode=patch` + 局部增量 `components[]`（如 `FACADE_WINDOWS`）→ 编译为 BlockPatch → `PatchPreviewService` Ticket；MASS/ASSEMBLY 仍走重建拒绝闸。  
+3. **P0 已改（待重测）**：`WALL`+`oak_fence`/railing → 线性栅栏；纯栅栏计划跳过地形石台 pad。  
 4. **P1**：FBD 亭廊——柱廊空洞 + 连续坡顶（valid≠好看）。  
 5. **P1**：地标/描述拟合——层间券窗、出檐深度等从属性推导，不写死单体。

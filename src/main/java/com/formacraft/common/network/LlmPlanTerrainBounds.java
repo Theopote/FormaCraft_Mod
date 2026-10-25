@@ -75,6 +75,65 @@ public final class LlmPlanTerrainBounds {
         return false;
     }
 
+    /**
+     * Fence / railing / bars-only plans must not get a 10×10+ terrain pad under them.
+     */
+    public static boolean isLightweightLinearPlan(LlmPlan plan) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty()) {
+            return false;
+        }
+        boolean any = false;
+        for (Component c : plan.components()) {
+            if (c == null) continue;
+            String type = normalizeType(c.componentType());
+            if (type.isBlank()) return false;
+            if (type.startsWith("MASS_") || "TOWER".equals(type) || "ASSEMBLY".equals(type)
+                    || type.contains("FOUNDATION") || type.contains("ROOF")
+                    || "PLATFORM".equals(type) || "COURTYARD".equals(type)) {
+                return false;
+            }
+            if (!isFenceLikeComponent(c)) {
+                return false;
+            }
+            any = true;
+        }
+        return any;
+    }
+
+    private static boolean isFenceLikeComponent(Component c) {
+        String type = normalizeType(c.componentType());
+        if (!("WALL".equals(type) || "PALISADE".equals(type) || "BARRIER".equals(type)
+                || "PARAPET".equals(type) || "RAMPART".equals(type))) {
+            return false;
+        }
+        if (c.params() != null) {
+            for (String key : List.of("wall_block", "wallBlock", "wall_material", "wallMaterial", "material", "block")) {
+                Object v = c.params().get(key);
+                if (v != null && isFenceLikeBlockId(v.toString())) {
+                    return true;
+                }
+            }
+        }
+        if (c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase(Locale.ROOT);
+                if (lower.contains("fence") || lower.contains("railing") || lower.contains("picket")
+                        || lower.contains("paling") || lower.contains("bars")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isFenceLikeBlockId(String id) {
+        if (id == null || id.isBlank()) return false;
+        String lower = id.toLowerCase(Locale.ROOT);
+        if (lower.contains("fence_gate")) return false;
+        return lower.contains("fence") || lower.contains("iron_bars") || lower.endsWith("_bars");
+    }
+
     /** Translate solids and air together; their relative geometry must stay unchanged. */
     public static List<PlannedBlock> translateBlocks(List<PlannedBlock> blocks, int dy) {
         if (dy == 0) return blocks;
