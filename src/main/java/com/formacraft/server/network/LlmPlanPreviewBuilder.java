@@ -625,6 +625,14 @@ public final class LlmPlanPreviewBuilder {
                 }
             }
 
+            if (pipeline.report()!=null && com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llmPlan)
+                    && !pipeline.report().activeDiagnostics().isEmpty()) {
+                var assessment=com.formacraft.server.dsl.FbdGeometryRepairGuard.assess(llmPlan,pipeline.report());
+                FormacraftMod.LOGGER.info("FBD geometry repair assessment: eligible={} reason={} path={} instances={}",
+                        assessment.eligible(),assessment.reason(),assessment.eligible()?assessment.permit().path():"-",
+                        assessment.eligible()?assessment.permit().affectedInstances():0);
+            }
+
             if (!pipeline.delivered() || pipeline.structure() == null) {
                 if (pipeline.report() != null) {
                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
