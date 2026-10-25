@@ -39,6 +39,58 @@
 
 修复方向（本轮实施）：意图检测 → `PATCH`；`outputFormat=llmplan` 的 PATCH 走 `requestAiPlan`；拒绝 PATCH 请求落地为整栋 `mode=build`；原点优先最近记忆建筑。
 
-## 日志
+## 日志核对（`run/logs/latest.log`）
 
-请从游戏实例目录提供 `latest.log` 中含 `大雁塔` / `giant_wild_goose` / `temple_of_heaven` / `Capability` / `skipped` 的片段，以便核对 A4。
+日志路径已确认。关键证据如下（时间均为同日会话）。
+
+### A4 · 大雁塔（15:09:54）
+
+| 项 | 日志事实 |
+|----|----------|
+| 路由 | `typology=dense_eaves_pagoda`（typology_builder），**不是**强原型 `GiantWildGoosePagodaGenerator` |
+| 保真提示 | `组合式生成「大雁塔」（保真度：风格化，非精确复刻…）` |
+| 材质 | `deepslate_tiles` / `dark_prismarine`（偏「密檐塔」泛型，不像唐砖塔） |
+| 质量 | 初始 `FLOATING` **517**；终态仍 **260** 悬空未修；补支撑 1045 |
+| Confirm | 需 `/forma_confirm force` |
+| 落地 | 计划 5043 / 放置 5006 / 跳过地形 37（99.3%） |
+
+截图「腰部断开、悬空」与 **FLOATING 未修干净仍强制应用**一致；不是 Apply 阶段大量 `skippedIllegal`。
+
+### A4 · 天坛（15:12:23）
+
+| 项 | 日志事实 |
+|----|----------|
+| 路由 | `typology=radial_terrace_hall`，`reference_landmark=temple_of_heaven` |
+| 材质回退 | `Material fallback: marble_lacquered_wood_glazed_tile -> minecraft:bricks` |
+| 质量 | 初始 `FLOATING` **1339**；终态仍 **726**；`DUPLICATE_POS` **1464** |
+| Confirm | 同样 `force` |
+| 落地 | 6716→6700（99.8%），跳过地形仅 16 |
+
+视觉「柱圈悬浮、中段空」主因是 **生成几何本身悬空柱过多 + force 放行**，不是放置器大量拒写。
+
+### A3 · FBD（14:59 / 15:05）
+
+- `FBD validation complete: repairAttempts=0, valid=true` → **程序路径已进**，不是没走 FBD。  
+- 仍大量「修复悬空 / 补全支撑」→ 亭廊体量像实心盒 + 屋顶不连续，属 **FBD 原语/坡顶展开质量**，不是路由失败。
+
+### C / 湖畔 Undo（15:25）
+
+```
+History undo conflict … expected=oak_fence[…south=true…] actual=…
+History redo conflict … expected=tall_seagrass … actual=water
+```
+
+栅栏连接态冲突（未对栅栏做 soft-match，符合契约）+ 水域方块与快照不一致 → 对应「撤销未完成」。
+
+### 能力缺口（与截图一致）
+
+- 玻璃走廊：`E_BUILDING_CONTRACT`（req_length/width vs `glass_corridor`）  
+- 铁栏杆：`E_HOST_UNKNOWN`（`railing_post_*` → host `iron_railing_wall`）
+
+## 下一轮修复优先级（按日志）
+
+1. **P0 已改**：A2 PATCH 路由（待你重测）。  
+2. **P0 地标（本轮已改，待重测）**：终检残余悬空 ≥48 → `FLOATING_RESIDUAL` FATAL（force 不可绕）；`BuildAutoRepair` 柱预算随悬空数放大（≤4096）；大雁塔 preset 强制 square/砖材；天坛屋盖与柱顶共面 + 取消外扩悬空檐圈。  
+3. **P1**：FBD 坡顶连续面 + 开敞柱廊语义。  
+4. **P1**：Undo 水域/栅栏邻居更新与快照策略（扩展测试，慎放宽）。  
+5. **P1**：天坛材质别名 `marble_lacquered_wood_glazed_tile` 回退。

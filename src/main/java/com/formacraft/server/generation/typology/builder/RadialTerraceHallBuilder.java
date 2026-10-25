@@ -130,16 +130,16 @@ public final class RadialTerraceHallBuilder {
         int hallBaseY = y;
 
         // 2) 圆殿：柱廊 + 殿身
-        // 柱廊：外环柱
+        int pillarH = refined ? 8 : 6;
         int pillarCount = refined ? 24 : 18;
-        placePillars(blocks, origin, hallRadius, hallBaseY, hallBaseY + (refined ? 8 : 6), pillar, pillarCount);
+        placePillars(blocks, origin, hallRadius, hallBaseY, hallBaseY + pillarH, pillar, pillarCount);
 
         // 殿身墙体：内环墙（留门洞）
         int wallR = Math.max(4, hallRadius - 3);
         int doorWidth = refined ? 3 : 2;
         Direction entranceSide = resolveEntranceSide(spec);
         String layoutPlan = resolveLayoutPlan(spec);
-        ringWithDoor(blocks, origin, wallR, hallBaseY, hallBaseY + (refined ? 8 : 6), wall, doorWidth, entranceSide);
+        ringWithDoor(blocks, origin, wallR, hallBaseY, hallBaseY + pillarH, wall, doorWidth, entranceSide);
 
         // 地面
         fillDisk(blocks, origin, wallR - 1, hallBaseY, base);
@@ -149,20 +149,24 @@ public final class RadialTerraceHallBuilder {
             addAxialPath(blocks, origin, baseRadius, trim, entranceSide);
         }
 
-        // 3) 三层屋顶（简化：三段圆锥）
-        int roofStartY = hallBaseY + (refined ? 9 : 7);
+        // 3) 三层屋顶（简化：三段圆锥）— 与柱顶共面，避免屋顶整层悬空
+        int roofStartY = hallBaseY + pillarH;
         int roofTopY = roofStartY + hallHeight;
+
+        // 屋盖底板：把柱廊/殿身接到第一段屋檐，消除中段空洞
+        int eavesR = hallRadius + 2;
+        fillDisk(blocks, origin, eavesR, roofStartY, roof);
 
         // 三段：大/中/小
         int[] segH = refined ? new int[]{8, 7, 6} : new int[]{7, 6, 5};
-        int[] segR = new int[]{hallRadius + 2, hallRadius, hallRadius - 2};
+        int[] segR = new int[]{eavesR, hallRadius, Math.max(4, hallRadius - 2)};
         int curY = roofStartY;
         for (int i = 0; i < 3; i++) {
             int hSeg = segH[i];
             int rSeg = Math.max(4, segR[i]);
             buildConicalRoof(blocks, origin, rSeg, curY, hSeg, roof);
-            // 檐口装饰
-            ring(blocks, origin, rSeg + 1, curY, accent);
+            // 檐口装饰贴合屋面半径，不再外扩悬空一圈
+            ring(blocks, origin, rSeg, curY, accent);
             curY += hSeg;
         }
 

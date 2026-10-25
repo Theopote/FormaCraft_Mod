@@ -223,6 +223,9 @@ public final class DenseEavesPagodaBuilder {
             ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1, eaveY, eave);
             ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half, eaveY, trim);
             if (refined) {
+                // Connect outer eaves to the trim ring (avoid a disconnected floating band).
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1, eaveY + 1, eave);
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 2, eaveY, eave);
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 2, eaveY + 1, eave);
             }
 

@@ -14,6 +14,8 @@ public final class BuildQualityReport {
     private static final double OUT_OF_BOUNDS_ERROR_PCT = 10.0;
     private static final int FLOATING_ERROR_COLUMNS = 12;
     private static final int FLOATING_WARNING_COLUMNS = 3;
+    /** Residual floating above this cannot be force-confirmed (hard safety gate). */
+    private static final int FLOATING_FATAL_COLUMNS = 48;
 
     private final List<BuildQualityIssue> issues = new ArrayList<>();
     private String phase = "unspecified";
@@ -183,5 +185,9 @@ public final class BuildQualityReport {
 
     public static int floatingWarningColumns() {
         return FLOATING_WARNING_COLUMNS;
+    }
+
+    public static int floatingFatalColumns() {
+        return FLOATING_FATAL_COLUMNS;
     }
 }

@@ -37,4 +37,24 @@ class BuildQualityGateTest {
         assertEquals(BuildQualityGate.Decision.REQUIRE_FORCE, BuildQualityGate.decide(snap, false));
         assertEquals(BuildQualityGate.Decision.ALLOW, BuildQualityGate.decide(snap, true));
     }
+
+    @Test
+    void residualFloatingAboveHardGateIsFatalEvenWithForce() {
+        BuildQualityReport r = new BuildQualityReport();
+        r.stats().floatingColumns = BuildQualityReport.floatingFatalColumns();
+        com.formacraft.server.build.BuildPreviewPipeline.escalateResidualFloating(r);
+        assertTrue(r.hasFatal());
+        assertTrue(r.issues().stream().anyMatch(i -> "FLOATING_RESIDUAL".equals(i.code())));
+        assertEquals(BuildQualityGate.Decision.DENY_FATAL, BuildQualityGate.decide(r, true));
+    }
+
+    @Test
+    void residualFloatingBelowHardGateStaysForceable() {
+        BuildQualityReport r = new BuildQualityReport();
+        r.add(BuildQualitySeverity.ERROR, "FLOATING", "mild");
+        r.stats().floatingColumns = BuildQualityReport.floatingFatalColumns() - 1;
+        com.formacraft.server.build.BuildPreviewPipeline.escalateResidualFloating(r);
+        assertFalse(r.hasFatal());
+        assertEquals(BuildQualityGate.Decision.ALLOW, BuildQualityGate.decide(r, true));
+    }
 }

@@ -63,9 +63,11 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
                 carveDoor(blocks, origin, plan.facing, lvl.y0 + 1, half * 2 + 1);
             }
 
-            // eaves at top of each level
-            ringSquare(blocks, origin, half + 1, lvl.eaveY, eave);
+            // eaves at top of each level — trim sits on body top edge; outer eave attaches to trim
+            int bodyTopY = lvl.y0 + lvl.height - 1;
+            ringSquare(blocks, origin, half, bodyTopY, trim);
             ringSquare(blocks, origin, half, lvl.eaveY, trim);
+            ringSquare(blocks, origin, half + 1, lvl.eaveY, eave);
         }
 
         // top spire

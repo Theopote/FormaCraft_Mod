@@ -16,6 +16,7 @@ public final class TypologyParamResolver {
         if (component != null && component.params() != null) {
             merged.putAll(component.params());
         }
+        normalizeAliases(merged);
         merged.put("typology_id", typologyId);
         merged.put("structural_typology", typologyId);
         String ref = component != null ? TypologyComponentRouter.extractReferenceLandmark(component) : null;
@@ -60,10 +61,57 @@ public final class TypologyParamResolver {
                 }
             }
         }
+        normalizeAliases(merged);
         merged.put("typology_id", typologyId);
         merged.put("structural_typology", typologyId);
         TypologyReferencePresets.apply(merged);
         return merged;
+    }
+
+    /**
+     * Promote common LLM snake_case keys to the camelCase / canonical names builders read.
+     * Shape/size alts overwrite registry defaults (LLM intent); other alts fill only if absent.
+     */
+    static void normalizeAliases(Map<String, Object> merged) {
+        if (merged == null || merged.isEmpty()) return;
+        // LLM footprint_shape / story_count must beat registry defaults like footprint=octagon.
+        promote(merged, "footprint", "footprint_shape", "footprintShape");
+        promote(merged, "levels", "story_count", "storyCount");
+        promote(merged, "baseWidth", "base_width", "basewidth");
+        promote(merged, "baseDepth", "base_depth");
+        promote(merged, "baseRadius", "base_radius");
+        promote(merged, "hallRadius", "hall_radius");
+        alias(merged, "levels", "floors");
+        alias(merged, "detailLevel", "detail_level");
+        alias(merged, "bodyBlock", "body_block", "wall_block", "wallBlock");
+        alias(merged, "eaveBlock", "eave_block");
+        alias(merged, "accentBlock", "accent_block");
+        alias(merged, "trimBlock", "trim_block");
+        alias(merged, "reference_landmark", "referenceLandmark", "referenceLandmarkId", "landmark");
+    }
+
+    private static void promote(Map<String, Object> merged, String canonical, String... alts) {
+        for (String alt : alts) {
+            if (!merged.containsKey(alt)) continue;
+            Object v = merged.get(alt);
+            if (v != null && !String.valueOf(v).isBlank()) {
+                merged.put(canonical, v);
+                return;
+            }
+        }
+    }
+
+    private static void alias(Map<String, Object> merged, String canonical, String... alts) {
+        if (merged.containsKey(canonical)) return;
+        for (String alt : alts) {
+            if (merged.containsKey(alt)) {
+                Object v = merged.get(alt);
+                if (v != null && !String.valueOf(v).isBlank()) {
+                    merged.put(canonical, v);
+                    return;
+                }
+            }
+        }
     }
 
     private static Map<String, Object> baseDefaults(String typologyId) {

@@ -23,4 +23,45 @@ class TypologyParamResolverTest {
         assertFalse(merged.containsKey("landmark"));
         assertFalse(merged.containsKey("module_id"));
     }
+
+    @Test
+    void snakeCaseFootprintShapeBeatsRegistryDefault() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(25, 25, 64),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("footprint_shape", "square", "story_count", 7, "base_width", 25)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals("square", merged.get("footprint"));
+        assertEquals(7, merged.get("levels"));
+        assertEquals(25, ((Number) merged.get("baseWidth")).intValue());
+    }
+
+    @Test
+    void dayantaPresetForcesSquareBrickProfile() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(25, 25, 64),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of(
+                        "reference_landmark", "giant_wild_goose_pagoda",
+                        "footprint_shape", "square",
+                        "base_width", 25,
+                        "height", 64,
+                        "story_count", 9
+                )
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals("square", merged.get("footprint"));
+        assertEquals(7, merged.get("levels"));
+        assertEquals(41, merged.get("height"));
+        assertEquals(17, merged.get("baseWidth"));
+        assertEquals("minecraft:bricks", merged.get("bodyBlock"));
+        assertEquals("minecraft:brick_slab", merged.get("eaveBlock"));
+    }
 }

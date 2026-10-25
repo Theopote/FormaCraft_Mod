@@ -59,8 +59,9 @@ public final class BuildAutoRepair {
         Map<BlockPos, BlockState> finalState = StructureSupportAnalysis.finalStates(original);
         var unsupported = repairFloating ? StructureSupportAnalysis.unsupportedBases(original, terrain) : List.<BlockPos>of();
 
-        final int maxDepth = 24;
-        final int maxColumnsToFix = 256;
+        final int maxDepth = 48;
+        // Scale with unsupported count so landmark eaves/roofs are not left half-repaired.
+        final int maxColumnsToFix = Math.min(4096, Math.max(256, unsupported.size()));
 
         int fixedColumns = 0;
         int added = 0;

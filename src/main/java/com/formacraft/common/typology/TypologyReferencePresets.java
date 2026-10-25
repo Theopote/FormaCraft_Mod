@@ -3,6 +3,7 @@ package com.formacraft.common.typology;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Per-reference-landmark param presets applied after registry defaults merge.
@@ -10,6 +11,15 @@ import java.util.Map;
 public final class TypologyReferencePresets {
 
     private static final Map<String, Map<String, Object>> PRESETS = new LinkedHashMap<>();
+
+    /**
+     * Shape / material keys that landmark presets must win over LLM drift
+     * (e.g. footprint_shape vs footprint, oversized height for Dayanta).
+     */
+    private static final Set<String> FORCE_KEYS = Set.of(
+            "footprint", "levels", "baseWidth", "baseRadius", "hallRadius", "tiers",
+            "niche_rhythm", "detailLevel", "bodyBlock", "eaveBlock", "accentBlock", "height"
+    );
 
     static {
         PRESETS.put("famen_pagoda", Map.of(
@@ -27,6 +37,7 @@ public final class TypologyReferencePresets {
                 "baseWidth", 17,
                 "niche_rhythm", "none",
                 "detailLevel", "aesthetic",
+                "bodyBlock", "minecraft:bricks",
                 "eaveBlock", "minecraft:brick_slab",
                 "accentBlock", "minecraft:chiseled_stone_bricks"
         ));
@@ -121,7 +132,11 @@ public final class TypologyReferencePresets {
             return;
         }
         for (Map.Entry<String, Object> e : preset.entrySet()) {
-            merged.putIfAbsent(e.getKey(), e.getValue());
+            if (FORCE_KEYS.contains(e.getKey())) {
+                merged.put(e.getKey(), e.getValue());
+            } else {
+                merged.putIfAbsent(e.getKey(), e.getValue());
+            }
         }
     }
 

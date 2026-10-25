@@ -100,6 +100,7 @@ public final class BuildPreviewPipeline {
         BuildQualityReport finalReport = GradedQualityChecker.checkStructure(
                 structure, spec, world, landingPrepared);
         report = finalizedReport(report, finalReport);
+        escalateResidualFloating(report);
         report.logIssues((generated != null ? generated.getDescription() : "structure") + " (final preview)");
         if (!report.allowPreview()) {
             report.add(BuildQualitySeverity.FATAL, "E_FINAL_QUALITY_FAILED",
@@ -126,6 +127,18 @@ public final class BuildPreviewPipeline {
         to.rejectedPatches = from.rejectedPatches;
         to.duplicatePositions = Math.max(to.duplicatePositions, from.duplicatePositions);
         return delivered;
+    }
+
+    /**
+     * After auto-repair, residual floating above the hard gate is FATAL (force cannot bypass).
+     * Initial-phase FLOATING stays ERROR so repair still runs.
+     */
+    public static void escalateResidualFloating(BuildQualityReport report) {
+        if (report == null) return;
+        int floating = report.stats().floatingColumns;
+        if (floating < BuildQualityReport.floatingFatalColumns()) return;
+        report.add(BuildQualitySeverity.FATAL, "FLOATING_RESIDUAL",
+                "仍有 " + floating + " 个悬空柱未修复，已拒绝预览（不可 force 绕过）");
     }
 
     static boolean validateCirculation(List<PlannedBlock> blocks,
