@@ -91,4 +91,36 @@ class AssemblyCirculationConstraintsTest {
         var second = flight(out, 0, 0, 0, 4, 4, 0);
         assertDoesNotThrow(() -> AssemblyCirculationConstraints.validate(out, List.of(first, second)));
     }
+
+    @Test void captureUsesLastWriteSoAirThenSolidIsOnlyOccupied() {
+        var out = new ArrayList<PlannedBlock>();
+        var pos = new BlockPos(1, 3, 0);
+        out.add(new PlannedBlock(pos, Blocks.AIR.getDefaultState()));
+        out.add(new PlannedBlock(pos, Blocks.OAK_PLANKS.getDefaultState()));
+        var flight = AssemblyCirculationConstraints.capture(out, 0);
+        assertTrue(flight.occupied().contains(pos));
+        assertFalse(flight.clearance().contains(pos));
+    }
+
+    @Test void validatePatchesCollapsesLaterFlightTreadOverEarlierClearance() {
+        var earlier = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(0, 0, 0)), Set.of(new BlockPos(1, 2, 0)));
+        var later = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(1, 2, 0)), Set.of(new BlockPos(1, 3, 0)));
+        var patches = List.of(
+                new com.formacraft.common.patch.BlockPatch(
+                        com.formacraft.common.patch.BlockPatch.PLACE, 0, 0, 0, "minecraft:oak_planks"),
+                new com.formacraft.common.patch.BlockPatch(
+                        com.formacraft.common.patch.BlockPatch.PLACE, 1, 2, 0, "minecraft:oak_planks"),
+                new com.formacraft.common.patch.BlockPatch(
+                        com.formacraft.common.patch.BlockPatch.REMOVE, 1, 3, 0, "minecraft:air"));
+        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(earlier, later)));
+        // Per-op validate stays strict: earlier clearance vs later tread still conflicts.
+        var ops = List.of(
+                new PlannedBlock(new BlockPos(0, 0, 0), Blocks.OAK_PLANKS.getDefaultState()),
+                new PlannedBlock(new BlockPos(1, 2, 0), Blocks.OAK_PLANKS.getDefaultState()),
+                new PlannedBlock(new BlockPos(1, 3, 0), Blocks.AIR.getDefaultState()));
+        assertThrows(AssemblyCirculationConstraints.Conflict.class,
+                () -> AssemblyCirculationConstraints.validate(ops, List.of(earlier, later)));
+    }
 }

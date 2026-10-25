@@ -67,9 +67,15 @@ class ComplexBuildRetest {
             for (boolean postProcess : new boolean[]{false, true}) {
                 var output = postProcess ? ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null)
                         : ComponentPlanCompiler.compile(plan);
-                assertFalse(output.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
-                assertFalse(AssemblyCompileDiagnostics.hasGap(), String.valueOf(AssemblyCompileDiagnostics.get()));
-                assertTrue(output.size() > 1000, "A whole building must not regress to a handful of detail blocks");
+                var gap = AssemblyCompileDiagnostics.get();
+                assertFalse(output.isEmpty(), "empty patches: " + gap);
+                assertFalse(AssemblyCompileDiagnostics.hasGap(), "capability gap: " + gap);
+                // Coarse whole-building floor: prevents silent collapse to a few decor patches.
+                // Semantic stair/landing checks live in fidelityInteriorStairLandingWalkableSample
+                // and Oct18BuildingGeometryTest — not a substitute for this regression floor.
+                assertTrue(output.size() > 1000,
+                        "A whole building must not regress to a handful of detail blocks; size="
+                                + output.size() + " gap=" + gap);
                 System.out.println("Replay " + n + " postProcess=" + postProcess + ": " + output.size() + " patches");
             }
         }));

@@ -54,6 +54,12 @@ final class ExteriorCirculationValidator {
             // Interior flights: only surface/envelope cells (legacy). Exterior flights: all
             // in-volume solids — closes the partition/column blind spot.
             if (deepInterior && !rejectInteriorSolids) continue;
+            // Clearance may open floor/ceiling bands at the envelope edge (transition headroom).
+            // Vertical facade mid-walls still collide unless connectorAccess permits.
+            if ("clearance".equals(entry.getValue())
+                    && (!contains(p.up(), volumes) || !contains(p.down(), volumes))) {
+                continue;
+            }
             var patch = finalShell.get(p);
             if (patch == null) continue; // Authored doorway or other absent surface.
             var state = BlockPatchTargetResolver.resolve(patch);
@@ -75,7 +81,10 @@ final class ExteriorCirculationValidator {
         int dz = Integer.signum(number(to.get("z"))-number(from.get("z")));
         int width = number(stair.params().getOrDefault("width", 3));
         int landing = number(stair.params().getOrDefault("landing_length", 1));
-        int clear = number(stair.params().getOrDefault("clearHeight", 2));
+        // +1 covers upward-transition floor-band carve beyond authored clearHeight at
+        // door/roof/platform neighborhoods only (not a full mid-run wall grant).
+        int clear = number(stair.params().getOrDefault("clearHeight",
+                stair.params().getOrDefault("clear_h", 2))) + 1;
         var rp = stair.relativePosition();
         var result = new HashSet<BlockPos>();
         // The first exterior tread may replace a flat public paving surface.
@@ -272,19 +281,45 @@ final class ExteriorCirculationValidator {
         if(hb==null) return Set.of();
         int dx=Integer.signum(number(to.get("x"))-number(from.get("x"))),dz=Integer.signum(number(to.get("z"))-number(from.get("z")));
         int run=Math.max(Math.abs(number(to.get("x"))-number(from.get("x"))),Math.abs(number(to.get("z"))-number(from.get("z"))));
-        int width=number(stair.params().getOrDefault("width",3)); var rp=stair.relativePosition();
+        int rise=number(to.get("y"))-number(from.get("y"));
+        int width=number(stair.params().getOrDefault("width",3));
+        // +1 covers upward-transition floor-band carve beyond clearHeight.
+        int clear=number(stair.params().getOrDefault("clearHeight",stair.params().getOrDefault("clear_h",2)))+1;
+        var rp=stair.relativePosition();
         var result=new HashSet<BlockPos>();
         for(int step=0;step<=run;step++) for(int side=-width/2;side<width-width/2;side++) {
-            int y=offset.getY()+rp.y()+number(from.get("y"))+(int)Math.round((number(to.get("y"))-number(from.get("y")))*step/(double)Math.max(1,run))-1;
-            var pos=new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*step+(dz!=0?side:0),y,
+            int stepY=number(from.get("y"))+(int)Math.round(rise*(step/(double)Math.max(1,run)));
+            int supportY=offset.getY()+rp.y()+stepY-1;
+            var support=new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*step+(dz!=0?side:0),supportY,
                     offset.getZ()+rp.z()+number(from.get("z"))+dz*step+(dx!=0?side:0));
-            var prev=occupancy.placeAt(pos);
-            if(y>=hb.minY()+hy || pos.getX()<hb.minX()+hx || pos.getX()>=hb.maxX()+hx || pos.getZ()<hb.minZ()+hz || pos.getZ()>=hb.maxZ()+hz
+            var prev=occupancy.placeAt(support);
+            if(supportY>=hb.minY()+hy || support.getX()<hb.minX()+hx || support.getX()>=hb.maxX()+hx
+                    || support.getZ()<hb.minZ()+hz || support.getZ()>=hb.maxZ()+hz
                     || prev==null || !"FOUNDATION".equals(prev.writerType()) || prev.owner()==null || prev.owner().params()==null
-                    || prev.owner().params().get("host_id")!=null) continue;
-            var fb=ComponentFootprintUtil.bounds(prev.owner());
-            var fs=prev.owner().slotId()==null?null:slots.get(prev.owner().slotId()); var fa=fs==null?null:fs.anchor();
-            if(fb!=null && fb.maxY()+(fa==null?0:fa.y())==y+1) result.add(pos);
+                    || prev.owner().params().get("host_id")!=null) {
+                // fall through to host floor/roof opening band below
+            } else {
+                var fb=ComponentFootprintUtil.bounds(prev.owner());
+                var fs=prev.owner().slotId()==null?null:slots.get(prev.owner().slotId()); var fa=fs==null?null:fs.anchor();
+                if(fb!=null && fb.maxY()+(fa==null?0:fa.y())==supportY+1) result.add(support);
+            }
+            // Host mass / roof / decor along the clearance column (incl. transition headroom).
+            for (int y = 0; y <= clear; y++) {
+                var pos = new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*step+(dz!=0?side:0),
+                        offset.getY()+rp.y()+stepY+y,
+                        offset.getZ()+rp.z()+number(from.get("z"))+dz*step+(dx!=0?side:0));
+                var placed = occupancy.placeAt(pos);
+                if (placed == null || placed.owner() == null || placed.owner().params() == null) continue;
+                Object ownerId = placed.owner().params().get("component_id");
+                Object ownerHost = placed.owner().params().get("host_id");
+                boolean sameHost = id.equals(ownerId) || id.equals(ownerHost);
+                if (!sameHost) continue;
+                if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY", "FOUNDATION",
+                        "ROOF", "ROOF_STRUCTURE", "DECOR_DETAIL", "FLOOR", "SLAB", "FLOOR_SLAB",
+                        "STRUCTURE_FLOOR", "INTERIOR_FLOOR").contains(placed.writerType())) {
+                    result.add(pos);
+                }
+            }
         }
         return result;
     }

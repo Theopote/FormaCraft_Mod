@@ -26,7 +26,7 @@ public final class PatchOccupancyIndex {
     );
     static final Set<String> CARVE_WRITERS = Set.of(
             "ENTRANCE", "FACADE_WINDOWS", "DOOR", "WINDOW", "FACADE_OPENING", "FACADE",
-            "STAIR", "STAIRS"
+            "STAIR", "STAIRS", "STAIR_SYSTEM", "STAIRCASE"
     );
 
     /** No sticky overwrite flag — authority is not inherited across writers. */
@@ -397,11 +397,28 @@ public final class PatchOccupancyIndex {
         if (!com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(writer)
                 || writer.params() == null || previous.owner() == null || previous.owner().params() == null) return false;
         Object target = writer.params().get("target_host_id");
-        if (target instanceof String targetId && !targetId.isBlank()
-                && targetId.equals(previous.owner().params().get("host_id"))
-                && (Set.of("TERRACE", "BALCONY").contains(previous.writerType())
-                    || "MASS_SECONDARY".equals(previous.writerType())
-                        && "plate".equals(previous.owner().params().get("extrude_mode")))) return true;
+        if (target instanceof String targetId && !targetId.isBlank()) {
+            Object prevHost = previous.owner().params().get("host_id");
+            Object prevId = previous.owner().params().get("component_id");
+            if (targetId.equals(prevHost) || targetId.equals(prevId)) {
+                if (Set.of("TERRACE", "BALCONY", "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "DECOR_DETAIL",
+                        "MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY").contains(previous.writerType())) {
+                    return true;
+                }
+            }
+            if (targetId.equals(prevHost)
+                    && (Set.of("TERRACE", "BALCONY").contains(previous.writerType())
+                        || "MASS_SECONDARY".equals(previous.writerType())
+                            && "plate".equals(previous.owner().params().get("extrude_mode")))) return true;
+        }
+        // Exterior connector flights may open roof bands / corridor enclosures across slots.
+        if (Boolean.TRUE.equals(writer.params().get("exterior"))) {
+            if (Set.of("ROOF", "ROOF_STRUCTURE").contains(previous.writerType())) return true;
+            if ("DECOR_DETAIL".equals(previous.writerType())
+                    && Boolean.TRUE.equals(previous.owner().params().get("corridor_enclosure"))) {
+                return true;
+            }
+        }
         Object host = writer.params().get("host_id");
         if (!(host instanceof String id) || id.isBlank()) return false;
         if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;

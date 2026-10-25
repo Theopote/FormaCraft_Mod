@@ -30,8 +30,12 @@ public final class AssemblyCirculationConstraints {
     }
     public static void validatePatches(List<BlockPatch> patches, List<Flight> flights) {
         if (flights.isEmpty()) return;
+        // Plan-level: later flights override earlier promises (patch last-write). Keeps per-op
+        // validate() strict for single-assembly regressions that intentionally overlap flights.
+        Flight collapsed = collapse(flights);
         Set<BlockPos> relevant = new HashSet<>();
-        for (Flight flight : flights) { relevant.addAll(flight.occupied()); relevant.addAll(flight.clearance()); }
+        relevant.addAll(collapsed.occupied());
+        relevant.addAll(collapsed.clearance());
         Map<BlockPos, BlockPatch> finalPatches = new LinkedHashMap<>();
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
@@ -47,7 +51,7 @@ public final class AssemblyCirculationConstraints {
             if (state == null) throw new Conflict("STAIR_SYSTEM invalid patch at plan " + pos.toShortString());
             finalOps.add(new PlannedBlock(pos, state));
         }
-        validate(finalOps, flights);
+        validate(finalOps, List.of(collapsed));
     }
 
     public static final class Conflict extends IllegalArgumentException {
@@ -66,7 +70,15 @@ public final class AssemblyCirculationConstraints {
         Set<BlockPos> occupied = new LinkedHashSet<>(), clearance = new LinkedHashSet<>();
         for (int i = start; i < out.size(); i++) {
             PlannedBlock block = out.get(i);
-            (block.getTargetState().isAir() ? clearance : occupied).add(block.getPos().toImmutable());
+            BlockPos pos = block.getPos().toImmutable();
+            // Last write wins: a later tread/support must not also remain a clearance promise.
+            if (block.getTargetState().isAir()) {
+                occupied.remove(pos);
+                clearance.add(pos);
+            } else {
+                clearance.remove(pos);
+                occupied.add(pos);
+            }
         }
         return new Flight(occupied, clearance);
     }
@@ -91,6 +103,23 @@ public final class AssemblyCirculationConstraints {
                 if (state == null || !state.isAir()) throw conflict(i, pos, "clearance blocked");
             }
         }
+    }
+
+    /** Merge flights so later promises override earlier ones at the same coordinate. */
+    public static Flight collapse(List<Flight> flights) {
+        Set<BlockPos> occupied = new LinkedHashSet<>();
+        Set<BlockPos> clearance = new LinkedHashSet<>();
+        if (flights == null) return new Flight(occupied, clearance);
+        for (Flight flight : flights) {
+            if (flight == null) continue;
+            occupied.removeAll(flight.occupied());
+            occupied.removeAll(flight.clearance());
+            clearance.removeAll(flight.occupied());
+            clearance.removeAll(flight.clearance());
+            occupied.addAll(flight.occupied());
+            clearance.addAll(flight.clearance());
+        }
+        return new Flight(occupied, clearance);
     }
 
     private static Conflict conflict(int flight, BlockPos pos, String reason) {
