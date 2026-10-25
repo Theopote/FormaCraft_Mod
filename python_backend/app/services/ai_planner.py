@@ -7,7 +7,6 @@ import json
 import re
 import time
 import logging
-import concurrent.futures
 from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
@@ -21,6 +20,8 @@ except ImportError:
 
 from ..models.request import BuildRequest
 from .llm_client import get_client, build_config, resolve_provider
+# Compatibility alias: existing callers and test patches keep the same facade.
+from .inference_call import call_with_timeout as _call_with_timeout
 from ..models.building_spec import (
     BuildingSpec, BuildingType, BuildingStyle, 
     Footprint, Materials, Features, StyleOptions
@@ -126,27 +127,6 @@ def _resolve_rag_budget(req: Optional[BuildRequest]) -> dict:
         maxExampleChars=maxExampleChars,
         maxChars=maxChars,
     )
-
-
-def _call_with_timeout(fn, timeout_sec: float):
-    """Run a blocking function with a hard timeout; do not block shutdown on timeout."""
-    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    fut = None
-    try:
-        fut = ex.submit(fn)
-        return fut.result(timeout=timeout_sec)
-    except concurrent.futures.TimeoutError as e:
-        if fut is not None:
-            try:
-                fut.cancel()
-            except Exception:
-                pass
-        raise TimeoutError(f"LLM call timed out after {timeout_sec}s") from e
-    finally:
-        try:
-            ex.shutdown(wait=False, cancel_futures=True)
-        except Exception:
-            pass
 
 
 def _clamp_temperature(v: Optional[float], default: float) -> float:

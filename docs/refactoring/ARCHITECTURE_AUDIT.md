@@ -1,6 +1,6 @@
 # 架构审计与重构路线
 
-状态：维护中；核查日期：2026-10-03。
+状态：维护中；当前状态复核：2026-10-25。下方分批记录保留当时结果，不代表当前债务数量。
 
 第一轮覆盖源码目录、构建和 CI、请求入口、生成主流程、分层依赖及文档入口。第二轮恢复测试编译、修复相关行为并迁移解释器初始化；不代表已经逐类验证建筑几何或完成游戏内验收。初始基线为 1050 个 Java 源文件、88 个 Java 测试文件、57 个 Python 应用文件、46 个 Python 测试文件、223 篇 docs 文档。
 
@@ -9,11 +9,11 @@
 | 优先级 | 证据 | 影响与处理 |
 |---|---|---|
 | P0 | 第一轮测试编译失败；第八批完整执行 345 测试，全部通过 | 编译漂移及基础/立面/屋顶本批拼接问题已修复，冠部层数与楼层顶圈也已修复，本批修复迁移条目的旧 MODULE 提示与八边形凹龛方向，第六批明确半球协议、接入 Fabric JUnit 并修复类型桥接丢失 BlockState 属性；详见 [回归清单](REGRESSION_BASELINE.md) |
-| P1 | `common/patch/history/PatchHistoryManager.java` 有 20 处服务端限定引用 | 初始另有注册表 10 处引用，第二轮已迁到服务端初始化并缩减基线；下一步把 Memory 更新放到服务端事务服务 |
-| P1 | `common/patch/PatchExecutor.java` 与 `common/patch/history/PatchHistoryManager.java` 持有 ServerWorld 并写方块 | common 并非纯模型/算法层；后续迁移执行器与历史事务时保留结果 DTO，核查 apply/undo/redo 与 Memory 的一致性 |
+| 已完成 | `PatchHistoryManager` 已迁至 `server/build` | 历史编排、账本及 Memory 更新位于服务端；`architecture-debt.json` 已为空，边界检查为 0 既有债务、0 新增 |
+| P1 | `common/patch/PatchExecutor.java` 仍暴露 ServerWorld 适配入口 | 核心执行已委托 BlockMutationAccess；边界基线清零不代表 common 完全不依赖 Minecraft 服务端类型 |
 | P1 | BuildTask/PatchExecutor 原先忽略写入返回值；历史按尝试列表更新 Memory | 本批修复实际应用结果、严格目标解析及最终差异；第八批进一步修复部分恢复保留/重试、世界身份与冲突保护；普通 Undo Memory 更新、异常补偿与 Memory 原子性仍待处理，详见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md) |
-| P1 | `python_backend/app/routes/build.py` 的 async 入口直接调用同步生成函数 | 规划和外部调用可能阻塞事件循环；后续将请求解析与同步规划隔离，并用并发请求证明健康检查不被阻塞；线程池本身不能保证超时后取消任务 |
-| P1 | `python_backend/app/services/ai_planner.py` 为 5380 行 | 意图、检索、提示词、调用、修复、回退混在一起；按阶段抽取，保留公开 generate_* 门面，先保持输出和失败语义 |
+| 已修复入口阻塞 | `/build` 同步分发与编码在独立有界线程池执行 | 满额 503，总超时 504，断连丢弃结果；同步线程不能强杀，实际结束前持续占用额度。并发、健康检查、取消及额度恢复有离线回归 |
+| P1 | `python_backend/app/services/ai_planner.py` 仍集中大量规划逻辑 | 意图、检索、提示词、调用、修复、回退混在一起；按阶段抽取，保留公开 generate_* 门面，先保持输出和失败语义 |
 | P2 | `server/build/PathLayoutService.java` 无源码调用者，extractPathPoints 始终返回 null | 本轮删除不可工作的占位服务；不是删除真实路径工具或路径生成器 |
 | P2 | `server/skeleton/gen/geometry/ToolConstraintBuilder.java` 无源码调用者，却读取客户端全局状态 | 本轮移到 `client/skeleton`；服务端未来只接受请求快照，不读取客户端状态 |
 | P2 | ARCHITECTURE 将 ComponentPlanCompiler 写成 common.compiler，实际位于 server.compiler | 本轮纠正文档，区分主干与仍存在的兼容入口 |
@@ -24,7 +24,7 @@
 
 `python scripts/check_architecture.py` 检查 common → client/server、server → client 的导入和完全限定引用，忽略注释与字符串。CI 会运行检查器测试与检查。
 
-`config/architecture-debt.json` 当前记录 PatchHistoryManager 的 20 处既有引用；注册表的 10 处债务已消除。新增引用导致失败，消除引用后必须同步缩减基线；不得为了通过 CI 扩大基线。它只检查源码包引用，不证明运行时隔离，不覆盖反射、间接依赖、Minecraft 服务端类型或世界写入权限。
+`config/architecture-debt.json` 当前为空；PatchHistoryManager 已迁至 server/build，原有包引用债务已清零。新增引用导致失败，消除引用后必须同步缩减基线；不得为了通过 CI 扩大基线。它只检查源码包引用，不证明运行时隔离，不覆盖反射、间接依赖、Minecraft 服务端类型或世界写入权限。
 
 ## 按依赖顺序推进
 
@@ -125,7 +125,7 @@ PlanProgram 合并层建立整份 patch 上限，失败继续采用原子拒绝�
 - **载荷限制**：JSON ≤ 2MB、blocks ≤ 10000（与 GeometryValidator 量级一致）；缩略图沿用 1MB。
 - **多人命名空间**：Dedicated 非 OP 写入 `components/players/<uuid>/`；OP / 集成服写全局；玩家 ID 与全局冲突则拒绝。Catalog 合并：legacy &lt; global &lt; player。
 - **预览确认**：`PreviewStorage` 记录维度 + origin + SHA-256 digest；`/forma_confirm` 校验后 `consumeStructure` 一次性消费。Patch 路径继续用 `PreviewTicketStorage.consume`。
-- **过滤统一**：`ServerPatchFilter` 委托 `PatchFilterPipeline.createDefault()`；见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md)「预览过滤 = 建造过滤」。
+- **过滤统一**：`ServerPatchFilter` 与 Build 共享 `MutationRegionPolicy.allow` 核心区域约束；见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md)「预览过滤 = 建造过滤」。
 - **回归测试**：`ComponentIdsTest`、`ComponentStorageSecurityTest`、`PreviewTicketStorageTest`、`PreviewStorageDigestTest`、`AssemblyCompositionBoundaryTest`（组合边界矩阵）。
 - **调查**：`BuildPreviewPipeline` / `allowPreview` 失败时返回错误、不自动重新生成；未发现「校验失败转重新生成」旁路。
 
@@ -137,7 +137,7 @@ PlanProgram 合并层建立整份 patch 上限，失败继续采用原子拒绝�
 
 - **已修**：Patch `confirm` 先做维度/距离门禁再 `consume`（此前太远会吞掉票据）；`PreviewTicket` 绑定签发维度。
 - **对齐点**：两边均为「预览裁剪 → 权威快照 → 确认消费 → 写入」；底层写入都走 `BlockMutationAccess`。
-- **仍分叉**：过滤实现双轨（`PatchFilterPipeline` vs `BuildConstraints`）；历史双轨（`PatchHistoryManager` vs `UndoService`）；Patch 同步写入、Build 分 Tick。对称只在 Pipeline；笔刷/路径走廊只在 BuildConstraints。见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md)。
+- **仍分叉**：过滤入口仍有差异，但禁区/选区/轮廓已共享 `MutationRegionPolicy`；历史双轨（`PatchHistoryManager` vs `UndoService`）；Patch 同步写入、Build 分 Tick。对称只在 Pipeline；笔刷/路径走廊只在 BuildConstraints。见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md)。
 - **未改**：`queueBuild(BuildingSpec)` 等管理入口仍可跳过 PreviewStorage 直接排队（需 OP/命令路径约束，不在本批范围）。
 
 ## 第二十七批补充：确认契约、离线 Undo、全局 Tick 预算
@@ -150,3 +150,9 @@ PlanProgram 合并层建立整份 patch 上限，失败继续采用原子拒绝�
 - **全局预算**：`BLOCKS_PER_WORLD_TICK=200` 世界共享 + 轮询公平调度；单世界最多 32 任务。
 - **严格 Meta**：缺 `PreviewMeta` 时 `validatePreview` 失败。
 - **测试**：`BuildQualityGateTest`、Ticket 并发 consume、`BuildExecutionBudgetTest`、离线 Undo UUID 栈。
+
+## 当前自动验收与剩余边界（2026-10-25）
+
+主 CI 已配置执行 Python 全量测试与 `eval.ci_gate --quick`，每周 live eval 上传报告但不阻断主 CI。已有编译、通行、约束一致性和案例回放回归；下一步补齐真实游戏碰撞、邻居更新、多人交互和预览图验收，而非从零建立质量门。
+
+规划器本轮先抽取独立 `inference_call.py`，通过兼容别名保留 `_call_with_timeout`；其余阶段继续按依赖抽取，保持输出和失败语义。请求执行上限与线程取消边界见 Python 后端 README。

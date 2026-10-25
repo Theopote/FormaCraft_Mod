@@ -84,11 +84,8 @@ public final class PlanPatchConverter {
             return false;
         }
         String target = patch.targetBlock() == null ? "" : patch.targetBlock().toLowerCase(Locale.ROOT);
-        if (looksDecorative(target)) {
-            return false;
-        }
+        return !looksDecorative(target);
         // 结构相关关键词或未知 place/replace → critical
-        return true;
     }
 
     static boolean canSoftRecover(BlockPatch patch) {
