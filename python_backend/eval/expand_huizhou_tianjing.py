@@ -20,7 +20,8 @@ def main():
                 c['relative_position'].update(x=x,z=z)
                 c['dimensions'].update(width=w,depth=d)
             body['params']['component_id']=label
-            body['params'].update(window_ratio=.18,suppress_windows=True,wall_thickness=1)
+            body['params'].update(window_ratio=.18 if label in ('front','rear') else 0,
+                                  suppress_windows=True,wall_thickness=1)
             roof['params'].update(component_id=label+'_roof',host_id=label,roof_height=3)
             roof['dimensions']['height']=3
             plan['components'] += [body,roof]

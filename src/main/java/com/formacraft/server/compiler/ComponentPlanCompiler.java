@@ -2961,6 +2961,10 @@ public final class ComponentPlanCompiler {
             params.remove(regionsKey);
             return;
         }
+        // An authored host suppression flag disables its default openings, not
+        // explicit facade components. Partial delegation must not erase it and
+        // thereby generate new default windows elsewhere on the host.
+        if (Boolean.TRUE.equals(getParamBoolean(params, fullKey))) return;
         params.remove(fullKey);
         Set<String> faces = delegation.faceNames();
         if (!faces.isEmpty()) params.put(facesKey, new ArrayList<>(faces));

@@ -13,6 +13,23 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OpeningDelegationPrepareTest {
+    @Test
+    void partialFacadePreservesAuthoredSuppressionOfHostDefaults() throws Exception {
+        Method prepare=ComponentPlanCompiler.class.getDeclaredMethod("prepareComponents",LlmPlan.class,Map.class,boolean.class);
+        prepare.setAccessible(true);
+        var mass=new Component("MASS_MAIN","s0",new Vec3i(0,0,0),new Dimensions(8,8,6),null,
+                Map.of("component_id","b1","suppress_windows",true,"window_ratio",.18));
+        var window=new Component("FACADE_WINDOWS","s0",new Vec3i(0,1,7),new Dimensions(8,1,4),null,
+                Map.of("component_id","north_window","host_id","b1","faces",List.of("NORTH")));
+        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(mass,window))
+                .layout(new Layout(null,false,List.of(new Slot("s0",new Vec3i(0,64,0),GlobalConstraints.Facing.SOUTH,null,null,null)))).build();
+        Object prepared=prepare.invoke(null,plan,Map.of(),false);
+        @SuppressWarnings("unchecked") var components=(List<Component>)prepared.getClass().getRecordComponents()[0].getAccessor().invoke(prepared);
+        var host=components.stream().filter(c->"MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
+        assertEquals(Boolean.TRUE,host.params().get("suppress_windows"));
+        assertTrue(components.stream().anyMatch(c->"FACADE_WINDOWS".equals(c.componentType())),"explicit facade remains allowed");
+    }
+
     @BeforeEach
     @AfterEach
     void clear() {

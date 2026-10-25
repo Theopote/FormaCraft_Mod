@@ -31,7 +31,8 @@ Follow-up: each compound now contains four explicitly positioned inward
 spruce-fence lattice windows in the front/rear halls, two blocks high. Narrow
 side-wing corner posts remain intact; the initial side-corner windows were
 removed after the locality test exposed their placement on timber posts. Automatic windows remain
-suppressed; the host ratio permits the explicit facade components. The initial
+suppressed; front/rear host ratios permit the explicit facade components, while
+side wings explicitly retain ratio=0 to prevent inferred facade completion. The initial
 ratio=0 conflict was rejected by the compiler and fixed in the authored plan,
 without weakening the explicit-design conflict guard.
 
@@ -39,5 +40,20 @@ Geometry checks require all eight planned window cells to contain the specified
 lattice material. Removing the facade components and explicitly disabling
 windows must restore white wall cells at those locations and preserve every
 other block. The open-sky and four-wing reachability checks still apply.
+
+This test also exposed a compiler defect: partial opening delegation erased an
+existing host suppress_windows flag, enabling unrelated default windows when
+the host ratio was positive. ComponentPlanCompiler now preserves an existing
+true host suppression flag during partial delegation (for both windows and
+doors). This flag controls host defaults and does not prohibit explicit facade
+components. Explicit window_ratio=0 remains a conflict with authored windows;
+that safety check was retained.
+
+Final window follow-up validation passed: 16 related Python tests, 125 Java
+constraint/geometry tests, four isolated user-pack tests, and 17 adjacent
+opening-delegation/scope/explicit-design-policy tests. The complete compiler
+locality assertion passes: disabling windows changes exactly the eight authored
+window cells and preserves every unrelated block. All 115 CI golden HARD
+scenarios pass; 238 SOFT warnings remain in the shared inventory.
 Drainage, historical fidelity, visual identity and game-world edits remain
 pending. No new live-game evidence was obtained in this follow-up.

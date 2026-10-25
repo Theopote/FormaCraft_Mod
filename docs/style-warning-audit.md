@@ -43,6 +43,15 @@ blackstone TOWER components with continuous walls and a floor. Tower stairs,
 occupied tower access and complete defensive circulation remain pending; the
 presence check alone does not certify an operational fortress.
 
+Window/tower follow-up validation: 16 related Python tests, 125 Java geometry
+and region-constraint tests, four isolated user-pack tests and 17 adjacent
+opening-policy tests passed. In addition to fixture changes, the compiler now
+preserves an existing host default-opening suppression flag during partial
+delegation; this prevents localized windows from enabling unrelated defaults.
+Skywell tests cover actual window materials, window-disable block locality,
+open sky and four-wing reachability. Tower tests cover floors, hollow cores and
+continuous blackstone shells. Live-world evidence remains pending.
+
 Every warning has scenario, fixture, check, detail, category, unresolved status
 and next action in [the machine-readable inventory](style-warning-audit.json).
 Regenerate from python_backend:
