@@ -164,12 +164,12 @@ def main():
             body.update(relative_position=dict(x=0,y=elevation,z=0),dimensions=dict(width=size,depth=size+4,height=body_height))
             body['params']={**base,'component_id':gid,'anchor_mode':'min_corner','roof_type':'none','floor_count':2,'hollow':True}
             if sid=='Arctic_Igloo':
-                body['dimensions']['height']=3
+                body['dimensions']['height']=4
                 body['params'].update(shape='circle',plan_type='none',floor_count=1,floor_height=3,window_ratio=0)
             top.update(relative_position=dict(x=0,y=elevation+body_height-1,z=0),dimensions=dict(width=size,depth=size+4,height=3 if roof_type=='flat' else 10 if roof_type=='barrel_vault' else 8))
             top['params']=dict(roof_type=roof_type,overhang=0,roof_block=palette['roof'],component_id=gid+'_roof',host_id=gid,anchor_mode='min_corner')
             if sid=='Arctic_Igloo':
-                top['relative_position']['y']=2
+                top['relative_position']['y']=3
             plan['components']=[body,top]
             if sid in ('Stilt_Timber','Water_Platform'):
                 for i,(x,z) in enumerate(((1,1),(size-2,1),(1,size+2),(size-2,size+2))):

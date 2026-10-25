@@ -1,0 +1,2201 @@
+{
+  "scenarios": 115,
+  "hard_failures": [],
+  "warning_count": 242,
+  "by_check": {
+    "castle_has_defensive_shell": 2,
+    "component_richness": 25,
+    "has_enclosure_mass": 8,
+    "has_entrance": 57,
+    "has_entrance_component": 57,
+    "has_proportion_hints": 1,
+    "has_roof": 27,
+    "has_windows": 64,
+    "stadium_paving_or_landmark_field": 1
+  },
+  "by_category": {
+    "composition_or_intent_review_required": 108,
+    "parameter_or_fixture_defect": 1,
+    "route_specific_evidence_required": 133
+  },
+  "warnings": [
+    {
+      "scenario": "modern_elliptical_stadium",
+      "fixture": "plans/modern_elliptical_stadium_captured.json",
+      "check": "stadium_paving_or_landmark_field",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "内场宜显式 PAVING 组件或 typology stadium_bowl 路由，void_ratio alone 不足以形成场地感",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "modern_elliptical_stadium",
+      "fixture": "plans/modern_elliptical_stadium_captured.json",
+      "check": "has_proportion_hints",
+      "category": "parameter_or_fixture_defect",
+      "status": "unresolved",
+      "detail": "missing proportion_hints for stadium_bowl",
+      "action": "Check the consuming compiler and repair the authored fixture; retain regression coverage."
+    },
+    {
+      "scenario": "medieval_castle_compositional",
+      "fixture": "plans/medieval_castle_golden.json",
+      "check": "has_roof",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'TOWER', 'TOWER', 'WALL', 'ENTRANCE', 'FACADE_WINDOWS']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "primitive_voronoi_3d",
+      "fixture": "plans/primitive_voronoi_3d_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "primitive_voronoi_3d",
+      "fixture": "plans/primitive_voronoi_3d_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "primitive_voronoi_3d",
+      "fixture": "plans/primitive_voronoi_3d_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "primitive_voronoi_3d",
+      "fixture": "plans/primitive_voronoi_3d_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "primitive_voronoi_3d",
+      "fixture": "plans/primitive_voronoi_3d_golden.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "primitive_voronoi_3d",
+      "fixture": "plans/primitive_voronoi_3d_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "square_tower_five_story",
+      "fixture": "plans/square_tower_five_story_golden.json",
+      "check": "has_roof",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'TERRACE', 'ENTRANCE', 'FACADE_WINDOWS']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "temple_of_heaven",
+      "fixture": "plans/temple_of_heaven_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "temple_of_heaven",
+      "fixture": "plans/temple_of_heaven_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "temple_of_heaven",
+      "fixture": "plans/temple_of_heaven_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "temple_of_heaven",
+      "fixture": "plans/temple_of_heaven_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "temple_of_heaven",
+      "fixture": "plans/temple_of_heaven_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_spiral_preset",
+      "fixture": "plans/assembly_spiral_preset_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_spiral_preset",
+      "fixture": "plans/assembly_spiral_preset_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_spiral_preset",
+      "fixture": "plans/assembly_spiral_preset_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_spiral_preset",
+      "fixture": "plans/assembly_spiral_preset_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_spiral_preset",
+      "fixture": "plans/assembly_spiral_preset_golden.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_spiral_preset",
+      "fixture": "plans/assembly_spiral_preset_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_bridge_preset",
+      "fixture": "plans/assembly_bridge_preset_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_bridge_preset",
+      "fixture": "plans/assembly_bridge_preset_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_bridge_preset",
+      "fixture": "plans/assembly_bridge_preset_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_bridge_preset",
+      "fixture": "plans/assembly_bridge_preset_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_bridge_preset",
+      "fixture": "plans/assembly_bridge_preset_golden.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_bridge_preset",
+      "fixture": "plans/assembly_bridge_preset_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_gothic_shell",
+      "fixture": "plans/assembly_gothic_shell_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_gothic_shell",
+      "fixture": "plans/assembly_gothic_shell_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_gothic_shell",
+      "fixture": "plans/assembly_gothic_shell_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_gothic_shell",
+      "fixture": "plans/assembly_gothic_shell_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_gothic_shell",
+      "fixture": "plans/assembly_gothic_shell_golden.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "assembly_gothic_shell",
+      "fixture": "plans/assembly_gothic_shell_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['ASSEMBLY']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "famen_pagoda",
+      "fixture": "plans/famen_pagoda_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "famen_pagoda",
+      "fixture": "plans/famen_pagoda_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "famen_pagoda",
+      "fixture": "plans/famen_pagoda_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "famen_pagoda",
+      "fixture": "plans/famen_pagoda_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "famen_pagoda",
+      "fixture": "plans/famen_pagoda_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "giant_wild_goose_pagoda",
+      "fixture": "plans/giant_wild_goose_pagoda_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "giant_wild_goose_pagoda",
+      "fixture": "plans/giant_wild_goose_pagoda_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "giant_wild_goose_pagoda",
+      "fixture": "plans/giant_wild_goose_pagoda_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "giant_wild_goose_pagoda",
+      "fixture": "plans/giant_wild_goose_pagoda_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "giant_wild_goose_pagoda",
+      "fixture": "plans/giant_wild_goose_pagoda_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "foguang_temple_hall",
+      "fixture": "plans/foguang_temple_hall_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "foguang_temple_hall",
+      "fixture": "plans/foguang_temple_hall_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "foguang_temple_hall",
+      "fixture": "plans/foguang_temple_hall_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "foguang_temple_hall",
+      "fixture": "plans/foguang_temple_hall_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "foguang_temple_hall",
+      "fixture": "plans/foguang_temple_hall_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "birds_nest_stadium",
+      "fixture": "plans/birds_nest_stadium_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "birds_nest_stadium",
+      "fixture": "plans/birds_nest_stadium_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "birds_nest_stadium",
+      "fixture": "plans/birds_nest_stadium_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "birds_nest_stadium",
+      "fixture": "plans/birds_nest_stadium_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "birds_nest_stadium",
+      "fixture": "plans/birds_nest_stadium_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "golden_gate_bridge",
+      "fixture": "plans/golden_gate_bridge_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "golden_gate_bridge",
+      "fixture": "plans/golden_gate_bridge_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "golden_gate_bridge",
+      "fixture": "plans/golden_gate_bridge_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "golden_gate_bridge",
+      "fixture": "plans/golden_gate_bridge_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "golden_gate_bridge",
+      "fixture": "plans/golden_gate_bridge_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "gothic_cathedral",
+      "fixture": "plans/gothic_cathedral_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "gothic_cathedral",
+      "fixture": "plans/gothic_cathedral_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "gothic_cathedral",
+      "fixture": "plans/gothic_cathedral_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "gothic_cathedral",
+      "fixture": "plans/gothic_cathedral_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "gothic_cathedral",
+      "fixture": "plans/gothic_cathedral_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "mingqing_courtyard",
+      "fixture": "plans/mingqing_courtyard_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "mingqing_courtyard",
+      "fixture": "plans/mingqing_courtyard_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "mingqing_courtyard",
+      "fixture": "plans/mingqing_courtyard_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "mingqing_courtyard",
+      "fixture": "plans/mingqing_courtyard_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "mingqing_courtyard",
+      "fixture": "plans/mingqing_courtyard_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "castle_compound",
+      "fixture": "plans/castle_compound_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "castle_compound",
+      "fixture": "plans/castle_compound_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "castle_compound",
+      "fixture": "plans/castle_compound_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "castle_compound",
+      "fixture": "plans/castle_compound_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "castle_compound",
+      "fixture": "plans/castle_compound_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "modern_skyscraper",
+      "fixture": "plans/modern_skyscraper_golden.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "modern_skyscraper",
+      "fixture": "plans/modern_skyscraper_golden.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "modern_skyscraper",
+      "fixture": "plans/modern_skyscraper_golden.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "modern_skyscraper",
+      "fixture": "plans/modern_skyscraper_golden.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "modern_skyscraper",
+      "fixture": "plans/modern_skyscraper_golden.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_compact",
+      "fixture": "plans/tang_timber_compact.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_compact",
+      "fixture": "plans/tang_timber_compact.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_compact",
+      "fixture": "plans/tang_timber_compact.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_compact",
+      "fixture": "plans/tang_timber_compact.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_compact",
+      "fixture": "plans/tang_timber_compact.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_large",
+      "fixture": "plans/tang_timber_large.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_large",
+      "fixture": "plans/tang_timber_large.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_large",
+      "fixture": "plans/tang_timber_large.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_large",
+      "fixture": "plans/tang_timber_large.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_large",
+      "fixture": "plans/tang_timber_large.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_compact",
+      "fixture": "plans/art_deco_vertical_compact.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_compact",
+      "fixture": "plans/art_deco_vertical_compact.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_compact",
+      "fixture": "plans/art_deco_vertical_compact.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_compact",
+      "fixture": "plans/art_deco_vertical_compact.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_compact",
+      "fixture": "plans/art_deco_vertical_compact.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_large",
+      "fixture": "plans/art_deco_vertical_large.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_large",
+      "fixture": "plans/art_deco_vertical_large.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_large",
+      "fixture": "plans/art_deco_vertical_large.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_large",
+      "fixture": "plans/art_deco_vertical_large.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "art_deco_vertical_large",
+      "fixture": "plans/art_deco_vertical_large.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_compact",
+      "fixture": "plans/tang_study_hall_compact.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_compact",
+      "fixture": "plans/tang_study_hall_compact.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_compact",
+      "fixture": "plans/tang_study_hall_compact.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_compact",
+      "fixture": "plans/tang_study_hall_compact.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_compact",
+      "fixture": "plans/tang_study_hall_compact.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_large",
+      "fixture": "plans/tang_study_hall_large.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_large",
+      "fixture": "plans/tang_study_hall_large.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_large",
+      "fixture": "plans/tang_study_hall_large.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_large",
+      "fixture": "plans/tang_study_hall_large.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_study_hall_large",
+      "fixture": "plans/tang_study_hall_large.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_diversity",
+      "fixture": "plans/tang_timber_diversity.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_diversity",
+      "fixture": "plans/tang_timber_diversity.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_diversity",
+      "fixture": "plans/tang_timber_diversity.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_diversity",
+      "fixture": "plans/tang_timber_diversity.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tang_timber_diversity",
+      "fixture": "plans/tang_timber_diversity.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "mixed_garden_chapel",
+      "fixture": "plans/mixed_garden_chapel.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'ENTRANCE', 'ENTRANCE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_gambrel_13",
+      "fixture": "plans/p2_gambrel_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_gambrel_13",
+      "fixture": "plans/p2_gambrel_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_gambrel_13",
+      "fixture": "plans/p2_gambrel_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_gambrel_21",
+      "fixture": "plans/p2_gambrel_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_gambrel_21",
+      "fixture": "plans/p2_gambrel_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_gambrel_21",
+      "fixture": "plans/p2_gambrel_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_barrel_vault_13",
+      "fixture": "plans/p2_barrel_vault_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_barrel_vault_13",
+      "fixture": "plans/p2_barrel_vault_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_barrel_vault_13",
+      "fixture": "plans/p2_barrel_vault_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_barrel_vault_21",
+      "fixture": "plans/p2_barrel_vault_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_barrel_vault_21",
+      "fixture": "plans/p2_barrel_vault_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_barrel_vault_21",
+      "fixture": "plans/p2_barrel_vault_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_onion_dome_13",
+      "fixture": "plans/p2_onion_dome_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_onion_dome_13",
+      "fixture": "plans/p2_onion_dome_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_onion_dome_13",
+      "fixture": "plans/p2_onion_dome_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_onion_dome_21",
+      "fixture": "plans/p2_onion_dome_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_onion_dome_21",
+      "fixture": "plans/p2_onion_dome_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_onion_dome_21",
+      "fixture": "plans/p2_onion_dome_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steep_thatch_13",
+      "fixture": "plans/p2_steep_thatch_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steep_thatch_13",
+      "fixture": "plans/p2_steep_thatch_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steep_thatch_13",
+      "fixture": "plans/p2_steep_thatch_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steep_thatch_21",
+      "fixture": "plans/p2_steep_thatch_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steep_thatch_21",
+      "fixture": "plans/p2_steep_thatch_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steep_thatch_21",
+      "fixture": "plans/p2_steep_thatch_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_floating_mass_13",
+      "fixture": "plans/p2_floating_mass_13.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_13",
+      "fixture": "plans/p2_floating_mass_13.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_13",
+      "fixture": "plans/p2_floating_mass_13.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_13",
+      "fixture": "plans/p2_floating_mass_13.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_13",
+      "fixture": "plans/p2_floating_mass_13.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_13",
+      "fixture": "plans/p2_floating_mass_13.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_21",
+      "fixture": "plans/p2_floating_mass_21.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_21",
+      "fixture": "plans/p2_floating_mass_21.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_21",
+      "fixture": "plans/p2_floating_mass_21.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_21",
+      "fixture": "plans/p2_floating_mass_21.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_21",
+      "fixture": "plans/p2_floating_mass_21.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_floating_mass_21",
+      "fixture": "plans/p2_floating_mass_21.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['PRIMITIVE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "p2_desert_adobe_13",
+      "fixture": "plans/p2_desert_adobe_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_desert_adobe_13",
+      "fixture": "plans/p2_desert_adobe_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_desert_adobe_13",
+      "fixture": "plans/p2_desert_adobe_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_desert_adobe_21",
+      "fixture": "plans/p2_desert_adobe_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_desert_adobe_21",
+      "fixture": "plans/p2_desert_adobe_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_desert_adobe_21",
+      "fixture": "plans/p2_desert_adobe_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_prairie_earth_13",
+      "fixture": "plans/p2_prairie_earth_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_prairie_earth_13",
+      "fixture": "plans/p2_prairie_earth_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_prairie_earth_13",
+      "fixture": "plans/p2_prairie_earth_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_prairie_earth_21",
+      "fixture": "plans/p2_prairie_earth_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_prairie_earth_21",
+      "fixture": "plans/p2_prairie_earth_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_prairie_earth_21",
+      "fixture": "plans/p2_prairie_earth_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_arctic_igloo_13",
+      "fixture": "plans/p2_arctic_igloo_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_arctic_igloo_13",
+      "fixture": "plans/p2_arctic_igloo_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_arctic_igloo_13",
+      "fixture": "plans/p2_arctic_igloo_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_arctic_igloo_21",
+      "fixture": "plans/p2_arctic_igloo_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_arctic_igloo_21",
+      "fixture": "plans/p2_arctic_igloo_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_arctic_igloo_21",
+      "fixture": "plans/p2_arctic_igloo_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_13",
+      "fixture": "plans/p2_stilt_timber_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_13",
+      "fixture": "plans/p2_stilt_timber_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_13",
+      "fixture": "plans/p2_stilt_timber_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_21",
+      "fixture": "plans/p2_stilt_timber_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_21",
+      "fixture": "plans/p2_stilt_timber_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_21",
+      "fixture": "plans/p2_stilt_timber_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_17",
+      "fixture": "plans/p2_stilt_timber_17.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_17",
+      "fixture": "plans/p2_stilt_timber_17.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_stilt_timber_17",
+      "fixture": "plans/p2_stilt_timber_17.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_water_platform_13",
+      "fixture": "plans/p2_water_platform_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_water_platform_13",
+      "fixture": "plans/p2_water_platform_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_water_platform_13",
+      "fixture": "plans/p2_water_platform_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_water_platform_21",
+      "fixture": "plans/p2_water_platform_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_water_platform_21",
+      "fixture": "plans/p2_water_platform_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_water_platform_21",
+      "fixture": "plans/p2_water_platform_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_xianxia_island_13",
+      "fixture": "plans/p2_xianxia_island_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_xianxia_island_13",
+      "fixture": "plans/p2_xianxia_island_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_xianxia_island_13",
+      "fixture": "plans/p2_xianxia_island_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_xianxia_island_21",
+      "fixture": "plans/p2_xianxia_island_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_xianxia_island_21",
+      "fixture": "plans/p2_xianxia_island_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_xianxia_island_21",
+      "fixture": "plans/p2_xianxia_island_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dwarven_hall_13",
+      "fixture": "plans/p2_dwarven_hall_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dwarven_hall_13",
+      "fixture": "plans/p2_dwarven_hall_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dwarven_hall_13",
+      "fixture": "plans/p2_dwarven_hall_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dwarven_hall_21",
+      "fixture": "plans/p2_dwarven_hall_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dwarven_hall_21",
+      "fixture": "plans/p2_dwarven_hall_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dwarven_hall_21",
+      "fixture": "plans/p2_dwarven_hall_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_elven_treehouse_13",
+      "fixture": "plans/p2_elven_treehouse_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_elven_treehouse_21",
+      "fixture": "plans/p2_elven_treehouse_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_13",
+      "fixture": "plans/p2_cyberpunk_block_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_13",
+      "fixture": "plans/p2_cyberpunk_block_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_13",
+      "fixture": "plans/p2_cyberpunk_block_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_21",
+      "fixture": "plans/p2_cyberpunk_block_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_21",
+      "fixture": "plans/p2_cyberpunk_block_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_21",
+      "fixture": "plans/p2_cyberpunk_block_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_17",
+      "fixture": "plans/p2_cyberpunk_block_17.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_17",
+      "fixture": "plans/p2_cyberpunk_block_17.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_cyberpunk_block_17",
+      "fixture": "plans/p2_cyberpunk_block_17.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steampunk_hall_13",
+      "fixture": "plans/p2_steampunk_hall_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steampunk_hall_13",
+      "fixture": "plans/p2_steampunk_hall_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steampunk_hall_13",
+      "fixture": "plans/p2_steampunk_hall_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steampunk_hall_21",
+      "fixture": "plans/p2_steampunk_hall_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steampunk_hall_21",
+      "fixture": "plans/p2_steampunk_hall_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_steampunk_hall_21",
+      "fixture": "plans/p2_steampunk_hall_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_13",
+      "fixture": "plans/p2_dark_fortress_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_13",
+      "fixture": "plans/p2_dark_fortress_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_13",
+      "fixture": "plans/p2_dark_fortress_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_13",
+      "fixture": "plans/p2_dark_fortress_13.json",
+      "check": "castle_has_defensive_shell",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "tower/wall + mass expected; types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_21",
+      "fixture": "plans/p2_dark_fortress_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_21",
+      "fixture": "plans/p2_dark_fortress_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_21",
+      "fixture": "plans/p2_dark_fortress_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "p2_dark_fortress_21",
+      "fixture": "plans/p2_dark_fortress_21.json",
+      "check": "castle_has_defensive_shell",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "tower/wall + mass expected; types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "huizhou_vernacular_13",
+      "fixture": "plans/huizhou_vernacular_13.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "huizhou_vernacular_13",
+      "fixture": "plans/huizhou_vernacular_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "huizhou_vernacular_13",
+      "fixture": "plans/huizhou_vernacular_13.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "huizhou_vernacular_21",
+      "fixture": "plans/huizhou_vernacular_21.json",
+      "check": "has_entrance",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "huizhou_vernacular_21",
+      "fixture": "plans/huizhou_vernacular_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "huizhou_vernacular_21",
+      "fixture": "plans/huizhou_vernacular_21.json",
+      "check": "has_entrance_component",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "dwarven_underground_13",
+      "fixture": "plans/dwarven_underground_13.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "dwarven_underground_21",
+      "fixture": "plans/dwarven_underground_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'PRIMITIVE', 'PRIMITIVE', 'ENTRANCE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE', 'PRIMITIVE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "tulou_ring_10",
+      "fixture": "plans/tulou_ring_10.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_10",
+      "fixture": "plans/tulou_ring_10.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_10",
+      "fixture": "plans/tulou_ring_10.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_10",
+      "fixture": "plans/tulou_ring_10.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_10",
+      "fixture": "plans/tulou_ring_10.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_10",
+      "fixture": "plans/tulou_ring_10.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_14",
+      "fixture": "plans/tulou_ring_14.json",
+      "check": "has_entrance",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_14",
+      "fixture": "plans/tulou_ring_14.json",
+      "check": "has_windows",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_14",
+      "fixture": "plans/tulou_ring_14.json",
+      "check": "has_roof",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_14",
+      "fixture": "plans/tulou_ring_14.json",
+      "check": "component_richness",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "components=1 slots=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_14",
+      "fixture": "plans/tulou_ring_14.json",
+      "check": "has_enclosure_mass",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "enclosure_components=0",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "tulou_ring_14",
+      "fixture": "plans/tulou_ring_14.json",
+      "check": "has_entrance_component",
+      "category": "route_specific_evidence_required",
+      "status": "unresolved",
+      "detail": "types=['STRUCTURE']",
+      "action": "Top-level component tokens cannot inspect this route. Bind compiled geometry or explicit program applicability before any waiver."
+    },
+    {
+      "scenario": "huizhou_tianjing_17",
+      "fixture": "plans/huizhou_tianjing_17.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'PRIMITIVE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    },
+    {
+      "scenario": "huizhou_tianjing_21",
+      "fixture": "plans/huizhou_tianjing_21.json",
+      "check": "has_windows",
+      "category": "composition_or_intent_review_required",
+      "status": "unresolved",
+      "detail": "types=['MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'MASS_MAIN', 'ROOF', 'PRIMITIVE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE', 'ENTRANCE']",
+      "action": "Check the requested program against compiled geometry; missing access or enclosure may be a real defect."
+    }
+  ]
+}

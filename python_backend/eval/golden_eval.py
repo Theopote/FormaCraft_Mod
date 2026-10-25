@@ -980,7 +980,7 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[st
 
 # 与 Java ComponentFacadeStyler / FacadePatternDsl / ComponentPlanCompiler 的可识别取值对齐。
 _ALLOWED_FACADE_PROFILE = {"none", "base_plinth", "vertical_pilasters", "pilasters", "mullion_grid", "mullion", "module_grid"}
-_ALLOWED_WALL_PATTERN = {"none", "uniform", "gradient", "striped", "random"}
+_ALLOWED_WALL_PATTERN = {"none", "uniform", "smooth", "gradient", "striped", "random", "timber_frame", "neon_bands"}
 # 直接对齐 FacadePatternDsl 的 contains(...) 子串（避免误判 arch_window / perforated 等复合词）。
 _ALLOWED_FACADE_CUTOUT = {"none", "solid", "lattice", "grille", "perfor", "diagrid", "diagonal", "diamond", "checker", "rose", "circle", "oculus", "arch"}
 _ALLOWED_DETAIL_LEVEL = {"low", "medium", "high"}
@@ -1030,7 +1030,10 @@ def _invalid_facade_params(comps: List[Dict[str, Any]]) -> List[str]:
         _check(params, i, ("facade_profile", "facadeProfile"), _ALLOWED_FACADE_PROFILE, "facade_profile", substring=True)
         _check(params, i, ("wall_pattern", "wallPattern"), _ALLOWED_WALL_PATTERN, "wall_pattern")
         _check(params, i, ("facade_cutout", "cutout_pattern", "perforation"), _ALLOWED_FACADE_CUTOUT, "facade_cutout", substring=True)
-        _check(params, i, ("detail_level", "detailLevel", "quality"), _ALLOWED_DETAIL_LEVEL, "detail_level")
+        # Native builders use aesthetic/refined/ornate; facade components use low/medium/high.
+        native = str(c.get("component_type") or "").upper() in {"STRUCTURE", "MODULE"}
+        detail_levels = _ALLOWED_DETAIL_LEVEL | ({"aesthetic", "refined", "ornate"} if native else set())
+        _check(params, i, ("detail_level", "detailLevel", "quality"), detail_levels, "detail_level")
         _check(params, i, ("window_aspect", "windowAspect"), _ALLOWED_WINDOW_ASPECT, "window_aspect")
         _check_bool(params, i, ("assembly_facade", "assemblyFacade"), "assembly_facade")
     return out

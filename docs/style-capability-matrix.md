@@ -1,6 +1,6 @@
 # Style capability acceptance matrix
 
-Updated 2026-10-23. Asset presence and offline fixture coverage do not certify stable end-to-end support.
+Updated 2026-10-25. Asset presence and offline fixture coverage do not certify stable end-to-end support.
 
 ## Acceptance axes
 
@@ -25,7 +25,7 @@ Counts and references below are generated from bundled profiles, culture cards a
 | Art_Deco | art_deco_tower | art_deco_vertical_compact.json, art_deco_vertical_large.json |
 | Brutalism | brutalist_civic | brutalist_concrete_compact.json, brutalist_concrete_large.json |
 | Chinese_Imperial_Official | mingqing_courtyard, temple_of_heaven | - |
-| Chinese_Vernacular_Huizhou | huizhou_vernacular | - |
+| Chinese_Vernacular_Huizhou | huizhou_vernacular, huizhou_tianjing | Outside manifest: huizhou_tianjing_17.json, huizhou_tianjing_21.json |
 | Chinese_Vernacular_Jiangnan_WaterTown | jiangnan_quay | jiangnan_quay_17.json, jiangnan_quay_25.json |
 | Chinese_Vernacular_Siheyuan | siheyuan_courtyard | - |
 | Chinese_Vernacular_Tulou | tulou_ring | tulou_ring_10.json, tulou_ring_14.json (outside manifest) |
@@ -81,6 +81,10 @@ Counts and references below are generated from bundled profiles, culture cards a
 
 ## Next acceptance queue
 
+2026-10-25: [warning audit](style-warning-audit.md) inventories every unresolved
+warning; no waivers were introduced. [Four-wing skywell examples](style-huizhou-tianjing-acceptance.md)
+supplement the rectangular Huizhou dwellings. Live and historical review remain pending.
+
 Tulou now has a dedicated specialist asset bundle outside the style manifest;
 see [Tulou acceptance](style-tulou-acceptance.md). Development-client capture
 failed on 2026-10-23, so live evidence remains pending.
@@ -101,7 +105,7 @@ orientations, stepped/capped symmetric gables, attachment, hollow attic,
 gable-disable block locality and shared clipping parity. This is offline block
 evidence; live world edits, historical fidelity and screenshots remain pending.
 
-1. Northern siheyuan vs Huizhou: compare live gray-brick courtyard and white-wall/horse-head-gable dwelling; complete tianjing compounds still require dedicated examples and acceptance. `huizhou_vernacular_13.json` and `huizhou_vernacular_21.json` now cover rectangular dwellings with both ridge orientations, not complete courtyard compounds.
+1. Northern siheyuan vs Huizhou: compare live gray-brick courtyard and white-wall/horse-head-gable dwelling. The earlier huizhou_vernacular examples remain rectangular dwellings; huizhou_tianjing_17.json and huizhou_tianjing_21.json now add four-wing skywell compounds with offline open-sky, floor/access reachability and clipping assertions. Windows, drainage, historical fidelity and live acceptance remain pending.
 2. Water/stilt: fixed-site pile contact, entrance access and untouched underfloor non-pile columns now have offline assertions. Validate arbitrary bed/bank/water levels, automatic landing passes and live water updates next; see [fixed-site acceptance](style-raised-timber-acceptance.md).
 3. Dwarven hall: original above-ground examples remain; two dedicated underground program fixtures now exercise dry-stone excavation and a descending approach. Live fluids, site selection, permissions and world edits remain pending. See [underground acceptance](style-dwarven-underground-acceptance.md).
 4. Elven treehouse: single-tree support, guarded straight timber access and a guarded landing now have dedicated fixtures and offline assertions. Live walking/collision and site fitting remain; connected canopy bridges, spiral access and a tree city require additional compositions. See [single-treehouse acceptance](style-treehouse-acceptance.md).

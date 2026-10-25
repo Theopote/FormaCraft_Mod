@@ -1,5 +1,10 @@
 # Style expansion delivery status
 
+2026-10-25: evaluator vocabulary parity and igloo height fixes reduce the original
+280 warnings to 240. Two new Huizhou skywell compounds add two retained window
+warnings (242 total across 115 CI scenarios). See [warning inventory](style-warning-audit.md)
+and [skywell acceptance](style-huizhou-tianjing-acceptance.md); live acceptance remains pending.
+
 2026-10-23 regional follow-up: Jiangnan quay, Romanesque arcade hall and Tudor
 timber-frame house bundles add six plans to the manifest (now 28 styles).
 See [specialist acceptance](style-regional-specialists-acceptance.md) for the

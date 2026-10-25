@@ -24,6 +24,41 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Region parity is separate from symmetry expansion and Build-only brush/path inputs. */
 class ConstraintParityTest {
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={17,21})
+    void huizhouTianjingHasOpenSkyAndReachableFourWings(int size) throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var tree=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/plans/huizhou_tianjing_"+size+".json").toFile());
+        var plan=mapper.treeToValue(tree,LlmPlan.class);
+        var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
+        assertFalse(raw.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
+        int side=(size-7)/2,front=side+1,depth=2*front+7;
+        for(int x=side;x<side+7;x++) for(int z=front;z<front+7;z++) {
+            assertTrue(blocks.containsKey(new Vec3i(x,0,z)),"skywell paving");
+            for(int y=1;y<16;y++) assertNull(blocks.get(new Vec3i(x,y,z)),"skywell must remain open to sky");
+        }
+        var start=new Vec3i(size/2,1,0);
+        var visited=new HashSet<Vec3i>();var queue=new ArrayDeque<Vec3i>();queue.add(start);
+        while(!queue.isEmpty()) {
+            var p=queue.removeFirst();
+            if(p.x()<0||p.x()>=size||p.z()<0||p.z()>=depth||visited.contains(p))continue;
+            if(!blocks.containsKey(new Vec3i(p.x(),0,p.z()))||blocks.containsKey(p)||blocks.containsKey(new Vec3i(p.x(),2,p.z())))continue;
+            visited.add(p);
+            queue.add(new Vec3i(p.x()+1,1,p.z()));queue.add(new Vec3i(p.x()-1,1,p.z()));
+            queue.add(new Vec3i(p.x(),1,p.z()+1));queue.add(new Vec3i(p.x(),1,p.z()-1));
+        }
+        for(var target:List.of(new Vec3i(size/2,1,front+3),new Vec3i(2,1,front+3),
+                new Vec3i(size-3,1,front+3),new Vec3i(size/2,1,depth-front+2)))
+            assertTrue(visited.contains(target),"all wings reachable from exterior: "+target);
+        var min=ORIGIN.add(0,-4,-4);var max=ORIGIN.add(size/2,32,depth+4);
+        var expected=allowed(raw,ORIGIN,new BuildConstraints(min,max,null,List.of()));
+        assertFalse(expected.isEmpty());assertTrue(expected.size()<raw.size());
+        assertEquals(expected,ServerPatchFilter.filter(ORIGIN,raw,List.of(),null,true,min,max).accepted);
+        assertEquals(expected,PatchFilterPipeline.createDefault().apply(raw,ORIGIN,
+                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
+    }
+
     static List<String> stylePlanNames(com.fasterxml.jackson.databind.JsonNode style) {
         var names = new ArrayList<String>();
         for (var name : style.path("plans")) names.add(name.asText());

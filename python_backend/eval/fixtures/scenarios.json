@@ -1716,5 +1716,27 @@
       "tudor_house",
       "specialist"
     ]
+  },
+  {
+    "id": "huizhou_tianjing_17",
+    "prompt": "build a huizhou tianjing compound",
+    "plan_fixture": "plans/huizhou_tianjing_17.json",
+    "ci": true,
+    "tags": [
+      "A",
+      "huizhou",
+      "skywell"
+    ]
+  },
+  {
+    "id": "huizhou_tianjing_21",
+    "prompt": "build a huizhou tianjing compound",
+    "plan_fixture": "plans/huizhou_tianjing_21.json",
+    "ci": true,
+    "tags": [
+      "A",
+      "huizhou",
+      "skywell"
+    ]
   }
 ]

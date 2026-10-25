@@ -1,0 +1,38 @@
+{
+  "id": "huizhou_tianjing",
+  "styleId": "Chinese_Vernacular_Huizhou",
+  "intents": [
+    "HUIZHOU_TIANJING"
+  ],
+  "keywords": [
+    "徽派天井院落",
+    "徽州天井",
+    "huizhou tianjing compound"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "徽派天井院落": 35,
+    "徽州天井": 35,
+    "huizhou tianjing compound": 35
+  },
+  "negativeKeywords": [
+    "不要徽派",
+    "not huizhou"
+  ],
+  "proportionCardId": "huizhou_tianjing",
+  "llmPlanExampleRefs": [
+    "huizhou_tianjing_17.json",
+    "huizhou_tianjing_21.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "four_wing_skywell",
+      "constraints": [
+        "Four distinct white-wall/dark-tile wings enclose an open 7x7 skywell. Preserve explicit horse_head_walls=false.",
+        "Front passage joins the exterior to the skywell; each other wing has a courtyard portal.",
+        "Fixed flat dry reference site; no automatic terrain fitting, drainage or historical reconstruction is claimed."
+      ]
+    }
+  ]
+}

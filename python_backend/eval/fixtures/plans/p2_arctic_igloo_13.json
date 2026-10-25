@@ -39,7 +39,7 @@
       "dimensions": {
         "width": 13,
         "depth": 17,
-        "height": 3
+        "height": 4
       },
       "features": [],
       "params": {
@@ -68,7 +68,7 @@
       "component_type": "ROOF",
       "relative_position": {
         "x": 0,
-        "y": 2,
+        "y": 3,
         "z": 0
       },
       "dimensions": {

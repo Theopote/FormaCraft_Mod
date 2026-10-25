@@ -32,6 +32,8 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 _UNITTEST_MODULES: Tuple[str, ...] = (
+    "tests.test_huizhou_tianjing",
+    "tests.test_style_warning_audit",
     "tests.test_regional_specialists",
     "tests.test_tulou_assets",
     "tests.test_user_style_packs",

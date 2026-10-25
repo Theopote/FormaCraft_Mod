@@ -1,0 +1,16 @@
+{
+  "id": "huizhou_tianjing",
+  "typology": "huizhou_tianjing",
+  "matchKeywords": [
+    "徽派天井院落",
+    "huizhou tianjing compound"
+  ],
+  "ratios": {
+    "courtyard_ratio": {
+      "min": 0.08,
+      "ideal": 0.13,
+      "max": 0.2
+    }
+  },
+  "aiInstruction": "Keep the central skywell open and all four wings reachable from it."
+}
