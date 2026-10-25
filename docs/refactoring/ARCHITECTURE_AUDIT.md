@@ -156,3 +156,14 @@ PlanProgram 合并层建立整份 patch 上限，失败继续采用原子拒绝�
 主 CI 已配置执行 Python 全量测试与 `eval.ci_gate --quick`，每周 live eval 上传报告但不阻断主 CI。已有编译、通行、约束一致性和案例回放回归；下一步补齐真实游戏碰撞、邻居更新、多人交互和预览图验收，而非从零建立质量门。
 
 规划器本轮先抽取独立 `inference_call.py`，通过兼容别名保留 `_call_with_timeout`；其余阶段继续按依赖抽取，保持输出和失败语义。请求执行上限与线程取消边界见 Python 后端 README。
+
+## 构件编译器阶段抽取（2026-10-25）
+
+`DesignValidatorSuite` 集中设计校验，显式区分规范化后作者输入与推断后构件两轮。
+保留 Roof → Facade → Mass → HostedPlate → ExplicitConflict 的首错短路顺序；
+作者输入轮随后检查全局材料，推断后轮先检查原计划的 generation authority、最后检查构件材料。
+套件返回 `Optional<CapabilityGap>`，不读取或写入 `AssemblyCompileDiagnostics`，由原编译器发布诊断并停止编译。
+
+宿主几何检查仍留在 `BuildingGeometryContext` 有效的生成边界；占用策略、生成顺序、
+后处理审计与 ThreadLocal 生命周期不变。`DesignValidatorSuiteTest` 固定阶段输入、错误优先级、
+材料诊断和诊断隔离；后续抽取准备/生成阶段时继续沿用这些边界。

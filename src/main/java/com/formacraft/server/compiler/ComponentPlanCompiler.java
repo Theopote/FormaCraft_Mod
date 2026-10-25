@@ -161,37 +161,9 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
-        List<Component> authoredComponents = plan.components() == null ? List.of() : plan.components();
-        var authoredRoofIssue = RoofDesignValidator.check(plan, authoredComponents);
-        if (authoredRoofIssue.isPresent()) {
-            AssemblyCompileDiagnostics.set(authoredRoofIssue.get());
-            return List.of();
-        }
-        var authoredFacadeIssue = FacadeDesignValidator.check(plan, authoredComponents);
-        if (authoredFacadeIssue.isPresent()) {
-            AssemblyCompileDiagnostics.set(authoredFacadeIssue.get());
-            return List.of();
-        }
-        var authoredMassIssue = MassDesignValidator.check(plan, authoredComponents);
-        if (authoredMassIssue.isPresent()) {
-            AssemblyCompileDiagnostics.set(authoredMassIssue.get());
-            return List.of();
-        }
-        var authoredPlateIssue = HostedPlateDesignValidator.check(plan, authoredComponents);
-        if (authoredPlateIssue.isPresent()) {
-            AssemblyCompileDiagnostics.set(authoredPlateIssue.get());
-            return List.of();
-        }
-        var authoredConflict = ExplicitDesignConflictValidator.check(plan, authoredComponents);
-        if (authoredConflict.isPresent()) {
-            AssemblyCompileDiagnostics.set(authoredConflict.get());
-            return List.of();
-        }
-        var invalidMaterial = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(plan.styleAttributes(), plan.components());
-        if (invalidMaterial.isPresent()) {
-            AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
-                    "无法解析明确指定的材料：" + invalidMaterial.get(), "style_attributes",
-                    List.of("Use a registered block id or a supported material name.")));
+        var authoredIssue = DesignValidatorSuite.checkAuthored(plan);
+        if (authoredIssue.isPresent()) {
+            AssemblyCompileDiagnostics.set(authoredIssue.get());
             return List.of();
         }
 
@@ -204,34 +176,9 @@ public final class ComponentPlanCompiler {
         }
         List<Component> components = prepared.components();
         Set<String> assemblyFacadeSlots = prepared.assemblyFacadeSlots();
-        var invalidAuthority = com.formacraft.common.generation.routing.GenerationAuthorityValidator.check(plan);
-        if (invalidAuthority.isPresent()) {
-            AssemblyCompileDiagnostics.set(invalidAuthority.get());
-            return List.of();
-        }
-        var roofDesignConflict = RoofDesignValidator.check(plan, components);
-        if (roofDesignConflict.isPresent()) {
-            AssemblyCompileDiagnostics.set(roofDesignConflict.get());
-            return List.of();
-        }
-        var facadeDesignConflict = FacadeDesignValidator.check(plan, components);
-        if (facadeDesignConflict.isPresent()) {
-            AssemblyCompileDiagnostics.set(facadeDesignConflict.get());
-            return List.of();
-        }
-        var massDesignConflict = MassDesignValidator.check(plan, components);
-        if (massDesignConflict.isPresent()) {
-            AssemblyCompileDiagnostics.set(massDesignConflict.get());
-            return List.of();
-        }
-        var plateDesignConflict = HostedPlateDesignValidator.check(plan, components);
-        if (plateDesignConflict.isPresent()) {
-            AssemblyCompileDiagnostics.set(plateDesignConflict.get());
-            return List.of();
-        }
-        var designConflict = ExplicitDesignConflictValidator.check(plan, components);
-        if (designConflict.isPresent()) {
-            AssemblyCompileDiagnostics.set(designConflict.get());
+        var preparedIssue = DesignValidatorSuite.checkPrepared(plan, components);
+        if (preparedIssue.isPresent()) {
+            AssemblyCompileDiagnostics.set(preparedIssue.get());
             return List.of();
         }
 
@@ -239,17 +186,6 @@ public final class ComponentPlanCompiler {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: no components to compile");
             return result;
         }
-        for (var component : components) {
-            if (component == null) continue;
-            var invalid = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidComponent(component);
-            if (invalid.isPresent()) {
-                AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
-                        "无法解析明确指定的构件材料：" + invalid.get(), "components[]",
-                        List.of("Use a registered block id and valid state properties.")));
-                return List.of();
-            }
-        }
-
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
         Set<BlockPos> generatedSurfaces = new HashSet<>();
         var openingExpectations = new java.util.LinkedHashMap<BlockPos, OpeningMaterialAudit.Expectation>();
