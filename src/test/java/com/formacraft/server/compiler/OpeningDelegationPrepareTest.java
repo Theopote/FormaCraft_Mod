@@ -13,6 +13,19 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OpeningDelegationPrepareTest {
+    @Test void wallFreeOneLayerPavilionBaseDoesNotGrowFacade() throws Exception {
+        Method prepare=ComponentPlanCompiler.class.getDeclaredMethod("prepareComponents",LlmPlan.class,Map.class,boolean.class);
+        prepare.setAccessible(true);
+        var floor=new Component("MASS_MAIN","s",new Vec3i(0,0,0),new Dimensions(5,5,1),List.of(),
+                Map.of("component_id","pavilion_base","wall_type","none","floor_height",1));
+        var plan=LlmPlanTestFixtures.builder().components(List.of(floor)).build();
+        Object result=prepare.invoke(null,plan,Map.of(),false);
+        @SuppressWarnings("unchecked") var parts=(List<Component>)result.getClass().getRecordComponents()[0].getAccessor().invoke(result);
+        var base=parts.stream().filter(c->"MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
+        assertEquals(1,base.dimensions().height());
+        assertEquals("plate",base.params().get("extrude_mode"));
+        assertFalse(parts.stream().anyMatch(c->"FACADE_WINDOWS".equals(c.componentType())));
+    }
     @Test
     void partialFacadePreservesAuthoredSuppressionOfHostDefaults() throws Exception {
         Method prepare=ComponentPlanCompiler.class.getDeclaredMethod("prepareComponents",LlmPlan.class,Map.class,boolean.class);
