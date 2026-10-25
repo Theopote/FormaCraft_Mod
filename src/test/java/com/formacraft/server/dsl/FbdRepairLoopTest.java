@@ -54,6 +54,7 @@ class FbdRepairLoopTest {
     @Test void numericTypeCorrectionKeepsTheExactDimensionAndReportsTheFieldPath() throws Exception {
         var input=fixture(); var height=ROOT+"/functions/0/body/0/params/h"; put(input,height,DoubleNode.valueOf(6.0));
         var original=plan(input); var gap=FbdRepairLoop.inspect(original);
+        assertNotNull(gap);
         assertEquals("E_FBD_TYPE_MISMATCH",gap.code()); assertEquals(height,gap.path());
         assertThrows(IllegalArgumentException.class,()->FbdRepairLoop.applyPatch(original,gap,new FbdRepairLoop.Patch(height,IntNode.valueOf(7))));
         var result=FbdRepairLoop.run(original,(p,g,r)->CompletableFuture.completedFuture(new FbdRepairLoop.Patch(height,IntNode.valueOf(6))),phase->{}).join();

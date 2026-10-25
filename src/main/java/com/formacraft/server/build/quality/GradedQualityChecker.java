@@ -7,14 +7,14 @@ import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.world.WorldBuildBounds;
 import com.formacraft.server.build.BuildConstraints;
 import com.formacraft.server.build.BuildConstraintContext;
-import net.minecraft.block.Blocks;
+import com.formacraft.server.build.StructureSupportAnalysis;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.function.Predicate;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -46,13 +46,22 @@ public final class GradedQualityChecker {
             return report;
         }
 
+        checkIllegalBlocks(blocks, report);
+        if (report.hasFatal()) return report;
+        checkDuplicates(blocks, report);
+        // Quality describes the delivered state, not intermediate writes or cleared terrain.
+        var finalBlocks = new java.util.LinkedHashMap<BlockPos, PlannedBlock>();
+        for (var block : blocks) finalBlocks.put(block.getPos().toImmutable(), block);
+        blocks = List.copyOf(finalBlocks.values());
         report.stats().totalBlocks = countSolidBlocks(blocks);
+        if (report.stats().totalBlocks == 0) {
+            report.add(BuildQualitySeverity.FATAL, "STRUCT_NO_SOLID", "生成结果没有可放置的实体方块");
+            return report;
+        }
 
         checkWorldBounds(blocks, world, report);
         checkChunkReadiness(blocks, world, report);
-        checkIllegalBlocks(blocks, report);
         checkConstraintBounds(blocks, report);
-        checkDuplicates(blocks, report);
         // Sparse piers deliberately leave some floor columns open underneath.
         if (!landingPrepared) checkFloatingColumns(blocks, world, report);
         checkDimensions(structure, spec, blocks, report);
@@ -62,6 +71,7 @@ public final class GradedQualityChecker {
                     "共计划放置 " + report.stats().totalBlocks + " 个方块");
         }
 
+        report.locate(blocks);
         return report;
     }
 
@@ -69,7 +79,7 @@ public final class GradedQualityChecker {
         int n = 0;
         for (PlannedBlock block : blocks) {
             if (block == null || block.getPos() == null) continue;
-            if (block.getTargetState() != null && block.getTargetState().getBlock() != Blocks.AIR) {
+            if (block.getTargetState() != null && !block.getTargetState().isAir()) {
                 n++;
             }
         }
@@ -85,7 +95,7 @@ public final class GradedQualityChecker {
         for (PlannedBlock block : blocks) {
             BlockPos pos = block.getPos();
             if (pos == null) continue;
-            if (block.getTargetState() == null || block.getTargetState().getBlock() == Blocks.AIR) continue;
+            if (block.getTargetState() == null || block.getTargetState().isAir()) continue;
             int y = pos.getY();
             if (y < bottom || y > top) {
                 violations++;
@@ -94,7 +104,8 @@ public final class GradedQualityChecker {
 
         report.stats().worldHeightViolations = violations;
         if (violations > 0) {
-            report.add(BuildQualitySeverity.FATAL, "WORLD_HEIGHT",
+            evidence(report, BuildQualitySeverity.FATAL, "WORLD_HEIGHT", violations,
+                    samples(blocks, p -> p.getY() < bottom || p.getY() > top),
                     "有 " + violations + " 个方块超出世界高度范围（Y " + bottom + "～" + top + "），无法预览");
         }
     }
@@ -102,16 +113,18 @@ public final class GradedQualityChecker {
     private static void checkChunkReadiness(List<PlannedBlock> blocks, ServerWorld world, BuildQualityReport report) {
         if (world == null) return;
         int unloaded = 0;
+        var unloadedSamples = new ArrayList<BuildQualityIssue.Position>();
         Set<Long> seenChunks = new HashSet<>();
 
         for (PlannedBlock block : blocks) {
             BlockPos pos = block.getPos();
             if (pos == null) continue;
-            if (block.getTargetState() == null || block.getTargetState().getBlock() == Blocks.AIR) continue;
+            if (block.getTargetState() == null || block.getTargetState().isAir()) continue;
             long ck = chunkKey(pos);
             if (!seenChunks.add(ck)) continue;
             if (!WorldBuildBounds.isChunkReady(world, pos)) {
                 unloaded++;
+                if (unloadedSamples.size() < BuildQualityIssue.MAX_SAMPLES) unloadedSamples.add(position(pos));
             }
         }
 
@@ -120,7 +133,7 @@ public final class GradedQualityChecker {
             BuildQualitySeverity sev = unloaded >= 4
                     ? BuildQualitySeverity.ERROR
                     : BuildQualitySeverity.WARNING;
-            report.add(sev, "CHUNK_UNLOADED",
+            evidence(report, sev, "CHUNK_UNLOADED", unloaded, unloadedSamples,
                     "有 " + unloaded + " 个区块未加载，部分方块可能无法正确放置");
         }
     }
@@ -143,7 +156,7 @@ public final class GradedQualityChecker {
         }
         report.stats().illegalBlocks = illegal;
         if (illegal > 0) {
-            report.add(BuildQualitySeverity.FATAL, "ILLEGAL_BLOCK",
+            evidence(report, BuildQualitySeverity.FATAL, "ILLEGAL_BLOCK", illegal, List.of(),
                     "有 " + illegal + " 个方块缺少合法状态或坐标，无法预览");
         }
     }
@@ -157,7 +170,7 @@ public final class GradedQualityChecker {
         for (PlannedBlock block : blocks) {
             BlockPos pos = block.getPos();
             if (pos == null) continue;
-            if (block.getTargetState() == null || block.getTargetState().getBlock() == Blocks.AIR) continue;
+            if (block.getTargetState() == null || block.getTargetState().isAir()) continue;
             total++;
             if (!constraints.allow(pos)) {
                 outOfBounds++;
@@ -167,10 +180,12 @@ public final class GradedQualityChecker {
 
         double pct = (outOfBounds * 100.0) / total;
         if (pct > BuildQualityReport.outOfBoundsErrorPct()) {
-            report.add(BuildQualitySeverity.ERROR, "CONSTRAINT_OOB",
+            evidence(report, BuildQualitySeverity.ERROR, "CONSTRAINT_OOB", outOfBounds,
+                    samples(blocks, p -> !constraints.allow(p)),
                     String.format("有 %.1f%% (%d/%d) 的方块超出选区/轮廓/禁区", pct, outOfBounds, total));
         } else {
-            report.add(BuildQualitySeverity.WARNING, "CONSTRAINT_OOB",
+            evidence(report, BuildQualitySeverity.WARNING, "CONSTRAINT_OOB", outOfBounds,
+                    samples(blocks, p -> !constraints.allow(p)),
                     String.format("有 %.1f%% (%d/%d) 的方块超出选区/轮廓/禁区", pct, outOfBounds, total));
         }
     }
@@ -178,14 +193,19 @@ public final class GradedQualityChecker {
     private static void checkDuplicates(List<PlannedBlock> blocks, BuildQualityReport report) {
         Set<BlockPos> seen = new HashSet<>();
         int dup = 0;
+        var duplicateSamples = new ArrayList<BuildQualityIssue.Position>();
         for (PlannedBlock block : blocks) {
             BlockPos pos = block != null ? block.getPos() : null;
             if (pos == null) continue;
-            if (!seen.add(pos)) dup++;
+            if (!seen.add(pos)) {
+                dup++;
+                if (duplicateSamples.size() < BuildQualityIssue.MAX_SAMPLES)
+                    duplicateSamples.add(position(pos));
+            }
         }
         report.stats().duplicatePositions = dup;
         if (dup > 0) {
-            report.add(BuildQualitySeverity.WARNING, "DUPLICATE_POS",
+            evidence(report, BuildQualitySeverity.WARNING, "DUPLICATE_POS", dup, duplicateSamples,
                     "发现 " + dup + " 个重复坐标（将保留最后一次写入）");
         }
     }
@@ -193,21 +213,41 @@ public final class GradedQualityChecker {
     private static void checkFloatingColumns(List<PlannedBlock> blocks, ServerWorld world, BuildQualityReport report) {
         if (world == null || blocks.isEmpty()) return;
 
-        int floating = com.formacraft.server.build.StructureSupportAnalysis
-                .unsupportedBases(blocks, world::getBlockState).size();
+        checkSupport(blocks, world::getBlockState, report);
+    }
+
+    static void checkSupport(List<PlannedBlock> blocks,
+                             java.util.function.Function<BlockPos, net.minecraft.block.BlockState> terrain,
+                             BuildQualityReport report) {
+        var unsupported = StructureSupportAnalysis.unsupportedBases(blocks, terrain);
+        int floating = unsupported.size();
+        var positions = unsupported.stream().limit(BuildQualityIssue.MAX_SAMPLES)
+                .map(GradedQualityChecker::position).toList();
 
         report.stats().floatingColumns = floating;
         if (floating >= BuildQualityReport.floatingErrorColumns()) {
-            report.add(BuildQualitySeverity.ERROR, "FLOATING",
+            evidence(report, BuildQualitySeverity.ERROR, "FLOATING", floating, positions,
                     "检测到 " + floating + " 个底层悬空柱（建议先自动修复或调整生成）");
         } else if (floating >= BuildQualityReport.floatingWarningColumns()) {
-            report.add(BuildQualitySeverity.WARNING, "FLOATING",
+            evidence(report, BuildQualitySeverity.WARNING, "FLOATING", floating, positions,
                     "检测到 " + floating + " 个底层悬空柱");
         }
+        report.locate(blocks);
     }
 
-    private static long xzKey(int x, int z) {
-        return (((long) x) << 32) ^ (z & 0xffffffffL);
+    private static BuildQualityIssue.Position position(BlockPos pos) {
+        return new BuildQualityIssue.Position(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    private static List<BuildQualityIssue.Position> samples(List<PlannedBlock> blocks, Predicate<BlockPos> test) {
+        return blocks.stream().filter(b -> b != null && b.getPos() != null && b.getTargetState() != null
+                        && !b.getTargetState().isAir() && test.test(b.getPos()))
+                .limit(BuildQualityIssue.MAX_SAMPLES).map(b -> position(b.getPos())).toList();
+    }
+
+    private static void evidence(BuildQualityReport report, BuildQualitySeverity severity, String code,
+                                 int count, List<BuildQualityIssue.Position> positions, String message) {
+        report.add(new BuildQualityIssue(severity, code, message, "unspecified", count, positions));
     }
 
     private static void checkDimensions(
@@ -224,7 +264,7 @@ public final class GradedQualityChecker {
 
         for (PlannedBlock block : blocks) {
             BlockPos pos = block.getPos();
-            if (pos == null) continue;
+            if (pos == null || block.getTargetState() == null || block.getTargetState().isAir()) continue;
             minX = Math.min(minX, pos.getX());
             maxX = Math.max(maxX, pos.getX());
             minY = Math.min(minY, pos.getY());

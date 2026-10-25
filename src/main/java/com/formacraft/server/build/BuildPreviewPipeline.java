@@ -114,9 +114,10 @@ public final class BuildPreviewPipeline {
 
     static BuildQualityReport finalizedReport(BuildQualityReport initial, BuildQualityReport delivered) {
         if (initial.hasFatal()) return initial;
+        delivered.phase("final");
         // Initial findings describe the input, not the repaired preview's apply permission.
         for (var issue : initial.issues())
-            delivered.add(BuildQualitySeverity.INFO, "INITIAL_" + issue.code(), "[before repair] " + issue.message());
+            delivered.add(issue.asHistory());
         var from = initial.stats();
         var to = delivered.stats();
         to.repairedColumns = from.repairedColumns;
@@ -155,6 +156,7 @@ public final class BuildPreviewPipeline {
 
     private static void tagPhase(BuildQualityReport report, String phase) {
         if (report == null || phase == null) return;
+        report.phase(phase);
         report.add(BuildQualitySeverity.INFO, "PHASE_" + phase.toUpperCase(),
                 "quality phase=" + phase);
     }

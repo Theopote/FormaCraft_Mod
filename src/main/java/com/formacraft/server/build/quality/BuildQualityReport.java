@@ -16,6 +16,7 @@ public final class BuildQualityReport {
     private static final int FLOATING_WARNING_COLUMNS = 3;
 
     private final List<BuildQualityIssue> issues = new ArrayList<>();
+    private String phase = "unspecified";
     private final BuildQualityStats stats = new BuildQualityStats();
 
     public BuildQualityStats stats() {
@@ -28,7 +29,32 @@ public final class BuildQualityReport {
 
     public void add(BuildQualitySeverity severity, String code, String message) {
         if (message == null || message.isBlank()) return;
-        issues.add(new BuildQualityIssue(severity, code, message));
+        add(new BuildQualityIssue(severity, code, message));
+    }
+
+    public void add(BuildQualityIssue issue) {
+        if (issue != null && !issue.message().isBlank())
+            issues.add("unspecified".equals(issue.phase()) ? issue.inPhase(phase) : issue);
+    }
+
+    public void phase(String phase) {
+        this.phase = phase == null ? "unspecified" : phase;
+        issues.replaceAll(issue -> issue.inPhase(this.phase));
+    }
+
+    /** Machine-readable evidence; no player prompt, credentials or world NBT. */
+    public List<BuildQualityIssue> activeDiagnostics() {
+        return issues.stream().filter(i -> i.severity() != BuildQualitySeverity.INFO).toList();
+    }
+
+    public void locate(List<com.formacraft.common.build.PlannedBlock> blocks) {
+        var sources = new java.util.HashMap<BuildQualityIssue.Position, com.formacraft.common.build.GeometrySource>();
+        for (var block : blocks) {
+            if (block == null || block.getPos() == null) continue;
+            var p = block.getPos();
+            sources.put(new BuildQualityIssue.Position(p.getX(),p.getY(),p.getZ()), block.getSource());
+        }
+        issues.replaceAll(issue -> issue.locate(sources));
     }
 
     public void merge(BuildQualityReport other) {
@@ -133,6 +159,10 @@ public final class BuildQualityReport {
                 counts.getOrDefault(BuildQualitySeverity.INFO, 0),
                 summaryZh());
         for (BuildQualityIssue issue : issues) {
+            if (issue.severity() != BuildQualitySeverity.INFO) {
+                FormacraftMod.LOGGER.info("Quality diagnostic: phase={} code={} severity={} affected={} positions={} origins={}",
+                        issue.phase(), issue.code(), issue.severity(), issue.affectedCount(), issue.positions(), issue.origins());
+            }
             if (issue.severity() == BuildQualitySeverity.FATAL || issue.severity() == BuildQualitySeverity.ERROR) {
                 FormacraftMod.LOGGER.warn("  [{}] {}: {}", issue.severity(), issue.code(), issue.message());
             }
