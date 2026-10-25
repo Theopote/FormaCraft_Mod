@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IncrementalRequestIntentTest {
     @Test void existingBuildingEditsAreRecognized() {
+        assertTrue(IncrementalRequestIntent.isIncremental("只去掉刚才这座徽派民居朝向天井的木格窗"));
         assertTrue(IncrementalRequestIntent.isIncremental("修改刚才的小木屋：只增加一扇窗"));
         assertTrue(IncrementalRequestIntent.isIncremental("调整现有建筑的屋顶"));
         assertTrue(IncrementalRequestIntent.isIncremental("edit the previous cabin"));

@@ -290,7 +290,8 @@ public final class LlmPlanPreviewBuilder {
                     patches.size(), plannedBlocks.size(), planOrigin);
 
             var landingSites = com.formacraft.server.terrain.BuildingLandingPlanner.sites(llmPlan, planOrigin);
-            if (!landingSites.isEmpty()) {
+            boolean authoredSupports = LlmPlanTerrainBounds.hasAuthoredSupports(llmPlan);
+            if (!landingSites.isEmpty() && !authoredSupports) {
                 var landingStrategy = llmPlan.globalConstraints() != null && llmPlan.globalConstraints().terrainStrategy() != null
                         ? llmPlan.globalConstraints().terrainStrategy() : GlobalConstraints.TerrainStrategy.ADAPTIVE;
                 final List<PlannedBlock> landingInput = plannedBlocks;
@@ -482,6 +483,7 @@ public final class LlmPlanPreviewBuilder {
 
                 // 地形基础处理（仅 LlmPlan）：根据地形起伏决定台阶/支柱/覆土
                 if (!plannedBlocks.isEmpty()
+                        && !authoredSupports
                         && !LlmPlanTerrainBounds.isLightweightLinearPlan(llmPlan)
                         && llmPlan.globalConstraints() != null
                         && llmPlan.globalConstraints().terrainStrategy() != null
@@ -733,7 +735,8 @@ public final class LlmPlanPreviewBuilder {
                 return false;
             }
             if (!INCREMENTAL_COMPONENT_TYPES.contains(type)
-                    && !com.formacraft.common.network.IncrementalPrimitivePolicy.allows(c)) {
+                    && !com.formacraft.common.network.IncrementalPrimitivePolicy.allows(
+                            com.formacraft.common.network.IncrementalWindowQuery.normalize(c))) {
                 return false;
             }
         }
@@ -756,7 +759,9 @@ public final class LlmPlanPreviewBuilder {
                 cleaned.add(null);
                 continue;
             }
-            boolean dirty = false;
+            var normalizedWindow = com.formacraft.common.network.IncrementalWindowQuery.normalize(c);
+            boolean dirty = normalizedWindow != c;
+            c = normalizedWindow;
             List<String> features = c.features();
             List<String> keptFeatures = features;
             if (features != null && !features.isEmpty()) {

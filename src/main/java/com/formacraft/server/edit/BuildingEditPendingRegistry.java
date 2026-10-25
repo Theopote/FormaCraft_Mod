@@ -99,13 +99,7 @@ public final class BuildingEditPendingRegistry {
 
     public static void clearPlayer(UUID playerId) {
         if (playerId == null) return;
-        Iterator<Map.Entry<UUID, Pending>> it = BY_TICKET.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<UUID, Pending> e = it.next();
-            if (e.getValue() != null && playerId.equals(e.getValue().playerId())) {
-                it.remove();
-            }
-        }
+        BY_TICKET.entrySet().removeIf(e -> e.getValue() != null && playerId.equals(e.getValue().playerId()));
     }
 
     public static void purgeExpired() {

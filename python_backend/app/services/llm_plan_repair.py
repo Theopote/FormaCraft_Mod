@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional
 from ..models.building_profile import BuildingProfile
 from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
 from ..models.request import BuildRequest
-from .plan_consistency import component_consistency_errors
+from .plan_consistency import component_consistency_errors, resolve_delegated_entrances
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ def repair_llm_plan_validation(
     """
     from .fbd_capabilities import has_fbd_program, requests_fbd
     preserve_fbd = has_fbd_program(plan) or requests_fbd(user_text)
-    normalized = normalize_fn(plan, req)
+    normalized = resolve_delegated_entrances(normalize_fn(plan, req), user_text)
     preserve_design = bool(component_consistency_errors(normalized))
     errors = _try_validate(normalized)
     if preserve_fbd and not has_fbd_program(normalized) and normalized.get('plan_status') != 'capability_gap':
@@ -251,7 +251,7 @@ def repair_llm_plan_validation(
                 repaired = json.loads(raw)
                 if not isinstance(repaired, dict):
                     raise ValueError("LlmPlan repair response must be an object")
-                repaired_norm = normalize_fn(repaired, req)
+                repaired_norm = resolve_delegated_entrances(normalize_fn(repaired, req), user_text)
                 preserve_design = preserve_design or bool(component_consistency_errors(repaired_norm))
                 repaired_errors = _try_validate(repaired_norm)
                 if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':

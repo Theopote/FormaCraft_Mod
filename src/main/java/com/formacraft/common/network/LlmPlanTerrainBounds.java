@@ -75,6 +75,21 @@ public final class LlmPlanTerrainBounds {
         return false;
     }
 
+    public static boolean hasAuthoredSupports(LlmPlan plan) {
+        if(plan==null || plan.components()==null) return false;
+        for(var c:plan.components()) {
+            if(c==null || c.params()==null || c.relativePosition()==null || c.dimensions()==null
+                    || !("column".equals(c.params().get("role")) || "stilt_piling".equals(c.params().get("role")))) continue;
+            Object host=c.params().getOrDefault("supports",c.params().get("host_id"));
+            if(host==null) continue;
+            for(var body:plan.components()) if(body!=null && body.params()!=null && body.relativePosition()!=null
+                    && host.equals(body.params().get("component_id")) && java.util.Objects.equals(c.slotId(),body.slotId())
+                    && c.relativePosition().y()<body.relativePosition().y()
+                    && c.relativePosition().y()+c.dimensions().height()>=body.relativePosition().y()) return true;
+        }
+        return false;
+    }
+
     /**
      * Fence / railing / bars-only plans must not get a 10×10+ terrain pad under them.
      */

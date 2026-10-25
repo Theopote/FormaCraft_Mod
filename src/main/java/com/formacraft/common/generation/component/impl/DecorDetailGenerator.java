@@ -35,7 +35,9 @@ public class DecorDetailGenerator implements ComponentGenerator {
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
-        int height = Math.max(1, Math.min(3, d.height())); // 装饰通常很小（1-3 格高）
+        boolean structuralColumn = c.params()!=null && ("column".equals(c.params().get("role"))
+                || c.params().containsKey("supports") || Boolean.TRUE.equals(c.params().get("supports_roof")));
+        int height = Math.max(1, structuralColumn ? d.height() : Math.min(3, d.height()));
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
@@ -121,7 +123,10 @@ public class DecorDetailGenerator implements ComponentGenerator {
 
     private static String explicitMaterial(Component component) {
         if (component.params() == null) return null;
-        for (String key : List.of("block", "trim_block", "wall_block", "material")) {
+        boolean structural = "column".equals(component.params().get("role"))
+                || Boolean.TRUE.equals(component.params().get("railing")) || component.params().containsKey("supports");
+        for (String key : structural ? List.of("block","material","trim_block","wall_block")
+                : List.of("block","trim_block","wall_block","material")) {
             Object value = component.params().get(key);
             if (value instanceof String text && !text.isBlank()) return text;
         }

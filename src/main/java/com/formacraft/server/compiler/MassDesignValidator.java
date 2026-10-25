@@ -146,7 +146,7 @@ final class MassDesignValidator {
         }
         Object raw = params.get(presentKey);
         Integer thickness = parseIntStrict(raw);
-        if (thickness != null && thickness == 0 && Boolean.TRUE.equals(params.get("open"))) {
+        if (thickness != null && thickness == 0 && com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(params)) {
             return Optional.empty(); // Explicit open pavilion: posts, not a zero-thickness wall.
         }
         if (thickness == null || thickness <= 0) {
@@ -188,6 +188,7 @@ final class MassDesignValidator {
     }
 
     private static Optional<CapabilityGap> checkWallThickness(Component component) {
+        if (com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(component.params())) return Optional.empty();
         Map<String, Object> params = component.params() == null ? Map.of() : component.params();
         Integer thickness = ComponentParamParsers.intOrNull(params, WALL_THICKNESS_KEYS);
         if (thickness == null || thickness <= 0) {

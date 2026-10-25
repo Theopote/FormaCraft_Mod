@@ -1418,7 +1418,7 @@ public final class ComponentPlanCompiler {
                 return new PreparedComponents(List.of(), Set.of());
             }
             boolean connectorBody = c.params() != null && Boolean.TRUE.equals(c.params().get("compiler_connector_body"));
-            boolean openFrame = c.params() != null && Boolean.TRUE.equals(c.params().get("open"));
+            boolean openFrame = com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(c.params());
             boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c) || connectorBody || openFrame;
             boolean entranceDisabled = com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c)
                     || openFrame || ("MASS_SECONDARY".equals(type) && c.params() != null
@@ -1528,6 +1528,8 @@ public final class ComponentPlanCompiler {
 
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
         ExteriorStairEndpointRepair.apply(prepared);
+        BareStairFitCompiler.apply(prepared);
+        StairOpeningGuardCompiler.apply(prepared);
         ComponentFoundationEnforcer.apply(prepared);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
@@ -3043,6 +3045,17 @@ public final class ComponentPlanCompiler {
         if (component == null) {
             return null;
         }
+        if ("FACADE_WINDOWS".equalsIgnoreCase(component.componentType()) && component.params()!=null
+                && "wood_lattice".equalsIgnoreCase(String.valueOf(component.params().get("window_style")))) {
+            var p=new HashMap<String,Object>(component.params());
+            String wood=String.valueOf(p.getOrDefault("material","oak"));
+            p.put("window_block",wood.contains("dark_oak")?"minecraft:dark_oak_fence":wood.contains("spruce")?"minecraft:spruce_fence":"minecraft:oak_fence");
+            p.put("material",p.get("window_block"));
+            p.put("window_material",p.get("window_block"));
+            var f=component.features()==null?List.<String>of():component.features().stream()
+                    .filter(x->x!=null && !x.startsWith("component_request:")).toList();
+            component=new Component(component.componentType(),component.slotId(),component.relativePosition(),component.dimensions(),f,p);
+        }
         if (component.dimensions()!=null && component.dimensions().height()==1
                 && isMassType(normalizeType(component.componentType())) && component.params()!=null
                 && "none".equalsIgnoreCase(String.valueOf(component.params().get("wall_type")))) {
@@ -3054,7 +3067,8 @@ public final class ComponentPlanCompiler {
         if ("MASS_ANCILLARY".equals(normalizeType(component.componentType()))) {
             var params = new HashMap<String, Object>();
             if (component.params() != null) params.putAll(component.params());
-            boolean solidSupport = Boolean.FALSE.equals(params.get("hollow"));
+            boolean solidSupport = Boolean.FALSE.equals(params.get("hollow"))
+                    || com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(params);
             if (!solidSupport) params.put("compiler_connector_body", true);
             params.putIfAbsent("wall_thickness", 1);
             params.put("plan_type", "none");

@@ -1,5 +1,37 @@
 """Definite cross-component contradictions sent through the existing repair loop."""
 from typing import Any
+import copy
+import re
+
+
+def resolve_delegated_entrances(plan: dict[str, Any], user_text: str) -> dict[str, Any]:
+    """Separate model inline-door suppression from an explicit user no-entry requirement."""
+    if re.search(r"(?:不要|不设|禁止|不需要)\s*(?:任何|生成|设置)?\s*(?:门|入口)|\bno\s+(?:doors?|entrances?)\b", user_text or "", re.I):
+        return plan
+    hints = plan.get("proportion_hints")
+    hints = hints if isinstance(hints, dict) else {}
+    contract = hints.get("building_contract")
+    contract = contract if isinstance(contract, dict) else {}
+    requirements = contract.get("requirements")
+    requirements = requirements if isinstance(requirements, list) else []
+    if any(r.get("property") == "entrance_type" and r.get("value") == "none"
+           for r in requirements if isinstance(r, dict)):
+        return plan
+    raw = plan.get("components")
+    if not isinstance(raw, list):
+        return plan
+    hosts = {c.get("params", {}).get("host_id") for c in raw
+             if isinstance(c, dict) and c.get("component_type") == "ENTRANCE" and isinstance(c.get("params"), dict)}
+    out = copy.deepcopy(plan)
+    for c in out["components"]:
+        if not isinstance(c, dict) or c.get("component_type") != "MASS_MAIN" or not isinstance(c.get("params"), dict):
+            continue
+        p = c.get("params") or {}
+        if p.get("component_id") is not None and p.get("component_id") in hosts and p.get("entrance_type") == "none":
+            p["entrance_type"] = "door"
+            p["suppress_doors"] = True
+            p["compiler_delegated_entrance"] = True
+    return out
 
 
 def component_consistency_errors(plan: dict[str, Any]) -> list[str]:

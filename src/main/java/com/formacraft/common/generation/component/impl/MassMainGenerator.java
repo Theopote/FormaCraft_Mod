@@ -265,7 +265,7 @@ public class MassMainGenerator implements ComponentGenerator {
         FacadeStyle facadeStyle = resolveFacadeStyle(params, semantic, styleProfile);
 
         for (MassConfig mass : massConfigs) {
-            boolean openRoof = params != null && Boolean.TRUE.equals(params.get("open")) && hasRoof;
+            boolean openRoof = com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(params) && hasRoof;
             emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof && !openRoof, hasDecor,
                     windowSpacing, doorFacing, wallThickness, userFloorHeight,
                     facadeStyle, suppressWindowFaces, suppressDoorFaces,
@@ -388,7 +388,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
                     // Explicit open masses are pavilion frames. Do not reinterpret their
                     // absent walls as a hollow enclosed house (or inject default windows).
-                    if (Boolean.TRUE.equals(massParams.get("open"))) {
+                    if (com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(massParams)) {
                         boolean post = (x == 0 || x == currentWidth - 1)
                                 && (z == 0 || z == currentDepth - 1);
                         String block = y == 0 ? getBlockForPart(SemanticPart.FLOOR, semantic, palette)
