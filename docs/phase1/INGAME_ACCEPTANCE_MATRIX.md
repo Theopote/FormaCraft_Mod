@@ -1,7 +1,8 @@
 # Phase 1 · 游戏内验收矩阵
 
 状态：待执行 · 基线 `ff7039cd` · 2026-10-25  
-用途：标准化 Preview / Confirm / Apply / Undo / Redo；**不得**用离线 CI 结果填写「通过」。
+用途：标准化 Preview / Confirm / Apply / Undo / Redo；**不得**用离线 CI 结果填写「通过」。  
+可粘贴提示词见 [INGAME_TEST_PROMPTS.md](INGAME_TEST_PROMPTS.md)。
 
 硬门槛（任一失败即整案失败，不可被观感分抵消）：
 
@@ -17,10 +18,10 @@
 
 | # | 场景 | 路径 | 步骤 | 结果 | 证据（截图/日志） | 执行人 | 日期 |
 |---|------|------|------|------|------------------|--------|------|
-| A1 | 小型住宅 | LlmPlan → PreviewStorage → BuildTask | NL → 预览 → Confirm → Undo → Redo | ☐ 待测 | | | |
-| A2 | 增量改一块墙 | Mode.patch → PreviewTicket | 预览 → Confirm → Undo | ☐ 待测 | | | |
-| A3 | FBD 重复亭廊 | FBD → Assembly → PreviewStorage | 预览 → Confirm → Undo | ☐ 待测 | | | |
-| A4 | landmark 模块 | LlmPlan + landmark: | 预览 → Confirm → Undo | ☐ 待测 | | | |
+| A1 | 小型住宅 | LlmPlan → PreviewStorage → BuildTask | NL → 预览 → Confirm → Undo → Redo | 失败 | 南窗缺失、北窗单侧玻璃未连、门下缺地板；备选入口/无窗 | 玩家 | 2026-10-25 |
+| A2 | 增量改一块墙 | Mode.patch → PreviewTicket | 预览 → Confirm → Undo | 失败 | 整栋重建且原点漂到屋顶等；见 FINDINGS + 代码修复进行中 | 玩家 | 2026-10-25 |
+| A3 | FBD 重复亭廊 | FBD → Assembly → PreviewStorage | 预览 → Confirm → Undo | 失败 | 实墙条窗、屋面断缺；备选四盒相连无柱廊 | 玩家 | 2026-10-25 |
+| A4 | landmark 模块 | LlmPlan + landmark: | 预览 → Confirm → Undo | 失败 | 大雁塔形不像；天坛中空；四合院比例失调 | 玩家 | 2026-10-25 |
 
 每案勾选细项：
 

@@ -205,6 +205,9 @@ flowchart TD
 |------|------|
 | 本审计 | `docs/phase1/GOLDEN_PATH_AUDIT.md` |
 | 游戏内验收矩阵 | `docs/phase1/INGAME_ACCEPTANCE_MATRIX.md` |
+| 游戏内提示词 | `docs/phase1/INGAME_TEST_PROMPTS.md` |
+| 2026-10-25 实测分诊 | `docs/phase1/INGAME_FINDINGS_2026_10_25.md` |
 | 墙/栅栏严格比较契约测试 | `src/test/.../ConnectedBlockReplayContractTest.java` |
+| A2 意图→PATCH + 拒整栋 | `PromptModeResolver`、`ChatPanel`、`BuildRequestProcessor`、`LlmPlanPreviewBuilder` |
 
-下一动作：按矩阵执行第一座住宅游戏内验收；根据失败项开最小复现单测后再修代码。
+下一动作：重测 A2（增量应 PATCH / 拒整栋）；补 A4 `latest.log`；再按 P1 排期修门窗朝向与屋顶连续。

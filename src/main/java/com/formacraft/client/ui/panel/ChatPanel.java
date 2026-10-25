@@ -4,6 +4,7 @@ import com.formacraft.client.ai.context.BrushContext;
 import com.formacraft.client.ai.context.SelectionContext;
 import com.formacraft.client.ai.prompt.PromptAssembler;
 import com.formacraft.client.ai.prompt.PromptMode;
+import com.formacraft.client.ai.prompt.PromptModeResolver;
 import com.formacraft.client.component.ClientComponentCatalogState;
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.network.FormaCraftClientNetworking;
@@ -886,11 +887,16 @@ public class ChatPanel extends BasePanel {
         // 如果上一条还在生成，先真中断，避免并发覆盖 UI（本地流式）
         stopGenerating();
 
+        // UI 不再展示模式按钮：从用户原文推断 BUILD / PATCH / MODIFY_REGION，
+        // 避免「只改局部」仍走整栋重建（Phase 1 A2）。
+        PromptMode effectiveMode = PromptModeResolver.fromUserText(text);
+        this.promptMode = effectiveMode;
+
         // 记录本次使用的模式（用于 Prompt/BuildContext/PatchFilter 统一解析）
-        PromptModeState.setLastMode(promptMode);
+        PromptModeState.setLastMode(effectiveMode);
 
         // Prompt 拼接（UI 显示 rawInput；发给 AI 的是 finalPrompt）
-        String finalPrompt = PromptAssembler.assemble(text, promptMode);
+        String finalPrompt = PromptAssembler.assemble(text, effectiveMode);
         if (finalPrompt.isEmpty()) return;
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
@@ -914,7 +920,7 @@ public class ChatPanel extends BasePanel {
         String dimensionId = world.getRegistryKey().getValue().toString();
 
         // origin（基准点）：统一从 BuildContextResolver 解析（Outline > Selection > Anchor > CursorHit）
-        var bc = BuildContextResolver.resolve(promptMode == PromptMode.MODIFY_REGION);
+        var bc = BuildContextResolver.resolve(effectiveMode == PromptMode.MODIFY_REGION);
         BlockPos origin = (bc != null && bc.origin != null) ? bc.origin : client.player.getBlockPos().add(2, 0, 2);
 
         // 构造历史（限制长度，避免 C2S 包超过 32767 字符）
@@ -925,7 +931,7 @@ public class ChatPanel extends BasePanel {
         req.setRequestText(finalPrompt);
         req.setUserMessage(text);
         req.setReferences(ReferenceInputExtractor.extractFromText(text));
-        req.setPromptMode(promptMode.name());
+        req.setPromptMode(effectiveMode.name());
         // 因为 PromptAssembler 总是生成 LlmPlan 格式的 prompt，所以默认使用 LlmPlan
         // 用户可以通过 outputFormat 字段覆盖这个行为
         req.setOutputFormat("llmplan");

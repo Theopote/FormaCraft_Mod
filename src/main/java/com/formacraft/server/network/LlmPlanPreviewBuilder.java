@@ -94,6 +94,9 @@ public final class LlmPlanPreviewBuilder {
         com.formacraft.server.preview.GenerationRequestContext.begin(
                 player.getUuid(), worldKey, origin);
         try {
+            boolean patchRequest = req.getPromptMode() != null
+                    && !"BUILD".equalsIgnoreCase(req.getPromptMode().trim());
+
             // patch.blocks 专用：走 PreviewTicket（增量 Patch 预览 + ticket 确认）
             if (llmPlan.mode() == LlmPlan.Mode.patch
                     && llmPlan.patch() != null
@@ -104,7 +107,7 @@ public final class LlmPlanPreviewBuilder {
                 com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
                 com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
 
-                BlockPos patchOrigin = com.formacraft.common.llm.bridge.BlockPatchBridge.toOrigin(llmPlan.patch());
+                BlockPos patchOrigin = resolvePatchOrigin(player, req, origin, llmPlan);
                 List<com.formacraft.common.patch.BlockPatch> patchList =
                         com.formacraft.common.llm.bridge.BlockPatchBridge.toBlockPatches(llmPlan.patch());
                 if (patchList.isEmpty()) {
@@ -133,6 +136,17 @@ public final class LlmPlanPreviewBuilder {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                         "Patch 预览已就绪：检查改动后点击「应用」（可 Undo/Redo）"));
                 LlmPlanRoutingMetrics.recordSuccess(player, req, patchList.size(), patchList.size());
+                return true;
+            }
+
+            // Phase 1 A2：增量请求不得静默整栋重建（屋顶原点、二次生成等）。
+            if (patchRequest) {
+                hbAlive.set(false);
+                LlmPlanRoutingMetrics.recordError(player, req, "patch_expected_rebuild_rejected");
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "增量修改需要 LlmPlan mode=patch 且提供 patch.blocks[]。"
+                                + "后端返回了整栋方案，已拒绝落地以免在屋顶/脚下重建。"
+                                + "请改用「只改局部：…」并确保后端输出 patch，或框选区域后重试。"));
                 return true;
             }
 
@@ -679,6 +693,43 @@ public final class LlmPlanPreviewBuilder {
         } finally {
             com.formacraft.server.preview.GenerationRequestContext.clear();
         }
+    }
+
+    /**
+     * Prefer explicit patch.origin; otherwise nearest remembered building origin so
+     * standing on a roof does not become the new building bottom-center (Phase 1 A2).
+     */
+    private static BlockPos resolvePatchOrigin(
+            ServerPlayerEntity player,
+            FormaRequest req,
+            BlockPos requestOrigin,
+            LlmPlan llmPlan
+    ) {
+        BlockPos fromPatch = com.formacraft.common.llm.bridge.BlockPatchBridge.toOrigin(llmPlan.patch());
+        if (fromPatch != null && !fromPatch.equals(BlockPos.ORIGIN)) {
+            return fromPatch;
+        }
+        if (llmPlan.anchor() != null) {
+            return new BlockPos(llmPlan.anchor().x(), llmPlan.anchor().y(), llmPlan.anchor().z());
+        }
+        try {
+            var memory = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+            if (memory != null && player.getEntityWorld() instanceof ServerWorld sw) {
+                var nearest = memory.findNearest(
+                        sw.getRegistryKey().getValue(),
+                        requestOrigin != null ? requestOrigin : player.getBlockPos(),
+                        96.0);
+                if (nearest != null && nearest.getBounds() != null) {
+                    BlockPos anchored = nearest.getBounds().getAnchor("origin");
+                    if (anchored != null) return anchored;
+                    BlockPos min = nearest.getBounds().getMinPos();
+                    if (min != null) return min;
+                }
+            }
+        } catch (Throwable t) {
+            LOG.debug("resolvePatchOrigin memory lookup failed", t);
+        }
+        return requestOrigin != null ? requestOrigin : BlockPos.ORIGIN;
     }
 
     private static com.formacraft.common.llm.dto.CapabilityGap resolvePlanGap(LlmPlan plan) {

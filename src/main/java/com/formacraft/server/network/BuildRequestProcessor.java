@@ -73,14 +73,20 @@ public final class BuildRequestProcessor {
                     // 响应中的 kind 判别字段经 AiPlanResult 分发（不再在客户端/服务端靠关键词猜类型）。
 
                     {
-                        // 增量编辑（PATCH/MODIFY_REGION）走 editBuilding；其余统一走 requestAiPlan → AiPlanResult。
+                        // 增量编辑：Chat 默认 outputFormat=llmplan 时走 requestAiPlan（期望 LlmPlan mode=patch），
+                        // 避免误入 editBuilding 整栋重建。仅 buildingspec 等遗留格式才 editBuilding。
                         String mode = req.getPromptMode();
                         boolean isPatch = mode != null && !mode.isBlank() && !"BUILD".equalsIgnoreCase(mode.trim());
-                        if (isPatch) {
+                        String outputFormat = req.getOutputFormat() == null ? "" : req.getOutputFormat().trim();
+                        boolean preferLlmPlanPatch = outputFormat.isEmpty()
+                                || "llmplan".equalsIgnoreCase(outputFormat)
+                                || "auto".equalsIgnoreCase(outputFormat);
+                        if (isPatch && !preferLlmPlanPatch) {
                             String buildingId = com.formacraft.server.state.PlayerSpecRepository.getBuildingId(player);
                             String currentJson = com.formacraft.server.state.PlayerSpecRepository.getBuildingJson(player);
                             if (buildingId == null || currentJson == null) {
-                                player.sendMessage(net.minecraft.text.Text.literal("No current building spec. Generate a building first."), false);
+                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                        "当前没有可编辑的 BuildingSpec。请用自然语言增量修改（LlmPlan patch），或先生成 BuildingSpec 建筑。"));
                                 return;
                             }
 
