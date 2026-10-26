@@ -27,13 +27,8 @@ public class ServerInitializer implements DedicatedServerModInitializer {
         // 注册建造执行服务的 Tick 处理器
         BuildExecutionService.registerTickHandler();
         
-        // 初始化记忆系统（在服务器启动后）
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            MemoryManager memoryManager = new MemoryManager(server);
-            memoryManager.initialize();
-            // 将 MemoryManager 注册为全局实例（通过 BuildExecutionService）
-            BuildExecutionService.getInstance().setMemoryManager(memoryManager);
-        });
+        // Memory lifecycle is registered by the shared BuildExecutionService above,
+        // including singleplayer integrated servers.
         
         // 加载预制件库
         AssetLibrary.loadAssets();

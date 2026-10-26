@@ -6,7 +6,11 @@ public final class IncrementalWindowQuery {
     private IncrementalWindowQuery() {}
     public static Component normalize(Component c) {
         if(c!=null && c.componentType()!=null && c.params()!=null && Set.of("FACADE_WINDOWS","WINDOW","WINDOWS").contains(c.componentType())) {
-            Object material=c.params().get("window_block");
+            Object material=null;
+            for(String key:List.of("glass_block","glazing_block","window_block","material","wall_block")) {
+                Object value=c.params().get(key);
+                if(value instanceof String block && block.contains("glass")) {material=block;break;}
+            }
             var dims=c.dimensions();
             Object openingHeight=c.params().get("opening_height"), openingWidth=c.params().get("opening_width");
             boolean singleWindow=dims!=null

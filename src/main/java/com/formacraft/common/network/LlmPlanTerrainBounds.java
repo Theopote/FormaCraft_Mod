@@ -79,7 +79,7 @@ public final class LlmPlanTerrainBounds {
         if(plan==null || plan.components()==null) return false;
         for(var c:plan.components()) {
             if(c==null || c.params()==null || c.relativePosition()==null || c.dimensions()==null
-                    || !("column".equals(c.params().get("role")) || "stilt_piling".equals(c.params().get("role")))) continue;
+                    || !com.formacraft.common.generation.component.util.StructuralSupportPolicy.isColumn(c.params())) continue;
             Object host=c.params().getOrDefault("supports",c.params().get("host_id"));
             if(host==null) continue;
             for(var body:plan.components()) if(body!=null && body.params()!=null && body.relativePosition()!=null

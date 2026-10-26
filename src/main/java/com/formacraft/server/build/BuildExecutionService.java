@@ -422,6 +422,12 @@ public class BuildExecutionService {
     public static void registerTickHandler() {
         if (TICK_HANDLER_REGISTERED) return;
         TICK_HANDLER_REGISTERED = true;
+        // This lifecycle runs for integrated and dedicated servers alike.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            MemoryManager manager = new MemoryManager(server);
+            manager.initialize();
+            getInstance().setMemoryManager(manager);
+        });
         // 会话约定：停服丢弃进行中任务与 Undo 历史，不跨重启恢复
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             BuildExecutionService service = getInstance();

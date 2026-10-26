@@ -392,7 +392,7 @@ public class MassMainGenerator implements ComponentGenerator {
                         boolean post = (x == 0 || x == currentWidth - 1)
                                 && (z == 0 || z == currentDepth - 1);
                         String block = y == 0 ? getBlockForPart(SemanticPart.FLOOR, semantic, palette)
-                                : post ? getBlockForPart(SemanticPart.WALL, semantic, palette) : "minecraft:air";
+                                : post ? String.valueOf(massParams.getOrDefault("pillar_block", getBlockForPart(SemanticPart.WALL, semantic, palette))) : "minecraft:air";
                         out.add(new BlockPatch("minecraft:air".equals(block) ? BlockPatch.REMOVE : BlockPatch.PLACE,
                                 rp.x() + mass.offsetX + localX, rp.y() + mass.offsetY + y,
                                 rp.z() + mass.offsetZ + localZ, block));

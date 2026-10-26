@@ -67,6 +67,7 @@ public final class PatchOccupancyIndex {
                 || writer.slotId() == null || patches.isEmpty()) return 0;
         long occupied = patches.stream().filter(p -> BlockPatch.PLACE.equals(p.action())).count();
         long overlap = patches.stream().filter(p -> {
+            if (!BlockPatch.PLACE.equals(p.action())) return false;
             var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
             return prev != null && prev.owner() != null
                     && com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner());

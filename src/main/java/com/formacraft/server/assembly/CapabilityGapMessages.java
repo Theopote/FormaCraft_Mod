@@ -19,7 +19,7 @@ public final class CapabilityGapMessages {
                 : "E_CAPABILITY_GAP";
         String zh = localizedSummary(code, gap.message());
         StringBuilder sb = new StringBuilder(256);
-        sb.append("【ASSEMBLY 能力缺口】").append(zh);
+        sb.append("E_COMPONENT_GENERATION_FAILED".equals(code) ? "【建筑生成失败】" : "【ASSEMBLY 能力缺口】").append(zh);
         List<String> suggestions = gap.suggestions();
         if (suggestions != null && !suggestions.isEmpty()) {
             sb.append("\n建议：");

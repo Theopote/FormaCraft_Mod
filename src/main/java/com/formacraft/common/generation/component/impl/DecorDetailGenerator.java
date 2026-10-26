@@ -35,8 +35,7 @@ public class DecorDetailGenerator implements ComponentGenerator {
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
-        boolean structuralColumn = c.params()!=null && ("column".equals(c.params().get("role"))
-                || c.params().containsKey("supports") || Boolean.TRUE.equals(c.params().get("supports_roof")));
+        boolean structuralColumn = com.formacraft.common.generation.component.util.StructuralSupportPolicy.isColumn(c.params());
         int height = Math.max(1, structuralColumn ? d.height() : Math.min(3, d.height()));
 
         String styleProfile = getStyleProfile(semantic);
@@ -123,9 +122,9 @@ public class DecorDetailGenerator implements ComponentGenerator {
 
     private static String explicitMaterial(Component component) {
         if (component.params() == null) return null;
-        boolean structural = "column".equals(component.params().get("role"))
+        boolean structural = com.formacraft.common.generation.component.util.StructuralSupportPolicy.isColumn(component.params())
                 || Boolean.TRUE.equals(component.params().get("railing")) || component.params().containsKey("supports");
-        for (String key : structural ? List.of("block","material","trim_block","wall_block")
+        for (String key : structural ? List.of("material_block","block","material","pillar_block","trim_block","wall_block")
                 : List.of("block","trim_block","wall_block","material")) {
             Object value = component.params().get(key);
             if (value instanceof String text && !text.isBlank()) return text;

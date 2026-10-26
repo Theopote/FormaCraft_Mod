@@ -331,6 +331,8 @@ public final class ComponentPlanCompiler {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
         }
 
+        if (!StairChainCompiler.validateConnectivity(components, result, slotMap)) return List.of();
+
         if (!openingExpectations.isEmpty()) {
             var openingAudit = OpeningMaterialAudit.inspect(openingExpectations, result);
             FormacraftMod.LOGGER.info("[OpeningMaterialAudit] stage=postprocess result={}", openingAudit);
@@ -591,6 +593,8 @@ public final class ComponentPlanCompiler {
                                 || "skeleton_empty".equals(diagCode)
                                 || "assembly_empty".equals(diagCode);
                         boolean capturedLibraryMiss = "captured_library_miss".equals(diagCode);
+                        boolean nativeFailure = "required_component_empty".equals(diagCode)
+                                || routed.pipelineStep() == com.formacraft.server.generation.component.adaptor.ComponentPipelineStepId.COMPONENT_REGISTRY;
                         boolean roofTypeUnsupported = "generator_exception".equals(diagCode)
                                 && detail != null && detail.contains("roof_type_unsupported");
                         String gapCode = envelopeConflict
@@ -599,7 +603,7 @@ public final class ComponentPlanCompiler {
                                 ? "E_GENERATION_AUTHORITY_CONFLICT"
                                 : roofTypeUnsupported
                                 ? "E_ROOF_TYPE_UNSUPPORTED"
-                                : "E_COMPONENT_LIBRARY_FAILED";
+                                : nativeFailure ? "E_COMPONENT_GENERATION_FAILED" : "E_COMPONENT_LIBRARY_FAILED";
                         String gapMessage = envelopeConflict
                                 ? "显式 component_request 与包络保护冲突：type=" + c.componentType()
                                     + " id=" + paramIdentity(c)
@@ -612,7 +616,7 @@ public final class ComponentPlanCompiler {
                                 ? "捕获构件未产生几何：type=" + c.componentType()
                                     + " id=" + paramIdentity(c)
                                     + " detail=" + detail
-                                : "捕获/库构件硬失败：type=" + c.componentType()
+                                : (nativeFailure ? "原生建筑组件生成失败：type=" : "捕获/库构件硬失败：type=") + c.componentType()
                                     + " id=" + paramIdentity(c)
                                     + " status=" + routed.status()
                                     + " detail=" + detail;
@@ -626,6 +630,7 @@ public final class ComponentPlanCompiler {
                                         : authorityConflict
                                         ? List.of("Align generation_authority with component hints and payload",
                                                 "Do not silently fall back to another executor")
+                                        : nativeFailure ? List.of("检查原生门窗尺寸、材质与宿主墙面", "不需要添加构件库资产")
                                         : List.of("修复构件 ID、适配规则或清洞约束", "禁止回退为无关默认几何")));
                         return patchOccupancy;
                     }
@@ -786,7 +791,8 @@ public final class ComponentPlanCompiler {
                                 "装饰已避让门窗及屋顶，跳过 " + (before - shiftedPatches.size()) + " 条操作",
                                 c.componentType(), paramIdentity(c));
                     }
-                    if (plan.layout() != null && "COMPOUND".equalsIgnoreCase(String.valueOf(plan.layout().skeletonType()))) {
+                    if ((plan.layout() != null && "COMPOUND".equalsIgnoreCase(String.valueOf(plan.layout().skeletonType())))
+                            || com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(c.params())) {
                         int shared = patchOccupancy.trimCompoundMassJoin(c, shiftedPatches);
                         shared += patchOccupancy.trimWallTowerJoins(c, shiftedPatches);
                         if (shared > 0) AssemblyCompileDiagnostics.addSoftWarning("MASS_JOIN_CLIPPED",
@@ -1183,7 +1189,7 @@ public final class ComponentPlanCompiler {
         List<Component> components = new ArrayList<>();
         Set<String> massSlots = new HashSet<>();
         for (Component c : normalized) {
-            Component normalizedComponent = normalizeComponent(c);
+            Component normalizedComponent = normalizeComponent(NativeBuildingComponentPolicy.apply(c, plan));
             if (normalizedComponent == null) {
                 continue;
             }
@@ -1543,6 +1549,7 @@ public final class ComponentPlanCompiler {
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
         ExteriorStairEndpointRepair.apply(prepared);
         BareStairFitCompiler.apply(prepared);
+        StairChainCompiler.apply(prepared, plan);
         StairOpeningGuardCompiler.apply(prepared);
         ComponentFoundationEnforcer.apply(prepared);
 
