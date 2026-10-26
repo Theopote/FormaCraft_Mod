@@ -5,6 +5,23 @@ import java.util.*;
 public final class IncrementalWindowQuery {
     private IncrementalWindowQuery() {}
     public static Component normalize(Component c) {
+        if(c!=null && c.componentType()!=null && c.params()!=null && Set.of("FACADE_WINDOWS","WINDOW","WINDOWS").contains(c.componentType())) {
+            Object material=c.params().get("window_block");
+            var dims=c.dimensions();
+            Object openingHeight=c.params().get("opening_height"), openingWidth=c.params().get("opening_width");
+            boolean singleWindow=dims!=null
+                    && (!(openingHeight instanceof Number h) || h.intValue()==dims.height())
+                    && (!(openingWidth instanceof Number w) || w.intValue()==Math.max(dims.width(),dims.depth()))
+                    && (!(c.params().get("count") instanceof Number n) || n.intValue()==1);
+            if(singleWindow && material instanceof String block && block.contains("glass")) {
+                var p=new HashMap<String,Object>();
+                p.put("kind","box");p.put("material",block);p.put("extrude_mode","solid");
+                if(c.params().containsKey("component_id")) p.put("component_id",c.params().get("component_id"));
+                if(c.params().containsKey("anchor_mode")) p.put("anchor_mode",c.params().get("anchor_mode"));
+                var literal=new Component("PRIMITIVE",c.slotId(),c.relativePosition(),c.dimensions(),List.of(),p);
+                if(IncrementalPrimitivePolicy.allows(literal)) return literal;
+            }
+        }
         if(c==null || !"PRIMITIVE".equalsIgnoreCase(c.componentType()) || c.features()==null) return c;
         for(String f:c.features()) {
             if(f==null || !f.startsWith("component_request:")) continue;

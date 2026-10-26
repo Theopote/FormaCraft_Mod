@@ -71,6 +71,16 @@ public final class BuildRequestProcessor {
                     com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
                     com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
 
+                    if (!"BUILD".equalsIgnoreCase(req.getPromptMode())
+                            && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld editWorld
+                            && com.formacraft.server.build.BuildExecutionService.getInstance()
+                                .hasActiveBuildForPlayer(player.getUuid(), editWorld)) {
+                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                "上一项建造尚未完成，请等待“建造完成”后再发起增量修改。"));
+                        return;
+                    }
+                    if (WindowSealPreview.tryHandle(player, req)) return;
+
                     // 状态：服务端已收到请求
                     context.server().execute(() -> ServerPlayNetworking.send(player,
                             new FormaCraftNetworking.ResponseBuildStatusPayload("服务端已收到请求，正在请求后端…")));

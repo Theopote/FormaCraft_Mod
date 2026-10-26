@@ -279,6 +279,16 @@ public class BuildExecutionService {
         return n;
     }
 
+    /** Server-thread guard: an unfinished build has no stable edit snapshot yet. */
+    public boolean hasActiveBuildForPlayer(UUID playerId, ServerWorld world) {
+        if (playerId == null) return false;
+        for (BuildTask task : activeTasks) {
+            if (task != null && !task.isFinished() && task.getWorld() == world
+                    && task.getStructure() != null && playerId.equals(task.getStructure().getOwner())) return true;
+        }
+        return false;
+    }
+
     /**
      * 每个世界 tick：全局预算公平调度本世界任务。
      */

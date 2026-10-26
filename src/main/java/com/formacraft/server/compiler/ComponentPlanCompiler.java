@@ -1406,6 +1406,20 @@ public final class ComponentPlanCompiler {
             }
             // Floor plates are structural slabs, not buildings with facades, doors and roofs.
             if (c.params() != null && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
+                // Explicit pavilion roofs still belong to this deck's authored columns.
+                // Do not infer a roof for arbitrary floor slabs.
+                for (int i = 0; i < components.size(); i++) {
+                    Component roof = components.get(i);
+                    if (isRoofType(normalizeType(roof.componentType()))
+                            && java.util.Objects.equals(roof.slotId(), c.slotId())
+                            && paramIdentity(c).equals(getParamString(roof.params(), "host_id"))) {
+                        Component aligned = alignRoofToMass(roof, c, plan);
+                        if (aligned == null) return new PreparedComponents(List.of(), Set.of());
+                        components.set(i, aligned);
+                        int alreadyPrepared = prepared.indexOf(roof);
+                        if (alreadyPrepared >= 0) prepared.set(alreadyPrepared, aligned);
+                    }
+                }
                 prepared.add(c);
                 continue;
             }
@@ -1861,10 +1875,27 @@ public final class ComponentPlanCompiler {
             }
         }
 
+        Vec3i roofOrigin = template.relativePosition();
+        // A one-layer pavilion body is a deck, not an enclosed four-high house.
+        // Its explicitly hosted columns define the roof bearing plane.
+        if (mass.dimensions().height() == 1 && mass.params() != null
+                && ("plate".equals(mass.params().get("extrude_mode"))
+                    || Boolean.FALSE.equals(mass.params().get("hollow")))) {
+            int top = roofOrigin.y();
+            for (Component support : plan.components()) {
+                if (support == null || support.params() == null || support.dimensions() == null
+                        || support.relativePosition() == null || !java.util.Objects.equals(support.slotId(), mass.slotId())) continue;
+                String host = getParamString(support.params(), "host_id", "supports");
+                if (paramIdentity(mass).equals(host)
+                        && "column".equalsIgnoreCase(getParamString(support.params(), "role")))
+                    top = Math.max(top, support.relativePosition().y() + support.dimensions().height());
+            }
+            roofOrigin = new Vec3i(roofOrigin.x(), top, roofOrigin.z());
+        }
         return applyRoofGrammar(plan, new Component(
                 llmRoof.componentType(),
                 llmRoof.slotId(),
-                template.relativePosition(),
+                roofOrigin,
                 new Dimensions(baseW, baseD, roofHeight),
                 mergeFeatureLists(template.features(), llmRoof.features()),
                 params
@@ -3045,10 +3076,17 @@ public final class ComponentPlanCompiler {
         if (component == null) {
             return null;
         }
-        if ("FACADE_WINDOWS".equalsIgnoreCase(component.componentType()) && component.params()!=null
-                && "wood_lattice".equalsIgnoreCase(String.valueOf(component.params().get("window_style")))) {
+        if (isRoofType(normalizeType(component.componentType())) && component.params()!=null
+                && component.params().get("overhang") instanceof Boolean enabled) {
             var p=new HashMap<String,Object>(component.params());
-            String wood=String.valueOf(p.getOrDefault("material","oak"));
+            if(enabled) p.remove("overhang"); else p.put("overhang",0);
+            component=new Component(component.componentType(),component.slotId(),component.relativePosition(),component.dimensions(),component.features(),p);
+        }
+        if ("FACADE_WINDOWS".equalsIgnoreCase(component.componentType()) && component.params()!=null
+                && Set.of("wood_lattice", "wooden_lattice").contains(
+                    String.valueOf(component.params().get("window_style")).toLowerCase(Locale.ROOT))) {
+            var p=new HashMap<String,Object>(component.params());
+            String wood=String.valueOf(p.getOrDefault("frame_material",p.getOrDefault("material","oak")));
             p.put("window_block",wood.contains("dark_oak")?"minecraft:dark_oak_fence":wood.contains("spruce")?"minecraft:spruce_fence":"minecraft:oak_fence");
             p.put("material",p.get("window_block"));
             p.put("window_material",p.get("window_block"));
@@ -3058,7 +3096,8 @@ public final class ComponentPlanCompiler {
         }
         if (component.dimensions()!=null && component.dimensions().height()==1
                 && isMassType(normalizeType(component.componentType())) && component.params()!=null
-                && "none".equalsIgnoreCase(String.valueOf(component.params().get("wall_type")))) {
+                && ("none".equalsIgnoreCase(String.valueOf(component.params().get("wall_type")))
+                    || Boolean.FALSE.equals(component.params().get("hollow")))) {
             var floorParams=new HashMap<String,Object>(component.params());
             floorParams.put("extrude_mode","plate");
             component=new Component(component.componentType(),component.slotId(),component.relativePosition(),

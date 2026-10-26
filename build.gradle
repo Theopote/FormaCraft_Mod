@@ -151,6 +151,8 @@ tasks.register('constraintParityTest', Test) {
 		includeTestsMatching 'com.formacraft.server.build.FloatingMassTest'
 		includeTestsMatching 'com.formacraft.server.build.StyleWallPatternTest'
 		includeTestsMatching 'com.formacraft.server.compiler.Live2323RegressionTest'
+		includeTestsMatching 'com.formacraft.server.compiler.Live0058RegressionTest'
+		includeTestsMatching 'com.formacraft.server.edit.WindowSealCompilerTest'
 	}
 }
 

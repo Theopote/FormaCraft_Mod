@@ -21,6 +21,7 @@ public final class IncrementalPrimitivePolicy {
         if (c.features()!=null && !c.features().isEmpty()) return false;
         String material=String.valueOf(p.get("material")).toLowerCase(Locale.ROOT);
         return material.equals("glass") || material.equals("minecraft:glass")
-                || material.matches("(?:minecraft:)?[a-z_]+_stained_glass");
+                || material.equals("glass_pane") || material.equals("minecraft:glass_pane")
+                || material.matches("(?:minecraft:)?[a-z_]+_stained_glass(?:_pane)?");
     }
 }
