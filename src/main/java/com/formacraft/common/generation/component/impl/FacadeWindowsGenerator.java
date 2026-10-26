@@ -330,12 +330,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
      */
     private String getBlockForWindow(SemanticComponent semantic, Palette palette, SemanticPart part, boolean isLattice,
                                      String windowStyle) {
-        if ("wood_lattice".equalsIgnoreCase(windowStyle)) {
-            String wood=getParamString(semantic.source().params(),"material","frame_material");
-            if(wood!=null && wood.toLowerCase(java.util.Locale.ROOT).contains("dark_oak")) return "minecraft:dark_oak_fence";
-            if(wood!=null && wood.toLowerCase(java.util.Locale.ROOT).contains("spruce")) return "minecraft:spruce_fence";
-            return "minecraft:oak_fence";
-        }
+        String lattice=com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(semantic.source().params());
+        if(lattice!=null)return lattice;
         String glazing = getParamString(semantic.source().params(), "glass_block", "glazing_block", "glass_material");
         if (glazing != null) return glazing.contains(":") ? glazing : "minecraft:" + glazing;
         String authored = getParamString(semantic.source().params(), "window_block", "block", "material");

@@ -21,6 +21,7 @@ final class NativeLayoutRepair {
         if(!size.find()) return;
         int w=Integer.parseInt(size.group(1)),d=Integer.parseInt(size.group(2));
         if(w<5 || d<5 || w>64 || d>64)return;
+        if(parts.stream().filter(c->"MASS_MAIN".equals(c.componentType())).count()!=1)return;
         var added=new ArrayList<Component>();
         for(int i=0;i<parts.size();i++) {
             var host=parts.get(i);if(!"MASS_MAIN".equals(host.componentType()) || host.params()==null)continue;
@@ -81,7 +82,11 @@ final class NativeLayoutRepair {
             var bodies=parts.stream().filter(b->"MASS_MAIN".equals(b.componentType()) && Objects.equals(b.slotId(),c.slotId())).toList();
             if(bodies.size()<3)continue;
             var b=ComponentFootprintUtil.bounds(c);int floor=ComponentFootprintUtil.bounds(bodies.getFirst()).minY();
-            if(b.minY()>=floor || bodies.stream().anyMatch(h->ComponentFootprintUtil.bounds(h).minY()!=floor))continue;
+            if(b.minY()>=floor || floor-b.minY()>5 || bodies.stream().anyMatch(h->ComponentFootprintUtil.bounds(h).minY()!=floor))continue;
+            boolean onSiteFoundation=parts.stream().anyMatch(f->"FOUNDATION".equals(f.componentType())
+                && Objects.equals(f.slotId(),c.slotId()) && ComponentFootprintUtil.bounds(f).minY()==b.minY()
+                && ComponentFootprintUtil.bounds(f).contains(b));
+            if(!onSiteFoundation)continue;
             int x0=b.minX(),x1=b.maxX(),z0=b.minZ(),z1=b.maxZ();
             for(var body:bodies) {
                 var h=ComponentFootprintUtil.bounds(body);

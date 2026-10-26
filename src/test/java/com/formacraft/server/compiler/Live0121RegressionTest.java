@@ -27,6 +27,25 @@ class Live0121RegressionTest {
         return result;
     }
 
+    @Test void woodenLatticeMaterialAuditStillRejectsPostprocessReplacement() {
+        var c=new Component("FACADE_WINDOWS","slot",new Vec3i(0,0,0),new Dimensions(1,2,2),List.of(),
+            Map.of("component_id","lattice","window_style","wooden_lattice","lattice_material","minecraft:dark_oak_planks","glass_material","minecraft:glass_pane"));
+        var expected=new HashMap<BlockPos,OpeningMaterialAudit.Expectation>();
+        expected.put(BlockPos.ORIGIN,new OpeningMaterialAudit.Expectation("lattice",
+            com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WINDOW,
+            com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(c.params())));
+        var good=OpeningMaterialAudit.inspect(expected,List.of(new com.formacraft.common.patch.BlockPatch(com.formacraft.common.patch.BlockPatch.PLACE,0,0,0,"minecraft:dark_oak_fence")));
+        assertTrue(good.isMatched());
+        var bad=OpeningMaterialAudit.inspect(expected,List.of(new com.formacraft.common.patch.BlockPatch(com.formacraft.common.patch.BlockPatch.PLACE,0,0,0,"minecraft:glass_pane")));
+        assertEquals(1,bad.mismatchCells());
+    }
+    @Test void narrowCabinWallDoesNotReceiveGroundGlass() throws Exception {
+        var cells=snapshot(compile(load("010719")),BlockPos.ORIGIN);
+        var patch=com.formacraft.server.edit.WindowInsertCompiler.compile(cells,BlockPos.ORIGIN,Set.of(),2,2);
+        assertTrue(patch.isEmpty(),"Do not squeeze a two-wide window through a narrow wall corner");
+        // No ground glass or corner cutting is permitted.
+        for(var b:patch) {assertTrue(b.dy()>=1);assertTrue(cells.get(new BlockPos(b.dx(),b.dy(),b.dz())).isOpaque());}
+    }
     @Test void stiltRepairRestoresExplicitSevenBySevenAndWoodSupports() throws Exception {
         var live=snapshot(compile(load("011057")),BlockPos.ORIGIN);
         for(int x=-3;x<=3;x++)for(int z=-3;z<=3;z++)for(int y=0;y<3;y++) {
@@ -36,7 +55,10 @@ class Live0121RegressionTest {
         }
         assertTrue(live.get(new BlockPos(3,3,3)).isOpaque());
     }
-    @Test void huizhouWingsCompileWithoutOverlappingCorners() throws Exception {compile(load("011447"));}
+    @Test void huizhouWingsCompileWithoutOverlappingCorners() throws Exception {
+        var cells=snapshot(compile(load("011447")),BlockPos.ORIGIN);
+        assertTrue(cells.values().stream().anyMatch(s->s.getBlock() instanceof net.minecraft.block.FenceBlock),"Lattice windows survive courtyard repair");
+    }
     @Test void adobeRailingStaysInsideBodyAndAboveFloor() throws Exception {
         var cells=snapshot(compile(load("011629")),BlockPos.ORIGIN);int count=0;
         for(var e:cells.entrySet())if(e.getValue().getBlock() instanceof net.minecraft.block.FenceBlock) {
@@ -44,6 +66,8 @@ class Live0121RegressionTest {
             assertEquals(5,p.getY());
         }
         assertTrue(count>=6);
+        for(int x=-1;x<=0;x++)for(int y=0;y<=1;y++)
+            assertTrue(air(cells,new BlockPos(x,y,-6)),"Central entrance must have its full width");
     }
     @Test void fortressCanGenerateWithSixRiseFlights() throws Exception {
         var cells=snapshot(compile(load("012049")),BlockPos.ORIGIN);

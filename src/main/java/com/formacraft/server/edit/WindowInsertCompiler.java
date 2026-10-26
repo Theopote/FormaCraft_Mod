@@ -63,9 +63,11 @@ public final class WindowInsertCompiler {
         Direction right=normals.get(seed).rotateYCounterclockwise();
         BlockPos edge=group.stream().max(Comparator.comparingInt(p->p.getX()*right.getOffsetX()+p.getZ()*right.getOffsetZ())).orElseThrow();
         for(int distance:new int[]{2,1,3,4,5,6}) {
-            var cells=new ArrayList<BlockPos>();boolean valid=true;
+            var cells=new ArrayList<BlockPos>();
+            // Keep the bottom floor and the outer corner/jamb intact.
+            boolean valid=solid(live,edge.offset(right,distance+width).up());
             for(int x=0;x<width;x++) for(int y=0;y<height;y++) {
-                BlockPos p=edge.offset(right,distance+x).up(y);var state=live.get(p);
+                BlockPos p=edge.offset(right,distance+x).up(y+1);var state=live.get(p);
                 if(state==null || !state.isOpaque() || state.getBlock() instanceof PillarBlock || roof.contains(p)
                         || state.getBlock() instanceof StairsBlock || state.getBlock() instanceof SlabBlock) valid=false;
                 cells.add(p);
