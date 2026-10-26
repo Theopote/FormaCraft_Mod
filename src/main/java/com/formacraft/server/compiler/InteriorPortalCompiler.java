@@ -38,13 +38,18 @@ final class InteriorPortalCompiler {
             int x=xAxis?("EAST".equals(opposite)?b.maxX()-1:b.minX()):center-a.x()-1;
             int z=xAxis?center-a.z()-1:("SOUTH".equals(opposite)?b.maxZ()-1:b.minZ());
             var params=new HashMap<String,Object>(door.params());
+            params.put("entrance_world_facing",true);
             params.put("target_host_id",other.params().get("component_id"));params.put("door_block","minecraft:air");
             params.put("entrance_type","archway");params.put("door_width",2);params.put("door_height",3);
-            parts.set(i,new Component(door.componentType(),door.slotId(),door.relativePosition(),door.dimensions(),List.of(),params));
+            var dp=door.relativePosition();
+            // Keep the floor blocks under the passage; the opening starts one cell above them.
+            var doorway=new Vec3i(dp.x(),Math.max(dp.y(),hb.minY()+1),dp.z());
+            parts.set(i,new Component(door.componentType(),door.slotId(),doorway,door.dimensions(),List.of(),params));
             var p=new HashMap<String,Object>(params);p.put("host_id",other.params().get("component_id"));
+            p.put("building_id",other.params().get("component_id"));
             p.put("target_host_id",host.params().get("component_id"));p.put("component_id",params.get("component_id")+"#other_shell");
             p.put("facing",opposite);p.put("anchor_mode","min_corner");
-            added.add(new Component("ENTRANCE",other.slotId(),new Vec3i(x,b.minY(),z),new Dimensions(xAxis?1:2,xAxis?2:1,3),List.of(),p));
+            added.add(new Component("ENTRANCE",other.slotId(),new Vec3i(x,b.minY()+1,z),new Dimensions(xAxis?1:2,xAxis?2:1,3),List.of(),p));
         }
         parts.addAll(added);
     }

@@ -40,6 +40,11 @@ final class StairChainCompiler {
             int width=ComponentParamParsers.intParam(first.params(),3,"width");
             int span=alongZ?host.dimensions().width():host.dimensions().depth();
             int run=alongZ?host.dimensions().depth():host.dimensions().width();
+            int authoredRun=Math.abs(alongZ?b.z()-a.z():b.x()-a.x());
+            int interiorRun=run-2*wall;
+            // Short local flights in a large mass are intentional. Only the full-shaft
+            // replicated defect (nearly wall-to-wall run) is rewritten into switchbacks.
+            if(authoredRun<Math.max(2,interiorRun-1)) continue;
             int laneA=wall+width/2,laneB=span-wall-1-(width-1)/2;
             if(wall<1 || width<1 || laneB-laneA<width || run-2*wall<2) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap("E_STAIR_CHAIN_UNCONNECTED",

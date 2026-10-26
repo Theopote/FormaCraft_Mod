@@ -2210,6 +2210,11 @@ public final class ComponentPlanCompiler {
                     ? (Math.abs(rp.x()-origin.x()) <= Math.abs(rp.x()-(origin.x()+mass.dimensions().width()-1)) ? "EAST" : "WEST")
                     : (Math.abs(rp.z()-origin.z()) <= Math.abs(rp.z()-(origin.z()+mass.dimensions().depth()-1)) ? "SOUTH" : "NORTH");
         }
+        if (Boolean.TRUE.equals(params.remove("entrance_world_facing"))) {
+            // Legacy facade names point inward; portal contracts use world outward normals.
+            face = switch(face) { case "EAST" -> "WEST"; case "WEST" -> "EAST";
+                case "NORTH" -> "SOUTH"; default -> "NORTH"; };
+        }
         params.put("facing",face);
         boolean side = Set.of("EAST", "WEST").contains(face);
         int width = ComponentParamParsers.intParam(params, 3, "door_width");

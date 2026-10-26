@@ -28,7 +28,6 @@ class Live1027RegressionTest {
     }
     @Test void windowAttachesToLiveWallAfterTerrainTranslation() throws Exception {
         var origin=new BlockPos(333,86,-1133);var live=snapshot(compile(load("235436")),origin);
-        dump("window",live);
         var result=com.formacraft.server.edit.WindowInsertCompiler.compile(live,origin,Set.of(),2,2);
         assertEquals(4,result.size());
         for(var b:result) {
@@ -64,7 +63,7 @@ class Live1027RegressionTest {
         assertFalse(blocks.stream().anyMatch(b->b.dy()>5 && b.targetBlock().contains("oak_stairs")),"Arrival cannot be above the authored second floor at y=5");
     }
     @Test void hallConnectsToBothTowerInteriorsWithoutGoingOutside() throws Exception {
-        var plan=load("002003");var live=snapshot(compile(plan),BlockPos.ORIGIN);dump("fortress",live);
+        var plan=load("002003");var live=snapshot(compile(plan),BlockPos.ORIGIN);
         var walk=new HashSet<BlockPos>();
         // Restrict to the interiors and their two shared wall planes. Outdoor detours cannot pass.
         for(int x=-16;x<=16;x++) for(int z=-4;z<=4;z++) {
@@ -79,10 +78,12 @@ class Live1027RegressionTest {
         assertTrue(reached.contains(new BlockPos(-12,0,0)),"Reach west tower through both wall shells");
         assertTrue(reached.contains(new BlockPos(12,0,0)),"Reach east tower through both wall shells");
     }
-    private void dump(String name,Map<BlockPos,net.minecraft.block.BlockState> cells) throws Exception {
-        var out=new StringBuilder();
-        for(var e:cells.entrySet()) out.append(e.getKey().getX()).append(',').append(e.getKey().getY()).append(',').append(e.getKey().getZ()).append(',').append(com.formacraft.common.component.transform.BlockStateStringUtil.fromState(e.getValue())).append('\n');
-        java.nio.file.Files.writeString(java.nio.file.Path.of(".gradle/ingame1027-"+name+".csv"),out.toString());
+    @Test void windowRefusesUnlocatedEntranceAndProtectedRoof() throws Exception {
+        var compilerOrigin=new BlockPos(333,86,-1133);
+        var live=snapshot(compile(load("235436")),compilerOrigin);
+        assertTrue(com.formacraft.server.edit.WindowInsertCompiler.compile(Map.of(),compilerOrigin,Set.of(),2,2).isEmpty());
+        assertTrue(com.formacraft.server.edit.WindowInsertCompiler.compile(live,compilerOrigin,live.keySet(),2,2).isEmpty());
+        assertTrue(com.formacraft.server.edit.WindowInsertCompiler.compile(live,compilerOrigin,Set.of(),9,2).isEmpty());
     }
     private boolean air(Map<BlockPos,net.minecraft.block.BlockState> live,BlockPos p) {
         var s=live.get(p);return s==null || s.isAir() || s.getBlock() instanceof net.minecraft.block.DoorBlock;
