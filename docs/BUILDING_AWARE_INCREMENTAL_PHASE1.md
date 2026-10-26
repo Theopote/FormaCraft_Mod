@@ -109,3 +109,21 @@ ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` p
 | `edit_txns/` 独立于 ProjectMemory，跨重启可识别 | done |
 | 自动化 | `BuildingAwareRound59Test` |
 
+## 9. Round 60 — 事务收尾与服务端恢复
+
+| Item | Status |
+|---|---|
+| `MEMORY_COMMITTED` / `ABORTED` 持久化失败不得静默成功；回滚内存状态 | done |
+| Memory 已提交 + txn 仍 `WORLD_APPLIED` → `finalizeCommittedTransaction` 幂等收尾 | done |
+| `BuildingEditRecoveryCoordinator`：服务端读真实 `ServerWorld`，启动时扫描 open txn | done |
+| 失败 Apply：仅 `PREFLIGHT_REJECTED` / `ROLLED_BACK` → `ABORTED`；`ROLLBACK_INCOMPLETE` → `RECOVERY_REQUIRED` | done |
+| 自动化 | `BuildingAwareRound60Test` |
+
+### 游戏内屋顶事务验收清单（Round 60）
+
+1. 预览屋顶换材质 → Confirm → 成功提示 `EDIT_COMMIT_SUCCESS`；Revision +1  
+2. Undo 恢复材质；Redo 再应用；事务不残留 open  
+3. 人为制造 Memory 盘失败后 Confirm → `EDIT_MEMORY_SYNC_FAILED`，同建筑再次预览被拒  
+4. 重启服务器后，open txn 由 RecoveryCoordinator 对照真实世界：目标态补交 / 原始态 ABORT / 第三态保持阻断  
+5. Cancel / 断线不留下 Pending；不进入 Phase 2 门窗编辑直至本清单通过
+

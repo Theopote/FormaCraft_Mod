@@ -1,0 +1,462 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#A0784B",
+    "roof_color": "#3B2A1A",
+    "accent_color": "#6B4A2A",
+    "wall_material": "minecraft:oak_planks",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:oak_planks",
+    "decorative_elements": [
+      "oak_stilts",
+      "wooden_stair",
+      "column"
+    ]
+  },
+  "distinguishing_features": [
+    "oak stilt columns",
+    "elevated living floor above water",
+    "wooden entrance stair from shore",
+    "water retained beneath the hut",
+    "column"
+  ],
+  "anchor": {
+    "x": 431,
+    "y": 95,
+    "z": -1197
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "stilt_house",
+      "confidence": 0.8
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.2,
+      "voidRatio": 0.1,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "stilts",
+      "roof",
+      "windows",
+      "stairs"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "wood",
+      "accent": "wood",
+      "textureBias": "rough",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "waterfront",
+        "stilt_house",
+        "jiangnan"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 3,
+      "respectTerrain": true,
+      "insideSelectionOnly": true,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "preserve water beneath",
+        "oak columns",
+        "wooden entrance stairs"
+      ],
+      "avoid": [
+        "stone platform",
+        "terrain fill"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "stilt_hut",
+    "height_to_width": 0.14,
+    "depth_to_width": 0.29,
+    "roof_to_body_height": 1.0,
+    "stilt_height_to_body": 1.0,
+    "window_wall_ratio": 0.1,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "mass_main_1"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "mass_main_1",
+          "slot_id": "main",
+          "local_origin": {
+            "x": -3,
+            "y": 1,
+            "z": -1
+          },
+          "plan_origin": {
+            "x": -3,
+            "y": 1,
+            "z": -1
+          },
+          "dimensions": {
+            "width": 7,
+            "height": 3,
+            "depth": 3
+          },
+          "floor_ys_local": [
+            1
+          ],
+          "roof_y_local": 3,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_main_1",
+                "local_origin": {
+                  "x": -3,
+                  "y": 1,
+                  "z": -1
+                },
+                "dimensions": {
+                  "width": 7,
+                  "height": 3,
+                  "depth": 3
+                },
+                "roof_y_local": 3
+              }
+            ],
+            "envelope_local": {
+              "min_x": -3,
+              "min_z": -1,
+              "max_x": 4,
+              "max_z": 2,
+              "min_y": 1,
+              "max_y": 4
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -1,
+                "end": 2
+              },
+              {
+                "direction": "NORTH",
+                "plane": -1,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 2,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -3,
+                "start": -1,
+                "end": 2
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "在岸边建一座7×7格的高脚木屋 ，用橡木柱支撑， 居住层高于水面， 入口用一段木楼梯连接岸上。 保留屋下的水，不填平成石台， 不改变周围岸线。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "在岸边建一座7×7格的高脚木屋\n，用橡木柱支撑，\n居住层高于水面，\n入口用一段木楼梯连接岸上。\n保留屋下的水，不填平成石台，\n不改变周围岸线。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "component_preset_id": "stilt_hut",
+        "component_preset": "elevated oak stilt hut with water retained beneath and wooden stair from shore"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -3,
+        "y": 1,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 7,
+        "height": 1,
+        "depth": 2
+      },
+      "features": [
+        "oak_planks",
+        "hollow",
+        "elevated_living_floor",
+        "column"
+      ],
+      "params": {
+        "component_id": "mass_main_1",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 1,
+        "floor_count": 1,
+        "wall_block": "minecraft:oak_planks",
+        "floor_block": "minecraft:oak_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_type": "gable",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "none",
+        "window_ratio": 0.1,
+        "void_ratio": 0.1,
+        "entrance_type": "stairs",
+        "material": "minecraft:oak_planks",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "mass_main_1"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 7,
+        "height": 1,
+        "depth": 2
+      },
+      "features": [
+        "stilts",
+        "oak_columns",
+        "no_platform",
+        "water_beneath_retained"
+      ],
+      "params": {
+        "component_id": "foundation_1",
+        "host_id": "mass_main_1",
+        "anchor_mode": "min_corner",
+        "foundation_type": "stilts",
+        "no_platform": true,
+        "hollow": false,
+        "material": "minecraft:oak_log",
+        "stilt_block": "minecraft:oak_log",
+        "building_id": "mass_main_1"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "height": 2,
+        "depth": 1
+      },
+      "features": [
+        "wooden_stairs",
+        "east_entry",
+        "shore_connection"
+      ],
+      "params": {
+        "component_id": "entrance_1",
+        "host_id": "mass_main_1",
+        "anchor_mode": "min_corner",
+        "entrance_type": "stairs",
+        "facing": "EAST",
+        "stair_material": "minecraft:oak_planks",
+        "door_material": "minecraft:oak_door",
+        "open": true,
+        "door_width": 2,
+        "door_height": 2,
+        "building_id": "mass_main_1"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -2,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "height": 1,
+        "depth": 1
+      },
+      "features": [
+        "punch_window",
+        "glass_pane"
+      ],
+      "params": {
+        "component_id": "facade_windows_1",
+        "host_id": "mass_main_1",
+        "anchor_mode": "min_corner",
+        "window_style": "punch_window",
+        "window_ratio": 0.1,
+        "material": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_main_1"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -4,
+        "y": 2,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 7,
+        "height": 1,
+        "depth": 2
+      },
+      "features": [
+        "gable",
+        "dark_oak_roof",
+        "small_overhang",
+        "column"
+      ],
+      "params": {
+        "component_id": "roof_1",
+        "host_id": "mass_main_1",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "overhang": 0,
+        "material": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_height": 2,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "mass_main_1"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「在岸边建一座7×7格的高脚木屋\n，用橡木柱支撑，\n居住层高于水面，\n入口用一段木楼梯连接岸上。\n保留屋下的水，不填平成石」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

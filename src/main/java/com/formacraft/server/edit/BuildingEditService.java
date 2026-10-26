@@ -1,5 +1,6 @@
 package com.formacraft.server.edit;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
@@ -181,6 +182,41 @@ public final class BuildingEditService {
     }
 
     /**
+     * Idempotent txn close when Memory already reflects the edit (revision advanced + target states)
+     * but durable status is still WORLD_APPLIED / RECOVERY_REQUIRED after a finalize-persist failure.
+     * Does not rewrite the world or bump Revision again.
+     */
+    public RepairResult finalizeCommittedTransaction(UUID transactionId) {
+        BuildingEditTransaction txn = BuildingEditTransactionStore.get(transactionId);
+        if (txn == null) return RepairResult.fail("txn_missing");
+        if (txn.status() == BuildingEditTransaction.Status.MEMORY_COMMITTED) {
+            return RepairResult.pass();
+        }
+        if (txn.status() != BuildingEditTransaction.Status.WORLD_APPLIED
+                && txn.status() != BuildingEditTransaction.Status.RECOVERY_REQUIRED) {
+            return RepairResult.fail("txn_not_finalizable");
+        }
+        ProjectMemory memory = memoryManager.getMemory(txn.buildingId().toString());
+        if (memory == null) return RepairResult.fail("memory_missing");
+        long current = BuildingMemoryKeys.revisionOf(memory);
+        BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
+        if (current != txn.baseRevision() + 1L
+                || !roofStatesMatch(index.roof().recordedStates(), txn.targetWorldStates())) {
+            return RepairResult.fail("memory_not_yet_committed");
+        }
+        BuildingMemoryKeys.clearMemorySyncFailed(memory);
+        MemoryUpdateResult cleared = memoryManager.updateMemoryStrict(memory);
+        if (!cleared.ok()) {
+            // Flag clear is best-effort; still try to close the durable txn.
+            FormacraftMod.LOGGER.warn("finalizeCommitted: clear sync flag failed for {}", txn.buildingId());
+        }
+        if (!markMemoryCommitted(txn.transactionId())) {
+            return RepairResult.fail("txn_finalize_persist_failed");
+        }
+        return RepairResult.pass();
+    }
+
+    /**
      * After a successful Apply of a Phase-1 roof edit: bump revision and refresh recorded roof states.
      * Uses {@link MemoryManager#updateMemoryStrict} — persist failure returns false.
      */
@@ -288,11 +324,16 @@ public final class BuildingEditService {
         if (base < 0L) base = BuildingMemoryKeys.revisionOf(memory);
 
         if (statesEqual(liveWorldStates, targets)) {
+            // Memory may already be at base+1 after a prior successful commit with failed txn finalize.
+            if (txn != null) {
+                RepairResult already = finalizeCommittedTransaction(txn.transactionId());
+                if (already.ok()) return already;
+                if ("txn_finalize_persist_failed".equals(already.message())) return already;
+            }
             boolean committed = commitSuccessfulRoofEdit(buildingId, dimension, base, targets);
             if (!committed) return RepairResult.fail("memory_commit_failed");
-            if (txn != null) {
-                BuildingEditTransactionStore.updateStatus(
-                        txn.transactionId(), BuildingEditTransaction.Status.MEMORY_COMMITTED);
+            if (txn != null && !markMemoryCommitted(txn.transactionId())) {
+                return RepairResult.fail("txn_finalize_persist_failed");
             }
             return RepairResult.pass();
         }
@@ -301,13 +342,33 @@ public final class BuildingEditService {
             BuildingMemoryKeys.clearMemorySyncFailed(memory);
             MemoryUpdateResult cleared = memoryManager.updateMemoryStrict(memory);
             if (!cleared.ok()) return RepairResult.fail("clear_sync_flag_failed");
-            if (txn != null) {
-                BuildingEditTransactionStore.updateStatus(
-                        txn.transactionId(), BuildingEditTransaction.Status.ABORTED);
+            if (txn != null && !abortTransaction(txn.transactionId())) {
+                return RepairResult.fail("txn_abort_persist_failed");
             }
             return RepairResult.pass();
         }
         return RepairResult.fail("world_state_mismatch_keep_recovery_required");
+    }
+
+    /**
+     * Capture canonical BlockState strings for the cells named by a transaction
+     * (expected ∪ target). Caller must supply a live {@link net.minecraft.server.world.ServerWorld}.
+     */
+    public static Map<BlockPos, String> captureLiveStates(
+            net.minecraft.server.world.ServerWorld world,
+            BuildingEditTransaction txn
+    ) {
+        if (world == null || txn == null) return Map.of();
+        Map<BlockPos, String> out = new LinkedHashMap<>();
+        Set<BlockPos> cells = new LinkedHashSet<>();
+        cells.addAll(txn.expectedWorldStates().keySet());
+        cells.addAll(txn.targetWorldStates().keySet());
+        for (BlockPos cell : cells) {
+            if (cell == null) continue;
+            BlockState state = world.getBlockState(cell);
+            out.put(cell.toImmutable(), BlockStateStringUtil.fromState(state));
+        }
+        return out;
     }
 
     /** Attach a roof part index when a building is first registered (compile provenance). */

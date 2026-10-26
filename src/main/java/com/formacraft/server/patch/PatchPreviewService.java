@@ -439,15 +439,25 @@ public final class PatchPreviewService {
         // null is never success — applyWithHistory must return an explicit status.
         if (applyResult == null) {
             com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticket.id());
-            if (txnId != null && editService != null) editService.abortTransaction(txnId);
+            // Unknown world outcome — cannot prove clean abort.
+            if (txnId != null && editService != null) editService.markRecoveryRequired(txnId);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                    "建造执行未返回结果（APPLY_NULL），已拒绝视为成功。"
+                    "建造执行未返回结果（APPLY_NULL），已拒绝视为成功；事务进入恢复。"
             ));
             return false;
         }
         if (applyResult.status() != BuildExecutionStatus.SUCCESS) {
             com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticket.id());
-            if (txnId != null && editService != null) editService.abortTransaction(txnId);
+            if (txnId != null && editService != null) {
+                // PREFLIGHT: zero writes. ROLLED_BACK: every before-snapshot restored FULL.
+                // ROLLBACK_INCOMPLETE / APPLY_FAILED: world may retain partial edits.
+                if (applyResult.status() == BuildExecutionStatus.PREFLIGHT_REJECTED
+                        || applyResult.status() == BuildExecutionStatus.ROLLED_BACK) {
+                    editService.abortTransaction(txnId);
+                } else {
+                    editService.markRecoveryRequired(txnId);
+                }
+            }
             FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
             return false;
         }
@@ -490,7 +500,14 @@ public final class PatchPreviewService {
                 ));
                 return false;
             }
-            if (txnId != null) editService.markMemoryCommitted(txnId);
+            // Memory is durable; txn status persist is a separate success condition (60-03).
+            if (txnId != null && !editService.markMemoryCommitted(txnId)) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "【EDIT_TXN_FINALIZE_PENDING】世界与 Memory 已提交，但事务完成状态未能持久化。"
+                                + "该建筑仍暂停增量编辑，直至服务端收尾重试成功（不会重复改世界或 Revision）。"
+                ));
+                return false;
+            }
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                     "【EDIT_COMMIT_SUCCESS】屋顶材质替换已写入世界并同步建筑 Memory。"
             ));

@@ -42,6 +42,7 @@ public final class BuildingEditTransactionStore {
         BY_ID.clear();
         OPEN_BY_BUILDING.clear();
         persistRoot = null;
+        FAIL_NEXT_PERSIST.set(false);
     }
 
     /** Test-only: set an explicit directory for durable txn files. */
@@ -95,15 +96,24 @@ public final class BuildingEditTransactionStore {
     public static boolean updateStatus(UUID transactionId, BuildingEditTransaction.Status status) {
         BuildingEditTransaction txn = get(transactionId);
         if (txn == null || status == null) return false;
+        BuildingEditTransaction.Status previous = txn.status();
         txn.setStatus(status);
         if (!persist(txn)) {
-            // Keep in-memory status even if disk fails — recovery still possible this session.
             FormacraftMod.LOGGER.error("Failed to persist building-edit txn {} status={}",
                     transactionId, status);
+            // Durable-intent open statuses may stay in-memory so this session keeps blocking.
+            // Closing statuses (MEMORY_COMMITTED / ABORTED) must not succeed without disk —
+            // otherwise restart reloads an open txn while in-memory already unlocked the building.
             if (status == BuildingEditTransaction.Status.RECOVERY_REQUIRED
                     || status == BuildingEditTransaction.Status.WORLD_APPLIED) {
                 OPEN_BY_BUILDING.put(txn.buildingId(), txn.transactionId());
                 return true;
+            }
+            txn.setStatus(previous);
+            if (txn.isOpen()) {
+                OPEN_BY_BUILDING.put(txn.buildingId(), txn.transactionId());
+            } else {
+                OPEN_BY_BUILDING.remove(txn.buildingId(), txn.transactionId());
             }
             return false;
         }
@@ -115,9 +125,23 @@ public final class BuildingEditTransactionStore {
         return true;
     }
 
+    /**
+     * Test/fault-injection: force the next {@link #persist} call to fail once when a root is bound.
+     * No-op when running in-memory-only (persistRoot == null).
+     */
+    static final ThreadLocal<Boolean> FAIL_NEXT_PERSIST = ThreadLocal.withInitial(() -> false);
+
+    public static void failNextPersistForTest() {
+        FAIL_NEXT_PERSIST.set(true);
+    }
+
     private static boolean persist(BuildingEditTransaction txn) {
         Path root = persistRoot;
         if (root == null) return true; // in-memory only (unit tests / no server)
+        if (Boolean.TRUE.equals(FAIL_NEXT_PERSIST.get())) {
+            FAIL_NEXT_PERSIST.set(false);
+            return false;
+        }
         try {
             Files.createDirectories(root);
             Path path = root.resolve("txn_" + txn.transactionId() + ".json");

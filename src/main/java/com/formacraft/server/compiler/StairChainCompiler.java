@@ -10,7 +10,7 @@ final class StairChainCompiler {
     static void apply(List<Component> parts, LlmPlan plan) {
         var landings=new ArrayList<Component>();
         for(Component host:List.copyOf(parts)) {
-            if(host==null || !"MASS_MAIN".equals(host.componentType()) || host.params()==null || host.dimensions()==null) continue;
+            if(host==null || !MassComponentKinds.isCirculationMass(host) || host.params()==null || host.dimensions()==null) continue;
             Object id=host.params().get("component_id"); if(id==null) continue;
             var indices=new ArrayList<Integer>();
             for(int i=0;i<parts.size();i++) {
@@ -35,16 +35,22 @@ final class StairChainCompiler {
                         && t.x()==b.x() && t.z()==b.z() && t.y()>f.y()
                         && (j==0 || f.y()==point(parts.get(indices.get(j-1)),"to").y());
             }
-            if(!repeated) continue;
+            boolean invalidSlope=false, joinedLevels=true;
+            for(int j=0;j<indices.size();j++) {
+                var c=parts.get(indices.get(j));var f=point(c,"from");var t=point(c,"to");
+                invalidSlope |= t.y()-f.y()>Math.abs(t.x()-f.x())+Math.abs(t.z()-f.z());
+                joinedLevels &= t.y()>f.y() && (j==0 || f.y()==point(parts.get(indices.get(j-1)),"to").y());
+            }
+            if(!repeated && !(invalidSlope && joinedLevels)) continue;
             int wall=ComponentParamParsers.intParam(host.params(),1,"wall_thickness","wallThickness");
-            int width=ComponentParamParsers.intParam(first.params(),3,"width");
+            int width=indices.stream().mapToInt(i->ComponentParamParsers.intParam(parts.get(i).params(),3,"width")).min().orElse(3);
             int span=alongZ?host.dimensions().width():host.dimensions().depth();
             int run=alongZ?host.dimensions().depth():host.dimensions().width();
             int authoredRun=Math.abs(alongZ?b.z()-a.z():b.x()-a.x());
             int interiorRun=run-2*wall;
             // Short local flights in a large mass are intentional. Only the full-shaft
             // replicated defect (nearly wall-to-wall run) is rewritten into switchbacks.
-            if(authoredRun<Math.max(2,interiorRun-1)) continue;
+            if(!invalidSlope && authoredRun<Math.max(2,interiorRun-1)) continue;
             int laneA=wall+width/2,laneB=span-wall-1-(width-1)/2;
             if(wall<1 || width<1 || laneB-laneA<width || run-2*wall<2) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap("E_STAIR_CHAIN_UNCONNECTED",
@@ -67,7 +73,7 @@ final class StairChainCompiler {
                 int fy=source.relativePosition().y()+from.y()-origin.y(),ty=source.relativePosition().y()+to.y()-origin.y();
                 var p=new HashMap<String,Object>(source.params());
                 p.put("from",coords(alongZ,lane,fy,start));p.put("to",coords(alongZ,lane,ty,end));
-                p.put("landing_length",1);p.put("anchor_mode","min_corner");p.put("support",false);p.put("compiler_connected_stair_chain",true);
+                p.put("width",width);p.put("landing_length",1);p.put("anchor_mode","min_corner");p.put("support",false);p.put("compiler_connected_stair_chain",true);
                 parts.set(index,new Component("STAIR_SYSTEM",source.slotId(),origin,host.dimensions(),List.of(),p));
                 if(j+1<indices.size()) {
                     var turn=new HashMap<String,Object>(p);

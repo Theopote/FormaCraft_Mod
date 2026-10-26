@@ -428,6 +428,9 @@ public class BuildExecutionService {
             manager.initialize();
             getInstance().setMemoryManager(manager);
             com.formacraft.server.edit.BuildingEditTransactionStore.bindServer(server);
+            // Server-thread recovery: capture live worlds, never client snapshots.
+            server.execute(() -> com.formacraft.server.edit.BuildingEditRecoveryCoordinator
+                    .recoverOpenTransactions(server, manager));
         });
         // 停服丢弃进行中任务与 Undo；未完成建筑编辑事务由 edit_txns 目录跨重启识别
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {

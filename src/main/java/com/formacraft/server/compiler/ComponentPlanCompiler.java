@@ -1263,7 +1263,8 @@ public final class ComponentPlanCompiler {
             return new PreparedComponents(components, Set.of());
         }
 
-        List<Component> beforeAlignment = components;
+        NativeLayoutRepair.apply(components, plan);
+        List<Component> beforeAlignment = List.copyOf(components);
         components = AlignmentContractEnforcer.apply(plan, components);
         CourtyardAnchorCompiler.apply(components, slotMap);
         InteriorPortalCompiler.apply(components, slotMap);
@@ -2167,7 +2168,7 @@ public final class ComponentPlanCompiler {
                                                  GlobalConstraints.Facing facing) {
         if (llmEntrance.params() != null && (llmEntrance.params().containsKey("stair_connection")
                 || llmEntrance.params().containsKey("facing"))) {
-            return alignStairEntrance(llmEntrance, mass);
+            return alignStairEntrance(llmEntrance, mass, plan);
         }
         Component template = makeEntranceComponent(plan, mass, mass.slotId(), facing);
         if (template == null) {
@@ -2198,7 +2199,7 @@ public final class ComponentPlanCompiler {
     }
 
     /** Preserve a flight's actual entrance, including upper-floor Y and wall side. */
-    private static Component alignStairEntrance(Component door, Component mass) {
+    private static Component alignStairEntrance(Component door, Component mass, LlmPlan plan) {
         var params = new HashMap<String,Object>(door.params());
         var origin = resolveMassOrigin(mass);
         var rp = door.relativePosition();
@@ -2221,14 +2222,22 @@ public final class ComponentPlanCompiler {
         int height = ComponentParamParsers.intParam(params, 3, "door_height");
         int thickness = Math.max(1, ComponentParamParsers.intParam(mass.params(),1,"wall_thickness"));
         int center = side ? rp.z()+dims.depth()/2 : rp.x()+dims.width()/2;
-        int start = center-(width+2)/2;
+        Object intent = plan.proportionHints()==null ? null : plan.proportionHints().get("architecture_intent");
+        if (!params.containsKey("stair_connection") && intent instanceof Map<?,?> observation
+                && String.valueOf(observation.get("original_text")).contains("中央入口"))
+            center = side ? origin.z()+mass.dimensions().depth()/2 : origin.x()+mass.dimensions().width()/2;
+        int span = side ? mass.dimensions().depth() : mass.dimensions().width();
+        int base = side ? origin.z() : origin.x();
+        int bay = Math.min(width+2,span);
+        // A full opening and its jambs must fit the chosen wall, never spill around a corner.
+        int start = Math.max(base,Math.min(base+span-bay,center-bay/2));
         int x = side ? ("EAST".equals(face) ? origin.x() : origin.x()+mass.dimensions().width()-thickness) : start;
         int z = side ? start : ("SOUTH".equals(face) ? origin.z() : origin.z()+mass.dimensions().depth()-thickness);
         params.put("anchor_mode","min_corner");
         params.put("canopy_depth",0);
         int openingY = rp.y() + (Boolean.TRUE.equals(params.get("entrance_at_deck_level")) ? 1 : 0);
         return new Component("ENTRANCE",door.slotId(),new Vec3i(x,openingY,z),
-                new Dimensions(side ? thickness : width+2,side ? width+2 : thickness,height+1),
+                new Dimensions(side ? thickness : bay,side ? bay : thickness,height+1),
                 door.features(),params);
     }
 

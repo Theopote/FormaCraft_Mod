@@ -8,7 +8,8 @@ final class InteriorPortalCompiler {
         var added=new ArrayList<Component>();
         for(int i=0;i<parts.size();i++) {
             var door=parts.get(i);
-            if(!"ENTRANCE".equals(door.componentType()) || door.params()==null || !Boolean.TRUE.equals(door.params().get("clear_passage")))continue;
+            if(!"ENTRANCE".equals(door.componentType()) || door.params()==null || !(Boolean.TRUE.equals(door.params().get("clear_passage"))
+                    || Boolean.TRUE.equals(door.params().get("carve")) && door.features()!=null && door.features().contains("passage")))continue;
             var host=parts.stream().filter(c->MassComponentKinds.isCirculationMass(c) && c.params()!=null
                     && Objects.equals(door.params().get("host_id"),c.params().get("component_id"))).findFirst().orElse(null);
             if(host==null)continue;
@@ -43,8 +44,9 @@ final class InteriorPortalCompiler {
             params.put("entrance_type","archway");params.put("door_width",2);params.put("door_height",3);
             var dp=door.relativePosition();
             // Keep the floor blocks under the passage; the opening starts one cell above them.
-            var doorway=new Vec3i(dp.x(),Math.max(dp.y(),hb.minY()+1),dp.z());
-            parts.set(i,new Component(door.componentType(),door.slotId(),doorway,door.dimensions(),List.of(),params));
+            var doorway=new Vec3i(xAxis?dp.x():center-ha.x()-1,
+                    Math.max(dp.y(),hb.minY()+1),xAxis?center-ha.z()-1:dp.z());
+            parts.set(i,new Component(door.componentType(),door.slotId(),doorway,new Dimensions(xAxis?1:2,xAxis?2:1,3),List.of(),params));
             var p=new HashMap<String,Object>(params);p.put("host_id",other.params().get("component_id"));
             p.put("building_id",other.params().get("component_id"));
             p.put("target_host_id",host.params().get("component_id"));p.put("component_id",params.get("component_id")+"#other_shell");
