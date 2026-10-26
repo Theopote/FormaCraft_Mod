@@ -33,7 +33,7 @@ final class WindowInsertPreview {
         }
         var patches=WindowInsertCompiler.compile(live,target.instance().origin(),BuildingPartIndex.fromMemory(memory).roof().cells(),
                 WindowInsertCompiler.size(req.getUserMessage(),"宽"),WindowInsertCompiler.size(req.getUserMessage(),"高"));
-        if(patches.isEmpty())return refuse(player,"未能唯一确认正门及右侧完整墙面，请选择目标建筑后重试；已拒绝在地面放窗。");
+        if(patches.isEmpty())return refuse(player,"正门右侧没有找到足够宽的完整墙面，或入口无法唯一确认。请缩小窗宽或选择更宽墙面；未改动建筑，也未在地面放窗。");
         var ticket=PatchPreviewService.issuePreview(player,target.instance().origin(),patches,PlayerProtectedZoneStorage.get(player),
                 PlayerOutlineStorage.get(player),"MODIFY_REGION".equalsIgnoreCase(req.getPromptMode()),req.getSelectionMin(),req.getSelectionMax());
         if(ticket==null)return refuse(player,"墙面开窗预览未通过约束检查。");
