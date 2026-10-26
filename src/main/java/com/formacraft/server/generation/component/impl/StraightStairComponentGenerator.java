@@ -27,6 +27,7 @@ public final class StraightStairComponentGenerator {
         Component c = semantic.source();
         try {
             var op = new HashMap<String, Object>(c.params() == null ? Map.of() : c.params());
+            if (Boolean.TRUE.equals(op.get("exterior"))) op.put("support", false);
             if (!op.containsKey("from") || !op.containsKey("to")) {
                 // Compatibility with the logged straight-flight contract only. Curves/turns need explicit ops.
                 String features = String.join(" ", c.features() == null ? List.of() : c.features());

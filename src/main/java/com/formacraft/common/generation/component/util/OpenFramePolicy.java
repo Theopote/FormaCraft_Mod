@@ -4,10 +4,11 @@ import java.util.Map;
 public final class OpenFramePolicy {
     private OpenFramePolicy() {}
     public static boolean isOpen(Map<String,Object> p) {
-        return p!=null && (Boolean.TRUE.equals(p.get("open"))
-                || Boolean.TRUE.equals(p.get("open_pavilion"))
-                || "open".equalsIgnoreCase(String.valueOf(p.get("wall_style")))
-                || "none".equalsIgnoreCase(String.valueOf(p.get("wall_style")))
-                    && p.get("open_sides") instanceof java.util.Collection<?> sides && sides.size()>=2);
+        if(p==null) return false;
+        if(Boolean.TRUE.equals(p.get("open")) || Boolean.TRUE.equals(p.get("open_pavilion"))
+                || "open".equalsIgnoreCase(String.valueOf(p.get("wall_style")))) return true;
+        boolean noWalls="none".equalsIgnoreCase(String.valueOf(p.get("wall_style")))
+                || "none".equalsIgnoreCase(String.valueOf(p.get("wall_type")));
+        return noWalls && p.get("open_sides") instanceof java.util.Collection<?> sides && sides.size()>=2;
     }
 }

@@ -1,0 +1,57 @@
+﻿
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava
+.\gradlew.bat : 娉? 鏌愪簺杈撳叆鏂囦欢浣跨敤鎴栬鐩栦簡宸茶繃鏃剁殑 API銆?
+所在位置 C:\Users\OOPS\AppData\Local\Temp\ps-script-31274362-6290-45c4-897b-700ed12229c3.ps1:77 字符: 49
++ ... ft-1.21.10; .\gradlew.bat test --tests "com.formacraft.server.compile ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (娉? 鏌愪簺杈撳叆鏂囦欢浣跨敤鎴栬鐩栦簡宸茶繃鏃剁殑 API銆?:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:deprecation 閲嶆柊缂栬瘧銆?
+
+> Task :processResources
+> Task :classes
+
+> Task :compileTestJava
+娉? 鏌愪簺杈撳叆鏂囦欢浣跨敤鎴栬鐩栦簡宸茶繃鏃剁殑 API銆?
+娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:deprecation 閲嶆柊缂栬瘧銆?
+
+> Task :processTestResources
+> Task :testClasses
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/C:/Users/OOPS/.gra
+dle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+> Task :test
+
+ComplexBuildRetest > loggedJavaCompilerFailures() > logged plan oct17_evening_7 FAILED
+    org.opentest4j.AssertionFailedError at ComplexBuildRetest.java:71
+
+ComplexBuildRetest > loggedJavaCompilerFailures() > logged plan oct17_late_3 FAILED
+    org.opentest4j.AssertionFailedError at ComplexBuildRetest.java:71
+
+ComplexBuildRetest > loggedJavaCompilerFailures() > logged plan oct17_late_4.normalized FAILED
+    org.opentest4j.AssertionFailedError at ComplexBuildRetest.java:71
+
+97 tests completed, 3 failed
+
+> Task :test FAILED
+
+[Incubating] Problems report is available at: file:///F:/development/formacraft-1.21.10/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///F:/development/formacraft-1.21.10/build/reports/tests/test/index
+.html
+
+* Try:
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+
+BUILD FAILED in 2m 46s
+5 actionable tasks: 5 executed

@@ -78,6 +78,9 @@ public final class LlmPlanTerrainBounds {
     public static boolean hasAuthoredSupports(LlmPlan plan) {
         if(plan==null || plan.components()==null) return false;
         for(var c:plan.components()) {
+            if(c!=null && "FOUNDATION".equals(c.componentType()) && c.params()!=null
+                    && java.util.Set.of("stilt","stilts","piles","piling").contains(
+                        String.valueOf(c.params().get("foundation_type")).toLowerCase(Locale.ROOT))) return true;
             if(c==null || c.params()==null || c.relativePosition()==null || c.dimensions()==null
                     || !com.formacraft.common.generation.component.util.StructuralSupportPolicy.isColumn(c.params())) continue;
             Object host=c.params().getOrDefault("supports",c.params().get("host_id"));

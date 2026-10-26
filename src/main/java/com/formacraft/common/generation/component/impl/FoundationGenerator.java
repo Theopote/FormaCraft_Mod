@@ -38,7 +38,9 @@ public class FoundationGenerator implements ComponentGenerator {
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
-        int height = Math.max(1, Math.min(5, d.height())); // 基础通常只有 1-5 格高
+        boolean stilts = c.params()!=null && java.util.Set.of("stilt","stilts","piles","piling")
+                .contains(String.valueOf(c.params().get("foundation_type")).toLowerCase(java.util.Locale.ROOT));
+        int height = Math.max(1, stilts ? d.height() : Math.min(5, d.height()));
 
         String styleProfile = semantic.styleProfile();
         if (styleProfile == null || styleProfile.isBlank()) {
@@ -48,8 +50,16 @@ public class FoundationGenerator implements ComponentGenerator {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
+                    // Nine discrete load-bearing posts, with the water/air between them untouched.
+                    if (stilts && !((x==0 || x==width/2 || x==width-1)
+                            && (z==0 || z==depth/2 || z==depth-1))) continue;
                     SemanticPart part = SemanticPart.FOUNDATION;
                     String block = PaletteLibrary.resolveBlock(part, styleProfile, semantic.styleAttributes());
+                    if (stilts) {
+                        String material=String.valueOf(c.params().getOrDefault("material", "minecraft:oak_log"));
+                        block=com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(material);
+                        if(block==null) block=material.contains(":")?material:"minecraft:"+material;
+                    }
                     if (block == null || block.isBlank()) {
                         block = PaletteLibrary.resolveBlock(SemanticPart.WALL_BASE, styleProfile, semantic.styleAttributes());
                     }

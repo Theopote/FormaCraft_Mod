@@ -1265,6 +1265,8 @@ public final class ComponentPlanCompiler {
 
         List<Component> beforeAlignment = components;
         components = AlignmentContractEnforcer.apply(plan, components);
+        CourtyardAnchorCompiler.apply(components, slotMap);
+        InteriorPortalCompiler.apply(components, slotMap);
         for (int i=0;i<components.size();i++) {
             Component roof = components.get(i);
             if (!isRoofType(normalizeType(roof.componentType())) || roof.dimensions()==null) continue;
@@ -1547,6 +1549,7 @@ public final class ComponentPlanCompiler {
         }
 
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
+        StairFloorPlaneCompiler.apply(prepared);
         ExteriorStairEndpointRepair.apply(prepared);
         BareStairFitCompiler.apply(prepared);
         StairChainCompiler.apply(prepared, plan);

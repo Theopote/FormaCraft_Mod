@@ -337,10 +337,12 @@ public class BuildConfirmPanel {
         int centerX = screenW / 2;
         int centerY = screenH / 2;
         
-        int x0 = centerX - width / 2;
-        int y0 = centerY - height / 2;
-        int x1 = x0 + width;
-        int y1 = y0 + height;
+        int panelWidth = mode == Mode.PATCH ? Math.min(screenW - 16, 390) : width;
+        int panelHeight = mode == Mode.PATCH ? 142 : height;
+        int x0 = centerX - panelWidth / 2;
+        int y0 = mode == Mode.PATCH ? Math.max(8, screenH - panelHeight - 8) : centerY - panelHeight / 2;
+        int x1 = x0 + panelWidth;
+        int y1 = y0 + panelHeight;
         
         // 半透明背景 + 双层 3D 边框（与侧边栏 BasePanel 一致）
         int bgColor = 0xDD000000;
@@ -354,7 +356,7 @@ public class BuildConfirmPanel {
                 mode == Mode.PATCH ? Text.translatable("formacraft.preview.patch.title") : Text.translatable("formacraft.preview.title"),
                 centerX,
                 titleY,
-                0xFFFFFF
+                0xFFFFFFFF
         );
         
         int infoY = titleY + 20;
@@ -365,7 +367,7 @@ public class BuildConfirmPanel {
         context.drawTextWithShadow(
                 client.textRenderer,
                 mode == Mode.PATCH ? Text.translatable("formacraft.preview.patch.hint") : Text.translatable("formacraft.preview.hint"),
-                textX, infoY, 0xAAAAAA
+                textX, infoY, 0xFFAAAAAA
         );
         infoY += lineHeight + 2;
         
@@ -385,7 +387,7 @@ public class BuildConfirmPanel {
             context.drawTextWithShadow(
                     client.textRenderer,
                     Text.translatable("formacraft.preview.patch.origin", patchOrigin.getX(), patchOrigin.getY(), patchOrigin.getZ()),
-                    textX, infoY, 0xCCCCCC
+                    textX, infoY, 0xFFCCCCCC
             );
             infoY += lineHeight;
             context.drawTextWithShadow(
@@ -397,7 +399,7 @@ public class BuildConfirmPanel {
                             replace,
                             (rejectedPatchList != null ? rejectedPatchList.size() : 0)
                     ),
-                    textX, infoY, 0xAAAAAA
+                    textX, infoY, 0xFFAAAAAA
             );
             infoY += lineHeight;
 
@@ -433,30 +435,31 @@ public class BuildConfirmPanel {
             double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
 
             int applyX = x0 + 12;
-            int undoX = applyX + 92 + 8;
-            int redoX = undoX + 72 + 6;
-            int cancelX = x1 - 90 - 12;
+            int patchWidth = Math.max(38, (panelWidth - 42) / 4);
+            int undoX = applyX + patchWidth + 6;
+            int redoX = undoX + patchWidth + 6;
+            int cancelX = x1 - patchWidth - 12;
 
             applyPatchButton.setPosition(applyX, btnY);
-            applyPatchButton.setWidth(92);
+            applyPatchButton.setWidth(patchWidth);
             applyPatchButton.visible = true;
             applyPatchButton.active = !awaitingPatchApplyResult && previewTicketId != null;
             applyPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
 
             undoPatchButton.setPosition(undoX, btnY);
-            undoPatchButton.setWidth(72);
+            undoPatchButton.setWidth(patchWidth);
             undoPatchButton.visible = true;
             undoPatchButton.active = patchCanUndo;
             undoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
 
             redoPatchButton.setPosition(redoX, btnY);
-            redoPatchButton.setWidth(72);
+            redoPatchButton.setWidth(patchWidth);
             redoPatchButton.visible = true;
             redoPatchButton.active = patchCanRedo;
             redoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
 
             cancelButton.setPosition(cancelX, btnY);
-            cancelButton.setWidth(90);
+            cancelButton.setWidth(patchWidth);
             cancelButton.visible = true;
             cancelButton.active = true;
             cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
@@ -477,7 +480,7 @@ public class BuildConfirmPanel {
             context.drawTextWithShadow(
                     client.textRenderer,
                     Text.translatable("formacraft.preview.type", type.name()),
-                    textX, infoY, 0xCCCCCC
+                    textX, infoY, 0xFFCCCCCC
             );
             infoY += lineHeight;
         }
@@ -488,7 +491,7 @@ public class BuildConfirmPanel {
             context.drawTextWithShadow(
                     client.textRenderer,
                     Text.translatable("formacraft.preview.style", style.name()),
-                    textX, infoY, 0xCCCCCC
+                    textX, infoY, 0xFFCCCCCC
             );
             infoY += lineHeight;
         }
@@ -500,7 +503,7 @@ public class BuildConfirmPanel {
                 context.drawTextWithShadow(
                         client.textRenderer,
                         Text.translatable("formacraft.preview.radius", footprint.getRadius()),
-                        textX, infoY, 0xCCCCCC
+                        textX, infoY, 0xFFCCCCCC
                 );
             } else {
                 context.drawTextWithShadow(
@@ -510,7 +513,7 @@ public class BuildConfirmPanel {
                                 footprint.getWidth(),
                                 footprint.getDepth()
                         ),
-                        textX, infoY, 0xCCCCCC
+                        textX, infoY, 0xFFCCCCCC
                 );
             }
             infoY += lineHeight;
@@ -520,7 +523,7 @@ public class BuildConfirmPanel {
         context.drawTextWithShadow(
                 client.textRenderer,
                 Text.translatable("formacraft.preview.height", spec.getHeight()),
-                textX, infoY, 0xCCCCCC
+                textX, infoY, 0xFFCCCCCC
         );
         infoY += lineHeight;
         
@@ -531,7 +534,7 @@ public class BuildConfirmPanel {
             context.drawTextWithShadow(
                     client.textRenderer,
                     Text.translatable("formacraft.preview.materials"),
-                    textX, infoY, 0xAAAAAA
+                    textX, infoY, 0xFFAAAAAA
             );
             infoY += lineHeight;
             
@@ -539,7 +542,7 @@ public class BuildConfirmPanel {
                 context.drawTextWithShadow(
                         client.textRenderer,
                         Text.translatable("formacraft.preview.wall", materials.getWall()),
-                        textX + 8, infoY, 0x999999
+                        textX + 8, infoY, 0xFF999999
                 );
                 infoY += lineHeight;
             }
@@ -548,7 +551,7 @@ public class BuildConfirmPanel {
                 context.drawTextWithShadow(
                         client.textRenderer,
                         Text.translatable("formacraft.preview.roof", materials.getRoof()),
-                        textX + 8, infoY, 0x999999
+                        textX + 8, infoY, 0xFF999999
                 );
                 infoY += lineHeight;
             }
@@ -561,7 +564,7 @@ public class BuildConfirmPanel {
             context.drawTextWithShadow(
                     client.textRenderer,
                     Text.translatable("formacraft.preview.features"),
-                    textX, infoY, 0xAAAAAA
+                    textX, infoY, 0xFFAAAAAA
             );
             infoY += lineHeight;
             
@@ -569,7 +572,7 @@ public class BuildConfirmPanel {
                 context.drawTextWithShadow(
                         client.textRenderer,
                         Text.translatable("formacraft.preview.has_windows"),
-                        textX + 8, infoY, 0x999999
+                        textX + 8, infoY, 0xFF999999
                 );
                 infoY += lineHeight;
             }
@@ -578,7 +581,7 @@ public class BuildConfirmPanel {
                 context.drawTextWithShadow(
                         client.textRenderer,
                         Text.translatable("formacraft.preview.has_stairs"),
-                        textX + 8, infoY, 0x999999
+                        textX + 8, infoY, 0xFF999999
                 );
                 infoY += lineHeight;
             }
@@ -590,7 +593,7 @@ public class BuildConfirmPanel {
             context.drawTextWithShadow(
                     client.textRenderer,
                     Text.translatable("formacraft.preview.notes"),
-                    textX, infoY, 0xAAAAAA
+                    textX, infoY, 0xFFAAAAAA
             );
             infoY += lineHeight;
             
@@ -600,7 +603,7 @@ public class BuildConfirmPanel {
                 context.drawTextWithShadow(
                         client.textRenderer,
                         ordered,
-                        textX + 8, infoY, 0x999999
+                        textX + 8, infoY, 0xFF999999
                 );
                 infoY += lineHeight;
             }
@@ -681,10 +684,12 @@ public class BuildConfirmPanel {
         int centerX = screenW / 2;
         int centerY = screenH / 2;
         
-        int x0 = centerX - width / 2;
-        int y0 = centerY - height / 2;
-        int x1 = x0 + width;
-        int y1 = y0 + height;
+        int panelWidth = mode == Mode.PATCH ? Math.min(screenW - 16, 390) : width;
+        int panelHeight = mode == Mode.PATCH ? 142 : height;
+        int x0 = centerX - panelWidth / 2;
+        int y0 = mode == Mode.PATCH ? Math.max(8, screenH - panelHeight - 8) : centerY - panelHeight / 2;
+        int x1 = x0 + panelWidth;
+        int y1 = y0 + panelHeight;
         
         // 如果点击不在面板范围内，也消费掉，避免点到世界
         if (mouseX < x0 || mouseX > x1 || mouseY < y0 || mouseY > y1) {
@@ -704,30 +709,31 @@ public class BuildConfirmPanel {
             // 布局需与 render 对齐
             int patchBtnY = y1 - 30;
             int applyX = x0 + 12;
-            int undoX = applyX + 92 + 8;
-            int redoX = undoX + 72 + 6;
-            int patchCancelX = x1 - 90 - 12;
+            int patchWidth = Math.max(38, (panelWidth - 42) / 4);
+            int undoX = applyX + patchWidth + 6;
+            int redoX = undoX + patchWidth + 6;
+            int patchCancelX = x1 - patchWidth - 12;
 
             applyPatchButton.setPosition(applyX, patchBtnY);
-            applyPatchButton.setWidth(92);
+            applyPatchButton.setWidth(patchWidth);
             applyPatchButton.visible = true;
             applyPatchButton.active = !awaitingPatchApplyResult && previewTicketId != null;
             if (clickButton(applyPatchButton, click)) return true;
 
             undoPatchButton.setPosition(undoX, patchBtnY);
-            undoPatchButton.setWidth(72);
+            undoPatchButton.setWidth(patchWidth);
             undoPatchButton.visible = true;
             undoPatchButton.active = patchCanUndo;
             if (clickButton(undoPatchButton, click)) return true;
 
             redoPatchButton.setPosition(redoX, patchBtnY);
-            redoPatchButton.setWidth(72);
+            redoPatchButton.setWidth(patchWidth);
             redoPatchButton.visible = true;
             redoPatchButton.active = patchCanRedo;
             if (clickButton(redoPatchButton, click)) return true;
 
             cancelButton.setPosition(patchCancelX, patchBtnY);
-            cancelButton.setWidth(90);
+            cancelButton.setWidth(patchWidth);
             cancelButton.visible = true;
             cancelButton.active = true;
             clickButton(cancelButton, click);

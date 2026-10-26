@@ -80,6 +80,7 @@ public final class BuildRequestProcessor {
                         return;
                     }
                     if (WindowSealPreview.tryHandle(player, req)) return;
+                    if (WindowInsertPreview.tryHandle(player, req)) return;
 
                     // 状态：服务端已收到请求
                     context.server().execute(() -> ServerPlayNetworking.send(player,

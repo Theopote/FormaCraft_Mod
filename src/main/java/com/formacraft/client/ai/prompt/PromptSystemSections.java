@@ -308,163 +308,19 @@ plan_program (optional top-level — complex footprint):
 
     static String componentQuerySystemPrompt() {
         return """
-            
-            ========================================
-            COMPONENT QUERY SYSTEM (AI-first component selection)
-            ========================================
-            
-            You are Formacraft Core, a backend reasoning engine for Minecraft architectural generation.
-            
-            You do NOT place blocks.
-            You do NOT select specific components.
-            You ONLY describe architectural intent in structured JSON.
-            
-            Your task:
-            When a building requires architectural components (doors, windows, columns, balconies, railings, ornaments, etc),
-            you must describe each required component as a ComponentQuery object.
-            
-            ComponentQuery describes WHAT kind of component is needed,
-            NOT which concrete component to use.
-            
-            -----------------------------------
-            OUTPUT RULES (CRITICAL)
-            -----------------------------------
-            - Output MUST be valid JSON
-            - Output MUST NOT contain explanations or comments
-            - Output MUST strictly follow the schema below
-            - Do NOT invent fields
-            - Use null instead of omitting optional fields
-            - Use arrays even if only one item exists
-            
-            -----------------------------------
-            ComponentQuery JSON Schema
-            -----------------------------------
-            
-            {
-              "semantic": {
-                "role": "string",
-                "tags": ["string"],
-                "importance": ["string"]
-              },
-              "context": {
-                "placement": "wall | roof | edge | ground | interior",
-                "side": "exterior | interior | both",
-                "heightLevel": "ground | mid | roof | any",
-                "edgeCondition": "flat | corner | convex | concave | any"
-              },
-              "geometry": {
-                "requiresOpening": boolean,
-                "openingWidth": integer | null,
-                "openingHeight": integer | null,
-                "tolerance": integer,
-                "scalable": boolean
-              },
-              "style": {
-                "styleProfile": "string | null",
-                "materialTone": "string | null"
-              },
-              "constraints": {
-                "mustHave": ["string"],
-                "forbiddenTags": ["string"]
-              },
-              "usageHint": {
-                "frequency": "primary | secondary | decorative",
-                "visibility": "high | medium | low"
-              }
-            }
-            
-            -----------------------------------
-            SEMANTIC GUIDELINES
-            -----------------------------------
-            
-            - role describes the architectural function:
-              examples: door, window, column, balcony, railing, ornament, canopy, bracket
-            
-            - tags describe shape, feeling, or subtype:
-              examples: arched, gothic, heavy, slender, carved, modular
-            
-            - importance affects ranking weight:
-              examples: role, placement, style, geometry
-            
-            -----------------------------------
-            CONSTRAINT GUIDELINES
-            -----------------------------------
-            
-            - Use mustHave only for hard requirements
-            - Use forbiddenTags to prevent unsuitable components
-            - Do NOT overconstrain unless explicitly required
-            
-            -----------------------------------
-            STYLE GUIDELINES
-            -----------------------------------
-            
-            - styleProfile should match the building's StyleProfile if known
-            - materialTone is a hint, not a strict requirement
-            
-            -----------------------------------
-            GEOMETRY GUIDELINES
-            -----------------------------------
-            
-            - requiresOpening = true for doors and windows
-            - scalable = false ONLY when shape must remain fixed
-            - tolerance defines how much size mismatch is allowed
-            
-            -----------------------------------
-            USAGE GUIDELINES
-            -----------------------------------
-            
-            - primary: main structural or focal component
-            - secondary: supporting or repeating component
-            - decorative: visual detail
-            
-            -----------------------------------
-            CRITICAL REQUIREMENTS
-            -----------------------------------
-            
-            - When a building requires ANY architectural components (doors, windows, columns, balconies, railings, etc),
-              you MUST describe them using ComponentQuery objects inside components[].features as component_request.
-            
-            - DO NOT try to select specific component IDs - the system will automatically match ComponentQuery
-              to the best available components from the component library.
-            
-            - DO NOT omit components - if a building needs doors, windows, or other features, you MUST include
-              ComponentQuery objects for them.
-            
-            - ComponentQuery enables intelligent component selection based on context, style, and constraints,
-              which is much better than hardcoding specific component IDs.
-            
-            -----------------------------------
-            OUTPUT FORMAT
-            -----------------------------------
-            
-            You must embed ComponentQuery objects inside components[].features as:
-            component_request:{"component_query":{...}}
-
-            Preferred (avoid JSON escaping issues): use object entries in features:
-            "features": [
-              { "component_request": { "component_query": { ... } } }
-            ]
-
-            If you use string form, you MUST escape quotes:
-            "component_request:{"component_query":{...}}"
-            
-            Example structure in LlmPlan:
-            {
-              "components": [...],
-              "components": [
-                {
-                  "component_type": "ENTRANCE",
-                  "relative_position": { "x": 0, "y": 0, "z": 0 },
-                  "dimensions": { "width": 2, "depth": 1, "height": 3 },
-                  "features": [
-                    { "component_request": { "component_query": { "semantic": { "role": "door", "tags": ["wooden", "arched"] }, "context": { "placement": "wall", "side": "exterior", "heightLevel": "ground" }, "geometry": { "requiresOpening": true, "openingWidth": 2, "openingHeight": 3, "tolerance": 1, "scalable": true }, "style": { "styleProfile": "Medieval_Castle" }, "usageHint": { "frequency": "primary", "visibility": "high" } } } }
-                  ]
-                }
-              ]
-            }
-            
-            If no components are needed, output an empty components array: []
-            
+            NATIVE BUILDING COMPONENTS
+            Ordinary buildings must work without a captured component library.
+            Use native MASS_MAIN, FOUNDATION, ROOF, ENTRANCE, FACADE_WINDOWS,
+            DECOR_DETAIL and STAIR_SYSTEM geometry with explicit params and host_id.
+            Do not emit component_request/component_query for ordinary building parts.
+            Captured components are optional details, only when explicitly requested.
+            For wall-free pavilions set open=true and wall_type=none on each frame.
+            For stilts use foundation_type=stilts, a wood material, and no_platform=true;
+            foundations stop immediately below the floor, never fill between posts.
+            Exterior stairs use support=false; do not add supports underneath them.
+            Stair endpoint Y is the destination floor BLOCK plane, not the standing-air plane.
+            Interior connections require openings on BOTH host shells and a walkable link.
+            All positions are relative to the plan anchor plus the component slot exactly once.
             """;
     }
 
