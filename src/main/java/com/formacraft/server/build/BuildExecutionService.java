@@ -427,8 +427,9 @@ public class BuildExecutionService {
             MemoryManager manager = new MemoryManager(server);
             manager.initialize();
             getInstance().setMemoryManager(manager);
+            com.formacraft.server.edit.BuildingEditTransactionStore.bindServer(server);
         });
-        // 会话约定：停服丢弃进行中任务与 Undo 历史，不跨重启恢复
+        // 停服丢弃进行中任务与 Undo；未完成建筑编辑事务由 edit_txns 目录跨重启识别
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             BuildExecutionService service = getInstance();
             service.activeTasks.clear();
@@ -436,6 +437,7 @@ public class BuildExecutionService {
             service.setMemoryManager(null);
             PatchHistoryManager.clearAll();
             com.formacraft.server.build.PlayerMutationLedger.get().clearAll();
+            com.formacraft.server.edit.BuildingEditTransactionStore.clearForTest();
         });
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));
         // Low-frequency reclaim of expired preview tickets / bound plans while idle.

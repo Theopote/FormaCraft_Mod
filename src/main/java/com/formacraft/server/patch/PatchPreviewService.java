@@ -368,10 +368,33 @@ public final class PatchPreviewService {
             return false;
         }
 
+        // Round 59: durable PREPARED txn before ticket consume / world write.
+        boolean buildingEdit = pending.requiresBuildingEditPending();
+        com.formacraft.server.edit.BuildingEditService editService =
+                mm == null ? null : new com.formacraft.server.edit.BuildingEditService(mm);
+        java.util.UUID txnId = null;
+        if (buildingEdit) {
+            if (editService == null || pendingEditPeek == null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "建筑编辑事务无法准备（Memory 或 Pending 不可用），已拒绝写入。"
+                ));
+                return false;
+            }
+            var begin = editService.beginTransaction(pendingEditPeek);
+            if (!begin.ok()) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "建筑编辑事务保存失败（" + begin.message() + "），未修改世界。请重试。"
+                ));
+                return false;
+            }
+            txnId = begin.transaction().transactionId();
+        }
+
         // One-shot consume: ticket + bound plan detached together (no orphan plan).
         PreviewTicketStorage.TicketConsumption consumption =
                 PreviewTicketStorage.consumeForApply(ticketId, player.getUuid());
         if (consumption == null) {
+            if (txnId != null && editService != null) editService.abortTransaction(txnId);
             return false; // already consumed / expired — no double apply
         }
         PreviewTicket ticket = consumption.ticket();
@@ -379,6 +402,7 @@ public final class PatchPreviewService {
 
         conflict = PreviewWorldStateCapture.conflictDetail(access, ticket.expectedStates());
         if (conflict != null) {
+            if (txnId != null && editService != null) editService.abortTransaction(txnId);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "建造区域在确认瞬间被修改，已拒绝写入。请重新预览。"
             ));
@@ -388,6 +412,7 @@ public final class PatchPreviewService {
         if (ticket.requiresConfirmedPlan()) {
             PalacePreviewPlan planForCheck = consumedPlan != null ? consumedPlan : bound;
             if (planForCheck == null) {
+                if (txnId != null && editService != null) editService.abortTransaction(txnId);
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "确认计划已丢失（PLAN_MISSING），已拒绝写入。"
                 ));
@@ -395,6 +420,7 @@ public final class PatchPreviewService {
             }
             PalacePreviewPlan.ApplyValidation terrain = planForCheck.validateLiveTerrainAndContext(sw);
             if (!terrain.ok()) {
+                if (txnId != null && editService != null) editService.abortTransaction(txnId);
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "确认瞬间地形校验失败：" + terrain.reason() + " " + terrain.detail()
                 ));
@@ -404,6 +430,7 @@ public final class PatchPreviewService {
 
         patches = ticket.patches();
         if (patches == null || patches.isEmpty()) {
+            if (txnId != null && editService != null) editService.abortTransaction(txnId);
             return false;
         }
 
@@ -412,6 +439,7 @@ public final class PatchPreviewService {
         // null is never success — applyWithHistory must return an explicit status.
         if (applyResult == null) {
             com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticket.id());
+            if (txnId != null && editService != null) editService.abortTransaction(txnId);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "建造执行未返回结果（APPLY_NULL），已拒绝视为成功。"
             ));
@@ -419,29 +447,31 @@ public final class PatchPreviewService {
         }
         if (applyResult.status() != BuildExecutionStatus.SUCCESS) {
             com.formacraft.server.edit.BuildingEditPendingRegistry.dropVerified(ticket.id());
+            if (txnId != null && editService != null) editService.abortTransaction(txnId);
             FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
             return false;
         }
         // Building-aware Phase 1: bump revision only after successful Apply (never on preview cancel).
-        boolean buildingEdit = ticket.requiresBuildingEditPending();
         var pendingEdit = com.formacraft.server.edit.BuildingEditPendingRegistry.take(ticket.id());
         if (buildingEdit) {
+            if (editService != null && txnId != null) {
+                editService.markWorldApplied(txnId);
+            }
             if (pendingEdit == null) {
-                // Should be unreachable after ConfirmGate; fail closed if Pending vanished mid-apply.
+                if (editService != null && txnId != null) editService.markRecoveryRequired(txnId);
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "【EDIT_MEMORY_SYNC_FAILED】世界已写入，但建筑编辑上下文在确认瞬间丢失，Memory 未更新。"
                                 + "该建筑增量编辑已暂停，请 Undo 后重新预览。"
                 ));
                 return false;
             }
-            if (mm == null) {
+            if (editService == null) {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "【EDIT_MEMORY_SYNC_FAILED】世界 Apply 成功，但 Memory 不可用（EDIT_COMMIT 未完成）。"
-                                + "无法标记建筑同步状态；请 Undo 后重新预览。"
+                                + "请 Undo 后重新预览。"
                 ));
                 return false;
             }
-            var editService = new com.formacraft.server.edit.BuildingEditService(mm);
             boolean committed = editService.commitSuccessfulRoofEdit(
                     pendingEdit.buildingId(),
                     pendingEdit.dimension(),
@@ -453,12 +483,14 @@ public final class PatchPreviewService {
                         pendingEdit.dimension(),
                         pendingEdit.baseRevision(),
                         pendingEdit.newRoofStates());
+                if (txnId != null) editService.markRecoveryRequired(txnId);
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "【EDIT_MEMORY_SYNC_FAILED】世界 Apply 成功，建筑 Memory/Revision 提交失败。"
-                                + "未视为完整编辑成功；该建筑增量编辑已暂停，请 Undo 或执行 Memory 修复后再编辑。"
+                                + "未视为完整编辑成功；该建筑增量编辑已暂停，请 Undo 或经世界校验后修复 Memory。"
                 ));
                 return false;
             }
+            if (txnId != null) editService.markMemoryCommitted(txnId);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                     "【EDIT_COMMIT_SUCCESS】屋顶材质替换已写入世界并同步建筑 Memory。"
             ));

@@ -95,6 +95,17 @@ ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` p
 | Item | Status |
 |---|---|
 | 58-01 `PreviewEditKind` 不可变标记；BUILDING 缺 Pending 拒绝 | done |
-| 58-02 `EDIT_MEMORY_SYNC_FAILED` 阻断 + `repairMemorySync` | done（重启后依赖 Memory 元数据持久化） |
+| 58-02 `EDIT_MEMORY_SYNC_FAILED` 阻断 + `repairMemorySyncWithLiveWorld` | done |
 | 自动化 | `BuildingAwareRound58Test` |
+
+## 8. Round 59 — Memory 事务可靠恢复
+
+| Item | Status |
+|---|---|
+| `MemoryManager.updateMemoryStrict` 显式成功/失败 | done |
+| Confirm 前 `BuildingEditTransaction` PREPARED；失败不写世界 | done |
+| WORLD_APPLIED → MEMORY_COMMITTED / RECOVERY_REQUIRED | done |
+| 恢复前核对 live 世界（目标态 / 撤销态） | done |
+| `edit_txns/` 独立于 ProjectMemory，跨重启可识别 | done |
+| 自动化 | `BuildingAwareRound59Test` |
 

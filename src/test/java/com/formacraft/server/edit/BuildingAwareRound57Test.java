@@ -60,8 +60,12 @@ class BuildingAwareRound57Test {
                 return index.getMemory(uuid);
             }
             @Override public void updateMemory(ProjectMemory memory) {
+                updateMemoryStrict(memory);
+            }
+            @Override public com.formacraft.server.memory.MemoryUpdateResult updateMemoryStrict(ProjectMemory memory) {
                 index.removeMemory(memory.getUuid());
                 index.addMemory(memory);
+                return com.formacraft.server.memory.MemoryUpdateResult.succeeded();
             }
         };
     }

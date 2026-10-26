@@ -35,6 +35,7 @@ class BuildingAwareRound58Test {
     @BeforeEach
     void reset() {
         BuildingEditPendingRegistry.clearForTest();
+        BuildingEditTransactionStore.clearForTest();
         PreviewTicketStorage.clearAllForTest();
     }
 
@@ -60,8 +61,12 @@ class BuildingAwareRound58Test {
                 return index.getMemory(uuid);
             }
             @Override public void updateMemory(ProjectMemory memory) {
+                updateMemoryStrict(memory);
+            }
+            @Override public com.formacraft.server.memory.MemoryUpdateResult updateMemoryStrict(ProjectMemory memory) {
                 index.removeMemory(memory.getUuid());
                 index.addMemory(memory);
+                return com.formacraft.server.memory.MemoryUpdateResult.succeeded();
             }
         };
     }
@@ -174,7 +179,9 @@ class BuildingAwareRound58Test {
         assertTrue(prepared.refusals().getFirst().contains("Memory 同步")
                 || prepared.refusals().getFirst().contains("EDIT_MEMORY_SYNC"));
 
-        assertTrue(service.repairMemorySync(buildingId, OVERWORLD, null));
+        var repair = service.repairMemorySyncWithLiveWorld(buildingId, OVERWORLD,
+                Map.of(roof, "minecraft:dark_oak_stairs"));
+        assertTrue(repair.ok(), () -> repair.message());
         assertFalse(BuildingMemoryKeys.isMemorySyncBlocked(mgr.getMemory(house.getUuid())));
         assertEquals(1L, BuildingMemoryKeys.revisionOf(mgr.getMemory(house.getUuid())));
 

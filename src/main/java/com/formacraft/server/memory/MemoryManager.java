@@ -142,26 +142,34 @@ public class MemoryManager {
     }
     
     /**
-     * 更新记忆（修改后保存）
+     * Soft update: logs persistence failures and does not propagate them.
+     * Building-edit Confirm must use {@link #updateMemoryStrict} instead.
      */
     public void updateMemory(ProjectMemory memory) {
+        updateMemoryStrict(memory);
+    }
+
+    /**
+     * Strict update for building-edit transactions: in-memory index refresh only after
+     * durable persist succeeds. Failure is returned — never reported as commit success.
+     */
+    public MemoryUpdateResult updateMemoryStrict(ProjectMemory memory) {
         if (memory == null || memory.getUuid() == null) {
-            return;
+            return MemoryUpdateResult.fail("invalid_memory");
         }
-        
         try {
             memory.updateLastModified();
             persistMemory(memory);
-            
-            // 更新索引
             spatialIndex.removeMemory(memory.getUuid());
             semanticIndex.removeMemory(memory.getUuid());
             spatialIndex.addMemory(memory);
             semanticIndex.addMemory(memory);
-            
             FormacraftMod.LOGGER.info("Updated memory: {}", memory.getUuid());
+            return MemoryUpdateResult.succeeded();
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to update memory", e);
+            String detail = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            return MemoryUpdateResult.fail(detail);
         }
     }
     
