@@ -28,8 +28,8 @@ class Live1027RegressionTest {
     }
     @Test void windowAttachesToLiveWallAfterTerrainTranslation() throws Exception {
         var origin=new BlockPos(333,86,-1133);var live=snapshot(compile(load("235436")),origin);
-        var result=com.formacraft.server.edit.WindowInsertCompiler.compile(live,origin,Set.of(),2,2);
-        assertEquals(4,result.size());
+        var analyzed=com.formacraft.server.edit.WindowInsertCompiler.analyze(live,origin,Set.of(),2,2);
+        var result=analyzed.patches();assertEquals(4,result.size(),analyzed.toString());
         for(var b:result) {
             var state=live.get(origin.add(b.dx(),b.dy(),b.dz()));
             assertTrue(state.isOpaque());assertFalse(state.getBlock() instanceof net.minecraft.block.DoorBlock);

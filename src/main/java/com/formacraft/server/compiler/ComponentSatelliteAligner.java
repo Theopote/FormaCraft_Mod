@@ -74,7 +74,7 @@ final class ComponentSatelliteAligner {
                 continue;
             }
             String type = ComponentPlanTypes.normalizeType(c.componentType());
-            if (ComponentPlanTypes.isMassType(type) || ComponentPlanCompiler.isResolvedPartRoof(c, components, plan)) {
+            if (ComponentPlanTypes.isMassType(type) || ComponentSatelliteInference.isResolvedPartRoof(c, components, plan)) {
                 continue;
             }
             Object hostId = c.params() == null ? null : c.params().get("host_id");
@@ -224,7 +224,7 @@ final class ComponentSatelliteAligner {
     }
 
     static Component alignRoofToMass(Component llmRoof, Component mass, LlmPlan plan) {
-        Component template = ComponentPlanCompiler.makeRoofComponent(plan, mass, mass.slotId());
+        Component template = ComponentSatelliteInference.makeRoofComponent(plan, mass, mass.slotId());
         if (template == null) {
             return llmRoof;
         }
@@ -299,7 +299,7 @@ final class ComponentSatelliteAligner {
             }
             roofOrigin = new Vec3i(roofOrigin.x(), top, roofOrigin.z());
         }
-        return ComponentPlanCompiler.applyRoofGrammar(plan, new Component(
+        return ComponentSatelliteInference.applyRoofGrammar(plan, new Component(
                 llmRoof.componentType(),
                 llmRoof.slotId(),
                 roofOrigin,
@@ -315,7 +315,7 @@ final class ComponentSatelliteAligner {
             LlmPlan plan,
             GlobalConstraints.Facing facing
     ) {
-        Component template = ComponentPlanCompiler.makeFacadeComponent(mass, mass.slotId());
+        Component template = ComponentSatelliteInference.makeFacadeComponent(mass, mass.slotId());
         template = StyleIntentResolver.apply(plan, template);
         template = OpeningGrammarResolver.apply(plan, template);
 
@@ -506,7 +506,7 @@ final class ComponentSatelliteAligner {
                 || llmEntrance.params().containsKey("facing"))) {
             return alignStairEntrance(llmEntrance, mass, plan);
         }
-        Component template = ComponentPlanCompiler.makeEntranceComponent(plan, mass, mass.slotId(), facing);
+        Component template = ComponentSatelliteInference.makeEntranceComponent(plan, mass, mass.slotId(), facing);
         if (template == null) {
             return llmEntrance;
         }
@@ -633,11 +633,11 @@ final class ComponentSatelliteAligner {
     }
 
     private static Component alignCrownToMass(Component llmCrown, Component mass, LlmPlan plan, List<Component> all) {
-        Component roof = ComponentPlanCompiler.findRoofForSlot(all, List.of(), ComponentPlanTypes.slotKey(mass));
+        Component roof = ComponentSatelliteInference.findRoofForSlot(all, List.of(), ComponentPlanTypes.slotKey(mass));
         if (roof == null) {
-            roof = ComponentPlanCompiler.makeRoofComponent(plan, mass, mass.slotId());
+            roof = ComponentSatelliteInference.makeRoofComponent(plan, mass, mass.slotId());
         }
-        Component template = ComponentPlanCompiler.makeCrownComponent(plan, mass, roof, mass.slotId());
+        Component template = ComponentSatelliteInference.makeCrownComponent(plan, mass, roof, mass.slotId());
         if (template == null) {
             return CrownGrammarResolver.apply(plan, llmCrown);
         }

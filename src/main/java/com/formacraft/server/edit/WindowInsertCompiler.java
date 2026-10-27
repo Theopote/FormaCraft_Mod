@@ -29,6 +29,7 @@ public final class WindowInsertCompiler {
         if(width<1 || height<1 || width>8 || height>8 || width*height>64) return new Result(List.of(),"WINDOW_SIZE_INVALID",0);
         Set<BlockPos> doors=new HashSet<>();
         Map<BlockPos,Direction> normals=new HashMap<>();
+        Set<BlockPos> floorEdges=new HashSet<>();
         live.forEach((p,s)->{if(s.getBlock() instanceof DoorBlock && s.get(Properties.DOUBLE_BLOCK_HALF)==DoubleBlockHalf.LOWER) { doors.add(p); normals.put(p,s.get(Properties.HORIZONTAL_FACING)); }});
         // Native entrances can be open doorways without a DoorBlock. Require a floor,
         // two clear head cells, and an actual outside edge; never trust model coordinates.
@@ -47,9 +48,13 @@ public final class WindowInsertCompiler {
                     right |= solid(live,p.offset(across.getOpposite(),k));
                 }
                 for(int y=2;y<=4;y++) lintel |= solid(live,p.up(y));
-                if(left && right && lintel) { doors.add(p); normals.put(p,normal); break; }
+                if(left && right && lintel) {
+                    doors.add(p);normals.put(p,normal);
+                    if(floorEdge) {floorEdges.add(p);break;}
+                }
             }
         }
+        if(!floorEdges.isEmpty())doors.retainAll(floorEdges);
         var groups=new ArrayList<Set<BlockPos>>();
         while(!doors.isEmpty()) {
             BlockPos seed=doors.iterator().next();doors.remove(seed);

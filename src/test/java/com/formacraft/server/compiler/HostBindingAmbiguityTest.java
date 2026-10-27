@@ -28,7 +28,7 @@ class HostBindingAmbiguityTest {
                 new Dimensions(5, 5, 2), null, Map.of("component_id", "roof", "roof_type", "flat"));
         List<Component> primary = List.of(massA, massB, roof);
 
-        assertEquals(ComponentPlanCompiler.HostPick.AMBIGUOUS,
+        assertEquals(ComponentSatelliteInference.HostPick.AMBIGUOUS,
                 ComponentPlanCompiler.resolveUnboundHost(massA, primary, roof));
 
         Method find;

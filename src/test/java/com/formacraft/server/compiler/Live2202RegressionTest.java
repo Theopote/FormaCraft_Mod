@@ -42,6 +42,15 @@ class Live2202RegressionTest {
             for(var p:result.patches())assertTrue(p.dy()>=1&&p.dy()<=2,"Keep floor and roof intact");
         }
     }
+    @Test void existingDoorwayWithMissingThresholdCanStillBeEdited() throws Exception {
+        var c=cells("214646");
+        for(int x=-8;x<=8;x++)for(int z=-7;z<=7;z++)c.putIfAbsent(new BlockPos(x,-1,z),net.minecraft.block.Blocks.DIRT.getDefaultState());
+        for(int x=-1;x<=0;x++)c.put(new BlockPos(x,0,3),net.minecraft.block.Blocks.AIR.getDefaultState());
+        for(int w:new int[]{1,2}) {
+            var result=com.formacraft.server.edit.WindowInsertCompiler.analyze(c,BlockPos.ORIGIN,Set.of(),w,w);
+            assertEquals(w*w,result.patches().size(),result.toString());
+        }
+    }
     @Test void entranceRetainsFloorAtInteriorLevel() throws Exception {
         var c=cells("214646");
         for(int x=-1;x<=0;x++) {
@@ -77,7 +86,16 @@ class Live2202RegressionTest {
         var bounds=new com.formacraft.server.memory.ProjectMemory.SpatialBounds(offset.add(-6,-1,-5),offset.add(6,8,5),dimension);
         bounds.addAnchor("origin",offset);memory.setBounds(bounds);
         com.formacraft.server.edit.BuildingMemoryKeys.setRevision(memory,0);
-        var roof=new HashMap<BlockPos,String>();live.forEach((p,state)->{if(p.getY()>=offset.getY()+4&&!state.isAir())roof.put(p,com.formacraft.common.component.transform.BlockStateStringUtil.fromState(state));});
+        var roof=new HashMap<BlockPos,String>();
+        // Replay the roof index actually persisted by this game session, translated with the building.
+        try(var in=getClass().getResourceAsStream("/regressions/ingame_20261027_2202/cabin_memory.json")) {
+            var tree=new com.fasterxml.jackson.databind.ObjectMapper().readTree(in);
+            var anchor=tree.path("bounds").path("anchors").path("origin");
+            tree.path("metadata").path("part_index_roof_states").fields().forEachRemaining(e->{
+                var xyz=e.getKey().split(",");roof.put(offset.add(Integer.parseInt(xyz[0])-anchor.get(0).asInt(),
+                    Integer.parseInt(xyz[1])-anchor.get(1).asInt(),Integer.parseInt(xyz[2])-anchor.get(2).asInt()),e.getValue().asText());
+            });
+        }
         com.formacraft.server.edit.BuildingPartIndex.ofRoofCells(List.copyOf(roof.keySet()),roof).persistTo(memory);
         var manager=new com.formacraft.server.memory.MemoryManager(null) {
             @Override public com.formacraft.server.memory.ProjectMemory getMemory(String id) {return memory.getUuid().equals(id)?memory:null;}

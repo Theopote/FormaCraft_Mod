@@ -42,7 +42,7 @@ class Live0121RegressionTest {
     @Test void narrowCabinWallDoesNotReceiveGroundGlass() throws Exception {
         var cells=snapshot(compile(load("010719")),BlockPos.ORIGIN);
         var patch=com.formacraft.server.edit.WindowInsertCompiler.compile(cells,BlockPos.ORIGIN,Set.of(),2,2);
-        assertTrue(patch.isEmpty(),"Do not squeeze a two-wide window through a narrow wall corner");
+        assertEquals(4,patch.size(),"Use the intact wall without cutting its outer corner");
         // No ground glass or corner cutting is permitted.
         for(var b:patch) {assertTrue(b.dy()>=1);assertTrue(cells.get(new BlockPos(b.dx(),b.dy(),b.dz())).isOpaque());}
     }
@@ -66,7 +66,7 @@ class Live0121RegressionTest {
             assertEquals(5,p.getY());
         }
         assertTrue(count>=6);
-        for(int x=-1;x<=0;x++)for(int y=0;y<=1;y++)
+        for(int x=-1;x<=0;x++)for(int y=1;y<=2;y++)
             assertTrue(air(cells,new BlockPos(x,y,-6)),"Central entrance must have its full width");
     }
     @Test void fortressCanGenerateWithSixRiseFlights() throws Exception {
