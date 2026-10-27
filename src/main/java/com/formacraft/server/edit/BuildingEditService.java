@@ -409,6 +409,16 @@ public final class BuildingEditService {
                 expiresAtMillis));
     }
 
+    /** Package helper for recovery coordinator / tests. */
+    static boolean roofStatesMatchPublic(Map<BlockPos, String> recorded, Map<BlockPos, String> expected) {
+        return roofStatesMatch(recorded, expected);
+    }
+
+    /** Package helper for recovery coordinator / tests. */
+    static boolean statesEqualPublic(Map<BlockPos, String> live, Map<BlockPos, String> reference) {
+        return statesEqual(live, reference);
+    }
+
     private static boolean roofStatesMatch(Map<BlockPos, String> recorded, Map<BlockPos, String> expected) {
         if (expected == null || expected.isEmpty()) return true;
         for (var e : expected.entrySet()) {

@@ -35,7 +35,7 @@ final class WindowSealPreview {
         if(volume<=0 || volume>250000) return refuse(player,"目标建筑过大，请先选择明确的窗墙区域。");
         Map<BlockPos,BlockState> live=new HashMap<>();
         for(BlockPos p:BlockPos.iterate(min,max)) {
-            if(!world.isChunkLoaded(p)) return refuse(player,"目标建筑尚未完整加载，请靠近后重试。");
+            if(!com.formacraft.common.world.WorldBuildBounds.isChunkReady(world,p)) return refuse(player,"目标建筑尚未完整加载，请靠近后重试。");
             live.put(p.toImmutable(),world.getBlockState(p));
         }
         BlockPos center=new BlockPos((min.getX()+max.getX())/2,(min.getY()+max.getY())/2,(min.getZ()+max.getZ())/2);

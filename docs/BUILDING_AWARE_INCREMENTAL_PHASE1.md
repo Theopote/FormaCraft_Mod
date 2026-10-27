@@ -127,3 +127,25 @@ ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` p
 4. 重启服务器后，open txn 由 RecoveryCoordinator 对照真实世界：目标态补交 / 原始态 ABORT / 第三态保持阻断  
 5. Cancel / 断线不留下 Pending；不进入 Phase 2 门窗编辑直至本清单通过
 
+## 10. Round 61 — 恢复顺序终检
+
+| Item | Status |
+|---|---|
+| 恢复前必须先采服务端真实世界快照，禁止仅凭 Memory 关闭事务 | done |
+| Memory 已提交 + 世界仍为目标态 → 幂等 finalize | done |
+| Memory 已提交 + 世界被玩家改写 / 撤销 → 保持 open 并给出诊断 | done |
+| PREPARED 世界漂移 → `RECOVERY_REQUIRED`；未变 → `ABORTED` | done |
+| 损坏事务字段 → `txn_corrupt:*`，不盲目收尾 | done |
+| 自动化 | `BuildingAwareRound61Test` |
+
+### Phase 2 准备（门窗接入，不另起炉灶）
+
+现有能力：`WindowInsertCompiler` / `WindowInsertPreview`、`WindowSealCompiler` / `WindowSealPreview`、`BuildingPartIndex`。
+
+接入要求（未实现前不得宣称 Phase 2 完成）：
+
+1. 复用 `BuildingTargetResolver` + `BuildingEditConfirmGate` + `BuildingEditTransaction`（PREPARED→WORLD_APPLIED→MEMORY_COMMITTED）  
+2. 新 `BuildingEditScope` / `PreviewEditKind`（如 `BUILDING_WINDOW_INSERT` / `BUILDING_WINDOW_SEAL`），ChangedCells ⊆ AllowedCells  
+3. Confirm 成功后才 bump Revision；失败路径与屋顶编辑相同（含 RecoveryCoordinator）  
+4. 禁止客户端快照作为权威世界状态；禁止绕过 Pending / ConfirmGate 的“直接写窗”
+

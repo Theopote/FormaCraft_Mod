@@ -28,7 +28,7 @@ final class WindowInsertPreview {
         if(volume<1 || volume>250000)return refuse(player,"请缩小目标范围。");
         var live=new HashMap<BlockPos,BlockState>();
         for(BlockPos p:BlockPos.iterate(min,max)) {
-            if(!world.isChunkLoaded(p))return refuse(player,"建筑尚未完整加载，请靠近后重试。");
+            if(!com.formacraft.common.world.WorldBuildBounds.isChunkReady(world,p))return refuse(player,"建筑尚未完整加载，请靠近后重试。");
             live.put(p.toImmutable(),world.getBlockState(p));
         }
         var patches=WindowInsertCompiler.compile(live,target.instance().origin(),BuildingPartIndex.fromMemory(memory).roof().cells(),

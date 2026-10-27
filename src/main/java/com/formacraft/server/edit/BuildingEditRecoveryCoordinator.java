@@ -2,6 +2,7 @@ package com.formacraft.server.edit;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.server.memory.MemoryManager;
+import com.formacraft.server.memory.ProjectMemory;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
@@ -18,7 +19,8 @@ import java.util.UUID;
 
 /**
  * Server-authoritative recovery for unfinished building-edit transactions.
- * Reads live {@link ServerWorld} cells — never accepts client-supplied snapshots as truth.
+ * Order: load txn → resolve dimension → capture live world → classify → then Memory/txn finalize.
+ * Never accepts client-supplied snapshots as truth.
  */
 public final class BuildingEditRecoveryCoordinator {
     public record ItemResult(UUID transactionId, UUID buildingId, boolean ok, String message) {}
@@ -51,7 +53,7 @@ public final class BuildingEditRecoveryCoordinator {
         BuildingEditService service = new BuildingEditService(memoryManager);
         List<ItemResult> out = new ArrayList<>();
         for (BuildingEditTransaction txn : BuildingEditTransactionStore.listOpen()) {
-            out.add(recoverOne(server, service, txn));
+            out.add(recoverOne(server, service, memoryManager, txn));
         }
         BatchResult batch = new BatchResult(out);
         if (!out.isEmpty()) {
@@ -65,60 +67,115 @@ public final class BuildingEditRecoveryCoordinator {
     public static ItemResult recoverOne(
             MinecraftServer server,
             BuildingEditService service,
+            MemoryManager memoryManager,
             BuildingEditTransaction txn
     ) {
         if (txn == null) return new ItemResult(null, null, false, "txn_missing");
         UUID txnId = txn.transactionId();
         UUID buildingId = txn.buildingId();
-        // Prefer finalize when Memory already committed (status persist gap).
-        BuildingEditService.RepairResult finalize = service.finalizeCommittedTransaction(txnId);
-        if (finalize.ok()) {
-            return new ItemResult(txnId, buildingId, true, "finalized_memory_already_committed");
-        }
-        if ("txn_finalize_persist_failed".equals(finalize.message())) {
-            return new ItemResult(txnId, buildingId, false, finalize.message());
+        String invalid = validateTxn(txn);
+        if (invalid != null) {
+            return new ItemResult(txnId, buildingId, false, invalid);
         }
 
         ServerWorld world = resolveWorld(server, txn.dimension());
         if (world == null) {
             return new ItemResult(txnId, buildingId, false, "dimension_unavailable:" + txn.dimension());
         }
-        // PREPARED with no world write yet: if live still matches expected, abort safely.
+        Map<BlockPos, String> live = BuildingEditService.captureLiveStates(world, txn);
+        return recoverWithLiveSnapshot(service, memoryManager, txn, live);
+    }
+
+    /**
+     * Core recovery once a server-authoritative live snapshot is available.
+     * Exposed for fault-injection tests without a live {@link ServerWorld}.
+     */
+    public static ItemResult recoverWithLiveSnapshot(
+            BuildingEditService service,
+            MemoryManager memoryManager,
+            BuildingEditTransaction txn,
+            Map<BlockPos, String> live
+    ) {
+        if (txn == null) return new ItemResult(null, null, false, "txn_missing");
+        UUID txnId = txn.transactionId();
+        UUID buildingId = txn.buildingId();
+        String invalid = validateTxn(txn);
+        if (invalid != null) return new ItemResult(txnId, buildingId, false, invalid);
+        if (live == null) return new ItemResult(txnId, buildingId, false, "live_world_states_required");
+
         if (txn.status() == BuildingEditTransaction.Status.PREPARED) {
-            Map<BlockPos, String> live = BuildingEditService.captureLiveStates(world, txn);
-            if (statesMatchAll(live, txn.expectedWorldStates())) {
+            if (BuildingEditService.statesEqualPublic(live, txn.expectedWorldStates())) {
                 if (!service.abortTransaction(txnId)) {
                     return new ItemResult(txnId, buildingId, false, "txn_abort_persist_failed");
                 }
                 return new ItemResult(txnId, buildingId, true, "prepared_aborted_world_unchanged");
             }
-            // Unexpected world drift before apply — keep open for operator review.
             service.markRecoveryRequired(txnId);
             return new ItemResult(txnId, buildingId, false, "prepared_world_drift");
         }
 
-        Map<BlockPos, String> live = BuildingEditService.captureLiveStates(world, txn);
-        BuildingEditService.RepairResult repaired = service.repairMemorySyncWithLiveWorld(
-                buildingId, txn.dimension(), live);
-        return new ItemResult(txnId, buildingId, repaired.ok(),
-                repaired.ok() ? "repaired" : repaired.message());
+        boolean worldAtTarget = BuildingEditService.statesEqualPublic(live, txn.targetWorldStates());
+        boolean worldAtExpected = BuildingEditService.statesEqualPublic(live, txn.expectedWorldStates());
+        boolean memoryCommitted = memoryLooksCommitted(memoryManager, txn);
+
+        if (worldAtTarget) {
+            // World proves the edit; Memory may still need commit or only txn finalize.
+            BuildingEditService.RepairResult repaired = service.repairMemorySyncWithLiveWorld(
+                    buildingId, txn.dimension(), live);
+            return new ItemResult(txnId, buildingId, repaired.ok(),
+                    repaired.ok()
+                            ? (memoryCommitted ? "finalized_memory_already_committed" : "repaired")
+                            : repaired.message());
+        }
+
+        if (worldAtExpected) {
+            if (memoryCommitted) {
+                // Memory advanced but world was undone — do not silently close or invent a patch.
+                service.markRecoveryRequired(txnId);
+                return new ItemResult(txnId, buildingId, false, "memory_ahead_world_undone_keep_open");
+            }
+            BuildingEditService.RepairResult repaired = service.repairMemorySyncWithLiveWorld(
+                    buildingId, txn.dimension(), live);
+            return new ItemResult(txnId, buildingId, repaired.ok(),
+                    repaired.ok() ? "repaired_world_undone" : repaired.message());
+        }
+
+        // Third state: player (or other) changed cells after the edit attempt.
+        service.markRecoveryRequired(txnId);
+        if (memoryCommitted) {
+            return new ItemResult(txnId, buildingId, false, "committed_memory_world_diverged_keep_open");
+        }
+        return new ItemResult(txnId, buildingId, false, "world_state_mismatch_keep_recovery_required");
+    }
+
+    static boolean memoryLooksCommitted(MemoryManager memoryManager, BuildingEditTransaction txn) {
+        if (memoryManager == null || txn == null) return false;
+        ProjectMemory memory = memoryManager.getMemory(txn.buildingId().toString());
+        if (memory == null) return false;
+        long current = BuildingMemoryKeys.revisionOf(memory);
+        if (current != txn.baseRevision() + 1L) return false;
+        BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
+        return BuildingEditService.roofStatesMatchPublic(index.roof().recordedStates(), txn.targetWorldStates());
+    }
+
+    private static String validateTxn(BuildingEditTransaction txn) {
+        if (txn.transactionId() == null) return "txn_corrupt:transactionId";
+        if (txn.buildingId() == null) return "txn_corrupt:buildingId";
+        if (txn.dimension() == null) return "txn_corrupt:dimension";
+        if (txn.operation() == null) return "txn_corrupt:operation";
+        if (txn.expectedWorldStates() == null || txn.expectedWorldStates().isEmpty()) {
+            return "txn_corrupt:expectedWorldStates";
+        }
+        if (txn.targetWorldStates() == null || txn.targetWorldStates().isEmpty()) {
+            return "txn_corrupt:targetWorldStates";
+        }
+        if (txn.baseRevision() < 0L) return "txn_corrupt:baseRevision";
+        return null;
     }
 
     private static ServerWorld resolveWorld(MinecraftServer server, Identifier dimension) {
         if (server == null || dimension == null) return null;
         RegistryKey<World> key = RegistryKey.of(RegistryKeys.WORLD, dimension);
         return server.getWorld(key);
-    }
-
-    private static boolean statesMatchAll(Map<BlockPos, String> live, Map<BlockPos, String> expected) {
-        if (expected == null || expected.isEmpty()) return false;
-        for (var e : expected.entrySet()) {
-            String actual = live.get(e.getKey());
-            if (!Objects.equals(actual, e.getValue())) {
-                // Allow canonical BlockState string equivalence via repair path; PREPARED abort is strict.
-                return false;
-            }
-        }
-        return true;
     }
 }
