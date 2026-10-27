@@ -61,6 +61,8 @@ public class DecorDetailGenerator implements ComponentGenerator {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
+                    Object clear=c.params()==null?null:c.params().get("compiler_clear_railing_cells");
+                    if(clear instanceof java.util.Collection<?> cells && cells.contains(x+","+y+","+z))continue;
                     // 装饰通常是稀疏的（只在特定位置）
                     if (shouldPlaceDecor(x, y, z, width, depth, height, isPattern)) {
                         SemanticPart part = SemanticPart.DECOR;
@@ -123,8 +125,8 @@ public class DecorDetailGenerator implements ComponentGenerator {
     private static String explicitMaterial(Component component) {
         if (component.params() == null) return null;
         boolean structural = com.formacraft.common.generation.component.util.StructuralSupportPolicy.isColumn(component.params())
-                || Boolean.TRUE.equals(component.params().get("railing")) || component.params().containsKey("supports");
-        for (String key : structural ? List.of("material_block","block","material","pillar_block","trim_block","wall_block")
+                || "railing".equals(component.params().get("role")) || Boolean.TRUE.equals(component.params().get("railing")) || component.params().containsKey("supports");
+        for (String key : structural ? List.of("railing_block","material_block","block","material","pillar_block","trim_block","wall_block")
                 : List.of("block","trim_block","wall_block","material")) {
             Object value = component.params().get(key);
             if (value instanceof String text && !text.isBlank()) return text;

@@ -41,7 +41,18 @@ final class StairChainCompiler {
                 invalidSlope |= t.y()-f.y()>Math.abs(t.x()-f.x())+Math.abs(t.z()-f.z());
                 joinedLevels &= t.y()>f.y() && (j==0 || f.y()==point(parts.get(indices.get(j-1)),"to").y());
             }
-            if(!repeated && !(invalidSlope && joinedLevels)) continue;
+            boolean towerRepeat=indices.size()>=3 && host.dimensions().height()>=2*Math.min(host.dimensions().width(),host.dimensions().depth())-1;
+            boolean duplicate=false;
+            for(int j=1;j<indices.size();j++) {
+                var prev=parts.get(indices.get(j-1));var current=parts.get(indices.get(j));
+                var pf=point(prev,"from");var pt=point(prev,"to");var cf=point(current,"from");var ct=point(current,"to");
+                duplicate |= prev.relativePosition().x()+pf.x()==current.relativePosition().x()+cf.x()
+                    && prev.relativePosition().z()+pf.z()==current.relativePosition().z()+cf.z()
+                    && prev.relativePosition().x()+pt.x()==current.relativePosition().x()+ct.x()
+                    && prev.relativePosition().z()+pt.z()==current.relativePosition().z()+ct.z();
+            }
+            towerRepeat &= duplicate && joinedLevels;
+            if(!repeated && !(invalidSlope && joinedLevels) && !towerRepeat) continue;
             int wall=ComponentParamParsers.intParam(host.params(),1,"wall_thickness","wallThickness");
             int width=indices.stream().mapToInt(i->ComponentParamParsers.intParam(parts.get(i).params(),3,"width")).min().orElse(3);
             int span=alongZ?host.dimensions().width():host.dimensions().depth();
@@ -50,7 +61,7 @@ final class StairChainCompiler {
             int interiorRun=run-2*wall;
             // Short local flights in a large mass are intentional. Only the full-shaft
             // replicated defect (nearly wall-to-wall run) is rewritten into switchbacks.
-            if(!invalidSlope && authoredRun<Math.max(2,interiorRun-1)) continue;
+            if(!invalidSlope && !towerRepeat && authoredRun<Math.max(2,interiorRun-1)) continue;
             int laneA=wall+width/2,laneB=span-wall-1-(width-1)/2;
             if(wall<1 || width<1 || laneB-laneA<width || run-2*wall<2) {
                 AssemblyCompileDiagnostics.set(new CapabilityGap("E_STAIR_CHAIN_UNCONNECTED",

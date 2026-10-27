@@ -1556,6 +1556,7 @@ public final class ComponentPlanCompiler {
         BareStairFitCompiler.apply(prepared);
         StairChainCompiler.apply(prepared, plan);
         StairOpeningGuardCompiler.apply(prepared);
+        DeckRailingAccessCompiler.apply(prepared);
         ComponentFoundationEnforcer.apply(prepared);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);

@@ -131,23 +131,6 @@ public final class BuildingEditConfirmGate {
         return Outcome.pass(pending);
     }
 
-    /** @deprecated prefer overload with {@link PreviewEditKind}. */
-    @Deprecated
-    public static Outcome validateBeforeApply(
-            MemoryManager memoryManager,
-            ServerWorld world,
-            UUID playerId,
-            Identifier dimension,
-            BlockPos origin,
-            List<BlockPatch> patches,
-            BuildingEditPendingRegistry.Pending pending
-    ) {
-        PreviewEditKind kind = pending == null
-                ? PreviewEditKind.NONE
-                : PreviewEditKind.of(pending.operation());
-        return validateBeforeApply(memoryManager, world, playerId, dimension, origin, patches, kind, pending);
-    }
-
     public static Map<BlockPos, String> captureLive(ServerWorld world, Set<BlockPos> cells) {
         Map<BlockPos, String> live = new LinkedHashMap<>();
         if (world == null || cells == null) return live;

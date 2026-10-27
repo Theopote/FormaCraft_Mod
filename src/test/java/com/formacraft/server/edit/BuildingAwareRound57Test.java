@@ -5,6 +5,7 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.memory.MemoryManager;
 import com.formacraft.server.memory.ProjectMemory;
 import com.formacraft.server.memory.SpatialIndex;
+import com.formacraft.server.preview.PreviewEditKind;
 import com.formacraft.server.preview.PreviewTicketStorage;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.Identifier;
@@ -119,7 +120,8 @@ class BuildingAwareRound57Test {
         // ConfirmGate.captureLive needs a world — use validator path via gate with null world live map
         // by calling gate which captures from world; for unit test call validator + gate pieces.
         var outcome = BuildingEditConfirmGate.validateBeforeApply(
-                mgr, null, playerId, OVERWORLD, new BlockPos(0, 64, 0), patches, pending);
+                mgr, null, playerId, OVERWORLD, new BlockPos(0, 64, 0), patches,
+                PreviewEditKind.BUILDING_ROOF_MATERIAL, pending);
         // Without world, captureLive returns empty → fail-closed live_state_missing OR revision first.
         assertFalse(outcome.ok());
         assertTrue(outcome.message().contains("revision_mismatch")
@@ -159,7 +161,8 @@ class BuildingAwareRound57Test {
                 "minecraft:dark_oak_stairs[facing=east,half=bottom,shape=straight,waterlogged=false]"));
         // Inject live by temporarily validating roof-cells check in gate:
         var outcome = BuildingEditConfirmGate.validateBeforeApply(
-                mgr, null, playerId, OVERWORLD, new BlockPos(0, 64, 0), patches, pending);
+                mgr, null, playerId, OVERWORLD, new BlockPos(0, 64, 0), patches,
+                PreviewEditKind.BUILDING_ROOF_MATERIAL, pending);
         assertFalse(outcome.ok());
         assertTrue(outcome.message().contains("roof_cells_drift")
                         || outcome.message().contains("live_state_missing"),
