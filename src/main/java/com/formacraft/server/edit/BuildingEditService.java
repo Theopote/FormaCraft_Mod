@@ -154,11 +154,18 @@ public final class BuildingEditService {
         if (blocked != null) return blocked;
 
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
-        List<BlockPatch> patches = WindowInsertCompiler.compile(
-                liveBlocks, building.origin(), index.roof().cells(), width, height);
+        var window = WindowInsertCompiler.analyze(liveBlocks, building.origin(), index.roof().cells(), width, height);
+        List<BlockPatch> patches = window.patches();
         if (patches.isEmpty()) {
-            return new PreparedEdit(building, null, List.of(), null,
-                    List.of("正门右侧没有找到足够宽的完整墙面，或入口无法唯一确认。"));
+            com.formacraft.FormacraftMod.LOGGER.info("Window insert refused: reason={} entrances={} size={}x{} origin={}",
+                    window.reason(), window.entrances(), width, height, building.origin());
+            String message = switch(window.reason()) {
+                case "ENTRANCE_NOT_FOUND" -> "未能在原建筑现场识别入口；尚未判定墙面空间不足。请确认目标建筑或选择目标墙面。";
+                case "ENTRANCE_AMBIGUOUS" -> "现场存在多个入口，无法唯一确认正门；尚未判定墙面空间不足。";
+                case "WINDOW_SIZE_INVALID" -> "窗户尺寸必须在 1 到 8 格之间。";
+                default -> "已识别入口，但右侧没有完整的 " + width + "×" + height + " 原墙矩形；请检查既有窗、柱及屋顶边界。";
+            };
+            return new PreparedEdit(building, null, List.of(), null, List.of(message));
         }
         return finishWindowPrepare(building, memory, index, BuildingEditOperation.INSERT_WINDOW, patches, liveBlocks);
     }
