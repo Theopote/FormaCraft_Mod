@@ -134,6 +134,120 @@ public final class BuildingEditService {
     }
 
     /**
+     * Prepare INSERT_WINDOW using the existing WindowInsertCompiler geometry.
+     * Allowed cells = patch footprint; roof cells are protected.
+     */
+    public PreparedEdit prepareWindowInsert(
+            BuildingTargetResolver.Query targetQuery,
+            Map<BlockPos, BlockState> liveBlocks,
+            int width,
+            int height
+    ) {
+        BuildingTargetResolver.Result target = targetResolver.resolve(targetQuery);
+        if (!target.ok()) {
+            return new PreparedEdit(null, null, List.of(), null,
+                    List.of(BuildingTargetResolver.refusalMessage(target).orElse("目标建筑解析失败")));
+        }
+        BuildingInstance building = target.instance();
+        ProjectMemory memory = memoryManager.getMemory(building.buildingId().toString());
+        PreparedEdit blocked = refuseIfBlocked(building, memory, liveBlocks);
+        if (blocked != null) return blocked;
+
+        BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
+        List<BlockPatch> patches = WindowInsertCompiler.compile(
+                liveBlocks, building.origin(), index.roof().cells(), width, height);
+        if (patches.isEmpty()) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("正门右侧没有找到足够宽的完整墙面，或入口无法唯一确认。"));
+        }
+        return finishWindowPrepare(building, memory, index, BuildingEditOperation.INSERT_WINDOW, patches, liveBlocks);
+    }
+
+    /**
+     * Prepare SEAL_WINDOW using the existing WindowSealCompiler geometry.
+     * Allowed cells = sealed window footprint; roof cells are protected.
+     */
+    public PreparedEdit prepareWindowSeal(
+            BuildingTargetResolver.Query targetQuery,
+            Map<BlockPos, BlockState> liveBlocks,
+            BlockPos center,
+            java.util.function.Predicate<BlockPos> skyVisible,
+            boolean woodLattice,
+            boolean courtyardFocus
+    ) {
+        BuildingTargetResolver.Result target = targetResolver.resolve(targetQuery);
+        if (!target.ok()) {
+            return new PreparedEdit(null, null, List.of(), null,
+                    List.of(BuildingTargetResolver.refusalMessage(target).orElse("目标建筑解析失败")));
+        }
+        BuildingInstance building = target.instance();
+        ProjectMemory memory = memoryManager.getMemory(building.buildingId().toString());
+        PreparedEdit blocked = refuseIfBlocked(building, memory, liveBlocks);
+        if (blocked != null) return blocked;
+
+        BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
+        BlockPos sealCenter = center != null ? center : building.origin();
+        List<BlockPatch> patches = WindowSealCompiler.compile(
+                liveBlocks, building.origin(), sealCenter, index.roof().cells(),
+                skyVisible == null ? p -> false : skyVisible, woodLattice, courtyardFocus);
+        if (patches.isEmpty()) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("未找到可确认的目标窗格及原墙材质。"));
+        }
+        return finishWindowPrepare(building, memory, index, BuildingEditOperation.SEAL_WINDOW, patches, liveBlocks);
+    }
+
+    private PreparedEdit refuseIfBlocked(
+            BuildingInstance building, ProjectMemory memory, Map<BlockPos, BlockState> liveBlocks) {
+        if (memory == null) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("指定建筑未登记在 Memory 中，拒绝猜测性全局修改。"));
+        }
+        if (BuildingMemoryKeys.isMemorySyncBlocked(memory)
+                || BuildingEditTransactionStore.findOpenByBuilding(building.buildingId()) != null) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("该建筑存在未完成的编辑事务（RECOVERY_REQUIRED / EDIT_MEMORY_SYNC_FAILED），"
+                            + "增量编辑已暂停；请 Undo 或修复 Memory 后再试。"));
+        }
+        if (liveBlocks == null || liveBlocks.isEmpty()) {
+            return new PreparedEdit(building, null, List.of(), null, List.of("live_world_states_missing"));
+        }
+        return null;
+    }
+
+    private PreparedEdit finishWindowPrepare(
+            BuildingInstance building,
+            ProjectMemory memory,
+            BuildingPartIndex index,
+            BuildingEditOperation operation,
+            List<BlockPatch> patches,
+            Map<BlockPos, BlockState> liveBlocks
+    ) {
+        Set<BlockPos> allowed = new LinkedHashSet<>();
+        Map<BlockPos, String> expected = new LinkedHashMap<>();
+        Map<BlockPos, String> liveStrings = new LinkedHashMap<>();
+        for (var e : liveBlocks.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null) continue;
+            liveStrings.put(e.getKey().toImmutable(), BlockStateStringUtil.fromState(e.getValue()));
+        }
+        for (BlockPatch patch : patches) {
+            if (patch == null) continue;
+            BlockPos world = building.origin().add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
+            allowed.add(world);
+            String live = liveStrings.get(world);
+            if (live != null) expected.put(world, live);
+        }
+        BuildingEditScope scope = BuildingEditScope.windowEdit(
+                building, operation, allowed, expected, index.roof().cells());
+        BuildingEditValidation validation = BuildingEditScopeValidator.validate(
+                scope, building.origin(), patches, BuildingMemoryKeys.revisionOf(memory), liveStrings);
+        if (!validation.accepted()) {
+            return new PreparedEdit(building, scope, patches, validation, validation.conflicts());
+        }
+        return new PreparedEdit(building, scope, patches, validation, List.of());
+    }
+
+    /**
      * Persist PREPARED transaction before world write. Failure aborts Confirm — no world mutation.
      */
     public BeginTxnResult beginTransaction(BuildingEditPendingRegistry.Pending pending) {
@@ -149,9 +263,9 @@ public final class BuildingEditService {
                 pending.buildingId(),
                 pending.dimension(),
                 pending.baseRevision(),
-                BuildingEditTransaction.Operation.REPLACE_ROOF_MATERIAL,
+                BuildingEditTransaction.Operation.from(pending.operation()),
                 pending.expectedWorldStates(),
-                pending.newRoofStates(),
+                pending.targetWorldStates(),
                 BuildingEditTransaction.Status.PREPARED,
                 now,
                 now);
@@ -200,9 +314,19 @@ public final class BuildingEditService {
         if (memory == null) return RepairResult.fail("memory_missing");
         long current = BuildingMemoryKeys.revisionOf(memory);
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
-        if (current != txn.baseRevision() + 1L
-                || !roofStatesMatch(index.roof().recordedStates(), txn.targetWorldStates())) {
+        if (current != txn.baseRevision() + 1L) {
             return RepairResult.fail("memory_not_yet_committed");
+        }
+        BuildingEditOperation editOp = txn.operation().toEditOperation();
+        if (editOp == BuildingEditOperation.REPLACE_ROOF_MATERIAL) {
+            if (!roofStatesMatch(index.roof().recordedStates(), txn.targetWorldStates())) {
+                return RepairResult.fail("memory_not_yet_committed");
+            }
+        } else if (editOp.isWindowOp()) {
+            // Window Memory may record glass or sealed wall; require target keys present in either index.
+            if (!windowTargetsRecorded(index, txn.targetWorldStates())) {
+                return RepairResult.fail("memory_not_yet_committed");
+            }
         }
         BuildingMemoryKeys.clearMemorySyncFailed(memory);
         MemoryUpdateResult cleared = memoryManager.updateMemoryStrict(memory);
@@ -217,8 +341,26 @@ public final class BuildingEditService {
     }
 
     /**
+     * Dispatch Memory commit by operation after successful Apply.
+     * Roof and window edits share one building revision counter.
+     */
+    public boolean commitSuccessfulBuildingEdit(
+            UUID buildingId,
+            Identifier dimension,
+            long expectedBaseRevision,
+            BuildingEditOperation operation,
+            Map<BlockPos, String> targetStates
+    ) {
+        if (operation != null && operation.isWindowOp()) {
+            return commitSuccessfulWindowEdit(buildingId, dimension, expectedBaseRevision, operation, targetStates);
+        }
+        return commitSuccessfulRoofEdit(buildingId, dimension, expectedBaseRevision, targetStates);
+    }
+
+    /**
      * After a successful Apply of a Phase-1 roof edit: bump revision and refresh recorded roof states.
      * Uses {@link MemoryManager#updateMemoryStrict} — persist failure returns false.
+     * Preserves wall/window part indices on the same Memory document.
      */
     public boolean commitSuccessfulRoofEdit(
             UUID buildingId,
@@ -243,9 +385,8 @@ public final class BuildingEditService {
         if (current != expectedBaseRevision) return false;
 
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
-        Map<BlockPos, String> previousStates = new LinkedHashMap<>(index.roof().recordedStates());
-        List<BlockPos> previousCells = List.copyOf(index.roof().cells());
-        Map<BlockPos, String> states = new LinkedHashMap<>(previousStates);
+        BuildingPartIndex previous = index;
+        Map<BlockPos, String> states = new LinkedHashMap<>(index.roof().recordedStates());
         if (newRoofStates != null) {
             for (var e : newRoofStates.entrySet()) {
                 if (e.getKey() != null && index.roof().cells().contains(e.getKey()) && e.getValue() != null) {
@@ -253,13 +394,57 @@ public final class BuildingEditService {
                 }
             }
         }
-        BuildingPartIndex.ofRoofCells(List.copyOf(index.roof().cells()), states).persistTo(memory);
+        new BuildingPartIndex(
+                new BuildingPartIndex.RoofPart("roof", index.roof().cells(), states),
+                index.walls(),
+                index.windows()
+        ).persistTo(memory);
         BuildingMemoryKeys.bumpRevision(memory);
         BuildingMemoryKeys.clearMemorySyncFailed(memory);
         MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
         if (!result.ok()) {
             // Disk unchanged; restore in-heap object so the same baseRevision can be retried.
-            BuildingPartIndex.ofRoofCells(previousCells, previousStates).persistTo(memory);
+            previous.persistTo(memory);
+            BuildingMemoryKeys.setRevision(memory, expectedBaseRevision);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * After a successful Apply of INSERT_WINDOW / SEAL_WINDOW: bump shared revision and
+     * merge targets into window/wall part indices (never invents geometry).
+     */
+    public boolean commitSuccessfulWindowEdit(
+            UUID buildingId,
+            Identifier dimension,
+            long expectedBaseRevision,
+            BuildingEditOperation operation,
+            Map<BlockPos, String> targetStates
+    ) {
+        if (buildingId == null || dimension == null) return false;
+        if (operation == null || !operation.isWindowOp()) return false;
+        ProjectMemory memory = memoryManager.getMemory(buildingId.toString());
+        BuildingInstance instance = BuildingInstance.fromMemory(memory);
+        if (instance == null) return false;
+        if (!instance.dimension().equals(dimension)) return false;
+        long current = BuildingMemoryKeys.revisionOf(memory);
+        if (current == expectedBaseRevision + 1L) {
+            BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
+            if (windowTargetsRecorded(index, targetStates)) {
+                BuildingMemoryKeys.clearMemorySyncFailed(memory);
+                return true;
+            }
+        }
+        if (current != expectedBaseRevision) return false;
+
+        BuildingPartIndex previous = BuildingPartIndex.fromMemory(memory);
+        previous.withWindowTargets(operation, targetStates).persistTo(memory);
+        BuildingMemoryKeys.bumpRevision(memory);
+        BuildingMemoryKeys.clearMemorySyncFailed(memory);
+        MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
+        if (!result.ok()) {
+            previous.persistTo(memory);
             BuildingMemoryKeys.setRevision(memory, expectedBaseRevision);
             return false;
         }
@@ -330,7 +515,10 @@ public final class BuildingEditService {
                 if (already.ok()) return already;
                 if ("txn_finalize_persist_failed".equals(already.message())) return already;
             }
-            boolean committed = commitSuccessfulRoofEdit(buildingId, dimension, base, targets);
+            BuildingEditOperation op = txn != null
+                    ? txn.operation().toEditOperation()
+                    : BuildingEditOperation.REPLACE_ROOF_MATERIAL;
+            boolean committed = commitSuccessfulBuildingEdit(buildingId, dimension, base, op, targets);
             if (!committed) return RepairResult.fail("memory_commit_failed");
             if (txn != null && !markMemoryCommitted(txn.transactionId())) {
                 return RepairResult.fail("txn_finalize_persist_failed");
@@ -381,8 +569,8 @@ public final class BuildingEditService {
     }
 
     /**
-     * Bind a prepared roof edit to a PreviewTicket. Call after {@code PatchPreviewService.issuePreview}.
-     * Memory revision advances only when that ticket Apply returns SUCCESS.
+     * Bind a prepared building edit (roof or window) to a PreviewTicket.
+     * Call after {@code PatchPreviewService.issuePreview}. Revision advances only on Apply SUCCESS.
      */
     public static void bindPendingToTicket(
             UUID ticketId,
@@ -403,6 +591,7 @@ public final class BuildingEditService {
                 prepared.building().buildingId(),
                 prepared.building().dimension(),
                 prepared.scope().baseRevision(),
+                prepared.scope().operation(),
                 prepared.scope().allowedCells(),
                 prepared.scope().expectedWorldStates(),
                 newStates,
@@ -415,8 +604,27 @@ public final class BuildingEditService {
     }
 
     /** Package helper for recovery coordinator / tests. */
+    static boolean windowTargetsRecordedPublic(BuildingPartIndex index, Map<BlockPos, String> targets) {
+        return windowTargetsRecorded(index, targets);
+    }
+
+    /** Package helper for recovery coordinator / tests. */
     static boolean statesEqualPublic(Map<BlockPos, String> live, Map<BlockPos, String> reference) {
         return statesEqual(live, reference);
+    }
+
+    private static boolean windowTargetsRecorded(BuildingPartIndex index, Map<BlockPos, String> targets) {
+        if (targets == null || targets.isEmpty()) return true;
+        if (index == null) return false;
+        for (var e : targets.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null) continue;
+            String win = index.windows().recordedStates().get(e.getKey());
+            String wall = index.walls().recordedStates().get(e.getKey());
+            if (!statesMatch(win, e.getValue()) && !statesMatch(wall, e.getValue())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean roofStatesMatch(Map<BlockPos, String> recorded, Map<BlockPos, String> expected) {

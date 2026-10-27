@@ -53,7 +53,6 @@ public final class BuildingEditConfirmGate {
     ) {
         PreviewEditKind kind = editKind == null ? PreviewEditKind.NONE : editKind;
         if (!kind.requiresBuildingEditPending()) {
-            // Ordinary PATCH / typology tickets: Pending must not be present as a surprise.
             return Outcome.pass(null);
         }
         if (pending == null) {
@@ -64,6 +63,10 @@ public final class BuildingEditConfirmGate {
         }
         if (dimension == null || !dimension.equals(pending.dimension())) {
             return Outcome.reject("building_edit_dimension_mismatch");
+        }
+        BuildingEditOperation expectedOp = kind.toOperation();
+        if (expectedOp != null && pending.operation() != expectedOp) {
+            return Outcome.reject("building_edit_operation_mismatch");
         }
         if (memoryManager == null) {
             return Outcome.reject("building_edit_memory_unavailable");
@@ -86,15 +89,37 @@ public final class BuildingEditConfirmGate {
         }
 
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
-        if (index.roof().isEmpty()) {
-            return Outcome.reject("building_edit_roof_index_missing");
-        }
-        if (!Objects.equals(index.roof().cells(), pending.allowedCells())) {
-            return Outcome.reject("building_edit_roof_cells_drift");
+        if (pending.operation() == BuildingEditOperation.REPLACE_ROOF_MATERIAL) {
+            if (index.roof().isEmpty()) {
+                return Outcome.reject("building_edit_roof_index_missing");
+            }
+            if (!Objects.equals(index.roof().cells(), pending.allowedCells())) {
+                return Outcome.reject("building_edit_roof_cells_drift");
+            }
+        } else if (pending.operation().isWindowOp()) {
+            if (pending.allowedCells().isEmpty()) {
+                return Outcome.reject("building_edit_window_cells_missing");
+            }
+            // Roof cells must stay protected: ticket allowed set must not claim them.
+            for (BlockPos roofCell : index.roof().cells()) {
+                if (pending.allowedCells().contains(roofCell)) {
+                    return Outcome.reject("building_edit_window_overlaps_roof@" + roofCell.toShortString());
+                }
+            }
         }
 
         Map<BlockPos, String> live = captureLive(world, pending.allowedCells());
         BuildingEditScope scope = pending.toScope();
+        // Re-attach roof as protected for window ops at confirm time.
+        if (pending.operation().isWindowOp() && !index.roof().isEmpty()) {
+            scope = new BuildingEditScope(
+                    scope.buildingId(),
+                    scope.baseRevision(),
+                    scope.operation(),
+                    scope.allowedCells(),
+                    index.roof().cells(),
+                    scope.expectedWorldStates());
+        }
         BuildingEditValidation validation = BuildingEditScopeValidator.validate(
                 scope, origin, patches, currentRevision, live);
         if (!validation.accepted()) {
@@ -117,7 +142,9 @@ public final class BuildingEditConfirmGate {
             List<BlockPatch> patches,
             BuildingEditPendingRegistry.Pending pending
     ) {
-        PreviewEditKind kind = pending == null ? PreviewEditKind.NONE : PreviewEditKind.BUILDING_ROOF_MATERIAL;
+        PreviewEditKind kind = pending == null
+                ? PreviewEditKind.NONE
+                : PreviewEditKind.of(pending.operation());
         return validateBeforeApply(memoryManager, world, playerId, dimension, origin, patches, kind, pending);
     }
 

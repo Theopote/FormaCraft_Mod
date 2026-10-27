@@ -155,6 +155,10 @@ public final class BuildingEditRecoveryCoordinator {
         long current = BuildingMemoryKeys.revisionOf(memory);
         if (current != txn.baseRevision() + 1L) return false;
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
+        BuildingEditOperation op = txn.operation().toEditOperation();
+        if (op != null && op.isWindowOp()) {
+            return BuildingEditService.windowTargetsRecordedPublic(index, txn.targetWorldStates());
+        }
         return BuildingEditService.roofStatesMatchPublic(index.roof().recordedStates(), txn.targetWorldStates());
     }
 

@@ -138,14 +138,33 @@ ROOF 构件在 `ComponentPlanCompiler` 提交 Patch 时盖上 `ROOF_COMPONENT` p
 | 损坏事务字段 → `txn_corrupt:*`，不盲目收尾 | done |
 | 自动化 | `BuildingAwareRound61Test` |
 
-### Phase 2 准备（门窗接入，不另起炉灶）
+## 11. Round 62 — 开窗 / 封窗纳入 Building-Aware Edit
 
-现有能力：`WindowInsertCompiler` / `WindowInsertPreview`、`WindowSealCompiler` / `WindowSealPreview`、`BuildingPartIndex`。
+| Item | Status |
+|---|---|
+| `INSERT_WINDOW` / `SEAL_WINDOW` 进入 Operation / PreviewEditKind / txn | done |
+| `BuildingEditScope.windowEdit` + ConfirmGate（禁碰屋顶格） | done |
+| `WindowInsertPreview` / `WindowSealPreview` → prepare → issuePreview(kind) → bindPending | done |
+| Confirm/Apply → `commitSuccessfulBuildingEdit`；共享 `building_revision` | done |
+| `BuildingPartIndex` WallPart/WindowPart；屋顶 commit 保留窗索引 | done |
+| Recovery `memoryLooksCommitted` 支持窗目标态 | done |
+| 自动化 | `BuildingAwareRound62Test` |
 
-接入要求（未实现前不得宣称 Phase 2 完成）：
+接入路径（不另起写世界管线）：
 
-1. 复用 `BuildingTargetResolver` + `BuildingEditConfirmGate` + `BuildingEditTransaction`（PREPARED→WORLD_APPLIED→MEMORY_COMMITTED）  
-2. 新 `BuildingEditScope` / `PreviewEditKind`（如 `BUILDING_WINDOW_INSERT` / `BUILDING_WINDOW_SEAL`），ChangedCells ⊆ AllowedCells  
-3. Confirm 成功后才 bump Revision；失败路径与屋顶编辑相同（含 RecoveryCoordinator）  
-4. 禁止客户端快照作为权威世界状态；禁止绕过 Pending / ConfirmGate 的“直接写窗”
+```
+WindowInsert/Seal intent
+  → BuildingTargetResolver + prepareWindowInsert/Seal
+  → PatchPreviewService.issuePreview(BUILDING_WINDOW_*)
+  → bindPendingToTicket
+  → ConfirmGate + PREPARED txn → Apply → commitSuccessfulBuildingEdit → MEMORY_COMMITTED
+```
+
+### 游戏内门窗验收清单（Round 62）
+
+1. 「正门右侧增加玻璃窗」→ Preview 仅墙面开窗；Confirm → `EDIT_COMMIT_SUCCESS`；Revision +1；Memory 有 window cells  
+2. 「去掉白色墙面的窗并封上」→ Preview 仅窗格变墙；Confirm 后 window→wall 索引迁移  
+3. 开窗预览后 Cancel / 断线 → Pending 与 open txn 不残留；Revision 不变  
+4. 存在 open 屋顶/门窗事务时，再次开窗/封窗预览被拒  
+5. 重启后 open 窗事务由 RecoveryCoordinator 对照真实世界收尾（与屋顶相同顺序）
 

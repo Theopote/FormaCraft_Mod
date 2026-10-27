@@ -99,7 +99,7 @@ class BuildingAwareRound59Test {
     private BuildingEditPendingRegistry.Pending pending(
             UUID ticketId, UUID playerId, ProjectMemory house, BlockPos roof
     ) {
-        return new BuildingEditPendingRegistry.Pending(
+        return BuildingEditPendingRegistry.Pending.roof(
                 ticketId, playerId, UUID.fromString(house.getUuid()), OVERWORLD, 0L,
                 java.util.Set.of(roof),
                 Map.of(roof, "minecraft:oak_stairs"),

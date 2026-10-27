@@ -12,7 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Ticket-scoped pending Phase-1 building edits.
+ * Ticket-scoped pending building edits (roof / window).
  * Lifecycle follows PreviewTicket: expire / cancel(owner) / disconnect / consume.
  */
 public final class BuildingEditPendingRegistry {
@@ -22,9 +22,10 @@ public final class BuildingEditPendingRegistry {
             UUID buildingId,
             Identifier dimension,
             long baseRevision,
+            BuildingEditOperation operation,
             Set<BlockPos> allowedCells,
             Map<BlockPos, String> expectedWorldStates,
-            Map<BlockPos, String> newRoofStates,
+            Map<BlockPos, String> targetWorldStates,
             long expiresAtMillis
     ) {
         public Pending {
@@ -32,9 +33,15 @@ public final class BuildingEditPendingRegistry {
             Objects.requireNonNull(playerId, "playerId");
             Objects.requireNonNull(buildingId, "buildingId");
             Objects.requireNonNull(dimension, "dimension");
+            operation = operation == null ? BuildingEditOperation.REPLACE_ROOF_MATERIAL : operation;
             allowedCells = allowedCells == null ? Set.of() : Set.copyOf(new LinkedHashSet<>(allowedCells));
             expectedWorldStates = expectedWorldStates == null ? Map.of() : Map.copyOf(expectedWorldStates);
-            newRoofStates = newRoofStates == null ? Map.of() : Map.copyOf(newRoofStates);
+            targetWorldStates = targetWorldStates == null ? Map.of() : Map.copyOf(targetWorldStates);
+        }
+
+        /** Backward-compatible alias used by Phase-1 roof callers/tests. */
+        public Map<BlockPos, String> newRoofStates() {
+            return targetWorldStates;
         }
 
         public boolean isExpired(long nowMillis) {
@@ -45,11 +52,29 @@ public final class BuildingEditPendingRegistry {
             return new BuildingEditScope(
                     buildingId,
                     baseRevision,
-                    BuildingEditOperation.REPLACE_ROOF_MATERIAL,
+                    operation,
                     allowedCells,
                     Set.of(),
                     expectedWorldStates
             );
+        }
+
+        /** Phase-1 roof shorthand (keeps older call sites compact). */
+        public static Pending roof(
+                UUID ticketId,
+                UUID playerId,
+                UUID buildingId,
+                Identifier dimension,
+                long baseRevision,
+                Set<BlockPos> allowedCells,
+                Map<BlockPos, String> expectedWorldStates,
+                Map<BlockPos, String> targetWorldStates,
+                long expiresAtMillis
+        ) {
+            return new Pending(
+                    ticketId, playerId, buildingId, dimension, baseRevision,
+                    BuildingEditOperation.REPLACE_ROOF_MATERIAL,
+                    allowedCells, expectedWorldStates, targetWorldStates, expiresAtMillis);
         }
     }
 

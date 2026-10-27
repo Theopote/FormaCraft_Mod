@@ -22,7 +22,26 @@ public final class BuildingEditTransaction {
     }
 
     public enum Operation {
-        REPLACE_ROOF_MATERIAL
+        REPLACE_ROOF_MATERIAL,
+        INSERT_WINDOW,
+        SEAL_WINDOW;
+
+        static Operation from(BuildingEditOperation op) {
+            if (op == null) return REPLACE_ROOF_MATERIAL;
+            return switch (op) {
+                case REPLACE_ROOF_MATERIAL -> REPLACE_ROOF_MATERIAL;
+                case INSERT_WINDOW -> INSERT_WINDOW;
+                case SEAL_WINDOW -> SEAL_WINDOW;
+            };
+        }
+
+        BuildingEditOperation toEditOperation() {
+            return switch (this) {
+                case REPLACE_ROOF_MATERIAL -> BuildingEditOperation.REPLACE_ROOF_MATERIAL;
+                case INSERT_WINDOW -> BuildingEditOperation.INSERT_WINDOW;
+                case SEAL_WINDOW -> BuildingEditOperation.SEAL_WINDOW;
+            };
+        }
     }
 
     private final UUID transactionId;

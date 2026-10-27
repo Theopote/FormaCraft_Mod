@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  * Server-authorized edit envelope. LLM intent cannot enlarge this scope.
- * Phase 1: allowedCells = roof cells; protectedCells = non-roof cells that must not change.
+ * Roof: allowedCells = roof index. Window: allowedCells = authorized wall/window cells for this ticket.
  */
 public final class BuildingEditScope {
     private final UUID buildingId;
@@ -63,6 +63,31 @@ public final class BuildingEditScope {
                 roof.cells(),
                 protectedCells,
                 expected
+        );
+    }
+
+    /**
+     * Window insert/seal envelope: only the cells this ticket will touch may change.
+     * {@code protectedCells} should include roof (and other structural) cells.
+     */
+    public static BuildingEditScope windowEdit(
+            BuildingInstance building,
+            BuildingEditOperation operation,
+            Set<BlockPos> authorizedCells,
+            Map<BlockPos, String> expectedLiveStates,
+            Set<BlockPos> protectedCells
+    ) {
+        Objects.requireNonNull(building, "building");
+        if (operation == null || !operation.isWindowOp()) {
+            throw new IllegalArgumentException("operation must be INSERT_WINDOW or SEAL_WINDOW");
+        }
+        return new BuildingEditScope(
+                building.buildingId(),
+                building.revision(),
+                operation,
+                authorizedCells,
+                protectedCells,
+                expectedLiveStates
         );
     }
 

@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -87,7 +86,7 @@ class BuildingAwareRound61Test {
             BuildingEditService service, ProjectMemory house, BlockPos roof, boolean commitMemory
     ) {
         BuildingEditTransactionStore.bindDirectoryForTest(tmp.resolve("txn-" + UUID.randomUUID()));
-        var begin = service.beginTransaction(new BuildingEditPendingRegistry.Pending(
+        var begin = service.beginTransaction(BuildingEditPendingRegistry.Pending.roof(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.fromString(house.getUuid()), OVERWORLD, 0L,
                 java.util.Set.of(roof),
                 Map.of(roof, "minecraft:oak_stairs"),
@@ -121,7 +120,7 @@ class BuildingAwareRound61Test {
 
         var result = BuildingEditRecoveryCoordinator.recoverWithLiveSnapshot(
                 service, mm, txn, Map.of(roof, "minecraft:dark_oak_stairs"));
-        assertTrue(result.ok(), () -> result.message());
+        assertTrue(result.ok(), result::message);
         assertEquals("finalized_memory_already_committed", result.message());
         assertEquals(BuildingEditTransaction.Status.MEMORY_COMMITTED,
                 BuildingEditTransactionStore.get(txn.transactionId()).status());
@@ -180,7 +179,7 @@ class BuildingAwareRound61Test {
         var mm = manager(index);
         var service = new BuildingEditService(mm);
         BuildingEditTransactionStore.bindDirectoryForTest(tmp.resolve("prep"));
-        var begin = service.beginTransaction(new BuildingEditPendingRegistry.Pending(
+        var begin = service.beginTransaction(BuildingEditPendingRegistry.Pending.roof(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.fromString(house.getUuid()), OVERWORLD, 0L,
                 java.util.Set.of(roof),
                 Map.of(roof, "minecraft:oak_stairs"),
@@ -206,7 +205,7 @@ class BuildingAwareRound61Test {
         var mm = manager(index);
         var service = new BuildingEditService(mm);
         BuildingEditTransactionStore.bindDirectoryForTest(tmp.resolve("clean"));
-        var begin = service.beginTransaction(new BuildingEditPendingRegistry.Pending(
+        var begin = service.beginTransaction(BuildingEditPendingRegistry.Pending.roof(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.fromString(house.getUuid()), OVERWORLD, 0L,
                 java.util.Set.of(roof),
                 Map.of(roof, "minecraft:oak_stairs"),
@@ -215,7 +214,7 @@ class BuildingAwareRound61Test {
 
         var result = BuildingEditRecoveryCoordinator.recoverWithLiveSnapshot(
                 service, mm, begin.transaction(), Map.of(roof, "minecraft:oak_stairs"));
-        assertTrue(result.ok(), () -> result.message());
+        assertTrue(result.ok(), result::message);
         assertEquals("prepared_aborted_world_unchanged", result.message());
         assertEquals(BuildingEditTransaction.Status.ABORTED,
                 BuildingEditTransactionStore.get(begin.transaction().transactionId()).status());
@@ -258,7 +257,7 @@ class BuildingAwareRound61Test {
         Map<BlockPos, String> live = Map.of(roof, "minecraft:dark_oak_stairs");
 
         var first = BuildingEditRecoveryCoordinator.recoverWithLiveSnapshot(service, mm, txn, live);
-        assertTrue(first.ok(), () -> first.message());
+        assertTrue(first.ok(), first::message);
         assertEquals(1L, BuildingMemoryKeys.revisionOf(index.getMemory(house.getUuid())));
 
         // Second pass: txn already MEMORY_COMMITTED — listOpen won't include it; direct call on closed txn.
@@ -281,7 +280,7 @@ class BuildingAwareRound61Test {
         var mm = manager(index);
         var service = new BuildingEditService(mm);
         UUID buildingId = UUID.fromString(house.getUuid());
-        var begin = service.beginTransaction(new BuildingEditPendingRegistry.Pending(
+        var begin = service.beginTransaction(BuildingEditPendingRegistry.Pending.roof(
                 UUID.randomUUID(), UUID.randomUUID(), buildingId, OVERWORLD, 0L,
                 java.util.Set.of(roof),
                 Map.of(roof, "minecraft:oak_stairs"),
@@ -310,7 +309,7 @@ class BuildingAwareRound61Test {
         var ok = BuildingEditRecoveryCoordinator.recoverWithLiveSnapshot(
                 service, mm, BuildingEditTransactionStore.get(txnId),
                 Map.of(roof, "minecraft:dark_oak_stairs"));
-        assertTrue(ok.ok(), () -> ok.message());
+        assertTrue(ok.ok(), ok::message);
         assertNull(BuildingEditTransactionStore.findOpenByBuilding(buildingId));
     }
 }

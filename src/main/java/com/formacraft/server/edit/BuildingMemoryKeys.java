@@ -14,6 +14,10 @@ public final class BuildingMemoryKeys {
     public static final String REVISION = "building_revision";
     public static final String ROOF_CELLS = "part_index_roof_cells";
     public static final String ROOF_STATES = "part_index_roof_states";
+    public static final String WINDOW_CELLS = "part_index_window_cells";
+    public static final String WINDOW_STATES = "part_index_window_states";
+    public static final String WALL_CELLS = "part_index_wall_cells";
+    public static final String WALL_STATES = "part_index_wall_states";
     /** World Apply succeeded but Memory/Revision commit did not — blocks further incremental edits. */
     public static final String MEMORY_SYNC_PENDING = "building_edit_memory_sync_pending";
     public static final String MEMORY_SYNC_BASE_REVISION = "building_edit_memory_sync_base_revision";
@@ -141,6 +145,24 @@ public final class BuildingMemoryKeys {
     }
 
     public static void storeRoofCells(ProjectMemory memory, List<BlockPos> cells, Map<BlockPos, String> states) {
+        storePartCells(memory, ROOF_CELLS, ROOF_STATES, cells, states);
+    }
+
+    public static void storeWindowCells(ProjectMemory memory, List<BlockPos> cells, Map<BlockPos, String> states) {
+        storePartCells(memory, WINDOW_CELLS, WINDOW_STATES, cells, states);
+    }
+
+    public static void storeWallCells(ProjectMemory memory, List<BlockPos> cells, Map<BlockPos, String> states) {
+        storePartCells(memory, WALL_CELLS, WALL_STATES, cells, states);
+    }
+
+    private static void storePartCells(
+            ProjectMemory memory,
+            String cellsKey,
+            String statesKey,
+            List<BlockPos> cells,
+            Map<BlockPos, String> states
+    ) {
         if (memory == null) return;
         Map<String, Object> meta = ensureMetadata(memory);
         List<List<Integer>> packed = new ArrayList<>();
@@ -154,8 +176,8 @@ public final class BuildingMemoryKeys {
                 }
             }
         }
-        meta.put(ROOF_CELLS, packed);
-        meta.put(ROOF_STATES, stateMap);
+        meta.put(cellsKey, packed);
+        meta.put(statesKey, stateMap);
         if (!meta.containsKey(REVISION)) {
             meta.put(REVISION, 0L);
         }
@@ -163,8 +185,42 @@ public final class BuildingMemoryKeys {
 
     @SuppressWarnings("unchecked")
     public static Map<String, String> roofStatesRaw(ProjectMemory memory) {
+        return statesRaw(memory, ROOF_STATES);
+    }
+
+    public static List<int[]> windowCellsRaw(ProjectMemory memory) {
+        return cellsRaw(memory, WINDOW_CELLS);
+    }
+
+    public static Map<String, String> windowStatesRaw(ProjectMemory memory) {
+        return statesRaw(memory, WINDOW_STATES);
+    }
+
+    public static List<int[]> wallCellsRaw(ProjectMemory memory) {
+        return cellsRaw(memory, WALL_CELLS);
+    }
+
+    public static Map<String, String> wallStatesRaw(ProjectMemory memory) {
+        return statesRaw(memory, WALL_STATES);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<int[]> cellsRaw(ProjectMemory memory, String key) {
+        if (memory == null || memory.getMetadata() == null) return List.of();
+        Object raw = memory.getMetadata().get(key);
+        if (!(raw instanceof List<?> list) || list.isEmpty()) return List.of();
+        List<int[]> out = new ArrayList<>();
+        for (Object entry : list) {
+            int[] coords = parseCell(entry);
+            if (coords != null) out.add(coords);
+        }
+        return List.copyOf(out);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> statesRaw(ProjectMemory memory, String key) {
         if (memory == null || memory.getMetadata() == null) return Map.of();
-        Object raw = memory.getMetadata().get(ROOF_STATES);
+        Object raw = memory.getMetadata().get(key);
         if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) return Map.of();
         Map<String, String> out = new LinkedHashMap<>();
         for (var e : map.entrySet()) {

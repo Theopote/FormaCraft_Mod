@@ -8,12 +8,14 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
 /**
  * Independent of the LLM: every effective write must land in allowedCells,
  * and protected / expected / live states must not be violated (fail-closed).
+ * Operation-specific rules: roof forbids geometry holes; windows may open/seal within scope.
  */
 public final class BuildingEditScopeValidator {
     private BuildingEditScopeValidator() {}
@@ -29,8 +31,11 @@ public final class BuildingEditScopeValidator {
         List<String> conflicts = new ArrayList<>();
         List<BlockPos> unexpected = new ArrayList<>();
 
-        if (scope.operation() != BuildingEditOperation.REPLACE_ROOF_MATERIAL) {
-            conflicts.add("unsupported_operation:" + scope.operation());
+        BuildingEditOperation op = scope.operation();
+        if (op != BuildingEditOperation.REPLACE_ROOF_MATERIAL
+                && op != BuildingEditOperation.INSERT_WINDOW
+                && op != BuildingEditOperation.SEAL_WINDOW) {
+            conflicts.add("unsupported_operation:" + op);
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
         if (currentRevision != scope.baseRevision()) {
@@ -38,7 +43,7 @@ public final class BuildingEditScopeValidator {
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
         if (scope.allowedCells().isEmpty()) {
-            conflicts.add("roof_cells_unavailable");
+            conflicts.add(op.isWindowOp() ? "window_cells_unavailable" : "roof_cells_unavailable");
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
         if (patches == null || patches.isEmpty()) {
@@ -70,9 +75,21 @@ public final class BuildingEditScopeValidator {
                 conflicts.add("invalid_target@" + world.toShortString());
                 continue;
             }
-            if (BlockPatch.REMOVE.equals(patch.action()) || target.isAir()) {
-                conflicts.add("geometry_change_forbidden@" + world.toShortString());
-                continue;
+            if (op == BuildingEditOperation.REPLACE_ROOF_MATERIAL) {
+                if (BlockPatch.REMOVE.equals(patch.action()) || target.isAir()) {
+                    conflicts.add("geometry_change_forbidden@" + world.toShortString());
+                    continue;
+                }
+            } else if (op == BuildingEditOperation.SEAL_WINDOW) {
+                if (BlockPatch.REMOVE.equals(patch.action()) || target.isAir()) {
+                    conflicts.add("seal_must_place_wall@" + world.toShortString());
+                    continue;
+                }
+            } else if (op == BuildingEditOperation.INSERT_WINDOW) {
+                // Opening may REPLACE wall→glass or REMOVE; never touch protected cells (checked above).
+                if (BlockPatch.REMOVE.equals(patch.action()) && !target.isAir()) {
+                    // REMOVE payloads sometimes still carry a placeholder block id — treat as open.
+                }
             }
             String expected = scope.expectedWorldStates().get(world);
             if (expected == null || expected.isBlank()) {
@@ -95,13 +112,23 @@ public final class BuildingEditScopeValidator {
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
         if (!anyChange) {
-            return BuildingEditValidation.rejected(List.of("no_effective_roof_change"), List.of());
+            String code = op.isWindowOp() ? "no_effective_window_change" : "no_effective_roof_change";
+            return BuildingEditValidation.rejected(List.of(code), List.of());
         }
-        return BuildingEditValidation.accepted(List.of("ROOF"));
+        String part = switch (op) {
+            case REPLACE_ROOF_MATERIAL -> "ROOF";
+            case INSERT_WINDOW -> "WINDOW_INSERT";
+            case SEAL_WINDOW -> "WINDOW_SEAL";
+        };
+        return BuildingEditValidation.accepted(List.of(part));
     }
 
     private static boolean statesMatch(String expected, String live) {
         if (Objects.equals(expected, live)) return true;
+        if (expected != null && live != null
+                && expected.toLowerCase(Locale.ROOT).equals(live.toLowerCase(Locale.ROOT))) {
+            return true;
+        }
         BlockState a = BlockPatchTargetResolver.parse(expected);
         BlockState b = BlockPatchTargetResolver.parse(live);
         if (a == null || b == null) return false;

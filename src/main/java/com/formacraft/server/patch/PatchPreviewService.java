@@ -482,17 +482,18 @@ public final class PatchPreviewService {
                 ));
                 return false;
             }
-            boolean committed = editService.commitSuccessfulRoofEdit(
+            boolean committed = editService.commitSuccessfulBuildingEdit(
                     pendingEdit.buildingId(),
                     pendingEdit.dimension(),
                     pendingEdit.baseRevision(),
-                    pendingEdit.newRoofStates());
+                    pendingEdit.operation(),
+                    pendingEdit.targetWorldStates());
             if (!committed) {
                 editService.markMemorySyncFailed(
                         pendingEdit.buildingId(),
                         pendingEdit.dimension(),
                         pendingEdit.baseRevision(),
-                        pendingEdit.newRoofStates());
+                        pendingEdit.targetWorldStates());
                 if (txnId != null) editService.markRecoveryRequired(txnId);
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "【EDIT_MEMORY_SYNC_FAILED】世界 Apply 成功，建筑 Memory/Revision 提交失败。"
@@ -508,8 +509,13 @@ public final class PatchPreviewService {
                 ));
                 return false;
             }
+            String successLabel = switch (pendingEdit.operation()) {
+                case INSERT_WINDOW -> "开窗";
+                case SEAL_WINDOW -> "封窗";
+                case REPLACE_ROOF_MATERIAL -> "屋顶材质替换";
+            };
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                    "【EDIT_COMMIT_SUCCESS】屋顶材质替换已写入世界并同步建筑 Memory。"
+                    "【EDIT_COMMIT_SUCCESS】" + successLabel + "已写入世界并同步建筑 Memory。"
             ));
         }
         FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);

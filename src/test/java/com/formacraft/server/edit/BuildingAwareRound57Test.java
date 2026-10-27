@@ -83,7 +83,7 @@ class BuildingAwareRound57Test {
     ) {
         UUID buildingId = UUID.fromString(house.getUuid());
         String state = "minecraft:oak_stairs[facing=east,half=bottom,shape=straight,waterlogged=false]";
-        return new BuildingEditPendingRegistry.Pending(
+        return BuildingEditPendingRegistry.Pending.roof(
                 ticketId,
                 playerId,
                 buildingId,

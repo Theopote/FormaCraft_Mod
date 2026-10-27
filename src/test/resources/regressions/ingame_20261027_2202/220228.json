@@ -1,0 +1,1206 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL_CASTLE",
+  "style_attributes": {
+    "wall_color": "#1a1a1a",
+    "roof_color": "#111111",
+    "accent_color": "#5a1f1f",
+    "wall_material": null,
+    "roof_material": null,
+    "floor_material": null,
+    "decorative_elements": [
+      "battlements",
+      "arrow_slits",
+      "iron_doors",
+      "blackstone_brick_walls",
+      "torch_braziers"
+    ]
+  },
+  "distinguishing_features": [
+    "compact blackstone dark fortress",
+    "central great hall flanked by two hollow defensive towers",
+    "ground-floor chambers linked through wall openings",
+    "interior stair flights in both towers",
+    "battlemented rooftop platforms with perimeter railings",
+    "narrow arrow-slit windows and heavy stone construction"
+  ],
+  "anchor": {
+    "x": 508,
+    "y": 71,
+    "z": -1033
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "fortress",
+      "confidence": 0.86
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "axial",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.76,
+      "voidRatio": 0.14,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "tower"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "stone",
+      "accent": "metal",
+      "textureBias": "rough",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "blackstone",
+        "dark fortress",
+        "defensive",
+        "hollow towers",
+        "battlements"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "hollow walkable towers",
+        "interior stairs to rooftop platforms",
+        "ground-floor connectivity",
+        "blackstone material consistency"
+      ],
+      "avoid": [
+        "solid pillars replacing towers",
+        "ornate palace details",
+        "wide undefended windows"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "radial_fortress",
+    "wall_height_to_thickness": 6.0,
+    "tower_height_to_wall": 2.5,
+    "enclosure_coverage": 0.92,
+    "window_wall_ratio": 0.1,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_tower": [
+          "fortress_tower_left",
+          "fortress_tower_right"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "fortress_hall_main",
+          "slot_id": "slot_hall",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 12,
+            "depth": 10,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "fortress_hall_main",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 10,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -5,
+              "max_x": 6,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -5,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "fortress_tower_left",
+          "slot_id": "slot_tower_left",
+          "local_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -14,
+            "y": 0,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 8,
+            "height": 15
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 14,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "fortress_tower_left",
+                "local_origin": {
+                  "x": -4,
+                  "y": 0,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 8,
+                  "height": 15
+                },
+                "roof_y_local": 14
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -4,
+              "max_x": 4,
+              "max_z": 4,
+              "min_y": 0,
+              "max_y": 15
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -4,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "fortress_tower_right",
+          "slot_id": "slot_tower_right",
+          "local_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": 6,
+            "y": 0,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 8,
+            "height": 15
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 14,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "fortress_tower_right",
+                "local_origin": {
+                  "x": -4,
+                  "y": 0,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 8,
+                  "height": 15
+                },
+                "roof_y_local": 14
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -4,
+              "max_x": 4,
+              "max_z": 4,
+              "min_y": 0,
+              "max_y": 15
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -4,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建一座黑石风格的小型暗黑堡垒 ， 主厅左右各有一座空心防御塔。 主厅与两座塔的底层连通， 每座塔内部都有可步行到塔顶的楼梯，塔顶有平台和护栏。 不要用实心柱子代替塔楼。",
+          "purposes": [
+            {
+              "id": "fortification",
+              "phrase": "堡垒",
+              "start": 12,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": [
+            {
+              "id": "tower",
+              "phrase": "塔楼",
+              "start": 81,
+              "status": "requested",
+              "part": "building"
+            }
+          ]
+        }
+      ],
+      "original_text": "建一座黑石风格的小型暗黑堡垒\n，\n主厅左右各有一座空心防御塔。\n主厅与两座塔的底层连通，\n每座塔内部都有可步行到塔顶的楼梯，塔顶有平台和护栏。\n不要用实心柱子代替塔楼。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "fortress_hall_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Castle",
+          "status": "processed"
+        },
+        {
+          "host_id": "fortress_tower_left",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Castle",
+          "status": "processed"
+        },
+        {
+          "host_id": "fortress_tower_right",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Castle",
+          "status": "processed"
+        }
+      ]
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "slot_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "component_preset": "MASS_MAIN",
+        "role": "core"
+      },
+      {
+        "slot_id": "slot_tower_left",
+        "anchor": {
+          "x": -10,
+          "y": 0,
+          "z": 0
+        },
+        "component_preset": "MASS_MAIN",
+        "role": "defensive_tower"
+      },
+      {
+        "slot_id": "slot_tower_right",
+        "anchor": {
+          "x": 10,
+          "y": 0,
+          "z": 0
+        },
+        "component_preset": "MASS_MAIN",
+        "role": "defensive_tower"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_hall",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 6
+      },
+      "params": {
+        "component_id": "fortress_hall_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 6,
+        "floor_count": 1,
+        "void_ratio": 0.12,
+        "window_ratio": 0.08,
+        "window_aspect": "arrow_slit",
+        "roof_type": "flat",
+        "facade_profile": "base_plinth",
+        "facade_cutout": "none",
+        "wall_block": "minecraft:polished_blackstone_bricks",
+        "floor_block": "minecraft:blackstone",
+        "roof_block": "minecraft:polished_blackstone",
+        "detail_level": "high",
+        "building_id": "fortress_hall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 15
+      },
+      "params": {
+        "component_id": "fortress_tower_left",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 15,
+        "floor_count": 1,
+        "void_ratio": 0.08,
+        "window_ratio": 0.06,
+        "window_aspect": "arrow_slit",
+        "roof_type": "flat",
+        "facade_profile": "base_plinth",
+        "facade_cutout": "none",
+        "wall_block": "minecraft:polished_blackstone_bricks",
+        "floor_block": "minecraft:blackstone",
+        "roof_block": "minecraft:polished_blackstone",
+        "detail_level": "high",
+        "building_id": "fortress_tower_left"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 15
+      },
+      "params": {
+        "component_id": "fortress_tower_right",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 15,
+        "floor_count": 1,
+        "void_ratio": 0.08,
+        "window_ratio": 0.06,
+        "window_aspect": "arrow_slit",
+        "roof_type": "flat",
+        "facade_profile": "base_plinth",
+        "facade_cutout": "none",
+        "wall_block": "minecraft:polished_blackstone_bricks",
+        "floor_block": "minecraft:blackstone",
+        "roof_block": "minecraft:polished_blackstone",
+        "detail_level": "high",
+        "building_id": "fortress_tower_right"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_hall",
+      "relative_position": {
+        "x": -6,
+        "y": 6,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 1
+      },
+      "params": {
+        "component_id": "fortress_hall_roof",
+        "host_id": "fortress_hall_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "roof_block": "minecraft:polished_blackstone",
+        "detail_level": "medium",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "fortress_hall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": -4,
+        "y": 15,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "fortress_tower_left_platform",
+        "host_id": "fortress_tower_left",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "roof_block": "minecraft:polished_blackstone",
+        "plate_role": "tower_platform",
+        "detail_level": "high",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "fortress_tower_left"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -4,
+        "y": 15,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "fortress_tower_right_platform",
+        "host_id": "fortress_tower_right",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "roof_block": "minecraft:polished_blackstone",
+        "plate_role": "tower_platform",
+        "detail_level": "high",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "fortress_tower_right"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "facing": "SOUTH",
+      "params": {
+        "component_id": "fortress_hall_front_door",
+        "host_id": "fortress_hall_main",
+        "entrance_type": "door",
+        "door_block": "minecraft:iron_door",
+        "carve": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "fortress_hall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_hall",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "facing": "EAST",
+      "params": {
+        "component_id": "fortress_hall_left_link",
+        "host_id": "fortress_hall_main",
+        "entrance_type": "doorway",
+        "door_block": "minecraft:air",
+        "carve": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "fortress_hall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_hall",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "facing": "WEST",
+      "params": {
+        "component_id": "fortress_hall_right_link",
+        "host_id": "fortress_hall_main",
+        "entrance_type": "doorway",
+        "door_block": "minecraft:air",
+        "carve": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "fortress_hall_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "facing": "WEST",
+      "params": {
+        "component_id": "fortress_tower_left_link",
+        "host_id": "fortress_tower_left",
+        "entrance_type": "doorway",
+        "door_block": "minecraft:air",
+        "carve": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "fortress_tower_left"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "facing": "EAST",
+      "params": {
+        "component_id": "fortress_tower_right_link",
+        "host_id": "fortress_tower_right",
+        "entrance_type": "doorway",
+        "door_block": "minecraft:air",
+        "carve": true,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "fortress_tower_right"
+      },
+      "features": []
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_left_stair_1",
+        "host_id": "fortress_tower_left",
+        "from": {
+          "x": 1,
+          "y": 1,
+          "z": 2
+        },
+        "to": {
+          "x": 5,
+          "y": 5,
+          "z": 2
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 1,
+        "building_id": "fortress_tower_left"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_left_stair_2",
+        "host_id": "fortress_tower_left",
+        "from": {
+          "x": 1,
+          "y": 5,
+          "z": 2
+        },
+        "to": {
+          "x": 5,
+          "y": 9,
+          "z": 2
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 1,
+        "building_id": "fortress_tower_left"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_left_stair_3",
+        "host_id": "fortress_tower_left",
+        "from": {
+          "x": 5,
+          "y": 9,
+          "z": 6
+        },
+        "to": {
+          "x": 2,
+          "y": 12,
+          "z": 6
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 2,
+        "building_id": "fortress_tower_left"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_left_stair_4",
+        "host_id": "fortress_tower_left",
+        "from": {
+          "x": 5,
+          "y": 12,
+          "z": 6
+        },
+        "to": {
+          "x": 2,
+          "y": 15,
+          "z": 6
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 2,
+        "building_id": "fortress_tower_left"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_right_stair_1",
+        "host_id": "fortress_tower_right",
+        "from": {
+          "x": 1,
+          "y": 1,
+          "z": 2
+        },
+        "to": {
+          "x": 5,
+          "y": 5,
+          "z": 2
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 1,
+        "building_id": "fortress_tower_right"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_right_stair_2",
+        "host_id": "fortress_tower_right",
+        "from": {
+          "x": 1,
+          "y": 5,
+          "z": 2
+        },
+        "to": {
+          "x": 5,
+          "y": 9,
+          "z": 2
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 1,
+        "building_id": "fortress_tower_right"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_right_stair_3",
+        "host_id": "fortress_tower_right",
+        "from": {
+          "x": 5,
+          "y": 9,
+          "z": 6
+        },
+        "to": {
+          "x": 2,
+          "y": 12,
+          "z": 6
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 2,
+        "building_id": "fortress_tower_right"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "fortress_tower_right_stair_4",
+        "host_id": "fortress_tower_right",
+        "from": {
+          "x": 5,
+          "y": 12,
+          "z": 6
+        },
+        "to": {
+          "x": 2,
+          "y": 15,
+          "z": 6
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:blackstone",
+        "clearHeight": 3,
+        "landing_length": 2,
+        "building_id": "fortress_tower_right"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_hall",
+      "relative_position": {
+        "x": -6,
+        "y": 7,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [
+        "battlement:perimeter"
+      ],
+      "params": {
+        "component_id": "fortress_hall_battlements",
+        "host_id": "fortress_hall_main",
+        "battlement_block": "minecraft:polished_blackstone_brick_wall",
+        "height": 1,
+        "perimeter": true,
+        "building_id": "fortress_hall_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_tower_left",
+      "relative_position": {
+        "x": -4,
+        "y": 16,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "railing:perimeter"
+      ],
+      "params": {
+        "component_id": "fortress_tower_left_railing",
+        "host_id": "fortress_tower_left",
+        "railing_block": "minecraft:polished_blackstone_brick_wall",
+        "railing_type": "battlement",
+        "height": 1,
+        "perimeter": true,
+        "building_id": "fortress_tower_left"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_tower_right",
+      "relative_position": {
+        "x": -4,
+        "y": 16,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "railing:perimeter"
+      ],
+      "params": {
+        "component_id": "fortress_tower_right_railing",
+        "host_id": "fortress_tower_right",
+        "railing_block": "minecraft:polished_blackstone_brick_wall",
+        "railing_type": "battlement",
+        "height": 1,
+        "perimeter": true,
+        "building_id": "fortress_tower_right"
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Minimal part index for Phase 1: roof cells only.
+ * Part index for building-aware edits: roof (Phase 1) plus minimal wall/window (Phase 2).
  * Authority comes from generator/compiler provenance or persisted memory — never world absolute Y.
  */
 public final class BuildingPartIndex {
@@ -33,30 +33,96 @@ public final class BuildingPartIndex {
         }
     }
 
+    /** Minimal wall shell cells touched by façade edits. */
+    public record WallPart(String partId, Set<BlockPos> cells, Map<BlockPos, String> recordedStates) {
+        public WallPart {
+            partId = partId == null || partId.isBlank() ? "wall" : partId;
+            cells = cells == null ? Set.of() : Set.copyOf(cells);
+            recordedStates = recordedStates == null ? Map.of() : Map.copyOf(recordedStates);
+        }
+
+        public boolean isEmpty() {
+            return cells.isEmpty();
+        }
+    }
+
+    /** Openings / glass cells produced by INSERT_WINDOW or sealed by SEAL_WINDOW. */
+    public record WindowPart(String partId, Set<BlockPos> cells, Map<BlockPos, String> recordedStates) {
+        public WindowPart {
+            partId = partId == null || partId.isBlank() ? "window" : partId;
+            cells = cells == null ? Set.of() : Set.copyOf(cells);
+            recordedStates = recordedStates == null ? Map.of() : Map.copyOf(recordedStates);
+        }
+
+        public boolean isEmpty() {
+            return cells.isEmpty();
+        }
+    }
+
     private final RoofPart roof;
+    private final WallPart walls;
+    private final WindowPart windows;
 
     public BuildingPartIndex(RoofPart roof) {
+        this(roof, null, null);
+    }
+
+    public BuildingPartIndex(RoofPart roof, WallPart walls, WindowPart windows) {
         this.roof = roof == null ? new RoofPart("roof", Set.of(), Map.of()) : roof;
+        this.walls = walls == null ? new WallPart("wall", Set.of(), Map.of()) : walls;
+        this.windows = windows == null ? new WindowPart("window", Set.of(), Map.of()) : windows;
     }
 
     public RoofPart roof() {
         return roof;
     }
 
+    public WallPart walls() {
+        return walls;
+    }
+
+    public WindowPart windows() {
+        return windows;
+    }
+
     public static BuildingPartIndex fromMemory(ProjectMemory memory) {
-        List<int[]> raw = BuildingMemoryKeys.roofCellsRaw(memory);
-        Map<String, String> states = BuildingMemoryKeys.roofStatesRaw(memory);
+        return new BuildingPartIndex(
+                loadRoof(memory),
+                loadWall(memory),
+                loadWindow(memory));
+    }
+
+    private static RoofPart loadRoof(ProjectMemory memory) {
+        return new RoofPart("roof", loadCells(BuildingMemoryKeys.roofCellsRaw(memory)),
+                loadStates(BuildingMemoryKeys.roofStatesRaw(memory), BuildingMemoryKeys.roofCellsRaw(memory)));
+    }
+
+    private static WallPart loadWall(ProjectMemory memory) {
+        return new WallPart("wall", loadCells(BuildingMemoryKeys.wallCellsRaw(memory)),
+                loadStates(BuildingMemoryKeys.wallStatesRaw(memory), BuildingMemoryKeys.wallCellsRaw(memory)));
+    }
+
+    private static WindowPart loadWindow(ProjectMemory memory) {
+        return new WindowPart("window", loadCells(BuildingMemoryKeys.windowCellsRaw(memory)),
+                loadStates(BuildingMemoryKeys.windowStatesRaw(memory), BuildingMemoryKeys.windowCellsRaw(memory)));
+    }
+
+    private static Set<BlockPos> loadCells(List<int[]> raw) {
         Set<BlockPos> cells = new LinkedHashSet<>();
+        for (int[] c : raw) {
+            cells.add(new BlockPos(c[0], c[1], c[2]));
+        }
+        return cells;
+    }
+
+    private static Map<BlockPos, String> loadStates(Map<String, String> states, List<int[]> raw) {
         Map<BlockPos, String> recorded = new LinkedHashMap<>();
         for (int[] c : raw) {
             BlockPos pos = new BlockPos(c[0], c[1], c[2]);
-            cells.add(pos);
             String state = states.get(BuildingMemoryKeys.cellKey(pos));
-            if (state != null && !state.isBlank()) {
-                recorded.put(pos, state);
-            }
+            if (state != null && !state.isBlank()) recorded.put(pos, state);
         }
-        return new BuildingPartIndex(new RoofPart("roof", cells, recorded));
+        return recorded;
     }
 
     /**
@@ -144,7 +210,7 @@ public final class BuildingPartIndex {
             cells.remove(pos);
             states.remove(pos);
         }
-        return ofRoofCells(List.copyOf(cells), states);
+        return new BuildingPartIndex(new RoofPart("roof", cells, states), base.walls(), base.windows());
     }
 
     /**
@@ -239,5 +305,41 @@ public final class BuildingPartIndex {
     public void persistTo(ProjectMemory memory) {
         if (memory == null) return;
         BuildingMemoryKeys.storeRoofCells(memory, new ArrayList<>(roof.cells()), roof.recordedStates());
+        BuildingMemoryKeys.storeWallCells(memory, new ArrayList<>(walls.cells()), walls.recordedStates());
+        BuildingMemoryKeys.storeWindowCells(memory, new ArrayList<>(windows.cells()), windows.recordedStates());
+    }
+
+    /** Merge window edit targets into the window index (INSERT adds glass; SEAL may move cells to walls). */
+    public BuildingPartIndex withWindowTargets(
+            BuildingEditOperation operation,
+            Map<BlockPos, String> targetStates
+    ) {
+        if (targetStates == null || targetStates.isEmpty()) return this;
+        Set<BlockPos> windowCells = new LinkedHashSet<>(windows.cells());
+        Map<BlockPos, String> windowStates = new LinkedHashMap<>(windows.recordedStates());
+        Set<BlockPos> wallCells = new LinkedHashSet<>(walls.cells());
+        Map<BlockPos, String> wallStates = new LinkedHashMap<>(walls.recordedStates());
+        for (var e : targetStates.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null) continue;
+            BlockPos cell = e.getKey().toImmutable();
+            String block = e.getValue();
+            boolean glassy = block.toLowerCase(Locale.ROOT).contains("glass")
+                    || block.toLowerCase(Locale.ROOT).contains("pane");
+            if (operation == BuildingEditOperation.INSERT_WINDOW || glassy) {
+                windowCells.add(cell);
+                windowStates.put(cell, block);
+                wallCells.remove(cell);
+                wallStates.remove(cell);
+            } else if (operation == BuildingEditOperation.SEAL_WINDOW) {
+                windowCells.remove(cell);
+                windowStates.remove(cell);
+                wallCells.add(cell);
+                wallStates.put(cell, block);
+            }
+        }
+        return new BuildingPartIndex(
+                roof,
+                new WallPart("wall", wallCells, wallStates),
+                new WindowPart("window", windowCells, windowStates));
     }
 }

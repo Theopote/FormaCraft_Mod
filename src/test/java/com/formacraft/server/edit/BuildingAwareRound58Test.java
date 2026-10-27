@@ -121,7 +121,7 @@ class BuildingAwareRound58Test {
         UUID ticketId = UUID.randomUUID();
         UUID playerId = UUID.randomUUID();
         String state = "minecraft:oak_stairs[facing=east,half=bottom,shape=straight,waterlogged=false]";
-        BuildingEditPendingRegistry.put(new BuildingEditPendingRegistry.Pending(
+        BuildingEditPendingRegistry.put(BuildingEditPendingRegistry.Pending.roof(
                 ticketId, playerId, UUID.fromString(house.getUuid()), OVERWORLD, 0L,
                 java.util.Set.of(roof), Map.of(roof, state),
                 Map.of(roof, "minecraft:dark_oak_stairs"),
@@ -145,7 +145,7 @@ class BuildingAwareRound58Test {
         BlockPos roof = new BlockPos(1, 69, 1);
         attachOakRoof(house, roof);
         String state = "minecraft:oak_stairs";
-        BuildingEditPendingRegistry.put(new BuildingEditPendingRegistry.Pending(
+        BuildingEditPendingRegistry.put(BuildingEditPendingRegistry.Pending.roof(
                 ticketId, owner, UUID.fromString(house.getUuid()), OVERWORLD, 0L,
                 java.util.Set.of(roof), Map.of(roof, state), Map.of(roof, "minecraft:dark_oak_stairs"),
                 System.currentTimeMillis() + 60_000));
@@ -221,7 +221,7 @@ class BuildingAwareRound58Test {
         UUID ticketId = UUID.randomUUID();
         UUID playerId = UUID.randomUUID();
         String state = "minecraft:oak_stairs[facing=east,half=bottom,shape=straight,waterlogged=false]";
-        var pending = new BuildingEditPendingRegistry.Pending(
+        var pending = BuildingEditPendingRegistry.Pending.roof(
                 ticketId, playerId, UUID.fromString(house.getUuid()), OVERWORLD, 0L,
                 java.util.Set.of(roof), Map.of(roof, state),
                 Map.of(roof, "minecraft:dark_oak_stairs"),
