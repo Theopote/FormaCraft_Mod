@@ -1550,6 +1550,7 @@ public final class ComponentPlanCompiler {
         }
 
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
+        DoorFloorDatumCompiler.apply(prepared);
         StairFloorPlaneCompiler.apply(prepared);
         ExteriorStairEndpointRepair.apply(prepared);
         BareStairFitCompiler.apply(prepared);

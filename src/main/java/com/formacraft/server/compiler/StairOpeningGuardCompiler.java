@@ -5,12 +5,14 @@ import java.util.*;
 final class StairOpeningGuardCompiler {
     static void apply(List<Component> parts) {
         var extras=new ArrayList<Component>();
+        var handled=new HashSet<Object>();
         for(var it=parts.listIterator();it.hasNext();) {
             var rail=it.next();
             if(rail==null || rail.params()==null || rail.relativePosition()==null
                     || rail.params().get("host_id")==null
-                    || !Boolean.TRUE.equals(rail.params().get("railing"))
-                    || !"stair_opening".equals(rail.params().get("placement"))) continue;
+                    || !(Boolean.TRUE.equals(rail.params().get("railing")) || "railing".equals(rail.params().get("role")))
+                    || !("stair_opening".equals(rail.params().get("placement"))
+                         || rail.features()!=null && rail.features().contains("stair_opening_guard"))) continue;
             for(var stair:parts) {
                 if(stair==null || stair.params()==null || stair.relativePosition()==null
                         || !Objects.equals(stair.slotId(),rail.slotId())
@@ -25,7 +27,8 @@ final class StairOpeningGuardCompiler {
                 var r=stair.relativePosition();
                 int left=r.x()+ax-width/2-1,right=left+width+1;
                 int z0=r.z()+Math.min(az,bz),z1=r.z()+Math.max(az,bz);
-                int y=rail.relativePosition().y();
+                if(!handled.add(rail.params().get("host_id"))) {it.remove();break;}
+                int y=Math.max(rail.relativePosition().y(),r.y()+Math.max(n(a,"y"),n(b,"y"))+1);
                 extras.add(line(rail,"left",left,y,z0,1,z1-z0+1));
                 extras.add(line(rail,"right",right,y,z0,1,z1-z0+1));
                 int lowZ=n(a,"y")<n(b,"y")?az:bz;
