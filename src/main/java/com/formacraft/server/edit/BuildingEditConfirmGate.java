@@ -106,6 +106,21 @@ public final class BuildingEditConfirmGate {
                     return Outcome.reject("building_edit_window_overlaps_roof@" + roofCell.toShortString());
                 }
             }
+            // Neighbor isolation: authorized window cells must stay inside the building AABB.
+            for (BlockPos cell : pending.allowedCells()) {
+                if (cell != null && !instance.contains(cell)) {
+                    return Outcome.reject("building_edit_window_outside_building@" + cell.toShortString());
+                }
+            }
+            // Every ticket patch write must still lie in the frozen authorized envelope.
+            BlockPos originPos = origin == null ? BlockPos.ORIGIN : origin;
+            for (BlockPatch patch : patches) {
+                if (patch == null) continue;
+                BlockPos writeCell = originPos.add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
+                if (!pending.allowedCells().contains(writeCell)) {
+                    return Outcome.reject("building_edit_patch_outside_authorized@" + writeCell.toShortString());
+                }
+            }
         }
 
         Map<BlockPos, String> live = captureLive(world, pending.allowedCells());

@@ -23,5 +23,5 @@ class Live0023RegressionTest {
     }
     @Test void stiltExteriorStairFitsDoorOpening() throws Exception {compile(load("001437"));}
     @Test void adobeWindowRowsUseHostFloors() throws Exception {compile(load("001952"));}
-    @Test void smallTowersHaveValidStairEnvelope() throws Exception {compile(load("002322"));}
+    @Test void smallTowersHaveValidStairEnvelope() throws Exception {compile(load("002322_normalized"));}
 }

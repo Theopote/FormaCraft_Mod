@@ -50,8 +50,6 @@ public class BuildConfirmPanel {
     private final PatchPanelPlacement patchPlacement = new PatchPanelPlacement();
     private boolean draggingPatch;
     private double patchDragX,patchDragY;
-    private int width = 300;
-    private int height = 240;
 
     // 原版风格按钮（与 SettingsPanel 保持一致：ButtonWidget 渲染）
     private ButtonWidget confirmButton;
@@ -341,6 +339,8 @@ public class BuildConfirmPanel {
         context.disableScissor();
         for(var button:new ButtonWidget[]{applyPatchButton,undoPatchButton,redoPatchButton,cancelButton})button.render(context,mx,my,0);
         drawFirstMatchingHudTooltip(context,mx,my,new ClickableWidget[]{applyPatchButton,undoPatchButton,redoPatchButton,cancelButton},null);
+        if(box.contains(mx,my)&&my>=box.y()+22&&my<box.buttonY(0)&&patchWarnings!=null&&!patchWarnings.isEmpty())
+            UiTheme.drawTooltip(context,client,patchWarnings.stream().filter(java.util.Objects::nonNull).map(Text::literal).map(t->(Text)t).toList(),mx,my);
     }
 
     private PatchPanelPlacement.Bounds patchBounds() {

@@ -7,14 +7,7 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.memory.ProjectMemory;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Part index for building-aware edits: roof (Phase 1) plus minimal wall/window (Phase 2).
@@ -33,12 +26,61 @@ public final class BuildingPartIndex {
         }
     }
 
-    /** Minimal wall shell cells touched by façade edits. */
-    public record WallPart(String partId, Set<BlockPos> cells, Map<BlockPos, String> recordedStates) {
+    /**
+     * One façade face with stable identity. floorIndex is relative to building origin
+     * (storey band), never world absolute Y.
+     */
+    public record WallFace(
+            String wallId,
+            int floorIndex,
+            String facing,
+            Set<BlockPos> cells,
+            Map<BlockPos, String> expectedStates
+    ) {
+        public WallFace {
+            wallId = wallId == null || wallId.isBlank() ? "wall" : wallId;
+            floorIndex = Math.max(0, floorIndex);
+            facing = facing == null ? "" : facing;
+            cells = cells == null ? Set.of() : Set.copyOf(cells);
+            expectedStates = expectedStates == null ? Map.of() : Map.copyOf(expectedStates);
+        }
+    }
+
+    /** One window opening with host wall identity. */
+    public record WindowOpening(
+            String windowId,
+            String hostWallId,
+            int floorIndex,
+            String facing,
+            Set<BlockPos> cells,
+            Map<BlockPos, String> expectedStates
+    ) {
+        public WindowOpening {
+            windowId = windowId == null || windowId.isBlank() ? "window" : windowId;
+            hostWallId = hostWallId == null ? "" : hostWallId;
+            floorIndex = Math.max(0, floorIndex);
+            facing = facing == null ? "" : facing;
+            cells = cells == null ? Set.of() : Set.copyOf(cells);
+            expectedStates = expectedStates == null ? Map.of() : Map.copyOf(expectedStates);
+        }
+    }
+
+    /** Minimal wall shell cells touched by façade edits, plus optional face identities. */
+    public record WallPart(
+            String partId,
+            Set<BlockPos> cells,
+            Map<BlockPos, String> recordedStates,
+            List<WallFace> faces
+    ) {
+        public WallPart(String partId, Set<BlockPos> cells, Map<BlockPos, String> recordedStates) {
+            this(partId, cells, recordedStates, List.of());
+        }
+
         public WallPart {
             partId = partId == null || partId.isBlank() ? "wall" : partId;
             cells = cells == null ? Set.of() : Set.copyOf(cells);
             recordedStates = recordedStates == null ? Map.of() : Map.copyOf(recordedStates);
+            faces = faces == null ? List.of() : List.copyOf(faces);
         }
 
         public boolean isEmpty() {
@@ -47,11 +89,21 @@ public final class BuildingPartIndex {
     }
 
     /** Openings / glass cells produced by INSERT_WINDOW or sealed by SEAL_WINDOW. */
-    public record WindowPart(String partId, Set<BlockPos> cells, Map<BlockPos, String> recordedStates) {
+    public record WindowPart(
+            String partId,
+            Set<BlockPos> cells,
+            Map<BlockPos, String> recordedStates,
+            List<WindowOpening> openings
+    ) {
+        public WindowPart(String partId, Set<BlockPos> cells, Map<BlockPos, String> recordedStates) {
+            this(partId, cells, recordedStates, List.of());
+        }
+
         public WindowPart {
             partId = partId == null || partId.isBlank() ? "window" : partId;
             cells = cells == null ? Set.of() : Set.copyOf(cells);
             recordedStates = recordedStates == null ? Map.of() : Map.copyOf(recordedStates);
+            openings = openings == null ? List.of() : List.copyOf(openings);
         }
 
         public boolean isEmpty() {
@@ -140,7 +192,7 @@ public final class BuildingPartIndex {
      * Later non-roof writers or REMOVEs exclude the cell — matching landed world membership.
      */
     public static BuildingPartIndex fromFinalPatches(BlockPos origin, List<BlockPatch> patches) {
-        Objects.requireNonNull(origin, "origin");
+        java.util.Objects.requireNonNull(origin, "origin");
         Map<BlockPos, BlockPatch> lastWrite = new LinkedHashMap<>();
         if (patches != null) {
             for (BlockPatch patch : patches) {

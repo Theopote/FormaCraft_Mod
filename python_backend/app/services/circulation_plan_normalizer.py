@@ -698,6 +698,8 @@ def normalize_circulation_plan(plan: dict) -> dict:
     if (out.get('capability_gap') or {}).get('code') == 'E_STAIR_ENVELOPE_FIT':
         out.pop('capability_gap', None)
         if out.get('plan_status') == 'capability_gap': out.pop('plan_status', None)
+    from .narrow_tower_circulation import fit_narrow_tower_stairs
+    fit_narrow_tower_stairs(out)
     _fit_straight_stairs(out)
     _normalize_bridge_levels(out)
     _bind_exterior_stair_doors(out)
@@ -714,6 +716,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
     stairwells = {}
     for comp in sorted(out.get('components', []), key=lambda c: (c.get('relative_position') or {}).get('y', 0)):
         params = comp.get('params') or {}
+        if params.get('circulation_source') == 'bounded_tower_switchback': continue
         if params.get('host_id') not in tower_ids or params.get('exterior') is True:
             continue
         if comp.get('component_type') != 'STRUCTURE' or 'stair:straight_single_run' not in comp.get('features', []):

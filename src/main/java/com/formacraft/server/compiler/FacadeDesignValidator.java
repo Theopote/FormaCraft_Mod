@@ -36,7 +36,16 @@ final class FacadeDesignValidator {
             if ("MASS_MAIN".equals(type) || "MAIN_MASS".equals(type)
                     || "FACADE_WINDOWS".equals(type) || "MASS_SECONDARY".equals(type)
                     || "MASS_WING".equals(type) || "SIDE_WING".equals(type)) {
-                Optional<CapabilityGap> floors = checkFloorLayout(component);
+                Component owner=component;
+                if("FACADE_WINDOWS".equals(type) && component.params()!=null && component.params().get("host_id")!=null) {
+                    for(Component candidate:components)if(candidate!=null && candidate.params()!=null
+                            && component.params().get("host_id").equals(candidate.params().get("component_id"))
+                            && java.util.Objects.equals(component.slotId(),candidate.slotId())
+                            && com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(candidate)
+                            && ComponentParamParsers.intParam(component.params(),"floor_count")==ComponentParamParsers.intParam(candidate.params(),"floor_count")
+                            && ComponentParamParsers.intParam(component.params(),"floor_height")==ComponentParamParsers.intParam(candidate.params(),"floor_height")) {owner=candidate;break;}
+                }
+                Optional<CapabilityGap> floors = checkFloorLayout(owner);
                 if (floors.isPresent()) {
                     return floors;
                 }

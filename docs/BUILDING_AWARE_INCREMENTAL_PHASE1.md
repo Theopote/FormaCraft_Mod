@@ -168,3 +168,24 @@ WindowInsert/Seal intent
 4. 存在 open 屋顶/门窗事务时，再次开窗/封窗预览被拒  
 5. 重启后 open 窗事务由 RecoveryCoordinator 对照真实世界收尾（与屋顶相同顺序）
 
+## 12. Round 64 — 独立墙面授权与窗户身份
+
+| Item | Status |
+|---|---|
+| `WindowEditScopeResolver`：先解析墙面/窗组再编译 Patch | done |
+| `authorizedCells` 来自墙面包络 / 唯一窗组，禁止由候选 Patch 自证 | done |
+| `editCells ⊆ authorizedCells`；Confirm 拒绝越权 Patch | done |
+| 保护屋顶 / 柱 / 楼梯 / 台阶 / 门；禁止越出建筑 AABB | done |
+| 多窗组封窗默认拒绝（`WINDOW_GROUP_AMBIGUOUS`） | done |
+| `WallFace` / `WindowOpening` 身份字段（floorIndex / facing / hostWallId） | done（内存模型；持久化可续） |
+| 自动化 | `BuildingAwareRound64Test` |
+
+权威流程：
+
+```
+resolveInsert/Seal → authorizedCells + targetPartId
+  → compile patches ⊆ authorized
+  → BuildingEditScope.windowEdit(authorizedCells, …)
+  → ConfirmGate 复核 Revision + patch ⊆ authorized + 建筑内
+```
+

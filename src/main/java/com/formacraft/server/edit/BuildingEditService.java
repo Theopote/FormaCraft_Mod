@@ -134,8 +134,8 @@ public final class BuildingEditService {
     }
 
     /**
-     * Prepare INSERT_WINDOW using the existing WindowInsertCompiler geometry.
-     * Allowed cells = patch footprint; roof cells are protected.
+     * Prepare INSERT_WINDOW: resolve wall authority first, then compile patches inside that envelope.
+     * Allowed cells come from {@link WindowEditScopeResolver}, never from candidate patches.
      */
     public PreparedEdit prepareWindowInsert(
             BuildingTargetResolver.Query targetQuery,
@@ -154,25 +154,26 @@ public final class BuildingEditService {
         if (blocked != null) return blocked;
 
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
-        var window = WindowInsertCompiler.analyze(liveBlocks, building.origin(), index.roof().cells(), width, height);
-        List<BlockPatch> patches = window.patches();
-        if (patches.isEmpty()) {
-            com.formacraft.FormacraftMod.LOGGER.info("Window insert refused: reason={} entrances={} size={}x{} origin={}",
-                    window.reason(), window.entrances(), width, height, building.origin());
-            String message = switch(window.reason()) {
+        WindowEditScopeResolver.ResolvedScope resolved =
+                WindowEditScopeResolver.resolveInsert(building, index, liveBlocks, width, height);
+        if (!resolved.ok()) {
+            FormacraftMod.LOGGER.info("Window insert refused: reason={} size={}x{} origin={} part={}",
+                    resolved.refusalReason(), width, height, building.origin(), resolved.targetPartId());
+            String message = switch (resolved.refusalReason()) {
                 case "ENTRANCE_NOT_FOUND" -> "未能在原建筑现场识别入口；尚未判定墙面空间不足。请确认目标建筑或选择目标墙面。";
                 case "ENTRANCE_AMBIGUOUS" -> "现场存在多个入口，无法唯一确认正门；尚未判定墙面空间不足。";
                 case "WINDOW_SIZE_INVALID" -> "窗户尺寸必须在 1 到 8 格之间。";
+                case "WALL_ENVELOPE_UNAVAILABLE" -> "未能识别正门右侧可授权墙面。";
                 default -> "已识别入口，但右侧没有完整的 " + width + "×" + height + " 原墙矩形；请检查既有窗、柱及屋顶边界。";
             };
             return new PreparedEdit(building, null, List.of(), null, List.of(message));
         }
-        return finishWindowPrepare(building, memory, index, BuildingEditOperation.INSERT_WINDOW, patches, liveBlocks);
+        List<BlockPatch> patches = WindowEditScopeResolver.compileInsertPatches(building, resolved, "minecraft:glass");
+        return finishWindowPrepare(building, memory, index, BuildingEditOperation.INSERT_WINDOW, resolved, patches, liveBlocks);
     }
 
     /**
-     * Prepare SEAL_WINDOW using the existing WindowSealCompiler geometry.
-     * Allowed cells = sealed window footprint; roof cells are protected.
+     * Prepare SEAL_WINDOW: resolve a unique window group first, then compile seal patches inside it.
      */
     public PreparedEdit prepareWindowSeal(
             BuildingTargetResolver.Query targetQuery,
@@ -194,14 +195,23 @@ public final class BuildingEditService {
 
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
         BlockPos sealCenter = center != null ? center : building.origin();
-        List<BlockPatch> patches = WindowSealCompiler.compile(
-                liveBlocks, building.origin(), sealCenter, index.roof().cells(),
+        WindowEditScopeResolver.ResolvedScope resolved = WindowEditScopeResolver.resolveSeal(
+                building, index, liveBlocks, sealCenter,
                 skyVisible == null ? p -> false : skyVisible, woodLattice, courtyardFocus);
+        if (!resolved.ok()) {
+            String message = switch (resolved.refusalReason()) {
+                case "WINDOW_GROUP_AMBIGUOUS" -> "现场存在多处可封窗格，无法唯一确认目标窗户；请缩小选择或指定窗位。";
+                case "WINDOW_GROUP_NOT_FOUND" -> "未找到可确认的目标窗格及原白墙材质。";
+                default -> "未找到可确认的目标窗格及原墙材质。";
+            };
+            return new PreparedEdit(building, null, List.of(), null, List.of(message));
+        }
+        List<BlockPatch> patches = WindowEditScopeResolver.compileSealPatches(building, resolved, liveBlocks);
         if (patches.isEmpty()) {
             return new PreparedEdit(building, null, List.of(), null,
-                    List.of("未找到可确认的目标窗格及原墙材质。"));
+                    List.of("未找到可确认的目标窗格及原白墙材质。"));
         }
-        return finishWindowPrepare(building, memory, index, BuildingEditOperation.SEAL_WINDOW, patches, liveBlocks);
+        return finishWindowPrepare(building, memory, index, BuildingEditOperation.SEAL_WINDOW, resolved, patches, liveBlocks);
     }
 
     private PreparedEdit refuseIfBlocked(
@@ -227,25 +237,24 @@ public final class BuildingEditService {
             ProjectMemory memory,
             BuildingPartIndex index,
             BuildingEditOperation operation,
+            WindowEditScopeResolver.ResolvedScope resolved,
             List<BlockPatch> patches,
             Map<BlockPos, BlockState> liveBlocks
     ) {
-        Set<BlockPos> allowed = new LinkedHashSet<>();
-        Map<BlockPos, String> expected = new LinkedHashMap<>();
         Map<BlockPos, String> liveStrings = new LinkedHashMap<>();
         for (var e : liveBlocks.entrySet()) {
             if (e.getKey() == null || e.getValue() == null) continue;
             liveStrings.put(e.getKey().toImmutable(), BlockStateStringUtil.fromState(e.getValue()));
         }
-        for (BlockPatch patch : patches) {
-            if (patch == null) continue;
-            BlockPos world = building.origin().add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
-            allowed.add(world);
-            String live = liveStrings.get(world);
-            if (live != null) expected.put(world, live);
+        List<String> against = WindowEditScopeResolver.validatePatchesAgainstScope(building, resolved, patches);
+        if (!against.isEmpty()) {
+            return new PreparedEdit(building, null, patches, null, against);
         }
+        Set<BlockPos> protectedCells = new LinkedHashSet<>(resolved.protectedCells());
+        protectedCells.addAll(index.roof().cells());
+        // Authority = independently resolved wall/window envelope (not patch-derived).
         BuildingEditScope scope = BuildingEditScope.windowEdit(
-                building, operation, allowed, expected, index.roof().cells());
+                building, operation, resolved.authorizedCells(), resolved.expectedWorldStates(), protectedCells);
         BuildingEditValidation validation = BuildingEditScopeValidator.validate(
                 scope, building.origin(), patches, BuildingMemoryKeys.revisionOf(memory), liveStrings);
         if (!validation.accepted()) {

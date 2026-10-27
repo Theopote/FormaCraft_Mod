@@ -420,6 +420,7 @@ final class ComponentSatelliteInference {
         }
 
         ComponentSatelliteAligner.realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
+        ExteriorDoorAttachmentCompiler.apply(prepared);
         DoorFloorDatumCompiler.apply(prepared);
         StairFloorPlaneCompiler.apply(prepared);
         ExteriorStairEndpointRepair.apply(prepared);
