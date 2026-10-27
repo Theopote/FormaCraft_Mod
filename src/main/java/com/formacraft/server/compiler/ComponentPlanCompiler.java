@@ -2222,7 +2222,7 @@ public final class ComponentPlanCompiler {
         int height = ComponentParamParsers.intParam(params, 3, "door_height");
         int thickness = Math.max(1, ComponentParamParsers.intParam(mass.params(),1,"wall_thickness"));
         int center = side ? rp.z()+dims.depth()/2 : rp.x()+dims.width()/2;
-        Object intent = plan.proportionHints()==null ? null : plan.proportionHints().get("architecture_intent");
+        Object intent = plan==null || plan.proportionHints()==null ? null : plan.proportionHints().get("architecture_intent");
         if (!params.containsKey("stair_connection") && intent instanceof Map<?,?> observation
                 && String.valueOf(observation.get("original_text")).contains("中央入口"))
             center = side ? origin.z()+mass.dimensions().depth()/2 : origin.x()+mass.dimensions().width()/2;

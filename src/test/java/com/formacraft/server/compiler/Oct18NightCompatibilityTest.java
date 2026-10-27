@@ -17,8 +17,9 @@ class Oct18NightCompatibilityTest {
                 Map.of("component_id","research","anchor_mode","min_corner","floor_height",3,"floor_count",2));
         var door=new Component("ENTRANCE","research",new Vec3i(12,0,2),new Dimensions(1,3,3),List.of(),
                 Map.of("host_id","research","stair_connection","stair","door_width",3,"door_height",4));
-        var method=ComponentPlanCompiler.class.getDeclaredMethod("alignStairEntrance",Component.class,Component.class); method.setAccessible(true);
-        var aligned=(Component)method.invoke(null,door,mass);
+        var plan=LlmPlanTestFixtures.builder().components(List.of(mass,door)).build();
+        var method=ComponentPlanCompiler.class.getDeclaredMethod("alignStairEntrance",Component.class,Component.class,LlmPlan.class); method.setAccessible(true);
+        var aligned=(Component)method.invoke(null,door,mass,plan);
         assertEquals("WEST",aligned.params().get("facing"));
         assertEquals(1,aligned.dimensions().width()); assertEquals(5,aligned.dimensions().depth());
         var patches=new EntranceGenerator().generate(new SemanticComponent("ENTRANCE",null,aligned));
