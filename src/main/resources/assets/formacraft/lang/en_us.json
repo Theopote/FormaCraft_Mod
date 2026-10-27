@@ -1,4 +1,5 @@
 {
+  "formacraft.preview.patch.drag_hint": "Drag title to move · Enter apply · Esc cancel",
   "item.formacraft.formacraft_tool": "FormaCraft Stylus",
   "item.formacraft.formacraft_tool.desc": "Open the FormaCraft builder panel",
   "formacraft.title": "FormaCraft Builder",

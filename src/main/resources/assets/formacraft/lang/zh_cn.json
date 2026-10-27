@@ -1,4 +1,5 @@
 {
+  "formacraft.preview.patch.drag_hint": "拖动标题栏移动 · Enter 应用 · Esc 取消",
   "item.formacraft.formacraft_tool": "FormaCraft 塑形笔",
   "item.formacraft.formacraft_tool.desc": "打开 FormaCraft 建造面板",
   "formacraft.title": "FormaCraft 建筑生成器",

@@ -110,6 +110,9 @@ public class InputRouter {
                 case 2 -> middleDown = (action == 1);
             }
 
+            if(BuildConfirmPanel.INSTANCE.capturesPointer(x,y) && action==1) {
+                BuildConfirmPanel.INSTANCE.mouseClicked(x,y,button);lastClickHandledByUI=true;return true;
+            }
             boolean handled = false;
             boolean chatActive = FormacraftUIState.isOpen
                     && FormaCraftHudOverlay.activePanel == PanelType.CHAT;
@@ -363,6 +366,7 @@ public class InputRouter {
 
     /** 鼠标拖拽事件 */
     public static boolean onMouseDragged(double x, double y, int button, double deltaX, double deltaY) {
+        if(BuildConfirmPanel.INSTANCE.mouseDragged(x,y,button,deltaX,deltaY))return true;
         if (isPreviewLocked()) return true;
         if (!FormacraftUIState.isOpen) return false;
 

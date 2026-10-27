@@ -2,11 +2,6 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.client.preview.*;
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.common.model.build.BuildingType;
-import com.formacraft.common.model.build.BuildingStyle;
-import com.formacraft.common.model.build.Materials;
-import com.formacraft.common.model.build.Features;
-import com.formacraft.common.model.build.Footprint;
 import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
@@ -52,6 +47,9 @@ public class BuildConfirmPanel {
     private UUID buildId; // 可选：用于区分不同建造请求（以后拓展）
     
     // 面板尺寸
+    private final PatchPanelPlacement patchPlacement = new PatchPanelPlacement();
+    private boolean draggingPatch;
+    private double patchDragX,patchDragY;
     private int width = 300;
     private int height = 240;
 
@@ -216,6 +214,7 @@ public class BuildConfirmPanel {
     /** 隐藏面板 */
     public void hide() {
         this.visible = false;
+        draggingPatch = false;
         this.spec = null;
         this.buildId = null;
         this.patchOrigin = null;
@@ -310,335 +309,61 @@ public class BuildConfirmPanel {
     
     /** 在 HUD 渲染时调用 */
     public void render(DrawContext context) {
-        if (!visible || client == null) return;
-        if (mode == Mode.BUILD && spec == null) return;
-
+        if(!visible || client==null || mode==Mode.BUILD && spec==null)return;
         ensureWidgets();
-        
-        int screenW = client.getWindow().getScaledWidth();
-        int screenH = client.getWindow().getScaledHeight();
-
-        // BUILD / PREVIEW 模式：只显示按钮，不画半透明面板（用户体验更轻量）
-        if (mode == Mode.BUILD || mode == Mode.PREVIEW) {
-            double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-            double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-            layoutBuildButtons(screenW, screenH);
-            confirmButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-            cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-            drawFirstMatchingHudTooltip(context, (int) mouseX, (int) mouseY,
-                    new ClickableWidget[]{confirmButton, cancelButton},
-                    new Text[]{
-                            Text.translatable("formacraft.preview.confirm.tooltip"),
-                            Text.translatable("formacraft.preview.cancel.tooltip")
-                    });
-            return;
+        int sw=client.getWindow().getScaledWidth(),sh=client.getWindow().getScaledHeight();
+        int mx=(int)(client.mouse.getX()/client.getWindow().getScaleFactor());
+        int my=(int)(client.mouse.getY()/client.getWindow().getScaleFactor());
+        if(mode!=Mode.PATCH) {
+            layoutBuildButtons(sw,sh);confirmButton.render(context,mx,my,0);cancelButton.render(context,mx,my,0);
+            drawFirstMatchingHudTooltip(context,mx,my,new ClickableWidget[]{confirmButton,cancelButton},null);return;
         }
-        
-        int centerX = screenW / 2;
-        int centerY = screenH / 2;
-        
-        int panelWidth = mode == Mode.PATCH ? Math.min(screenW - 16, 390) : width;
-        int panelHeight = mode == Mode.PATCH ? 142 : height;
-        int x0 = centerX - panelWidth / 2;
-        int y0 = mode == Mode.PATCH ? Math.max(8, screenH - panelHeight - 8) : centerY - panelHeight / 2;
-        int x1 = x0 + panelWidth;
-        int y1 = y0 + panelHeight;
-        
-        // 半透明背景 + 双层 3D 边框（与侧边栏 BasePanel 一致）
-        int bgColor = 0xDD000000;
-        context.fill(x0, y0, x1, y1, bgColor);
-        UiTheme.drawPanelBorder(context, x0, y0, x1, y1);
-        
-        // 标题（内缩 2px，避开边框）
-        int titleY = y0 + 10;
-        context.drawCenteredTextWithShadow(
-                client.textRenderer,
-                mode == Mode.PATCH ? Text.translatable("formacraft.preview.patch.title") : Text.translatable("formacraft.preview.title"),
-                centerX,
-                titleY,
-                0xFFFFFFFF
-        );
-        
-        int infoY = titleY + 20;
-        int lineHeight = 12;
-        int textX = x0 + 12;
-
-        // 一行明确提示：避免“面板看起来什么都没显示”
-        context.drawTextWithShadow(
-                client.textRenderer,
-                mode == Mode.PATCH ? Text.translatable("formacraft.preview.patch.hint") : Text.translatable("formacraft.preview.hint"),
-                textX, infoY, 0xFFAAAAAA
-        );
-        infoY += lineHeight + 2;
-        
-        if (mode == Mode.PATCH) {
-            int place = 0, remove = 0, replace = 0;
-            if (patchList != null) {
-                for (BlockPatch p : patchList) {
-                    if (p == null || p.action() == null) continue;
-                    String a = p.action().toLowerCase();
-                    switch (a) {
-                        case "place" -> place++;
-                        case "remove" -> remove++;
-                        case "replace" -> replace++;
-                    }
-                }
-            }
-            context.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.translatable("formacraft.preview.patch.origin", patchOrigin.getX(), patchOrigin.getY(), patchOrigin.getZ()),
-                    textX, infoY, 0xFFCCCCCC
-            );
-            infoY += lineHeight;
-            context.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.translatable(
-                            "formacraft.preview.patch.summary",
-                            place,
-                            remove,
-                            replace,
-                            (rejectedPatchList != null ? rejectedPatchList.size() : 0)
-                    ),
-                    textX, infoY, 0xFFAAAAAA
-            );
-            infoY += lineHeight;
-
-            if (awaitingPatchApplyResult) {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.translatable("formacraft.preview.patch.applying"),
-                        textX, infoY, 0xFFCCAA00
-                );
-                infoY += lineHeight;
-            }
-
-            // warnings / apply result（最多显示 3 行，避免遮挡按钮）
-            if (patchWarnings != null && !patchWarnings.isEmpty()) {
-                int shown = 0;
-                for (int i = 0; i < patchWarnings.size(); i++) {
-                    String w = patchWarnings.get(i);
-                    if (w == null || w.isBlank()) continue;
-                    boolean applyResultLine = i == 0 && previewTicketId == null;
-                    context.drawTextWithShadow(
-                            client.textRenderer,
-                            Text.literal(applyResultLine ? "✓ " + w : "⚠ " + w),
-                            textX, infoY, applyResultLine ? 0xFFAAFFAA : 0xFFAAAAAA
-                    );
-                    infoY += lineHeight;
-                    if (++shown >= 3) break;
-                }
-            }
-
-            // 底部按钮（patch）
-            int btnY = y1 - 30;
-            double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-            double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-
-            int applyX = x0 + 12;
-            int patchWidth = Math.max(38, (panelWidth - 42) / 4);
-            int undoX = applyX + patchWidth + 6;
-            int redoX = undoX + patchWidth + 6;
-            int cancelX = x1 - patchWidth - 12;
-
-            applyPatchButton.setPosition(applyX, btnY);
-            applyPatchButton.setWidth(patchWidth);
-            applyPatchButton.visible = true;
-            applyPatchButton.active = !awaitingPatchApplyResult && previewTicketId != null;
-            applyPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-
-            undoPatchButton.setPosition(undoX, btnY);
-            undoPatchButton.setWidth(patchWidth);
-            undoPatchButton.visible = true;
-            undoPatchButton.active = patchCanUndo;
-            undoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-
-            redoPatchButton.setPosition(redoX, btnY);
-            redoPatchButton.setWidth(patchWidth);
-            redoPatchButton.visible = true;
-            redoPatchButton.active = patchCanRedo;
-            redoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-
-            cancelButton.setPosition(cancelX, btnY);
-            cancelButton.setWidth(patchWidth);
-            cancelButton.visible = true;
-            cancelButton.active = true;
-            cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-            drawFirstMatchingHudTooltip(context, (int) mouseX, (int) mouseY,
-                    new ClickableWidget[]{applyPatchButton, undoPatchButton, redoPatchButton, cancelButton},
-                    new Text[]{
-                            Text.translatable("formacraft.preview.patch.apply"),
-                            Text.translatable("formacraft.preview.patch.undo.tooltip"),
-                            Text.translatable("formacraft.preview.patch.redo.tooltip"),
-                            Text.translatable("formacraft.preview.cancel.tooltip")
-                    });
-            return;
+        var box=patchBounds();layoutPatchButtons(box);
+        context.fill(box.x(),box.y(),box.x()+box.width(),box.y()+box.height(),0xD9000000);
+        UiTheme.drawPanelBorder(context,box.x(),box.y(),box.x()+box.width(),box.y()+box.height());
+        context.drawCenteredTextWithShadow(client.textRenderer,Text.translatable("formacraft.preview.patch.title"),box.x()+box.width()/2,box.y()+7,0xFFFFFFFF);
+        int place=0,remove=0,replace=0;
+        if(patchList!=null)for(var patch:patchList)if(patch!=null&&patch.action()!=null)switch(patch.action().toLowerCase(java.util.Locale.ROOT)) {
+            case "place" -> place++;case "remove" -> remove++;case "replace" -> replace++;
         }
+        var lines=new java.util.ArrayList<Text>();
+        lines.add(Text.translatable("formacraft.preview.patch.drag_hint"));
+        if(patchOrigin!=null)lines.add(Text.translatable("formacraft.preview.patch.origin",patchOrigin.getX(),patchOrigin.getY(),patchOrigin.getZ()));
+        lines.add(Text.translatable("formacraft.preview.patch.summary",place,remove,replace,rejectedPatchList==null?0:rejectedPatchList.size()));
+        if(awaitingPatchApplyResult)lines.add(Text.translatable("formacraft.preview.patch.applying"));
+        if(patchWarnings!=null&&!patchWarnings.isEmpty())lines.add(Text.literal(patchWarnings.getFirst()));
+        int y=box.y()+24,limit=box.buttonY(0)-4;
+        context.enableScissor(box.x()+4,box.y()+22,box.x()+box.width()-4,limit);
+        for(Text line:lines)for(var wrapped:client.textRenderer.wrapLines(line,box.width()-16)) {
+            if(y+client.textRenderer.fontHeight>limit)break;
+            context.drawTextWithShadow(client.textRenderer,wrapped,box.x()+8,y,0xFFCCCCCC);y+=client.textRenderer.fontHeight+1;
+        }
+        context.disableScissor();
+        for(var button:new ButtonWidget[]{applyPatchButton,undoPatchButton,redoPatchButton,cancelButton})button.render(context,mx,my,0);
+        drawFirstMatchingHudTooltip(context,mx,my,new ClickableWidget[]{applyPatchButton,undoPatchButton,redoPatchButton,cancelButton},null);
+    }
 
-        // 建筑类型（build）
-        BuildingType type = spec.getType();
-        if (type != null) {
-            context.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.translatable("formacraft.preview.type", type.name()),
-                    textX, infoY, 0xFFCCCCCC
-            );
-            infoY += lineHeight;
-        }
-        
-        // 建筑风格
-        BuildingStyle style = spec.getStyle();
-        if (style != null) {
-            context.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.translatable("formacraft.preview.style", style.name()),
-                    textX, infoY, 0xFFCCCCCC
-            );
-            infoY += lineHeight;
-        }
-        
-        // 尺寸信息
-        Footprint footprint = spec.getFootprint();
-        if (footprint != null) {
-            if ("circle".equals(footprint.getShape())) {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.translatable("formacraft.preview.radius", footprint.getRadius()),
-                        textX, infoY, 0xFFCCCCCC
-                );
-            } else {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.translatable(
-                                "formacraft.preview.size",
-                                footprint.getWidth(),
-                                footprint.getDepth()
-                        ),
-                        textX, infoY, 0xFFCCCCCC
-                );
-            }
-            infoY += lineHeight;
-        }
-        
-        // 高度
-        context.drawTextWithShadow(
-                client.textRenderer,
-                Text.translatable("formacraft.preview.height", spec.getHeight()),
-                textX, infoY, 0xFFCCCCCC
-        );
-        infoY += lineHeight;
-        
-        // 材质信息
-        Materials materials = spec.getMaterials();
-        if (materials != null) {
-            infoY += 4;
-            context.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.translatable("formacraft.preview.materials"),
-                    textX, infoY, 0xFFAAAAAA
-            );
-            infoY += lineHeight;
-            
-            if (materials.getWall() != null) {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.translatable("formacraft.preview.wall", materials.getWall()),
-                        textX + 8, infoY, 0xFF999999
-                );
-                infoY += lineHeight;
-            }
-            
-            if (materials.getRoof() != null) {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.translatable("formacraft.preview.roof", materials.getRoof()),
-                        textX + 8, infoY, 0xFF999999
-                );
-                infoY += lineHeight;
-            }
-        }
-        
-        // 特性信息
-        Features features = spec.getFeatures();
-        if (features != null) {
-            infoY += 4;
-            context.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.translatable("formacraft.preview.features"),
-                    textX, infoY, 0xFFAAAAAA
-            );
-            infoY += lineHeight;
-            
-            if (features.hasWindows()) {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.translatable("formacraft.preview.has_windows"),
-                        textX + 8, infoY, 0xFF999999
-                );
-                infoY += lineHeight;
-            }
-            
-            if (features.hasStairs()) {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.translatable("formacraft.preview.has_stairs"),
-                        textX + 8, infoY, 0xFF999999
-                );
-                infoY += lineHeight;
-            }
-        }
-        
-        // AI Notes
-        if (spec.getNotes() != null && !spec.getNotes().isEmpty()) {
-            infoY += 4;
-            context.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.translatable("formacraft.preview.notes"),
-                    textX, infoY, 0xFFAAAAAA
-            );
-            infoY += lineHeight;
-            
-            String notes = spec.getNotes();
-            int maxWidth = width - 40;
-            for (var ordered : client.textRenderer.wrapLines(Text.literal(notes), maxWidth)) {
-                context.drawTextWithShadow(
-                        client.textRenderer,
-                        ordered,
-                        textX + 8, infoY, 0xFF999999
-                );
-                infoY += lineHeight;
-            }
-        }
-        
-        // 底部按钮
-        int btnY = y1 - 30;
-        int btnW = 120;
-        int spacing = 10;
-        
-        int confirmX = centerX - btnW - spacing / 2;
-        int cancelX = centerX + spacing / 2;
-        
-        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-        
-        // Confirm（原版 ButtonWidget 渲染）
-        confirmButton.setPosition(confirmX, btnY);
-        confirmButton.setWidth(btnW);
-        confirmButton.visible = true;
-        confirmButton.active = true;
-        confirmButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-        
-        // Cancel（原版 ButtonWidget 渲染）
-        cancelButton.setPosition(cancelX, btnY);
-        cancelButton.setWidth(btnW);
-        cancelButton.visible = true;
-        cancelButton.active = true;
-        cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-        drawFirstMatchingHudTooltip(context, (int) mouseX, (int) mouseY,
-                new ClickableWidget[]{confirmButton, cancelButton},
-                new Text[]{
-                        Text.translatable("formacraft.preview.confirm.tooltip"),
-                        Text.translatable("formacraft.preview.cancel.tooltip")
-                });
+    private PatchPanelPlacement.Bounds patchBounds() {
+        BasePanel sidebar=switch(FormaCraftHudOverlay.activePanel) {
+            case CHAT -> FormaCraftHudOverlay.CHAT_PANEL;case TOOLS -> FormaCraftHudOverlay.TOOL_PANEL;
+            case SETTINGS -> FormaCraftHudOverlay.SETTINGS_PANEL;case COMPONENT_LIBRARY -> FormaCraftHudOverlay.COMPONENT_LIBRARY_PANEL;
+            case COMPONENT_CAPTURE -> FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL;default -> null;
+        };
+        int right=0;if(sidebar!=null) {sidebar.ensureLayout();right=sidebar.getPanelX()+sidebar.getPanelWidth();}
+        return patchPlacement.layout(client.getWindow().getScaledWidth(),client.getWindow().getScaledHeight(),right);
+    }
+    private void layoutPatchButtons(PatchPanelPlacement.Bounds box) {
+        var buttons=new ButtonWidget[]{applyPatchButton,undoPatchButton,redoPatchButton,cancelButton};
+        for(int i=0;i<buttons.length;i++) {buttons[i].setPosition(box.buttonX(i),box.buttonY(i));buttons[i].setWidth(box.buttonWidth());buttons[i].visible=true;}
+        applyPatchButton.active=!awaitingPatchApplyResult&&previewTicketId!=null;
+        undoPatchButton.active=patchCanUndo;redoPatchButton.active=patchCanRedo;cancelButton.active=true;
+    }
+    public boolean capturesPointer(double x,double y) {
+        return visible&&client!=null&&mode==Mode.PATCH&&(draggingPatch||patchBounds().contains(x,y));
+    }
+    public boolean mouseDragged(double x,double y,int button,double dx,double dy) {
+        if(!visible||mode!=Mode.PATCH||!draggingPatch||button!=0)return false;
+        patchPlacement.move((int)Math.round(x-patchDragX),(int)Math.round(y-patchDragY));patchBounds();return true;
     }
 
     private void drawFirstMatchingHudTooltip(DrawContext ctx, int mouseX, int mouseY,
@@ -663,102 +388,28 @@ public class BuildConfirmPanel {
     }
     
     /** 鼠标点击处理。返回 true 表示事件已被消费。 */
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!visible || client == null) return false;
-        if (button != 0) return true; // 模态：消费掉右键等，避免落到世界
-
+    public boolean mouseClicked(double mouseX,double mouseY,int button) {
+        if(!visible||client==null)return false;
         ensureWidgets();
-        
-        int screenW = client.getWindow().getScaledWidth();
-        int screenH = client.getWindow().getScaledHeight();
-
-        // BUILD / PREVIEW 模式：没有面板区域，任何点击都应被消费（避免点到世界），但允许点击两个按钮
-        if (mode == Mode.BUILD || mode == Mode.PREVIEW) {
-            layoutBuildButtons(screenW, screenH);
-            Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-            if (clickButton(confirmButton, click)) return true;
-            clickButton(cancelButton, click);
-            return true;
+        if(mode!=Mode.PATCH) {
+            if(button!=0)return true;
+            layoutBuildButtons(client.getWindow().getScaledWidth(),client.getWindow().getScaledHeight());
+            var click=new Click(mouseX,mouseY,new MouseInput(button,0));
+            if(!clickButton(confirmButton,click))clickButton(cancelButton,click);return true;
         }
-        
-        int centerX = screenW / 2;
-        int centerY = screenH / 2;
-        
-        int panelWidth = mode == Mode.PATCH ? Math.min(screenW - 16, 390) : width;
-        int panelHeight = mode == Mode.PATCH ? 142 : height;
-        int x0 = centerX - panelWidth / 2;
-        int y0 = mode == Mode.PATCH ? Math.max(8, screenH - panelHeight - 8) : centerY - panelHeight / 2;
-        int x1 = x0 + panelWidth;
-        int y1 = y0 + panelHeight;
-        
-        // 如果点击不在面板范围内，也消费掉，避免点到世界
-        if (mouseX < x0 || mouseX > x1 || mouseY < y0 || mouseY > y1) {
-            return true;
-        }
-        
-        int btnY = y1 - 30;
-        int btnW = 120;
-        int spacing = 10;
-        
-        int confirmX = centerX - btnW - spacing / 2;
-        int cancelX = centerX + spacing / 2;
-        
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-
-        if (mode == Mode.PATCH) {
-            // 布局需与 render 对齐
-            int patchBtnY = y1 - 30;
-            int applyX = x0 + 12;
-            int patchWidth = Math.max(38, (panelWidth - 42) / 4);
-            int undoX = applyX + patchWidth + 6;
-            int redoX = undoX + patchWidth + 6;
-            int patchCancelX = x1 - patchWidth - 12;
-
-            applyPatchButton.setPosition(applyX, patchBtnY);
-            applyPatchButton.setWidth(patchWidth);
-            applyPatchButton.visible = true;
-            applyPatchButton.active = !awaitingPatchApplyResult && previewTicketId != null;
-            if (clickButton(applyPatchButton, click)) return true;
-
-            undoPatchButton.setPosition(undoX, patchBtnY);
-            undoPatchButton.setWidth(patchWidth);
-            undoPatchButton.visible = true;
-            undoPatchButton.active = patchCanUndo;
-            if (clickButton(undoPatchButton, click)) return true;
-
-            redoPatchButton.setPosition(redoX, patchBtnY);
-            redoPatchButton.setWidth(patchWidth);
-            redoPatchButton.visible = true;
-            redoPatchButton.active = patchCanRedo;
-            if (clickButton(redoPatchButton, click)) return true;
-
-            cancelButton.setPosition(patchCancelX, patchBtnY);
-            cancelButton.setWidth(patchWidth);
-            cancelButton.visible = true;
-            cancelButton.active = true;
-            clickButton(cancelButton, click);
-            return true;
-        }
-
-        confirmButton.setPosition(confirmX, btnY);
-        confirmButton.setWidth(btnW);
-        confirmButton.visible = true;
-        confirmButton.active = true;
-        if (clickButton(confirmButton, click)) return true;
-
-        cancelButton.setPosition(cancelX, btnY);
-        cancelButton.setWidth(btnW);
-        cancelButton.visible = true;
-        cancelButton.active = true;
-        clickButton(cancelButton, click);
-
-        return true; // 点击面板内部其他位置，也阻止传递到世界
+        var box=patchBounds();if(!box.contains(mouseX,mouseY))return false;
+        if(button!=0)return true;
+        if(box.title(mouseX,mouseY)) {draggingPatch=true;patchDragX=mouseX-box.x();patchDragY=mouseY-box.y();return true;}
+        layoutPatchButtons(box);var click=new Click(mouseX,mouseY,new MouseInput(button,0));
+        for(var widget:new ButtonWidget[]{applyPatchButton,undoPatchButton,redoPatchButton,cancelButton})if(clickButton(widget,click))break;
+        return true;
     }
 
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (!visible || client == null || button != 0) return false;
+        boolean wasDragging=draggingPatch;draggingPatch=false;
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        return HudClickSupport.release(click);
+        return HudClickSupport.release(click)||wasDragging;
     }
     
     /** 键盘支持：Enter 确认，Esc 取消 */
