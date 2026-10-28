@@ -3,7 +3,6 @@ package com.formacraft.client.tool;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.common.skeleton.PathSkeleton;
 import net.minecraft.text.Text;
-import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 

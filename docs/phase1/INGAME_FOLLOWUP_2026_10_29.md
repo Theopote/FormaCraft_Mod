@@ -18,3 +18,4 @@ Live2221RegressionTest 重放四份真实失败方案，并检查两层相接墙
 ## 尚不能视为已完成的封窗请求
 
 22:18:33 请求“去掉朝天井的木格窗”被拒绝；22:18:19 模型实际返回 window_style=pane、window_block=minecraft:glass_pane，与 wooden lattice 特征矛盾。不能把现存玻璃窗直接视为已确认木窗并扩大编辑权限。本轮没有宣称该封窗请求已修复。
+最终验证：119 项相关 Java 回归、181 项 constraintParityTest、4 项用户风格包测试全部通过；本轮 6 项 Live2221RegressionTest 包含真实方块路径和拒绝负例。

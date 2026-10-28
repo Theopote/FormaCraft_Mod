@@ -5,7 +5,6 @@ import com.formacraft.client.ui.input.InputRouter;
 import com.formacraft.client.ui.toast.HudToast;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 

@@ -4,7 +4,6 @@ import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.network.FormaCraftClientNetworking;
 import net.minecraft.text.Text;
-import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
