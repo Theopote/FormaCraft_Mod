@@ -318,6 +318,18 @@ public class InputRouter {
         // Ctrl+Z / Ctrl+Y：Patch Undo / Redo（仅 UI 打开时生效）
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
         boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
+        boolean historyKey = ctrl && (keyCode == GLFW.GLFW_KEY_Z || keyCode == GLFW.GLFW_KEY_Y);
+        if (historyKey && keyboardPanel != null && keyboardPanel.wantsKeyboardInput()) {
+            keyboardPanel.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
+        var historyTool = ToolManager.getActiveTool();
+        if (historyKey && !BuildConfirmPanel.INSTANCE.isVisible()
+                && historyTool != null && historyTool.hasLocalHistory()) {
+            if (keyCode == GLFW.GLFW_KEY_Y || shift) historyTool.redo();
+            else historyTool.undo();
+            return true;
+        }
         if (ctrl && keyCode == GLFW.GLFW_KEY_Z) {
             if (shift) FormaCraftClientNetworking.sendPatchRedo();
             else FormaCraftClientNetworking.sendPatchUndo();

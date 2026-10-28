@@ -23,7 +23,8 @@ final class ExplicitDesignConflictValidator {
                 if ("FACADE_WINDOWS".equals(c.componentType()) && ExplicitDesignPolicy.windowsDisabled(body)
                         && !ExplicitDesignPolicy.windowsDisabled(c)) disabled = "windows";
                 if ("ENTRANCE".equals(c.componentType()) && ExplicitDesignPolicy.entranceDisabled(body)
-                        && !ExplicitDesignPolicy.entranceDisabled(c)) disabled = "entrance_type=none";
+                        && !ExplicitDesignPolicy.entranceDisabled(c)
+                        && !declaredInternalOpening(body, c)) disabled = "entrance_type=none";
             }
             if (Set.of("CROWN", "CUPOLA", "DOME").contains(c.componentType())
                     && (ExplicitDesignPolicy.noComplexDecor(plan, c.params()) || body != null
@@ -36,6 +37,15 @@ final class ExplicitDesignConflictValidator {
                     List.of("Remove the conflicting component or revise the explicit opt-out.")));
         }
         return Optional.empty();
+    }
+
+    // Disabling an external entrance does not cancel an explicitly declared internal passage.
+    private static boolean declaredInternalOpening(Component body, Component opening) {
+        if (!Boolean.TRUE.equals(opening.params().get("compiler_internal_portal"))
+                || opening.params().get("target_host_id") == null
+                || !(body.params().get("internal_openings") instanceof List<?> declarations)) return false;
+        return declarations.stream().anyMatch(raw -> raw instanceof Map<?,?> spec
+                && String.valueOf(spec.get("side")).equalsIgnoreCase(String.valueOf(opening.params().get("facing"))));
     }
 
     private static boolean contractRequiresRoofNone(LlmPlan plan, Component body) {

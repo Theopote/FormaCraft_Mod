@@ -52,6 +52,9 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget outlineModeButton;
     private ButtonWidget clearOutlineButton;
     private ButtonWidget clearPathsButton;
+    private ButtonWidget pathDrawingModeButton, pathRadiusMinusButton, pathRadiusPlusButton;
+    private ButtonWidget pathSelectButton, pathRemoveButton, pathIntentButton;
+    private ButtonWidget brushUndoButton, brushRedoButton;
     private ButtonWidget brushModeButton;
     private ButtonWidget brushRadiusMinusButton;
     private ButtonWidget brushRadiusPlusButton;
@@ -138,6 +141,15 @@ public class ToolPanel extends BasePanel {
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清除当前轮廓")))
                 .build();
+
+        pathDrawingModeButton = optionButton("新路径：折线", () -> PathTool.INSTANCE.cycleDrawingMode());
+        pathRadiusMinusButton = optionButton("走廊半径 -", () -> PathTool.INSTANCE.changeCorridorRadius(-1));
+        pathRadiusPlusButton = optionButton("走廊半径 +", () -> PathTool.INSTANCE.changeCorridorRadius(1));
+        pathSelectButton = optionButton("切换生成路径", () -> PathTool.INSTANCE.selectNextPath());
+        pathRemoveButton = optionButton("删除当前路径", () -> PathTool.INSTANCE.removeSelectedPath());
+        pathIntentButton = optionButton("用途：自动", () -> PathTool.INSTANCE.cycleIntent());
+        brushUndoButton = optionButton("撤销笔刷（Ctrl+Z）", () -> BrushTool.INSTANCE.undo());
+        brushRedoButton = optionButton("重做笔刷（Ctrl+Y）", () -> BrushTool.INSTANCE.redo());
 
         clearPathsButton = ButtonWidget.builder(Text.literal("清空路径"), b -> PathTool.INSTANCE.clearAll())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -452,8 +464,41 @@ public class ToolPanel extends BasePanel {
         return y;
     }
 
+    private ButtonWidget optionButton(String label, Runnable action) {
+        return ButtonWidget.builder(Text.literal(label), b -> action.run()).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
+    }
+
+    private int drawOptionButton(DrawContext ctx, ButtonWidget button, int x, int y, int w, boolean enabled) {
+        button.setPosition(x, y);
+        button.setWidth(w);
+        button.visible = true;
+        button.active = enabled;
+        button.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        return y + LABEL_OFFSET;
+    }
+
     // 绘制 PathTool 的选项
     private int drawPathToolOptions(DrawContext ctx, int x, int y, int w) {
+        var path = PathTool.INSTANCE;
+        pathDrawingModeButton.setMessage(Text.literal("新路径：" + (path.isSmooth() ? "平滑曲线" : "折线")));
+        y = drawOptionButton(ctx, pathDrawingModeButton, x, y, w, true);
+        pathSelectButton.setMessage(Text.literal("生成路径：" + (path.getSelectedPathIndex() + 1)
+                + "/" + path.getPathCount() + "（点击切换）"));
+        y = drawOptionButton(ctx, pathSelectButton, x, y, w, path.getPathCount() > 1);
+        y = drawOptionButton(ctx, pathRemoveButton, x, y, w, path.getPathCount() > 0);
+        String intent = switch (path.getIntent()) {
+            case GENERIC -> "自动";
+            case ROAD -> "道路";
+            case WALL -> "城墙";
+            case BRIDGE -> "桥梁";
+            case ALONG_PATH_BUILDING -> "沿线建筑";
+        };
+        pathIntentButton.setMessage(Text.literal("用途：" + intent));
+        y = drawOptionButton(ctx, pathIntentButton, x, y, w, true);
+        y = drawWrappedText(ctx, Text.literal("走廊半径：" + path.getCorridorRadius() + " 格；每次只使用选中的一条路径"), x, y, w, 0xFFAAAAAA);
+        y = drawOptionButton(ctx, pathRadiusMinusButton, x, y + 2, w, path.getCorridorRadius() > 1);
+        y = drawOptionButton(ctx, pathRadiusPlusButton, x, y, w, path.getCorridorRadius() < 32);
+
         String pathStatus = PathTool.INSTANCE.isDrafting()
                 ? ("路径：绘制中（草稿点=" + PathTool.INSTANCE.getDraftPointCount() + "，右键／Enter完成，Backspace退点，Esc取消）")
                 : ("路径：已完成 " + PathTool.INSTANCE.getPathCount() + " 条");
@@ -474,6 +519,9 @@ public class ToolPanel extends BasePanel {
 
     // 绘制 BrushTool 的选项
     private int drawBrushToolOptions(DrawContext ctx, int x, int y, int w) {
+        y = drawOptionButton(ctx, brushUndoButton, x, y, w, BrushTool.INSTANCE.canUndo());
+        y = drawOptionButton(ctx, brushRedoButton, x, y, w, BrushTool.INSTANCE.canRedo());
+
         y = drawWrappedText(ctx, Text.literal("左键涂抹；右键局部擦除；清空按钮删除全部"), x, y, w, 0xFFAAAAAA);
 
         y = drawWrappedText(ctx,
@@ -646,8 +694,12 @@ public class ToolPanel extends BasePanel {
             if (clickButton(outlineModeButton, click)) return true;
             if (clickButton(clearOutlineButton, click)) return true;
         } else if (ToolManager.isActive(PathTool.INSTANCE.getId())) {
+            if (clickButton(pathDrawingModeButton, click) || clickButton(pathSelectButton, click)
+                    || clickButton(pathRemoveButton, click) || clickButton(pathIntentButton, click)
+                    || clickButton(pathRadiusMinusButton, click) || clickButton(pathRadiusPlusButton, click)) return true;
             if (clickButton(clearPathsButton, click)) return true;
         } else if (ToolManager.isActive(BrushTool.INSTANCE.getId())) {
+            if (clickButton(brushUndoButton, click) || clickButton(brushRedoButton, click)) return true;
             if (clickButton(brushModeButton, click)) return true;
             if (clickButton(brushRadiusMinusButton, click)) return true;
             if (clickButton(brushRadiusPlusButton, click)) return true;

@@ -28,7 +28,7 @@ public final class ToolPromptBuilder {
         if (skeleton.isValid()) {
             // 从用户输入中识别路径意图
             PathSkeleton.PathIntent intent = resolvePathIntent(ctx.userMessage);
-            if (intent != PathSkeleton.PathIntent.GENERIC) {
+            if (skeleton.intent == PathSkeleton.PathIntent.GENERIC && intent != PathSkeleton.PathIntent.GENERIC) {
                 // 如果识别到明确意图，创建新的 PathSkeleton
                 skeleton = new PathSkeleton(
                     skeleton.nodes,

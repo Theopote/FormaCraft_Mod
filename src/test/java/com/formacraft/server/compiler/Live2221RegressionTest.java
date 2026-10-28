@@ -31,7 +31,7 @@ class Live2221RegressionTest {
     }
     @Test void fortressOpensBothShellsAtGroundFloor() throws Exception {
         var blocks=compile(load("222144")); var cells=snapshot(blocks,BlockPos.ORIGIN);
-        for(int z:new int[]{-11,-10,9,10}) for(int x=-1;x<=1;x++)for(int y=1;y<=2;y++) {
+        for(int z:new int[]{-11,-10,9,10}) for(int x=-2;x<=0;x++)for(int y=1;y<=2;y++) {
             var state=cells.get(new BlockPos(x,y,z));assertTrue(state==null||state.isAir(),"Portal blocked at "+x+","+y+","+z);
             var floor=cells.get(new BlockPos(x,0,z)); assertNotNull(floor);assertFalse(floor.isAir());
         }

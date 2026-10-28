@@ -22,7 +22,7 @@ import java.util.List;
 public final class PathTool implements FormacraftTool {
     public static final PathTool INSTANCE = new PathTool();
 
-    private PathTool() {}
+    PathTool() {}
 
     public record Path(List<Vec3d> waypoints, List<Vec3d> polyline) {}
 
@@ -31,6 +31,32 @@ public final class PathTool implements FormacraftTool {
     private boolean drafting = false;
 
     private final List<Path> paths = new ArrayList<>();
+    private int selectedPath = -1;
+    private int corridorRadius = 3;
+    private boolean smooth = false;
+    private PathSkeleton.PathIntent intent = PathSkeleton.PathIntent.GENERIC;
+
+    public boolean isSmooth() { return smooth; }
+    public void cycleDrawingMode() { smooth = !smooth; }
+    public void changeCorridorRadius(int delta) { corridorRadius = Math.clamp(corridorRadius + delta, 1, 32); }
+    public PathSkeleton.PathIntent getIntent() { return intent; }
+    public void cycleIntent() {
+        var values = PathSkeleton.PathIntent.values();
+        intent = values[(intent.ordinal() + 1) % values.length];
+    }
+    public int getSelectedPathIndex() { return selectedPath; }
+    public void selectNextPath() {
+        if (!paths.isEmpty()) selectedPath = (selectedPath + 1) % paths.size();
+    }
+    public List<Path> getGenerationPaths() {
+        return selectedPath >= 0 && selectedPath < paths.size() ? List.of(paths.get(selectedPath)) : List.of();
+    }
+    public void removeSelectedPath() {
+        if (selectedPath < 0 || selectedPath >= paths.size()) return;
+        paths.remove(selectedPath);
+        selectedPath = paths.isEmpty() ? -1 : Math.min(selectedPath, paths.size() - 1);
+    }
+
 
     @Override
     public String getId() {
@@ -58,29 +84,19 @@ public final class PathTool implements FormacraftTool {
         return Collections.unmodifiableList(paths);
     }
 
-    /**
-     * 获取路径节点（用于生成器）
-     * 返回所有已完成路径的节点列表（合并所有路径的 polyline）
-     */
+    /** Export only the explicitly selected path; disconnected paths must never be joined. */
     public List<BlockPos> getNodes() {
-        List<BlockPos> allNodes = new ArrayList<>();
-        for (Path path : paths) {
-            if (path == null || path.polyline == null) continue;
-            for (Vec3d v : path.polyline) {
-                if (v != null) {
-                    allNodes.add(new BlockPos((int) Math.floor(v.x), (int) Math.floor(v.y), (int) Math.floor(v.z)));
-                }
+        List<BlockPos> nodes = new ArrayList<>();
+        for (Path path : getGenerationPaths()) {
+            for (Vec3d v : path.polyline()) {
+                BlockPos pos = BlockPos.ofFloored(v);
+                if (nodes.isEmpty() || !nodes.getLast().equals(pos)) nodes.add(pos);
             }
         }
-        return allNodes;
+        return nodes;
     }
 
-    /**
-     * 获取走廊半径（默认值，后续可从配置读取）
-     */
-    public int getCorridorRadius() {
-        return 3; // 默认 3 格，后续可从配置读取
-    }
+    public int getCorridorRadius() { return corridorRadius; }
 
     /**
      * 导出为 PathSkeleton（用于生成器）
@@ -106,23 +122,15 @@ public final class PathTool implements FormacraftTool {
     /**
      * 解析路径意图（v1：简单规则，后续可被 AI 覆盖）
      */
-    private PathSkeleton.PathIntent resolveIntent() {
-        // v1：简单规则（后续可被 AI 覆盖）
-        // 可以通过工具模式或用户输入来设置
-        // 目前返回 GENERIC，由 AI 根据用户输入决定
-        return PathSkeleton.PathIntent.GENERIC;
-    }
+    private PathSkeleton.PathIntent resolveIntent() { return intent; }
 
-    /**
-     * 设置路径意图（从用户输入或工具模式）
-     */
     public void setIntent(PathSkeleton.PathIntent intent) {
-        // v1：暂不实现，后续可以添加状态存储
-        // 目前意图由 resolveIntent() 或 AI 决定
+        this.intent = intent != null ? intent : PathSkeleton.PathIntent.GENERIC;
     }
 
     public void clearAll() {
         paths.clear();
+        selectedPath = -1;
         cancelDraft();
     }
 
@@ -174,8 +182,7 @@ public final class PathTool implements FormacraftTool {
         BlockPos pos = hit.getBlockPos();
         Vec3d p = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.05, pos.getZ() + 0.5);
 
-        draft.add(p);
-        drafting = true;
+        addDraftPoint(p);
         return true;
     }
 
@@ -194,10 +201,20 @@ public final class PathTool implements FormacraftTool {
         hover = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.05, pos.getZ() + 0.5);
     }
 
+    void addDraftPoint(Vec3d p) {
+        if (draft.isEmpty() || !draft.getLast().equals(p)) draft.add(p);
+        drafting = !draft.isEmpty();
+    }
+
+    private List<Vec3d> sampleDraft(List<Vec3d> points) {
+        return smooth ? sampleBezierSpline(points) : List.copyOf(points);
+    }
+
     private void finalizePath() {
         List<Vec3d> waypoints = List.copyOf(draft);
-        List<Vec3d> poly = sampleBezierSpline(waypoints);
+        List<Vec3d> poly = sampleDraft(waypoints);
         paths.add(new Path(waypoints, poly));
+        selectedPath = paths.size() - 1;
         cancelDraft();
     }
 
@@ -211,7 +228,8 @@ public final class PathTool implements FormacraftTool {
         // 已完成路径：橙色
         for (Path p : INSTANCE.paths) {
             if (p == null || p.polyline == null || p.polyline.size() < 2) continue;
-            renderPolyline(ctx, p.polyline, 255, 170, 40, 200);
+            boolean selected = INSTANCE.getGenerationPaths().contains(p);
+            renderPolyline(ctx, p.polyline, 255, selected ? 210 : 130, 40, selected ? 255 : 110);
         }
 
         // 草稿：仅当当前工具就是 PathTool 才显示（亮青色）
@@ -220,7 +238,7 @@ public final class PathTool implements FormacraftTool {
         List<Vec3d> pts = new ArrayList<>(INSTANCE.draft);
         if (INSTANCE.hover != null) pts.add(INSTANCE.hover);
         if (pts.size() >= 2) {
-            List<Vec3d> poly = sampleBezierSpline(pts);
+            List<Vec3d> poly = INSTANCE.sampleDraft(pts);
             renderPolyline(ctx, poly, 80, 220, 255, 180);
         }
 

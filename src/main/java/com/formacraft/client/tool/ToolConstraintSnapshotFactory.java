@@ -73,7 +73,7 @@ public final class ToolConstraintSnapshotFactory {
             return List.of();
         }
         List<List<Vec3d>> result = new ArrayList<>();
-        for (PathTool.Path path : pathTool.getPaths()) {
+        for (PathTool.Path path : pathTool.getGenerationPaths()) {
             if (path != null && path.polyline() != null && !path.polyline().isEmpty()) {
                 result.add(path.polyline());
             }
