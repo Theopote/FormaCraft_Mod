@@ -350,6 +350,12 @@ def enrich_llm_plan_architectural_detail(
         return enrich_hosted_styles(plan, profile)
     if len(masses) != 1 or len(roofs) > 1:
         return plan
+    # A storey schedule owns its vertical envelope. Resizing only the shell and
+    # roof to a generic width ratio leaves upper floors and balconies stranded.
+    from .resolved_geometry import _integer
+    mass_params = masses[0].get("params") or {}
+    if _integer(mass_params.get("floor_count") or mass_params.get("floorCount")) > 1:
+        return plan
     mass_id = (masses[0].get("params") or {}).get("component_id")
     if roofs:
         roof_host = (roofs[0].get("params") or {}).get("host_id")

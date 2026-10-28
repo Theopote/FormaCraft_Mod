@@ -4,6 +4,41 @@ import unittest
 
 
 class TestPlanArchitecturalEnrichment(unittest.TestCase):
+    def test_two_storey_temple_gate_does_not_gain_a_classical_cupola(self):
+        import copy
+        from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
+        plan = {'mode': 'build', 'style_profile': 'CHINESE_TRADITIONAL', 'components': [
+            {'component_type': 'MASS_MAIN', 'relative_position': {'x': 0, 'y': 3, 'z': 0},
+             'dimensions': {'width': 22, 'depth': 10, 'height': 12},
+             'params': {'component_id': 'gate_body', 'floor_count': 2, 'floor_height': 5}},
+            {'component_type': 'ROOF', 'relative_position': {'x': 0, 'y': 15, 'z': 0},
+             'dimensions': {'width': 26, 'depth': 14, 'height': 4},
+             'params': {'host_id': 'gate_body', 'roof_type': 'xuanshan'}}]}
+        original = copy.deepcopy(plan)
+        result = enrich_llm_plan_architectural_detail(plan, user_text='生成少林寺山门')
+        self.assertEqual(original, result)
+        self.assertFalse(any(c['component_type'] == 'CROWN' for c in result['components']))
+
+    def test_authored_multistorey_tower_survives_generic_proportions(self):
+        import copy
+        from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
+        from app.services.building_contract import apply_building_contract
+        plan = {"mode": "build", "components": [
+            {"component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 3, "z": 0},
+             "dimensions": {"width": 16, "depth": 16, "height": 30},
+             "params": {"component_id": "main_tower", "floor_count": 5, "floor_height": 5}},
+            {"component_type": "ROOF", "relative_position": {"x": 0, "y": 33, "z": 0},
+             "dimensions": {"width": 20, "depth": 20, "height": 5},
+             "params": {"host_id": "main_tower", "roof_type": "xuanshan"}}]}
+        original = copy.deepcopy(plan)
+        self.assertEqual(original, enrich_llm_plan_architectural_detail(plan, user_text="生成黄鹤楼"))
+        result = apply_building_contract(plan, "生成黄鹤楼", finalize=True)
+        self.assertNotIn('E_FLOOR_ENVELOPE', str(result.get('capability_gap', {})))
+        invalid = copy.deepcopy(plan)
+        invalid['components'][0]['dimensions']['height'] = 10
+        rejected = apply_building_contract(invalid, "生成黄鹤楼", finalize=True)
+        self.assertIn('E_FLOOR_ENVELOPE', str(rejected.get('capability_gap', {})))
+
     def test_dimensioned_stair_building_keeps_shell_and_roof(self):
         import copy
         from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
