@@ -27,6 +27,10 @@ public final class SymmetryContext {
         sb.append("对称/镜像约束：\n");
 
         switch (m) {
+            case MIRROR_Y -> {
+                sb.append("- 模式：沿 Y 方向镜像（关于水平面 y = 常量 上下对称）\n");
+                appendDefaultAxisHint(sb);
+            }
             case MIRROR_X -> {
                 sb.append("- 模式：沿 X 方向镜像（关于平面 x = 常量 对称）\n");
                 appendDefaultAxisHint(sb);
@@ -65,9 +69,10 @@ public final class SymmetryContext {
             BlockPos min = SelectionTool.INSTANCE.getMin();
             BlockPos max = SelectionTool.INSTANCE.getMax();
             if (min != null && max != null) {
-                double cx = (min.getX() + max.getX() + 1) / 2.0;
-                double cz = (min.getZ() + max.getZ() + 1) / 2.0;
-                sb.append("- 默认基准：选区中心 (x=").append(cx).append(", z=").append(cz).append(")\n");
+                int cx = (min.getX() + max.getX() + 1) / 2;
+                int cy = (min.getY() + max.getY() + 1) / 2;
+                int cz = (min.getZ() + max.getZ() + 1) / 2;
+                sb.append("- 默认基准：选区中心 (x=").append(cx).append(", y=").append(cy).append(", z=").append(cz).append(")\n");
                 return;
             }
         }

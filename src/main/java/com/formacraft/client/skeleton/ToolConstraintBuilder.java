@@ -98,6 +98,7 @@ public final class ToolConstraintBuilder {
             if (mode != null) {
                 // 简化处理：使用选区中心作为对称轴
                 int centerX = 0;
+                int centerY = 0;
                 int centerZ = 0;
                 
                 if (SelectionContext.hasSelection()) {
@@ -105,16 +106,19 @@ public final class ToolConstraintBuilder {
                     BlockPos max = SelectionContext.max();
                     if (min != null && max != null) {
                         centerX = (min.getX() + max.getX() + 1) / 2;
+                        centerY = (min.getY() + max.getY() + 1) / 2;
                         centerZ = (min.getZ() + max.getZ() + 1) / 2;
                     }
                 } else if (bc != null && bc.origin != null) {
                     centerX = bc.origin.getX();
+                    centerY = bc.origin.getY();
                     centerZ = bc.origin.getZ();
                 }
 
                 SymmetryPlane plane = null;
                 switch (mode) {
                     case MIRROR_X -> plane = new SymmetryPlane(SymmetryPlane.Axis.X, centerX);
+                    case MIRROR_Y -> plane = new SymmetryPlane(SymmetryPlane.Axis.Y, centerY);
                     case MIRROR_Z -> plane = new SymmetryPlane(SymmetryPlane.Axis.Z, centerZ);
                     case BOTH -> {
                         // 双向对称：先处理 X 轴，Z 轴在后续处理中处理

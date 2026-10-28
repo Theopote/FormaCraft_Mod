@@ -52,7 +52,10 @@ public final class PatchOccupancyIndex {
 
     /** Preserve existing geometry when an optional attachment cannot join it. */
     public int trimIncompatibleAttachment(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
-        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "FOUNDATION", "BALCONY", "TERRACE")
+        if (writer != null && "COURTYARD_SPACE".equalsIgnoreCase(writer.componentType())
+                && (writer.dimensions() == null || writer.dimensions().height() != 1
+                    || writer.params() == null || !"plate".equals(writer.params().get("extrude_mode")))) return 0;
+        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "COURTYARD_SPACE", "FOUNDATION", "BALCONY", "TERRACE")
                 .contains(writer.componentType().toUpperCase(Locale.ROOT))) return 0;
         Map<BlockPos, PlaceRecord> simulation = new HashMap<>(places);
         Set<BlockPos> removed = new HashSet<>(removes);
@@ -303,6 +306,7 @@ public final class PatchOccupancyIndex {
             if (BlockPatch.REMOVE.equals(p.action())) {
                 PlaceRecord existing = placeMap.get(pos);
                 if (existing != null && !carveOk && !isHostedStairJoin(writer, existing, pos)
+                        && !isBoundUpperMassSeam(writer, existing, pos)
                         && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
                             type, p.targetBlock(), "unauthorized_remove"));
@@ -334,7 +338,8 @@ public final class PatchOccupancyIndex {
                                 && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "TOWER",
                                         "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())));
                 if (!overwriteOk && !chimneyFooting && !connectorAccess.contains(pos)
-                        && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)) {
+                        && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
+                        && !isBoundUpperMassSeam(writer, prev, pos)) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
                             type, p.targetBlock(), "unauthorized_place_overwrite"));
                 }
@@ -347,6 +352,32 @@ public final class PatchOccupancyIndex {
 
     static String canonical(String target) {
         return com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(target);
+    }
+
+    private static boolean isBoundUpperMassSeam(Component writer, PlaceRecord previous, BlockPos pos) {
+        if (writer == null || writer.params() == null || previous.owner() == null || previous.owner().params() == null
+                || !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())
+                || writer.componentType() == null || !writer.componentType().startsWith("MASS")
+                || previous.owner().componentType() == null || !previous.owner().componentType().startsWith("MASS")) return false;
+        var owner=previous.owner();
+        if (!bindsToOwner(writer, String.valueOf(owner.params().get("component_id")),
+                String.valueOf(owner.params().get("host_id")))) return false;
+        var upper=com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
+        var lower=com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(owner);
+        if (upper == null || lower == null) return false;
+        if (pos.getX()<upper.minX() || pos.getX()>=upper.maxX()
+                || pos.getZ()<upper.minZ() || pos.getZ()>=upper.maxZ()
+                || pos.getY()<upper.minY() || pos.getY()>=upper.maxY()) return false;
+        // A bound cap may inset into the upper half of a solid sculptural body, never a habitable shell.
+        boolean solidCap = Boolean.FALSE.equals(owner.params().get("hollow"))
+                && !owner.params().containsKey("floor_count")
+                && Set.of("circle", "sphere").contains(String.valueOf(owner.params().get("shape")))
+                && upper.minY() >= lower.minY()+(lower.maxY()-lower.minY())/2;
+        return (solidCap || upper.minY() >= lower.maxY()-1
+                && pos.getY() >= lower.maxY()-1 && pos.getY() <= lower.maxY()
+                )
+                && upper.minX() >= lower.minX() && upper.maxX() <= lower.maxX()
+                && upper.minZ() >= lower.minZ() && upper.maxZ() <= lower.maxZ();
     }
 
     private static boolean isHostedStructuralJoin(Component writer, PlaceRecord previous) {

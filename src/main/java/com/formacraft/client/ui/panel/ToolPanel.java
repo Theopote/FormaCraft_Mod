@@ -127,7 +127,7 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("清除当前已选定的区域")))
                 .build();
 
-        clearProtectedZonesButton = ButtonWidget.builder(Text.literal("清空禁区"), b -> ProtectedZoneTool.INSTANCE.clearZones())
+        clearProtectedZonesButton = ButtonWidget.builder(Text.literal("清空禁区"), b -> { ProtectedZoneTool.INSTANCE.clearZones(); HudToast.show("已清空禁区与未完成框选"); })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清空所有已添加的禁区/保护区")))
                 .build();
@@ -137,7 +137,7 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("切换轮廓绘制模式")))
                 .build();
 
-        clearOutlineButton = ButtonWidget.builder(Text.literal("清空轮廓"), b -> OutlineTool.INSTANCE.clearShape())
+        clearOutlineButton = ButtonWidget.builder(Text.literal("清除轮廓"), b -> OutlineTool.INSTANCE.clearShape())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清除当前轮廓")))
                 .build();
@@ -403,7 +403,7 @@ public class ToolPanel extends BasePanel {
         clearSelectionButton.setPosition(x, y);
         clearSelectionButton.setWidth(w);
         clearSelectionButton.visible = true;
-        clearSelectionButton.active = true;
+        clearSelectionButton.active = SelectionTool.INSTANCE.hasSelection() || SelectionTool.INSTANCE.isSelecting();
         clearSelectionButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
@@ -420,7 +420,7 @@ public class ToolPanel extends BasePanel {
         clearProtectedZonesButton.setPosition(x, y);
         clearProtectedZonesButton.setWidth(w);
         clearProtectedZonesButton.visible = true;
-        clearProtectedZonesButton.active = true;
+        clearProtectedZonesButton.active = ProtectedZoneTool.INSTANCE.canClear();
         clearProtectedZonesButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
@@ -457,7 +457,7 @@ public class ToolPanel extends BasePanel {
         clearOutlineButton.setPosition(x, y);
         clearOutlineButton.setWidth(w);
         clearOutlineButton.visible = true;
-        clearOutlineButton.active = true;
+        clearOutlineButton.active = OutlineTool.INSTANCE.hasShape() || OutlineTool.INSTANCE.isDrafting();
         clearOutlineButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
@@ -564,7 +564,9 @@ public class ToolPanel extends BasePanel {
 
     // 绘制 SymmetryTool 的选项
     private int drawSymmetryToolOptions(DrawContext ctx, int x, int y, int w) {
-        symmetryModeButton.setMessage(Text.literal("模式：" + SymmetryTool.INSTANCE.getMode().name()));
+        y = drawWrappedText(ctx, Text.literal("X 红 · Y 绿 · Z 蓝；网格表示镜像面。优先以选区为基准，否则使用生成定位点。"), x, y, w, 0xFFAAAAAA);
+
+        symmetryModeButton.setMessage(Text.literal("模式：" + SymmetryTool.INSTANCE.getModeLabel()));
         symmetryModeButton.setPosition(x, y);
         symmetryModeButton.setWidth(w);
         symmetryModeButton.visible = true;
@@ -575,7 +577,7 @@ public class ToolPanel extends BasePanel {
         clearSymmetryButton.setPosition(x, y);
         clearSymmetryButton.setWidth(w);
         clearSymmetryButton.visible = true;
-        clearSymmetryButton.active = true;
+        clearSymmetryButton.active = SymmetryTool.INSTANCE.canClearAxis();
         clearSymmetryButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 

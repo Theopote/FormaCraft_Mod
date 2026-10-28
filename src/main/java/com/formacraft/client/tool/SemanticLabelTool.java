@@ -191,7 +191,7 @@ public final class SemanticLabelTool implements FormacraftTool {
         }
         if (!open && n >= 3) {
             BlockPos p1 = pts.get(n - 1);
-            BlockPos p2 = pts.get(0);
+            BlockPos p2 = pts.getFirst();
             ToolRenderUtil.line(ctx,
                     p1.getX() + 0.5, p1.getY() + 0.05, p1.getZ() + 0.5,
                     p2.getX() + 0.5, p2.getY() + 0.05, p2.getZ() + 0.5,

@@ -76,18 +76,25 @@ public class SymmetryFilter implements PatchFilter {
         }
 
         int centerX;
+        int centerY;
         int centerZ;
         if (selection != null && selection.min() != null && selection.max() != null) {
             BlockPos min = selection.min();
             BlockPos max = selection.max();
             centerX = (min.getX() + max.getX() + 1) / 2;
+            centerY = (min.getY() + max.getY() + 1) / 2;
             centerZ = (min.getZ() + max.getZ() + 1) / 2;
         } else {
             centerX = origin.getX();
+            centerY = origin.getY();
             centerZ = origin.getZ();
         }
 
         BlockPos result = pos;
+
+        if (mode == MirrorSymmetryMode.MIRROR_Y) {
+            result = new BlockPos(result.getX(), centerY * 2 - result.getY(), result.getZ());
+        }
 
         if (mode == MirrorSymmetryMode.MIRROR_X || mode == MirrorSymmetryMode.BOTH) {
             result = new BlockPos(

@@ -16,7 +16,7 @@ class LlmPlanProgramRoutingTest {
 
     @Test
     void emptySkeletonZonesIsInvalidProgramContent() {
-        var emptySkeleton = new PlanSkeleton("v1", null, List.of(), List.of(), List.of(), List.of());
+        var emptySkeleton = new PlanSkeleton("formacraft.plan_skeleton.v1", null, List.of(), List.of(), List.of(), List.of());
         var plan = LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)
                 .planSkeleton(emptySkeleton)
@@ -29,7 +29,7 @@ class LlmPlanProgramRoutingTest {
     @Test
     void nonEmptyZonesIsValidProgramContent() {
         var zone = new PlanSkeleton.PlanZone("hall", "external", "public_", List.of());
-        var skeleton = new PlanSkeleton("v1", null, List.of(zone), List.of(), List.of(), List.of());
+        var skeleton = new PlanSkeleton("formacraft.plan_skeleton.v1", null, List.of(zone), List.of(), List.of(), List.of());
         var plan = LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)
                 .planSkeleton(skeleton)
@@ -39,7 +39,7 @@ class LlmPlanProgramRoutingTest {
 
     @Test
     void componentsAllowExplicitDegradeWhenProgramEmpty() {
-        var emptySkeleton = new PlanSkeleton("v1", null, List.of(), List.of(), List.of(), List.of());
+        var emptySkeleton = new PlanSkeleton("formacraft.plan_skeleton.v1", null, List.of(), List.of(), List.of(), List.of());
         var component = new Component("MASS_MAIN", "slot0", new Vec3i(0, 0, 0), null, null, null);
         var plan = LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)
@@ -58,7 +58,7 @@ class LlmPlanProgramRoutingTest {
                 new PlanSkeleton.PlanZone("b", "external", "public_", List.of()),
                 new PlanSkeleton.PlanZone("c", "external", "public_", List.of())
         );
-        var skeleton = new PlanSkeleton("v1", null, zones, List.of(), List.of(), List.of());
+        var skeleton = new PlanSkeleton("formacraft.plan_skeleton.v1", null, zones, List.of(), List.of(), List.of());
         var plan = LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)
                 .planSkeleton(skeleton)
@@ -74,7 +74,7 @@ class LlmPlanProgramRoutingTest {
     @Test
     void buildingMassEnabledByExplicitConstraint() {
         var zone = new PlanSkeleton.PlanZone("hall", "external", "public_", List.of());
-        var skeleton = new PlanSkeleton("v1", null, List.of(zone), List.of(), List.of(), List.of());
+        var skeleton = new PlanSkeleton("formacraft.plan_skeleton.v1", null, List.of(zone), List.of(), List.of(), List.of());
         var plan = LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)
                 .planSkeleton(skeleton)

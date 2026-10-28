@@ -58,6 +58,7 @@ public class SymmetryProcessor {
     public net.minecraft.util.math.Direction mirrorFacing(net.minecraft.util.math.Direction facing) {
         if (facing == null) return null;
         return switch (plane.axis()) {
+            case Y -> facing.getAxis() == net.minecraft.util.math.Direction.Axis.Y ? facing.getOpposite() : facing;
             case X -> facing.getAxis() == net.minecraft.util.math.Direction.Axis.X ? facing.getOpposite() : facing;
             case Z -> facing.getAxis() == net.minecraft.util.math.Direction.Axis.Z ? facing.getOpposite() : facing;
         };

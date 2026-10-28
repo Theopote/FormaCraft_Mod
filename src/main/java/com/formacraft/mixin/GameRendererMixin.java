@@ -99,7 +99,9 @@ public class GameRendererMixin {
                               com.formacraft.client.tool.SelectionTool.INSTANCE.isSelecting() ||
                               com.formacraft.client.ui.FormaCraftHudOverlay.activePanel == com.formacraft.client.ui.panel.PanelType.COMPONENT_CAPTURE;
         
-        if (!hasSelection) return;
+        boolean hasSymmetry = com.formacraft.client.tool.SymmetryTool.INSTANCE.getMode()
+                != com.formacraft.client.tool.SymmetryMode.NONE;
+        if (!hasSelection && !hasSymmetry) return;
         
         // 获取 Immediate 并创建 lines layer
         VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();

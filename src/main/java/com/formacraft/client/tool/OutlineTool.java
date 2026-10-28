@@ -3,7 +3,6 @@ package com.formacraft.client.tool;
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.network.FormaCraftClientNetworking;
-import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -146,7 +145,7 @@ public final class OutlineTool implements FormacraftTool {
                 if (draft.isEmpty()) {
                     draft.add(p);
                 } else {
-                    BlockPos last = draft.get(draft.size() - 1);
+                    BlockPos last = draft.getLast();
                     // 只在 XZ 有变化且距离阈值满足时采样，避免过密
                     int dx = p.getX() - last.getX();
                     int dz = p.getZ() - last.getZ();
@@ -220,7 +219,7 @@ public final class OutlineTool implements FormacraftTool {
             com.formacraft.client.ui.toast.HudToast.show("轮廓无效：请避免重叠、交叉或零面积", true);
             return;
         }
-        int baseY = pts.get(0).getY();
+        int baseY = pts.getFirst().getY();
         int[] yr = defaultYRange(baseY);
         this.shape = new OutlineShape(m, List.copyOf(pts), null, 0, yr[0], yr[1]);
         syncToServer();
@@ -347,7 +346,7 @@ public final class OutlineTool implements FormacraftTool {
         }
         if (!open) {
             BlockPos p1 = pts.get(n - 1);
-            BlockPos p2 = pts.get(0);
+            BlockPos p2 = pts.getFirst();
             ToolRenderUtil.line(ctx,
                     p1.getX() + 0.5, p1.getY() + 0.05, p1.getZ() + 0.5,
                     p2.getX() + 0.5, p2.getY() + 0.05, p2.getZ() + 0.5,

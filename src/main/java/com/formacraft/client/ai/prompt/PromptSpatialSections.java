@@ -301,14 +301,7 @@ NO-BUILD ZONES:
             return "";
         }
 
-        // 尝试获取对称轴信息（简化处理）
-        String axis = "X"; // 默认，实际应该从 SymmetryContext 获取
-        return String.format("""
-SYMMETRY CONSTRAINT:
-- The design MUST respect %s-axis symmetry.
-- All major components should be mirrored across the symmetry plane.
-
-""", axis);
+        return "SYMMETRY CONSTRAINT:\n" + com.formacraft.client.ai.context.SymmetryContext.toPromptBlock() + "\n";
     }
 
     /**

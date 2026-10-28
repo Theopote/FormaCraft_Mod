@@ -16,7 +16,7 @@ import net.minecraft.util.math.BlockPos;
 public final class SymmetryTool implements FormacraftTool {
     public static final SymmetryTool INSTANCE = new SymmetryTool();
 
-    private SymmetryTool() {}
+    SymmetryTool() {}
 
     private SymmetryMode mode = SymmetryMode.NONE;
 
@@ -44,7 +44,8 @@ public final class SymmetryTool implements FormacraftTool {
     public void cycleMode() {
         mode = switch (mode) {
             case NONE -> SymmetryMode.MIRROR_X;
-            case MIRROR_X -> SymmetryMode.MIRROR_Z;
+            case MIRROR_X -> SymmetryMode.MIRROR_Y;
+            case MIRROR_Y -> SymmetryMode.MIRROR_Z;
             case MIRROR_Z -> SymmetryMode.BOTH;
             case BOTH -> SymmetryMode.CUSTOM_AXIS;
             case CUSTOM_AXIS -> SymmetryMode.NONE;
@@ -59,6 +60,8 @@ public final class SymmetryTool implements FormacraftTool {
     public boolean hasAxis() {
         return axisA != null && axisB != null && !selecting;
     }
+
+    public boolean canClearAxis() { return axisA != null || axisB != null || selecting; }
 
     public BlockPos getAxisA() { return axisA; }
     public BlockPos getAxisB() { return axisB; }
@@ -90,7 +93,11 @@ public final class SymmetryTool implements FormacraftTool {
         BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
         if (hit == null) return true;
 
-        BlockPos pos = hit.getBlockPos();
+        selectAxisPoint(hit.getBlockPos());
+        return true;
+    }
+
+    void selectAxisPoint(BlockPos pos) {
         if (!selecting) {
             axisA = pos;
             axisB = pos;
@@ -98,12 +105,11 @@ public final class SymmetryTool implements FormacraftTool {
         } else {
             if (ToolGeometry.sameXZ(axisA, pos)) {
                 com.formacraft.client.ui.toast.HudToast.show("对称轴需要两个不同的水平位置", true);
-                return true;
+                return;
             }
             axisB = pos;
             selecting = false;
         }
-        return true;
     }
 
     @Override
@@ -114,42 +120,47 @@ public final class SymmetryTool implements FormacraftTool {
         if (hit != null) axisB = hit.getBlockPos();
     }
 
+    public String getModeLabel() {
+        return switch (mode) {
+            case NONE -> "关闭";
+            case MIRROR_X -> "X 镜像（红色 YZ 面）";
+            case MIRROR_Y -> "Y 镜像（绿色 XZ 面）";
+            case MIRROR_Z -> "Z 镜像（蓝色 XY 面）";
+            case BOTH -> "X/Z 双面镜像";
+            case CUSTOM_AXIS -> "自定义轴（紫色，按主方向对齐）";
+        };
+    }
+
     @Override
     public void renderWorld(ToolWorldRenderContext ctx) {
-        if (mode == SymmetryMode.NONE) return;
-
-        // 轴线颜色：青色
-        int r = 80, g = 255, b = 220, a = 220;
-
-        if (mode == SymmetryMode.CUSTOM_AXIS) {
-            if (axisA == null || axisB == null) return;
-            double y = Math.min(axisA.getY(), axisB.getY()) + 0.05;
-            ToolRenderUtil.line(ctx,
-                    axisA.getX() + 0.5, y, axisA.getZ() + 0.5,
-                    axisB.getX() + 0.5, y, axisB.getZ() + 0.5,
-                    r, g, b, a);
-            return;
+        if (mode == SymmetryMode.NONE || ctx == null) return;
+        var client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client == null || client.player == null) return;
+        var bc = com.formacraft.client.buildcontext.BuildContextResolver.resolve();
+        BlockPos origin = bc != null && bc.origin != null ? bc.origin : client.player.getBlockPos();
+        var selection = SelectionTool.INSTANCE.hasSelection()
+                ? new com.formacraft.common.buildcontext.SelectionBox(SelectionTool.INSTANCE.getMin(), SelectionTool.INSTANCE.getMax()) : null;
+        var planes = SymmetryOverlayGeometry.planes(mode, selection, origin, axisA, axisB);
+        for (var plane : planes) {
+            for (int i = 0; i <= 8; i++) {
+                double t = i / 8.0;
+                boolean border = i == 0 || i == 8;
+                var a = plane.corner().add(plane.u().multiply(t));
+                var b = a.add(plane.v());
+                drawPlaneLine(ctx, plane, a, b, border ? 230 : 85);
+                a = plane.corner().add(plane.v().multiply(t));
+                b = a.add(plane.u());
+                drawPlaneLine(ctx, plane, a, b, border ? 230 : 85);
+            }
         }
-
-        // 预设模式：用“选区中心”做可视化轴线（没有选区就不画）
-        if (!SelectionTool.INSTANCE.hasSelection()) return;
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-        if (min == null || max == null) return;
-
-        double cx = (min.getX() + max.getX() + 1) / 2.0;
-        double cz = (min.getZ() + max.getZ() + 1) / 2.0;
-        double y = min.getY() + 0.05;
-
-        // MIRROR_X：镜像平面 x = cx → 可视化为 Z 方向的轴线
-        if (mode == SymmetryMode.MIRROR_X || mode == SymmetryMode.BOTH) {
-            ToolRenderUtil.line(ctx, cx, y, min.getZ(), cx, y, max.getZ() + 1, r, g, b, a);
-        }
-        // MIRROR_Z：镜像平面 z = cz → 可视化为 X 方向的轴线
-        if (mode == SymmetryMode.MIRROR_Z || mode == SymmetryMode.BOTH) {
-            ToolRenderUtil.line(ctx, min.getX(), y, cz, max.getX() + 1, y, cz, r, g, b, a);
+        if (mode == SymmetryMode.CUSTOM_AXIS && axisA != null && axisB != null) {
+            ToolRenderUtil.line(ctx, axisA.getX() + 0.5, axisA.getY() + 0.05, axisA.getZ() + 0.5,
+                    axisB.getX() + 0.5, axisB.getY() + 0.05, axisB.getZ() + 0.5, 240, 180, 255, 255);
         }
     }
+
+    private static void drawPlaneLine(ToolWorldRenderContext ctx, SymmetryOverlayGeometry.Plane plane,
+                                      net.minecraft.util.math.Vec3d a, net.minecraft.util.math.Vec3d b, int alpha) {
+        ToolRenderUtil.line(ctx, a.x, a.y, a.z, b.x, b.y, b.z, plane.red(), plane.green(), plane.blue(), alpha);
+    }
 }
-
-

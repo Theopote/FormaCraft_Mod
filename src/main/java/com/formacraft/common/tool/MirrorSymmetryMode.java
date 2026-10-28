@@ -6,6 +6,7 @@ package com.formacraft.common.tool;
 public enum MirrorSymmetryMode {
     NONE,
     MIRROR_X,
+    MIRROR_Y,
     MIRROR_Z,
     BOTH,
     CUSTOM_AXIS

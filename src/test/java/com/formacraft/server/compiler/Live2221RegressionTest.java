@@ -36,4 +36,5 @@ class Live2221RegressionTest {
             var floor=cells.get(new BlockPos(x,0,z)); assertNotNull(floor);assertFalse(floor.isAir());
         }
     }
-}
+    @Test void japaneseGardenPreservesExistingApproachPath() throws Exception { compile(load("234822")); }
+    @Test void stupaBoundTiersJoinAtTopSeams() throws Exception { compile(load("234431")); }}

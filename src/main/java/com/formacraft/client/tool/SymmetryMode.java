@@ -6,6 +6,7 @@ package com.formacraft.client.tool;
 public enum SymmetryMode {
     NONE,
     MIRROR_X,
+    MIRROR_Y,
     MIRROR_Z,
     BOTH,
     CUSTOM_AXIS

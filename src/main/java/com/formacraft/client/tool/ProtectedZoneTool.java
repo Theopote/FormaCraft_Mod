@@ -3,7 +3,6 @@ package com.formacraft.client.tool;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.client.network.FormaCraftClientNetworking;
-import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.render.VertexRendering;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
@@ -23,7 +22,11 @@ import java.util.List;
 public final class ProtectedZoneTool implements FormacraftTool {
     public static final ProtectedZoneTool INSTANCE = new ProtectedZoneTool();
 
-    private ProtectedZoneTool() {}
+    private final java.util.function.Consumer<List<ProtectedZone>> sync;
+
+    private ProtectedZoneTool() { this(FormaCraftClientNetworking::sendProtectedZoneSync); }
+
+    ProtectedZoneTool(java.util.function.Consumer<List<ProtectedZone>> sync) { this.sync = sync; }
 
     private BlockPos start;
     private BlockPos end;
@@ -57,7 +60,11 @@ public final class ProtectedZoneTool implements FormacraftTool {
         BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
         if (hit == null) return true;
 
-        BlockPos pos = hit.getBlockPos();
+        selectPoint(hit.getBlockPos());
+        return true;
+    }
+
+    void selectPoint(BlockPos pos) {
         if (!selecting) {
             start = pos;
             end = pos;
@@ -72,7 +79,6 @@ public final class ProtectedZoneTool implements FormacraftTool {
             start = null;
             end = null;
         }
-        return true;
     }
 
     @Override
@@ -149,6 +155,8 @@ public final class ProtectedZoneTool implements FormacraftTool {
         return !zones.isEmpty();
     }
 
+    public boolean canClear() { return hasZones() || selecting || start != null || end != null; }
+
     @Override
     public boolean hasPersistentOverlay() { return hasZones(); }
 
@@ -164,14 +172,12 @@ public final class ProtectedZoneTool implements FormacraftTool {
 
     public void clearZones() {
         zones.clear();
-        selecting = false;
-        start = null;
-        end = null;
+        cancelDraft();
         syncToServer();
     }
 
     private void syncToServer() {
-        FormaCraftClientNetworking.sendProtectedZoneSync(zones);
+        sync.accept(List.copyOf(zones));
     }
 }
 

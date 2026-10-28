@@ -12,7 +12,7 @@ public record SymmetryPlane(
         int value    // x = value 或 z = value
 ) {
     public enum Axis {
-        X, Z
+        X, Y, Z
     }
 
     /**
@@ -22,6 +22,7 @@ public record SymmetryPlane(
         if (p == null) return null;
         
         return switch (axis) {
+            case Y -> new BlockPos(p.getX(), Math.toIntExact(2L * value - p.getY()), p.getZ());
             case X -> new BlockPos(
                     Math.toIntExact(2L * value - p.getX()),
                     p.getY(),
