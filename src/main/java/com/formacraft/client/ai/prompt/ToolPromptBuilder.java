@@ -22,6 +22,10 @@ public final class ToolPromptBuilder {
         if (ctx == null) return;
 
         // 空间语义（anchor/facing/mode 等）由 PromptAssembler 统一输出，避免重复与双源。
+        var plane = com.formacraft.client.tool.WorkPlaneTool.INSTANCE.state();
+        if (plane.fixed() && ctx.mode == PromptMode.BUILD) {
+            ctx.constraints.add("固定基准平面：建筑基准 Y=" + plane.height() + "；保留路径节点标高，不要自动落回自然地面。");
+        }
 
         // PathTool → PathSkeleton（新增：路径骨架）
         PathSkeleton skeleton = PathTool.INSTANCE.toSkeleton();

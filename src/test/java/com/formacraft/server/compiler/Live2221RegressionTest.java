@@ -1,8 +1,5 @@
 package com.formacraft.server.compiler;
 import com.formacraft.common.llm.dto.*;
-import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generation.component.impl.DecorDetailGenerator;
-import com.formacraft.common.network.*;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.math.BlockPos;
@@ -36,5 +33,32 @@ class Live2221RegressionTest {
             var floor=cells.get(new BlockPos(x,0,z)); assertNotNull(floor);assertFalse(floor.isAir());
         }
     }
-    @Test void japaneseGardenPreservesExistingApproachPath() throws Exception { compile(load("234822")); }
-    @Test void stupaBoundTiersJoinAtTopSeams() throws Exception { compile(load("234431")); }}
+    @Test void hallGroundFloorWalksIntoBothTowers() throws Exception {
+        var cells=snapshot(compile(load("222144")),BlockPos.ORIGIN);
+        var reached=new HashSet<BlockPos>();var queue=new ArrayDeque<BlockPos>();
+        var start=new BlockPos(0,1,0);reached.add(start);queue.add(start);
+        while(!queue.isEmpty()) {
+            var p=queue.remove();
+            for(var dir:net.minecraft.util.math.Direction.Type.HORIZONTAL) {
+                var n=p.offset(dir);if(reached.contains(n))continue;
+                var floor=cells.get(n.down());var feet=cells.get(n);var head=cells.get(n.up());
+                if(floor==null || floor.isAir() || feet!=null&&!feet.isAir() || head!=null&&!head.isAir())continue;
+                reached.add(n);queue.add(n);
+            }
+        }
+        assertTrue(reached.contains(new BlockPos(-1,1,11)),"South tower interior unreachable from hall");
+        assertTrue(reached.contains(new BlockPos(-1,1,-12)),"North tower interior unreachable from hall");
+    }
+    @Test void japaneseGardenPreservesExistingApproachPath() throws Exception {
+        var cells=snapshot(compile(load("234822")),BlockPos.ORIGIN);
+        assertTrue(Set.of(net.minecraft.block.Blocks.COBBLESTONE,net.minecraft.block.Blocks.MOSSY_COBBLESTONE).contains(cells.get(new BlockPos(18,0,-1)).getBlock()), "Path material must survive the garden plate, allowing its weathered variant");
+    }
+    @Test void stupaBoundTiersJoinAtTopSeams() throws Exception { compile(load("234431")); }
+    @Test void unconnectedDeclarationIsRejected() throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var tree=mapper.valueToTree(load("222144"));
+        ((com.fasterxml.jackson.databind.node.ObjectNode)tree.get("components").get(0).get("params").get("internal_openings").get(0)).put("side","WEST");
+        var blocks=ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),BlockPos.ORIGIN,null,null,false);
+        assertTrue(blocks.isEmpty());assertEquals("E_INTERNAL_PASSAGE",AssemblyCompileDiagnostics.get().code());
+    }
+}

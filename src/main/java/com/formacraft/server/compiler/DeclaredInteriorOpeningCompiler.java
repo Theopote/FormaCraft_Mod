@@ -77,8 +77,11 @@ final class DeclaredInteriorOpeningCompiler {
             var a=CourtyardAnchorCompiler.anchor(slots,c.slotId());var r=c.relativePosition();
             boolean axis=Set.of("EAST","WEST").contains(String.valueOf(c.params().get("facing")));
             int width=((Number)c.params().get("door_width")).intValue();
-            for(int u=1;u<=width;u++) for(int y=0;y<2;y++) {
-                var pos=new BlockPos(a.x()+r.x()+(axis?0:u),a.y()+r.y()+y,a.z()+r.z()+(axis?u:0));
+            String side=String.valueOf(c.params().get("facing"));
+            int inward=Set.of("EAST","SOUTH").contains(side)?-1:1;
+            for(int u=1;u<=width;u++) for(int y=0;y<2;y++) for(int depth=0;depth<=1;depth++) {
+                var pos=new BlockPos(a.x()+r.x()+(axis?inward*depth:u),a.y()+r.y()+y,
+                        a.z()+r.z()+(axis?u:inward*depth));
                 var state=cells.get(pos);
                 if(state!=null && !state.isAir()) {fail("内部通道被后续构件封堵："+id(c)+" "+pos);return false;}
                 var floor=cells.get(pos.down(y+1));

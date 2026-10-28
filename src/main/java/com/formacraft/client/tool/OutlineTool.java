@@ -95,9 +95,9 @@ public final class OutlineTool implements FormacraftTool {
         }
 
         // 左键
-        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
-        if (hit == null) return true;
-        BlockPos pos = hit.getBlockPos();
+        BlockPos target = CursorRaycastHelper.getDrawingBlockPos();
+        if (target == null) return true;
+        BlockPos pos = target;
 
         switch (mode) {
             case RECTANGLE -> {
@@ -139,9 +139,9 @@ public final class OutlineTool implements FormacraftTool {
 
         boolean leftDown = com.formacraft.client.ui.input.InputRouter.leftDown;
         if (leftDown && freeDrawing) {
-            BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
-            if (hit != null) {
-                BlockPos p = hit.getBlockPos();
+            BlockPos target = CursorRaycastHelper.getDrawingBlockPos();
+            if (target != null) {
+                BlockPos p = target;
                 if (draft.isEmpty()) {
                     draft.add(p);
                 } else {
@@ -227,7 +227,7 @@ public final class OutlineTool implements FormacraftTool {
 
     private int[] defaultYRange(int baseY) {
         // 如果用户已经选区，则直接复用选区的 Y 范围（更符合预期）
-        if (SelectionTool.INSTANCE.hasSelection()) {
+        if (!WorkPlaneTool.INSTANCE.state().fixed() && SelectionTool.INSTANCE.hasSelection()) {
             BlockPos min = SelectionTool.INSTANCE.getMin();
             BlockPos max = SelectionTool.INSTANCE.getMax();
             if (min != null && max != null) {
@@ -296,9 +296,9 @@ public final class OutlineTool implements FormacraftTool {
 
         // rect/circle 在 selecting 时的预览
         if (selecting && anchorA != null && (mode == OutlineMode.RECTANGLE || mode == OutlineMode.CIRCLE)) {
-            BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
-            if (hit != null) {
-                BlockPos p = hit.getBlockPos();
+            BlockPos target = CursorRaycastHelper.getDrawingBlockPos();
+            if (target != null) {
+                BlockPos p = target;
                 if (mode == OutlineMode.RECTANGLE) {
                     List<BlockPos> pts = new ArrayList<>(4);
                     int minX = Math.min(anchorA.getX(), p.getX());

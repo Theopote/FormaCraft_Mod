@@ -165,9 +165,7 @@ public final class BrushTool implements FormacraftTool {
     private void updateHover(World world) {
         hover.clear();
 
-        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
-        if (hit == null) return;
-        BlockPos base = hit.getBlockPos();
+        BlockPos base = CursorRaycastHelper.getDrawingBlockPos();
         if (base == null) return;
 
         int cx = base.getX();
@@ -188,7 +186,8 @@ public final class BrushTool implements FormacraftTool {
                     int chunkZ = z >> 4;
                     if (!world.isChunkLoaded(chunkX, chunkZ)) continue;
 
-                    int topY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+                    int topY = WorkPlaneTool.INSTANCE.state().fixed() ? WorkPlaneTool.INSTANCE.state().height()
+                            : world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
                     int y = topY - 1;
                     // 1.21.10 没有无参 getTopY()；这里只需要保证 y 不低于世界下界即可。
                     // （y 是由 topY 推出来的，本身不可能大于该列的 topY）

@@ -9,6 +9,7 @@ import com.formacraft.client.tool.SemanticLabelTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
+import com.formacraft.client.tool.WorkPlaneTool;
 import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
@@ -64,6 +65,11 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget clearLabelsButton;
 
     private final HudTextInput labelNameInput = new HudTextInput();
+    private final HudTextInput planeHeightInput = new HudTextInput();
+    private ButtonWidget planeLockButton, planeModeButton, planeDownButton, planeUpButton, planeApplyButton, planeClearButton;
+    private int planeInputX, planeInputY, planeInputW;
+    private boolean planeInputVisible;
+
 
     // 标签“作用范围”滑动条（1~40）——参考 SettingsPanel 的 SliderWidget 实现
     private static final int LABEL_RANGE_MIN = 1;
@@ -188,6 +194,14 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("清空所有区域语义标签")))
                 .build();
 
+        planeHeightInput.setMaxLength(12);
+        planeLockButton = optionButton("锁定平面", () -> WorkPlaneTool.INSTANCE.state().toggleLock());
+        planeModeButton = optionButton("模式：固定高度", () -> WorkPlaneTool.INSTANCE.state().toggleTerrain());
+        planeDownButton = optionButton("高度 -1", () -> WorkPlaneTool.INSTANCE.changeHeight(-1));
+        planeUpButton = optionButton("高度 +1", () -> WorkPlaneTool.INSTANCE.changeHeight(1));
+        planeApplyButton = optionButton("应用 Y 坐标", this::applyPlaneHeight);
+        planeClearButton = optionButton("清除基准平面", () -> WorkPlaneTool.INSTANCE.clear());
+
         labelNameInput.setMaxLength(64);
         labelNameInput.setText("入口");
 
@@ -211,6 +225,7 @@ public class ToolPanel extends BasePanel {
 
         // 每帧重置 bounds（如果本帧没画到输入框，就不允许点击命中它）
         labelNameInputBoundsValid = false;
+        planeInputVisible = false;
 
         drawContentBackground(ctx);
 
@@ -294,6 +309,10 @@ public class ToolPanel extends BasePanel {
                 : SelectionTool.INSTANCE.hasSelection() ? "选区底面中心（优先于锚点）"
                 : AnchorState.hasAnchor() ? "显式锚点" : "鼠标命中／玩家位置";
         optionsY = drawWrappedText(ctx, Text.literal("默认定位：" + source), x, optionsY, w, 0xFF88DDFF);
+        if (WorkPlaneTool.INSTANCE.state().fixed()) {
+            optionsY = drawWrappedText(ctx, Text.literal("固定基准高度：Y=" + WorkPlaneTool.INSTANCE.state().height()
+                    + "（新建时生效，修改选区保持原坐标）"), x, optionsY + 2, w, 0xFF66DDFF);
+        }
         optionsY = drawWrappedText(ctx, Text.literal("保留数据：选区" + (SelectionTool.INSTANCE.hasSelection() ? "有" : "无")
                 + " · 轮廓" + (OutlineTool.INSTANCE.hasShape() ? "有" : "无")
                 + " · 保护区" + ProtectedZoneTool.INSTANCE.getZones().size()
@@ -333,7 +352,9 @@ public class ToolPanel extends BasePanel {
         }
 
         // 根据激活的工具ID，渲染对应的选项
-        if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
+        if (ToolManager.isActive(WorkPlaneTool.INSTANCE.getId())) {
+            optionsY = drawWorkPlaneOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
             optionsY = drawSelectionToolOptions(ctx, x, optionsY, w);
         } else if (ToolManager.isActive(ProtectedZoneTool.INSTANCE.getId())) {
             optionsY = drawProtectedZoneToolOptions(ctx, x, optionsY, w);
@@ -377,6 +398,44 @@ public class ToolPanel extends BasePanel {
         // Toast：不参与滚动，也不被 scissor 裁剪（否则用户会觉得“点了没反应”）
         int toastY = panelY + panelHeight - CONTENT_PADDING - client.textRenderer.fontHeight - 2;
         HudToast.render(ctx, x, toastY);
+    }
+
+    private void applyPlaneHeight() {
+        try {
+            WorkPlaneTool.INSTANCE.setHeight(Integer.parseInt(planeHeightInput.getText().trim()));
+            planeHeightInput.setFocused(false);
+            HudToast.show("基准高度已设为 Y=" + WorkPlaneTool.INSTANCE.state().height());
+        } catch (NumberFormatException e) {
+            HudToast.show("请输入整数 Y 坐标", true);
+        }
+    }
+
+    private int drawWorkPlaneOptions(DrawContext ctx, int x, int y, int w) {
+        var plane = WorkPlaneTool.INSTANCE.state();
+        y = drawWrappedText(ctx, Text.literal("左键点方块顶面取高；右键锁定／解锁。拖动黄色箭头调高，Esc取消拖动。"), x, y, w, 0xFFAAAAAA);
+        y = drawWrappedText(ctx, Text.literal(plane.hasPlane() ? "平面 Y=" + plane.height()
+                + (plane.locked() ? "（已锁定）" : "（未锁定）") : "尚未设置基准平面"), x, y + 3, w, 0xFF66DDFF);
+        if (!planeHeightInput.isFocused()) planeHeightInput.setText(String.valueOf(plane.hasPlane() ? plane.height() : (client.player == null ? 64 : client.player.getBlockY())));
+        planeInputX = x; planeInputY = y + 2; planeInputW = w;
+        planeInputVisible = true;
+        planeHeightInput.render(ctx, x, planeInputY, w, 14);
+        y += 18;
+        y = drawOptionButton(ctx, planeApplyButton, x, y, w, true);
+        y = drawOptionButton(ctx, planeDownButton, x, y, w, plane.hasPlane());
+        y = drawOptionButton(ctx, planeUpButton, x, y, w, plane.hasPlane());
+        planeLockButton.setMessage(Text.literal(plane.locked() ? "解锁平面" : "锁定平面"));
+        y = drawOptionButton(ctx, planeLockButton, x, y, w, plane.hasPlane());
+        planeModeButton.setMessage(Text.literal(plane.followsTerrain() ? "定位：跟随地形" : "定位：固定高度"));
+        y = drawOptionButton(ctx, planeModeButton, x, y, w, true);
+        y = drawOptionButton(ctx, planeClearButton, x, y, w, plane.hasPlane());
+        if (plane.fixed()) {
+            y = drawWrappedText(ctx, Text.literal("轮廓、路径和笔刷使用平面交点；即使前方没有方块也能绘制。已有范围不会随平面自动移动。"), x, y, w, 0xFFAAAAAA);
+            if (SelectionTool.INSTANCE.hasSelection() && (plane.height() < SelectionTool.INSTANCE.getMin().getY()
+                    || plane.height() > SelectionTool.INSTANCE.getMax().getY())) {
+                y = drawWrappedText(ctx, Text.literal("基准高度超出当前选区，请调整选区高度以免生成被裁剪。"), x, y + 2, w, 0xFFFFAA66);
+            }
+        }
+        return y + 4;
     }
 
     // 绘制 SelectionTool 的选项
@@ -663,6 +722,7 @@ public class ToolPanel extends BasePanel {
         if (super.mouseClicked(mouseX, mouseY, button)) return true;
         if (!isMouseOver(mouseX, mouseY)) {
             labelNameInput.setFocused(false);
+            planeHeightInput.setFocused(false);
             return false;
         }
         if (button != 0) return false;
@@ -688,7 +748,14 @@ public class ToolPanel extends BasePanel {
 
         // 根据当前激活的工具，处理对应的选项按钮
 
-        if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
+        if (ToolManager.isActive(WorkPlaneTool.INSTANCE.getId())) {
+            if (planeInputVisible && planeHeightInput.mouseClicked(mouseX, mouseY, planeInputX, planeInputY, planeInputW, 14)) {
+                HudClickSupport.clearPending();
+                return true;
+            }
+            if (clickButton(planeApplyButton, click) || clickButton(planeDownButton, click) || clickButton(planeUpButton, click)
+                    || clickButton(planeLockButton, click) || clickButton(planeModeButton, click) || clickButton(planeClearButton, click)) return true;
+        } else if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
             if (clickButton(clearSelectionButton, click)) return true;
         } else if (ToolManager.isActive(ProtectedZoneTool.INSTANCE.getId())) {
             if (clickButton(clearProtectedZonesButton, click)) return true;
@@ -748,6 +815,11 @@ public class ToolPanel extends BasePanel {
     @Override
     public void keyPressed(int keyCode, int scanCode, int modifiers) {
         ensureWidgets();
+        if (ToolManager.isActive(WorkPlaneTool.INSTANCE.getId()) && planeHeightInput.isFocused()) {
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) applyPlaneHeight();
+            else planeHeightInput.keyPressed(keyCode, modifiers);
+            return;
+        }
         // 仅当输入框 focused 时消费键盘
         if (labelNameInput.keyPressed(keyCode, modifiers)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
@@ -757,7 +829,8 @@ public class ToolPanel extends BasePanel {
     @Override
     public void charTyped(char chr) {
         ensureWidgets();
-        if (labelNameInput.charTyped(chr)) {
+        if (ToolManager.isActive(WorkPlaneTool.INSTANCE.getId()) && planeHeightInput.charTyped(chr)) return;
+        if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId()) && labelNameInput.charTyped(chr)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
     }
@@ -788,7 +861,8 @@ public class ToolPanel extends BasePanel {
 
     @Override
     public boolean wantsKeyboardInput() {
-        return ToolManager.isActive(SemanticLabelTool.INSTANCE.getId()) && labelNameInput.isFocused();
+        return ToolManager.isActive(SemanticLabelTool.INSTANCE.getId()) && labelNameInput.isFocused()
+                || ToolManager.isActive(WorkPlaneTool.INSTANCE.getId()) && planeHeightInput.isFocused();
     }
 
     @Override

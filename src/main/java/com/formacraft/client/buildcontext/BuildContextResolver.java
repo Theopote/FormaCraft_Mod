@@ -41,6 +41,13 @@ public final class BuildContextResolver {
      * @param restrictToSelection 当为 true（MODIFY_REGION）时，如果存在选区则强制以选区为主约束
      */
     public static BuildContext resolve(boolean restrictToSelection) {
+        var base = resolveBase(restrictToSelection);
+        boolean editing = restrictToSelection || com.formacraft.client.preview.PromptModeState.getLastMode()
+                != com.formacraft.client.ai.prompt.PromptMode.BUILD;
+        return com.formacraft.client.tool.WorkPlaneTool.INSTANCE.state().apply(base, editing);
+    }
+
+    private static BuildContext resolveBase(boolean restrictToSelection) {
         if (client == null || client.player == null || client.world == null) return null;
         Direction facing = client.player.getHorizontalFacing();
         List<com.formacraft.common.model.constraint.ProtectedZone> protectedZones = ProtectedZoneTool.INSTANCE.getZones();

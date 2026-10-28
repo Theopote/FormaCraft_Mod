@@ -38,6 +38,11 @@ public class FormaRequest {
     private java.util.List<BlockPos> pathNodes;
     /** 可选：路径走廊半径（水平方块数）；<=0 视为未设置 */
     private Integer pathRadius;
+    /** Explicit work-plane base for a new build; absent for terrain-following and edits. */
+    private Integer fixedBaseY;
+
+    public Integer getFixedBaseY() { return fixedBaseY; }
+    public void setFixedBaseY(Integer fixedBaseY) { this.fixedBaseY = fixedBaseY; }
     private String sessionId;
     private java.util.List<String> chatHistory;
 

@@ -136,7 +136,10 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (localFace == null || !facadeScope.covers(localFace, floorIndex)) {
                         continue;
                     }
-                    if (!isWindowBand(y, floorCount > 0 ? height + 1 : height, floorHeight, windowAspect, floorCount > 0 ? 2 : 1)) {
+                    // Three-block storeys only have a one-block clear window band; a two-block
+                    // sill and the vertical-strip lintel rule otherwise exclude every cell.
+                    if (!isWindowBand(y, floorCount > 0 ? height + 1 : height, floorHeight, windowAspect,
+                            floorCount > 0 && floorHeight >= 4 ? 2 : 1)) {
                         continue;
                     }
                     int axis;

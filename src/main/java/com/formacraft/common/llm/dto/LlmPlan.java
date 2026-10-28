@@ -108,9 +108,8 @@ public record LlmPlan(
      * PlanProgram/Skeleton 是否含有可编译的 zones 内容。
      */
     public boolean hasValidPlanProgramContent() {
-        if (planSkeleton != null && supportedSchema(planSkeleton.schema(), "formacraft.plan_skeleton")
-                && planSkeleton.zones() != null && !planSkeleton.zones().isEmpty()) {
-            return true;
+        if (planSkeleton != null && planSkeleton.zones() != null && !planSkeleton.zones().isEmpty()) {
+            return supportedSchema(planSkeleton.schema(), "formacraft.plan_skeleton");
         }
         return planProgram != null && supportedSchema(planProgram.schema(), "formacraft.plan_program")
                 && planProgram.zones() != null && !planProgram.zones().isEmpty();

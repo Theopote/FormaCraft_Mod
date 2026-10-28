@@ -165,6 +165,10 @@ public final class LlmPlanPreviewBuilder {
                 );
             }
 
+            boolean fixedBase = FixedBasePlacement.enabled(req);
+            planOrigin = FixedBasePlacement.origin(req, planOrigin,
+                    serverWorld.getBottomY(), serverWorld.getBottomY() + serverWorld.getHeight() - 1);
+
             // 对于使用BuildingSpec路径的情况，需要检查是否需要将锚点（中心）转换为左下角
             // 但对于LlmPlan系统，ComponentPlanCompiler和PlanProgramCompiler已经处理了相对坐标
             // 所以这里不需要额外转换（patches中的dx/dy/dz已经是相对于planOrigin的）
@@ -290,6 +294,7 @@ public final class LlmPlanPreviewBuilder {
                     patches.size(), plannedBlocks.size(), planOrigin);
 
             var landingSites = com.formacraft.server.terrain.BuildingLandingPlanner.sites(llmPlan, planOrigin);
+            if (!fixedBase) {
             boolean authoredSupports = LlmPlanTerrainBounds.hasAuthoredSupports(llmPlan);
             if (!landingSites.isEmpty() && !authoredSupports) {
                 var landingStrategy = llmPlan.globalConstraints() != null && llmPlan.globalConstraints().terrainStrategy() != null
@@ -611,6 +616,8 @@ public final class LlmPlanPreviewBuilder {
 
             }
 
+            } // A locked work plane bypasses automatic landing / terrain pads.
+
             com.formacraft.common.build.GeneratedStructure generated =
                     new com.formacraft.common.build.GeneratedStructure(
                             player.getUuid(),
@@ -630,7 +637,7 @@ public final class LlmPlanPreviewBuilder {
                     req,
                     java.util.Optional.empty(),
                     worldCirculation,
-                    !landingSites.isEmpty()
+                    !fixedBase && !landingSites.isEmpty()
             );
 
             if (pipeline.report() != null) {

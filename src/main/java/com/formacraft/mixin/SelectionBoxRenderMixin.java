@@ -24,32 +24,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * 在原版绘制"目标方块轮廓"的同一渲染阶段，额外绘制 SelectionTool 的区域框。
- * <p>
- * 说明：我们不依赖 WorldRenderEvents（当前环境不可用），而复用现有管线里
- * 已经准备好的 MatrixStack / VertexConsumer。
- * <p>
- * 注意：renderTargetBlockOutline 只在有目标方块时调用，仰视天空时会消失。
- * 因此添加了额外的注入点确保选区框始终可见。
- */
+/** World overlays render once after the opaque outline pass, even when the cursor hits air. */
 @Mixin(WorldRenderer.class)
 public class SelectionBoxRenderMixin {
 
     /**
-     * 主要的渲染注入点：在 renderTargetBlockOutline 中渲染（有目标方块时）
+     * 在世界矩阵仍有效的阶段绘制，并独立提交线框缓冲
      */
     @Inject(
             method = "renderTargetBlockOutline(Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;Lnet/minecraft/client/util/math/MatrixStack;ZLnet/minecraft/client/render/state/WorldRenderState;)V",
-            // IMPORTANT:
-            // 不能用 HEAD：太早时原版还没 begin 线框的 BufferBuilder，首次写顶点会 "Not building!" 崩溃。
-            // 也不能用 TAIL：太晚时原版可能已经 flush 了 immediate。
-            // 因此我们选择在原版首次 getBuffer(...) 之后立刻绘制，保证 BufferBuilder 处于 building 状态。
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;getBuffer(Lnet/minecraft/client/render/RenderLayer;)Lnet/minecraft/client/render/VertexConsumer;",
-                    shift = At.Shift.AFTER
-            ),
+            // Run after vanilla has flushed its outline buffer, including when no target exists.
+            at = @At("TAIL"),
             require = 0
     )
     private void formacraft$renderOverlays(VertexConsumerProvider.Immediate immediate,
@@ -57,7 +42,11 @@ public class SelectionBoxRenderMixin {
                                            boolean renderBlockOutline,
                                            net.minecraft.client.render.state.WorldRenderState renderStates,
                                            CallbackInfo ci) {
-        renderFormacraftOverlays(immediate, matrices);
+        // Vanilla invokes this method for opaque and translucent passes; render once.
+        if (!renderBlockOutline && FormacraftUIState.isOpen) {
+            renderFormacraftOverlays(immediate, matrices);
+            immediate.draw(RenderLayer.getLines());
+        }
     }
 
 

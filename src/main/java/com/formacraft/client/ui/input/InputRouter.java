@@ -200,11 +200,13 @@ public class InputRouter {
             }
             if (button == 1) {
                 var hit = CursorRaycastHelper.getLastBlockHit();
-                if (hit != null) {
-                    // 显式锚点：放在命中方块上方一格；朝向取玩家水平朝向
+                var anchorTarget = com.formacraft.client.tool.WorkPlaneTool.INSTANCE.state().fixed()
+                        ? CursorRaycastHelper.getDrawingBlockPos() : hit == null ? null : hit.getBlockPos().up();
+                if (anchorTarget != null) {
+                    // 锁定平面时用平面交点；否则放在命中方块上方一格。
                     net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
                     net.minecraft.util.math.Direction facing = (mc != null && mc.player != null) ? mc.player.getHorizontalFacing() : net.minecraft.util.math.Direction.NORTH;
-                    AnchorState.set(hit.getBlockPos().up(), facing);
+                    AnchorState.set(anchorTarget, facing);
                 }
                 lastClickHandledByUI = true;
                 return true;
@@ -302,6 +304,7 @@ public class InputRouter {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             consumeEscapeUntilRelease = true;
             if (BuildConfirmPanel.INSTANCE.isVisible()) BuildConfirmPanel.INSTANCE.cancel();
+            else if (getPanel() != null && getPanel().wantsKeyboardInput()) getPanel().keyPressed(keyCode, scanCode, modifiers);
             else if (ToolManager.getActiveTool() != null) ToolManager.getActiveTool().cancelDraft();
             return true;
         }

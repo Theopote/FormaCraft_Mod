@@ -114,7 +114,7 @@ public final class PathTool implements FormacraftTool {
         return new PathSkeleton(
             nodes,
             getCorridorRadius(),
-            true, // 默认贴地
+            !WorkPlaneTool.INSTANCE.state().fixed(), // 锁定基准平面时保留绘制标高
             resolveIntent()
         );
     }
@@ -176,10 +176,10 @@ public final class PathTool implements FormacraftTool {
         }
 
         // 左键：添加点
-        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
-        if (hit == null) return true;
+        BlockPos target = CursorRaycastHelper.getDrawingBlockPos();
+        if (target == null) return true;
 
-        BlockPos pos = hit.getBlockPos();
+        BlockPos pos = target;
         Vec3d p = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.05, pos.getZ() + 0.5);
 
         addDraftPoint(p);
@@ -192,12 +192,12 @@ public final class PathTool implements FormacraftTool {
             hover = null;
             return;
         }
-        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
-        if (hit == null) {
+        BlockPos target = CursorRaycastHelper.getDrawingBlockPos();
+        if (target == null) {
             hover = null;
             return;
         }
-        BlockPos pos = hit.getBlockPos();
+        BlockPos pos = target;
         hover = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.05, pos.getZ() + 0.5);
     }
 

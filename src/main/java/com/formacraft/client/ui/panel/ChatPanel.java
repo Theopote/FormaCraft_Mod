@@ -969,6 +969,9 @@ public class ChatPanel extends BasePanel {
         // 用户可以通过 outputFormat 字段覆盖这个行为
         req.setOutputFormat("llmplan");
         req.setPlayerPos(origin);
+        if (effectiveMode == PromptMode.BUILD && com.formacraft.client.tool.WorkPlaneTool.INSTANCE.state().fixed()) {
+            req.setFixedBaseY(com.formacraft.client.tool.WorkPlaneTool.INSTANCE.state().height());
+        }
         // 额外字段：给后端更多“结构化上下文”（避免只从 prompt 文本里解析）
         try {
             if (bc != null && bc.facing != null) {

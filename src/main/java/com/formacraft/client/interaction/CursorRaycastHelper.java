@@ -10,6 +10,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.RaycastContext;
 
 /**
@@ -25,10 +26,14 @@ public final class CursorRaycastHelper {
 
     private static BlockHitResult lastBlockHit = null;
     private static HitResult lastHit = null;
+    private static Vec3d rayOrigin, rayDirection;
+    private static double rayReach;
 
     public static void clear() {
         lastBlockHit = null;
         lastHit = null;
+        rayOrigin = null;
+        rayDirection = null;
     }
 
     public static void tick(float tickDelta) {
@@ -54,6 +59,19 @@ public final class CursorRaycastHelper {
 
     public static HitResult getLastHit() {
         return lastHit;
+    }
+
+    public static Vec3d getRayOrigin() { return rayOrigin; }
+    public static Vec3d getRayDirection() { return rayDirection; }
+
+    /** Only drawing tools use the work plane; selection and protection still hit real blocks. */
+    public static BlockPos getDrawingBlockPos() {
+        var plane = com.formacraft.client.tool.WorkPlaneTool.INSTANCE.state();
+        if (plane.fixed()) {
+            Vec3d point = com.formacraft.client.tool.WorkPlaneState.intersect(rayOrigin, rayDirection, plane.height(), rayReach);
+            return point == null ? null : new BlockPos((int) Math.floor(point.x), plane.height(), (int) Math.floor(point.z));
+        }
+        return lastBlockHit == null ? null : lastBlockHit.getBlockPos();
     }
 
     private static double getReachDistance() {
@@ -123,6 +141,9 @@ public final class CursorRaycastHelper {
                 .normalize();
 
         Vec3d start = camera.getCameraPosVec(tickDelta);
+        rayOrigin = start;
+        rayDirection = rayDir;
+        rayReach = distance;
         Vec3d end = start.add(rayDir.multiply(distance));
 
         HitResult hit = client.world.raycast(

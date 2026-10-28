@@ -115,6 +115,7 @@ public final class FormaRequestCompactor {
             dst.setPathNodes(new ArrayList<>(src.getPathNodes()));
         }
         dst.setPathRadius(src.getPathRadius());
+        dst.setFixedBaseY(src.getFixedBaseY());
         dst.setSessionId(src.getSessionId());
         if (src.getChatHistory() != null) {
             dst.setChatHistory(new ArrayList<>(src.getChatHistory()));
