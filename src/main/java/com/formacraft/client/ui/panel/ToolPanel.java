@@ -142,14 +142,14 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("清除当前轮廓")))
                 .build();
 
-        pathDrawingModeButton = optionButton("新路径：折线", () -> PathTool.INSTANCE.cycleDrawingMode());
+        pathDrawingModeButton = optionButton("新路径：折线", PathTool.INSTANCE::cycleDrawingMode);
         pathRadiusMinusButton = optionButton("走廊半径 -", () -> PathTool.INSTANCE.changeCorridorRadius(-1));
         pathRadiusPlusButton = optionButton("走廊半径 +", () -> PathTool.INSTANCE.changeCorridorRadius(1));
-        pathSelectButton = optionButton("切换生成路径", () -> PathTool.INSTANCE.selectNextPath());
-        pathRemoveButton = optionButton("删除当前路径", () -> PathTool.INSTANCE.removeSelectedPath());
-        pathIntentButton = optionButton("用途：自动", () -> PathTool.INSTANCE.cycleIntent());
-        brushUndoButton = optionButton("撤销笔刷（Ctrl+Z）", () -> BrushTool.INSTANCE.undo());
-        brushRedoButton = optionButton("重做笔刷（Ctrl+Y）", () -> BrushTool.INSTANCE.redo());
+        pathSelectButton = optionButton("切换生成路径", PathTool.INSTANCE::selectNextPath);
+        pathRemoveButton = optionButton("删除当前路径", PathTool.INSTANCE::removeSelectedPath);
+        pathIntentButton = optionButton("用途：自动", PathTool.INSTANCE::cycleIntent);
+        brushUndoButton = optionButton("撤销笔刷（Ctrl+Z）", BrushTool.INSTANCE::undo);
+        brushRedoButton = optionButton("重做笔刷（Ctrl+Y）", BrushTool.INSTANCE::redo);
 
         clearPathsButton = ButtonWidget.builder(Text.literal("清空路径"), b -> PathTool.INSTANCE.clearAll())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)

@@ -1,6 +1,5 @@
 package com.formacraft.client.tool;
 
-import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.buildcontext.SelectionBox;
 import com.formacraft.common.model.constraint.ProtectedZone;
