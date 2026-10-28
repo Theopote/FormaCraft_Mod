@@ -53,6 +53,7 @@ public final class BuildingEditTransaction {
     private final Operation operation;
     private final Map<BlockPos, String> expectedWorldStates;
     private final Map<BlockPos, String> targetWorldStates;
+    private final BuildingEditTargetPart targetPart;
     private Status status;
     private final long createdAtMillis;
     private long updatedAtMillis;
@@ -71,6 +72,26 @@ public final class BuildingEditTransaction {
             long createdAtMillis,
             long updatedAtMillis
     ) {
+        this(transactionId, ticketId, playerId, buildingId, dimension, baseRevision, operation,
+                expectedWorldStates, targetWorldStates, BuildingEditTargetPart.none(),
+                status, createdAtMillis, updatedAtMillis);
+    }
+
+    public BuildingEditTransaction(
+            UUID transactionId,
+            UUID ticketId,
+            UUID playerId,
+            UUID buildingId,
+            Identifier dimension,
+            long baseRevision,
+            Operation operation,
+            Map<BlockPos, String> expectedWorldStates,
+            Map<BlockPos, String> targetWorldStates,
+            BuildingEditTargetPart targetPart,
+            Status status,
+            long createdAtMillis,
+            long updatedAtMillis
+    ) {
         this.transactionId = Objects.requireNonNull(transactionId, "transactionId");
         this.ticketId = Objects.requireNonNull(ticketId, "ticketId");
         this.playerId = Objects.requireNonNull(playerId, "playerId");
@@ -80,6 +101,7 @@ public final class BuildingEditTransaction {
         this.operation = operation == null ? Operation.REPLACE_ROOF_MATERIAL : operation;
         this.expectedWorldStates = copyStates(expectedWorldStates);
         this.targetWorldStates = copyStates(targetWorldStates);
+        this.targetPart = targetPart == null ? BuildingEditTargetPart.none() : targetPart;
         this.status = status == null ? Status.PREPARED : status;
         this.createdAtMillis = createdAtMillis;
         this.updatedAtMillis = updatedAtMillis;
@@ -99,6 +121,7 @@ public final class BuildingEditTransaction {
     public Operation operation() { return operation; }
     public Map<BlockPos, String> expectedWorldStates() { return expectedWorldStates; }
     public Map<BlockPos, String> targetWorldStates() { return targetWorldStates; }
+    public BuildingEditTargetPart targetPart() { return targetPart; }
     public Status status() { return status; }
     public long createdAtMillis() { return createdAtMillis; }
     public long updatedAtMillis() { return updatedAtMillis; }
@@ -128,6 +151,7 @@ public final class BuildingEditTransaction {
         map.put("updatedAtMillis", updatedAtMillis);
         map.put("expectedWorldStates", packStates(expectedWorldStates));
         map.put("targetWorldStates", packStates(targetWorldStates));
+        map.put("targetPart", targetPart.toMap());
         return map;
     }
 
@@ -135,6 +159,11 @@ public final class BuildingEditTransaction {
     public static BuildingEditTransaction fromMap(Map<String, Object> map) {
         if (map == null) return null;
         try {
+            BuildingEditTargetPart part = BuildingEditTargetPart.none();
+            Object rawPart = map.get("targetPart");
+            if (rawPart instanceof Map<?, ?> partMap) {
+                part = BuildingEditTargetPart.fromMap((Map<String, Object>) partMap);
+            }
             return new BuildingEditTransaction(
                     UUID.fromString(String.valueOf(map.get("transactionId"))),
                     UUID.fromString(String.valueOf(map.get("ticketId"))),
@@ -145,6 +174,7 @@ public final class BuildingEditTransaction {
                     Operation.valueOf(String.valueOf(map.get("operation"))),
                     unpackStates((Map<String, String>) map.get("expectedWorldStates")),
                     unpackStates((Map<String, String>) map.get("targetWorldStates")),
+                    part,
                     Status.valueOf(String.valueOf(map.get("status"))),
                     ((Number) map.get("createdAtMillis")).longValue(),
                     ((Number) map.get("updatedAtMillis")).longValue());

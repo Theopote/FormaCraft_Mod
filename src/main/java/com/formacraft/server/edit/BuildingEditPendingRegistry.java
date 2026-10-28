@@ -26,8 +26,27 @@ public final class BuildingEditPendingRegistry {
             Set<BlockPos> allowedCells,
             Map<BlockPos, String> expectedWorldStates,
             Map<BlockPos, String> targetWorldStates,
-            long expiresAtMillis
+            long expiresAtMillis,
+            BuildingEditTargetPart targetPart
     ) {
+        /** Roof / legacy call sites without part identity. */
+        public Pending(
+                UUID ticketId,
+                UUID playerId,
+                UUID buildingId,
+                Identifier dimension,
+                long baseRevision,
+                BuildingEditOperation operation,
+                Set<BlockPos> allowedCells,
+                Map<BlockPos, String> expectedWorldStates,
+                Map<BlockPos, String> targetWorldStates,
+                long expiresAtMillis
+        ) {
+            this(ticketId, playerId, buildingId, dimension, baseRevision, operation,
+                    allowedCells, expectedWorldStates, targetWorldStates, expiresAtMillis,
+                    BuildingEditTargetPart.none());
+        }
+
         public Pending {
             Objects.requireNonNull(ticketId, "ticketId");
             Objects.requireNonNull(playerId, "playerId");
@@ -37,6 +56,7 @@ public final class BuildingEditPendingRegistry {
             allowedCells = allowedCells == null ? Set.of() : Set.copyOf(new LinkedHashSet<>(allowedCells));
             expectedWorldStates = expectedWorldStates == null ? Map.of() : Map.copyOf(expectedWorldStates);
             targetWorldStates = targetWorldStates == null ? Map.of() : Map.copyOf(targetWorldStates);
+            targetPart = targetPart == null ? BuildingEditTargetPart.none() : targetPart;
         }
 
         /** Backward-compatible alias used by Phase-1 roof callers/tests. */
@@ -55,7 +75,8 @@ public final class BuildingEditPendingRegistry {
                     operation,
                     allowedCells,
                     Set.of(),
-                    expectedWorldStates
+                    expectedWorldStates,
+                    targetPart
             );
         }
 
@@ -74,7 +95,8 @@ public final class BuildingEditPendingRegistry {
             return new Pending(
                     ticketId, playerId, buildingId, dimension, baseRevision,
                     BuildingEditOperation.REPLACE_ROOF_MATERIAL,
-                    allowedCells, expectedWorldStates, targetWorldStates, expiresAtMillis);
+                    allowedCells, expectedWorldStates, targetWorldStates, expiresAtMillis,
+                    BuildingEditTargetPart.none());
         }
     }
 

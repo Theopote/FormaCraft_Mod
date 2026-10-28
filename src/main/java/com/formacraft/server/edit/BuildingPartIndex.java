@@ -151,12 +151,14 @@ public final class BuildingPartIndex {
 
     private static WallPart loadWall(ProjectMemory memory) {
         return new WallPart("wall", loadCells(BuildingMemoryKeys.wallCellsRaw(memory)),
-                loadStates(BuildingMemoryKeys.wallStatesRaw(memory), BuildingMemoryKeys.wallCellsRaw(memory)));
+                loadStates(BuildingMemoryKeys.wallStatesRaw(memory), BuildingMemoryKeys.wallCellsRaw(memory)),
+                BuildingMemoryKeys.wallFacesRaw(memory));
     }
 
     private static WindowPart loadWindow(ProjectMemory memory) {
         return new WindowPart("window", loadCells(BuildingMemoryKeys.windowCellsRaw(memory)),
-                loadStates(BuildingMemoryKeys.windowStatesRaw(memory), BuildingMemoryKeys.windowCellsRaw(memory)));
+                loadStates(BuildingMemoryKeys.windowStatesRaw(memory), BuildingMemoryKeys.windowCellsRaw(memory)),
+                BuildingMemoryKeys.windowOpeningsRaw(memory));
     }
 
     private static Set<BlockPos> loadCells(List<int[]> raw) {
@@ -277,24 +279,61 @@ public final class BuildingPartIndex {
         BuildingPartIndex base = existing == null
                 ? new BuildingPartIndex(new RoofPart("roof", Set.of(), Map.of()))
                 : existing;
-        if (base.roof().isEmpty() || patches == null || patches.isEmpty()) return base;
+        if (patches == null || patches.isEmpty()) return base;
 
-        Set<BlockPos> cells = new LinkedHashSet<>(base.roof().cells());
-        Map<BlockPos, String> states = new LinkedHashMap<>(base.roof().recordedStates());
+        Set<BlockPos> roofCells = new LinkedHashSet<>(base.roof().cells());
+        Map<BlockPos, String> roofStates = new LinkedHashMap<>(base.roof().recordedStates());
+        Set<BlockPos> windowCells = new LinkedHashSet<>(base.windows().cells());
+        Map<BlockPos, String> windowStates = new LinkedHashMap<>(base.windows().recordedStates());
+        Set<BlockPos> wallCells = new LinkedHashSet<>(base.walls().cells());
+        Map<BlockPos, String> wallStates = new LinkedHashMap<>(base.walls().recordedStates());
+        List<WindowOpening> openings = new ArrayList<>(base.windows().openings());
+        List<WallFace> faces = new ArrayList<>(base.walls().faces());
+
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
             BlockPos world = origin.add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
-            if (!cells.contains(world)) continue;
+            if (roofCells.contains(world)) {
+                if (BlockPatch.REMOVE.equals(patch.action())) {
+                    roofCells.remove(world);
+                    roofStates.remove(world);
+                } else if (patch.targetBlock() != null && !patch.targetBlock().isBlank()) {
+                    roofStates.put(world, patch.targetBlock());
+                }
+            }
+            boolean wasWindow = windowCells.contains(world);
+            boolean wasWall = wallCells.contains(world);
+            if (!wasWindow && !wasWall) continue;
             if (BlockPatch.REMOVE.equals(patch.action())) {
-                cells.remove(world);
-                states.remove(world);
+                windowCells.remove(world);
+                windowStates.remove(world);
+                wallCells.remove(world);
+                wallStates.remove(world);
+                openings.removeIf(o -> o != null && o.cells().contains(world));
                 continue;
             }
-            if (patch.targetBlock() != null && !patch.targetBlock().isBlank()) {
-                states.put(world, patch.targetBlock());
+            String block = patch.targetBlock();
+            if (block == null || block.isBlank()) continue;
+            boolean glassy = block.toLowerCase(Locale.ROOT).contains("glass")
+                    || block.toLowerCase(Locale.ROOT).contains("pane");
+            if (glassy) {
+                windowCells.add(world);
+                windowStates.put(world, block);
+                wallCells.remove(world);
+                wallStates.remove(world);
+            } else {
+                // Undo of INSERT_WINDOW restores solid wall and drops opening membership.
+                wallCells.add(world);
+                wallStates.put(world, block);
+                windowCells.remove(world);
+                windowStates.remove(world);
+                openings.removeIf(o -> o != null && o.cells().contains(world));
             }
         }
-        return ofRoofCells(List.copyOf(cells), states);
+        return new BuildingPartIndex(
+                new RoofPart("roof", roofCells, roofStates),
+                new WallPart("wall", wallCells, wallStates, faces),
+                new WindowPart("window", windowCells, windowStates, openings));
     }
 
     /** Extract from planned blocks whose GeometrySource marks roof authorship. */
@@ -358,7 +397,9 @@ public final class BuildingPartIndex {
         if (memory == null) return;
         BuildingMemoryKeys.storeRoofCells(memory, new ArrayList<>(roof.cells()), roof.recordedStates());
         BuildingMemoryKeys.storeWallCells(memory, new ArrayList<>(walls.cells()), walls.recordedStates());
+        BuildingMemoryKeys.storeWallFaces(memory, walls.faces());
         BuildingMemoryKeys.storeWindowCells(memory, new ArrayList<>(windows.cells()), windows.recordedStates());
+        BuildingMemoryKeys.storeWindowOpenings(memory, windows.openings());
     }
 
     /** Merge window edit targets into the window index (INSERT adds glass; SEAL may move cells to walls). */
@@ -366,11 +407,25 @@ public final class BuildingPartIndex {
             BuildingEditOperation operation,
             Map<BlockPos, String> targetStates
     ) {
+        return withWindowTargets(operation, targetStates, BuildingEditTargetPart.none());
+    }
+
+    /**
+     * Merge targets and refresh WallFace / WindowOpening identity.
+     * INSERT records a new opening under the frozen host wall id; SEAL removes matching openings.
+     */
+    public BuildingPartIndex withWindowTargets(
+            BuildingEditOperation operation,
+            Map<BlockPos, String> targetStates,
+            BuildingEditTargetPart targetPart
+    ) {
         if (targetStates == null || targetStates.isEmpty()) return this;
         Set<BlockPos> windowCells = new LinkedHashSet<>(windows.cells());
         Map<BlockPos, String> windowStates = new LinkedHashMap<>(windows.recordedStates());
         Set<BlockPos> wallCells = new LinkedHashSet<>(walls.cells());
         Map<BlockPos, String> wallStates = new LinkedHashMap<>(walls.recordedStates());
+        List<WallFace> faces = new ArrayList<>(walls.faces());
+        List<WindowOpening> openings = new ArrayList<>(windows.openings());
         for (var e : targetStates.entrySet()) {
             if (e.getKey() == null || e.getValue() == null) continue;
             BlockPos cell = e.getKey().toImmutable();
@@ -389,9 +444,47 @@ public final class BuildingPartIndex {
                 wallStates.put(cell, block);
             }
         }
+        BuildingEditTargetPart part = targetPart == null ? BuildingEditTargetPart.none() : targetPart;
+        if (operation == BuildingEditOperation.INSERT_WINDOW && part.isPresent()) {
+            String hostWallId = part.targetPartId();
+            faces.removeIf(f -> f != null && hostWallId.equals(f.wallId()));
+            faces.add(new WallFace(
+                    hostWallId, part.floorIndex(), part.facing(),
+                    Set.copyOf(targetStates.keySet()), Map.copyOf(targetStates)));
+            String windowId = "window:" + part.facing().toLowerCase(Locale.ROOT)
+                    + ":f" + part.floorIndex() + ":" + canonicalCellKey(targetStates.keySet());
+            openings.removeIf(o -> o != null && overlaps(o.cells(), targetStates.keySet()));
+            openings.add(new WindowOpening(
+                    windowId, hostWallId, part.floorIndex(), part.facing(),
+                    Set.copyOf(targetStates.keySet()), Map.copyOf(targetStates)));
+        } else if (operation == BuildingEditOperation.SEAL_WINDOW) {
+            if (part.isPresent()) {
+                openings.removeIf(o -> o != null && part.targetPartId().equals(o.windowId()));
+            } else {
+                openings.removeIf(o -> o != null && overlaps(o.cells(), targetStates.keySet()));
+            }
+        }
         return new BuildingPartIndex(
                 roof,
-                new WallPart("wall", wallCells, wallStates),
-                new WindowPart("window", windowCells, windowStates));
+                new WallPart("wall", wallCells, wallStates, faces),
+                new WindowPart("window", windowCells, windowStates, openings));
+    }
+
+    private static boolean overlaps(Set<BlockPos> a, Set<BlockPos> b) {
+        if (a == null || b == null || a.isEmpty() || b.isEmpty()) return false;
+        for (BlockPos cell : b) {
+            if (cell != null && a.contains(cell)) return true;
+        }
+        return false;
+    }
+
+    private static String canonicalCellKey(Set<BlockPos> cells) {
+        BlockPos min = cells.stream()
+                .filter(Objects::nonNull)
+                .min(Comparator.comparingInt(BlockPos::getX)
+                        .thenComparingInt(BlockPos::getY)
+                        .thenComparingInt(BlockPos::getZ))
+                .orElse(BlockPos.ORIGIN);
+        return min.getX() + "_" + min.getY() + "_" + min.getZ();
     }
 }

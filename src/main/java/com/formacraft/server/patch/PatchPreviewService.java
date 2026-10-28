@@ -487,7 +487,8 @@ public final class PatchPreviewService {
                     pendingEdit.dimension(),
                     pendingEdit.baseRevision(),
                     pendingEdit.operation(),
-                    pendingEdit.targetWorldStates());
+                    pendingEdit.targetWorldStates(),
+                    pendingEdit.targetPart());
             if (!committed) {
                 editService.markMemorySyncFailed(
                         pendingEdit.buildingId(),

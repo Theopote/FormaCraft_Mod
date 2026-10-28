@@ -282,12 +282,14 @@ public final class PatchHistoryManager {
                         : memoryManager.getMemory(impact.getTargetBuilding().toString());
                 if (after != null) {
                     var existing = com.formacraft.server.edit.BuildingPartIndex.fromMemory(after);
-                    if (!existing.roof().isEmpty()) {
+                    if (!existing.roof().isEmpty() || !existing.windows().isEmpty() || !existing.walls().isEmpty()) {
                         var synced = com.formacraft.server.edit.BuildingPartIndex
                                 .syncIndexedStatesFromPatches(existing, origin, reversePatches);
                         synced.persistTo(after);
-                        // Undo restores world; clear blocked Memory-sync so edits can resume.
+                        // Undo restores world + part identity; clear blocked Memory-sync so edits can resume.
                         com.formacraft.server.edit.BuildingMemoryKeys.clearMemorySyncFailed(after);
+                        // Shared building revision advances so old tickets cannot reuse stale part identity.
+                        com.formacraft.server.edit.BuildingMemoryKeys.bumpRevision(after);
                         memoryManager.updateMemory(after);
                     }
                 }

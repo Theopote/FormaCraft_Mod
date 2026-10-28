@@ -121,6 +121,8 @@ public final class BuildingEditConfirmGate {
                     return Outcome.reject("building_edit_patch_outside_authorized@" + writeCell.toShortString());
                 }
             }
+            Outcome identity = validateTargetPartIdentity(pending, index);
+            if (!identity.ok()) return identity;
         }
 
         Map<BlockPos, String> live = captureLive(world, pending.allowedCells());
@@ -133,7 +135,8 @@ public final class BuildingEditConfirmGate {
                     scope.operation(),
                     scope.allowedCells(),
                     index.roof().cells(),
-                    scope.expectedWorldStates());
+                    scope.expectedWorldStates(),
+                    scope.targetPart());
         }
         BuildingEditValidation validation = BuildingEditScopeValidator.validate(
                 scope, origin, patches, currentRevision, live);
@@ -155,5 +158,77 @@ public final class BuildingEditConfirmGate {
             live.put(cell.toImmutable(), BlockStateStringUtil.fromState(state));
         }
         return live;
+    }
+
+    /**
+     * Reject tickets whose frozen wall/window identity no longer matches Memory membership.
+     * Same coordinates under a different partId must not inherit the old authorization.
+     */
+    static Outcome validateTargetPartIdentity(
+            BuildingEditPendingRegistry.Pending pending,
+            BuildingPartIndex index
+    ) {
+        BuildingEditTargetPart part = pending.targetPart();
+        if (part == null || !part.isPresent()) {
+            return Outcome.reject("building_edit_target_part_missing");
+        }
+        // Digest must still describe the frozen expected envelope for this part id.
+        String frozen = part.digestWith(pending.allowedCells(), pending.expectedWorldStates());
+        if (!frozen.equals(part.identityDigest())) {
+            return Outcome.reject("building_edit_target_part_digest_mismatch");
+        }
+        if (pending.operation() == BuildingEditOperation.SEAL_WINDOW) {
+            BuildingPartIndex.WindowOpening opening = findOpening(index, part.targetPartId());
+            if (opening != null) {
+                if (!Objects.equals(opening.hostWallId(), part.hostWallId())
+                        || opening.floorIndex() != part.floorIndex()
+                        || !opening.facing().equalsIgnoreCase(part.facing())) {
+                    return Outcome.reject("building_edit_window_identity_drift@" + part.targetPartId());
+                }
+            }
+            // Another opening claiming the same cells under a different id → refuse.
+            for (BuildingPartIndex.WindowOpening other : index.windows().openings()) {
+                if (other == null || other.windowId().equals(part.targetPartId())) continue;
+                for (BlockPos cell : pending.allowedCells()) {
+                    if (other.cells().contains(cell)) {
+                        return Outcome.reject("building_edit_window_identity_replaced@" + cell.toShortString());
+                    }
+                }
+            }
+        } else if (pending.operation() == BuildingEditOperation.INSERT_WINDOW) {
+            // Host wall face, when indexed, must still match; conflicting openings cannot own the cells.
+            BuildingPartIndex.WallFace face = findWallFace(index, part.targetPartId());
+            if (face != null) {
+                if (face.floorIndex() != part.floorIndex()
+                        || !face.facing().equalsIgnoreCase(part.facing())) {
+                    return Outcome.reject("building_edit_wall_identity_drift@" + part.targetPartId());
+                }
+            }
+            for (BuildingPartIndex.WindowOpening other : index.windows().openings()) {
+                if (other == null) continue;
+                for (BlockPos cell : pending.expectedWorldStates().keySet()) {
+                    if (other.cells().contains(cell)) {
+                        return Outcome.reject("building_edit_wall_cells_owned_by_window@" + cell.toShortString());
+                    }
+                }
+            }
+        }
+        return Outcome.pass(pending);
+    }
+
+    private static BuildingPartIndex.WindowOpening findOpening(BuildingPartIndex index, String windowId) {
+        if (index == null || windowId == null || windowId.isBlank()) return null;
+        for (BuildingPartIndex.WindowOpening opening : index.windows().openings()) {
+            if (opening != null && windowId.equals(opening.windowId())) return opening;
+        }
+        return null;
+    }
+
+    private static BuildingPartIndex.WallFace findWallFace(BuildingPartIndex index, String wallId) {
+        if (index == null || wallId == null || wallId.isBlank()) return null;
+        for (BuildingPartIndex.WallFace face : index.walls().faces()) {
+            if (face != null && wallId.equals(face.wallId())) return face;
+        }
+        return null;
     }
 }

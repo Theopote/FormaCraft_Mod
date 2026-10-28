@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Canonical metadata keys for building-aware incremental editing. */
 public final class BuildingMemoryKeys {
@@ -18,6 +19,8 @@ public final class BuildingMemoryKeys {
     public static final String WINDOW_STATES = "part_index_window_states";
     public static final String WALL_CELLS = "part_index_wall_cells";
     public static final String WALL_STATES = "part_index_wall_states";
+    public static final String WALL_FACES = "part_index_wall_faces";
+    public static final String WINDOW_OPENINGS = "part_index_window_openings";
     /** World Apply succeeded but Memory/Revision commit did not — blocks further incremental edits. */
     public static final String MEMORY_SYNC_PENDING = "building_edit_memory_sync_pending";
     public static final String MEMORY_SYNC_BASE_REVISION = "building_edit_memory_sync_base_revision";
@@ -154,6 +157,147 @@ public final class BuildingMemoryKeys {
 
     public static void storeWallCells(ProjectMemory memory, List<BlockPos> cells, Map<BlockPos, String> states) {
         storePartCells(memory, WALL_CELLS, WALL_STATES, cells, states);
+    }
+
+    public static void storeWallFaces(ProjectMemory memory, List<BuildingPartIndex.WallFace> faces) {
+        if (memory == null) return;
+        Map<String, Object> meta = ensureMetadata(memory);
+        List<Map<String, Object>> packed = new ArrayList<>();
+        if (faces != null) {
+            for (BuildingPartIndex.WallFace face : faces) {
+                if (face == null) continue;
+                packed.add(packIdentity(
+                        face.wallId(), "", face.floorIndex(), face.facing(),
+                        face.cells(), face.expectedStates()));
+            }
+        }
+        meta.put(WALL_FACES, packed);
+    }
+
+    public static void storeWindowOpenings(ProjectMemory memory, List<BuildingPartIndex.WindowOpening> openings) {
+        if (memory == null) return;
+        Map<String, Object> meta = ensureMetadata(memory);
+        List<Map<String, Object>> packed = new ArrayList<>();
+        if (openings != null) {
+            for (BuildingPartIndex.WindowOpening opening : openings) {
+                if (opening == null) continue;
+                packed.add(packIdentity(
+                        opening.windowId(), opening.hostWallId(), opening.floorIndex(), opening.facing(),
+                        opening.cells(), opening.expectedStates()));
+            }
+        }
+        meta.put(WINDOW_OPENINGS, packed);
+    }
+
+    public static List<BuildingPartIndex.WallFace> wallFacesRaw(ProjectMemory memory) {
+        List<Map<String, Object>> raw = identityListRaw(memory, WALL_FACES);
+        List<BuildingPartIndex.WallFace> out = new ArrayList<>();
+        for (Map<String, Object> entry : raw) {
+            out.add(new BuildingPartIndex.WallFace(
+                    str(entry.get("id")),
+                    intVal(entry.get("floorIndex")),
+                    str(entry.get("facing")),
+                    unpackCells(entry.get("cells")),
+                    unpackStateMap(entry.get("states"))));
+        }
+        return List.copyOf(out);
+    }
+
+    public static List<BuildingPartIndex.WindowOpening> windowOpeningsRaw(ProjectMemory memory) {
+        List<Map<String, Object>> raw = identityListRaw(memory, WINDOW_OPENINGS);
+        List<BuildingPartIndex.WindowOpening> out = new ArrayList<>();
+        for (Map<String, Object> entry : raw) {
+            out.add(new BuildingPartIndex.WindowOpening(
+                    str(entry.get("id")),
+                    str(entry.get("hostWallId")),
+                    intVal(entry.get("floorIndex")),
+                    str(entry.get("facing")),
+                    unpackCells(entry.get("cells")),
+                    unpackStateMap(entry.get("states"))));
+        }
+        return List.copyOf(out);
+    }
+
+    private static Map<String, Object> packIdentity(
+            String id,
+            String hostWallId,
+            int floorIndex,
+            String facing,
+            Set<BlockPos> cells,
+            Map<BlockPos, String> states
+    ) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", id == null ? "" : id);
+        map.put("hostWallId", hostWallId == null ? "" : hostWallId);
+        map.put("floorIndex", Math.max(0, floorIndex));
+        map.put("facing", facing == null ? "" : facing);
+        List<List<Integer>> packedCells = new ArrayList<>();
+        Map<String, String> packedStates = new LinkedHashMap<>();
+        if (cells != null) {
+            for (BlockPos pos : cells) {
+                if (pos == null) continue;
+                packedCells.add(List.of(pos.getX(), pos.getY(), pos.getZ()));
+                if (states != null && states.get(pos) != null) {
+                    packedStates.put(cellKey(pos), states.get(pos));
+                }
+            }
+        }
+        map.put("cells", packedCells);
+        map.put("states", packedStates);
+        return map;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> identityListRaw(ProjectMemory memory, String key) {
+        if (memory == null || memory.getMetadata() == null) return List.of();
+        Object raw = memory.getMetadata().get(key);
+        if (!(raw instanceof List<?> list) || list.isEmpty()) return List.of();
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object entry : list) {
+            if (entry instanceof Map<?, ?> map) {
+                Map<String, Object> copy = new LinkedHashMap<>();
+                for (var e : map.entrySet()) {
+                    if (e.getKey() != null) copy.put(String.valueOf(e.getKey()), e.getValue());
+                }
+                out.add(copy);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    private static Set<BlockPos> unpackCells(Object raw) {
+        Set<BlockPos> out = new java.util.LinkedHashSet<>();
+        if (!(raw instanceof List<?> list)) return Set.of();
+        for (Object entry : list) {
+            int[] coords = parseCell(entry);
+            if (coords != null) out.add(new BlockPos(coords[0], coords[1], coords[2]));
+        }
+        return Set.copyOf(out);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<BlockPos, String> unpackStateMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) return Map.of();
+        Map<BlockPos, String> out = new LinkedHashMap<>();
+        for (var e : map.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null) continue;
+            BlockPos pos = parseCellKey(String.valueOf(e.getKey()));
+            if (pos != null) out.put(pos, String.valueOf(e.getValue()));
+        }
+        return Map.copyOf(out);
+    }
+
+    private static String str(Object v) {
+        return v == null ? "" : String.valueOf(v);
+    }
+
+    private static int intVal(Object v) {
+        if (v instanceof Number n) return Math.max(0, n.intValue());
+        try {
+            return Math.max(0, Integer.parseInt(String.valueOf(v)));
+        } catch (Exception ignored) {
+            return 0;
+        }
     }
 
     private static void storePartCells(

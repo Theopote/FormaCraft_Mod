@@ -197,13 +197,17 @@ class BuildingAwareRound64Test {
 
         UUID player = UUID.randomUUID();
         UUID ticket = UUID.randomUUID();
+        var targetPart = BuildingEditTargetPart.wall(
+                resolved.targetPartId(), resolved.floorIndex(), resolved.facing(),
+                resolved.authorizedCells(), resolved.expectedWorldStates());
         var pending = new BuildingEditPendingRegistry.Pending(
                 ticket, player, UUID.fromString(memory.getUuid()), OVERWORLD, 0L,
                 BuildingEditOperation.INSERT_WINDOW,
                 resolved.authorizedCells(),
                 resolved.expectedWorldStates(),
                 Map.of(resolved.editCells().iterator().next(), "minecraft:glass"),
-                System.currentTimeMillis() + 60_000);
+                System.currentTimeMillis() + 60_000,
+                targetPart);
         BuildingEditPendingRegistry.put(pending);
 
         BlockPos outsider = origin.add(1, 2, 6); // north wall, not in south envelope

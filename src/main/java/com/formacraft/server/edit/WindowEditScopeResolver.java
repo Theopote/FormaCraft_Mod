@@ -39,6 +39,7 @@ public final class WindowEditScopeResolver {
             boolean ok,
             String refusalReason,
             String targetPartId,
+            String hostWallId,
             int floorIndex,
             String facing,
             /** Independent wall/window authority — never derived from candidate patches. */
@@ -64,11 +65,33 @@ public final class WindowEditScopeResolver {
             floorIndex = Math.max(0, floorIndex);
             facing = facing == null ? "" : facing;
             targetPartId = targetPartId == null ? "" : targetPartId;
+            hostWallId = hostWallId == null ? "" : hostWallId;
             refusalReason = refusalReason == null ? "" : refusalReason;
         }
 
         public static ResolvedScope refuse(String reason) {
-            return new ResolvedScope(false, reason, "", 0, "", Set.of(), Set.of(), Set.of(), Map.of());
+            return new ResolvedScope(false, reason, "", "", 0, "", Set.of(), Set.of(), Set.of(), Map.of());
+        }
+    }
+
+    /** Optional façade targeting for precise multi-storey / multi-face edits. */
+    public record InsertTarget(Integer floorIndex, String facing) {
+        public InsertTarget {
+            facing = facing == null || facing.isBlank()
+                    ? null
+                    : facing.trim().toUpperCase(Locale.ROOT);
+        }
+
+        public static InsertTarget any() {
+            return new InsertTarget(null, null);
+        }
+
+        public boolean hasFloor() {
+            return floorIndex != null;
+        }
+
+        public boolean hasFacing() {
+            return facing != null && !facing.isBlank();
         }
     }
 
@@ -85,20 +108,55 @@ public final class WindowEditScopeResolver {
             int width,
             int height
     ) {
+        return resolveInsert(building, index, live, width, height, InsertTarget.any());
+    }
+
+    public static ResolvedScope resolveInsert(
+            BuildingInstance building,
+            BuildingPartIndex index,
+            Map<BlockPos, BlockState> live,
+            int width,
+            int height,
+            InsertTarget target
+    ) {
         if (building == null) return ResolvedScope.refuse("building_missing");
         if (live == null || live.isEmpty()) return ResolvedScope.refuse("live_world_states_missing");
         if (width < 1 || height < 1 || width > 8 || height > 8 || width * height > 64) {
             return ResolvedScope.refuse("WINDOW_SIZE_INVALID");
         }
+        InsertTarget want = target == null ? InsertTarget.any() : target;
+        var bands = BuildingFloorBands.fromLive(building, live);
 
         EntranceLocate locate = locateEntrances(live);
         if (locate.groups().isEmpty()) return ResolvedScope.refuse("ENTRANCE_NOT_FOUND");
-        if (locate.groups().size() != 1) return ResolvedScope.refuse("ENTRANCE_AMBIGUOUS");
-        EntranceFacade facade = toFacade(live, locate.groups().getFirst(), locate.normals());
-        if (facade == null) return ResolvedScope.refuse("ENTRANCE_NOT_FOUND");
+
+        List<EntranceFacade> candidates = new ArrayList<>();
+        for (Set<BlockPos> group : locate.groups()) {
+            EntranceFacade facade = toFacade(building, live, group, locate.normals(), bands);
+            if (facade == null) continue;
+            if (want.hasFacing() && !want.facing().equalsIgnoreCase(facade.facing().asString())) continue;
+            if (want.hasFloor() && want.floorIndex() != facade.floorIndex()) continue;
+            candidates.add(facade);
+        }
+        if (candidates.isEmpty()) {
+            if (want.hasFloor() || want.hasFacing()) {
+                return ResolvedScope.refuse("WALL_TARGET_UNMATCHED");
+            }
+            return ResolvedScope.refuse("ENTRANCE_NOT_FOUND");
+        }
+        if (candidates.size() != 1) return ResolvedScope.refuse("ENTRANCE_AMBIGUOUS");
+        EntranceFacade facade = candidates.getFirst();
+        // Explicit floor/facing must not silently fall back to another storey/façade.
+        if (want.hasFloor() && want.floorIndex() != facade.floorIndex()) {
+            return ResolvedScope.refuse("WALL_FLOOR_MISMATCH");
+        }
+        if (want.hasFacing() && !want.facing().equalsIgnoreCase(facade.facing().asString())) {
+            return ResolvedScope.refuse("WALL_FACING_MISMATCH");
+        }
 
         Set<BlockPos> protectedCells = collectProtected(building, index, live);
-        Set<BlockPos> authorized = collectInsertWallEnvelope(building, live, facade, protectedCells);
+        BuildingFloorBands.FloorBand band = BuildingFloorBands.bandOf(bands, facade.floorIndex());
+        Set<BlockPos> authorized = collectInsertWallEnvelope(building, live, facade, protectedCells, band);
         if (authorized.isEmpty()) {
             return ResolvedScope.refuse("WALL_ENVELOPE_UNAVAILABLE");
         }
@@ -113,14 +171,17 @@ public final class WindowEditScopeResolver {
             if (!authorized.contains(cell) || protectedCells.contains(cell) || !building.contains(cell)) {
                 return ResolvedScope.refuse("AUTHORIZED_WALL_MISMATCH@" + cell.toShortString());
             }
+            if (band != null && !band.containsY(cell.getY())) {
+                return ResolvedScope.refuse("WALL_FLOOR_BAND_MISMATCH@" + cell.toShortString());
+            }
         }
 
-        Map<BlockPos, String> expected = expectedOf(live, edit);
+        Map<BlockPos, String> expected = expectedOf(live, authorized);
         String wallId = "wall:" + facade.facing().asString()
                 + ":f" + facade.floorIndex()
                 + ":" + facade.planeKey();
         return new ResolvedScope(
-                true, "", wallId, facade.floorIndex(), facade.facing().asString().toUpperCase(Locale.ROOT),
+                true, "", wallId, "", facade.floorIndex(), facade.facing().asString().toUpperCase(Locale.ROOT),
                 authorized, edit, protectedCells, expected);
     }
 
@@ -160,12 +221,14 @@ public final class WindowEditScopeResolver {
         if (allowed.isEmpty()) return ResolvedScope.refuse("WINDOW_GROUP_EMPTY");
 
         String facing = inferFacing(allowed);
-        int floorIndex = relativeFloor(building, allowed.iterator().next());
+        var bands = BuildingFloorBands.fromLive(building, live);
+        int floorIndex = BuildingFloorBands.floorIndexOf(bands, allowed.iterator().next().getY());
+        String hostWallId = "wall:" + facing.toLowerCase(Locale.ROOT) + ":f" + floorIndex;
         String windowId = "window:" + facing.toLowerCase(Locale.ROOT)
                 + ":f" + floorIndex + ":" + canonicalKey(allowed);
         // Seal authority equals the unique window group (identity), which is also the edit set.
         return new ResolvedScope(
-                true, "", windowId, floorIndex, facing,
+                true, "", windowId, hostWallId, floorIndex, facing,
                 allowed, allowed, protectedCells, expectedOf(live, allowed));
     }
 
@@ -309,7 +372,11 @@ public final class WindowEditScopeResolver {
     }
 
     private static EntranceFacade toFacade(
-            Map<BlockPos, BlockState> live, Set<BlockPos> group, Map<BlockPos, Direction> normals
+            BuildingInstance building,
+            Map<BlockPos, BlockState> live,
+            Set<BlockPos> group,
+            Map<BlockPos, Direction> normals,
+            List<BuildingFloorBands.FloorBand> bands
     ) {
         if (group == null || group.isEmpty()) return null;
         BlockPos seed = group.iterator().next();
@@ -320,7 +387,7 @@ public final class WindowEditScopeResolver {
         BlockPos edge = group.stream()
                 .max(Comparator.comparingInt(p -> p.getX() * right.getOffsetX() + p.getZ() * right.getOffsetZ()))
                 .orElseThrow();
-        int floorIndex = Math.max(0, (seed.getY() - minY(live)) / 4);
+        int floorIndex = BuildingFloorBands.floorIndexOf(bands, seed.getY());
         String planeKey = facing.getAxis() == Direction.Axis.X
                 ? "x" + edge.getX()
                 : "z" + edge.getZ();
@@ -361,17 +428,29 @@ public final class WindowEditScopeResolver {
             BuildingInstance building,
             Map<BlockPos, BlockState> live,
             EntranceFacade facade,
-            Set<BlockPos> protectedCells
+            Set<BlockPos> protectedCells,
+            BuildingFloorBands.FloorBand band
     ) {
         Set<BlockPos> out = new LinkedHashSet<>();
         Direction right = facade.right();
         Direction facing = facade.facing();
         BlockPos edge = facade.edge();
         int sill = facade.sillOffset();
-        // Lateral: 1..8 to the right of jamb; vertical: sill..sill+7 within storey band.
+        int yStart = band == null ? edge.getY() + sill : Math.max(edge.getY() + sill, band.minY());
+        int yEndExclusive = band == null
+                ? yStart + 8
+                : Math.min(yStart + 8, band.maxYExclusive());
+        // Thin / foundation-clipped bands still need room for a normal window rectangle.
+        if (yEndExclusive - yStart < 4) {
+            yEndExclusive = Math.min(yStart + 8, building.max().getY() + 1);
+        }
+        // Lateral: 1..8 to the right of jamb; vertical clipped to the real FloorBand.
         for (int lat = 1; lat <= 8; lat++) {
-            for (int y = 0; y <= 7; y++) {
-                BlockPos cell = edge.offset(right, lat).up(y + sill).toImmutable();
+            for (int y = yStart; y < yEndExclusive; y++) {
+                BlockPos cell = new BlockPos(
+                        edge.getX() + right.getOffsetX() * lat,
+                        y,
+                        edge.getZ() + right.getOffsetZ() * lat).toImmutable();
                 if (!building.contains(cell)) continue;
                 if (protectedCells.contains(cell)) continue;
                 if (facade.doorway().contains(cell)) continue;
@@ -601,15 +680,6 @@ public final class WindowEditScopeResolver {
     private static boolean solid(Map<BlockPos, BlockState> live, BlockPos p) {
         BlockState state = live.get(p);
         return state != null && state.isOpaque();
-    }
-
-    private static int minY(Map<BlockPos, BlockState> live) {
-        return live.keySet().stream().mapToInt(BlockPos::getY).min().orElse(0);
-    }
-
-    private static int relativeFloor(BuildingInstance building, BlockPos cell) {
-        if (building == null || cell == null) return 0;
-        return Math.max(0, (cell.getY() - building.origin().getY()) / 4);
     }
 
     private static String inferFacing(Set<BlockPos> cells) {

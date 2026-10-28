@@ -20,6 +20,7 @@ public final class BuildingEditScope {
     private final Set<BlockPos> allowedCells;
     private final Set<BlockPos> protectedCells;
     private final Map<BlockPos, String> expectedWorldStates;
+    private final BuildingEditTargetPart targetPart;
 
     public BuildingEditScope(
             UUID buildingId,
@@ -29,6 +30,19 @@ public final class BuildingEditScope {
             Set<BlockPos> protectedCells,
             Map<BlockPos, String> expectedWorldStates
     ) {
+        this(buildingId, baseRevision, operation, allowedCells, protectedCells, expectedWorldStates,
+                BuildingEditTargetPart.none());
+    }
+
+    public BuildingEditScope(
+            UUID buildingId,
+            long baseRevision,
+            BuildingEditOperation operation,
+            Set<BlockPos> allowedCells,
+            Set<BlockPos> protectedCells,
+            Map<BlockPos, String> expectedWorldStates,
+            BuildingEditTargetPart targetPart
+    ) {
         this.buildingId = Objects.requireNonNull(buildingId, "buildingId");
         this.baseRevision = Math.max(0L, baseRevision);
         this.operation = Objects.requireNonNull(operation, "operation");
@@ -37,6 +51,7 @@ public final class BuildingEditScope {
         this.expectedWorldStates = expectedWorldStates == null
                 ? Map.of()
                 : Map.copyOf(new LinkedHashMap<>(expectedWorldStates));
+        this.targetPart = targetPart == null ? BuildingEditTargetPart.none() : targetPart;
     }
 
     public static BuildingEditScope replaceRoofMaterial(
@@ -62,7 +77,8 @@ public final class BuildingEditScope {
                 BuildingEditOperation.REPLACE_ROOF_MATERIAL,
                 roof.cells(),
                 protectedCells,
-                expected
+                expected,
+                BuildingEditTargetPart.none()
         );
     }
 
@@ -77,6 +93,18 @@ public final class BuildingEditScope {
             Map<BlockPos, String> expectedLiveStates,
             Set<BlockPos> protectedCells
     ) {
+        return windowEdit(building, operation, authorizedCells, expectedLiveStates, protectedCells,
+                BuildingEditTargetPart.none());
+    }
+
+    public static BuildingEditScope windowEdit(
+            BuildingInstance building,
+            BuildingEditOperation operation,
+            Set<BlockPos> authorizedCells,
+            Map<BlockPos, String> expectedLiveStates,
+            Set<BlockPos> protectedCells,
+            BuildingEditTargetPart targetPart
+    ) {
         Objects.requireNonNull(building, "building");
         if (operation == null || !operation.isWindowOp()) {
             throw new IllegalArgumentException("operation must be INSERT_WINDOW or SEAL_WINDOW");
@@ -87,7 +115,8 @@ public final class BuildingEditScope {
                 operation,
                 authorizedCells,
                 protectedCells,
-                expectedLiveStates
+                expectedLiveStates,
+                targetPart
         );
     }
 
@@ -97,6 +126,7 @@ public final class BuildingEditScope {
     public Set<BlockPos> allowedCells() { return allowedCells; }
     public Set<BlockPos> protectedCells() { return protectedCells; }
     public Map<BlockPos, String> expectedWorldStates() { return expectedWorldStates; }
+    public BuildingEditTargetPart targetPart() { return targetPart; }
 
     public boolean allows(BlockPos worldPos) {
         return worldPos != null && allowedCells.contains(worldPos);

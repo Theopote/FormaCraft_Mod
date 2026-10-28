@@ -252,15 +252,40 @@ public final class BuildingEditService {
         }
         Set<BlockPos> protectedCells = new LinkedHashSet<>(resolved.protectedCells());
         protectedCells.addAll(index.roof().cells());
+        BuildingEditTargetPart targetPart = targetPartFromResolved(operation, resolved);
         // Authority = independently resolved wall/window envelope (not patch-derived).
         BuildingEditScope scope = BuildingEditScope.windowEdit(
-                building, operation, resolved.authorizedCells(), resolved.expectedWorldStates(), protectedCells);
+                building, operation, resolved.authorizedCells(), resolved.expectedWorldStates(),
+                protectedCells, targetPart);
         BuildingEditValidation validation = BuildingEditScopeValidator.validate(
                 scope, building.origin(), patches, BuildingMemoryKeys.revisionOf(memory), liveStrings);
         if (!validation.accepted()) {
             return new PreparedEdit(building, scope, patches, validation, validation.conflicts());
         }
         return new PreparedEdit(building, scope, patches, validation, List.of());
+    }
+
+    private static BuildingEditTargetPart targetPartFromResolved(
+            BuildingEditOperation operation,
+            WindowEditScopeResolver.ResolvedScope resolved
+    ) {
+        if (resolved == null || !resolved.ok()) return BuildingEditTargetPart.none();
+        // Digest covers the authorized envelope so Confirm can detect part replacement at those cells.
+        if (operation == BuildingEditOperation.SEAL_WINDOW) {
+            return BuildingEditTargetPart.window(
+                    resolved.targetPartId(),
+                    resolved.hostWallId(),
+                    resolved.floorIndex(),
+                    resolved.facing(),
+                    resolved.authorizedCells(),
+                    resolved.expectedWorldStates());
+        }
+        return BuildingEditTargetPart.wall(
+                resolved.targetPartId(),
+                resolved.floorIndex(),
+                resolved.facing(),
+                resolved.authorizedCells(),
+                resolved.expectedWorldStates());
     }
 
     /**
@@ -282,6 +307,7 @@ public final class BuildingEditService {
                 BuildingEditTransaction.Operation.from(pending.operation()),
                 pending.expectedWorldStates(),
                 pending.targetWorldStates(),
+                pending.targetPart(),
                 BuildingEditTransaction.Status.PREPARED,
                 now,
                 now);
@@ -367,8 +393,21 @@ public final class BuildingEditService {
             BuildingEditOperation operation,
             Map<BlockPos, String> targetStates
     ) {
+        return commitSuccessfulBuildingEdit(
+                buildingId, dimension, expectedBaseRevision, operation, targetStates, BuildingEditTargetPart.none());
+    }
+
+    public boolean commitSuccessfulBuildingEdit(
+            UUID buildingId,
+            Identifier dimension,
+            long expectedBaseRevision,
+            BuildingEditOperation operation,
+            Map<BlockPos, String> targetStates,
+            BuildingEditTargetPart targetPart
+    ) {
         if (operation != null && operation.isWindowOp()) {
-            return commitSuccessfulWindowEdit(buildingId, dimension, expectedBaseRevision, operation, targetStates);
+            return commitSuccessfulWindowEdit(
+                    buildingId, dimension, expectedBaseRevision, operation, targetStates, targetPart);
         }
         return commitSuccessfulRoofEdit(buildingId, dimension, expectedBaseRevision, targetStates);
     }
@@ -438,6 +477,18 @@ public final class BuildingEditService {
             BuildingEditOperation operation,
             Map<BlockPos, String> targetStates
     ) {
+        return commitSuccessfulWindowEdit(
+                buildingId, dimension, expectedBaseRevision, operation, targetStates, BuildingEditTargetPart.none());
+    }
+
+    public boolean commitSuccessfulWindowEdit(
+            UUID buildingId,
+            Identifier dimension,
+            long expectedBaseRevision,
+            BuildingEditOperation operation,
+            Map<BlockPos, String> targetStates,
+            BuildingEditTargetPart targetPart
+    ) {
         if (buildingId == null || dimension == null) return false;
         if (operation == null || !operation.isWindowOp()) return false;
         ProjectMemory memory = memoryManager.getMemory(buildingId.toString());
@@ -455,7 +506,7 @@ public final class BuildingEditService {
         if (current != expectedBaseRevision) return false;
 
         BuildingPartIndex previous = BuildingPartIndex.fromMemory(memory);
-        previous.withWindowTargets(operation, targetStates).persistTo(memory);
+        previous.withWindowTargets(operation, targetStates, targetPart).persistTo(memory);
         BuildingMemoryKeys.bumpRevision(memory);
         BuildingMemoryKeys.clearMemorySyncFailed(memory);
         MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
@@ -534,7 +585,8 @@ public final class BuildingEditService {
             BuildingEditOperation op = txn != null
                     ? txn.operation().toEditOperation()
                     : BuildingEditOperation.REPLACE_ROOF_MATERIAL;
-            boolean committed = commitSuccessfulBuildingEdit(buildingId, dimension, base, op, targets);
+            BuildingEditTargetPart part = txn != null ? txn.targetPart() : BuildingEditTargetPart.none();
+            boolean committed = commitSuccessfulBuildingEdit(buildingId, dimension, base, op, targets, part);
             if (!committed) return RepairResult.fail("memory_commit_failed");
             if (txn != null && !markMemoryCommitted(txn.transactionId())) {
                 return RepairResult.fail("txn_finalize_persist_failed");
@@ -611,7 +663,8 @@ public final class BuildingEditService {
                 prepared.scope().allowedCells(),
                 prepared.scope().expectedWorldStates(),
                 newStates,
-                expiresAtMillis));
+                expiresAtMillis,
+                prepared.scope().targetPart()));
     }
 
     /** Package helper for recovery coordinator / tests. */
