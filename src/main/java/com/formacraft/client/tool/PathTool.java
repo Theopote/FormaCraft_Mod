@@ -133,6 +133,21 @@ public final class PathTool implements FormacraftTool {
     }
 
     @Override
+    public boolean finishDraft() {
+        if (draft.size() < 2) return false;
+        finalizePath();
+        return true;
+    }
+
+    @Override
+    public boolean removeLastDraftPoint() {
+        if (draft.isEmpty()) return false;
+        draft.removeLast();
+        drafting = !draft.isEmpty();
+        return true;
+    }
+
+    @Override
     public void onDeactivate() {
         // 切走工具时不保留“未完成草稿”，避免用户误触导致半条线卡住
         cancelDraft();

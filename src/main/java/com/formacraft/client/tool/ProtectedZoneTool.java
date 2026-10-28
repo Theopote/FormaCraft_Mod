@@ -149,6 +149,19 @@ public final class ProtectedZoneTool implements FormacraftTool {
         return !zones.isEmpty();
     }
 
+    @Override
+    public boolean hasPersistentOverlay() { return hasZones(); }
+
+    @Override
+    public void cancelDraft() {
+        selecting = false;
+        start = null;
+        end = null;
+    }
+
+    @Override
+    public void onDeactivate() { cancelDraft(); }
+
     public void clearZones() {
         zones.clear();
         selecting = false;

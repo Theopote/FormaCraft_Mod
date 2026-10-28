@@ -72,6 +72,9 @@ public final class SemanticLabelTool implements FormacraftTool {
         return !labels.isEmpty();
     }
 
+    @Override
+    public boolean hasPersistentOverlay() { return hasLabels(); }
+
     public void clearLabels() {
         labels.clear();
         drafting = false;
@@ -81,20 +84,19 @@ public final class SemanticLabelTool implements FormacraftTool {
     @Override
     public boolean onMouseClick(double mx, double my, int button) {
         if (button != 0 && button != 1) return false;
-        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
-        if (hit == null) return true;
-        BlockPos pos = hit.getBlockPos();
-
         if (button == 1) {
             // 右键：结束（draft >= 3）或取消
             if (draft.size() >= 3) {
-                finishLabel(pos.getY());
+                finishDraft();
             } else {
                 cancelDraft();
             }
             return true;
         }
 
+        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
+        if (hit == null) return true;
+        BlockPos pos = hit.getBlockPos();
         // 左键：加点
         drafting = true;
         draft.add(pos);
@@ -122,10 +124,36 @@ public final class SemanticLabelTool implements FormacraftTool {
         }
     }
 
-    private void cancelDraft() {
+    @Override
+    public void cancelDraft() {
         drafting = false;
         draft.clear();
     }
+
+    @Override
+    public boolean finishDraft() {
+        if (draft.size() < 3) return false;
+        var points = ToolGeometry.normalizePolygon(draft);
+        if (!ToolGeometry.validPolygon(points)) {
+            com.formacraft.client.ui.toast.HudToast.show("标签区域无效：请避免重叠、交叉或零面积", true);
+            return true;
+        }
+        draft.clear();
+        draft.addAll(points);
+        finishLabel(draft.getFirst().getY());
+        return true;
+    }
+
+    @Override
+    public boolean removeLastDraftPoint() {
+        if (draft.isEmpty()) return false;
+        draft.removeLast();
+        drafting = !draft.isEmpty();
+        return true;
+    }
+
+    @Override
+    public void onDeactivate() { cancelDraft(); }
 
     private void finishLabel(int baseY) {
         if (draft.size() < 3) {

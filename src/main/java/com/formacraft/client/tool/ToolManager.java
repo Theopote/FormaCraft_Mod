@@ -74,12 +74,18 @@ public final class ToolManager {
         // 避免启动早期 NPE
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null) return;
+        if (!com.formacraft.client.ui.FormacraftUIState.isOpen
+                || com.formacraft.client.preview.PreviewModalState.isLocked()) {
+            activeTool.cancelDraft();
+            return;
+        }
         activeTool.tick();
     }
 
     public static void renderWorld(ToolWorldRenderContext ctx) {
-        if (activeTool == null) return;
-        activeTool.renderWorld(ctx);
+        for (FormacraftTool tool : tools.values()) {
+            if (tool == activeTool || tool.hasPersistentOverlay()) tool.renderWorld(ctx);
+        }
     }
 }
 

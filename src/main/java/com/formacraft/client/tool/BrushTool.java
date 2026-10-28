@@ -15,7 +15,7 @@ import net.minecraft.world.World;
 /**
  * 球形笔刷（贴地一层）：
  * - 左键按住涂抹：把“地表一层方块”加入选中集合（高亮边框/顶面）
- * - 右键：清空
+ * - 右键按住：擦除当前笔刷范围
  *
  * 说明：
  * - 为了符合“对着地表涂抹”的直觉，这里使用 Heightmap(WORLD_SURFACE) 获取每个 (x,z) 的地表高度，
@@ -35,6 +35,7 @@ public final class BrushTool implements FormacraftTool {
     }
 
     private int radius = 4;
+    private int strokeButton = -1;
     private static final int MIN_RADIUS = 1;
     private static final int MAX_RADIUS = 32;
 
@@ -42,6 +43,7 @@ public final class BrushTool implements FormacraftTool {
 
     // 已选中的方块（以 BlockPos#asLong 编码）
     private final LongOpenHashSet selected = new LongOpenHashSet();
+    private final BrushSelectionHistory history = new BrushSelectionHistory(selected);
 
     // 当前 hover 预览（每 tick 重算）
     private final LongArrayList hover = new LongArrayList();
@@ -93,24 +95,26 @@ public final class BrushTool implements FormacraftTool {
     }
 
     public void clearSelected() {
-        selected.clear();
+        history.clear();
+        strokeButton = -1;
     }
 
     @Override
     public void onDeactivate() {
         // 不自动清空 selected（用户希望作为参考范围保留）
         hover.clear();
+        history.commit();
+        strokeButton = -1;
     }
 
     @Override
     public boolean onMouseClick(double mx, double my, int button) {
         if (button != 0 && button != 1) return false;
-        if (button == 1) {
-            clearSelected();
-            return true;
-        }
-        // 左键：点一下也应涂抹一次
-        paintHoverToSelected();
+        history.begin();
+        strokeButton = button;
+        var world = MinecraftClient.getInstance().world;
+        if (world != null) updateHover(world);
+        applyStroke();
         return true;
     }
 
@@ -123,13 +127,40 @@ public final class BrushTool implements FormacraftTool {
 
         updateHover(world);
 
-        boolean leftDown = InputRouter.leftDown;
-        if (leftDown) {
-            // 按住涂抹：每 tick 合并一次（性能足够，且手感更顺）
-            paintHoverToSelected();
+        if ((strokeButton == 0 && !InputRouter.leftDown) || (strokeButton == 1 && !InputRouter.rightDown)) {
+            history.commit();
+            strokeButton = -1;
         }
-
+        if (!InputRouter.isMouseInsideUI()) applyStroke();
     }
+
+    private void applyStroke() {
+        if (strokeButton == 0) {
+            paintHoverToSelected();
+        } else if (strokeButton == 1 && !hover.isEmpty()) {
+            LongOpenHashSet columns = new LongOpenHashSet();
+            for (long packed : hover) {
+                BlockPos p = BlockPos.fromLong(packed);
+                columns.add(BlockPos.asLong(p.getX(), 0, p.getZ()));
+            }
+            for (long packed : selected.toLongArray()) {
+                BlockPos p = BlockPos.fromLong(packed);
+                if (columns.contains(BlockPos.asLong(p.getX(), 0, p.getZ()))) history.remove(packed);
+            }
+        }
+    }
+
+    @Override
+    public void cancelDraft() { history.cancel(); strokeButton = -1; }
+
+    @Override
+    public boolean hasLocalHistory() { return true; }
+    public boolean canUndo() { return history.canUndo(); }
+    public boolean canRedo() { return history.canRedo(); }
+    @Override
+    public boolean undo() { strokeButton = -1; return history.undo(); }
+    @Override
+    public boolean redo() { strokeButton = -1; return history.redo(); }
 
     private void updateHover(World world) {
         hover.clear();
@@ -173,7 +204,7 @@ public final class BrushTool implements FormacraftTool {
     private void paintHoverToSelected() {
         if (hover.isEmpty()) return;
         for (int i = 0; i < hover.size(); i++) {
-            selected.add(hover.getLong(i));
+            history.add(hover.getLong(i));
         }
     }
 

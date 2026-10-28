@@ -38,6 +38,9 @@ public final class SymmetryTool implements FormacraftTool {
         return mode;
     }
 
+    @Override
+    public boolean hasPersistentOverlay() { return mode != SymmetryMode.NONE; }
+
     public void cycleMode() {
         mode = switch (mode) {
             case NONE -> SymmetryMode.MIRROR_X;
@@ -67,6 +70,14 @@ public final class SymmetryTool implements FormacraftTool {
     }
 
     @Override
+    public void cancelDraft() {
+        if (selecting) clearAxis();
+    }
+
+    @Override
+    public void onDeactivate() { cancelDraft(); }
+
+    @Override
     public boolean onMouseClick(double mx, double my, int button) {
         if (button != 0 && button != 1) return false;
         if (mode != SymmetryMode.CUSTOM_AXIS) return false;
@@ -85,6 +96,10 @@ public final class SymmetryTool implements FormacraftTool {
             axisB = pos;
             selecting = true;
         } else {
+            if (ToolGeometry.sameXZ(axisA, pos)) {
+                com.formacraft.client.ui.toast.HudToast.show("对称轴需要两个不同的水平位置", true);
+                return true;
+            }
             axisB = pos;
             selecting = false;
         }

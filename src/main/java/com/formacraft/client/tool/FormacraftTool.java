@@ -16,6 +16,21 @@ public interface FormacraftTool {
 
     default void onDeactivate() {}
 
+    /** Cancel an unfinished gesture without removing committed constraints. */
+    default void cancelDraft() {}
+
+    /** Enter completes a draft; Backspace removes its last point. */
+    default boolean finishDraft() { return false; }
+    default boolean removeLastDraftPoint() { return false; }
+
+    /** Committed constraints can remain visible while another tool is active. */
+    default boolean hasPersistentOverlay() { return false; }
+
+    /** Local tool history must never fall through to world mutation history. */
+    default boolean hasLocalHistory() { return false; }
+    default boolean undo() { return false; }
+    default boolean redo() { return false; }
+
     /**
      * 鼠标点击（通常用于世界交互）。
      * @return true 表示已消费本次点击（应阻止游戏处理）

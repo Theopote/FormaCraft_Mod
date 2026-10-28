@@ -44,6 +44,7 @@ public final class OutlineTool implements FormacraftTool {
     private BlockPos anchorA; // rect/circle 起点
     private boolean selecting = false;
     private boolean lastLeftDown = false; // free draw
+    private boolean freeDrawing = false;
 
     private OutlineShape shape;
 
@@ -71,11 +72,13 @@ public final class OutlineTool implements FormacraftTool {
         cancelDraft();
     }
 
-    private void cancelDraft() {
+    @Override
+    public void cancelDraft() {
         draft.clear();
         anchorA = null;
         selecting = false;
         lastLeftDown = false;
+        freeDrawing = false;
     }
 
     @Override
@@ -118,11 +121,13 @@ public final class OutlineTool implements FormacraftTool {
             }
             case POLYGON -> {
                 // 左键加点
-                draft.add(pos);
+                if (draft.isEmpty() || !ToolGeometry.sameXZ(draft.getLast(), pos)) draft.add(pos);
+                selecting = true;
             }
             case FREE_DRAW -> {
                 // free draw 主要靠 tick 采样；这里用于“开始”
                 selecting = true;
+                freeDrawing = true;
                 if (draft.isEmpty()) draft.add(pos);
             }
         }
@@ -134,12 +139,7 @@ public final class OutlineTool implements FormacraftTool {
         if (mode != OutlineMode.FREE_DRAW) return;
 
         boolean leftDown = com.formacraft.client.ui.input.InputRouter.leftDown;
-        if (leftDown && !lastLeftDown) {
-            // 刚按下
-            selecting = true;
-        }
-
-        if (leftDown) {
+        if (leftDown && freeDrawing) {
             BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
             if (hit != null) {
                 BlockPos p = hit.getBlockPos();
@@ -157,7 +157,8 @@ public final class OutlineTool implements FormacraftTool {
             }
         }
 
-        if (!leftDown && lastLeftDown) {
+        if (!leftDown && lastLeftDown && freeDrawing) {
+            freeDrawing = false;
             // 刚松开：完成 free draw
             if (draft.size() >= 3) {
                 finishPolygon();
@@ -204,13 +205,21 @@ public final class OutlineTool implements FormacraftTool {
             cancelDraft();
             return;
         }
-        List<BlockPos> pts = new ArrayList<>(draft);
+        List<BlockPos> pts = ToolGeometry.normalizePolygon(draft);
+        if (!ToolGeometry.validPolygon(pts)) {
+            com.formacraft.client.ui.toast.HudToast.show("轮廓无效：请退点修正重叠、交叉或零面积", true);
+            return;
+        }
         cancelDraft();
         selecting = false;
         setPolygonShape(mode == OutlineMode.FREE_DRAW ? OutlineMode.FREE_DRAW : OutlineMode.POLYGON, pts);
     }
 
     private void setPolygonShape(OutlineMode m, List<BlockPos> pts) {
+        if (!ToolGeometry.validPolygon(pts)) {
+            com.formacraft.client.ui.toast.HudToast.show("轮廓无效：请避免重叠、交叉或零面积", true);
+            return;
+        }
         int baseY = pts.get(0).getY();
         int[] yr = defaultYRange(baseY);
         this.shape = new OutlineShape(m, List.copyOf(pts), null, 0, yr[0], yr[1]);
@@ -226,12 +235,17 @@ public final class OutlineTool implements FormacraftTool {
                 return new int[]{min.getY(), max.getY()};
             }
         }
-        return new int[]{baseY, baseY + 20};
+        var world = net.minecraft.client.MinecraftClient.getInstance().world;
+        int ceiling = world == null ? baseY + 20 : world.getBottomY() + world.getHeight() - 1;
+        return new int[]{baseY, ceiling};
     }
 
     public boolean hasShape() {
         return shape != null;
     }
+
+    @Override
+    public boolean hasPersistentOverlay() { return hasShape(); }
 
     public OutlineShape getShape() {
         return shape;
@@ -248,8 +262,27 @@ public final class OutlineTool implements FormacraftTool {
     }
 
     public boolean isDrafting() {
-        return selecting;
+        return selecting || !draft.isEmpty();
     }
+
+    @Override
+    public boolean finishDraft() {
+        if (mode != OutlineMode.POLYGON && mode != OutlineMode.FREE_DRAW) return false;
+        if (draft.size() < 3) return false;
+        finishPolygon();
+        return true;
+    }
+
+    @Override
+    public boolean removeLastDraftPoint() {
+        if (draft.isEmpty()) return false;
+        draft.removeLast();
+        selecting = !draft.isEmpty();
+        return true;
+    }
+
+    @Override
+    public void onDeactivate() { cancelDraft(); }
 
     public List<BlockPos> getDraftPoints() {
         return Collections.unmodifiableList(draft);

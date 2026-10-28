@@ -285,6 +285,7 @@ public final class ComponentPlanCompiler {
         }
 
         if (!StairChainCompiler.validateConnectivity(components, result, slotMap)) return List.of();
+        if (!DeclaredInteriorOpeningCompiler.validate(components, result, slotMap)) return List.of();
 
         if (!openingExpectations.isEmpty()) {
             var openingAudit = OpeningMaterialAudit.inspect(openingExpectations, result);

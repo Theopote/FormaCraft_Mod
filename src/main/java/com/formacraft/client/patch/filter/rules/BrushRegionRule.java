@@ -16,17 +16,13 @@ public final class BrushRegionRule implements PatchRule {
     private final LongOpenHashSet brushPositions;
 
     public BrushRegionRule() {
-        // 从 BrushContext 获取笔刷选中的位置
-        if (BrushContext.hasBrushSelection()) {
-            List<BlockPos> selected = BrushContext.getSelectedPositions();
-            this.brushPositions = new LongOpenHashSet();
-            for (BlockPos pos : selected) {
-                if (pos != null) {
-                    brushPositions.add(pos.asLong());
-                }
-            }
-        } else {
-            this.brushPositions = new LongOpenHashSet();
+        this(BrushContext.getSelectedPositions());
+    }
+
+    public BrushRegionRule(List<BlockPos> selected) {
+        brushPositions = new LongOpenHashSet();
+        for (BlockPos pos : selected) {
+            if (pos != null) brushPositions.add(BlockPos.asLong(pos.getX(), 0, pos.getZ()));
         }
     }
 
@@ -45,20 +41,7 @@ public final class BrushRegionRule implements PatchRule {
             return false;
         }
 
-        // 检查该位置是否在笔刷选中的区域内
-        // 笔刷选中的是地表一层方块，我们需要检查建筑的底层方块是否与笔刷区域重叠
-        // 简化处理：检查 (x, z) 是否在笔刷区域内的任意一个 y 层
-        for (long packed : brushPositions) {
-            BlockPos brushPos = BlockPos.fromLong(packed);
-
-            // 检查 XZ 平面是否重叠（允许 Y 方向扩展）
-            if (brushPos.getX() == worldPos.getX() && brushPos.getZ() == worldPos.getZ()) {
-                return true;
-            }
-        }
-
-        // 如果位置不在任何笔刷选中方块上，拒绝
-        return false;
+        return brushPositions.contains(BlockPos.asLong(worldPos.getX(), 0, worldPos.getZ()));
     }
 
     @Override

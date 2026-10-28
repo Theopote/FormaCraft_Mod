@@ -97,6 +97,9 @@ public final class SelectionTool implements FormacraftTool {
     }
 
     @Override
+    public boolean hasPersistentOverlay() { return hasSelection(); }
+
+    @Override
     public Text getDisplayName() {
         return Text.literal("选区工具");
     }
@@ -113,14 +116,10 @@ public final class SelectionTool implements FormacraftTool {
             if (cachedHoveredFace != null) {
                 // 开始拖拽
                 draggingFace = cachedHoveredFace;
-                HitResult hit = CursorRaycastHelper.getLastHit();
-                if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
-                    dragStartPos = hit.getPos();
-                } else {
-                    dragStartPos = getRayIntersectionWithFace(cachedHoveredFace);
-                }
                 dragStartMin = getMin();
                 dragStartMax = getMax();
+                dragStartPos = getDragPosition();
+                if (dragStartPos == null) stopDragging();
                 return true;
             }
         }
@@ -584,67 +583,27 @@ public final class SelectionTool implements FormacraftTool {
             return;
         }
         
-        HitResult hit = CursorRaycastHelper.getLastHit();
-        Vec3d currentPos;
-        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
-            currentPos = hit.getPos();
-        } else {
-            currentPos = getRayIntersectionWithFace(draggingFace);
-        }
-        
-        // 计算鼠标在世界坐标系下的总位移
-        Vec3d totalDelta = currentPos.subtract(dragStartPos);
-        
-        BlockPos newMin = dragStartMin;
-        BlockPos newMax = dragStartMax;
+        Vec3d currentPos = getDragPosition();
+        if (currentPos == null) return;
+        Vec3d delta = currentPos.subtract(dragStartPos);
+        double displacement = switch (draggingFace.getAxis()) {
+            case X -> delta.x;
+            case Y -> delta.y;
+            case Z -> delta.z;
+        };
+        BlockPos[] resized = ToolGeometry.resize(dragStartMin, dragStartMax,
+                draggingFace, (int) Math.round(displacement));
+        start = resized[0];
+        end = resized[1];
+    }
 
-        // 直接根据拖拽的面，取出对应轴的位移应用到坐标上
-        // 不再使用法向量投影，直接操作轴坐标
-        switch (draggingFace) {
-            case WEST -> {
-                int move = (int) Math.round(totalDelta.x);
-                newMin = new BlockPos(dragStartMin.getX() + move, dragStartMin.getY(), dragStartMin.getZ());
-            }
-            case EAST -> {
-                int move = (int) Math.round(totalDelta.x);
-                newMax = new BlockPos(dragStartMax.getX() + move, dragStartMax.getY(), dragStartMax.getZ());
-            }
-            case DOWN -> {
-                int move = (int) Math.round(totalDelta.y);
-                newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY() + move, dragStartMin.getZ());
-            }
-            case UP -> {
-                int move = (int) Math.round(totalDelta.y);
-                newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY() + move, dragStartMax.getZ());
-            }
-            case NORTH -> {
-                int move = (int) Math.round(totalDelta.z);
-                newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY(), dragStartMin.getZ() + move);
-            }
-            case SOUTH -> {
-                int move = (int) Math.round(totalDelta.z);
-                newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY(), dragStartMax.getZ() + move);
-            }
-        }
-
-        // 规范化：确保 Min 永远是最小点，Max 永远是最大点
-        int finalMinX = Math.min(newMin.getX(), newMax.getX());
-        int finalMinY = Math.min(newMin.getY(), newMax.getY());
-        int finalMinZ = Math.min(newMin.getZ(), newMax.getZ());
-        int finalMaxX = Math.max(newMin.getX(), newMax.getX());
-        int finalMaxY = Math.max(newMin.getY(), newMax.getY());
-        int finalMaxZ = Math.max(newMin.getZ(), newMax.getZ());
-
-        // 限制最小选区为 1x1x1（防止坍缩消失）
-        if (finalMaxX == finalMinX) finalMaxX++;
-        if (finalMaxY == finalMinY) finalMaxY++;
-        if (finalMaxZ == finalMinZ) finalMaxZ++;
-
-        // 重新映射回 start 和 end (注意 end 在你的逻辑中是包含在内的，所以要减1)
-        start = new BlockPos(finalMinX, finalMinY, finalMinZ);
-        end = new BlockPos(finalMaxX - 1, finalMaxY - 1, finalMaxZ - 1);
+    private Vec3d getDragPosition() {
+        if (cachedCameraPos == null || cachedMouseRayDir == null) return null;
+        return ToolGeometry.axisPoint(cachedCameraPos, cachedMouseRayDir,
+                getFaceCenter(dragStartMin, dragStartMax, draggingFace), draggingFace.getAxis());
     }
     
+
     /**
      * 停止拖拽并清理状态
      */
@@ -653,6 +612,28 @@ public final class SelectionTool implements FormacraftTool {
         dragStartPos = null;
         dragStartMin = null;
         dragStartMax = null;
+    }
+
+    @Override
+    public void cancelDraft() {
+        if (draggingFace != null) {
+            start = dragStartMin;
+            end = dragStartMax;
+            stopDragging();
+        } else if (selecting) {
+            start = null;
+            end = null;
+            selecting = false;
+        }
+    }
+
+    @Override
+    public void onDeactivate() {
+        cancelDraft();
+        cachedHoveredFace = null;
+        long window = getClientWindow();
+        if (window != 0 && currentCursorHandle != 0) GLFW.glfwSetCursor(window, 0);
+        currentCursorHandle = 0;
     }
     
     // ==================== 辅助方法：光标管理 ====================

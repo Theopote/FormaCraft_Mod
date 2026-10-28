@@ -180,7 +180,7 @@ public final class LlmPlanPreviewBuilder {
                 if (!llmPlan.hasValidPlanProgramContent()) {
                     if (llmPlan.usesComponentMode()) {
                         FormacraftMod.LOGGER.warn(
-                                "LlmPlan PlanProgram/Skeleton has empty zones; explicitly degrading to components[]");
+                                "LlmPlan PlanProgram/Skeleton has unsupported schema or empty zones; explicitly degrading to components[]");
                         com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
                                 new com.formacraft.common.terrain.TerrainStrategySampler();
                         var compilation = ComponentPlanCompiler.compileWithCirculation(

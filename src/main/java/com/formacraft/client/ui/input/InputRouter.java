@@ -301,7 +301,18 @@ public class InputRouter {
         // 同时吞掉整个按键序列直到释放，避免按住 ESC 产生 repeat 导致原版仍打开菜单。
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             consumeEscapeUntilRelease = true;
+            if (BuildConfirmPanel.INSTANCE.isVisible()) BuildConfirmPanel.INSTANCE.cancel();
+            else if (ToolManager.getActiveTool() != null) ToolManager.getActiveTool().cancelDraft();
             return true;
+        }
+
+        // Text fields keep their editing keys. Tool shortcuts apply in the world area only.
+        BasePanel keyboardPanel = getPanel();
+        if (!isMouseInsideUI() && (keyboardPanel == null || !keyboardPanel.wantsKeyboardInput())
+                && !BuildConfirmPanel.INSTANCE.isVisible() && ToolManager.getActiveTool() != null) {
+            var tool = ToolManager.getActiveTool();
+            if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) && tool.finishDraft()) return true;
+            if (keyCode == GLFW.GLFW_KEY_BACKSPACE && tool.removeLastDraftPoint()) return true;
         }
 
         // Ctrl+Z / Ctrl+Y：Patch Undo / Redo（仅 UI 打开时生效）

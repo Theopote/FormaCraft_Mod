@@ -430,6 +430,7 @@ final class ComponentSatelliteInference {
         StairOpeningGuardCompiler.apply(prepared);
         DeckRailingAccessCompiler.apply(prepared);
         ComponentFoundationEnforcer.apply(prepared);
+        DeclaredInteriorOpeningCompiler.apply(prepared, slotMap);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
     }

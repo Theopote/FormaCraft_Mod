@@ -91,9 +91,9 @@ public class ToolPanel extends BasePanel {
             toolButtons.clear();
             toolBaseLabels.clear();
 
-            noneToolButton = ButtonWidget.builder(Text.literal("当前工具：无"), b -> ToolManager.setTool(null))
+            noneToolButton = ButtonWidget.builder(Text.literal("当前工具：锚点"), b -> ToolManager.setTool(null))
                     .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                    .tooltip(Tooltip.of(Text.literal("取消当前工具（恢复为无）")))
+                    .tooltip(Tooltip.of(Text.literal("切换到锚点：面板外右键定位；已有选区和轮廓仍保留")))
                     .build();
 
             List<FormacraftTool> tools = ToolManager.getTools();
@@ -158,7 +158,7 @@ public class ToolPanel extends BasePanel {
                 .build();
         clearBrushSelectionButton = ButtonWidget.builder(Text.literal("清空笔刷选中"), b -> BrushTool.INSTANCE.clearSelected())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("清空笔刷已选中的地表方块（右键也可清空）")))
+                .tooltip(Tooltip.of(Text.literal("清空全部笔刷范围；面板外右键只擦除局部")))
                 .build();
 
         symmetryModeButton = ButtonWidget.builder(Text.literal("模式：NONE"), b -> SymmetryTool.INSTANCE.cycleMode())
@@ -208,7 +208,7 @@ public class ToolPanel extends BasePanel {
         int fixedY = getContentY() + CONTENT_PADDING;
 
         // 第一行：当前工具按钮（独占一行）
-        noneToolButton.setMessage(Text.literal(ToolManager.getActiveTool() == null ? "当前工具：无" :
+        noneToolButton.setMessage(Text.literal(ToolManager.getActiveTool() == null ? "当前工具：锚点" :
                 "当前工具：" + ToolManager.getActiveTool().getDisplayName().getString()));
         noneToolButton.setPosition(x, fixedY);
         noneToolButton.setWidth(w);
@@ -278,16 +278,30 @@ public class ToolPanel extends BasePanel {
         FormacraftTool activeTool = ToolManager.getActiveTool();
         String activeToolId = activeTool != null ? activeTool.getId() : null;
 
+        String source = OutlineTool.INSTANCE.hasShape() ? "轮廓（优先于选区和锚点）"
+                : SelectionTool.INSTANCE.hasSelection() ? "选区底面中心（优先于锚点）"
+                : AnchorState.hasAnchor() ? "显式锚点" : "鼠标命中／玩家位置";
+        optionsY = drawWrappedText(ctx, Text.literal("默认定位：" + source), x, optionsY, w, 0xFF88DDFF);
+        optionsY = drawWrappedText(ctx, Text.literal("保留数据：选区" + (SelectionTool.INSTANCE.hasSelection() ? "有" : "无")
+                + " · 轮廓" + (OutlineTool.INSTANCE.hasShape() ? "有" : "无")
+                + " · 保护区" + ProtectedZoneTool.INSTANCE.getZones().size()
+                + " · 路径" + PathTool.INSTANCE.getPathCount()
+                + " · 笔刷" + BrushTool.INSTANCE.getSelectedCount()), x, optionsY + 2, w, 0xFFAAAAAA);
+        optionsY = drawWrappedText(ctx, Text.literal("切换工具不会清除已完成范围。修改区域模式优先使用选区。"),
+                x, optionsY + 2, w, 0xFFAAAAAA);
+        optionsY += 6;
+
+
         if (activeToolId != null) {
             // 显示当前工具名称
             optionsY = drawWrappedText(ctx, 
-                    Text.literal("▼ " + activeTool.getDisplayName().getString() + " Options"), 
+                    Text.literal("▼ " + activeTool.getDisplayName().getString() + "选项"),
                     x, optionsY, w, 0xFFFFFFFF);
             optionsY += 2; // 小间距
         } else {
             // 没有激活工具时，显示提示
             optionsY = drawWrappedText(ctx, 
-                    Text.literal("请选择一个工具/右键设置锚点"), 
+                    Text.literal("面板外右键设置锚点"),
                     x, optionsY, w, 0xFFAAAAAA);
             optionsY += 2; // 小间距
             
@@ -411,11 +425,22 @@ public class ToolPanel extends BasePanel {
         outlineModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
-        y = drawWrappedText(ctx,
-                Text.literal(OutlineTool.INSTANCE.hasShape() ? "轮廓：已完成（紫色区域）" :
-                        (OutlineTool.INSTANCE.isDrafting() ? "轮廓：绘制中（右键结束）" : "轮廓：未设置")),
-                x, y, w, 0xFFAAAAAA);
-        y += 2; // 小间距
+        String instruction = switch (OutlineTool.INSTANCE.getMode()) {
+            case RECTANGLE -> "左键两点框选；右键／Esc取消";
+            case CIRCLE -> "左键圆心、边缘；右键／Esc取消";
+            case POLYGON -> "左键加点；右键／Enter完成；Backspace退点";
+            case FREE_DRAW -> "按住左键绘制，松开完成；Esc取消";
+        };
+        y = drawWrappedText(ctx, Text.literal(instruction), x, y, w, 0xFFAAAAAA);
+        String status = OutlineTool.INSTANCE.isDrafting() ? "轮廓：绘制中"
+                : OutlineTool.INSTANCE.hasShape() ? "轮廓：已完成（紫色区域）" : "轮廓：未设置";
+        y = drawWrappedText(ctx, Text.literal(status), x, y + 2, w, 0xFFAAAAAA);
+        if (OutlineTool.INSTANCE.hasShape()) {
+            var shape = OutlineTool.INSTANCE.getShape();
+            y = drawWrappedText(ctx, Text.literal("高度：Y=" + shape.minY() + "～" + shape.maxY()
+                    + "（有选区时继承，否则延伸至世界顶端）"), x, y + 2, w, 0xFFAAAAAA);
+        }
+        y += 2;
 
         clearOutlineButton.setPosition(x, y);
         clearOutlineButton.setWidth(w);
@@ -430,7 +455,7 @@ public class ToolPanel extends BasePanel {
     // 绘制 PathTool 的选项
     private int drawPathToolOptions(DrawContext ctx, int x, int y, int w) {
         String pathStatus = PathTool.INSTANCE.isDrafting()
-                ? ("路径：绘制中（草稿点=" + PathTool.INSTANCE.getDraftPointCount() + "，右键结束）")
+                ? ("路径：绘制中（草稿点=" + PathTool.INSTANCE.getDraftPointCount() + "，右键／Enter完成，Backspace退点，Esc取消）")
                 : ("路径：已完成 " + PathTool.INSTANCE.getPathCount() + " 条");
         y = drawWrappedText(ctx,
                 Text.literal(pathStatus),
@@ -449,6 +474,8 @@ public class ToolPanel extends BasePanel {
 
     // 绘制 BrushTool 的选项
     private int drawBrushToolOptions(DrawContext ctx, int x, int y, int w) {
+        y = drawWrappedText(ctx, Text.literal("左键涂抹；右键局部擦除；清空按钮删除全部"), x, y, w, 0xFFAAAAAA);
+
         y = drawWrappedText(ctx,
                 Text.literal("笔刷：半径=" + BrushTool.INSTANCE.getRadius()
                         + "  已选中=" + BrushTool.INSTANCE.getSelectedCount()),
@@ -584,8 +611,11 @@ public class ToolPanel extends BasePanel {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true;
+        if (!isMouseOver(mouseX, mouseY)) {
+            labelNameInput.setFocused(false);
+            return false;
+        }
         if (button != 0) return false;
-        if (!isMouseOver(mouseX, mouseY)) return false;
 
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
@@ -704,7 +734,7 @@ public class ToolPanel extends BasePanel {
 
     @Override
     public boolean wantsKeyboardInput() {
-        return labelNameInput.isFocused();
+        return ToolManager.isActive(SemanticLabelTool.INSTANCE.getId()) && labelNameInput.isFocused();
     }
 
     @Override
