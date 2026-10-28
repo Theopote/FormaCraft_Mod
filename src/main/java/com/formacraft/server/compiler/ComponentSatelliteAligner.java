@@ -181,12 +181,6 @@ final class ComponentSatelliteAligner {
         if (detail.params() != null) params.putAll(detail.params());
         params.put("anchor_mode", "min_corner");
         params.put("resolved_host_attachment", true);
-        boolean railing=detail.params()!=null && ("railing".equals(detail.params().get("role"))
-                || "railing".equals(detail.params().get("detail_type")) || detail.params().containsKey("railing_block"))
-                || detail.features()!=null && detail.features().stream().anyMatch(f->f!=null && f.startsWith("railing"));
-        if(railing && perimeter)return new Component(detail.componentType(),detail.slotId(),
-                new Vec3i(origin.x(),Math.max(detail.relativePosition().y(),origin.y()+body.height()),origin.z()),
-                new Dimensions(body.width(),body.depth(),1),detail.features(),params);
         Vec3i position;
         if (chimney) {
             int x = Math.max(origin.x() + 1, Math.min(origin.x() + body.width() - dims.width() - 1, detail.relativePosition().x()));

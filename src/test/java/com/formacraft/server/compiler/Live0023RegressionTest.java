@@ -21,7 +21,24 @@ class Live0023RegressionTest {
         var blocks=ComponentPlanCompiler.compile(p,BlockPos.ORIGIN,null,null,false);
         assertNull(AssemblyCompileDiagnostics.get()); assertFalse(blocks.isEmpty()); return blocks;
     }
-    @Test void stiltExteriorStairFitsDoorOpening() throws Exception {compile(load("001437"));}
-    @Test void adobeWindowRowsUseHostFloors() throws Exception {compile(load("001952"));}
-    @Test void smallTowersHaveValidStairEnvelope() throws Exception {compile(load("002322_normalized"));}
+    private Map<BlockPos,net.minecraft.block.BlockState> snapshot(List<com.formacraft.common.patch.BlockPatch> blocks,BlockPos origin) {
+        var result=new HashMap<BlockPos,net.minecraft.block.BlockState>();
+        for(var b:blocks) result.put(origin.add(b.dx(),b.dy(),b.dz()),com.formacraft.common.patch.BlockPatchTargetResolver.resolve(b));
+        return result;
+    }
+    @Test void stiltExteriorStairFitsDoorOpening() throws Exception {
+        var live=snapshot(compile(load("001437")),BlockPos.ORIGIN);
+        for(int z=2;z<=4;z++)for(int y=4;y<=5;y++) {
+            var state=live.get(new BlockPos(0,y,z));assertTrue(state==null||state.isAir()||state.getBlock() instanceof net.minecraft.block.DoorBlock,"Full stair-width doorway clearance");
+        }
+    }
+    @Test void adobeWindowRowsUseHostFloors() throws Exception {
+        var patches=compile(load("001952"));
+        assertTrue(patches.stream().anyMatch(p->p.targetBlock().contains("glass")&&p.dy()>1&&p.dy()<5));
+        assertTrue(patches.stream().anyMatch(p->p.targetBlock().contains("glass")&&p.dy()>5&&p.dy()<9));
+    }
+    @Test void smallTowersHaveValidStairEnvelope() throws Exception {
+        var patches=compile(load("002322_normalized"));
+        for(int side:new int[]{-1,1})assertTrue(patches.stream().anyMatch(p->p.targetBlock().contains("stairs")&&p.dy()==15&&Integer.signum(p.dx())==side));
+    }
 }

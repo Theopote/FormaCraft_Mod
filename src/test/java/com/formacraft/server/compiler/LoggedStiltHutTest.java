@@ -22,7 +22,7 @@ class LoggedStiltHutTest {
         @SuppressWarnings("unchecked") var parts=(List<Component>)result.getClass().getRecordComponents()[0].getAccessor().invoke(result);
         var door=parts.stream().filter(c->c.params()!=null && "front_door".equals(c.params().get("component_id"))).findFirst().orElseThrow();
         var stair=parts.stream().filter(c->c.params()!=null && "shore_stair".equals(c.params().get("component_id"))).findFirst().orElseThrow();
-        assertEquals(new Vec3i(-1,4,3),door.relativePosition());
+        assertEquals(new Vec3i(-1,5,3),door.relativePosition());
         var top=(Map<?,?>)stair.params().get("to");
         int topX=stair.relativePosition().x()+((Number)top.get("x")).intValue();
         int topZ=stair.relativePosition().z()+((Number)top.get("z")).intValue();

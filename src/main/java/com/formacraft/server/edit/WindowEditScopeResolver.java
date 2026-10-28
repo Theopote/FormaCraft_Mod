@@ -580,8 +580,7 @@ public final class WindowEditScopeResolver {
         if (state.getBlock() instanceof PillarBlock) return false;
         if (state.getBlock() instanceof StairsBlock) return false;
         if (state.getBlock() instanceof SlabBlock) return false;
-        if (state.getBlock() instanceof DoorBlock) return false;
-        return true;
+        return !(state.getBlock() instanceof DoorBlock);
     }
 
     private static boolean whiteWall(BlockState s) {

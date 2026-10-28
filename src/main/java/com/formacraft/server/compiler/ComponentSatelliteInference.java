@@ -420,6 +420,7 @@ final class ComponentSatelliteInference {
         }
 
         ComponentSatelliteAligner.realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
+        // Elevated hosts only (see ExteriorDoorAttachmentCompiler): ground-level openings stay authored.
         ExteriorDoorAttachmentCompiler.apply(prepared);
         DoorFloorDatumCompiler.apply(prepared);
         StairFloorPlaneCompiler.apply(prepared);

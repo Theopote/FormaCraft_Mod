@@ -11,15 +11,19 @@ final class ExteriorDoorAttachmentCompiler {
             var host=parts.stream().filter(c->MassComponentKinds.isCirculationMass(c) && c.params()!=null
                 && Objects.equals(c.params().get("component_id"),stair.params().get("host_id")) && Objects.equals(c.slotId(),stair.slotId())).findFirst().orElse(null);
             if(host==null)continue;
+            // Ground-level authored doorways (modern rectangular openings at landing Y) must stay put.
+            // Only elevated hosts (stilts / raised floors) need the sill lifted to stair terminal + 1.
+            var bounds=ComponentFootprintUtil.bounds(host);
+            if(bounds==null || bounds.minY()<=0)continue;
             var doors=parts.stream().filter(c->"ENTRANCE".equals(c.componentType()) && c.params()!=null
                 && Objects.equals(c.params().get("host_id"),stair.params().get("host_id")) && Objects.equals(c.slotId(),stair.slotId())).toList();
             if(doors.size()!=1)continue;
-            var door=doors.getFirst();var b=ComponentFootprintUtil.bounds(host);var r=stair.relativePosition();
+            var door=doors.getFirst();var r=stair.relativePosition();
             int x=r.x()+n(to,"x"),y=r.y()+n(to,"y"),z=r.z()+n(to,"z");
-            if(y!=b.minY() || Math.abs(door.relativePosition().y()-y)>1)continue;
+            if(y!=bounds.minY() || Math.abs(door.relativePosition().y()-y)>1)continue;
             String face=null;
-            if(x==b.minX())face="EAST";else if(x==b.maxX()-1)face="WEST";
-            else if(z==b.minZ())face="SOUTH";else if(z==b.maxZ()-1)face="NORTH";
+            if(x==bounds.minX())face="EAST";else if(x==bounds.maxX()-1)face="WEST";
+            else if(z==bounds.minZ())face="SOUTH";else if(z==bounds.maxZ()-1)face="NORTH";
             if(face==null)continue;
             int width=ComponentParamParsers.intParam(stair.params(),3,"width");
             boolean side=Set.of("EAST","WEST").contains(face);
