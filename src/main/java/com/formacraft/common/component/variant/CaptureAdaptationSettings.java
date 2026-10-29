@@ -10,14 +10,31 @@ public final class CaptureAdaptationSettings {
     public enum Mode { FIXED, REPEAT, TRIM }
     public Mode[] modes = {Mode.FIXED, Mode.FIXED, Mode.FIXED};
     public int[] fixedEdges = {1, 1, 1};
+    /** Optional high-coordinate ends; null preserves the legacy symmetric setting. */
+    public Integer[] fixedEndEdges = {null, null, null};
     public boolean allowMaterialSwap = false;
 
     public CaptureAdaptationSettings copy() {
         var out = new CaptureAdaptationSettings();
         out.modes = modes.clone();
         out.fixedEdges = fixedEdges.clone();
+        out.fixedEndEdges = fixedEndEdges == null ? new Integer[3] : fixedEndEdges.clone();
         out.allowMaterialSwap = allowMaterialSwap;
         return out;
+    }
+
+    public int fixedEnd(int axis) {
+        return fixedEndEdges == null || fixedEndEdges[axis] == null ? fixedEdges[axis] : fixedEndEdges[axis];
+    }
+
+    /** Freeze both ends on first separate edit, so changing one never changes the other. */
+    public void setFixedEdge(int axis, boolean end, int layers) {
+        if (layers < 1 || layers > SegmentScaler.MAX_AXIS_SIZE)
+            throw new IllegalArgumentException("Fixed edge must be between 1 and " + SegmentScaler.MAX_AXIS_SIZE);
+        int previousEnd = fixedEnd(axis);
+        if (fixedEndEdges == null) fixedEndEdges = new Integer[3];
+        fixedEndEdges[axis] = end ? layers : previousEnd;
+        if (!end) fixedEdges[axis] = layers;
     }
 
     public ComponentPrototype.VariantRules toRules(ComponentDefinition def) {
@@ -31,9 +48,9 @@ public final class CaptureAdaptationSettings {
             var rule = new ComponentPrototype.VariantRules.Scaling.AxisRule();
             rule.type = modes[i].name();
             rule.fixedStart = fixedEdges[i];
-            rule.fixedEnd = fixedEdges[i];
+            rule.fixedEnd = fixedEnd(i);
             rule.segment = "SEG_MID_" + axis;
-            rule.min = modes[i] == Mode.FIXED ? dimensions[i] : fixedEdges[i] * 2 + 1;
+            rule.min = modes[i] == Mode.FIXED ? dimensions[i] : fixedEdges[i] + fixedEnd(i) + 1;
             rule.max = modes[i] == Mode.REPEAT ? Math.min(SegmentScaler.MAX_AXIS_SIZE,
                     Math.max(dimensions[i], dimensions[i] * 4)) : dimensions[i];
             rules.scaling.axes.put(axis.name(), rule);

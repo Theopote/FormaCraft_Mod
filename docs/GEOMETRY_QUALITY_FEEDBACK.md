@@ -49,9 +49,11 @@ Quality diagnostic: phase=final code=FLOATING severity=ERROR affected=20 positio
 
 ## 几何候选修订契约
 
-`FbdGeometryRepairGuard` 已接入 FBD 预览报告的资格评估日志，尚未接入模型调用或建筑替换。
+`FbdGeometryRepairGuard` 约束候选契约；`FbdGeometryRepairOrchestrator` 在预览路径上
+对合格 FLOATING 一次试 `ROOF_COVER.y −1` 再 `+1`，经完整重生成复检后若悬空减少，
+则用该候选计划重新跑预览（同一请求不再二次几何修订）。仍不调用模型，不改确认/force。
 当前唯一候选是：最终 FLOATING 诊断指向一个 ROOF_COVER 节点，其 params.y 为直接整数时，
-提出相对原计划上下 1 格的局部高度候选。资格通过不代表这个方向能修复问题，也不证明符合玩家设计意图。
+相对原计划上下 1 格的局部高度。资格通过不代表这个方向能修复问题，也不证明符合玩家设计意图。
 
 - 只接受 final 阶段、带计数的活动诊断。缺少来源、系统新增方块、多个来源混合、来源与编译结果不符均拒绝。
 - 重新编译完整 FBD 程序，按原 AST 路径统计全部展开操作；不是根据最多 8 个采样位置推断唯一实例。
@@ -75,8 +77,9 @@ FBD geometry repair assessment: eligible=false reason=MULTI_INSTANCE path=- inst
 FBD geometry repair assessment: eligible=true reason=ELIGIBLE_CANDIDATE_ONLY path=/components/0/params/fbd_program/main/1/params/y instances=1
 ```
 
-下一阶段才会将候选提议与实际世界中的完整重生成、复检及玩家预览贯通。
-缺少来源的普通组件仍只报告坐标，不猜测 AST 路径。几何资格评估不会调用 LLM、改变现有建筑或绕过质量门禁。
+预览路径已贯通：候选经 `FbdGeometryQualityVerifier` 重生成复检后，由
+`LlmPlanPreviewBuilder` 用接受的计划重新发预览。缺少来源的普通组件仍只报告坐标，
+不猜测 AST 路径。几何资格评估不会调用 LLM、改变已落地建筑或绕过质量门禁。
 
 ## 自动化验证
 

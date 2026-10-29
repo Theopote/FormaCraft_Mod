@@ -8,6 +8,7 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.model.ComponentModelApi;
 import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.variant.CaptureAdaptationSettings;
+import com.formacraft.common.component.variant.CapturedAxisLayout;
 import com.formacraft.common.json.JsonUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -19,6 +20,7 @@ import net.minecraft.text.Text;
 public final class ComponentCaptureAdaptationSection {
     private final ButtonWidget[] modeButtons = new ButtonWidget[3];
     private final ButtonWidget[] edgeButtons = new ButtonWidget[3];
+    private final ButtonWidget[] endEdgeButtons = new ButtonWidget[3];
     private final ButtonWidget[] targetButtons = new ButtonWidget[3];
     private final ButtonWidget materialButton;
     private final ButtonWidget previewButton;
@@ -27,6 +29,7 @@ public final class ComponentCaptureAdaptationSection {
     private String status;
     private boolean hasPreview;
     private int visibleTop, visibleBottom;
+    private net.minecraft.util.math.Direction displayedFacing;
 
     public ComponentCaptureAdaptationSection() {
         for (int i = 0; i < 3; i++) {
@@ -39,7 +42,12 @@ public final class ComponentCaptureAdaptationSection {
             });
             edgeButtons[i] = button(() -> {
                 var settings = settings();
-                settings.fixedEdges[axis] = settings.fixedEdges[axis] % 3 + 1;
+                settings.setFixedEdge(axis, false, settings.fixedEdges[axis] % 3 + 1);
+                changed();
+            });
+            endEdgeButtons[i] = button(() -> {
+                var settings = settings();
+                settings.setFixedEdge(axis, true, settings.fixedEnd(axis) % 3 + 1);
                 changed();
             });
             targetButtons[i] = button(() -> {
@@ -73,6 +81,7 @@ public final class ComponentCaptureAdaptationSection {
     public void hide() {
         for (var b : modeButtons) b.visible = false;
         for (var b : edgeButtons) b.visible = false;
+        for (var b : endEdgeButtons) b.visible = false;
         for (var b : targetButtons) b.visible = false;
         materialButton.visible = previewButton.visible = false;
     }
@@ -85,31 +94,40 @@ public final class ComponentCaptureAdaptationSection {
         y += 5;
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("构件变化规则"), x, y, 0xFFFFFFFF);
         y += 13;
-        // Axis labels describe captured world coordinates, avoiding ambiguous facing-dependent width.
-        String[] labels = {"X 方向", "高度 Y", "Z 方向"};
+        var facing = ComponentTool.INSTANCE.getState().captureDraft.orientation.facing;
+        if (displayedFacing != facing) { invalidate(); displayedFacing = facing; }
+        var axes = CapturedAxisLayout.forFacing(facing);
         var settings = settings();
-        for (int i = 0; i < 3; i++) {
+        for (int dimension = 0; dimension < 3; dimension++) {
+            int i = axes.worldAxis(dimension);
             String mode = switch (settings.modes[i]) {
                 case FIXED -> "锁定"; case REPEAT -> "重复中段"; case TRIM -> "缩短中段";
             };
-            drawButton(ctx, modeButtons[i], x, y, width - 43,
-                    labels[i] + "：" + mode, mouseX, mouseY);
-            edgeButtons[i].active = settings.modes[i] != CaptureAdaptationSettings.Mode.FIXED;
-            drawButton(ctx, edgeButtons[i], x + width - 40, y, 40,
-                    "边 " + settings.fixedEdges[i], mouseX, mouseY);
+            drawButton(ctx, modeButtons[i], x, y, width,
+                    axes.label(dimension) + "：" + mode, mouseX, mouseY);
+            y += 20;
+            edgeButtons[i].active = endEdgeButtons[i].active = settings.modes[i] != CaptureAdaptationSettings.Mode.FIXED;
+            int half = (width - 2) / 2;
+            String[] starts = {"西端", "底部", "北端"};
+            String[] ends = {"东端", "顶部", "南端"};
+            drawButton(ctx, edgeButtons[i], x, y, half,
+                    starts[i] + "保留 " + settings.fixedEdges[i], mouseX, mouseY);
+            drawButton(ctx, endEdgeButtons[i], x + half + 2, y, half,
+                    ends[i] + "保留 " + settings.fixedEnd(i), mouseX, mouseY);
             y += 20;
         }
-        y = wrapped(ctx, client, "边：两端各保留几层方块；只增减中段。默认锁定，原件不会修改。", x, y, width);
+        y = wrapped(ctx, client, "两端可分别保留 1–3 层，只增减中段。东西南北为世界方向；更改朝向不会旋转规则。", x, y, width);
         drawButton(ctx, materialButton, x, y, width,
                 "允许安全换材：" + (settings.allowMaterialSwap ? "开" : "关"), mouseX, mouseY);
         y += 20;
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("试算尺寸（相对原件）"), x, y, 0xFFAAAAAA);
         y += 13;
         int cell = (width - 4) / 3;
-        for (int i = 0; i < 3; i++) {
+        for (int dimension = 0; dimension < 3; dimension++) {
+            int i = axes.worldAxis(dimension);
             String offset = offsets[i] == 0 ? "原长" : (offsets[i] > 0 ? "+" : "") + offsets[i];
-            drawButton(ctx, targetButtons[i], x + i * (cell + 2), y, cell,
-                    "XYZ".charAt(i) + " " + offset, mouseX, mouseY);
+            drawButton(ctx, targetButtons[i], x + dimension * (cell + 2), y, cell,
+                    new String[]{"宽", "高", "厚"}[dimension] + " " + offset, mouseX, mouseY);
         }
         y += 20;
         drawButton(ctx, previewButton, x, y, width, "校验并预览变体", mouseX, mouseY);
@@ -142,7 +160,7 @@ public final class ComponentCaptureAdaptationSection {
 
     public boolean click(Click click, double mouseY) {
         if (mouseY < visibleTop || mouseY >= visibleBottom) return false;
-        for (var group : new ButtonWidget[][]{modeButtons, edgeButtons, targetButtons})
+        for (var group : new ButtonWidget[][]{modeButtons, edgeButtons, endEdgeButtons, targetButtons})
             for (var b : group) if (b.visible && HudClickSupport.click(b, click)) return true;
         return materialButton.visible && HudClickSupport.click(materialButton, click)
                 || previewButton.visible && HudClickSupport.click(previewButton, click);
@@ -170,7 +188,9 @@ public final class ComponentCaptureAdaptationSection {
             status = "无法适配：检查锁定轴、固定边厚度或成对方块；可改选其他尺寸。";
             return;
         }
-        status = "校验通过：" + result.size.w + "×" + result.size.h + "×" + result.size.d
+        var axes = CapturedAxisLayout.forFacing(ComponentTool.INSTANCE.getState().captureDraft.orientation.facing);
+        status = "校验通过（宽×高×厚）：" + axes.dimensionSize(0, result.size.w, result.size.h, result.size.d)
+                + "×" + result.size.h + "×" + axes.dimensionSize(2, result.size.w, result.size.h, result.size.d)
                 + "，" + result.blocks.size() + " 方块。仅预览，不放置。";
         hasPreview = true;
         thumbnails.generateSnapshot(client, result);

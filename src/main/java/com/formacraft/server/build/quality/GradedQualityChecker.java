@@ -216,7 +216,7 @@ public final class GradedQualityChecker {
         checkSupport(blocks, world::getBlockState, report);
     }
 
-    static void checkSupport(List<PlannedBlock> blocks,
+    public static void checkSupport(List<PlannedBlock> blocks,
                              java.util.function.Function<BlockPos, net.minecraft.block.BlockState> terrain,
                              BuildQualityReport report) {
         var unsupported = StructureSupportAnalysis.unsupportedBases(blocks, terrain);

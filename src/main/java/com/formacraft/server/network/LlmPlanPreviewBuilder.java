@@ -57,6 +57,21 @@ public final class LlmPlanPreviewBuilder {
             ServerWorld serverWorld,
             AtomicBoolean hbAlive
     ) {
+        return tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive, true);
+    }
+
+    /**
+     * @param allowGeometryRepair when false, skips FBD ±1 roof repair (used after one accepted candidate).
+     */
+    private static boolean tryBuildPreview(
+            ServerPlayerEntity player,
+            FormaRequest req,
+            LlmPlan llmPlan,
+            BlockPos origin,
+            ServerWorld serverWorld,
+            AtomicBoolean hbAlive,
+            boolean allowGeometryRepair
+    ) {
         if (llmPlan == null) {
             return false;
         }
@@ -66,9 +81,11 @@ public final class LlmPlanPreviewBuilder {
             return true;
         }
 
-        LlmPlanRoutingMetrics.recordTaggedAttempt(player, req);
-        com.formacraft.common.network.metrics.LandmarkRoutingMetrics.recordFromPlan(player, req, llmPlan);
-        com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordFromPlan(player, req, llmPlan);
+        if (allowGeometryRepair) {
+            LlmPlanRoutingMetrics.recordTaggedAttempt(player, req);
+            com.formacraft.common.network.metrics.LandmarkRoutingMetrics.recordFromPlan(player, req, llmPlan);
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordFromPlan(player, req, llmPlan);
+        }
         String landmarkModule = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.extractLandmarkModuleId(llmPlan);
         if (landmarkModule != null) {
             String typWarn = com.formacraft.common.network.metrics.TypologyRoutingMetrics
@@ -655,12 +672,32 @@ public final class LlmPlanPreviewBuilder {
                 }
             }
 
-            if (pipeline.report()!=null && com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llmPlan)
-                    && !pipeline.report().activeDiagnostics().isEmpty()) {
-                var assessment=com.formacraft.server.dsl.FbdGeometryRepairGuard.assess(llmPlan,pipeline.report());
-                FormacraftMod.LOGGER.info("FBD geometry repair assessment: eligible={} reason={} path={} instances={}",
-                        assessment.eligible(),assessment.reason(),assessment.eligible()?assessment.permit().path():"-",
-                        assessment.eligible()?assessment.permit().affectedInstances():0);
+            if (allowGeometryRepair && com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llmPlan)) {
+                BlockPos verifyOrigin = planOrigin;
+                var baseline = com.formacraft.server.dsl.FbdGeometryQualityVerifier.verify(
+                        llmPlan, verifyOrigin, serverWorld::getBlockState);
+                if (baseline != null && !baseline.activeDiagnostics().isEmpty()) {
+                    var outcome = com.formacraft.server.dsl.FbdGeometryRepairOrchestrator.tryRepair(
+                            llmPlan,
+                            baseline,
+                            candidate -> com.formacraft.server.dsl.FbdGeometryQualityVerifier.verify(
+                                    candidate, verifyOrigin, serverWorld::getBlockState));
+                    if (outcome.accepted()) {
+                        FormacraftMod.LOGGER.info(
+                                "FBD geometry repair accepted: y={} reason={}; regenerating preview",
+                                outcome.y(), outcome.reason());
+                        return tryBuildPreview(player, req, outcome.plan(), origin, serverWorld, hbAlive, false);
+                    }
+                } else if (pipeline.report() != null && !pipeline.report().activeDiagnostics().isEmpty()) {
+                    // Still log pipeline-based eligibility when raw baseline has no active issues.
+                    var assessment = com.formacraft.server.dsl.FbdGeometryRepairGuard.assess(
+                            llmPlan, pipeline.report());
+                    FormacraftMod.LOGGER.info(
+                            "FBD geometry repair assessment: eligible={} reason={} path={} instances={}",
+                            assessment.eligible(), assessment.reason(),
+                            assessment.eligible() ? assessment.permit().path() : "-",
+                            assessment.eligible() ? assessment.permit().affectedInstances() : 0);
+                }
             }
 
             if (!pipeline.delivered() || pipeline.structure() == null) {
