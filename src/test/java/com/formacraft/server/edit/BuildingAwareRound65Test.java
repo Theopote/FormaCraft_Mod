@@ -272,6 +272,48 @@ class BuildingAwareRound65Test {
     }
 
     @Test
+    void sealUsesIndexedOpeningAndHostOakPlanksNotOnlyWhiteWall() {
+        BlockPos origin = new BlockPos(60, 64, 60);
+        var memory = house("seal-oak", origin, origin.add(8, 5, 6));
+        attachRoof(memory, origin);
+        Map<BlockPos, BlockState> live = new LinkedHashMap<>();
+        for (int x = 0; x <= 8; x++) {
+            for (int y = 0; y <= 5; y++) {
+                for (int z = 0; z <= 6; z++) {
+                    BlockPos p = origin.add(x, y, z);
+                    boolean shell = x == 0 || x == 8 || z == 0 || z == 6 || y == 0 || y == 5;
+                    live.put(p, shell ? Blocks.OAK_PLANKS.getDefaultState() : Blocks.AIR.getDefaultState());
+                }
+            }
+        }
+        Set<BlockPos> glass = Set.of(
+                origin.add(4, 2, 0), origin.add(5, 2, 0),
+                origin.add(4, 3, 0), origin.add(5, 3, 0));
+        Map<BlockPos, String> glassStates = new LinkedHashMap<>();
+        for (BlockPos g : glass) {
+            live.put(g, Blocks.GLASS.getDefaultState());
+            glassStates.put(g, "minecraft:glass");
+        }
+        var opening = new BuildingPartIndex.WindowOpening(
+                "window:south:f0:indexed", "wall:south:f0:z0", 0, "SOUTH", glass, glassStates);
+        new BuildingPartIndex(
+                BuildingPartIndex.fromMemory(memory).roof(),
+                BuildingPartIndex.fromMemory(memory).walls(),
+                new BuildingPartIndex.WindowPart("window", glass, glassStates, List.of(opening))
+        ).persistTo(memory);
+
+        var resolved = WindowEditScopeResolver.resolveSeal(
+                BuildingInstance.fromMemory(memory), BuildingPartIndex.fromMemory(memory), live,
+                origin.add(4, 2, 2), p -> true, false, false);
+        assertTrue(resolved.ok(), () -> resolved.refusalReason());
+        assertEquals("window:south:f0:indexed", resolved.targetPartId());
+        var patches = WindowEditScopeResolver.compileSealPatches(
+                BuildingInstance.fromMemory(memory), resolved, live);
+        assertEquals(4, patches.size());
+        assertTrue(patches.stream().allMatch(p -> p.targetBlock().startsWith("minecraft:oak_planks")));
+    }
+
+    @Test
     void insertAcceptsWallRectangleWhenTrailingJambIsExistingGlass() {
         // In-game: solid 2×2 to the right of the door, then an already-punched façade window.
         // Old chooseInsertRectangle required solid(distance+width) and refused WALL_RECTANGLE_UNAVAILABLE.

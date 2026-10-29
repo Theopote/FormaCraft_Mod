@@ -201,7 +201,7 @@ public final class BuildingEditService {
         if (!resolved.ok()) {
             String message = switch (resolved.refusalReason()) {
                 case "WINDOW_GROUP_AMBIGUOUS" -> "现场存在多处可封窗格，无法唯一确认目标窗户；请缩小选择或指定窗位。";
-                case "WINDOW_GROUP_NOT_FOUND" -> "未找到可确认的目标窗格及原白墙材质。";
+                case "WINDOW_GROUP_NOT_FOUND" -> "未找到可确认的目标窗格及原墙材质（可先开窗写入身份，或靠近白墙木格窗）。";
                 default -> "未找到可确认的目标窗格及原墙材质。";
             };
             return new PreparedEdit(building, null, List.of(), null, List.of(message));
@@ -209,7 +209,7 @@ public final class BuildingEditService {
         List<BlockPatch> patches = WindowEditScopeResolver.compileSealPatches(building, resolved, liveBlocks);
         if (patches.isEmpty()) {
             return new PreparedEdit(building, null, List.of(), null,
-                    List.of("未找到可确认的目标窗格及原白墙材质。"));
+                    List.of("未找到可确认的目标窗格及原墙材质。"));
         }
         return finishWindowPrepare(building, memory, index, BuildingEditOperation.SEAL_WINDOW, resolved, patches, liveBlocks);
     }

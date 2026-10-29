@@ -35,6 +35,7 @@ class WindowSealCompilerTest {
     }
     @Test void recognizesActualRequestWithoutInterceptingWindowAddition() {
         assertTrue(WindowSealCompiler.matches("只去掉刚才这座徽派民居朝向天井的木格窗，并用原来的白色墙面封好窗洞。"));
+        assertTrue(WindowSealCompiler.matches("去掉刚才的玻璃窗，用墙面封闭补回去，不要重建整栋。"));
         assertFalse(WindowSealCompiler.matches("只在白色墙面增加一扇玻璃窗"));
         assertFalse(WindowSealCompiler.matches("不要去掉白色墙面的木格窗"));
         assertFalse(WindowSealCompiler.matches("去掉白色玻璃窗，保留窗洞"));

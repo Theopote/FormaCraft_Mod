@@ -50,8 +50,8 @@ final class WindowSealPreview {
         var min = memory.getBounds().getMinPos();
         var max = memory.getBounds().getMaxPos();
         BlockPos playerPos = player.getBlockPos();
-        if (req.getSelectionMin() == null && (playerPos.getX() < min.getX() - 4 || playerPos.getX() > max.getX() + 4
-                || playerPos.getZ() < min.getZ() - 4 || playerPos.getZ() > max.getZ() + 4)) {
+        if (req.getSelectionMin() == null && (playerPos.getX() < min.getX() - 12 || playerPos.getX() > max.getX() + 12
+                || playerPos.getZ() < min.getZ() - 12 || playerPos.getZ() > max.getZ() + 12)) {
             return refuse(player, "请靠近或选择目标建筑，并等待建造完成后再封窗。");
         }
         long volume = ((long) max.getX() - min.getX() + 1)
@@ -80,7 +80,7 @@ final class WindowSealPreview {
                 text.contains("天井") || text.contains("庭院"));
         if (!prepared.ok()) {
             String msg = prepared.refusals().isEmpty()
-                    ? "未找到可确认的目标窗格及原白墙材质；请靠近目标或选择窗墙区域后重试。"
+                    ? "未找到可确认的目标窗格及原墙材质；请靠近目标或选择窗墙区域后重试。"
                     : String.join("；", prepared.refusals());
             return refuse(player, msg);
         }

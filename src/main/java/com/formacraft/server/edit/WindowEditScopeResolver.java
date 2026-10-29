@@ -202,6 +202,32 @@ public final class WindowEditScopeResolver {
         Set<BlockPos> roof = index == null ? Set.of() : index.roof().cells();
         Set<BlockPos> protectedCells = collectProtected(building, index, live);
 
+        // Prefer Memory WindowOpening identity from INSERT_WINDOW (works for oak/plank hosts,
+        // not only Huizhou white-lattice detection).
+        BuildingPartIndex.WindowOpening indexed = uniqueIndexedSealTarget(index, live, building, roof, center);
+        if (indexed != null) {
+            Set<BlockPos> allowed = new LinkedHashSet<>();
+            for (BlockPos cell : indexed.cells()) {
+                if (cell == null) continue;
+                if (!building.contains(cell)) {
+                    return ResolvedScope.refuse("WINDOW_OUTSIDE_BUILDING@" + cell.toShortString());
+                }
+                if (protectedCells.contains(cell) || roof.contains(cell)) {
+                    return ResolvedScope.refuse("WINDOW_TOUCHES_PROTECTED@" + cell.toShortString());
+                }
+                allowed.add(cell.toImmutable());
+            }
+            if (allowed.isEmpty()) return ResolvedScope.refuse("WINDOW_GROUP_EMPTY");
+            String facing = indexed.facing() == null || indexed.facing().isBlank()
+                    ? inferFacing(allowed) : indexed.facing().toUpperCase(Locale.ROOT);
+            String hostWallId = indexed.hostWallId() == null || indexed.hostWallId().isBlank()
+                    ? "wall:" + facing.toLowerCase(Locale.ROOT) + ":f" + indexed.floorIndex()
+                    : indexed.hostWallId();
+            return new ResolvedScope(
+                    true, "", indexed.windowId(), hostWallId, indexed.floorIndex(), facing,
+                    allowed, allowed, protectedCells, expectedOf(live, allowed));
+        }
+
         List<Set<BlockPos>> groups = findSealableWindowGroups(
                 live, roof, center == null ? building.origin() : center,
                 skyVisible == null ? p -> false : skyVisible, woodOnly, courtyardOnly);
@@ -292,7 +318,9 @@ public final class WindowEditScopeResolver {
             Map<BlockPos, BlockState> live
     ) {
         if (building == null || scope == null || !scope.ok() || live == null) return List.of();
-        BlockState material = voteWhiteWallMaterial(live, scope.editCells());
+        // Prefer host façade material (oak planks etc.); white-wall vote remains for Huizhou lattices.
+        BlockState material = voteHostWallMaterial(live, scope.editCells());
+        if (material == null) material = voteWhiteWallMaterial(live, scope.editCells());
         if (material == null) return List.of();
         String block = BlockStateStringUtil.fromState(material);
         BlockPos origin = building.origin();
@@ -516,6 +544,62 @@ public final class WindowEditScopeResolver {
 
     // --- seal helpers ---
 
+    /**
+     * When INSERT_WINDOW recorded a unique opening that is still glass/pane in the live world,
+     * seal that identity instead of requiring white-lattice heuristics.
+     */
+    private static BuildingPartIndex.WindowOpening uniqueIndexedSealTarget(
+            BuildingPartIndex index,
+            Map<BlockPos, BlockState> live,
+            BuildingInstance building,
+            Set<BlockPos> roof,
+            BlockPos center
+    ) {
+        if (index == null || index.windows().openings().isEmpty()) return null;
+        List<BuildingPartIndex.WindowOpening> liveOpenings = new ArrayList<>();
+        for (BuildingPartIndex.WindowOpening opening : index.windows().openings()) {
+            if (opening == null || opening.cells().isEmpty()) continue;
+            boolean allGlass = true;
+            for (BlockPos cell : opening.cells()) {
+                if (cell == null || !building.contains(cell) || roof.contains(cell)) {
+                    allGlass = false;
+                    break;
+                }
+                BlockState state = live.get(cell);
+                if (state == null || !(state.isOf(Blocks.GLASS)
+                        || state.getBlock() instanceof StainedGlassBlock
+                        || state.getBlock() instanceof PaneBlock
+                        || state.getBlock() instanceof FenceBlock)) {
+                    allGlass = false;
+                    break;
+                }
+            }
+            if (allGlass) liveOpenings.add(opening);
+        }
+        if (liveOpenings.isEmpty()) return null;
+        if (liveOpenings.size() == 1) return liveOpenings.getFirst();
+        // Multiple indexed openings: pick the unique nearest to the player/center.
+        BlockPos focus = center == null ? building.origin() : center;
+        BuildingPartIndex.WindowOpening best = null;
+        double bestDist = Double.MAX_VALUE;
+        boolean tie = false;
+        for (BuildingPartIndex.WindowOpening opening : liveOpenings) {
+            BlockPos mid = opening.cells().iterator().next();
+            for (BlockPos c : opening.cells()) {
+                if (c.getSquaredDistance(focus) < mid.getSquaredDistance(focus)) mid = c;
+            }
+            double d = mid.getSquaredDistance(focus);
+            if (d < bestDist - 1e-6) {
+                bestDist = d;
+                best = opening;
+                tie = false;
+            } else if (Math.abs(d - bestDist) < 1e-6) {
+                tie = true;
+            }
+        }
+        return tie ? null : best;
+    }
+
     private static List<Set<BlockPos>> findSealableWindowGroups(
             Map<BlockPos, BlockState> live,
             Set<BlockPos> roof,
@@ -608,6 +692,30 @@ public final class WindowEditScopeResolver {
             accepted.add(Set.copyOf(group));
         }
         return accepted;
+    }
+
+    private static BlockState voteHostWallMaterial(Map<BlockPos, BlockState> live, Set<BlockPos> group) {
+        if (group == null || group.isEmpty()) return null;
+        int x0 = group.stream().mapToInt(BlockPos::getX).min().orElseThrow();
+        int x1 = group.stream().mapToInt(BlockPos::getX).max().orElseThrow();
+        boolean constantX = x0 == x1;
+        Map<BlockState, Integer> votes = new HashMap<>();
+        for (BlockPos p : group) {
+            for (int d = 1; d <= 2; d++) {
+                for (BlockPos n : List.of(
+                        p.up(d), p.down(d),
+                        constantX ? p.north(d) : p.west(d),
+                        constantX ? p.south(d) : p.east(d))) {
+                    if (group.contains(n)) continue;
+                    BlockState state = live.get(n);
+                    if (isEditableWallCell(state)) votes.merge(state, 1, Integer::sum);
+                }
+            }
+        }
+        return votes.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
     }
 
     private static BlockState voteWhiteWallMaterial(Map<BlockPos, BlockState> live, Set<BlockPos> group) {

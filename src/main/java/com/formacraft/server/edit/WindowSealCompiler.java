@@ -15,9 +15,13 @@ public final class WindowSealCompiler {
         if (text == null) return false;
         text=text.replaceAll("\\s+", "");
         if (text.matches("(?s).*(不要|别|不许|不必|无需)(再)?(去掉|移除|删除|封闭|封好|封上).*")) return false;
-        return text.matches("(?s).*(去掉|移除|删除|封闭|封好|封上).*窗.*")
-                && text.matches("(?s).*(白色|白墙|白.*墙面).*")
-                && text.matches("(?s).*(封|补|填|还原).*");
+        if (!(text.matches("(?s).*(去掉|移除|删除|封闭|封好|封上).*窗.*")
+                && text.matches("(?s).*(封|补|填|还原).*"))) {
+            return false;
+        }
+        // Huizhou white-wall lattice OR seal-back of an inserted glass window on any host wall.
+        return text.matches("(?s).*(白色|白墙|白.*墙面).*")
+                || text.matches("(?s).*(玻璃窗|刚才.*窗|这扇窗|目标窗).*");
     }
 
     public static List<BlockPatch> compile(Map<BlockPos, BlockState> live, BlockPos origin,
