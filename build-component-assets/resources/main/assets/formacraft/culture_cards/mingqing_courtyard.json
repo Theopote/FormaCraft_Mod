@@ -1,0 +1,48 @@
+{
+  "id": "mingqing_courtyard",
+  "styleId": "Chinese_Imperial_Official",
+  "intents": ["COURTYARD", "LANDMARK", "明清官式", "官式院落"],
+  "keywords": [
+    "明清官式院落",
+    "明清官式建筑群落",
+    "明清四合院",
+    "ming qing courtyard",
+    "mingqing courtyard",
+    "mingqing_courtyard",
+    "official chinese courtyard compound"
+  ],
+  "synonyms": {
+    "明清官式院落": ["ming qing official courtyard", "ming-qing courtyard compound"],
+    "明清官式建筑群落": ["ming qing architectural complex", "official compound"]
+  },
+  "keywordWeights": {
+    "明清官式院落": 10.0,
+    "明清官式建筑群落": 9.5,
+    "明清四合院": 8.5,
+    "mingqing courtyard": 8.0,
+    "ming qing courtyard": 7.5
+  },
+  "negativeKeywords": [
+    "民居", "北方四合院", "北京四合院", "siheyuan", "徽派", "江南水乡",
+    "城堡", "体育场", "哥特", "原创", "不要地标"
+  ],
+  "proportionCardId": "courtyard_compound",
+  "structuralTypologyId": "courtyard_compound",
+  "llmPlanExampleRefs": [
+    "mingqing_courtyard_typology.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "mingqing_official_compound",
+      "constraints": [
+        "MANDATORY: structural_typology=courtyard_compound + STRUCTURE/typology params（围墙+正房+厢房+门楼 COMPOUND）",
+        "reference_landmark=mingqing_courtyard 作比例锚点；禁止 MODULE/landmark:mingqing_courtyard 硬路由",
+        "params: width≈32, depth≈28, includePaths=true, pathWidth≈3, facing=SOUTH",
+        "layout.skeleton_type=COMPOUND；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：typology=courtyard_compound, courtyard_ratio≈0.38",
+        "禁止用单一 MASS 方盒代替围合院落群落"
+      ]
+    }
+  ]
+}

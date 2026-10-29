@@ -1,0 +1,27 @@
+{
+  "paletteId": "PALETTE_MODERN_INTERNATIONAL_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "Main",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 16,
+        "d": 16,
+        "h": 12,
+        "wall": "minecraft:white_concrete",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "NOISE",
+            "noiseMaterial": "minecraft:light_gray_concrete",
+            "noiseProbability": 0.15,
+            "noiseMethod": "PERLIN",
+            "faces": "ALL"
+          }
+        }
+      }
+    ]
+  }
+}
+

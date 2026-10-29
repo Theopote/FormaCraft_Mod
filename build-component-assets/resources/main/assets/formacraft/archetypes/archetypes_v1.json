@@ -1,0 +1,495 @@
+{
+  "version": 1,
+  "archetypes": [
+    {
+      "id": "tulou",
+      "properNounAliases": [],
+      "genericAliases": ["土楼", "福建土楼", "永定土楼", "永定", "tulou", "fujian tulou", "yongding tulou"],
+      "aliases": ["土楼", "福建土楼", "永定土楼", "永定", "tulou", "fujian tulou", "yongding tulou"],
+      "category": "LANDMARK",
+      "generatorId": "tulou",
+      "defaults": { "diameter": 20, "floors": 3 },
+      "constraints": { "minDiameter": 12, "maxDiameter": 80 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "eiffel_tower",
+      "aliases": ["埃菲尔铁塔", "埃菲尔塔", "埃菲尔", "eiffel", "eiffel tower", "tour eiffel"],
+      "category": "LANDMARK",
+      "generatorId": "eiffel_tower",
+      "defaults": { "height": 60, "baseWidth": 27 },
+      "constraints": { "minHeight": 24, "maxHeight": 180, "minBaseWidth": 15, "maxBaseWidth": 81 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "temple_of_heaven",
+      "aliases": ["天坛", "祈年殿", "temple of heaven", "qiniandian"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "radial_terrace_hall",
+      "generatorId": "radial_terrace_hall",
+      "defaults": { "baseRadius": 18, "tiers": 3 },
+      "constraints": { "minBaseRadius": 10, "maxBaseRadius": 60 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "great_wall",
+      "aliases": ["长城", "万里长城", "great wall", "great wall of china"],
+      "category": "FORTIFICATION",
+      "generatorId": "great_wall",
+      "defaults": { "length": 120, "height": 10, "thickness": 5, "towerSpacing": 48, "followTerrain": true },
+      "constraints": { "minLength": 30, "maxLength": 800, "minHeight": 6, "maxHeight": 40, "minThickness": 3, "maxThickness": 15 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "golden_gate_bridge",
+      "aliases": ["金门大桥", "旧金山大桥", "旧金山金门大桥", "旧金山金门", "golden gate bridge", "golden gate"],
+      "category": "INFRASTRUCTURE",
+      "researchOnly": true,
+      "typologyId": "suspension_bridge",
+      "generatorId": "suspension_bridge",
+      "defaults": { "span": 180, "deckWidth": 9, "towerHeight": 44, "followTerrain": true },
+      "constraints": { "minSpan": 60, "maxSpan": 800, "minDeckWidth": 5, "maxDeckWidth": 41, "minTowerHeight": 18, "maxTowerHeight": 120 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "giant_wild_goose_pagoda",
+      "aliases": ["大慈恩寺", "大雁塔", "giant wild goose pagoda", "dayanta", "wild goose pagoda"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "dense_eaves_pagoda",
+      "generatorId": "dense_eaves_pagoda",
+      "defaults": { "levels": 7, "height": 41, "baseWidth": 17 },
+      "constraints": { "minLevels": 3, "maxLevels": 13, "minHeight": 18, "maxHeight": 120, "minBaseWidth": 9, "maxBaseWidth": 41 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "famen_pagoda",
+      "properNounAliases": [
+        "法门寺舍利塔", "法门寺塔", "法门寺", "famen temple pagoda", "famen pagoda",
+        "famen si pagoda", "famen stupa", "famensi pagoda", "famen temple stupa"
+      ],
+      "genericAliases": [],
+      "aliases": [
+        "法门寺舍利塔", "法门寺塔", "法门寺", "famen temple pagoda", "famen pagoda",
+        "famen si pagoda", "famen stupa", "famensi pagoda", "famen temple stupa"
+      ],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "dense_eaves_pagoda",
+      "generatorId": "dense_eaves_pagoda",
+      "defaults": { "levels": 13, "height": 47, "baseWidth": 10 },
+      "constraints": { "minLevels": 7, "maxLevels": 15, "minHeight": 28, "maxHeight": 72, "minBaseWidth": 7, "maxBaseWidth": 14 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "mingqing_courtyard",
+      "aliases": ["明清官式院落", "明清官式建筑群落", "明清四合院", "ming qing courtyard", "mingqing courtyard"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "courtyard_compound",
+      "generatorId": "courtyard_compound",
+      "defaults": { "width": 32, "depth": 28, "includePaths": true, "pathWidth": 3 },
+      "constraints": { "minWidth": 16, "maxWidth": 96, "minDepth": 16, "maxDepth": 96, "minPathWidth": 1, "maxPathWidth": 7 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "castle_compound",
+      "properNounAliases": ["中世纪城堡"],
+      "genericAliases": ["城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
+      "aliases": ["城堡", "中世纪城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
+      "category": "FORTIFICATION",
+      "researchOnly": true,
+      "typologyId": "radial_fortress",
+      "generatorId": "radial_fortress",
+      "defaults": { "width": 48, "depth": 36, "wallHeight": 6, "towerHeight": 18, "followTerrain": true, "includePaths": true, "pathWidth": 3 },
+      "constraints": { "minWidth": 24, "maxWidth": 128, "minDepth": 24, "maxDepth": 128, "minWallHeight": 4, "maxWallHeight": 12, "minTowerHeight": 10, "maxTowerHeight": 40, "minPathWidth": 1, "maxPathWidth": 7 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "office_district",
+      "aliases": ["办公楼群", "办公园区", "写字楼群", "商业区", "office district", "office park", "business district"],
+      "category": "INFRASTRUCTURE",
+      "generatorId": "office_district",
+      "defaults": { "rows": 3, "cols": 4, "spacing": 18, "blockWidth": 11, "blockDepth": 11, "blockHeight": 22, "includeRoads": true, "roadWidth": 3 },
+      "constraints": { "minRows": 1, "maxRows": 12, "minCols": 1, "maxCols": 12, "minSpacing": 10, "maxSpacing": 40, "minBlockWidth": 9, "maxBlockWidth": 21, "minBlockDepth": 9, "maxBlockDepth": 21, "minBlockHeight": 14, "maxBlockHeight": 60, "minRoadWidth": 1, "maxRoadWidth": 7 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "birds_nest_stadium",
+      "aliases": ["鸟巢", "鸟巢体育馆", "国家体育场", "北京鸟巢", "birds nest", "birds nest stadium", "national stadium", "beijing national stadium", "椭圆形体育场", "椭圆体育馆", "elliptical stadium", "oval stadium"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "stadium_bowl",
+      "generatorId": "stadium_bowl",
+      "defaults": { "width": 60, "depth": 80, "height": 30, "elliptical": true, "meshStructure": true },
+      "constraints": { "minWidth": 30, "maxWidth": 120, "minDepth": 40, "maxDepth": 160, "minHeight": 15, "maxHeight": 60 },
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "gothic_cathedral",
+      "properNounAliases": ["哥特大教堂"],
+      "genericAliases": ["gothic cathedral", "哥特", "大教堂", "cathedral"],
+      "aliases": ["哥特大教堂", "gothic cathedral"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "gothic_cathedral_hall",
+      "generatorId": "gothic_cathedral_hall",
+      "defaults": { "width": 25, "depth": 45, "wallHeight": 16, "towerHeight": 20, "spireHeight": 10 },
+      "constraints": { "minWidth": 17, "maxWidth": 101, "minDepth": 25, "maxDepth": 151, "minWallHeight": 12, "maxWallHeight": 40 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "foguang_temple_hall",
+      "properNounAliases": [
+        "佛光寺大殿", "佛光寺东大殿", "五台山佛光寺", "佛光寺",
+        "foguang temple main hall", "foguang si hall", "wutai foguang temple", "foguang temple"
+      ],
+      "genericAliases": [],
+      "aliases": [
+        "佛光寺大殿", "佛光寺东大殿", "五台山佛光寺", "佛光寺",
+        "foguang temple main hall", "foguang si hall", "wutai foguang temple", "foguang temple"
+      ],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "tailiang_timber_hall",
+      "generatorId": "tailiang_timber_hall",
+      "defaults": { "width": 21, "depth": 15, "baysX": 7, "baysZ": 4 },
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "notre_dame_paris",
+      "properNounAliases": ["巴黎圣母院", "notre dame", "notre dame de paris", "notre-dame de paris", "notre dame paris"],
+      "genericAliases": [],
+      "aliases": ["巴黎圣母院", "notre dame", "notre dame de paris", "notre-dame de paris", "notre dame paris"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "cologne_cathedral",
+      "properNounAliases": ["科隆大教堂", "cologne cathedral", "kölner dom", "kolner dom"],
+      "genericAliases": [],
+      "aliases": ["科隆大教堂", "cologne cathedral", "kölner dom", "kolner dom"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "chartres_cathedral",
+      "properNounAliases": ["沙特尔主教座堂", "沙特尔大教堂", "chartres cathedral", "chartres"],
+      "genericAliases": [],
+      "aliases": ["沙特尔主教座堂", "沙特尔大教堂", "chartres cathedral", "chartres"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "sagrada_familia",
+      "properNounAliases": ["圣家族大教堂", "圣家堂", "sagrada família", "sagrada familia", "basílica de la sagrada família"],
+      "genericAliases": [],
+      "aliases": ["圣家族大教堂", "圣家堂", "sagrada família", "sagrada familia", "basílica de la sagrada família"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "sydney_opera_house",
+      "properNounAliases": ["悉尼歌剧院", "sydney opera house"],
+      "genericAliases": [],
+      "aliases": ["悉尼歌剧院", "sydney opera house"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "louvre_museum",
+      "properNounAliases": ["卢浮宫", "louvre museum", "musée du louvre", "musee du louvre"],
+      "genericAliases": [],
+      "aliases": ["卢浮宫", "louvre museum", "musée du louvre", "musee du louvre"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "suzhou_museum",
+      "properNounAliases": ["苏州博物馆"],
+      "genericAliases": [],
+      "aliases": ["苏州博物馆"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "forbidden_city",
+      "properNounAliases": ["故宫", "紫禁城", "forbidden city", "palace museum beijing"],
+      "genericAliases": [],
+      "aliases": ["故宫", "紫禁城", "forbidden city", "palace museum beijing"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "taj_mahal",
+      "properNounAliases": ["泰姬陵", "taj mahal"],
+      "genericAliases": [],
+      "aliases": ["泰姬陵", "taj mahal"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "white_house",
+      "properNounAliases": ["白宫", "white house"],
+      "genericAliases": [],
+      "aliases": ["白宫", "white house"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "guggenheim_bilbao",
+      "properNounAliases": ["毕尔巴鄂古根海姆", "古根海姆博物馆", "guggenheim bilbao", "guggenheim museum bilbao"],
+      "genericAliases": [],
+      "aliases": ["毕尔巴鄂古根海姆", "古根海姆博物馆", "guggenheim bilbao", "guggenheim museum bilbao"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "burj_khalifa",
+      "properNounAliases": ["哈利法塔", "迪拜塔", "burj khalifa"],
+      "genericAliases": [],
+      "aliases": ["哈利法塔", "迪拜塔", "burj khalifa"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.2, "signature": 0.4 }
+    },
+    {
+      "id": "disney_castle",
+      "properNounAliases": ["迪士尼城堡", "disney castle", "cinderella castle"],
+      "genericAliases": [],
+      "aliases": ["迪士尼城堡", "disney castle", "cinderella castle"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "fushimi_inari_shrine",
+      "properNounAliases": ["伏见稻荷神社", "伏见稻荷", "fushimi inari", "fushimi inari shrine"],
+      "genericAliases": [],
+      "aliases": ["伏见稻荷神社", "伏见稻荷", "fushimi inari", "fushimi inari shrine"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "himeji_castle",
+      "properNounAliases": ["姬路城", "姬路城堡", "himeji castle", "himeji"],
+      "genericAliases": [],
+      "aliases": ["姬路城", "姬路城堡", "himeji castle", "himeji"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "wuzhen_water_town",
+      "properNounAliases": ["乌镇", "wuzhen", "wuzhen water town"],
+      "genericAliases": [],
+      "aliases": ["乌镇", "wuzhen", "wuzhen water town"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "zhouzhuang_water_town",
+      "properNounAliases": ["周庄", "zhouzhuang", "zhouzhuang water town"],
+      "genericAliases": [],
+      "aliases": ["周庄", "zhouzhuang", "zhouzhuang water town"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "pantheon",
+      "aliases": ["万神殿", "罗马万神殿", "pantheon", "roman pantheon"],
+      "category": "LANDMARK",
+      "generatorId": "pantheon",
+      "defaults": { "width": 26, "depth": 26, "height": 24, "domeRadius": 12 },
+      "constraints": { "minWidth": 18, "maxWidth": 60, "minDepth": 18, "maxDepth": 60, "minHeight": 16, "maxHeight": 48 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "parthenon",
+      "aliases": ["帕特农神庙", "帕特农", "parthenon", "athens parthenon"],
+      "category": "LANDMARK",
+      "generatorId": "parthenon",
+      "defaults": { "width": 31, "depth": 14, "columnHeight": 10, "peristyleCols": 8 },
+      "constraints": { "minWidth": 20, "maxWidth": 60, "minDepth": 10, "maxDepth": 30 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "jiangnan_water_town",
+      "properNounAliases": [],
+      "genericAliases": ["江南水乡", "江南水镇", "jiangnan water town", "水镇", "water town", "canal town"],
+      "aliases": ["江南水乡", "江南水镇", "jiangnan water town", "water town", "canal town"],
+      "category": "LANDMARK",
+      "generatorId": "jiangnan_water_town",
+      "defaults": { "width": 40, "depth": 56, "canalWidth": 5, "houseCount": 4 },
+      "constraints": { "minWidth": 24, "maxWidth": 160, "minDepth": 24, "maxDepth": 200 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "japanese_shrine",
+      "properNounAliases": ["日本神社", "japanese shrine", "shinto shrine"],
+      "genericAliases": ["神社", "鸟居", "shrine", "torii"],
+      "aliases": ["日本神社", "japanese shrine", "shinto shrine", "torii"],
+      "category": "LANDMARK",
+      "generatorId": "japanese_shrine",
+      "defaults": { "width": 18, "depth": 24, "mainHallHeight": 8, "toriiHeight": 6 },
+      "constraints": { "minWidth": 12, "maxWidth": 48, "minDepth": 16, "maxDepth": 64 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "japanese_castle_keep",
+      "properNounAliases": ["天守阁", "日本城堡", "日式城堡", "japanese castle", "japanese castle keep"],
+      "genericAliases": [],
+      "aliases": ["天守阁", "日本城堡", "日式城堡", "japanese castle", "japanese castle keep"],
+      "category": "LANDMARK",
+      "generatorId": "japanese_castle_keep",
+      "defaults": { "width": 22, "depth": 22, "keepHeight": 28, "tiers": 5 },
+      "constraints": { "minWidth": 14, "maxWidth": 48, "minDepth": 14, "maxDepth": 48, "minKeepHeight": 16, "maxKeepHeight": 60 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "japanese_tea_house",
+      "properNounAliases": ["日本茶室", "japanese tea house"],
+      "genericAliases": ["茶室", "tea house"],
+      "aliases": ["日本茶室", "japanese tea house"],
+      "category": "LANDMARK",
+      "generatorId": "japanese_tea_house",
+      "defaults": { "width": 9, "depth": 9, "height": 5 },
+      "constraints": { "minWidth": 7, "maxWidth": 15, "minDepth": 7, "maxDepth": 15 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "modern_skyscraper",
+      "aliases": ["摩天楼", "现代摩天大楼", "skyscraper", "modern skyscraper", "highrise", "high rise"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "setback_tower",
+      "generatorId": "setback_tower",
+      "defaults": { "width": 19, "depth": 19, "height": 64, "floors": 12, "setbackEveryFloors": 6 },
+      "constraints": { "minWidth": 11, "maxWidth": 71, "minDepth": 11, "maxDepth": 71, "minHeight": 24, "maxHeight": 220 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "modern_office_campus",
+      "aliases": ["现代办公园区", "现代办公区", "modern office campus", "office campus"],
+      "category": "INFRASTRUCTURE",
+      "generatorId": "modern_office_campus",
+      "defaults": { "width": 64, "depth": 48, "blockCount": 4, "blockHeight": 18 },
+      "constraints": { "minWidth": 32, "maxWidth": 160, "minDepth": 32, "maxDepth": 128 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "office_block",
+      "aliases": ["写字楼", "办公大楼", "office block", "office tower"],
+      "category": "INFRASTRUCTURE",
+      "generatorId": "office_block",
+      "defaults": { "width": 15, "depth": 15, "height": 32, "floors": 8 },
+      "constraints": { "minWidth": 9, "maxWidth": 41, "minDepth": 9, "maxDepth": 41, "minHeight": 14, "maxHeight": 80 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "steampunk_airship",
+      "properNounAliases": ["蒸汽朋克飞艇", "steampunk airship"],
+      "genericAliases": ["飞艇", "airship"],
+      "aliases": ["蒸汽朋克飞艇", "steampunk airship"],
+      "category": "LANDMARK",
+      "generatorId": "steampunk_airship",
+      "defaults": { "length": 40, "hullWidth": 12, "envelopeHeight": 16 },
+      "constraints": { "minLength": 24, "maxLength": 80, "minHullWidth": 8, "maxHullWidth": 24 },
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "cyberpunk_megablock",
+      "properNounAliases": ["赛博朋克大楼", "cyberpunk megablock", "cyberpunk tower"],
+      "genericAliases": ["赛博朋克"],
+      "aliases": ["赛博朋克", "赛博朋克大楼", "cyberpunk megablock", "cyberpunk tower"],
+      "category": "LANDMARK",
+      "generatorId": "cyberpunk_megablock",
+      "defaults": { "width": 21, "depth": 21, "height": 48, "neonDensity": 0.6 },
+      "constraints": { "minWidth": 13, "maxWidth": 51, "minDepth": 13, "maxDepth": 51, "minHeight": 24, "maxHeight": 120 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "elven_treehouse",
+      "properNounAliases": ["精灵树屋", "elven treehouse", "fantasy treehouse"],
+      "genericAliases": ["树屋"],
+      "aliases": ["精灵树屋", "elven treehouse", "fantasy treehouse"],
+      "category": "LANDMARK",
+      "generatorId": "elven_treehouse",
+      "defaults": { "trunkRadius": 4, "platformRadius": 8, "height": 18, "levels": 2 },
+      "constraints": { "minTrunkRadius": 2, "maxTrunkRadius": 8, "minHeight": 10, "maxHeight": 40 },
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "modern_bauhaus_rowhouse",
+      "aliases": ["包豪斯", "包豪斯联排", "bauhaus rowhouse", "bauhaus terrace"],
+      "category": "LANDMARK",
+      "generatorId": "modern_bauhaus_rowhouse",
+      "defaults": { "width": 28, "depth": 10, "height": 8, "units": 3 },
+      "constraints": { "minWidth": 16, "maxWidth": 64, "minDepth": 8, "maxDepth": 16 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "brutalist_megastructure",
+      "aliases": ["粗野主义", "粗野主义建筑", "brutalist megastructure", "brutalist architecture"],
+      "properNounAliases": ["brutalist megastructure", "粗野主义巨构"],
+      "genericAliases": ["粗野主义", "粗野主义建筑", "brutalist architecture"],
+      "category": "LANDMARK",
+      "generatorId": "brutalist_megastructure",
+      "defaults": { "width": 36, "depth": 28, "height": 32, "massCount": 3 },
+      "constraints": { "minWidth": 20, "maxWidth": 96, "minDepth": 16, "maxDepth": 80, "minHeight": 16, "maxHeight": 80 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    }
+  ]
+}
+
+

@@ -1,0 +1,27 @@
+{
+	"required": true,
+	"package": "com.formacraft.mixin",
+	"refmap": "formacraft-refmap.json",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+	],
+    "client": [
+      "SpriteContentsAccessor",
+      "KeyboardMixin",
+      "MouseMixin",
+      "MinecraftClientMixin",
+      "GameRendererAccessor",
+      "GameRendererMixin",
+      "SelectionBoxRenderMixin",
+      "InGameHudMixin",
+      "HeldItemRendererMixin",
+      "KeyBindingMixin",
+      "WorldRendererMixin"
+    ],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

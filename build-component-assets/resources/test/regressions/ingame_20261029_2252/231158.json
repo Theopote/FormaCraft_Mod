@@ -1,0 +1,943 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "warm_off_white",
+    "roof_color": "charcoal_slate",
+    "accent_color": "weathered_cedar_brown",
+    "wall_material": "timber_frame_with_plaster",
+    "roof_material": "dark_ceramic_tile",
+    "floor_material": "tatami_and_polished_wood",
+    "decorative_elements": [
+      "engawa_veranda",
+      "irimoya_roof",
+      "onigawara_ridge_ornament",
+      "shoji_lattice_screens",
+      "stone_lantern_toro",
+      "tsukubai_water_basin",
+      "raked_gravel_bed",
+      "stepping_stone_path",
+      "clipped_pine",
+      "tsuiji_earthen_wall"
+    ]
+  },
+  "distinguishing_features": [
+    "日式庭院",
+    "池泉庭院（pond-and-stream garden）",
+    "枯山水砾石庭",
+    "缘侧 engawa 外廊",
+    "木质主殿与入母屋风屋顶",
+    "带屋顶的木门（mon）",
+    "环绕庭院的筑地塀"
+  ],
+  "proportion_hints": {
+    "typology": "courtyard_compound",
+    "height_to_width": 0.35,
+    "depth_to_width": 1.6,
+    "roof_to_body_height": 0.8,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_hall": [
+          "main_hall"
+        ],
+        "named_main_body": [
+          "main_hall"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_hall",
+          "slot_id": "slot_main_hall",
+          "local_origin": {
+            "x": -7,
+            "y": 1,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -7,
+            "y": 1,
+            "z": -13
+          },
+          "dimensions": {
+            "width": 14,
+            "depth": 10,
+            "height": 5
+          },
+          "floor_ys_local": [
+            1
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_hall",
+                "local_origin": {
+                  "x": -7,
+                  "y": 1,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 14,
+                  "depth": 10,
+                  "height": 5
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -7,
+              "min_z": -5,
+              "max_x": 7,
+              "max_z": 5,
+              "min_y": 1,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -7,
+                "start": -5,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座日式庭院。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座日式庭院。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "anchor": {
+    "x": 663,
+    "y": 71,
+    "z": -796
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "japanese_courtyard_garden",
+      "confidence": 0.6
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "axial",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.3,
+      "voidRatio": 0.25,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": false
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "stone",
+      "accent": "earth",
+      "textureBias": "rough",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "japanese",
+      "era": "traditional",
+      "keywords": [
+        "wabi_sabi",
+        "engawa",
+        "pond_garden",
+        "kare_sansui",
+        "shakkei"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 12,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "asymmetry",
+        "natural_balance",
+        "deep_eaves",
+        "framed_views"
+      ],
+      "avoid": [
+        "rigid_symmetrical_facade",
+        "bright_saturated_colors",
+        "flat_bare_roof"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "PRESERVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "slot_main_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -8
+        },
+        "facing": "SOUTH",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "japanese_main_hall",
+        "component_preset": "木造主殿：抬高基座、缘侧外廊、障子格窗、入母屋风深檐屋顶，朝南面向庭院"
+      },
+      {
+        "slot_id": "slot_garden",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 6
+        },
+        "facing": "SOUTH",
+        "program": "PLAZA",
+        "component_preset_id": "japanese_pond_garden",
+        "component_preset": "池泉庭院：砾石地面、池、飞石步道、石灯笼、蹲踞，四周以筑地塀围合"
+      },
+      {
+        "slot_id": "slot_gate",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 22
+        },
+        "facing": "SOUTH",
+        "program": "CIVIC",
+        "component_preset_id": "japanese_mon_gate",
+        "component_preset": "木造带顶院门，双坡瓦顶，作为庭院南侧入口"
+      },
+      {
+        "slot_id": "slot_tea",
+        "anchor": {
+          "x": 16,
+          "y": 0,
+          "z": 6
+        },
+        "facing": "WEST",
+        "program": "CIVIC",
+        "component_preset_id": "japanese_tea_house",
+        "component_preset": "小型茶室：木构、四坡/双坡小顶、西向矮门，可从庭院望见"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [
+        "stone_plinth",
+        "kidan",
+        "no_platform"
+      ],
+      "params": {
+        "component_id": "main_hall_plinth",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "foundation_type": "plinth",
+        "material": "stone",
+        "detail_level": "medium",
+        "building_id": "main_hall",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 5
+      },
+      "features": [
+        "tatami_rooms",
+        "shoji_screens",
+        "engawa_facing_south",
+        "irimoya_roof_hint"
+      ],
+      "params": {
+        "component_id": "main_hall",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "xieshan",
+        "floor_height": 4,
+        "floor_count": 1,
+        "void_ratio": 0.18,
+        "window_ratio": 0.42,
+        "window_aspect": "horizontal_strip",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "none",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "wood",
+        "detail_level": "high",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -8,
+        "y": 6,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 4
+      },
+      "features": [
+        "deep_eaves",
+        "upturned_corners",
+        "irimoya",
+        "overhang"
+      ],
+      "params": {
+        "component_id": "main_roof",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "roof_type": "xieshan",
+        "setback_ratio": 0.15,
+        "material": "dark_tile",
+        "detail_level": "high",
+        "roof_height": 4,
+        "overhang": 2,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -2,
+        "y": 1,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "sliding_shoji_door",
+        "wooden_step",
+        "noren"
+      ],
+      "params": {
+        "component_id": "main_entrance",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "entrance_type": "sliding_shoji",
+        "facing": "SOUTH",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -6,
+        "y": 4,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "shoji_lattice",
+        "horizontal_band",
+        "koshibari"
+      ],
+      "params": {
+        "component_id": "main_windows_south",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "window_style": "horizontal_strip",
+        "window_aspect": "horizontal_strip",
+        "window_ratio": 0.45,
+        "facade_profile": "mullion_grid",
+        "material": "wood_and_paper",
+        "rhythm": "regular",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -8,
+        "y": 1,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "engawa_deck",
+        "wooden_edge",
+        "view_to_garden"
+      ],
+      "params": {
+        "component_id": "engawa",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "wood",
+        "detail_level": "high",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 9,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "onigawara",
+        "ridge_ornament"
+      ],
+      "params": {
+        "component_id": "main_ridge_ornament",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "material": "dark_tile",
+        "detail_level": "medium",
+        "attachment_host_id": "main_roof",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "COURTYARD",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": -10,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 22,
+        "height": 1
+      },
+      "features": [
+        "moss_ground",
+        "raked_gravel",
+        "kare_sansui_patch",
+        "clipped_pine"
+      ],
+      "params": {
+        "component_id": "garden_ground",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "wall_pattern": "random",
+        "material": "moss_and_gravel",
+        "detail_level": "high",
+        "building_id": "garden_ground"
+      }
+    },
+    {
+      "component_type": "COURTYARD_SPACE",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "koi_pond",
+        "water_surface",
+        "stone_edge"
+      ],
+      "params": {
+        "component_id": "garden_pond",
+        "anchor_mode": "min_corner",
+        "shape": "rounded_rect",
+        "corner_radius": 2,
+        "plan_type": "none",
+        "material": "water",
+        "detail_level": "medium",
+        "building_id": "garden_pond"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [
+        "stepping_stones",
+        "tobiishi",
+        "irregular_spacing"
+      ],
+      "params": {
+        "component_id": "garden_path",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone",
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 22,
+        "height": 3
+      },
+      "features": [
+        "tsuiji_earthen_wall",
+        "tiled_coping",
+        "plaster_finish"
+      ],
+      "params": {
+        "component_id": "garden_wall_east",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "plaster_and_tile",
+        "wall_pattern": "striped",
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": -10,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 22,
+        "height": 3
+      },
+      "features": [
+        "tsuiji_earthen_wall",
+        "tiled_coping",
+        "plaster_finish"
+      ],
+      "params": {
+        "component_id": "garden_wall_west",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "plaster_and_tile",
+        "wall_pattern": "striped",
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "stone_lantern",
+        "toro"
+      ],
+      "params": {
+        "component_id": "stone_lantern",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "tsukubai",
+        "water_basin",
+        "bamboo_spout"
+      ],
+      "params": {
+        "component_id": "tsukubai",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "GATE",
+      "slot_id": "slot_gate",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 4,
+        "height": 5
+      },
+      "features": [
+        "wooden_mon",
+        "tiled_gable_roof",
+        "double_doors",
+        "gate_posts"
+      ],
+      "params": {
+        "component_id": "garden_gate",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "gable",
+        "setback_ratio": 0.1,
+        "material": "wood",
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "slot_tea",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 4
+      },
+      "features": [
+        "tea_room",
+        "nijiriguchi_low_door",
+        "simple_wooden_interior"
+      ],
+      "params": {
+        "component_id": "tea_house",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "gable",
+        "floor_height": 3,
+        "floor_count": 1,
+        "void_ratio": 0.2,
+        "window_ratio": 0.3,
+        "window_aspect": "square",
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "material": "wood",
+        "detail_level": "medium",
+        "building_id": "tea_house"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_tea",
+      "relative_position": {
+        "x": -4,
+        "y": 4,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 3
+      },
+      "features": [
+        "deep_eaves",
+        "gable",
+        "overhang"
+      ],
+      "params": {
+        "component_id": "tea_roof",
+        "host_id": "tea_house",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "setback_ratio": 0.12,
+        "material": "dark_tile",
+        "detail_level": "medium",
+        "roof_height": 3,
+        "overhang": 2,
+        "building_id": "tea_house"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tea",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "low_sliding_door",
+        "nijiriguchi"
+      ],
+      "params": {
+        "component_id": "tea_entrance",
+        "host_id": "tea_house",
+        "anchor_mode": "min_corner",
+        "entrance_type": "sliding_shoji",
+        "facing": "WEST",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "tea_house"
+      }
+    }
+  ],
+  "plan_program": {
+    "schema": "1.0",
+    "intent": {
+      "building_type": "japanese_courtyard_garden",
+      "style_hint": "traditional_japanese_pond_garden",
+      "scale": "medium"
+    },
+    "zones": [
+      {
+        "id": "main_hall",
+        "role": "core",
+        "importance": 1.0
+      },
+      {
+        "id": "engawa",
+        "role": "threshold",
+        "importance": 0.7
+      },
+      {
+        "id": "pond_garden",
+        "role": "courtyard",
+        "importance": 0.9
+      },
+      {
+        "id": "tea_house",
+        "role": "wing",
+        "importance": 0.6
+      },
+      {
+        "id": "gate",
+        "role": "entrance",
+        "importance": 0.5
+      }
+    ],
+    "adjacency": [
+      [
+        "engawa",
+        "pond_garden"
+      ],
+      [
+        "pond_garden",
+        "tea_house"
+      ],
+      [
+        "pond_garden",
+        "gate"
+      ],
+      [
+        "main_hall",
+        "engawa"
+      ]
+    ],
+    "massing": {
+      "strategy": "court",
+      "max_floors": 1
+    },
+    "circulation": {
+      "primary_axis": "N-S",
+      "entrances": 2
+    },
+    "constraints": {
+      "symmetry": "none",
+      "min_courtyard_ratio": 0.6
+    }
+  },
+  "player_fidelity_notice_zh": "组合式生成「日式庭院」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

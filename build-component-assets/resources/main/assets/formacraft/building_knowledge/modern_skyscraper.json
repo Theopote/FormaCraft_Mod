@@ -1,0 +1,40 @@
+{
+  "id": "modern_skyscraper",
+  "name": "现代摩天楼",
+  "nameEn": "Modern Setback Skyscraper",
+  "aliases": [
+    "摩天楼",
+    "现代摩天大楼",
+    "skyscraper",
+    "modern skyscraper",
+    "highrise",
+    "high rise"
+  ],
+  "category": "LANDMARK",
+  "style": "Modern International",
+  "styleId": "Modern_International",
+  "features": {
+    "shape": "rectangular_tower",
+    "form": "stepped_setback",
+    "structuralType": "vertical_stack_curtain_wall",
+    "materials": ["concrete", "glass", "steel"],
+    "scale": "tall",
+    "distinctiveElements": [
+      "stacked setback volumes",
+      "curtain wall facade grid",
+      "flat roof parapet",
+      "internal lighting glow",
+      "minimal modern massing"
+    ]
+  },
+  "dimensions": {
+    "typicalWidth": 19,
+    "typicalDepth": 19,
+    "typicalHeight": 64,
+    "footprintShape": "square",
+    "aspectRatio": "1:1"
+  },
+  "llmPlanRouting": {
+    "instruction": "指名摩天楼/现代摩天大楼 → MANDATORY STRUCTURE+typology:setback_tower（reference_landmark=modern_skyscraper）；写字楼/办公大楼 → office_block；扎哈/解构参数化 → compositional 或 parametric_deconstructivism"
+  }
+}

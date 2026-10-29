@@ -1,0 +1,703 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": null,
+    "roof_color": null,
+    "accent_color": null,
+    "wall_material": null,
+    "roof_material": null,
+    "floor_material": null,
+    "decorative_elements": [
+      "eave_overhang",
+      "window_trim",
+      "gable_bargeboard",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "并排双宅：现代白混凝土平顶住宅 + 石砖墙云杉木山墙屋顶传统住宅",
+    "第一栋白色混凝土墙、平顶、无复杂装饰，仅保留窗户与入口",
+    "第二栋石砖墙体、云杉木山墙屋顶与挑檐，带窗套与屋檐装饰",
+    "两栋各自独立的窗户分格与正面入口",
+    "两栋之间留出通道间隙，各自有独立基座",
+    "ornament"
+  ],
+  "proportion_hints": {
+    "typology": "house_pair",
+    "height_to_width": 0.5,
+    "depth_to_width": 0.83,
+    "roof_to_body_height": 0.5,
+    "floor_height": 3,
+    "floor_count": 2,
+    "gap_to_width": 0.83,
+    "pair_alignment": "parallel",
+    "symmetry": "pair_mirror_z",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "building_1": [
+          "h1_mass"
+        ],
+        "building_2": [
+          "h2_mass"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "h1_mass",
+          "slot_id": "slot_0",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -17,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 12,
+            "depth": 10,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0,
+            3
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "h1_mass",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 10,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -5,
+              "max_x": 6,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -5,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "h2_mass",
+          "slot_id": "slot_1",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": 5,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 12,
+            "depth": 10,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0,
+            3
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "h2_mass",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 10,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -5,
+              "max_x": 6,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -5,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    }
+  },
+  "anchor": {
+    "x": -454,
+    "y": 72,
+    "z": -793
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "paired_residential",
+      "confidence": 0.7
+    },
+    "topology": {
+      "layout": "linear_pair",
+      "composition": "compound",
+      "axis": "east_west",
+      "levels": "two_storey"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.55,
+      "voidRatio": 0.08,
+      "supports": "perimeter_walls"
+    },
+    "form": {
+      "repetition": "paired_repeat",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "entrance",
+      "foundation",
+      "chimney"
+    ],
+    "materials": {
+      "primary": "concrete",
+      "secondary": "stone_brick",
+      "accent": "spruce_wood",
+      "textureBias": "clean_smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "modern",
+      "keywords": [
+        "contemporary_house",
+        "vernacular_gable_house",
+        "side_by_side_pair"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 10,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "per_building_materials",
+        "flat_roof_owner_mass",
+        "gable_roof_overhang",
+        "window_rhythm"
+      ],
+      "avoid": [
+        "shared_material_override",
+        "ornate_decor_on_building_1",
+        "single_merged_mass"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "building_1",
+        "role": "modern_flat_roof_house",
+        "anchor": {
+          "x": -11,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_0"
+      },
+      {
+        "id": "building_2",
+        "role": "traditional_gable_house",
+        "anchor": {
+          "x": 11,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_1"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -6,
+        "y": -1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [
+        "现代住宅基座",
+        "浅灰混凝土勒脚"
+      ],
+      "params": {
+        "component_id": "h1_foundation",
+        "requirement_scope": "building_1",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "minecraft:light_gray_concrete",
+        "plinth": true,
+        "height": 1,
+        "building_id": "h1_mass",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "h1_mass"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 6
+      },
+      "features": [
+        "现代白色混凝土住宅",
+        "平顶",
+        "无复杂装饰",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "h1_mass",
+        "requirement_scope": "building_1",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "flat",
+        "roof_block": "minecraft:light_gray_concrete",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:smooth_stone",
+        "floor_count": 2,
+        "floor_height": 3,
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "facade_cutout": "none",
+        "setback_ratio": 0.0,
+        "void_ratio": 0.05,
+        "window_ratio": 0.32,
+        "window_aspect": "horizontal_strip",
+        "detail_level": "low",
+        "symmetric": true,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "h1_mass"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "正面入口（北侧）",
+        "简洁现代门洞",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"modern\", \"flush\", \"minimal\", \"glass_panel\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 0, \"scalable\": false}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"white_concrete\"}, \"constraints\": {\"mustHave\": [\"door\"], \"forbiddenTags\": [\"ornate\", \"carved\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "h1_entrance",
+        "host_id": "h1_mass",
+        "facing": "SOUTH",
+        "entrance_type": "door",
+        "door_width": 2,
+        "door_height": 3,
+        "material": "minecraft:dark_oak_door",
+        "style": "modern",
+        "step": true,
+        "building_id": "h1_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "北立面横向带窗",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"ribbon\", \"horizontal_strip\", \"modern\", \"glass\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 10, \"openingHeight\": 1, \"tolerance\": 2, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"glass\"}, \"constraints\": {\"mustHave\": [\"window\"], \"forbiddenTags\": [\"ornate\", \"gothic\", \"shuttered\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "h1_facade_windows",
+        "host_id": "h1_mass",
+        "facing": "SOUTH",
+        "window_style": "ribbon_glazing",
+        "window_aspect": "horizontal_strip",
+        "window_ratio": 0.32,
+        "frame_material": "minecraft:white_concrete",
+        "glass_material": "minecraft:glass_pane",
+        "floor_count": 2,
+        "rhythm": "even",
+        "building_id": "h1_mass"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -6,
+        "y": -1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [
+        "传统住宅基座",
+        "圆石勒脚"
+      ],
+      "params": {
+        "component_id": "h2_foundation",
+        "requirement_scope": "building_2",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "minecraft:cobblestone",
+        "plinth": true,
+        "height": 1,
+        "building_id": "h2_mass",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "h2_mass"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 6
+      },
+      "features": [
+        "传统石砖住宅",
+        "云杉木山墙屋顶",
+        "允许适量窗套与屋檐装饰",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "h2_mass",
+        "requirement_scope": "building_2",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "gable",
+        "roof_block": "minecraft:spruce_planks",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:oak_planks",
+        "floor_count": 2,
+        "floor_height": 3,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "facade_cutout": "none",
+        "setback_ratio": 0.0,
+        "void_ratio": 0.06,
+        "window_ratio": 0.22,
+        "window_aspect": "punch_window",
+        "detail_level": "medium",
+        "symmetric": true,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "h2_mass"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -7,
+        "y": 6,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 12,
+        "height": 3
+      },
+      "features": [
+        "云杉木山墙屋顶",
+        "四周挑檐",
+        "屋脊沿东西向",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "h2_roof",
+        "host_id": "h2_mass",
+        "roof_type": "gable",
+        "roof_block": "minecraft:spruce_planks",
+        "material": "minecraft:spruce_planks",
+        "overhang": 1,
+        "ridge_axis": "x",
+        "gable_end_fill": "minecraft:spruce_planks",
+        "eave_trim": "minecraft:spruce_slab",
+        "roof_to_body_height": 0.5,
+        "roof_height": 3,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "h2_mass"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "正面入口（北侧）",
+        "木质传统门",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"wooden\", \"plank\", \"traditional\", \"trimmed\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"spruce_wood\"}, \"constraints\": {\"mustHave\": [\"door\"], \"forbiddenTags\": [\"glass_curtain\", \"modern_flush\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "h2_entrance",
+        "host_id": "h2_mass",
+        "facing": "SOUTH",
+        "entrance_type": "door",
+        "door_width": 2,
+        "door_height": 3,
+        "material": "minecraft:spruce_door",
+        "style": "traditional",
+        "step": true,
+        "building_id": "h2_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "北立面成组窗",
+        "石砖窗套",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"punch_window\", \"wood_frame\", \"trimmed\", \"traditional\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"spruce_wood\"}, \"constraints\": {\"mustHave\": [\"window\"], \"forbiddenTags\": [\"ribbon_glazing\", \"floor_to_ceiling\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "h2_facade_windows",
+        "host_id": "h2_mass",
+        "facing": "SOUTH",
+        "window_style": "punch_window",
+        "window_aspect": "punch_window",
+        "window_ratio": 0.22,
+        "frame_material": "minecraft:spruce_planks",
+        "sill_material": "minecraft:spruce_slab",
+        "glass_material": "minecraft:glass_pane",
+        "trim": true,
+        "floor_count": 2,
+        "rhythm": "even",
+        "building_id": "h2_mass"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": -7,
+        "y": 5,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [
+        "屋檐装饰带",
+        "挑檐托木"
+      ],
+      "params": {
+        "component_id": "h2_eaves",
+        "host_id": "h2_mass",
+        "anchor_mode": "min_corner",
+        "ornament_type": "eave_bracket",
+        "material": "minecraft:spruce_planks",
+        "band_material": "minecraft:spruce_slab",
+        "placement": "wall",
+        "repeat": "perimeter",
+        "building_id": "h2_mass"
+      }
+    },
+    {
+      "component_type": "CHIMNEY",
+      "slot_id": "slot_1",
+      "relative_position": {
+        "x": 2,
+        "y": 6,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "石砖烟囱",
+        "穿出屋脊"
+      ],
+      "params": {
+        "component_id": "h2_chimney",
+        "host_id": "h2_mass",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:stone_bricks",
+        "cap": "minecraft:cobblestone_slab"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「两栋并排住宅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

@@ -1,0 +1,735 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#E9EDF0",
+    "roof_color": "#2C3238",
+    "accent_color": "#00E5FF",
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:light_gray_concrete",
+    "floor_material": "minecraft:polished_andesite",
+    "decorative_elements": [
+      "full-height glass curtain wall",
+      "cantilevered entrance canopy",
+      "roof skylight band",
+      "LED light strips along cornice",
+      "planted roof terrace",
+      "reflecting forecourt"
+    ]
+  },
+  "distinguishing_features": [
+    "low wide glazed main hall with ribbon glazing",
+    "stepped massing: tall exhibition block + low rounded gallery wing",
+    "cantilevered viewing balcony on the north elevation",
+    "flat overhanging roof with skylight ring",
+    "open forecourt plaza leading to west entrance portal"
+  ],
+  "anchor": {
+    "x": 582,
+    "y": 68,
+    "z": -864
+  },
+  "proportion_hints": {
+    "typology": "museum_pavilion",
+    "height_to_width": 0.46,
+    "depth_to_width": 0.86,
+    "roof_to_body_height": 0.23,
+    "window_wall_ratio": 0.28,
+    "max_void_ratio": 0.32,
+    "notes": "Low wide civic museum massing; horizontal ribbon glazing, deep overhanging flat roof, glazed secondary wing.",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "museum_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "museum_main",
+          "slot_id": "main_hall",
+          "local_origin": {
+            "x": -14,
+            "y": 0,
+            "z": -12
+          },
+          "plan_origin": {
+            "x": -14,
+            "y": 0,
+            "z": -12
+          },
+          "dimensions": {
+            "width": 28,
+            "depth": 24,
+            "height": 13
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8
+          ],
+          "roof_y_local": 12,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "museum_main",
+                "local_origin": {
+                  "x": -14,
+                  "y": 0,
+                  "z": -12
+                },
+                "dimensions": {
+                  "width": 28,
+                  "depth": 24,
+                  "height": 13
+                },
+                "roof_y_local": 12
+              }
+            ],
+            "envelope_local": {
+              "min_x": -14,
+              "min_z": -12,
+              "max_x": 14,
+              "max_z": 12,
+              "min_y": 0,
+              "max_y": 13
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 14,
+                "start": -12,
+                "end": 12
+              },
+              {
+                "direction": "NORTH",
+                "plane": -12,
+                "start": -14,
+                "end": 14
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 12,
+                "start": -14,
+                "end": 14
+              },
+              {
+                "direction": "WEST",
+                "plane": -14,
+                "start": -12,
+                "end": 12
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座未来风格的博物馆。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座未来风格的博物馆。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "museum",
+      "confidence": 0.62
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "axial",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.45,
+      "voidRatio": 0.3,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "stepping",
+      "curvature": "mixed",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "balcony"
+    ],
+    "materials": {
+      "primary": "glass",
+      "secondary": "metal",
+      "accent": "glass",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "modern",
+      "keywords": [
+        "futuristic",
+        "parametric",
+        "glazed",
+        "cantilever",
+        "minimal"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 26,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "clean glass volumes",
+        "cantilevered canopy",
+        "skylight roof",
+        "open plaza approach"
+      ],
+      "avoid": [
+        "ornate historical ornament",
+        "dark cramped interior",
+        "heavy opaque walls"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "main_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "slot_id": "main_hall"
+      },
+      {
+        "id": "gallery",
+        "anchor": {
+          "x": 22,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "slot_id": "gallery"
+      },
+      {
+        "id": "forecourt",
+        "anchor": {
+          "x": -26,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "slot_id": "forecourt"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 34,
+        "depth": 28,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_plinth",
+        "anchor_mode": "center",
+        "foundation_type": "plinth",
+        "material": "minecraft:polished_andesite",
+        "detailed": true,
+        "building_id": "museum_main",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 24,
+        "height": 13
+      },
+      "params": {
+        "component_id": "museum_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 3,
+        "floor_height": 4,
+        "roof_type": "flat",
+        "facade_profile": "mullion_grid",
+        "wall_pattern": "striped",
+        "void_ratio": 0.28,
+        "window_ratio": 0.35,
+        "window_aspect": "ribbon_glazing",
+        "assembly_facade": true,
+        "detail_level": "high",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:light_gray_concrete",
+        "material": "glass",
+        "setback_ratio": 0.06,
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 13,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 26,
+        "height": 3
+      },
+      "params": {
+        "component_id": "museum_main_roof",
+        "host_id": "museum_main",
+        "anchor_mode": "center",
+        "roof_type": "flat",
+        "overhang": 1,
+        "void_ratio": 0.1,
+        "material": "minecraft:light_gray_concrete",
+        "detail_level": "high",
+        "roof_height": 3,
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 24,
+        "height": 4
+      },
+      "params": {
+        "component_id": "museum_main_glazing",
+        "host_id": "museum_main",
+        "anchor_mode": "center",
+        "window_aspect": "ribbon_glazing",
+        "window_ratio": 0.35,
+        "window_style": "ribbon_glazing",
+        "rhythm": "regular",
+        "material": "glass",
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -14,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 8,
+        "height": 6
+      },
+      "params": {
+        "component_id": "museum_entrance",
+        "host_id": "museum_main",
+        "anchor_mode": "center",
+        "entrance_type": "grand_portal",
+        "facing": "WEST",
+        "runtime_facing": "EAST",
+        "canopy": true,
+        "material": "glass",
+        "detail_level": "high",
+        "door_width": 4,
+        "door_height": 4,
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 26,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_cornice_band",
+        "host_id": "museum_main",
+        "anchor_mode": "center",
+        "decor_type": "cornice",
+        "pattern": "striped",
+        "material": "minecraft:light_gray_concrete",
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 4,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_view_balcony",
+        "host_id": "museum_main",
+        "anchor_mode": "center",
+        "exterior": true,
+        "facing": "NORTH",
+        "railing": true,
+        "material": "glass",
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 22,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_slab_l1",
+        "host_id": "museum_main",
+        "anchor_mode": "center",
+        "extrude_mode": "plate",
+        "material": "minecraft:polished_andesite",
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.3,
+        "setback_ratio": 0.06,
+        "floor_height": 3,
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 22,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_slab_l2",
+        "host_id": "museum_main",
+        "anchor_mode": "center",
+        "extrude_mode": "plate",
+        "material": "minecraft:polished_andesite",
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "window_ratio": 0.35,
+        "void_ratio": 0.3,
+        "setback_ratio": 0.06,
+        "floor_height": 3,
+        "building_id": "museum_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "gallery",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 9
+      },
+      "params": {
+        "component_id": "museum_gallery",
+        "anchor_mode": "center",
+        "shape": "rounded_rect",
+        "corner_radius": 5,
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "flat",
+        "facade_profile": "mullion_grid",
+        "wall_pattern": "striped",
+        "void_ratio": 0.3,
+        "window_ratio": 0.4,
+        "window_aspect": "horizontal_strip",
+        "detail_level": "high",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:polished_andesite",
+        "roof_block": "minecraft:light_gray_concrete",
+        "material": "glass",
+        "setback_ratio": 0.06,
+        "building_id": "museum_gallery"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gallery",
+      "relative_position": {
+        "x": 0,
+        "y": 9,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 17,
+        "height": 2
+      },
+      "params": {
+        "component_id": "museum_gallery_roof",
+        "host_id": "museum_gallery",
+        "anchor_mode": "center",
+        "roof_type": "flat",
+        "overhang": 1,
+        "material": "minecraft:light_gray_concrete",
+        "detail_level": "medium",
+        "roof_height": 2,
+        "building_id": "museum_gallery"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "gallery",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 3
+      },
+      "params": {
+        "component_id": "museum_gallery_glazing",
+        "host_id": "museum_gallery",
+        "anchor_mode": "center",
+        "window_aspect": "horizontal_strip",
+        "window_ratio": 0.4,
+        "window_style": "horizontal_strip",
+        "rhythm": "regular",
+        "material": "glass",
+        "building_id": "museum_gallery"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "gallery",
+      "relative_position": {
+        "x": 0,
+        "y": 11,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 14,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_roof_terrace",
+        "host_id": "museum_gallery",
+        "anchor_mode": "center",
+        "railing": true,
+        "material": "minecraft:polished_andesite",
+        "planting": true,
+        "building_id": "museum_gallery"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gallery",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_skylight_ring",
+        "host_id": "museum_gallery",
+        "anchor_mode": "center",
+        "decor_type": "skylight",
+        "pattern": "radial",
+        "material": "glass",
+        "building_id": "museum_gallery"
+      },
+      "features": []
+    },
+    {
+      "component_type": "PLAZA",
+      "slot_id": "forecourt",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 26,
+        "height": 1
+      },
+      "params": {
+        "component_id": "museum_forecourt",
+        "anchor_mode": "center",
+        "material": "minecraft:polished_andesite",
+        "pattern": "grid",
+        "reflecting_pool": true,
+        "detail_level": "medium"
+      },
+      "features": []
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「未来风格的博物馆」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

@@ -60,3 +60,9 @@ LLM 负责空间、体量、立面节奏及构件需求；资产库提供作者�
 5. 社区服务：搜索、套系、发布、衍生、缓存、锁定及离线复现。
 
 自动调用提示的放开必须在第三阶段闭环验证后实施。首个案例须检查预览/实际 Patch 一致、锚点、开洞、保护区、失败事务和原件不变。每阶段分别报告单元验证与游戏内验证，不能相互替代。
+
+## 第一阶段进展（2026-10-30）
+
+已实现评分明细与稳定同分排序；检索新增 ResolutionReport，记录每次候选加载/适配状态，旧接口委托报告保持调用兼容。已排名但无法加载的候选返回 LOAD_FAILED，避免误判为没有候选。当前仍选择首个适配成功的候选，实际适配方案重新评分、捕获 UI 和建筑级套系选择尚未实现。新增固定尺寸、排序证据、资源缺失、跳过不适配候选及原件保护测试。
+
+验证：独立 build-component-assets 输出目录运行 ComponentRankingEvidenceTest、ComponentResolutionReportTest、CapturedComponentAdaptationTest，Gradle BUILD SUCCESSFUL。尚未进行游戏内验收。

@@ -1,0 +1,48 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "a",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "dup",
+        "anchor_mode": "min_corner",
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "b",
+      "relative_position": { "x": 20, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "dup",
+        "anchor_mode": "min_corner",
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    }
+  ]
+}

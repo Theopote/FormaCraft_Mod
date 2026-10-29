@@ -1,0 +1,77 @@
+{
+  "description": "Art Deco 退台塔楼 original style example",
+  "promptHints": [
+    "装饰艺术",
+    "装饰艺术摩天楼",
+    "装饰艺术退台塔楼",
+    "art deco",
+    "artdeco",
+    "art deco tower"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Art_Deco",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "VERTICAL_STACK",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "setback_tower",
+      "proportion_card_id": "art_deco_tower",
+      "window_wall_ratio": 0.35,
+      "depth_to_width": 0.7,
+      "window_aspect": "vertical_strip",
+      "slenderness": 2.782608695652174,
+      "setback_ratio": 0.08695652173913043
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:cut_sandstone",
+      "roof_material": "minecraft:smooth_sandstone",
+      "floor_material": "minecraft:smooth_stone",
+      "decorative_elements": [
+        "vertical_rhythm"
+      ]
+    },
+    "components": [
+      {
+        "component_type": "STRUCTURE",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 23,
+          "depth": 23,
+          "height": 64
+        },
+        "features": [
+          "typology:setback_tower"
+        ],
+        "params": {
+          "typology_id": "setback_tower",
+          "component_id": "tower",
+          "paletteId": "PALETTE_ART_DECO_A",
+          "width": 23,
+          "depth": 23,
+          "height": 64,
+          "floors": 12,
+          "setbackEveryFloors": 3,
+          "setbackStep": 2,
+          "facing": "SOUTH"
+        }
+      }
+    ]
+  }
+}

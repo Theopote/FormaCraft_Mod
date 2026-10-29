@@ -1,0 +1,33 @@
+{
+  "dialect": "fbd/0",
+  "seed": 1,
+  "functions": [
+    {
+      "name": "tower",
+      "params": [
+        {
+          "name": "w",
+          "type": "int"
+        },
+        {
+          "name": "w",
+          "type": "int"
+        }
+      ],
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "i16",
+          "op": "SHELL_BOX",
+          "params": {
+            "w": 6,
+            "d": 6,
+            "h": 6,
+            "wall": "wall"
+          }
+        }
+      ]
+    }
+  ],
+  "main": []
+}

@@ -1,0 +1,2146 @@
+{
+  "id": "p2_dark_fortress_13",
+  "prompt": "build a dark fantasy fortress",
+  "plan": {
+    "mode": "build",
+    "style_profile": "Dark_Fortress",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "PRESERVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "timber_gable_house",
+      "proportion_card_id": "dark_fortress",
+      "height_to_width": 0.6153846153846154,
+      "depth_to_width": 1.3076923076923077,
+      "window_wall_ratio": 0.22
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:blackstone",
+      "roof_material": "minecraft:polished_blackstone",
+      "floor_material": "minecraft:stone_bricks"
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:blackstone",
+          "roof_block": "minecraft:polished_blackstone",
+          "floor_block": "minecraft:stone_bricks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:crying_obsidian",
+          "pillar_block": "minecraft:crying_obsidian",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.22,
+          "facade_profile": "none",
+          "wall_pattern": "smooth",
+          "floor_height": 4,
+          "component_id": "dark_fortress",
+          "anchor_mode": "min_corner",
+          "floor_count": 2,
+          "hollow": true,
+          "wall_thickness": 1
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 7,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 13,
+          "depth": 17,
+          "height": 8
+        },
+        "features": [],
+        "params": {
+          "roof_type": "gable",
+          "overhang": 0,
+          "roof_block": "minecraft:polished_blackstone",
+          "component_id": "dark_fortress_roof",
+          "host_id": "dark_fortress",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 0,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 3,
+          "height": 19
+        },
+        "features": [],
+        "params": {
+          "component_id": "spike_0",
+          "anchor_mode": "min_corner",
+          "kind": "cone",
+          "material": "minecraft:blackstone",
+          "radius": 1.5
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 13,
+          "y": 0,
+          "z": 1
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 3,
+          "height": 19
+        },
+        "features": [],
+        "params": {
+          "component_id": "spike_1",
+          "anchor_mode": "min_corner",
+          "kind": "cone",
+          "material": "minecraft:blackstone",
+          "radius": 1.5
+        }
+      },
+      {
+        "component_type": "TOWER",
+        "relative_position": {
+          "x": -9,
+          "y": 0,
+          "z": 8
+        },
+        "dimensions": {
+          "width": 9,
+          "depth": 9,
+          "height": 16
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_0",
+          "anchor_mode": "min_corner",
+          "wall_block": "minecraft:blackstone",
+          "floor_block": "minecraft:stone_bricks",
+          "hollow": true,
+          "wall_thickness": 1,
+          "floor_count": 1
+        }
+      },
+      {
+        "component_type": "TOWER",
+        "relative_position": {
+          "x": 13,
+          "y": 0,
+          "z": 8
+        },
+        "dimensions": {
+          "width": 9,
+          "depth": 9,
+          "height": 16
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_1",
+          "anchor_mode": "min_corner",
+          "wall_block": "minecraft:blackstone",
+          "floor_block": "minecraft:stone_bricks",
+          "hollow": true,
+          "wall_thickness": 1,
+          "floor_count": 1
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 4,
+          "y": 1,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 1,
+          "height": 4
+        },
+        "features": [
+          "entrance"
+        ],
+        "params": {
+          "component_id": "fortress_access_entry",
+          "host_id": "dark_fortress",
+          "anchor_mode": "min_corner",
+          "facing": "SOUTH",
+          "door_width": 3,
+          "door_height": 3,
+          "canopy_depth": 0
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 0,
+          "y": 1,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 5,
+          "height": 4
+        },
+        "features": [
+          "entrance"
+        ],
+        "params": {
+          "component_id": "fortress_access_left",
+          "host_id": "dark_fortress",
+          "anchor_mode": "min_corner",
+          "facing": "EAST",
+          "door_width": 3,
+          "door_height": 3,
+          "canopy_depth": 0
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 12,
+          "y": 1,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 5,
+          "height": 4
+        },
+        "features": [
+          "entrance"
+        ],
+        "params": {
+          "component_id": "fortress_access_right",
+          "host_id": "dark_fortress",
+          "anchor_mode": "min_corner",
+          "facing": "WEST",
+          "door_width": 3,
+          "door_height": 3,
+          "canopy_depth": 0
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": -2,
+          "y": 1,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 2,
+          "depth": 5,
+          "height": 4
+        },
+        "features": [
+          "entrance"
+        ],
+        "params": {
+          "component_id": "guard_tower_portal_0",
+          "host_id": "guard_tower_0",
+          "anchor_mode": "min_corner",
+          "facing": "WEST",
+          "door_width": 3,
+          "door_height": 3,
+          "canopy_depth": 0
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 13,
+          "y": 1,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 2,
+          "depth": 5,
+          "height": 4
+        },
+        "features": [
+          "entrance"
+        ],
+        "params": {
+          "component_id": "guard_tower_portal_1",
+          "host_id": "guard_tower_1",
+          "anchor_mode": "min_corner",
+          "facing": "EAST",
+          "door_width": 3,
+          "door_height": 3,
+          "canopy_depth": 0
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 4,
+          "y": 0,
+          "z": -3
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 3,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "fortress_access_entry_floor",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -2,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 2,
+          "depth": 5,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "fortress_access_threshold_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 13,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 2,
+          "depth": 5,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "fortress_access_threshold_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_-2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_-2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_-2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 13,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_-2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_-2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 13,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_-2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_-2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 13,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_-2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_-2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -7,
+          "y": 13,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_-2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -6,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_-1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -6,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_-1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -5,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_0_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -5,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_0_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -5,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_0_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -5,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_0_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -5,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_0_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -5,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_0_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -4,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -4,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -4,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_1_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -4,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_1_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -4,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_1_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -4,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_1_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -4,
+          "y": 13,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_1_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 13,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 13,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 13,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_0_2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -3,
+          "y": 13,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_0_2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": -5,
+          "y": 12,
+          "z": 15
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stop_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": -7,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_0_0",
+          "host_id": "guard_tower_0",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "to": {
+            "x": 1,
+            "y": 4,
+            "z": 4
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": -7,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_0_1",
+          "host_id": "guard_tower_0",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 2,
+            "y": 4,
+            "z": 4
+          },
+          "to": {
+            "x": 3,
+            "y": 4,
+            "z": 4
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": -7,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_0_2",
+          "host_id": "guard_tower_0",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 3,
+            "y": 4,
+            "z": 4
+          },
+          "to": {
+            "x": 3,
+            "y": 8,
+            "z": 0
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": -7,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_0_3",
+          "host_id": "guard_tower_0",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 2,
+            "y": 8,
+            "z": 0
+          },
+          "to": {
+            "x": 1,
+            "y": 8,
+            "z": 0
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": -7,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_0_4",
+          "host_id": "guard_tower_0",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 1,
+            "y": 8,
+            "z": 0
+          },
+          "to": {
+            "x": 1,
+            "y": 12,
+            "z": 4
+          }
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_-2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_-2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_-2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 13,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_-2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_-2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 13,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_-2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_-2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 13,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_-2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_-2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 15,
+          "y": 13,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_-2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 16,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_-1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 16,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_-1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 17,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_0_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 17,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_0_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 17,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_0_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 17,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_0_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 17,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_0_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 17,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_0_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 18,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 18,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_1_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 18,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_1_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 18,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_1_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 18,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_1_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 18,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_1_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 18,
+          "y": 13,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_1_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 12,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 13,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_2_-2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 12,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 13,
+          "z": 11
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_2_-1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 12,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 13,
+          "z": 12
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_2_0",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 12,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 13,
+          "z": 13
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_2_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 12,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 1
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_deck_1_2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 19,
+          "y": 13,
+          "z": 14
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 2
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_rail_1_2_2",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": {
+          "x": 17,
+          "y": 12,
+          "z": 15
+        },
+        "dimensions": {
+          "width": 1,
+          "depth": 1,
+          "height": 3
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stop_1",
+          "anchor_mode": "min_corner",
+          "kind": "box",
+          "material": "minecraft:blackstone"
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": 15,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_1_0",
+          "host_id": "guard_tower_1",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "to": {
+            "x": 1,
+            "y": 4,
+            "z": 4
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": 15,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_1_1",
+          "host_id": "guard_tower_1",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 2,
+            "y": 4,
+            "z": 4
+          },
+          "to": {
+            "x": 3,
+            "y": 4,
+            "z": 4
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": 15,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_1_2",
+          "host_id": "guard_tower_1",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 3,
+            "y": 4,
+            "z": 4
+          },
+          "to": {
+            "x": 3,
+            "y": 8,
+            "z": 0
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": 15,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_1_3",
+          "host_id": "guard_tower_1",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 2,
+            "y": 8,
+            "z": 0
+          },
+          "to": {
+            "x": 1,
+            "y": 8,
+            "z": 0
+          }
+        }
+      },
+      {
+        "component_type": "STAIR_SYSTEM",
+        "relative_position": {
+          "x": 15,
+          "y": 0,
+          "z": 10
+        },
+        "dimensions": {
+          "width": 5,
+          "depth": 5,
+          "height": 15
+        },
+        "features": [],
+        "params": {
+          "component_id": "guard_tower_stair_1_4",
+          "host_id": "guard_tower_1",
+          "anchor_mode": "min_corner",
+          "width": 1,
+          "landing_length": 1,
+          "clearHeight": 2,
+          "stairs": "minecraft:stone_brick_stairs",
+          "floor": "minecraft:stone_bricks",
+          "from": {
+            "x": 1,
+            "y": 8,
+            "z": 0
+          },
+          "to": {
+            "x": 1,
+            "y": 12,
+            "z": 4
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,1127 @@
+{
+  "mode": "build",
+  "style_profile": "ELVEN_FOREST",
+  "style_attributes": {
+    "wall_color": null,
+    "roof_color": null,
+    "accent_color": "green",
+    "wall_material": "oak_planks",
+    "roof_material": "dark_oak_planks",
+    "floor_material": "spruce_planks",
+    "decorative_elements": [
+      "vines",
+      "lanterns",
+      "carved wood"
+    ]
+  },
+  "distinguishing_features": [
+    "treehouse platforms",
+    "curved roofs",
+    "organic wooden structures",
+    "elevated walkways",
+    "forest integration"
+  ],
+  "anchor": {
+    "x": 594,
+    "y": 71,
+    "z": -970
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "elven_village",
+      "confidence": 0.8
+    },
+    "topology": {
+      "layout": "freeform",
+      "composition": "cluster",
+      "axis": "none",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.3,
+      "voidRatio": 0.4,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "curved",
+      "rhythm": "irregular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": false
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "balcony",
+      "courtyard",
+      "treehouse"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "stone",
+      "accent": "glass",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "elven",
+      "era": "fantasy",
+      "keywords": [
+        "forest",
+        "nature",
+        "organic",
+        "treehouse",
+        "magical"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 30,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "nature integration",
+        "organic forms",
+        "elevated platforms"
+      ],
+      "avoid": [
+        "rectangular boxes",
+        "heavy stone",
+        "industrial"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "slot_central",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "program": "PLAZA",
+        "component_preset_id": "terrace",
+        "component_preset": "Central wooden platform"
+      },
+      {
+        "slot_id": "slot_house1",
+        "anchor": {
+          "x": 14,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "treehouse",
+        "component_preset": "Elven treehouse"
+      },
+      {
+        "slot_id": "slot_house2",
+        "anchor": {
+          "x": -14,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "treehouse",
+        "component_preset": "Elven treehouse"
+      },
+      {
+        "slot_id": "slot_house3",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        },
+        "facing": "NORTH",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "treehouse",
+        "component_preset": "Elven treehouse"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_central",
+      "relative_position": {
+        "x": -8,
+        "y": -1,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "central_terrace",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "shape": "rectangle",
+        "building_id": "central_terrace"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_central",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "central_lantern",
+        "host_id": "central_terrace",
+        "material": "wood",
+        "decor_type": "lantern",
+        "building_id": "central_terrace"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_central",
+      "relative_position": {
+        "x": 8,
+        "y": -1,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "path_h1",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "shape": "rectangle"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_central",
+      "relative_position": {
+        "x": -14,
+        "y": -1,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "path_h2",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "shape": "rectangle"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_central",
+      "relative_position": {
+        "x": -1,
+        "y": -1,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "path_h3",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "shape": "rectangle"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_house1",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "h1_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 4,
+        "window_ratio": 0.3,
+        "window_aspect": "vertical_strip",
+        "roof_type": "gable",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "wall_block": "oak_planks",
+        "floor_block": "spruce_planks",
+        "roof_block": "dark_oak_planks",
+        "material": "wood",
+        "void_ratio": 0.4,
+        "building_id": "h1_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_house1",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "h1_foundation",
+        "host_id": "h1_main",
+        "foundation_type": "stilts",
+        "material": "wood",
+        "no_platform": true,
+        "building_id": "h1_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_house1",
+      "relative_position": {
+        "x": -5,
+        "y": 8,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "h1_roof",
+        "host_id": "h1_main",
+        "roof_type": "gable",
+        "material": "dark_oak_planks",
+        "overhang": 1,
+        "roof_height": 4,
+        "building_id": "h1_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_house1",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "h1_entrance",
+        "host_id": "h1_main",
+        "entrance_type": "door",
+        "facing": "EAST",
+        "material": "spruce_planks",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "h1_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_house1",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "h1_windows",
+        "host_id": "h1_main",
+        "window_ratio": 0.25,
+        "window_aspect": "vertical_strip",
+        "wall_pattern": "gradient",
+        "material": "glass",
+        "rhythm": "irregular",
+        "building_id": "h1_main"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_house1",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "h1_balcony",
+        "host_id": "h1_main",
+        "material": "wood",
+        "railing": true,
+        "building_id": "h1_main",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_house1",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "h1_decor",
+        "host_id": "h1_main",
+        "material": "wood",
+        "decor_type": "lantern",
+        "building_id": "h1_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_house2",
+      "relative_position": {
+        "x": 0,
+        "y": 3,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "h2_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 3,
+        "window_ratio": 0.4,
+        "window_aspect": "full_height",
+        "roof_type": "hip",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "wall_block": "birch_planks",
+        "floor_block": "oak_planks",
+        "roof_block": "green_terracotta",
+        "material": "wood",
+        "void_ratio": 0.4,
+        "building_id": "h2_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_house2",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 2
+      },
+      "features": [],
+      "params": {
+        "component_id": "h2_foundation",
+        "host_id": "h2_main",
+        "foundation_type": "stilts",
+        "material": "wood",
+        "no_platform": true,
+        "building_id": "h2_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_house2",
+      "relative_position": {
+        "x": -4,
+        "y": 6,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "h2_roof",
+        "host_id": "h2_main",
+        "roof_type": "hip",
+        "material": "green_terracotta",
+        "overhang": 1,
+        "roof_height": 3,
+        "building_id": "h2_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_house2",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "h2_entrance",
+        "host_id": "h2_main",
+        "entrance_type": "door",
+        "facing": "WEST",
+        "material": "oak_planks",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "h2_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_house2",
+      "relative_position": {
+        "x": 0,
+        "y": 3,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "h2_windows",
+        "host_id": "h2_main",
+        "window_ratio": 0.35,
+        "window_aspect": "full_height",
+        "wall_pattern": "striped",
+        "material": "glass",
+        "rhythm": "irregular",
+        "building_id": "h2_main"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_house2",
+      "relative_position": {
+        "x": -3,
+        "y": 3,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "h2_balcony",
+        "host_id": "h2_main",
+        "material": "wood",
+        "railing": true,
+        "building_id": "h2_main",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_house3",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 10
+      },
+      "features": [],
+      "params": {
+        "component_id": "h3_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 3,
+        "floor_height": 4,
+        "window_ratio": 0.2,
+        "window_aspect": "arrow_slit",
+        "roof_type": "cone",
+        "facade_profile": "mullion_grid",
+        "wall_pattern": "random",
+        "wall_block": "spruce_planks",
+        "floor_block": "dark_oak_planks",
+        "roof_block": "dark_oak_planks",
+        "material": "wood",
+        "void_ratio": 0.4,
+        "building_id": "h3_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_house3",
+      "relative_position": {
+        "x": 0,
+        "y": -2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 4
+      },
+      "features": [],
+      "params": {
+        "component_id": "h3_foundation",
+        "host_id": "h3_main",
+        "foundation_type": "stilts",
+        "material": "wood",
+        "no_platform": true,
+        "building_id": "h3_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_house3",
+      "relative_position": {
+        "x": -6,
+        "y": 10,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "h3_roof",
+        "host_id": "h3_main",
+        "roof_type": "cone",
+        "material": "dark_oak_planks",
+        "overhang": 1,
+        "roof_height": 8,
+        "building_id": "h3_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_house3",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "h3_entrance",
+        "host_id": "h3_main",
+        "entrance_type": "door",
+        "facing": "SOUTH",
+        "material": "spruce_planks",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "h3_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_house3",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 10
+      },
+      "features": [],
+      "params": {
+        "component_id": "h3_windows",
+        "host_id": "h3_main",
+        "window_ratio": 0.15,
+        "window_aspect": "arrow_slit",
+        "wall_pattern": "random",
+        "material": "glass",
+        "rhythm": "irregular",
+        "building_id": "h3_main"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_house3",
+      "relative_position": {
+        "x": 4,
+        "y": 4,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "h3_balcony",
+        "host_id": "h3_main",
+        "material": "wood",
+        "railing": true,
+        "building_id": "h3_main",
+        "anchor_mode": "min_corner"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "elven_village",
+    "height_to_width": 0.7,
+    "depth_to_width": 0.8,
+    "roof_to_body_height": 0.5,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [
+        {
+          "code": "E_FLOOR_ENVELOPE",
+          "component_id": "h3_main"
+        }
+      ],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": [
+        {
+          "component_id": "h1_main",
+          "slot_id": "slot_house1",
+          "local_origin": {
+            "x": -4,
+            "y": 4,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": 10,
+            "y": 4,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 8,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "h1_main",
+                "local_origin": {
+                  "x": -4,
+                  "y": 4,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 8,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -4,
+              "max_x": 4,
+              "max_z": 4,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -4,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "h2_main",
+          "slot_id": "slot_house2",
+          "local_origin": {
+            "x": -3,
+            "y": 3,
+            "z": -3
+          },
+          "plan_origin": {
+            "x": -17,
+            "y": 3,
+            "z": -3
+          },
+          "dimensions": {
+            "width": 6,
+            "depth": 6,
+            "height": 6
+          },
+          "floor_ys_local": [
+            3,
+            6
+          ],
+          "roof_y_local": 8,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "h2_main",
+                "local_origin": {
+                  "x": -3,
+                  "y": 3,
+                  "z": -3
+                },
+                "dimensions": {
+                  "width": 6,
+                  "depth": 6,
+                  "height": 6
+                },
+                "roof_y_local": 8
+              }
+            ],
+            "envelope_local": {
+              "min_x": -3,
+              "min_z": -3,
+              "max_x": 3,
+              "max_z": 3,
+              "min_y": 3,
+              "max_y": 9
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 3,
+                "start": -3,
+                "end": 3
+              },
+              {
+                "direction": "NORTH",
+                "plane": -3,
+                "start": -3,
+                "end": 3
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 3,
+                "start": -3,
+                "end": 3
+              },
+              {
+                "direction": "WEST",
+                "plane": -3,
+                "start": -3,
+                "end": 3
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "h3_main",
+          "slot_id": "slot_house3",
+          "local_origin": {
+            "x": -5,
+            "y": 5,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -5,
+            "y": 5,
+            "z": 9
+          },
+          "dimensions": {
+            "width": 10,
+            "depth": 10,
+            "height": 10
+          },
+          "floor_ys_local": [
+            5,
+            9,
+            13
+          ],
+          "roof_y_local": 14,
+          "floor_layout_fits": false,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "h3_main",
+                "local_origin": {
+                  "x": -5,
+                  "y": 5,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 10,
+                  "depth": 10,
+                  "height": 10
+                },
+                "roof_y_local": 14
+              }
+            ],
+            "envelope_local": {
+              "min_x": -5,
+              "min_z": -5,
+              "max_x": 5,
+              "max_z": 5,
+              "min_y": 5,
+              "max_y": 15
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 5,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "WEST",
+                "plane": -5,
+                "start": -5,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一个森林里的精灵村庄。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一个森林里的精灵村庄。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "h1_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "ELVEN_FOREST",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "h2_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "ELVEN_FOREST",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "h3_main",
+          "changes": [],
+          "skipped": [],
+          "style_id": "ELVEN_FOREST",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "player_fidelity_notice_zh": "组合式生成「森林里的精灵村庄」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "plan_status": "capability_gap",
+  "capability_gap": {
+    "code": "E_BUILDING_CONTRACT",
+    "message": "建筑方案未满足明确要求或主体引用无效",
+    "path": "proportion_hints.building_contract",
+    "suggestions": [
+      "{'code': 'E_FLOOR_ENVELOPE', 'component_id': 'h3_main'}"
+    ]
+  },
+  "kind": "llmplan"
+}

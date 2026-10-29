@@ -1,0 +1,900 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Vernacular_Jiangnan_WaterTown",
+  "style_attributes": {
+    "wall_color": "#9E2B25",
+    "roof_color": "#3B3B42",
+    "accent_color": "#C9A227",
+    "wall_material": "red_concrete",
+    "roof_material": "deepslate_tiles",
+    "floor_material": "stone_bricks",
+    "decorative_elements": [
+      "gold plaque over central passage",
+      "dougong bracket band",
+      "ridge finial",
+      "stone guardian lions",
+      "upturned eaves"
+    ]
+  },
+  "distinguishing_features": [
+    "three-bay temple gate (central passage + two flanking bays)",
+    "xieshan hip-and-gable roof with upturned eaves and overhanging bargeboards",
+    "stepped stone plinth with front apron terrace",
+    "vermillion plastered walls with dark slate tile roofs",
+    "dougong bracket band and gold name plaque over the central doorway"
+  ],
+  "anchor": {
+    "x": 625,
+    "y": 68,
+    "z": -876
+  },
+  "proportion_hints": {
+    "typology": "temple_gate",
+    "height_to_width": 0.55,
+    "depth_to_width": 0.33,
+    "roof_to_body_height": 0.5,
+    "plinth_height_to_body_height": 0.22,
+    "gate_bay_width_ratio": 0.5,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "gate_body_center"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "gate_body_center",
+          "slot_id": "gate_slot",
+          "local_origin": {
+            "x": -6,
+            "y": 6,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 6,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 12,
+            "depth": 8,
+            "height": 8
+          },
+          "floor_ys_local": [
+            6
+          ],
+          "roof_y_local": 13,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "gate_body_center",
+                "local_origin": {
+                  "x": -6,
+                  "y": 6,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 8,
+                  "height": 8
+                },
+                "roof_y_local": 13
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -4,
+              "max_x": 6,
+              "max_z": 4,
+              "min_y": 6,
+              "max_y": 14
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -4,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座寺庙山门。",
+          "purposes": [
+            {
+              "id": "religious",
+              "phrase": "寺庙",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座寺庙山门。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "temple_gate",
+      "confidence": 0.6
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "centered",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "solid",
+      "massiveness": 0.68,
+      "voidRatio": 0.22,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "stepping",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "arcade"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "shammen",
+        "xieshan roof",
+        "dougong",
+        "vermillion walls",
+        "stone plinth"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 18,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "axial symmetry",
+        "overhanging tiled roof",
+        "wide stone plinth",
+        "three-bay rhythm"
+      ],
+      "avoid": [
+        "flat modern roof",
+        "glass curtain wall",
+        "asymmetric massing"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "gate_slot",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "program": "CIVIC",
+        "component_preset_id": "temple_mountain_gate",
+        "component_preset": "Three-bay Chinese temple mountain gate: stepped stone plinth, central passage body with raised xieshan roof, two lower flanking bays with side roofs, vermillion plaster walls, dark slate tiles, dougong bracket band, gold plaque and stone guardian lions."
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 14,
+        "height": 2
+      },
+      "features": [
+        "stepped stone plinth",
+        "leveled base under all three bays"
+      ],
+      "params": {
+        "component_id": "foundation_plinth",
+        "anchor_mode": "center",
+        "foundation_type": "plinth",
+        "material": "stone",
+        "material_hint": "stone_bricks",
+        "detail_level": "high",
+        "no_platform": false,
+        "building_id": "foundation_plinth"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 8,
+        "height": 8
+      },
+      "features": [
+        "central passage bay",
+        "vermillion plastered walls",
+        "open gateway tunnel"
+      ],
+      "params": {
+        "component_id": "gate_body_center",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.25,
+        "window_ratio": 0.12,
+        "window_aspect": "vertical_strip",
+        "roof_type": "xuanshan",
+        "floor_count": 1,
+        "floor_height": 8,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "detail_level": "high",
+        "material": "stone",
+        "wall_block": "minecraft:red_concrete",
+        "floor_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "setback_ratio": 0.06,
+        "building_id": "gate_body_center"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -9,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 6
+      },
+      "features": [
+        "left flanking bay",
+        "lower side roof",
+        "lattice window bay"
+      ],
+      "params": {
+        "component_id": "gate_wing_left",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.2,
+        "window_ratio": 0.2,
+        "window_aspect": "square",
+        "roof_type": "xieshan",
+        "floor_count": 1,
+        "floor_height": 6,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "detail_level": "medium",
+        "wall_block": "minecraft:red_concrete",
+        "floor_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "building_id": "gate_wing_left"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": 9,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 6
+      },
+      "features": [
+        "right flanking bay",
+        "lower side roof",
+        "lattice window bay"
+      ],
+      "params": {
+        "component_id": "gate_wing_right",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.2,
+        "window_ratio": 0.2,
+        "window_aspect": "square",
+        "roof_type": "xieshan",
+        "floor_count": 1,
+        "floor_height": 6,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "detail_level": "medium",
+        "wall_block": "minecraft:red_concrete",
+        "floor_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "building_id": "gate_wing_right"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -8,
+        "y": 10,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 12,
+        "height": 4
+      },
+      "features": [
+        "xieshan hip-and-gable roof",
+        "upturned eaves",
+        "ridge beam",
+        "overhang 2"
+      ],
+      "params": {
+        "component_id": "gate_roof_main",
+        "host_id": "gate_body_center",
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 2,
+        "setback_ratio": 0.0,
+        "detail_level": "high",
+        "material": "deepslate_tiles",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 4,
+        "building_id": "gate_body_center"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -13,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 2
+      },
+      "features": [
+        "side hip roof tucked under main eaves",
+        "upturned corners"
+      ],
+      "params": {
+        "component_id": "gate_roof_left",
+        "host_id": "gate_wing_left",
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "detail_level": "medium",
+        "material": "deepslate_tiles",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 2,
+        "building_id": "gate_wing_left"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": 5,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 2
+      },
+      "features": [
+        "side hip roof tucked under main eaves",
+        "upturned corners"
+      ],
+      "params": {
+        "component_id": "gate_roof_right",
+        "host_id": "gate_wing_right",
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "detail_level": "medium",
+        "material": "deepslate_tiles",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 2,
+        "building_id": "gate_wing_right"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -2,
+        "y": 2,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "central double-leaf timber gate",
+        "gold stud detailing"
+      ],
+      "facing": "EAST",
+      "params": {
+        "component_id": "entrance_main_front",
+        "host_id": "gate_body_center",
+        "anchor_mode": "min_corner",
+        "entrance_type": "double_door",
+        "material": "crimson_planks",
+        "height": 5,
+        "width": 4,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gate_body_center"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -2,
+        "y": 2,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "rear passage opening matching front gate"
+      ],
+      "facing": "EAST",
+      "params": {
+        "component_id": "entrance_main_rear",
+        "host_id": "gate_body_center",
+        "anchor_mode": "min_corner",
+        "entrance_type": "double_door",
+        "material": "crimson_planks",
+        "height": 5,
+        "width": 4,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gate_body_center"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -11,
+        "y": 2,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "left side pedestrian door"
+      ],
+      "facing": "EAST",
+      "params": {
+        "component_id": "entrance_wing_left",
+        "host_id": "gate_wing_left",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "material": "crimson_planks",
+        "height": 3,
+        "width": 2,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "gate_wing_left"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": 9,
+        "y": 2,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "right side pedestrian door"
+      ],
+      "facing": "EAST",
+      "params": {
+        "component_id": "entrance_wing_right",
+        "host_id": "gate_wing_right",
+        "anchor_mode": "min_corner",
+        "entrance_type": "single_door",
+        "material": "crimson_planks",
+        "height": 3,
+        "width": 2,
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "gate_wing_right"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -11,
+        "y": 5,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "vertical lattice window band",
+        "left flank bay"
+      ],
+      "params": {
+        "component_id": "windows_wing_left",
+        "host_id": "gate_wing_left",
+        "anchor_mode": "min_corner",
+        "window_style": "vertical_strip",
+        "window_ratio": 0.2,
+        "window_aspect": "square",
+        "material": "dark_oak_planks",
+        "frame_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:gray_stained_glass",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "gate_wing_left"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": 7,
+        "y": 5,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "vertical lattice window band",
+        "right flank bay"
+      ],
+      "params": {
+        "component_id": "windows_wing_right",
+        "host_id": "gate_wing_right",
+        "anchor_mode": "min_corner",
+        "window_style": "vertical_strip",
+        "window_ratio": 0.2,
+        "window_aspect": "square",
+        "material": "dark_oak_planks",
+        "frame_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:gray_stained_glass",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "gate_wing_right"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -3,
+        "y": 8,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "gold name plaque above central door",
+        "framed border"
+      ],
+      "params": {
+        "component_id": "decor_plaque",
+        "host_id": "gate_body_center",
+        "anchor_mode": "min_corner",
+        "ornament": "plaque",
+        "material": "gold_block",
+        "accent_block": "minecraft:gold_block",
+        "detail_level": "high",
+        "building_id": "gate_body_center"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -6,
+        "y": 9,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "dougong bracket band under main eaves"
+      ],
+      "params": {
+        "component_id": "decor_bracket_band_front",
+        "host_id": "gate_body_center",
+        "anchor_mode": "min_corner",
+        "ornament": "bracket_band",
+        "material": "dark_oak_planks",
+        "accent_block": "minecraft:dark_oak_planks",
+        "detail_level": "high",
+        "building_id": "gate_body_center"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -3,
+        "y": 14,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "ridge finial ornament on main roof"
+      ],
+      "params": {
+        "component_id": "decor_ridge_finial",
+        "host_id": "gate_body_center",
+        "anchor_mode": "min_corner",
+        "ornament": "ridge_finial",
+        "material": "deepslate_tiles",
+        "accent_block": "minecraft:gold_block",
+        "detail_level": "high",
+        "attachment_host_id": "gate_roof_main",
+        "building_id": "gate_body_center"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -10,
+        "y": 2,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "left stone guardian lion on plinth"
+      ],
+      "params": {
+        "component_id": "decor_lion_left",
+        "host_id": "foundation_plinth",
+        "anchor_mode": "min_corner",
+        "ornament": "stone_lion",
+        "material": "stone_bricks",
+        "detail_level": "medium",
+        "building_id": "foundation_plinth"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": 8,
+        "y": 2,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "right stone guardian lion on plinth"
+      ],
+      "params": {
+        "component_id": "decor_lion_right",
+        "host_id": "foundation_plinth",
+        "anchor_mode": "min_corner",
+        "ornament": "stone_lion",
+        "material": "stone_bricks",
+        "detail_level": "medium",
+        "building_id": "foundation_plinth"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "gate_slot",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -19
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [
+        "paved approach apron in front of the gate",
+        "stone paving"
+      ],
+      "params": {
+        "component_id": "terrace_front_apron",
+        "host_id": "foundation_plinth",
+        "anchor_mode": "min_corner",
+        "material": "stone_bricks",
+        "paving_pattern": "running_bond",
+        "detail_level": "medium",
+        "building_id": "foundation_plinth"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「寺庙山门」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

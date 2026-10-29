@@ -1,0 +1,622 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "stone_gray",
+    "roof_color": "dark_slate",
+    "accent_color": "dark_oak_brown",
+    "wall_material": "stone_bricks",
+    "roof_material": "deepslate_tiles",
+    "floor_material": "oak_planks",
+    "decorative_elements": [
+      "stone cornice band",
+      "pilaster strips",
+      "stone plinth",
+      "recessed window frames",
+      "entrance landing"
+    ]
+  },
+  "distinguishing_features": [
+    "rectangular two-storey hall 17 wide x 15 deep, floor-to-floor height 6",
+    "hollow full-height MASS_MAIN shell with pilaster facade and plinth",
+    "interior switchback staircase, 3 wide, two opposing straight flights",
+    "intermediate landing 7 wide x 2 deep joining both flights edge-to-edge",
+    "upper floor plate with stairwell opening over flights and landing",
+    "minimum 2 blocks of headroom over treads and landing",
+    "gable roof with 1 block overhang above the hall"
+  ],
+  "proportion_hints": {
+    "typology": "rectangular_hall",
+    "height_to_width": 0.71,
+    "depth_to_width": 0.88,
+    "roof_to_body_height": 0.25,
+    "floor_height_to_width": 0.35,
+    "stair_width_to_hall_width": 0.18,
+    "landing_width_to_stair_width": 2.33,
+    "notes": "User-fixed dimensions take priority: width=17, depth=15, floor height=6, total shell height=12. Two flights of rise 3 / run 3 plus a 7x2 landing give an exact rise of 6 = one floor-to-floor height."
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "civic_hall",
+      "confidence": 0.7
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "two"
+    },
+    "structure": {
+      "type": "load_bearing_shell",
+      "massiveness": 0.6,
+      "voidRatio": 0.25,
+      "supports": "perimeter"
+    },
+    "form": {
+      "repetition": "rhythmic",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 1,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "stairs",
+      "floor_plates"
+    ],
+    "materials": {
+      "primary": "stone_bricks",
+      "secondary": "oak_planks",
+      "accent": "deepslate_tiles",
+      "textureBias": "masonry",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "generic",
+      "keywords": [
+        "hall",
+        "masonry",
+        "two storey"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 16,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "respect requested width 17 / depth 15 / floor height 6",
+        "keep stair and landing inside the shell with 2 blocks headroom",
+        "carve stairwell opening in upper plate"
+      ],
+      "avoid": [
+        "furniture",
+        "tall solid floor volumes",
+        "decorative spires"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "hall_foundation",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [
+        "plinth:1",
+        "perimeter_footing"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "material": "stone_bricks",
+        "plinth": true,
+        "inset": 1
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "hall_shell",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 12
+      },
+      "features": [
+        "two_story_hall",
+        "hollow_shell",
+        "floor_height:6",
+        "floor_count:2",
+        "entrance_facing:NORTH"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "wall_thickness": 1,
+        "floor_height": 6,
+        "floor_count": 2,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "roof_type": "gable",
+        "material": "stone_bricks",
+        "void_ratio": 0.25,
+        "window_ratio": 0.3,
+        "window_aspect": "punch_window",
+        "shape": "rectangle"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "floor_ground",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 6
+      },
+      "features": [
+        "floor_plate",
+        "ground_storey_slab"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "material": "stone_bricks",
+        "shape": "circle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "floor_upper",
+      "relative_position": {
+        "x": 0,
+        "y": 7,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 6
+      },
+      "features": [
+        "floor_plate",
+        "upper_storey_slab",
+        "stairwell_opening_over_stairs_and_landing"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "material": "oak_planks",
+        "stair_opening_region": {
+          "x": 3,
+          "z": 4,
+          "width": 5,
+          "depth": 7
+        },
+        "carve_after_stairs": true,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.25,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "ASSEMBLY",
+      "slot_id": "stair_switchback",
+      "relative_position": {
+        "x": 3,
+        "y": 1,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 6,
+        "height": 9
+      },
+      "features": [
+        "stair:switchback",
+        "interior_circulation",
+        "two_opposing_flights",
+        "landing_adjacent_to_both_flights"
+      ],
+      "params": {
+        "assembly": {
+          "ops": [
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 0,
+                "y": 3,
+                "z": 5
+              },
+              "to": {
+                "x": 6,
+                "y": 3,
+                "z": 5
+              },
+              "width": 2,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              },
+              "to": {
+                "x": 1,
+                "y": 3,
+                "z": 3
+              },
+              "width": 3,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 5,
+                "y": 3,
+                "z": 4
+              },
+              "to": {
+                "x": 5,
+                "y": 6,
+                "z": 1
+              },
+              "width": 3,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 5,
+                "y": 6,
+                "z": 0
+              },
+              "to": {
+                "x": 5,
+                "y": 6,
+                "z": 0
+              },
+              "width": 3,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_entrance",
+      "relative_position": {
+        "x": 7,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "north_facing_main_door",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"double\", \"timber\", \"recessed\", \"masonry_frame\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 4, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"dark_oak_wood\"}, \"constraints\": {\"mustHave\": [\"exterior\", \"ground_access\", \"walk_through\"], \"forbiddenTags\": [\"fence\", \"pane_only\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "carve": true,
+        "mask": {
+          "w": 3,
+          "h": 4,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 4
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "windows_south",
+      "relative_position": {
+        "x": 1,
+        "y": 1,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 1,
+        "height": 12
+      },
+      "features": [
+        "window_rhythm:2_levels",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"punched\", \"recessed\", \"rhythmic\", \"masonry_frame\"], \"importance\": [\"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"glass_with_stone_frame\"}, \"constraints\": {\"mustHave\": [\"exterior\", \"wall_opening\"], \"forbiddenTags\": [\"floor_level\", \"freestanding\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "side": "south",
+        "levels": 2,
+        "level_spacing": 6,
+        "columns": 4,
+        "window_ratio": 0.28,
+        "window_aspect": "punch_window",
+        "rhythm": "regular",
+        "sill_offset": 2
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "windows_east",
+      "relative_position": {
+        "x": 16,
+        "y": 1,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 13,
+        "height": 12
+      },
+      "features": [
+        "window_rhythm:2_levels"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "side": "east",
+        "levels": 2,
+        "level_spacing": 6,
+        "columns": 3,
+        "window_ratio": 0.28,
+        "window_aspect": "punch_window",
+        "rhythm": "regular",
+        "sill_offset": 2
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "windows_west",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 13,
+        "height": 12
+      },
+      "features": [
+        "window_rhythm:2_levels"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "side": "west",
+        "levels": 2,
+        "level_spacing": 6,
+        "columns": 3,
+        "window_ratio": 0.28,
+        "window_aspect": "punch_window",
+        "rhythm": "regular",
+        "sill_offset": 2
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "windows_north_west_of_door",
+      "relative_position": {
+        "x": 1,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "upper_level_north_windows"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "side": "north",
+        "levels": 1,
+        "columns": 2,
+        "window_ratio": 0.3,
+        "window_aspect": "punch_window",
+        "rhythm": "regular",
+        "sill_offset": 1
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "windows_north_east_of_door",
+      "relative_position": {
+        "x": 11,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "upper_level_north_windows"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "side": "north",
+        "levels": 1,
+        "columns": 2,
+        "window_ratio": 0.3,
+        "window_aspect": "punch_window",
+        "rhythm": "regular",
+        "sill_offset": 1
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "hall_roof",
+      "relative_position": {
+        "x": -1,
+        "y": 13,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 17,
+        "height": 3
+      },
+      "features": [
+        "simple_gable",
+        "overhang:1",
+        "no_crown"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "overhang": 1,
+        "ridge_axis": "X",
+        "material": "deepslate_tiles",
+        "roof_height": 3
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "cornice_band",
+      "relative_position": {
+        "x": -1,
+        "y": 12,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [
+        "cornice_band",
+        "eave_line",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"cornice\", \"band\", \"masonry\", \"linear\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"roof\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 2, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"exterior\", \"wall_surface\"], \"forbiddenTags\": [\"freestanding\", \"structural\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "band": true,
+        "material": "stone_bricks"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "entrance_balcony",
+      "relative_position": {
+        "x": 7,
+        "y": 8,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "balcony_above_entrance",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"low\", \"masonry\", \"linear\"], \"importance\": [\"placement\", \"role\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"exterior\", \"edge\"], \"forbiddenTags\": [\"roof_attachment\", \"interior_only\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "railing": true,
+        "material": "stone_bricks"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "entrance_terrace",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 3,
+        "height": 1
+      },
+      "features": [
+        "front_landing",
+        "masonry_terrace"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "material": "stone_bricks",
+        "steps": 1,
+        "facing": "NORTH"
+      }
+    }
+  ],
+  "description": "\u4e24\u5c42\u77f3\u780c\u5927\u5385\uff1a\u4e3b\u4f53\u7a7a\u5fc3\u58f3\u4f53 17x15\uff0c\u5c42\u9ad8 6\u3001\u603b\u9ad8 12\uff0c\u5e26\u57fa\u5ea7\u3001\u58c1\u67f1\u7acb\u9762\u3001\u8170\u7ebf\u4e0e\u51fa\u6a90\u53cc\u5761\u5c4b\u9876\u3002\u5ba4\u5185\u6cbf\u77ed\u8f74\u65b9\u5411\u5e03\u7f6e\u5bbd 3 \u7684\u6298\u8fd4\u697c\u68af\uff1a\u4e24\u6bb5\u65b9\u5411\u76f8\u53cd\u7684\u76f4\u68af\uff08rise 3 / run 3\uff09\u4e0e 7x2 \u4e2d\u95f4\u4f11\u606f\u5e73\u53f0\u8fb9\u5bf9\u8fb9\u76f8\u63a5\uff0c\u603b\u5347\u9ad8 6 \u6b63\u597d\u5230\u8fbe\u4e0a\u5c42\u697c\u677f\uff1b\u4e0a\u5c42\u697c\u677f\u4e3a 1 \u683c\u539a\u677f\u5e76\u9884\u7559\u697c\u68af\u6d1e\u53e3\uff0c\u68af\u6bb5\u4e0e\u5e73\u53f0\u4e0a\u65b9\u4fdd\u7559\u81f3\u5c11 2 \u683c\u51c0\u7a7a\u3002",
+  "kind": "llmplan"
+}

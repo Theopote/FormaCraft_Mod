@@ -1,0 +1,26 @@
+{
+  "id": "tudor_house",
+  "name": "tudor house",
+  "style": "Tudor",
+  "palette": {
+    "wall": "minecraft:white_terracotta",
+    "roof": "minecraft:dark_oak_planks",
+    "floor": "minecraft:oak_planks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:cobblestone",
+    "trim": "minecraft:dark_oak_log",
+    "pillar": "minecraft:dark_oak_log",
+    "cap": "minecraft:dark_oak_slab",
+    "door": "minecraft:spruce_door",
+    "roof_trim": "minecraft:dark_oak_log",
+    "stairs": "minecraft:stone_brick_stairs",
+    "roof_slab": "minecraft:stone_brick_slab"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.15,
+    "windowStyle": "pane",
+    "wallPattern": "timber_frame",
+    "floorHeight": 4
+  }
+}

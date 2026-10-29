@@ -1,0 +1,337 @@
+{
+  "version": 1,
+  "aliases": {
+    "Industrial": "Industrial_Structure",
+    "French": "Legacy_Classical_Facade",
+    "Napoleon": "Legacy_Classical_Facade",
+    "Renaissance": "Renaissance_Classical",
+    "Classical": "Greco_Roman_Classical",
+    "Gothic": "Gothic_Cathedral",
+    "Classical_GrecoRoman": "Greco_Roman_Classical",
+    "Industrial_Structural": "Industrial_Structure"
+  },
+  "lexical_aliases": {
+    "Tang_Dynasty_Timber": [
+      "唐风",
+      "唐风木构",
+      "唐代木构",
+      "tang style",
+      "tang timber",
+      "tang_timber"
+    ],
+    "Renaissance_Classical": [
+      "文艺复兴",
+      "文艺复兴风格",
+      "renaissance style",
+      "renaissance palazzo",
+      "renaissance_stone"
+    ],
+    "Art_Deco": [
+      "装饰艺术",
+      "装饰艺术风格",
+      "Art Deco",
+      "artdeco",
+      "装饰艺术派",
+      "art_deco_vertical"
+    ],
+    "Legacy_Classical_Facade": [],
+    "RUSTIC": [],
+    "FUTURISTIC": [],
+    "MODERN": [],
+    "MEDIEVAL": [],
+    "ASIAN": [],
+    "Modern_International": [
+      "现代主义",
+      "现代风格",
+      "国际主义",
+      "包豪斯",
+      "现代国际式",
+      "international glass",
+      "international style",
+      "international_glass"
+    ],
+    "Gothic_Cathedral": [
+      "哥特式",
+      "哥特风格",
+      "哥特"
+    ],
+    "Chinese_Vernacular_Huizhou": [
+      "徽派",
+      "徽州",
+      "Huizhou",
+      "Hui-style"
+    ],
+    "Chinese_Imperial_Official": [
+      "中式官式",
+      "明清官式",
+      "宫廷风格"
+    ],
+    "Chinese_Vernacular_Tulou": [
+      "土楼",
+      "tulou",
+      "客家圆形土楼",
+      "hakka circular tulou"
+    ],
+    "Chinese_Vernacular_Jiangnan_WaterTown": [
+      "江南水乡",
+      "jiangnan water town",
+      "jiangnan_quay",
+      "江南民居"
+    ],
+    "Japanese_Traditional": [
+      "日式传统",
+      "和风",
+      "日式风格",
+      "日式建筑",
+      "japanese traditional",
+      "japanese timber",
+      "japanese_timber"
+    ],
+    "Medieval_Castle": [
+      "中世纪风格",
+      "中世纪石堡"
+    ],
+    "Brutalism": [
+      "粗野主义",
+      "粗野派",
+      "brutalist",
+      "brutalism",
+      "brutalist_concrete"
+    ],
+    "Deconstructivism_Zaha": [
+      "解构主义"
+    ],
+    "Industrial_Structure": [
+      "工业风格",
+      "工业风"
+    ],
+    "Fantasy_Elven": [
+      "精灵风格",
+      "精灵建筑"
+    ],
+    "Greco_Roman_Classical": [
+      "古希腊风格",
+      "古罗马风格",
+      "希腊罗马古典"
+    ],
+    "Steampunk": [
+      "蒸汽朋克",
+      "steampunk hall",
+      "steampunk_hall"
+    ],
+    "Cyberpunk": [
+      "赛博朋克",
+      "cyberpunk block",
+      "cyberpunk_block"
+    ],
+    "Industrial_Brick_Hall": [
+      "红砖工业",
+      "砖砌工业",
+      "industrial brick",
+      "brick factory",
+      "industrial_brick"
+    ],
+    "Scandinavian_Timber": [
+      "北欧木屋",
+      "北欧木构",
+      "斯堪的纳维亚木屋",
+      "scandinavian timber",
+      "nordic timber",
+      "scandinavian_timber"
+    ],
+    "Mediterranean_Stucco": [
+      "地中海灰泥",
+      "地中海风格",
+      "mediterranean stucco",
+      "mediterranean style",
+      "mediterranean_stucco"
+    ],
+    "Georgian_Brick": [
+      "乔治王朝",
+      "乔治王朝砖砌",
+      "乔治王朝风格",
+      "georgian brick",
+      "georgian architecture",
+      "georgian_brick"
+    ],
+    "Prairie_House": [
+      "草原式住宅",
+      "草原式",
+      "草原学派住宅",
+      "prairie house",
+      "prairie architecture",
+      "prairie_horizontal",
+      "prairie"
+    ],
+    "Midcentury_House": [
+      "世纪中叶住宅",
+      "世纪中叶风格",
+      "midcentury house",
+      "mid-century house",
+      "midcentury_pavilion",
+      "midcentury",
+      "世纪中叶"
+    ],
+    "Alpine_Chalet": [
+      "阿尔卑斯木屋",
+      "阿尔卑斯木构",
+      "alpine chalet",
+      "alpine timber",
+      "alpine_chalet"
+    ],
+    "Neoclassical_Civic": [
+      "新古典公共建筑",
+      "新古典风格",
+      "neoclassical civic",
+      "neoclassical architecture",
+      "neoclassical_civic"
+    ],
+    "Desert_Adobe": [
+      "沙漠泥砖",
+      "desert adobe",
+      "desert_adobe"
+    ],
+    "Prairie_Earth": [
+      "草原土坯",
+      "prairie earth house",
+      "prairie_earth"
+    ],
+    "Arctic_Igloo": [
+      "冰屋",
+      "arctic igloo",
+      "arctic_igloo"
+    ],
+    "Stilt_Timber": [
+      "吊脚木楼",
+      "stilt timber house",
+      "stilt_timber"
+    ],
+    "Water_Platform": [
+      "水上木屋",
+      "water platform house",
+      "water_platform"
+    ],
+    "Xianxia_Island": [
+      "仙侠悬浮岛",
+      "xianxia floating island",
+      "xianxia_island"
+    ],
+    "Dwarven_Hall": [
+      "矮人石殿",
+      "dwarven stone hall",
+      "dwarven_hall",
+      "地下矮人石殿",
+      "矮人地下大厅",
+      "underground dwarven hall"
+    ],
+    "Elven_Treehouse": [
+      "精灵树城",
+      "elven forest city",
+      "elven_treehouse",
+      "elven treehouse"
+    ],
+    "Dark_Fortress": [
+      "暗黑魔物堡",
+      "dark fantasy fortress",
+      "dark_fortress"
+    ],
+    "Chinese_Vernacular_Siheyuan": [
+      "四合院",
+      "北方四合院",
+      "北京四合院",
+      "siheyuan",
+      "Beijing courtyard house"
+    ],
+    "Romanesque": [
+      "罗马风",
+      "romanesque hall",
+      "romanesque_hall"
+    ],
+    "Tudor": [
+      "都铎",
+      "tudor house",
+      "tudor_house"
+    ]
+  },
+  "generic_building_types": [
+    "木构大殿",
+    "大殿",
+    "宅邸",
+    "退台塔楼",
+    "timber hall",
+    "hall",
+    "palazzo",
+    "木屋",
+    "house",
+    "timber house",
+    "chalet",
+    "office",
+    "civic hall",
+    "inn",
+    "lodge",
+    "guesthouse",
+    "community library",
+    "visitor center",
+    "书院大殿",
+    "乡村旅馆",
+    "森林山庄",
+    "客舍",
+    "会馆",
+    "社区图书馆",
+    "游客中心",
+    "study hall"
+  ],
+  "generic_style_markers": [
+    "哥特",
+    "巴洛克",
+    "现代",
+    "中世纪",
+    "罗马",
+    "拜占庭",
+    "装饰艺术",
+    "解构",
+    "新古典",
+    "gothic",
+    "baroque",
+    "modern",
+    "medieval",
+    "romanesque",
+    "byzantine",
+    "art deco",
+    "deconstruct"
+  ],
+  "variants": {
+    "Chinese_Traditional": {
+      "family": "Chinese",
+      "kind": "family",
+      "profile_id": null
+    },
+    "Tang_Dynasty_Timber": {
+      "family": "Chinese",
+      "kind": "historical_variant",
+      "profile_id": "Tang_Dynasty_Timber",
+      "structural_typology": "tailiang_timber_hall"
+    },
+    "Cottage_Rural": {
+      "family": "Vernacular",
+      "kind": "vernacular_variant",
+      "profile_id": null,
+      "legacy_genome": "rustic_wood"
+    },
+    "Modern_Stadium_Elliptical": {
+      "family": "Modern",
+      "kind": "purpose_variant",
+      "profile_id": null,
+      "structural_typology": "stadium_bowl"
+    },
+    "Modern_Stadium_Creative": {
+      "family": "Modern",
+      "kind": "purpose_variant",
+      "profile_id": null,
+      "structural_typology": "stadium_bowl"
+    }
+  },
+  "non_style_ids": {
+    "Patch_Edit": "Editing intent, not an architectural style"
+  }
+}

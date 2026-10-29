@@ -1,0 +1,54 @@
+{
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 7
+      },
+      "params": {
+        "shape": "cylinder",
+        "hollow": true
+      }
+    },
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 15
+      },
+      "params": {
+        "preset": "spiral_watchtower",
+        "presetParams": {
+          "shellRadius": 6,
+          "shellHeight": 15,
+          "floorLevels": [
+            5,
+            10
+          ],
+          "floorMaterial": "smooth_stone",
+          "stair": {
+            "treadMaterial": "stone_brick"
+          }
+        },
+        "assembly": {
+          "kind": "spiral_staircase",
+          "direction": "clockwise",
+          "roof_access": false
+        }
+      }
+    }
+  ]
+}

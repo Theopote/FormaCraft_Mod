@@ -1,0 +1,551 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Buddhist_Temple",
+  "style_attributes": {
+    "wall_color": "gray",
+    "roof_color": "dark_gray",
+    "accent_color": "dark_red",
+    "wall_material": "stone_brick",
+    "roof_material": "glazed_tile",
+    "floor_material": "stone",
+    "decorative_elements": [
+      "dougong brackets",
+      "red pillars",
+      "stone lions",
+      "plaque",
+      "lattice windows"
+    ]
+  },
+  "distinguishing_features": [
+    "three-bay gatehouse",
+    "central passage",
+    "xieshan roof with overhanging eaves",
+    "stone plinth",
+    "dougong bracket sets",
+    "lattice windows"
+  ],
+  "anchor": {
+    "x": 717,
+    "y": 72,
+    "z": -803
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "temple_gate",
+      "confidence": 0.8
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "axial",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.55,
+      "voidRatio": 0.28,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "terracotta",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "shaolin",
+        "buddhist",
+        "chan",
+        "songshan",
+        "central_plains"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 16,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "symmetry",
+        "central gateway",
+        "xieshan roof",
+        "stone plinth"
+      ],
+      "avoid": [
+        "stadium",
+        "castle",
+        "glass curtain wall",
+        "modern high-rise"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "temple_gatehouse",
+    "target_width": 14,
+    "target_depth": 17,
+    "target_body_height": 8,
+    "target_roof_height": 3,
+    "height_to_width": 0.55,
+    "depth_to_width": 0.7,
+    "roof_to_body_height": 0.45,
+    "window_aspect": "vertical_bay",
+    "max_void_ratio": 0.15,
+    "base_to_body_height": 0.15,
+    "bay_count": 3,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "shaolin_gate_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "shaolin_gate_main",
+          "slot_id": "gatehouse_main",
+          "local_origin": {
+            "x": -7,
+            "y": 6,
+            "z": -11
+          },
+          "plan_origin": {
+            "x": -7,
+            "y": 6,
+            "z": -11
+          },
+          "dimensions": {
+            "width": 14,
+            "depth": 22,
+            "height": 8
+          },
+          "floor_ys_local": [
+            6
+          ],
+          "roof_y_local": 13,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "shaolin_gate_main",
+                "local_origin": {
+                  "x": -7,
+                  "y": 6,
+                  "z": -11
+                },
+                "dimensions": {
+                  "width": 14,
+                  "depth": 22,
+                  "height": 8
+                },
+                "roof_y_local": 13
+              }
+            ],
+            "envelope_local": {
+              "min_x": -7,
+              "min_z": -11,
+              "max_x": 7,
+              "max_z": 11,
+              "min_y": 6,
+              "max_y": 14
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -11,
+                "end": 11
+              },
+              {
+                "direction": "NORTH",
+                "plane": -11,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 11,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -7,
+                "start": -11,
+                "end": 11
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成少林寺山门",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成少林寺山门",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "gatehouse_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "program": "CIVIC",
+        "component_preset_id": "temple_gatehouse",
+        "component_preset": "Chinese Buddhist temple gatehouse with central passage, side bays, stone plinth and xieshan roof"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": -10,
+        "y": 0,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 28,
+        "height": 2
+      },
+      "features": [
+        "stone plinth",
+        "raised platform"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_foundation",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone",
+        "floor_block": "minecraft:stone_bricks",
+        "detail_level": "high",
+        "building_id": "shaolin_gate_main",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "shaolin_gate_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 22,
+        "height": 8
+      },
+      "features": [
+        "three-bay gatehouse",
+        "central passage",
+        "stone base with timber upper frame"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.25,
+        "wall_pattern": "gradient",
+        "facade_profile": "vertical_pilasters",
+        "roof_type": "xuanshan",
+        "floor_height": 8,
+        "floor_count": 1,
+        "detail_level": "high",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:gray_glazed_terracotta",
+        "material": "stone",
+        "window_ratio": 0.35,
+        "building_id": "shaolin_gate_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": -8,
+        "y": 10,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 26,
+        "height": 5
+      },
+      "features": [
+        "xieshan roof",
+        "overhanging eaves",
+        "upturned corners"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_roof",
+        "host_id": "shaolin_gate_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "roof_type": "xuanshan",
+        "detail_level": "high",
+        "roof_block": "minecraft:gray_glazed_terracotta",
+        "material": "glazed_tile",
+        "roof_height": 5,
+        "overhang": 2,
+        "building_id": "shaolin_gate_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": -7,
+        "y": 2,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 6,
+        "height": 5
+      },
+      "features": [
+        "central passage",
+        "red double doors",
+        "stone threshold"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_entrance",
+        "host_id": "shaolin_gate_main",
+        "anchor_mode": "min_corner",
+        "entrance_type": "gateway",
+        "detail_level": "high",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "shaolin_gate_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": -7,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "lattice window",
+        "narrow side bay window"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_window_left",
+        "host_id": "shaolin_gate_main",
+        "anchor_mode": "min_corner",
+        "window_aspect": "vertical_strip",
+        "window_ratio": 0.18,
+        "material": "wood",
+        "detail_level": "high",
+        "window_style": "lattice",
+        "rhythm": "regular",
+        "building_id": "shaolin_gate_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": -7,
+        "y": 4,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "lattice window",
+        "narrow side bay window"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_window_right",
+        "host_id": "shaolin_gate_main",
+        "anchor_mode": "min_corner",
+        "window_aspect": "vertical_strip",
+        "window_ratio": 0.18,
+        "material": "wood",
+        "detail_level": "high",
+        "window_style": "lattice",
+        "rhythm": "regular",
+        "building_id": "shaolin_gate_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": -8,
+        "y": 7,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 6,
+        "height": 2
+      },
+      "features": [
+        "temple plaque",
+        "dougong bracket band",
+        "red pillar accents"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_decor",
+        "host_id": "shaolin_gate_main",
+        "anchor_mode": "min_corner",
+        "detail_level": "high",
+        "material": "wood",
+        "building_id": "shaolin_gate_main"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "gatehouse_main",
+      "relative_position": {
+        "x": -15,
+        "y": 0,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "stone front terrace",
+        "approach platform"
+      ],
+      "params": {
+        "component_id": "shaolin_gate_terrace",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "floor_material": "stone",
+        "detail_level": "medium",
+        "building_id": "shaolin_gate_terrace"
+      }
+    }
+  ],
+  "enrichment_guard": "non_classical_marker:stadium",
+  "player_fidelity_notice_zh": "组合式生成「少林寺山门」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

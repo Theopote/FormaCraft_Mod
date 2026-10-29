@@ -1,0 +1,192 @@
+{
+  "ops": [
+    {
+      "op": "PUSH_ORIGIN",
+      "dy": 5
+    },
+    {
+      "op": "CYLINDER",
+      "r": 5,
+      "h": 1,
+      "hollow": false,
+      "material": "minecraft:smooth_stone"
+    },
+    {
+      "op": "POP_ORIGIN"
+    },
+    {
+      "op": "PUSH_ORIGIN",
+      "dy": 10
+    },
+    {
+      "op": "CYLINDER",
+      "r": 5,
+      "h": 1,
+      "hollow": false,
+      "material": "minecraft:smooth_stone"
+    },
+    {
+      "op": "POP_ORIGIN"
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": -2,
+        "y": 0,
+        "z": -2
+      },
+      "to": {
+        "x": 1,
+        "y": 3,
+        "z": -2
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": 2,
+        "y": 3,
+        "z": -2
+      },
+      "to": {
+        "x": 2,
+        "y": 3,
+        "z": -2
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": 2,
+        "y": 3,
+        "z": -2
+      },
+      "to": {
+        "x": 2,
+        "y": 5,
+        "z": 0
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": 2,
+        "y": 5,
+        "z": 1
+      },
+      "to": {
+        "x": 2,
+        "y": 5,
+        "z": 2
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": 2,
+        "y": 5,
+        "z": 2
+      },
+      "to": {
+        "x": -1,
+        "y": 8,
+        "z": 2
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": -2,
+        "y": 8,
+        "z": 2
+      },
+      "to": {
+        "x": -2,
+        "y": 8,
+        "z": 2
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": -2,
+        "y": 8,
+        "z": 2
+      },
+      "to": {
+        "x": -2,
+        "y": 10,
+        "z": 0
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    },
+    {
+      "op": "STAIR_SYSTEM",
+      "from": {
+        "x": -2,
+        "y": 10,
+        "z": -1
+      },
+      "to": {
+        "x": -2,
+        "y": 10,
+        "z": -2
+      },
+      "width": 1,
+      "stairs": "minecraft:stone_brick_stairs",
+      "floor": "minecraft:smooth_stone",
+      "supportMaterial": "minecraft:smooth_stone",
+      "clearHeight": 2,
+      "carve": true,
+      "support": true
+    }
+  ]
+}

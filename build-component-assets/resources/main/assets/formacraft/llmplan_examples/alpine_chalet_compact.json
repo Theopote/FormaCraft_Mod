@@ -1,0 +1,148 @@
+{
+  "description": "生成一座阿尔卑斯木屋",
+  "promptHints": [
+    "生成一座阿尔卑斯木屋"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Alpine_Chalet",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "timber_gable_house",
+      "proportion_card_id": "alpine_chalet_house",
+      "window_wall_ratio": 0.24,
+      "height_to_width": 0.47619047619047616,
+      "depth_to_width": 0.7142857142857143,
+      "window_aspect": "rectangular"
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:spruce_planks",
+      "roof_material": "minecraft:dark_oak_planks",
+      "floor_material": "minecraft:oak_planks",
+      "decorative_elements": [
+        "restrained_frame"
+      ]
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 15,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:spruce_planks",
+          "roof_block": "minecraft:dark_oak_planks",
+          "floor_block": "minecraft:oak_planks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:cobblestone",
+          "trim_block": "minecraft:stripped_spruce_log",
+          "pillar_block": "minecraft:spruce_log",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.24,
+          "facade_profile": "base_plinth",
+          "floor_height": 5,
+          "component_id": "alpine_chalet",
+          "anchor_mode": "min_corner",
+          "shape": "rectangle",
+          "plan_type": "none",
+          "floor_count": 2,
+          "void_ratio": 0.05
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 9,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 15,
+          "height": 6
+        },
+        "features": [],
+        "params": {
+          "roof_type": "gable",
+          "overhang": 2,
+          "roof_block": "minecraft:dark_oak_planks",
+          "component_id": "alpine_chalet_roof",
+          "host_id": "alpine_chalet",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 9,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "entry",
+          "host_id": "alpine_chalet",
+          "facing": "NORTH",
+          "door_width": 2,
+          "door_height": 3
+        }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": {
+          "x": 1,
+          "y": 2,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 19,
+          "depth": 1,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "window_style": "pane",
+          "window_ratio": 0.24,
+          "window_block": "minecraft:glass_pane",
+          "component_id": "windows",
+          "host_id": "alpine_chalet",
+          "facing": "NORTH",
+          "wall": "front",
+          "floor_count": 2,
+          "floor_height": 5,
+          "window_width": 2,
+          "window_height": 2,
+          "window_per_wall": 4
+        }
+      }
+    ]
+  }
+}

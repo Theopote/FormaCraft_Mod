@@ -1,0 +1,31 @@
+{
+  "id": "modern_minimal",
+  "name": "Modern Minimal",
+  "style": "MODERN",
+  "palette": {
+    "wall": "minecraft:white_concrete",
+    "roof": "minecraft:black_concrete",
+    "floor": "minecraft:smooth_quartz",
+    "window": "minecraft:glass",
+    "foundation": "minecraft:smooth_stone",
+    "trim": "minecraft:black_concrete",
+    "pillar": "minecraft:quartz_pillar",
+    "cap": "minecraft:smooth_quartz_slab",
+    "door": "minecraft:iron_door",
+    "roof_trim": "minecraft:black_concrete",
+    "stairs": "minecraft:polished_blackstone_stairs",
+    "roof_slab": "minecraft:smooth_stone_slab"
+  },
+  "params": {
+    "roofType": "flat",
+    "windowRatio": 0.45,
+    "windowDensity": 0.80,
+    "preferSymmetry": true,
+    "floorHeight": 3,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "single"
+  }
+}
+
+

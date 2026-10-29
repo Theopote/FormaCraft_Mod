@@ -1,0 +1,810 @@
+{
+  "mode": "build",
+  "style_profile": "Industrial",
+  "style_attributes": {
+    "wall_color": "#6f6b62",
+    "roof_color": "#7a4a32",
+    "accent_color": "#8a8f94",
+    "wall_material": "stone",
+    "roof_material": "metal",
+    "floor_material": "stone",
+    "decorative_elements": [
+      "rusted iron pipes",
+      "broken ribbon windows",
+      "soot-stained brick bands",
+      "collapsed eave sections",
+      "chalked hazard stripes"
+    ]
+  },
+  "distinguishing_features": [
+    "long rectangular production hall with weathered masonry",
+    "tall free-standing brick smokestack",
+    "attached boiler house wing and small workshop annex",
+    "ribbon glazing with many missing panes",
+    "loading dock terrace along the south facade",
+    "exposed pipe runs and corroded cornice band"
+  ],
+  "anchor": {
+    "x": 614,
+    "y": 68,
+    "z": -919
+  },
+  "proportion_hints": {
+    "typology": "industrial_factory",
+    "height_to_width": 0.46,
+    "depth_to_width": 0.7,
+    "roof_to_body_height": 0.28,
+    "chimney_height_to_body": 1.8,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "factory_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "factory_main",
+          "slot_id": "slot_main",
+          "local_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -9
+          },
+          "plan_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -9
+          },
+          "dimensions": {
+            "width": 26,
+            "depth": 18,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            6
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "factory_main",
+                "local_origin": {
+                  "x": -13,
+                  "y": 0,
+                  "z": -9
+                },
+                "dimensions": {
+                  "width": 26,
+                  "depth": 18,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -13,
+              "min_z": -9,
+              "max_x": 13,
+              "max_z": 9,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 13,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "NORTH",
+                "plane": -9,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 9,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "WEST",
+                "plane": -13,
+                "start": -9,
+                "end": 9
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座废弃工厂",
+          "purposes": [
+            {
+              "id": "industrial",
+              "phrase": "工厂",
+              "start": 6,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座废弃工厂",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "industrial_factory",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "linear",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.78,
+      "voidRatio": 0.3,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "segmented"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "metal",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "industrial",
+      "era": "19th_century",
+      "keywords": [
+        "abandoned",
+        "factory",
+        "decay",
+        "smokestack",
+        "corrugated roof"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "read as abandoned industrial complex",
+        "heavy weathered masonry with rust accents",
+        "large repeated window bays"
+      ],
+      "avoid": [
+        "clean modern glass curtain wall",
+        "residential decoration",
+        "perfect symmetry of ornament"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "slot_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "program": "INDUSTRIAL",
+        "component_preset_id": "industrial_production_hall",
+        "component_preset": "Long two-bay masonry production hall, 26x18 footprint, gabled corroded metal roof, tall ribbon glazing",
+        "slot_id": "slot_main"
+      },
+      {
+        "id": "slot_west",
+        "anchor": {
+          "x": -19,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "INDUSTRIAL",
+        "component_preset_id": "boiler_house_wing",
+        "component_preset": "Lower attached boiler house, 12x12, flat sooty roof, narrow slit windows, side door to hall",
+        "slot_id": "slot_west"
+      },
+      {
+        "id": "slot_east",
+        "anchor": {
+          "x": 18,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "program": "INDUSTRIAL",
+        "component_preset_id": "workshop_annex",
+        "component_preset": "Small single-storey workshop annex, 10x10, shed roof, wide doorway",
+        "slot_id": "slot_east"
+      },
+      {
+        "id": "slot_chimney",
+        "anchor": {
+          "x": -19,
+          "y": 0,
+          "z": -11
+        },
+        "facing": "NORTH",
+        "program": "INDUSTRIAL",
+        "component_preset_id": "brick_smokestack",
+        "component_preset": "Free-standing tapered brick chimney stack, hollow shaft, 22 blocks tall",
+        "slot_id": "slot_chimney"
+      },
+      {
+        "id": "slot_yard",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 17
+        },
+        "facing": "NORTH",
+        "program": "INDUSTRIAL",
+        "component_preset_id": "loading_yard",
+        "component_preset": "Cracked concrete loading yard and dock platform south of the main hall",
+        "slot_id": "slot_yard"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 18,
+        "height": 12
+      },
+      "features": [
+        "production hall",
+        "soot-stained masonry walls",
+        "missing roof panels"
+      ],
+      "params": {
+        "component_id": "factory_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.3,
+        "window_ratio": 0.4,
+        "window_aspect": "ribbon_glazing",
+        "roof_type": "gable",
+        "floor_height": 6,
+        "floor_count": 2,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "detail_level": "high",
+        "material": "stone",
+        "building_id": "factory_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_west",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 7
+      },
+      "features": [
+        "boiler house",
+        "low flat roof",
+        "chalked hazard band"
+      ],
+      "params": {
+        "component_id": "factory_boiler",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.18,
+        "window_ratio": 0.15,
+        "window_aspect": "arrow_slit",
+        "roof_type": "flat",
+        "floor_height": 7,
+        "floor_count": 1,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "detail_level": "medium",
+        "material": "stone",
+        "building_id": "factory_boiler"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "slot_east",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 10,
+        "height": 6
+      },
+      "features": [
+        "workshop annex",
+        "collapsed lean-to corner",
+        "wide wagon doorway"
+      ],
+      "params": {
+        "component_id": "factory_workshop",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.22,
+        "window_ratio": 0.25,
+        "window_aspect": "punch_window",
+        "roof_type": "gable",
+        "floor_height": 6,
+        "floor_count": 1,
+        "facade_profile": "none",
+        "wall_pattern": "random",
+        "detail_level": "medium",
+        "material": "stone",
+        "building_id": "factory_workshop"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "cracked concrete plinth",
+        "uneven settled base"
+      ],
+      "params": {
+        "component_id": "factory_plinth",
+        "host_id": "factory_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "detail_level": "medium",
+        "material": "stone",
+        "building_id": "factory_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 22,
+        "height": 4
+      },
+      "features": [
+        "corroded corrugated gable roof",
+        "overhanging eaves",
+        "collapsed skylight openings"
+      ],
+      "params": {
+        "component_id": "factory_roof_main",
+        "host_id": "factory_main",
+        "anchor_mode": "center",
+        "roof_type": "gable",
+        "setback_ratio": 0.0,
+        "detail_level": "high",
+        "material": "metal",
+        "roof_height": 4,
+        "overhang": 2,
+        "building_id": "factory_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_west",
+      "relative_position": {
+        "x": 0,
+        "y": 7,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 1
+      },
+      "features": [
+        "flat tar roof",
+        "rusted vents and skylight frames"
+      ],
+      "params": {
+        "component_id": "factory_roof_west",
+        "host_id": "factory_boiler",
+        "anchor_mode": "center",
+        "roof_type": "flat",
+        "detail_level": "medium",
+        "material": "metal",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "factory_boiler"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 18,
+        "height": 12
+      },
+      "features": [
+        "long ribbon glazing bays",
+        "broken and missing panes",
+        "iron mullion grid"
+      ],
+      "params": {
+        "component_id": "factory_windows_main",
+        "host_id": "factory_main",
+        "window_ratio": 0.4,
+        "window_aspect": "ribbon_glazing",
+        "floor_count": 2,
+        "detail_level": "high",
+        "material": "glass",
+        "rhythm": "segmented",
+        "building_id": "factory_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_west",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 7
+      },
+      "features": [
+        "narrow vertical slit windows",
+        "boarded-up lower openings"
+      ],
+      "params": {
+        "component_id": "factory_windows_west",
+        "host_id": "factory_boiler",
+        "window_ratio": 0.14,
+        "window_aspect": "vertical_strip",
+        "floor_count": 1,
+        "detail_level": "medium",
+        "material": "glass",
+        "rhythm": "segmented",
+        "building_id": "factory_boiler"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "wide industrial loading doorway",
+        "rusted sliding door rails",
+        "one leaf hanging off its track"
+      ],
+      "params": {
+        "component_id": "factory_entrance_main",
+        "host_id": "factory_main",
+        "anchor_mode": "center",
+        "entrance_type": "gate",
+        "facing": "SOUTH",
+        "detail_level": "high",
+        "material": "metal",
+        "door_width": 5,
+        "door_height": 4,
+        "building_id": "factory_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_east",
+      "relative_position": {
+        "x": -5,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "workshop personnel door",
+        "swollen timber frame"
+      ],
+      "params": {
+        "component_id": "factory_entrance_workshop",
+        "host_id": "factory_workshop",
+        "anchor_mode": "center",
+        "entrance_type": "door",
+        "facing": "WEST",
+        "detail_level": "medium",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "factory_workshop"
+      }
+    },
+    {
+      "component_type": "CHIMNEY",
+      "slot_id": "slot_chimney",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 22
+      },
+      "features": [
+        "tapered brick smokestack",
+        "iron reinforcement rings",
+        "soot-blackened crown"
+      ],
+      "params": {
+        "component_id": "factory_chimney",
+        "anchor_mode": "center",
+        "kind": "cylinder",
+        "shape": "circle",
+        "radius": 3,
+        "top_radius": 2,
+        "hollow": true,
+        "sides": 12,
+        "detail_level": "high",
+        "material": "stone"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": 0,
+        "y": 11,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 27,
+        "depth": 19,
+        "height": 1
+      },
+      "features": [
+        "corroded cornice band",
+        "brick corbel course",
+        "eave brackets at intervals"
+      ],
+      "params": {
+        "component_id": "factory_cornice",
+        "host_id": "factory_main",
+        "anchor_mode": "center",
+        "detail_level": "high",
+        "material": "stone",
+        "building_id": "factory_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_west",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "exposed rusted pipe run",
+        "bent conduit and valve stubs",
+        "dripping stains"
+      ],
+      "params": {
+        "component_id": "factory_pipes",
+        "host_id": "factory_boiler",
+        "anchor_mode": "center",
+        "detail_level": "high",
+        "material": "metal",
+        "building_id": "factory_boiler"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_yard",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "raised loading dock",
+        "cracked concrete surface",
+        "weeds in the joints"
+      ],
+      "params": {
+        "component_id": "factory_dock",
+        "anchor_mode": "center",
+        "detail_level": "medium",
+        "material": "stone",
+        "building_id": "factory_dock"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_yard",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "overgrown service track",
+        "cracked paving slabs"
+      ],
+      "params": {
+        "component_id": "factory_track",
+        "anchor_mode": "center",
+        "detail_level": "low",
+        "material": "stone"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「废弃工厂」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

@@ -1,0 +1,70 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL",
+  "anchor": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "layout": {
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "s",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 11
+      },
+      "features": [],
+      "params": {
+        "component_id": "stone",
+        "anchor_mode": "min_corner",
+        "plan_type": "rectangle",
+        "roof_type": "gable",
+        "wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_height": 5,
+        "window_ratio": 0.3,
+        "no_complex_decor": false
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "s",
+      "relative_position": {
+        "x": 30,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 11
+      },
+      "features": [],
+      "params": {
+        "component_id": "wood",
+        "anchor_mode": "min_corner",
+        "plan_type": "rectangle",
+        "roof_type": "gable",
+        "wall_block": "minecraft:oak_planks",
+        "roof_block": "minecraft:spruce_planks",
+        "floor_height": 5,
+        "window_ratio": 0.3,
+        "no_complex_decor": false
+      }
+    }
+  ],
+  "proportion_hints": {
+    "design_seed": 20261004,
+    "crown_assembly": false
+  }
+}

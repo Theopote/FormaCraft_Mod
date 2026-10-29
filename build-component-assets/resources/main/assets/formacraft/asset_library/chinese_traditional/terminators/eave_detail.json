@@ -1,0 +1,22 @@
+{
+  "asset_id": "chinese_eave_detail",
+  "version": "1.0",
+  "tags": ["Chinese", "Roof", "Terminator", "Traditional", "Eave", "Tile"],
+  "category": "TERMINATOR",
+  "size": [1, 1, 1],
+  "anchor": "BOTTOM_CENTER",
+  "is_flexible": true,
+  "generator_class": null,
+  "material_variables": {
+    "$roof_accent": "ROOF_EDGE",
+    "$roof_tile": "ROOF_TILE"
+  },
+  "blocks": [
+    {
+      "pos": [0, 0, 0],
+      "type": "$roof_accent",
+      "state": {"type": "bottom"}
+    }
+  ]
+}
+

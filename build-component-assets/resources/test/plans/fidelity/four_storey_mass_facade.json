@@ -1,0 +1,57 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "REQUIRED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 12, "depth": 10, "height": 16 },
+      "features": [],
+      "params": {
+        "component_id": "body",
+        "anchor_mode": "min_corner",
+        "floor_count": 4,
+        "floor_height": 4,
+        "wall_thickness": 1,
+        "roof_type": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "design_sources": {
+          "floor_count": "AI_PLANNED",
+          "floor_height": "AI_PLANNED"
+        }
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 12, "depth": 10, "height": 16 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "faces": ["SOUTH"],
+        "window_ratio": 0.25,
+        "window_aspect": "square",
+        "window_width": 2,
+        "window_height": 2,
+        "sill_offset": 1,
+        "floor_count": 4,
+        "floor_height": 4,
+        "allow_patch_overwrite": true,
+        "reserve_entrance_bay": false
+      }
+    }
+  ]
+}

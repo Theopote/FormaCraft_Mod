@@ -1,0 +1,63 @@
+{
+  "description": "径向台基圆殿 typology-first → radial_terrace_hall（天坛作 reference_landmark）",
+  "promptHints": ["天坛", "祈年殿", "temple of heaven", "祭天"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Chinese_Imperial_Official",
+    "style_attributes": {
+      "wall_color": "red",
+      "roof_color": "blue",
+      "accent_color": "gold",
+      "wall_material": "red_lacquer",
+      "roof_material": "glazed_tile",
+      "floor_material": "white_marble",
+      "decorative_elements": ["triple_eaves", "dragon_carving", "marble_terrace"]
+    },
+    "proportion_hints": {
+      "typology": "radial_terrace_hall",
+      "tier_count": 3,
+      "base_radius_to_height": 0.53,
+      "diameter_to_height": 1.06,
+      "radial_symmetry_order": 4,
+      "min_enclosure_coverage": 0.82
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "genome": {
+      "genomeVersion": "1.0",
+      "archetype": { "id": "temple_of_heaven", "confidence": 0.92 },
+      "topology": { "layout": "circular", "composition": "single", "axis": "centered", "levels": "vertical" },
+      "form": { "repetition": "radial", "progression": "stepping", "curvature": "curved", "rhythm": "regular" },
+      "symmetry": { "type": "radial", "order": 4, "mirror": true },
+      "materials": { "primary": "stone", "secondary": "wood", "accent": "gold", "textureBias": "polished" },
+      "culturalStyle": { "region": "chinese", "era": "imperial", "keywords": ["temple", "heaven", "sacrificial", "axial"] }
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "RADIAL",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "RADIAL_RING",
+      "path_based": false,
+      "slots": []
+    },
+    "components": [
+      {
+        "component_type": "STRUCTURE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 36, "depth": 36, "height": 34 },
+        "features": ["typology:radial_terrace_hall"],
+        "params": {
+          "typology_id": "radial_terrace_hall",
+          "reference_landmark": "temple_of_heaven",
+          "baseRadius": 18,
+          "tiers": 3,
+          "height": 34,
+          "hallRadius": 10,
+          "detailLevel": "aesthetic",
+          "facing": "SOUTH"
+        }
+      }
+    ]
+  }
+}

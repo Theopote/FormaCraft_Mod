@@ -1,0 +1,44 @@
+{
+  "id": "alpine_chalet_house",
+  "styleId": "Alpine_Chalet",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "阿尔卑斯木屋",
+    "阿尔卑斯木构",
+    "alpine chalet",
+    "alpine timber",
+    "alpine_chalet"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "阿尔卑斯木屋": 12,
+    "阿尔卑斯木构": 12,
+    "alpine chalet": 12,
+    "alpine timber": 12,
+    "alpine_chalet": 12
+  },
+  "negativeKeywords": [
+    "不要阿尔卑斯木屋",
+    "not alpine timber"
+  ],
+  "proportionCardId": "alpine_chalet_house",
+  "llmPlanExampleRefs": [
+    "alpine_chalet_compact.json",
+    "alpine_chalet_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "alpine_chalet",
+      "constraints": [
+        "Use style_profile=Alpine_Chalet, proportion_hints.typology=timber_gable_house; original style request, not a landmark.",
+        "Use gable roof, facade_profile=base_plinth, window_ratio=0.24; bind attachments by host_id.",
+        "Preserve explicit user requirements. Use composition, not native STRUCTURE or MODULE.",
+        "Authored voxel interpretation: no cantilever, classical colonnade or curtain-wall solver is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "timber_gable_house"
+}

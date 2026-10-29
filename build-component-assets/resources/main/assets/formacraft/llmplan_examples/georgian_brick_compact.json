@@ -1,0 +1,149 @@
+{
+  "description": "乔治王朝砖宅 compact",
+  "promptHints": [
+    "生成一座乔治王朝砖砌宅邸",
+    "build a georgian brick house"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Georgian_Brick",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "masonry_palazzo",
+      "proportion_card_id": "georgian_brick_house",
+      "window_wall_ratio": 0.3,
+      "height_to_width": 0.47619047619047616,
+      "depth_to_width": 0.7142857142857143,
+      "window_aspect": "rectangular"
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:bricks",
+      "roof_material": "minecraft:deepslate_tiles",
+      "floor_material": "minecraft:dark_oak_planks",
+      "decorative_elements": [
+        "symmetric_rhythm"
+      ]
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 15,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:bricks",
+          "roof_block": "minecraft:deepslate_tiles",
+          "floor_block": "minecraft:dark_oak_planks",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:stone_bricks",
+          "trim_block": "minecraft:smooth_quartz",
+          "pillar_block": "minecraft:smooth_quartz",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.3,
+          "facade_profile": "vertical_pilasters",
+          "floor_height": 5,
+          "component_id": "georgian_brick",
+          "anchor_mode": "min_corner",
+          "shape": "rectangle",
+          "plan_type": "none",
+          "floor_count": 2,
+          "void_ratio": 0.05
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 9,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 21,
+          "depth": 15,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "roof_type": "hip",
+          "overhang": 1,
+          "roof_block": "minecraft:deepslate_tiles",
+          "component_id": "georgian_brick_roof",
+          "host_id": "georgian_brick",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 9,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "entry",
+          "host_id": "georgian_brick",
+          "facing": "NORTH",
+          "door_width": 2,
+          "door_height": 3
+        }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": {
+          "x": 1,
+          "y": 2,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 19,
+          "depth": 1,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "window_style": "pane",
+          "window_ratio": 0.3,
+          "window_block": "minecraft:glass_pane",
+          "component_id": "windows",
+          "host_id": "georgian_brick",
+          "facing": "NORTH",
+          "wall": "front",
+          "floor_count": 2,
+          "floor_height": 5,
+          "window_width": 2,
+          "window_height": 2,
+          "window_per_wall": 4
+        }
+      }
+    ]
+  }
+}

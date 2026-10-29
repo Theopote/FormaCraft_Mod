@@ -1,0 +1,693 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL_CASTLE",
+  "style_attributes": {
+    "wall_color": "#8B8B8B",
+    "roof_color": "#3A3A3A",
+    "accent_color": "#5A4A3A",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:dark_oak_planks",
+    "decorative_elements": [
+      "battlements",
+      "arrow slit windows",
+      "portcullis",
+      "banners",
+      "stone buttresses"
+    ]
+  },
+  "distinguishing_features": [
+    "four corner towers",
+    "rectangular curtain walls",
+    "south gatehouse with portcullis",
+    "inner bailey courtyard",
+    "battlements and arrow slits",
+    "central stone keep"
+  ],
+  "anchor": {
+    "x": 663,
+    "y": 71,
+    "z": -796
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "castle_compound",
+      "confidence": 0.92
+    },
+    "topology": {
+      "layout": "compound",
+      "composition": "courtyard",
+      "axis": "N-S",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "walled_compound",
+      "massiveness": 0.85,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "repeated",
+      "progression": "tiered",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "tower"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "castle",
+        "curtain wall",
+        "arrow slit",
+        "battlements",
+        "gatehouse",
+        "keep"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 24,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "stone brick walls",
+        "four corner towers",
+        "south gatehouse",
+        "arrow slit windows",
+        "battlements"
+      ],
+      "avoid": [
+        "modern glass",
+        "stadium bowl",
+        "asian roof forms",
+        "smooth polished surfaces"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "radial_fortress",
+    "wall_height_to_thickness": 5.0,
+    "tower_height_to_base": 4.0,
+    "tower_height_to_wall": 3.5,
+    "curtain_wall_to_tower": 0.55,
+    "enclosure_coverage": 0.92,
+    "window_wall_ratio": 0.1,
+    "max_void_ratio": 0.2,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "building_castle": [
+          "keep_main"
+        ],
+        "named_keep": [
+          "keep_main"
+        ],
+        "named_main_body": [
+          "keep_main"
+        ],
+        "named_tower": [
+          "tower_nw",
+          "tower_ne",
+          "tower_sw",
+          "tower_se"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "keep_main",
+          "slot_id": "castle_compound",
+          "local_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -7
+          },
+          "plan_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -7
+          },
+          "dimensions": {
+            "width": 18,
+            "depth": 14,
+            "height": 16
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "roof_y_local": 15,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "keep_main",
+                "local_origin": {
+                  "x": -9,
+                  "y": 0,
+                  "z": -7
+                },
+                "dimensions": {
+                  "width": 18,
+                  "depth": 14,
+                  "height": 16
+                },
+                "roof_y_local": 15
+              }
+            ],
+            "envelope_local": {
+              "min_x": -9,
+              "min_z": -7,
+              "max_x": 9,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 16
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 9,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -7,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "WEST",
+                "plane": -9,
+                "start": -7,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "中世纪的城堡一般指的是欧洲的城堡，尺寸大于20*20",
+          "purposes": [
+            {
+              "id": "fortification",
+              "phrase": "城堡",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            },
+            {
+              "id": "fortification",
+              "phrase": "城堡",
+              "start": 14,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "中世纪的城堡一般指的是欧洲的城堡，尺寸大于20*20",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "castle_compound",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "preset": "CASTLE_COMPOUND",
+        "dimensions": {
+          "width": 40,
+          "depth": 32,
+          "height": 20
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 16
+      },
+      "features": [
+        "central stone keep",
+        "battlements",
+        "arrow slits",
+        "gable roof"
+      ],
+      "params": {
+        "component_id": "keep_main",
+        "requirement_scope": "building_castle",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 4,
+        "void_ratio": 0.12,
+        "window_ratio": 0.08,
+        "window_aspect": "arrow_slit",
+        "roof_type": "gable",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "none",
+        "facade_cutout": "none",
+        "detail_level": "medium",
+        "material": "stone",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "entrance_type": "door",
+        "building_id": "keep_main"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": -18,
+        "y": 0,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 20
+      },
+      "features": [
+        "northwest corner tower",
+        "cone roof",
+        "arrow slits"
+      ],
+      "params": {
+        "component_id": "tower_nw",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 5,
+        "void_ratio": 0.08,
+        "window_ratio": 0.06,
+        "window_aspect": "arrow_slit",
+        "roof_type": "cone",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "building_id": "tower_nw"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": 18,
+        "y": 0,
+        "z": -14
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 20
+      },
+      "features": [
+        "northeast corner tower",
+        "cone roof",
+        "arrow slits"
+      ],
+      "params": {
+        "component_id": "tower_ne",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 5,
+        "void_ratio": 0.08,
+        "window_ratio": 0.06,
+        "window_aspect": "arrow_slit",
+        "roof_type": "cone",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "building_id": "tower_ne"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": -18,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 20
+      },
+      "features": [
+        "southwest corner tower",
+        "cone roof",
+        "arrow slits"
+      ],
+      "params": {
+        "component_id": "tower_sw",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 5,
+        "void_ratio": 0.08,
+        "window_ratio": 0.06,
+        "window_aspect": "arrow_slit",
+        "roof_type": "cone",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "building_id": "tower_sw"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": 18,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 20
+      },
+      "features": [
+        "southeast corner tower",
+        "cone roof",
+        "arrow slits"
+      ],
+      "params": {
+        "component_id": "tower_se",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 5,
+        "void_ratio": 0.08,
+        "window_ratio": 0.06,
+        "window_aspect": "arrow_slit",
+        "roof_type": "cone",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "building_id": "tower_se"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": -15,
+        "y": 0,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 2,
+        "height": 10
+      },
+      "features": [
+        "north curtain wall",
+        "battlements"
+      ],
+      "params": {
+        "component_id": "curtain_north",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "wall_block": "minecraft:stone_bricks",
+        "thickness": 2,
+        "height": 10,
+        "battlement": true
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": -15,
+        "y": 0,
+        "z": 13
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 2,
+        "height": 10
+      },
+      "features": [
+        "southwest curtain wall",
+        "battlements"
+      ],
+      "params": {
+        "component_id": "curtain_south_west",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "wall_block": "minecraft:stone_bricks",
+        "thickness": 2,
+        "height": 10,
+        "battlement": true
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": 13
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 2,
+        "height": 10
+      },
+      "features": [
+        "southeast curtain wall",
+        "battlements"
+      ],
+      "params": {
+        "component_id": "curtain_south_east",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "wall_block": "minecraft:stone_bricks",
+        "thickness": 2,
+        "height": 10,
+        "battlement": true
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": 17,
+        "y": 0,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 22,
+        "height": 10
+      },
+      "features": [
+        "east curtain wall",
+        "battlements"
+      ],
+      "params": {
+        "component_id": "curtain_east",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "wall_block": "minecraft:stone_bricks",
+        "thickness": 2,
+        "height": 10,
+        "battlement": true
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": -19,
+        "y": 0,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 22,
+        "height": 10
+      },
+      "features": [
+        "west curtain wall",
+        "battlements"
+      ],
+      "params": {
+        "component_id": "curtain_west",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "wall_block": "minecraft:stone_bricks",
+        "thickness": 2,
+        "height": 10,
+        "battlement": true
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "castle_compound",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 6,
+        "height": 12
+      },
+      "features": [
+        "south gatehouse",
+        "portcullis",
+        "drawbridge",
+        "gable roof"
+      ],
+      "params": {
+        "component_id": "gatehouse_south",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "entrance_type": "gatehouse",
+        "gate_width": 3,
+        "gate_height": 5,
+        "roof_type": "gable",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "detail_level": "high",
+        "door_width": 6,
+        "door_height": 4
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

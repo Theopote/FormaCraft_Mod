@@ -1,0 +1,27 @@
+{
+  "schema": "formacraft.ornament_contract.v1",
+  "id": "chinese_timber",
+  "application": "collect",
+  "target": {
+    "component_type": "STRUCTURE",
+    "typology_id": "tailiang_timber_hall"
+  },
+  "unresolved_scope_pattern": "左栋|右栋|第.+?栋|两座|两栋|建筑群|东侧建筑|西侧建筑",
+  "toggles": [
+    {
+      "property": "includePainting",
+      "negative": "(?:不要|不设|取消)(?:设置|增加|采用)?(?:彩画)",
+      "positive": "(?:设置|增加)(?:彩画)"
+    },
+    {
+      "property": "includeBrackets",
+      "negative": "(?:不要|不设|取消)(?:设置|增加|采用)?(?:斗拱)",
+      "positive": "(?:设置|增加)(?:斗拱)"
+    },
+    {
+      "property": "includeSubEaves",
+      "negative": "(?:不要|不设|取消)(?:设置|增加|采用)?(?:副檐)",
+      "positive": "(?:设置|增加)(?:副檐)"
+    }
+  ]
+}

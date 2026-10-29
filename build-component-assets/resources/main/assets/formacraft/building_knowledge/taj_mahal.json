@@ -1,0 +1,88 @@
+{
+  "id": "taj_mahal",
+  "name": "泰姬陵",
+  "nameEn": "Taj Mahal",
+  "aliases": [
+    "泰姬陵",
+    "taj mahal",
+    "taj",
+    "白色大理石",
+    "印度陵墓"
+  ],
+  "category": "LANDMARK",
+  "architect": "Ustad Ahmad Lahori",
+  "style": "Mughal",
+  "styleId": "Asian_Traditional",
+  
+  "features": {
+    "shape": "symmetrical_complex",
+    "form": "domed_mausoleum",
+    "structuralType": "marble_masonry",
+    "materials": ["marble", "sandstone", "precious_stones"],
+    "scale": "large",
+    "distinctiveElements": [
+      "white marble dome",
+      "four minarets",
+      "symmetrical layout",
+      "ornate decoration",
+      "central dome",
+      "arched entrances",
+      "reflecting pool",
+      "garden layout",
+      "precious stone inlays",
+      "calligraphy"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 56,
+    "typicalDepth": 56,
+    "typicalHeight": 28,
+    "footprintShape": "square",
+    "aspectRatio": "1:0.5"
+  },
+  
+  "assemblyHints": {
+    "type": "CUSTOM",
+    "macro": {
+      "style": {
+        "styleId": "Asian_Traditional",
+        "structureExposure": 0.2,
+        "density": 0.7,
+        "symmetry": 0.95,
+        "verticality": 0.6,
+        "transparency": 0.1
+      },
+      "roofCurvature": 0.8,
+      "roofType": "dome"
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "ORNAMENTAL",
+            "density": 0.7
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "Taj Mahal is a white marble mausoleum featuring a large central dome, four corner minarets, and symmetrical layout. The building is renowned for its ornate decoration, precious stone inlays, and beautiful garden setting with a reflecting pool.",
+  "descriptionZh": "泰姬陵是一座白色大理石陵墓，具有大型中央圆顶、四角尖塔和对称布局。该建筑以其华丽的装饰、珍贵的宝石镶嵌和带倒影池的美丽花园环境而闻名。",
+  
+  "keywords": [
+    "泰姬陵",
+    "印度",
+    "大理石",
+    "圆顶",
+    "尖塔",
+    "对称",
+    "装饰",
+    "传统",
+    "亚洲"
+  ],
+  "exampleRefs": []
+}
+
