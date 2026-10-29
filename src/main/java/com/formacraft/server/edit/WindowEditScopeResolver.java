@@ -476,24 +476,42 @@ public final class WindowEditScopeResolver {
             Set<BlockPos> authorized,
             Set<BlockPos> protectedCells
     ) {
+        // Search inside the independently authorized envelope. Do NOT require a solid
+        // trailing jamb beyond the window — existing façade windows make that cell air/glass
+        // and were incorrectly rejecting an otherwise complete WxH wall rectangle.
         Direction right = facade.right();
         BlockPos edge = facade.edge();
-        int sill = facade.sillOffset();
-        for (int distance : new int[]{2, 1, 3, 4, 5, 6}) {
-            List<BlockPos> cells = new ArrayList<>();
-            boolean valid = solid(live, edge.offset(right, distance + width).up(sill));
-            for (int x = 0; x < width; x++) {
+        List<BlockPos> best = List.of();
+        int bestScore = Integer.MAX_VALUE;
+        for (BlockPos origin : authorized) {
+            if (origin == null) continue;
+            int along = (origin.getX() - edge.getX()) * right.getOffsetX()
+                    + (origin.getZ() - edge.getZ()) * right.getOffsetZ();
+            if (along < 1 || along > 8) continue;
+            List<BlockPos> cells = new ArrayList<>(width * height);
+            boolean valid = true;
+            for (int x = 0; x < width && valid; x++) {
                 for (int y = 0; y < height; y++) {
-                    BlockPos p = edge.offset(right, distance + x).up(y + sill).toImmutable();
-                    if (!authorized.contains(p) || protectedCells.contains(p) || !isEditableWallCell(live.get(p))) {
+                    BlockPos p = origin.offset(right, x).up(y).toImmutable();
+                    if (!authorized.contains(p) || protectedCells.contains(p)
+                            || !isEditableWallCell(live.get(p))) {
                         valid = false;
+                        break;
                     }
                     cells.add(p);
                 }
             }
-            if (valid) return cells;
+            if (!valid) continue;
+            // Prefer a short gap from the jamb (2, then 1, then farther).
+            int score = along == 2 ? 0 : along == 1 ? 1 : along + 10;
+            // Prefer sill near the entrance datum when scores tie.
+            score = score * 100 + Math.abs(origin.getY() - (edge.getY() + facade.sillOffset()));
+            if (score < bestScore) {
+                bestScore = score;
+                best = cells;
+            }
         }
-        return List.of();
+        return best;
     }
 
     // --- seal helpers ---

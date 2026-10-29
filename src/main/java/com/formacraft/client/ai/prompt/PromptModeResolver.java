@@ -14,6 +14,8 @@ public final class PromptModeResolver {
             "只改局部|增量修改|增量编辑|不要重建|不要整栋|局部修改|局部改|"
                     + "把.{0,24}(改成|换成)|改成|换成|修改这|改这栋|改屋顶|改外墙|"
                     + "对当前建筑|对这栋|仅修改|仅改|"
+                    + "其余结构不动|其余不动|结构不动|不要移动建筑|"
+                    + "修改上一次|上一次建筑|正门右.{0,24}玻璃窗|"
                     + "\\bincremental\\b|\\bpatch\\b|only modify|do not rebuild|don't rebuild|change the (roof|wall|window)",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 

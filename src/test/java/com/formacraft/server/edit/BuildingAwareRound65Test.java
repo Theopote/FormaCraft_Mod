@@ -270,4 +270,43 @@ class BuildingAwareRound65Test {
         assertTrue(synced.walls().cells().contains(wall));
         assertFalse(synced.windows().cells().contains(wall));
     }
+
+    @Test
+    void insertAcceptsWallRectangleWhenTrailingJambIsExistingGlass() {
+        // In-game: solid 2×2 to the right of the door, then an already-punched façade window.
+        // Old chooseInsertRectangle required solid(distance+width) and refused WALL_RECTANGLE_UNAVAILABLE.
+        BlockPos origin = new BlockPos(50, 64, 50);
+        var memory = house("jamb-glass", origin, origin.add(8, 5, 6));
+        attachRoof(memory, origin);
+        Map<BlockPos, BlockState> live = new LinkedHashMap<>();
+        for (int x = 0; x <= 8; x++) {
+            for (int y = 0; y <= 5; y++) {
+                for (int z = 0; z <= 6; z++) {
+                    BlockPos p = origin.add(x, y, z);
+                    boolean shell = x == 0 || x == 8 || z == 0 || z == 6 || y == 0 || y == 5;
+                    live.put(p, shell ? Blocks.OAK_PLANKS.getDefaultState() : Blocks.AIR.getDefaultState());
+                }
+            }
+        }
+        BlockPos door = origin.add(2, 1, 0);
+        live.put(door, Blocks.OAK_DOOR.getDefaultState()
+                .with(Properties.HORIZONTAL_FACING, Direction.SOUTH)
+                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER));
+        live.put(door.up(), Blocks.OAK_DOOR.getDefaultState()
+                .with(Properties.HORIZONTAL_FACING, Direction.SOUTH)
+                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER));
+        live.put(origin.add(2, 1, 1), Blocks.AIR.getDefaultState());
+        live.put(origin.add(2, 2, 1), Blocks.AIR.getDefaultState());
+        // Existing window immediately beyond a 2-wide solid strip (lat 4 from door edge at x=2 → x=6).
+        live.put(origin.add(6, 1, 0), Blocks.GLASS.getDefaultState());
+        live.put(origin.add(6, 2, 0), Blocks.GLASS.getDefaultState());
+        live.put(origin.add(7, 1, 0), Blocks.GLASS.getDefaultState());
+        live.put(origin.add(7, 2, 0), Blocks.GLASS.getDefaultState());
+
+        var resolved = WindowEditScopeResolver.resolveInsert(
+                BuildingInstance.fromMemory(memory), BuildingPartIndex.fromMemory(memory), live, 2, 2);
+        assertTrue(resolved.ok(), () -> resolved.refusalReason());
+        assertEquals(4, resolved.editCells().size());
+        assertTrue(resolved.editCells().stream().noneMatch(c -> live.get(c).isOf(Blocks.GLASS)));
+    }
 }

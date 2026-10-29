@@ -19,6 +19,10 @@ class PromptModeResolverTest {
         assertEquals(PromptMode.PATCH, PromptModeResolver.fromUserText(
                 "对当前建筑做增量修改：南立面中部开三格宽的玻璃窗"));
         assertEquals(PromptMode.PATCH, PromptModeResolver.fromUserText("把屋顶换成红色"));
+        assertEquals(PromptMode.PATCH, PromptModeResolver.fromUserText(
+                "在正门右侧添加一扇 3格宽 2格高的玻璃窗，其余结构不动。"));
+        assertEquals(PromptMode.PATCH, PromptModeResolver.fromUserText(
+                "修改上一次建筑：在正门右侧添加一扇 3格宽 2格高的玻璃窗，其余结构不动。"));
     }
 
     @Test

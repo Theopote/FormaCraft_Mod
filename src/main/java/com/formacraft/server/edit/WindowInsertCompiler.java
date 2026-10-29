@@ -76,10 +76,11 @@ public final class WindowInsertCompiler {
         // Old doorway carves may start at the floor block; new ones start above it.
         int sillOffset=solid(live,seed.offset(normals.get(seed).getOpposite()))?1:0;
         BlockPos edge=group.stream().max(Comparator.comparingInt(p->p.getX()*right.getOffsetX()+p.getZ()*right.getOffsetZ())).orElseThrow();
+        // Do not require a solid cell beyond the window rectangle: adjacent façade windows
+        // leave air/glass there and would falsely reject a complete WxH wall patch.
         for(int distance:new int[]{2,1,3,4,5,6}) {
             var cells=new ArrayList<BlockPos>();
-            // Keep the bottom floor and the outer corner/jamb intact.
-            boolean valid=solid(live,edge.offset(right,distance+width).up(sillOffset));
+            boolean valid=true;
             for(int x=0;x<width;x++) for(int y=0;y<height;y++) {
                 BlockPos p=edge.offset(right,distance+x).up(y+sillOffset);var state=live.get(p);
                 if(state==null || !state.isOpaque() || state.getBlock() instanceof PillarBlock || roof.contains(p)

@@ -20,8 +20,13 @@ final class WindowInsertPreview {
     private WindowInsertPreview() {}
 
     static boolean tryHandle(ServerPlayerEntity player, FormaRequest req) {
-        if ("BUILD".equalsIgnoreCase(req.getPromptMode()) || !WindowInsertCompiler.matches(req.getUserMessage())) {
+        // Phrase match is specific enough to own the request even when Chat labels BUILD.
+        // Otherwise LLM rebuilds foundations beside the host (in-game Round 65 regression).
+        if (!WindowInsertCompiler.matches(req.getUserMessage())) {
             return false;
+        }
+        if ("BUILD".equalsIgnoreCase(req.getPromptMode())) {
+            req.setPromptMode("PATCH");
         }
         if (!(player.getEntityWorld() instanceof ServerWorld world)) return false;
         var manager = BuildExecutionService.getInstance().getMemoryManager();

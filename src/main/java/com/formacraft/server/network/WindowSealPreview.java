@@ -22,7 +22,11 @@ final class WindowSealPreview {
 
     static boolean tryHandle(ServerPlayerEntity player, FormaRequest req) {
         String text = req.getUserMessage() == null ? "" : req.getUserMessage().replaceAll("\\s+", "");
-        if ("BUILD".equalsIgnoreCase(req.getPromptMode()) || !WindowSealCompiler.matches(text)) return false;
+        if (!WindowSealCompiler.matches(text)) return false;
+        // Explicit seal phrases must not fall through to a full BUILD rebuild.
+        if ("BUILD".equalsIgnoreCase(req.getPromptMode())) {
+            req.setPromptMode("PATCH");
+        }
         if (!(player.getEntityWorld() instanceof ServerWorld world)) return false;
         var manager = BuildExecutionService.getInstance().getMemoryManager();
         if (manager == null) return refuse(player, "建筑记忆尚未就绪，请等待建造完成后再修改。");
