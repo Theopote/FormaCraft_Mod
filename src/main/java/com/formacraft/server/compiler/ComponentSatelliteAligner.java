@@ -208,6 +208,8 @@ final class ComponentSatelliteAligner {
         if (foundation.params() != null) params.putAll(foundation.params());
         boolean rebased = Boolean.TRUE.equals(params.get("coordinate_frame_rebased"));
         boolean corner = ComponentFootprintUtil.isCornerAnchor(params) && !rebased;
+        boolean centered = !rebased && "center".equalsIgnoreCase(
+                ComponentPlanTypes.getParamString(params, "anchor_mode", "anchorMode"));
         params.put("anchor_mode", "min_corner");
         // Fill support up to the host floor.
         int bottom = Math.min(fp.y(), massOrigin.y() - 1);
@@ -218,8 +220,8 @@ final class ComponentSatelliteAligner {
                     foundation.features(), params);
         }
         return new Component(foundation.componentType(), foundation.slotId(),
-                new Vec3i(corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
-                        bottom, corner ? fp.z() : massOrigin.z() - (rebased ? Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2) : 0)),
+                new Vec3i(centered ? fp.x() - dims.width()/2 : corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
+                        bottom, centered ? fp.z() - dims.depth()/2 : corner ? fp.z() : massOrigin.z() - (rebased ? Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2) : 0)),
                 new Dimensions(dims.width(), dims.depth(), massOrigin.y() - bottom), foundation.features(), params);
     }
 

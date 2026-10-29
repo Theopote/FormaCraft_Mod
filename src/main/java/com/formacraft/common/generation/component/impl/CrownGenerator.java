@@ -31,7 +31,7 @@ public class CrownGenerator implements ComponentGenerator {
         }
 
         Dimensions d = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveLegacyCornerOrigin(c);
         Map<String, Object> params = c.params() != null ? c.params() : Map.of();
 
         ComponentCrownDecorator.CrownDimensions crownDims = ComponentCrownDecorator.resolveDimensions(d, params);
@@ -41,6 +41,10 @@ public class CrownGenerator implements ComponentGenerator {
 
         int centerX = rp.x() + width / 2;
         int centerZ = rp.z() + depth / 2;
+        if ("center".equalsIgnoreCase(String.valueOf(params.getOrDefault("anchor_mode", params.get("anchorMode"))))) {
+            centerX = c.relativePosition().x();
+            centerZ = c.relativePosition().z();
+        }
         int baseY = rp.y();
 
         String templateId = ComponentCrownDecorator.resolveTemplate(null, params, semantic);

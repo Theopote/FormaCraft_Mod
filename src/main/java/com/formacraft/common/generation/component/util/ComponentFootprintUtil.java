@@ -76,6 +76,13 @@ public final class ComponentFootprintUtil {
         return anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner");
     }
 
+    /** Older satellite generators default to corner space; an explicit centre must still work. */
+    public static Vec3i resolveLegacyCornerOrigin(Component component) {
+        if (component == null) return null;
+        String mode = getParamString(component.params(), "anchor_mode", "anchorMode");
+        return "center".equalsIgnoreCase(mode) ? resolveMinCornerOrigin(component) : component.relativePosition();
+    }
+
     public static String slotKey(Component component) {
         if (component == null || component.slotId() == null || component.slotId().isBlank()) {
             return "__default__";

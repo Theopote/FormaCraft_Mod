@@ -110,7 +110,9 @@ public class MassMainGenerator implements ComponentGenerator {
         // Volumetric bodies use their authored 3-D shell, not a cylindrical
         // extrusion of the circular footprint used by attachment validators.
         if (params != null && "sphere".equals(params.get("volume_geometry"))) {
-            Component volume = new Component(c.componentType(), c.slotId(), actualRp, d, c.features(), params);
+            var volumeParams = new java.util.HashMap<String, Object>(params);
+            volumeParams.put("anchor_mode", "min_corner");
+            Component volume = new Component(c.componentType(), c.slotId(), actualRp, d, c.features(), volumeParams);
             return new PrimitiveShapeGenerator().generate(new SemanticComponent(c.componentType(), semantic.slot(), volume,
                     semantic.styleProfile(), semantic.styleAttributes(), semantic.genome()));
         }

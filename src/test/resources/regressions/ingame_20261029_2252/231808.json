@@ -1,0 +1,647 @@
+{
+  "mode": "build",
+  "style_profile": "DESERT_PALACE",
+  "style_attributes": {
+    "wall_color": "#D8B36A",
+    "roof_color": "#B87333",
+    "accent_color": "#2F6B7A",
+    "wall_material": "minecraft:sandstone",
+    "roof_material": "minecraft:cut_sandstone",
+    "floor_material": "minecraft:smooth_sandstone",
+    "decorative_elements": [
+      "cusp_arches",
+      "muqarnas_cornice",
+      "wind_towers",
+      "geometric_tilework",
+      "palm_courtyard",
+      "gold_finials"
+    ]
+  },
+  "distinguishing_features": [
+    "sandstone courtyard palace",
+    "cusp-arched west portal",
+    "muqarnas cornice and crenellated parapet",
+    "shaded arcade and mirador balcony",
+    "courtyard water terrace"
+  ],
+  "anchor": {
+    "x": 582,
+    "y": 68,
+    "z": -864
+  },
+  "proportion_hints": {
+    "typology": "classical_monument",
+    "height_to_width": 0.62,
+    "depth_to_width": 1.25,
+    "roof_to_body_height": 0.28,
+    "window_wall_ratio": 0.18,
+    "min_enclosure_coverage": 0.78,
+    "max_void_ratio": 0.15,
+    "window_aspect": [
+      "vertical_bay",
+      "square"
+    ],
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "palace_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "palace_main",
+          "slot_id": "palace_main_slot",
+          "local_origin": {
+            "x": -24,
+            "y": 0,
+            "z": -30
+          },
+          "plan_origin": {
+            "x": -24,
+            "y": 0,
+            "z": -30
+          },
+          "dimensions": {
+            "width": 48,
+            "depth": 60,
+            "height": 30
+          },
+          "floor_ys_local": [
+            0,
+            5,
+            10,
+            15,
+            20
+          ],
+          "roof_y_local": 29,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "palace_main",
+                "local_origin": {
+                  "x": -24,
+                  "y": 0,
+                  "z": -30
+                },
+                "dimensions": {
+                  "width": 48,
+                  "depth": 60,
+                  "height": 30
+                },
+                "roof_y_local": 29
+              }
+            ],
+            "envelope_local": {
+              "min_x": -24,
+              "min_z": -30,
+              "max_x": 24,
+              "max_z": 30,
+              "min_y": 0,
+              "max_y": 30
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座沙漠宫殿",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座沙漠宫殿",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "palace_main_slot",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "component_preset": "MASS_MAIN",
+        "weight": 1.0,
+        "slot_id": "palace_main_slot"
+      }
+    ]
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "palace",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "axial",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.76,
+      "voidRatio": 0.12,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "stepping",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "balcony",
+      "arcade"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "islamic",
+      "era": "medieval",
+      "keywords": [
+        "desert",
+        "sandstone",
+        "courtyard",
+        "mashrabiya",
+        "cusp_arches",
+        "muqarnas"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 48,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "courtyard_shade",
+        "water_feature",
+        "axial_symmetry",
+        "sandstone_masonry"
+      ],
+      "avoid": [
+        "glass_curtain_wall",
+        "steep_gable_roof",
+        "neon_lighting"
+      ],
+      "extra": null
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "palace_main_slot",
+      "relative_position": {
+        "x": -24,
+        "y": 0,
+        "z": -30
+      },
+      "dimensions": {
+        "width": 48,
+        "depth": 60,
+        "height": 30
+      },
+      "params": {
+        "component_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "courtyard",
+        "courtyard_ratio": 0.22,
+        "void_ratio": 0.12,
+        "window_ratio": 0.18,
+        "window_aspect": "vertical_bay",
+        "roof_type": "flat",
+        "floor_height": 5,
+        "floor_count": 5,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "detail_level": "high",
+        "hollow": true,
+        "material": "sandstone",
+        "wall_block": "minecraft:sandstone",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:cut_sandstone",
+        "setback_ratio": 0.06,
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "palace_main_slot",
+      "relative_position": {
+        "x": -26,
+        "y": -4,
+        "z": -32
+      },
+      "dimensions": {
+        "width": 52,
+        "depth": 64,
+        "height": 4
+      },
+      "params": {
+        "component_id": "palace_foundation",
+        "host_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "foundation_type": "plinth",
+        "material": "sandstone",
+        "foundation_block": "minecraft:sandstone",
+        "detail_level": "medium",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "palace_main_slot",
+      "relative_position": {
+        "x": -27,
+        "y": 30,
+        "z": -33
+      },
+      "dimensions": {
+        "width": 54,
+        "depth": 66,
+        "height": 8
+      },
+      "params": {
+        "component_id": "palace_roof",
+        "host_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 3,
+        "setback_ratio": 0.04,
+        "parapet": true,
+        "detail_level": "high",
+        "material": "sandstone",
+        "roof_block": "minecraft:cut_sandstone",
+        "roof_height": 8,
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "palace_main_slot",
+      "facing": "WEST",
+      "relative_position": {
+        "x": -26,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 10,
+        "height": 12
+      },
+      "params": {
+        "component_id": "main_entrance",
+        "host_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "entrance_type": "arched_portal",
+        "facing": "WEST",
+        "facade_profile": "vertical_pilasters",
+        "detail_level": "high",
+        "material": "cut_sandstone",
+        "accent_material": "minecraft:gold_block",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "palace_main_slot",
+      "facing": "WEST",
+      "relative_position": {
+        "x": -25,
+        "y": 5,
+        "z": -28
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 56,
+        "height": 18
+      },
+      "params": {
+        "component_id": "windows_west",
+        "host_id": "palace_main",
+        "facade_side": "WEST",
+        "window_style": "arched",
+        "window_aspect": "vertical_bay",
+        "window_ratio": 0.18,
+        "story_count": 4,
+        "facade_profile": "vertical_pilasters",
+        "material": "glass",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "palace_main_slot",
+      "facing": "EAST",
+      "relative_position": {
+        "x": 23,
+        "y": 5,
+        "z": -28
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 56,
+        "height": 18
+      },
+      "params": {
+        "component_id": "windows_east",
+        "host_id": "palace_main",
+        "facade_side": "EAST",
+        "window_style": "arched",
+        "window_aspect": "vertical_bay",
+        "window_ratio": 0.16,
+        "story_count": 4,
+        "facade_profile": "vertical_pilasters",
+        "material": "glass",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "palace_main_slot",
+      "facing": "NORTH",
+      "relative_position": {
+        "x": -22,
+        "y": 5,
+        "z": -31
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 2,
+        "height": 18
+      },
+      "params": {
+        "component_id": "windows_north",
+        "host_id": "palace_main",
+        "facade_side": "NORTH",
+        "window_style": "punched_arch",
+        "window_aspect": "square",
+        "window_ratio": 0.14,
+        "story_count": 4,
+        "facade_profile": "vertical_pilasters",
+        "material": "glass",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "palace_main_slot",
+      "facing": "SOUTH",
+      "relative_position": {
+        "x": -22,
+        "y": 5,
+        "z": 29
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 2,
+        "height": 18
+      },
+      "params": {
+        "component_id": "windows_south",
+        "host_id": "palace_main",
+        "facade_side": "SOUTH",
+        "window_style": "punched_arch",
+        "window_aspect": "square",
+        "window_ratio": 0.14,
+        "story_count": 4,
+        "facade_profile": "vertical_pilasters",
+        "material": "glass",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "palace_main_slot",
+      "facing": "WEST",
+      "relative_position": {
+        "x": -27,
+        "y": 15,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 8,
+        "height": 3
+      },
+      "params": {
+        "component_id": "mirador_balcony",
+        "host_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "balcony_type": "projecting",
+        "railing_type": "mashrabiya",
+        "facing": "WEST",
+        "detail_level": "medium",
+        "material": "wood",
+        "material_block": "minecraft:dark_oak_planks",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "palace_main_slot",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 20,
+        "height": 1
+      },
+      "params": {
+        "component_id": "court_terrace",
+        "host_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "terrace_type": "courtyard",
+        "water_feature": true,
+        "fountain": true,
+        "planting": true,
+        "detail_level": "high",
+        "material": "sandstone_tile",
+        "floor_block": "minecraft:smooth_sandstone",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "palace_main_slot",
+      "relative_position": {
+        "x": -26,
+        "y": 28,
+        "z": -32
+      },
+      "dimensions": {
+        "width": 52,
+        "depth": 64,
+        "height": 3
+      },
+      "params": {
+        "component_id": "cornice_parapet",
+        "host_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "attachment": "ROOF_EDGE",
+        "decorative_elements": [
+          "cornice",
+          "crenellations",
+          "muqarnas_band"
+        ],
+        "detail_level": "high",
+        "material": "cut_sandstone",
+        "accent_material": "minecraft:terracotta",
+        "building_id": "palace_main"
+      },
+      "features": []
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "palace_main_slot",
+      "facing": "WEST",
+      "relative_position": {
+        "x": -27,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 14,
+        "height": 16
+      },
+      "params": {
+        "component_id": "portal_ornament",
+        "host_id": "palace_main",
+        "anchor_mode": "min_corner",
+        "attachment": "WALL_SURFACE",
+        "decorative_elements": [
+          "cusp_arch",
+          "geometric_tilework",
+          "column_bands"
+        ],
+        "detail_level": "high",
+        "material": "cut_sandstone",
+        "accent_material": "minecraft:blue_terracotta",
+        "building_id": "palace_main"
+      },
+      "features": []
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「沙漠宫殿」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

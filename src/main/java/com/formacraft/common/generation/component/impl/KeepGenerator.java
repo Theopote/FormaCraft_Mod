@@ -31,7 +31,7 @@ public class KeepGenerator implements ComponentGenerator {
         }
 
         Dimensions d = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveLegacyCornerOrigin(c);
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());

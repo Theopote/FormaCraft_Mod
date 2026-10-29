@@ -31,7 +31,7 @@ public class ChimneyGenerator implements ComponentGenerator {
         }
 
         Dimensions d = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveLegacyCornerOrigin(c);
 
         int width = Math.max(1, Math.min(3, d.width())); // 烟囱通常很窄（1-3 格）
         int depth = Math.max(1, Math.min(3, d.depth()));

@@ -50,7 +50,8 @@ public class WallComponentGenerator implements ComponentGenerator {
                 || hasFeature(c, "fence", "fencing", "railing", "railings", "paling", "picket");
         if (fenceIntent) {
             String fenceBlock = isFenceLikeBlock(explicitWall) ? explicitWall : "minecraft:oak_fence";
-            return generateFenceLine(rp, width, depth, height, fenceBlock, c.params());
+            return generateFenceLine(com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveLegacyCornerOrigin(c),
+                    width, depth, height, fenceBlock, c.params());
         }
 
         String anchorMode = getParamString(c.params(), "anchor_mode", "anchorMode");

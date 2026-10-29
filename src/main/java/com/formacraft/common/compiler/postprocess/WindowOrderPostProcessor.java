@@ -127,6 +127,13 @@ public class WindowOrderPostProcessor implements PostProcessor {
         if (!context.buildingVolumes().isEmpty() || !context.generatedSurfaces().isEmpty())
             surrounds.removeIf(p -> !scope.allowsPlace(new net.minecraft.util.math.BlockPos(p.dx(),p.dy(),p.dz())));
 
+        // Window trim is optional. Never replace a balcony, opening clearance,
+        // or another authored component just to add a surround.
+        var authored = new HashSet<net.minecraft.util.math.BlockPos>();
+        for (var p : patches) if (p != null)
+            authored.add(new net.minecraft.util.math.BlockPos(p.dx(), p.dy(), p.dz()));
+        surrounds.removeIf(p -> authored.contains(new net.minecraft.util.math.BlockPos(p.dx(), p.dy(), p.dz())));
+
         List<BlockPatch> merged = new ArrayList<>(patches.size() + surrounds.size());
         merged.addAll(patches);
         merged.addAll(surrounds);

@@ -55,7 +55,9 @@ public class ComponentRanker {
             }
         }
 
-        scored.sort(Comparator.comparingDouble(ScoredComponent::score).reversed());
+        scored.sort(Comparator.comparingDouble(ScoredComponent::score).reversed()
+                .thenComparing(sc -> sc.component().componentId,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
         return scored;
     }
 
@@ -169,9 +171,8 @@ public class ComponentRanker {
             score *= 0.35;
         }
 
-        if (!q.geometry.scalable && (m.geometrySpec.scalableAxes == null || m.geometrySpec.scalableAxes.isEmpty())) {
-            score *= 0.5;
-        }
+        // scalable=false requests original dimensions; a fixed asset is not a mismatch.
+        // Actual target feasibility remains the responsibility of fitToQuery.
 
         if (q.geometry.openingWidth != null && q.geometry.openingHeight != null) {
             int dw = Math.abs(q.geometry.openingWidth - m.geometrySpec.getBaseWidth());

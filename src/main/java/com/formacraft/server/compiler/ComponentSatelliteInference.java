@@ -828,6 +828,9 @@ final class ComponentSatelliteInference {
         }
         int roofHeight = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
                 width, depth, 0, params);
+        if (!com.formacraft.common.generation.component.util.RoofPitchGeometry.hasExplicitRiseIntent(params))
+            roofHeight = com.formacraft.common.generation.component.util.StyleRoofGeometry.defaultRise(
+                    plan.styleProfile(), width, depth, roofHeight);
         String roofType = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
         // An unroofed setback tier supports the next tier and its garden deck;
         // a default pitched roof would cut through that upper occupied body.

@@ -31,7 +31,7 @@ public class GateGenerator implements ComponentGenerator {
         }
 
         Dimensions d = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveLegacyCornerOrigin(c);
         Map<String, Object> params = c.params();
 
         int width = Math.max(3, d.width());

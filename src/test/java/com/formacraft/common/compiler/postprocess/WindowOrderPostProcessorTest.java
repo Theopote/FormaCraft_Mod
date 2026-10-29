@@ -63,5 +63,18 @@ class WindowOrderPostProcessorTest {
         assertTrue(out.size() > input.size());
         assertTrue(out.stream().anyMatch(p -> p.targetBlock() != null && p.targetBlock().contains("slab")));
         assertTrue(out.stream().anyMatch(p -> p.targetBlock() != null && p.targetBlock().contains("stairs")));
+
+        // Occupied balcony cells and authored air clearances must survive optional trim.
+        var blocked = new java.util.ArrayList<>(input);
+        var added = out.subList(input.size(), out.size());
+        var balcony = added.get(0);
+        var clearance = added.stream().filter(p -> p.dx()!=balcony.dx() || p.dy()!=balcony.dy() || p.dz()!=balcony.dz()).findFirst().orElseThrow();
+        blocked.add(new BlockPatch(BlockPatch.PLACE, balcony.dx(), balcony.dy(), balcony.dz(), "minecraft:smooth_stone"));
+        blocked.add(new BlockPatch(BlockPatch.PLACE, clearance.dx(), clearance.dy(), clearance.dz(), "minecraft:air"));
+        var protectedOut = new WindowOrderPostProcessor().process(blocked, PostProcessContext.create(plan, BlockPos.ORIGIN));
+        for (var cell : List.of(balcony, clearance)) {
+            org.junit.jupiter.api.Assertions.assertEquals(1, protectedOut.stream().filter(p ->
+                    p.dx()==cell.dx() && p.dy()==cell.dy() && p.dz()==cell.dz()).count());
+        }
     }
 }

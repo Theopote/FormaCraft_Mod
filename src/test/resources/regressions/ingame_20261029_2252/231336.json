@@ -1,0 +1,955 @@
+{
+  "mode": "build",
+  "style_profile": "Islamic_Mosque",
+  "style_attributes": {
+    "wall_color": "sandstone",
+    "roof_color": "copper",
+    "accent_color": "gold",
+    "wall_material": "sandstone",
+    "roof_material": "copper",
+    "floor_material": "polished_stone",
+    "decorative_elements": [
+      "geometric tilework",
+      "arabesque",
+      "calligraphy band",
+      "muqarnas",
+      "crescent finial"
+    ]
+  },
+  "distinguishing_features": [],
+  "anchor": {
+    "x": 663,
+    "y": 71,
+    "z": -796
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "mosque",
+      "confidence": 0.85
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "centered",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.65,
+      "voidRatio": 0.22,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "curved",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "arcade",
+      "tower",
+      "dome"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "islamic",
+      "era": "traditional",
+      "keywords": [
+        "mosque",
+        "dome",
+        "minaret",
+        "arcade",
+        "geometric ornament"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 40,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "central dome",
+        "symmetrical prayer hall",
+        "minarets",
+        "arched entrance",
+        "courtyard arcade"
+      ],
+      "avoid": [
+        "figurative ornament",
+        "steep gable roof"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "mosque",
+    "height_to_width": 0.46,
+    "depth_to_width": 0.69,
+    "roof_to_body_height": 0.56,
+    "dome_diameter_to_body_width": 0.54,
+    "minaret_height_to_body_height": 2.17,
+    "courtyard_depth_to_body_depth": 0.89,
+    "window_wall_ratio": 0.3,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "prayer_hall"
+        ],
+        "named_tower": [
+          "minaret_west",
+          "minaret_east"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "prayer_hall",
+          "slot_id": "main",
+          "local_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -9
+          },
+          "plan_origin": {
+            "x": -13,
+            "y": 0,
+            "z": -9
+          },
+          "dimensions": {
+            "width": 26,
+            "depth": 18,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            6
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "prayer_hall",
+                "local_origin": {
+                  "x": -13,
+                  "y": 0,
+                  "z": -9
+                },
+                "dimensions": {
+                  "width": 26,
+                  "depth": 18,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -13,
+              "min_z": -9,
+              "max_x": 13,
+              "max_z": 9,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 13,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "NORTH",
+                "plane": -9,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 9,
+                "start": -13,
+                "end": 13
+              },
+              {
+                "direction": "WEST",
+                "plane": -13,
+                "start": -9,
+                "end": 9
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座清真寺。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座清真寺。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "component_preset_id": "prayer_hall",
+        "component_preset": "central prayer hall with dome and entrance",
+        "slot_id": "main"
+      },
+      {
+        "id": "courtyard",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 24
+        },
+        "facing": "SOUTH",
+        "component_preset_id": "courtyard",
+        "component_preset": "arcaded courtyard with fountain",
+        "slot_id": "courtyard"
+      },
+      {
+        "id": "minaret_west",
+        "anchor": {
+          "x": -16,
+          "y": 0,
+          "z": 10
+        },
+        "facing": "SOUTH",
+        "component_preset_id": "minaret",
+        "component_preset": "western minaret",
+        "slot_id": "minaret_west"
+      },
+      {
+        "id": "minaret_east",
+        "anchor": {
+          "x": 16,
+          "y": 0,
+          "z": 10
+        },
+        "facing": "SOUTH",
+        "component_preset_id": "minaret",
+        "component_preset": "eastern minaret",
+        "slot_id": "minaret_east"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -16,
+        "y": -2,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 32,
+        "depth": 24,
+        "height": 2
+      },
+      "features": [
+        "stone plinth",
+        "foundation"
+      ],
+      "params": {
+        "component_id": "main_plinth",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone_bricks",
+        "host_id": "prayer_hall",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -13,
+        "y": 0,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 18,
+        "height": 12
+      },
+      "features": [
+        "prayer hall",
+        "hypostyle interior",
+        "qibla wall",
+        "mihrab"
+      ],
+      "params": {
+        "component_id": "prayer_hall",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "dome",
+        "floor_height": 6,
+        "floor_count": 2,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "void_ratio": 0.2,
+        "window_ratio": 0.35,
+        "window_aspect": "vertical_strip",
+        "material": "sandstone",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 16,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 14,
+        "height": 8
+      },
+      "features": [
+        "central dome",
+        "crescent finial"
+      ],
+      "params": {
+        "component_id": "central_dome",
+        "anchor_mode": "center",
+        "shape": "circle",
+        "roof_type": "dome",
+        "crown_template": "SIMPLE_DOME",
+        "crown_radius": 7,
+        "crown_height": 8,
+        "revolve_segments": 16,
+        "material": "copper",
+        "host_id": "prayer_hall",
+        "roof_height": 8,
+        "overhang": 2,
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -5,
+        "y": 0,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 4,
+        "height": 10
+      },
+      "features": [
+        "arched iwan",
+        "muqarnas",
+        "calligraphy band"
+      ],
+      "params": {
+        "component_id": "main_entrance",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "entrance_type": "portal",
+        "facade_cutout": "arches",
+        "material": "stone",
+        "host_id": "prayer_hall",
+        "door_width": 8,
+        "door_height": 4,
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -13,
+        "y": 3,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "vertical strip windows",
+        "geometric grille"
+      ],
+      "params": {
+        "component_id": "front_windows_west",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.4,
+        "window_aspect": "vertical_strip",
+        "facade_profile": "mullion_grid",
+        "facade_cutout": "lattice",
+        "material": "stone",
+        "host_id": "prayer_hall",
+        "rhythm": "regular",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 5,
+        "y": 3,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "vertical strip windows",
+        "geometric grille"
+      ],
+      "params": {
+        "component_id": "front_windows_east",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.4,
+        "window_aspect": "vertical_strip",
+        "facade_profile": "mullion_grid",
+        "facade_cutout": "lattice",
+        "material": "stone",
+        "host_id": "prayer_hall",
+        "rhythm": "regular",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 13,
+        "y": 3,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 18,
+        "height": 6
+      },
+      "features": [
+        "east facade windows",
+        "vertical strip windows"
+      ],
+      "params": {
+        "component_id": "east_windows",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.35,
+        "window_aspect": "vertical_strip",
+        "facade_profile": "mullion_grid",
+        "facade_cutout": "lattice",
+        "material": "stone",
+        "host_id": "prayer_hall",
+        "rhythm": "regular",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -13,
+        "y": 3,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 18,
+        "height": 6
+      },
+      "features": [
+        "west facade windows",
+        "vertical strip windows"
+      ],
+      "params": {
+        "component_id": "west_windows",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.35,
+        "window_aspect": "vertical_strip",
+        "facade_profile": "mullion_grid",
+        "facade_cutout": "lattice",
+        "material": "stone",
+        "host_id": "prayer_hall",
+        "rhythm": "regular",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "COURTYARD",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 16,
+        "height": 1
+      },
+      "features": [
+        "arcaded courtyard",
+        "ablution fountain",
+        "paving"
+      ],
+      "params": {
+        "component_id": "courtyard",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "courtyard_ratio": 0.6,
+        "material": "stone",
+        "building_id": "courtyard"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -8,
+        "y": -1,
+        "z": 13
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 6,
+        "height": 2
+      },
+      "features": [
+        "entry steps",
+        "paving"
+      ],
+      "params": {
+        "component_id": "entrance_terrace",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "host_id": "prayer_hall",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 16,
+        "height": 4
+      },
+      "features": [
+        "arcade wall",
+        "pointed arches"
+      ],
+      "params": {
+        "component_id": "courtyard_wall_west",
+        "anchor_mode": "min_corner",
+        "wall_pattern": "striped",
+        "material": "sandstone"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 10,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 16,
+        "height": 4
+      },
+      "features": [
+        "arcade wall",
+        "pointed arches"
+      ],
+      "params": {
+        "component_id": "courtyard_wall_east",
+        "anchor_mode": "min_corner",
+        "wall_pattern": "striped",
+        "material": "sandstone"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 2,
+        "height": 4
+      },
+      "features": [
+        "arcade wall",
+        "gateway"
+      ],
+      "params": {
+        "component_id": "courtyard_wall_south",
+        "anchor_mode": "min_corner",
+        "wall_pattern": "striped",
+        "material": "sandstone"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "minaret_west",
+      "relative_position": {
+        "x": 0,
+        "y": 13,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 4,
+        "height": 26
+      },
+      "features": [
+        "minaret",
+        "spiral stair",
+        "balcony rings",
+        "crescent finial"
+      ],
+      "params": {
+        "component_id": "minaret_west",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "roof_type": "cone",
+        "floor_height": 4,
+        "floor_count": 6,
+        "void_ratio": 0.1,
+        "window_aspect": "arrow_slit",
+        "material": "sandstone",
+        "building_id": "minaret_west"
+      }
+    },
+    {
+      "component_type": "TOWER",
+      "slot_id": "minaret_east",
+      "relative_position": {
+        "x": 0,
+        "y": 13,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 4,
+        "height": 26
+      },
+      "features": [
+        "minaret",
+        "spiral stair",
+        "balcony rings",
+        "crescent finial"
+      ],
+      "params": {
+        "component_id": "minaret_east",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "roof_type": "cone",
+        "floor_height": 4,
+        "floor_count": 6,
+        "void_ratio": 0.1,
+        "window_aspect": "arrow_slit",
+        "material": "sandstone",
+        "building_id": "minaret_east"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "minaret_west",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "minaret door"
+      ],
+      "params": {
+        "component_id": "minaret_west_door",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "material": "wood",
+        "host_id": "minaret_west",
+        "door_width": 2,
+        "door_height": 2,
+        "building_id": "minaret_west"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "minaret_east",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "minaret door"
+      ],
+      "params": {
+        "component_id": "minaret_east_door",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "material": "wood",
+        "host_id": "minaret_east",
+        "door_width": 2,
+        "door_height": 2,
+        "building_id": "minaret_east"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "minaret_west",
+      "relative_position": {
+        "x": 0,
+        "y": 18,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "balcony ring",
+        "railing"
+      ],
+      "params": {
+        "component_id": "minaret_west_balcony",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "material": "stone",
+        "host_id": "minaret_west",
+        "building_id": "minaret_west"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "minaret_east",
+      "relative_position": {
+        "x": 0,
+        "y": 18,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "balcony ring",
+        "railing"
+      ],
+      "params": {
+        "component_id": "minaret_east_balcony",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "material": "stone",
+        "host_id": "minaret_east",
+        "building_id": "minaret_east"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -14,
+        "y": 11,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 28,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "cornice",
+        "geometric tile band"
+      ],
+      "params": {
+        "component_id": "cornice_band",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "host_id": "prayer_hall",
+        "building_id": "prayer_hall"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "minaret_west",
+      "relative_position": {
+        "x": -1,
+        "y": 26,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "crescent finial"
+      ],
+      "params": {
+        "component_id": "minaret_west_finial",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "material": "gold",
+        "host_id": "minaret_west",
+        "building_id": "minaret_west"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "minaret_east",
+      "relative_position": {
+        "x": -1,
+        "y": 26,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "crescent finial"
+      ],
+      "params": {
+        "component_id": "minaret_east_finial",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "material": "gold",
+        "host_id": "minaret_east",
+        "building_id": "minaret_east"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「清真寺」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

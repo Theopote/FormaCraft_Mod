@@ -34,7 +34,7 @@ public class PrimitiveShapeGenerator implements ComponentGenerator {
         }
 
         Dimensions d = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveLegacyCornerOrigin(c);
         Map<String, Object> params = c.params() != null ? c.params() : Map.of();
 
         List<ShapeLibrary.Voxel> voxels;

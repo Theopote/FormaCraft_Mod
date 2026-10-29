@@ -41,13 +41,10 @@ class Live0109RegressionTest {
         assertNull(AssemblyCompileDiagnostics.get());
         assertFalse(blocks.isEmpty());
     }
-    @Test void legacyGateLoadsBayClassesAndReportsItsCorruptCrown() throws Exception {
-        // The old backend already injected a cupola into the Chinese roof.
-        // Preserve that conflict check while verifying the former class-loading crash is gone.
+    @Test void legacyGateLoadsBayClassesAndCompilesWithCurvedRoof() throws Exception {
         var blocks = ComponentPlanCompiler.compile(load("shaolin_gate"), BlockPos.ORIGIN, null, null, false);
-        assertTrue(blocks.isEmpty());
-        assertNotNull(AssemblyCompileDiagnostics.get());
-        assertEquals("E_PATCH_CONFLICT", AssemblyCompileDiagnostics.get().code());
+        assertFalse(blocks.isEmpty());
+        assertNull(AssemblyCompileDiagnostics.get());
     }
     @AfterEach void clear() { AssemblyCompileDiagnostics.clear(); }
 }

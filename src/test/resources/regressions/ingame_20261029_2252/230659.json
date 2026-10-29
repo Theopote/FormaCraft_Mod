@@ -1,0 +1,1370 @@
+{
+  "mode": "build",
+  "style_profile": "CHINESE_TRADITIONAL_DAOIST",
+  "style_attributes": {
+    "wall_color": "#e8dfcf",
+    "roof_color": "#3a3f44",
+    "accent_color": "#8b2e2e",
+    "wall_material": "white_plaster",
+    "roof_material": "deepslate_tiles",
+    "floor_material": "stone_bricks",
+    "decorative_elements": [
+      "upturned eaves",
+      "wooden lattice windows",
+      "stone plinth",
+      "gate name plaque",
+      "axial courtyard"
+    ]
+  },
+  "distinguishing_features": [
+    "axial courtyard layout",
+    "xieshan roof over main hall",
+    "white plaster walls with dark timber accents",
+    "south-facing mountain gate",
+    "paired east and west side halls"
+  ],
+  "anchor": {
+    "x": 632,
+    "y": 72,
+    "z": -841
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "taoist_temple",
+      "confidence": 0.78
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "axial",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.35,
+      "voidRatio": 0.3,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "gate",
+      "terrace"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "stone",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "taoist",
+        "temple",
+        "courtyard",
+        "xieshan_roof",
+        "white_plaster"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 20,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "axial symmetry",
+        "courtyard",
+        "xieshan roof",
+        "side halls"
+      ],
+      "avoid": [
+        "stadium",
+        "fortress",
+        "modern glass curtain wall"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "taoist_temple_compound",
+    "height_to_width": 0.55,
+    "depth_to_width": 0.78,
+    "roof_to_body_height": 0.35,
+    "courtyard_ratio": 0.3,
+    "main_hall_to_side_hall": 1.6,
+    "gate_height_to_main_hall": 0.8,
+    "symmetry": "bilateral",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_hall": [
+          "main_hall_body"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_hall_body",
+          "slot_id": "main_hall",
+          "local_origin": {
+            "x": -9,
+            "y": 5,
+            "z": -7
+          },
+          "plan_origin": {
+            "x": -9,
+            "y": 5,
+            "z": -17
+          },
+          "dimensions": {
+            "width": 18,
+            "depth": 14,
+            "height": 10
+          },
+          "floor_ys_local": [
+            5,
+            9
+          ],
+          "roof_y_local": 14,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_hall_body",
+                "local_origin": {
+                  "x": -9,
+                  "y": 5,
+                  "z": -7
+                },
+                "dimensions": {
+                  "width": 18,
+                  "depth": 14,
+                  "height": 10
+                },
+                "roof_y_local": 14
+              }
+            ],
+            "envelope_local": {
+              "min_x": -9,
+              "min_z": -7,
+              "max_x": 9,
+              "max_z": 7,
+              "min_y": 5,
+              "max_y": 15
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 9,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -7,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "WEST",
+                "plane": -9,
+                "start": -7,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "gate_body",
+          "slot_id": "gate",
+          "local_origin": {
+            "x": -6,
+            "y": 4,
+            "z": -3
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 4,
+            "z": 11
+          },
+          "dimensions": {
+            "width": 12,
+            "depth": 6,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "gate_body",
+                "local_origin": {
+                  "x": -6,
+                  "y": 4,
+                  "z": -3
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 6,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -3,
+              "max_x": 6,
+              "max_z": 3,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -3,
+                "end": 3
+              },
+              {
+                "direction": "NORTH",
+                "plane": -3,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 3,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -3,
+                "end": 3
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "left_hall_body",
+          "slot_id": "left_hall",
+          "local_origin": {
+            "x": -4,
+            "y": 3,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -19,
+            "y": 3,
+            "z": -10
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 12,
+            "height": 6
+          },
+          "floor_ys_local": [
+            3
+          ],
+          "roof_y_local": 8,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "left_hall_body",
+                "local_origin": {
+                  "x": -4,
+                  "y": 3,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 12,
+                  "height": 6
+                },
+                "roof_y_local": 8
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -6,
+              "max_x": 4,
+              "max_z": 6,
+              "min_y": 3,
+              "max_y": 9
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -6,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "right_hall_body",
+          "slot_id": "right_hall",
+          "local_origin": {
+            "x": -4,
+            "y": 3,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": 11,
+            "y": 3,
+            "z": -10
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 12,
+            "height": 6
+          },
+          "floor_ys_local": [
+            3
+          ],
+          "roof_y_local": 8,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "right_hall_body",
+                "local_origin": {
+                  "x": -4,
+                  "y": 3,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 12,
+                  "height": 6
+                },
+                "roof_y_local": 8
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -6,
+              "max_x": 4,
+              "max_z": 6,
+              "min_y": 3,
+              "max_y": 9
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -6,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座道观。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座道观。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "main_hall_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "CHINESE_TRADITIONAL_DAOIST",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "gate_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "CHINESE_TRADITIONAL_DAOIST",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "left_hall_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "CHINESE_TRADITIONAL_DAOIST",
+          "status": "unsupported_style"
+        },
+        {
+          "host_id": "right_hall_body",
+          "changes": [],
+          "skipped": [],
+          "style_id": "CHINESE_TRADITIONAL_DAOIST",
+          "status": "unsupported_style"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "main_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -10
+        },
+        "facing": "SOUTH",
+        "program": "CIVIC",
+        "component_preset_id": "taoist_main_hall",
+        "component_preset": "Main worship hall with xieshan roof and south-facing entrance"
+      },
+      {
+        "slot_id": "gate",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        },
+        "facing": "SOUTH",
+        "program": "CIVIC",
+        "component_preset_id": "taoist_gate",
+        "component_preset": "Mountain gate / entrance gatehouse with roofed portal"
+      },
+      {
+        "slot_id": "left_hall",
+        "anchor": {
+          "x": -15,
+          "y": 0,
+          "z": -4
+        },
+        "facing": "EAST",
+        "program": "CIVIC",
+        "component_preset_id": "taoist_side_hall",
+        "component_preset": "West side hall facing inward toward courtyard"
+      },
+      {
+        "slot_id": "right_hall",
+        "anchor": {
+          "x": 15,
+          "y": 0,
+          "z": -4
+        },
+        "facing": "WEST",
+        "program": "CIVIC",
+        "component_preset_id": "taoist_side_hall",
+        "component_preset": "East side hall facing inward toward courtyard"
+      },
+      {
+        "slot_id": "courtyard",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 3
+        },
+        "facing": "SOUTH",
+        "program": "PLAZA",
+        "component_preset_id": "taoist_courtyard",
+        "component_preset": "Central paved courtyard between gate and main hall"
+      },
+      {
+        "slot_id": "path",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 7
+        },
+        "facing": "SOUTH",
+        "program": "PLAZA",
+        "component_preset_id": "taoist_path",
+        "component_preset": "Processional path from gate toward main hall"
+      }
+    ]
+  },
+  "alignment_and_symmetry": {
+    "symmetry_type": "MIRROR_X",
+    "axis": "Z",
+    "focal_point": {
+      "x": 0,
+      "y": 0,
+      "z": -10
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 10
+      },
+      "features": [
+        "main worship hall",
+        "three pure ones hall",
+        "hollow interior"
+      ],
+      "params": {
+        "component_id": "main_hall_body",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.18,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "floor_height": 4,
+        "floor_count": 2,
+        "material": "white_plaster",
+        "roof_type": "xuanshan",
+        "window_ratio": 0.35,
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -10,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 16,
+        "height": 1
+      },
+      "features": [
+        "stone plinth"
+      ],
+      "params": {
+        "component_id": "main_hall_foundation",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "material": "stone_brick",
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -11,
+        "y": 10,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 18,
+        "height": 4
+      },
+      "features": [
+        "xieshan roof",
+        "upturned eaves"
+      ],
+      "params": {
+        "component_id": "main_hall_roof",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "roof_type": "xuanshan",
+        "overhang": 2,
+        "roof_pitch": 0.55,
+        "material": "deepslate_tiles",
+        "roof_height": 4,
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "main portal",
+        "double timber door"
+      ],
+      "params": {
+        "component_id": "main_hall_entrance",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "entrance_type": "double_door",
+        "material": "dark_oak_wood",
+        "door_width": 4,
+        "door_height": 4,
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -8,
+        "y": 5,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "front lattice window band"
+      ],
+      "params": {
+        "component_id": "main_hall_windows_front",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "window_ratio": 0.3,
+        "window_aspect": "vertical_strip",
+        "window_style": "lattice",
+        "material": "dark_oak_wood",
+        "rhythm": "regular",
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -9,
+        "y": 4,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 10,
+        "height": 3
+      },
+      "features": [
+        "west side lattice windows"
+      ],
+      "params": {
+        "component_id": "main_hall_windows_west",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "window_ratio": 0.25,
+        "window_aspect": "vertical_strip",
+        "window_style": "lattice",
+        "material": "dark_oak_wood",
+        "rhythm": "regular",
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 8,
+        "y": 4,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 10,
+        "height": 3
+      },
+      "features": [
+        "east side lattice windows"
+      ],
+      "params": {
+        "component_id": "main_hall_windows_east",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "window_ratio": 0.25,
+        "window_aspect": "vertical_strip",
+        "window_style": "lattice",
+        "material": "dark_oak_wood",
+        "rhythm": "regular",
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -11,
+        "y": 9,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "eave bracket band",
+        "cornice under roof"
+      ],
+      "params": {
+        "component_id": "main_hall_eaves",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "role": "ornament",
+        "detail_type": "cornice",
+        "material": "dark_oak_wood",
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [
+        "front ceremonial terrace"
+      ],
+      "params": {
+        "component_id": "main_hall_terrace",
+        "anchor_mode": "min_corner",
+        "host_id": "main_hall_body",
+        "material": "stone_brick",
+        "building_id": "main_hall_body"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [
+        "mountain gate",
+        "entrance gatehouse",
+        "hollow passage interior"
+      ],
+      "params": {
+        "component_id": "gate_body",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.35,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "floor_height": 4,
+        "floor_count": 1,
+        "material": "white_plaster",
+        "roof_type": "xuanshan",
+        "window_ratio": 0.35,
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [
+        "gate stone plinth"
+      ],
+      "params": {
+        "component_id": "gate_foundation",
+        "anchor_mode": "min_corner",
+        "host_id": "gate_body",
+        "material": "stone_brick",
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": -7,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 8,
+        "height": 3
+      },
+      "features": [
+        "xuanshan gate roof"
+      ],
+      "params": {
+        "component_id": "gate_roof",
+        "anchor_mode": "min_corner",
+        "host_id": "gate_body",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "roof_pitch": 0.5,
+        "material": "deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "central gate portal"
+      ],
+      "params": {
+        "component_id": "gate_entrance",
+        "anchor_mode": "min_corner",
+        "host_id": "gate_body",
+        "entrance_type": "double_door",
+        "material": "dark_oak_wood",
+        "door_width": 4,
+        "door_height": 4,
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": -5,
+        "y": 4,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "gate upper lattice windows"
+      ],
+      "params": {
+        "component_id": "gate_windows",
+        "anchor_mode": "min_corner",
+        "host_id": "gate_body",
+        "window_ratio": 0.22,
+        "window_aspect": "vertical_strip",
+        "window_style": "lattice",
+        "material": "dark_oak_wood",
+        "rhythm": "regular",
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "gate",
+      "relative_position": {
+        "x": -2,
+        "y": 5,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "gate name plaque"
+      ],
+      "params": {
+        "component_id": "gate_plaque",
+        "anchor_mode": "min_corner",
+        "host_id": "gate_body",
+        "role": "ornament",
+        "detail_type": "plaque",
+        "material": "gilded_wood",
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "left_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 3,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 12,
+        "height": 6
+      },
+      "features": [
+        "west side hall",
+        "bell pavilion"
+      ],
+      "params": {
+        "component_id": "left_hall_body",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.2,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "floor_height": 4,
+        "floor_count": 1,
+        "material": "white_plaster",
+        "roof_type": "xuanshan",
+        "window_ratio": 0.35,
+        "building_id": "left_hall_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "left_hall",
+      "relative_position": {
+        "x": -5,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [
+        "west side hall plinth"
+      ],
+      "params": {
+        "component_id": "left_hall_foundation",
+        "anchor_mode": "min_corner",
+        "host_id": "left_hall_body",
+        "material": "stone_brick",
+        "building_id": "left_hall_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "left_hall",
+      "relative_position": {
+        "x": -5,
+        "y": 6,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 14,
+        "height": 3
+      },
+      "features": [
+        "xuanshan side-hall roof"
+      ],
+      "params": {
+        "component_id": "left_hall_roof",
+        "anchor_mode": "min_corner",
+        "host_id": "left_hall_body",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "roof_pitch": 0.5,
+        "material": "deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "left_hall_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "left_hall",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 3
+      },
+      "features": [
+        "east-facing side hall door"
+      ],
+      "params": {
+        "component_id": "left_hall_entrance",
+        "anchor_mode": "min_corner",
+        "host_id": "left_hall_body",
+        "entrance_type": "single_door",
+        "material": "dark_oak_wood",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "left_hall_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "left_hall",
+      "relative_position": {
+        "x": -3,
+        "y": 3,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "side hall lattice windows"
+      ],
+      "params": {
+        "component_id": "left_hall_windows",
+        "anchor_mode": "min_corner",
+        "host_id": "left_hall_body",
+        "window_ratio": 0.24,
+        "window_aspect": "vertical_strip",
+        "window_style": "lattice",
+        "material": "dark_oak_wood",
+        "rhythm": "regular",
+        "building_id": "left_hall_body"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "right_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 3,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 12,
+        "height": 6
+      },
+      "features": [
+        "east side hall",
+        "drum pavilion"
+      ],
+      "params": {
+        "component_id": "right_hall_body",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.2,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "floor_height": 4,
+        "floor_count": 1,
+        "material": "white_plaster",
+        "roof_type": "xuanshan",
+        "window_ratio": 0.35,
+        "building_id": "right_hall_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "right_hall",
+      "relative_position": {
+        "x": -5,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [
+        "east side hall plinth"
+      ],
+      "params": {
+        "component_id": "right_hall_foundation",
+        "anchor_mode": "min_corner",
+        "host_id": "right_hall_body",
+        "material": "stone_brick",
+        "building_id": "right_hall_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "right_hall",
+      "relative_position": {
+        "x": -5,
+        "y": 6,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 14,
+        "height": 3
+      },
+      "features": [
+        "xuanshan side-hall roof"
+      ],
+      "params": {
+        "component_id": "right_hall_roof",
+        "anchor_mode": "min_corner",
+        "host_id": "right_hall_body",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "roof_pitch": 0.5,
+        "material": "deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "right_hall_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "right_hall",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 3
+      },
+      "features": [
+        "west-facing side hall door"
+      ],
+      "params": {
+        "component_id": "right_hall_entrance",
+        "anchor_mode": "min_corner",
+        "host_id": "right_hall_body",
+        "entrance_type": "single_door",
+        "material": "dark_oak_wood",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "right_hall_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "right_hall",
+      "relative_position": {
+        "x": -3,
+        "y": 3,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "side hall lattice windows"
+      ],
+      "params": {
+        "component_id": "right_hall_windows",
+        "anchor_mode": "min_corner",
+        "host_id": "right_hall_body",
+        "window_ratio": 0.24,
+        "window_aspect": "vertical_strip",
+        "window_style": "lattice",
+        "material": "dark_oak_wood",
+        "rhythm": "regular",
+        "building_id": "right_hall_body"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "path",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "central processional path"
+      ],
+      "params": {
+        "component_id": "processional_path",
+        "anchor_mode": "min_corner",
+        "material": "stone_brick"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「道观」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

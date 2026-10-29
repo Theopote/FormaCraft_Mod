@@ -39,7 +39,7 @@ public class RoofGenerator implements ComponentGenerator {
         }
 
         Dimensions d = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveLegacyCornerOrigin(c);
         Map<String, Object> params = c.params();
 
         int coreWidth = Math.max(1, d.width());
@@ -320,7 +320,8 @@ public class RoofGenerator implements ComponentGenerator {
                 }
                 int axis = alongDepth ? x : z;
                 int edgeDistance = Math.min(axis, across - 1 - axis);
-                int rise = (int) Math.round(Math.min(1.0, edgeDistance / (double) maxSpan) * (height - 1));
+                int rise = (int) Math.round(com.formacraft.common.generation.component.util.StyleRoofGeometry.profile(
+                        semantic, edgeDistance / (double) maxSpan) * (height - 1));
                 SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
@@ -355,7 +356,8 @@ public class RoofGenerator implements ComponentGenerator {
                     continue;
                 }
                 int edgeDistance = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
-                int rise = (int) Math.round(Math.min(1.0, edgeDistance / (double) maxSpan) * (height - 1));
+                int rise = (int) Math.round(com.formacraft.common.generation.component.util.StyleRoofGeometry.profile(
+                        semantic, edgeDistance / (double) maxSpan) * (height - 1));
                 SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
@@ -384,8 +386,8 @@ public class RoofGenerator implements ComponentGenerator {
             return;
         }
         boolean ridgeAlongDepth = depth >= width;
-        int spanAcross = Math.max(1, (ridgeAlongDepth ? width : depth) / 2);
-        int centerAcross = ridgeAlongDepth ? width / 2 : depth / 2;
+        int across = ridgeAlongDepth ? width : depth;
+        int spanAcross = Math.max(1, (across - 1) / 2);
         int ridgeInset = Math.max(1, (ridgeAlongDepth ? depth : width) / 4);
         int maxRise = height - 1;
 
@@ -394,8 +396,11 @@ public class RoofGenerator implements ComponentGenerator {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
                     continue;
                 }
-                int distAcross = ridgeAlongDepth ? Math.abs(x - centerAcross) : Math.abs(z - centerAcross);
-                int riseAcross = (int) Math.round((1.0 - (distAcross / (double) spanAcross)) * maxRise);
+                int axis = ridgeAlongDepth ? x : z;
+                int edgeDistance = Math.min(axis, across - 1 - axis);
+                int distAcross = Math.max(0, spanAcross - edgeDistance);
+                int riseAcross = (int) Math.round(com.formacraft.common.generation.component.util.StyleRoofGeometry.profile(
+                        semantic, 1.0 - distAcross / (double) spanAcross) * maxRise);
                 if (riseAcross < 0) continue;
 
                 int distAlong = ridgeAlongDepth ? Math.min(z, depth - 1 - z) : Math.min(x, width - 1 - x);
@@ -403,7 +408,8 @@ public class RoofGenerator implements ComponentGenerator {
                 if (distAlong >= ridgeInset) {
                     riseAlong = maxRise;
                 } else {
-                    riseAlong = (int) Math.round((distAlong / (double) ridgeInset) * maxRise);
+                    riseAlong = (int) Math.round(com.formacraft.common.generation.component.util.StyleRoofGeometry.profile(
+                            semantic, distAlong / (double) ridgeInset) * maxRise);
                 }
 
                 int rise = Math.min(riseAcross, riseAlong);
