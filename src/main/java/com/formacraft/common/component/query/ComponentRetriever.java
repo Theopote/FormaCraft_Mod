@@ -219,9 +219,13 @@ public final class ComponentRetriever {
         return retrieveResolvedReport(query, random).result();
     }
 
-    /** Ordered lookup evidence, including candidates that failed before a successful fit. */
+    /** Ordered lookup evidence. SUCCESS means a permitted fit, not necessarily the selected fit. */
     public record CandidateAttempt(String sourceId, double score,
-                                   ComponentResolveResult.Status status) {}
+                                   ComponentResolveResult.Status status, ComponentFitScore fitScore) {
+        public CandidateAttempt(String sourceId, double score, ComponentResolveResult.Status status) {
+            this(sourceId, score, status, null);
+        }
+    }
     public record ResolutionReport(ComponentResolveResult result, List<CandidateAttempt> attempts) {
         public ResolutionReport { attempts = List.copyOf(attempts); }
     }
@@ -238,6 +242,10 @@ public final class ComponentRetriever {
             return new ResolutionReport(ComponentResolveResult.noCandidate("query_null"), attempts);
         }
         boolean sawLoaded = false;
+        ComponentDefinition best = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
+        String bestId = null;
+        long seed = random == null ? 0 : random.nextLong();
         String loadFailedId = null;
         boolean sawUnfittable = false;
         String lastUnfittableId = "";
@@ -250,17 +258,28 @@ public final class ComponentRetriever {
                 continue;
             }
             sawLoaded = true;
-            var variant = com.formacraft.common.component.variant.VariantGenerator.generate(base, query, random);
+            var variant = com.formacraft.common.component.variant.VariantGenerator.generate(base, query,
+                    new Random(seed ^ Objects.hashCode(score.componentId)));
             ComponentDefinition fitted =
                     com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, variant);
             if (fitted != null) {
-                attempts.add(new CandidateAttempt(score.componentId, score.totalScore, ComponentResolveResult.Status.SUCCESS));
-                return new ResolutionReport(ComponentResolveResult.success(fitted), attempts);
+                var fitScore = ComponentFitScore.evaluate(score, base, fitted, query);
+                attempts.add(new CandidateAttempt(score.componentId, score.totalScore,
+                        ComponentResolveResult.Status.SUCCESS, fitScore));
+                String id = Objects.toString(score.componentId, "");
+                if (fitScore.total() > bestScore || (Double.compare(fitScore.total(), bestScore) == 0
+                        && (bestId == null || id.compareTo(bestId) < 0))) {
+                    best = fitted;
+                    bestScore = fitScore.total();
+                    bestId = id;
+                }
+                continue;
             }
             attempts.add(new CandidateAttempt(score.componentId, score.totalScore, ComponentResolveResult.Status.ADAPT_FAILED));
             sawUnfittable = true;
             lastUnfittableId = score.componentId != null ? score.componentId : (base.id != null ? base.id : "");
         }
+        if (best != null) return new ResolutionReport(ComponentResolveResult.success(best), attempts);
         if (sawUnfittable) {
             return new ResolutionReport(ComponentResolveResult.adaptFailed(lastUnfittableId,
                     "candidates_exist_but_none_fit_query"), attempts);

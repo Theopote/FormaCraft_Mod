@@ -66,3 +66,12 @@ LLM 负责空间、体量、立面节奏及构件需求；资产库提供作者�
 已实现评分明细与稳定同分排序；检索新增 ResolutionReport，记录每次候选加载/适配状态，旧接口委托报告保持调用兼容。已排名但无法加载的候选返回 LOAD_FAILED，避免误判为没有候选。当前仍选择首个适配成功的候选，实际适配方案重新评分、捕获 UI 和建筑级套系选择尚未实现。新增固定尺寸、排序证据、资源缺失、跳过不适配候选及原件保护测试。
 
 验证：独立 build-component-assets 输出目录运行 ComponentRankingEvidenceTest、ComponentResolutionReportTest、CapturedComponentAdaptationTest，Gradle BUILD SUCCESSFUL。尚未进行游戏内验收。
+
+## 实际适配结果选型（2026-10-30）
+
+retrieveBestResolved 现在比较前 20 个初筛候选中的所有成功适配方案。候选报告的 SUCCESS 表示可适配，不代表被选中；最终选择以 result.sourceId 为准。每次成功尝试携带 fitScore：targetError 是已指定尺寸轴的最大相对误差，dimensionalChange 是相对原件各轴变化的最大值，二者限制在 0–1。
+
+存在评分明细时，用 1-targetError 替换原几何评分，保留语义、风格、安装环境及用途维度；再减去 adaptationPenalty × dimensionalChange。selection.adaptationPenalty 默认为 0.10，限定在 0–1，非有限值恢复默认；旧查询没有 selection 时兼容默认。没有评分明细的兼容候选从原总分扣除 0.20 × targetError。相同最终分数按资源 ID 稳定选择。
+
+每个候选的随机源从本次种子与资源 ID 派生，避免前面候选的随机消耗影响后续变体。评价仅衡量尺寸变化，尚不代表雕饰完整性、美学质量或世界安装合法性。实际形态损失、材料变化成本、套系协调和旧 retrieveBestWithVariant 路径统一仍待后续完成。
+本阶段验证：独立输出目录执行评分、候选诊断、捕获适配及第十二轮适配回归，共 29 项测试，0 失败；未进行游戏内验收。

@@ -35,6 +35,14 @@ public class ComponentQuery {
     /** 排序辅助（主次、可见度） */
     public UsageHint usageHint = new UsageHint();
 
+    /** Selection preferences never grant permission to alter an asset. */
+    public Selection selection = new Selection();
+
+    public static class Selection {
+        /** Maximum score deduction for relative dimensional change, in [0, 1]. */
+        public double adaptationPenalty = 0.10;
+    }
+
     /* ----------------------------
      * 子结构定义
      * ---------------------------- */

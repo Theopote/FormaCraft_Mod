@@ -77,6 +77,9 @@ public class ComponentRanker {
 
     public record ScoreBreakdown(double semantic, double placement, double geometry,
                                  double style, double usage) {
+        public double withGeometry(double fittedGeometry) {
+            return total() + W_GEOMETRY * (fittedGeometry - geometry);
+        }
         public double total() {
             return semantic * W_SEMANTIC + placement * W_PLACEMENT
                     + geometry * W_GEOMETRY + style * W_STYLE + usage * W_USAGE;
