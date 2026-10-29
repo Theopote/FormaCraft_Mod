@@ -130,13 +130,13 @@ public final class ComponentRetriever {
      * placement / side / role 等语义约束改由 {@link com.formacraft.common.component.rank.ComponentRanker} 软评分，
      * 避免用户构件因 metadata 不完整被整批剔除。
      */
-    private static boolean hardFilter(ComponentMetadata metadata, ComponentQuery query) {
+    static boolean hardFilter(ComponentMetadata metadata, ComponentQuery query) {
         // 1. forbidden_tags 不命中
         if (query.constraints != null && query.constraints.forbiddenTags != null) {
             if (metadata.semantic != null && metadata.semantic.tags != null) {
                 for (String forbiddenTag : query.constraints.forbiddenTags) {
                     if (forbiddenTag == null || forbiddenTag.isBlank()) continue;
-                    if (ComponentQueryMatchUtil.tagMatches(forbiddenTag, metadata.semantic.tags)) {
+                    if (ComponentQueryMatchUtil.tagIdentityMatches(forbiddenTag, metadata.semantic.tags)) {
                         return false;
                     }
                 }
@@ -150,7 +150,7 @@ public final class ComponentRetriever {
             }
             for (String mustHaveTag : query.constraints.mustHave) {
                 if (mustHaveTag == null || mustHaveTag.isBlank()) continue;
-                if (!ComponentQueryMatchUtil.tagMatches(mustHaveTag, metadata.semantic.tags)) {
+                if (!ComponentQueryMatchUtil.tagIdentityMatches(mustHaveTag, metadata.semantic.tags)) {
                     return false;
                 }
             }

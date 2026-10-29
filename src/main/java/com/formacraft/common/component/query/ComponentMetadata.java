@@ -230,15 +230,15 @@ public class ComponentMetadata {
         }
         if (component.tags != null) {
             for (String tag : component.tags) {
-                String lower = tag.toLowerCase();
-                if (lower.contains("gothic")) {
+                if (tag == null || tag.isBlank()) continue;
+                if (ComponentQueryMatchUtil.tagMatches("gothic", List.of(tag))) {
                     metadata.styleAffinity.put("Gothic", 1.0);
-                    metadata.styleAffinity.put("Medieval_Castle", 0.9);
-                } else if (lower.contains("chinese")) {
+                    metadata.styleAffinity.merge("Medieval_Castle", 0.9, Math::max);
+                } else if (ComponentQueryMatchUtil.tagMatches("chinese", List.of(tag))) {
                     metadata.styleAffinity.put("Chinese_Traditional", 1.0);
-                    metadata.styleAffinity.put("Medieval_Castle", 0.3);
-                } else if (lower.contains("medieval")) {
-                    metadata.styleAffinity.put("Medieval_Castle", 0.9);
+                    metadata.styleAffinity.merge("Medieval_Castle", 0.3, Math::max);
+                } else if (ComponentQueryMatchUtil.tagMatches("medieval", List.of(tag))) {
+                    metadata.styleAffinity.merge("Medieval_Castle", 0.9, Math::max);
                 }
             }
         }

@@ -11,8 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class FbdSourcePlanTest {

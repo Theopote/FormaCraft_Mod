@@ -485,13 +485,16 @@ public final class PatchPreviewService {
             boolean committed;
             if (pendingEdit.operation().isFbdReplace()) {
                 String fbdPlan = com.formacraft.server.edit.BuildingEditPendingRegistry
-                        .takeFbdSourcePlan(ticket.id());
+                        .peekFbdSourcePlan(ticket.id());
                 committed = editService.commitSuccessfulFbdReplace(
                         pendingEdit.buildingId(),
                         pendingEdit.dimension(),
                         pendingEdit.baseRevision(),
                         pendingEdit.targetWorldStates(),
                         fbdPlan);
+                if (committed) {
+                    com.formacraft.server.edit.BuildingEditPendingRegistry.takeFbdSourcePlan(ticket.id());
+                }
             } else {
                 committed = editService.commitSuccessfulBuildingEdit(
                         pendingEdit.buildingId(),
@@ -502,11 +505,22 @@ public final class PatchPreviewService {
                         pendingEdit.targetPart());
             }
             if (!committed) {
-                editService.markMemorySyncFailed(
-                        pendingEdit.buildingId(),
-                        pendingEdit.dimension(),
-                        pendingEdit.baseRevision(),
-                        pendingEdit.targetWorldStates());
+                if (pendingEdit.operation().isFbdReplace()) {
+                    String fbdPlan = com.formacraft.server.edit.BuildingEditPendingRegistry
+                            .takeFbdSourcePlan(ticket.id());
+                    editService.markMemorySyncFailedFbd(
+                            pendingEdit.buildingId(),
+                            pendingEdit.dimension(),
+                            pendingEdit.baseRevision(),
+                            pendingEdit.targetWorldStates(),
+                            fbdPlan);
+                } else {
+                    editService.markMemorySyncFailed(
+                            pendingEdit.buildingId(),
+                            pendingEdit.dimension(),
+                            pendingEdit.baseRevision(),
+                            pendingEdit.targetWorldStates());
+                }
                 if (txnId != null) editService.markRecoveryRequired(txnId);
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "【EDIT_MEMORY_SYNC_FAILED】世界 Apply 成功，建筑 Memory/Revision 提交失败。"

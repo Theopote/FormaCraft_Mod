@@ -211,17 +211,15 @@ public class ComponentRanker {
             return 0.25;
         }
 
-        double direct = m.styleAffinity.getOrDefault(q.style.styleProfile, 0.0);
-        if (direct > 0) {
-            return direct;
-        }
+        String requested = ComponentQueryMatchUtil.normalizeTag(q.style.styleProfile);
+        double best = 0;
         for (var entry : m.styleAffinity.entrySet()) {
-            if (entry.getKey() != null
-                    && ComponentQueryMatchUtil.equalsIgnoreCase(entry.getKey(), q.style.styleProfile)) {
-                return entry.getValue();
+            if (!requested.isEmpty() && requested.equals(ComponentQueryMatchUtil.normalizeTag(entry.getKey()))
+                    && entry.getValue() != null && Double.isFinite(entry.getValue())) {
+                best = Math.max(best, Math.clamp(entry.getValue(), 0, 1));
             }
         }
-        return 0.0;
+        return best;
     }
 
     private static double usageScore(ComponentQuery q, ComponentMetadata m) {

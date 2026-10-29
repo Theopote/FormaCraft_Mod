@@ -29,6 +29,8 @@ public final class BuildingMemoryKeys {
     /** Sanitized LlmPlan JSON containing ASSEMBLY.params.fbd_program only. */
     public static final String FBD_SOURCE_PLAN = "fbd_source_plan";
     public static final String FBD_SOURCE_FINGERPRINT = "fbd_source_fingerprint";
+    /** Pending sanitized plan after world apply when Memory commit failed. */
+    public static final String FBD_SOURCE_PLAN_PENDING = "fbd_source_plan_pending";
 
     private BuildingMemoryKeys() {}
 
@@ -49,6 +51,27 @@ public final class BuildingMemoryKeys {
     public static boolean hasFbdSourcePlan(ProjectMemory memory) {
         String json = fbdSourcePlan(memory);
         return json != null && !json.isBlank();
+    }
+
+    public static void storeFbdSourcePlanPending(ProjectMemory memory, String sanitizedJson) {
+        if (memory == null) return;
+        Map<String, Object> meta = ensureMetadata(memory);
+        if (sanitizedJson == null || sanitizedJson.isBlank()) {
+            meta.remove(FBD_SOURCE_PLAN_PENDING);
+        } else {
+            meta.put(FBD_SOURCE_PLAN_PENDING, sanitizedJson);
+        }
+    }
+
+    public static String fbdSourcePlanPending(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return null;
+        Object raw = memory.getMetadata().get(FBD_SOURCE_PLAN_PENDING);
+        return raw == null ? null : String.valueOf(raw);
+    }
+
+    public static void clearFbdSourcePlanPending(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return;
+        memory.getMetadata().remove(FBD_SOURCE_PLAN_PENDING);
     }
 
     public static boolean isMemorySyncBlocked(ProjectMemory memory) {
@@ -87,6 +110,7 @@ public final class BuildingMemoryKeys {
         memory.getMetadata().remove(MEMORY_SYNC_BASE_REVISION);
         memory.getMetadata().remove(MEMORY_SYNC_ROOF_STATES);
         memory.getMetadata().remove(MEMORY_SYNC_DIMENSION);
+        memory.getMetadata().remove(FBD_SOURCE_PLAN_PENDING);
     }
 
     @SuppressWarnings("unchecked")

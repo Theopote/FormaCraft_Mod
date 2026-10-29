@@ -510,9 +510,28 @@ public final class BuildingEditService {
                     buildingId, dimension, expectedBaseRevision, operation, targetStates, targetPart);
         }
         if (operation != null && operation.isFbdReplace()) {
-            return commitSuccessfulFbdReplace(buildingId, dimension, expectedBaseRevision, targetStates, null);
+            ProjectMemory mem = memoryManager.getMemory(buildingId.toString());
+            String pendingPlan = BuildingMemoryKeys.fbdSourcePlanPending(mem);
+            return commitSuccessfulFbdReplace(
+                    buildingId, dimension, expectedBaseRevision, targetStates, pendingPlan);
         }
         return commitSuccessfulRoofEdit(buildingId, dimension, expectedBaseRevision, targetStates);
+    }
+
+    public void markMemorySyncFailedFbd(
+            UUID buildingId,
+            Identifier dimension,
+            long expectedBaseRevision,
+            Map<BlockPos, String> targetStates,
+            String sanitizedNewPlanJson
+    ) {
+        markMemorySyncFailed(buildingId, dimension, expectedBaseRevision, targetStates);
+        if (buildingId == null) return;
+        ProjectMemory memory = memoryManager.getMemory(buildingId.toString());
+        if (memory != null) {
+            BuildingMemoryKeys.storeFbdSourcePlanPending(memory, sanitizedNewPlanJson);
+            memoryManager.updateMemoryStrict(memory);
+        }
     }
 
     /**
@@ -539,8 +558,11 @@ public final class BuildingEditService {
             }
         }
         if (current != expectedBaseRevision) return false;
-        if (sanitizedNewPlanJson == null || sanitizedNewPlanJson.isBlank()) {
-            // Recover plan from pending registry if Confirm path forgot to pass it.
+        String planJson = sanitizedNewPlanJson;
+        if (planJson == null || planJson.isBlank()) {
+            planJson = BuildingMemoryKeys.fbdSourcePlanPending(memory);
+        }
+        if (planJson == null || planJson.isBlank()) {
             return false;
         }
 
@@ -557,7 +579,8 @@ public final class BuildingEditService {
         }
         BuildingPartIndex next = BuildingPartIndex.fromPlannedBlocks(solids);
         next.persistTo(memory);
-        BuildingMemoryKeys.storeFbdSourcePlan(memory, sanitizedNewPlanJson);
+        BuildingMemoryKeys.storeFbdSourcePlan(memory, planJson);
+        BuildingMemoryKeys.clearFbdSourcePlanPending(memory);
         if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
         if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
         BuildingMemoryKeys.bumpRevision(memory);

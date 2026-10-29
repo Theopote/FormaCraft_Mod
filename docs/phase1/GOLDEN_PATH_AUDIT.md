@@ -78,7 +78,7 @@ flowchart TD
   Patches --> Same[与 2.1 相同 PreviewStorage / BuildTask]
 ```
 
-契约：`docs/FBD_EXPERIMENTAL.md`。程序内 last-write-wins（`FbdAssemblyAdapter.finalPatches`）；跨构件覆盖仍受现有 Patch 授权约束。不提供已落地 FBD 建筑的替换编辑。
+契约：`docs/FBD_EXPERIMENTAL.md`。程序内 last-write-wins（`FbdAssemblyAdapter.finalPatches`）；跨构件覆盖仍受现有 Patch 授权约束。确认后持久化 `FBD_SOURCE_PLAN`，支持 `REPLACE_FBD_PROGRAM` 整栋替换。
 
 ### 2.4 增量 Patch（`LlmPlan.Mode.patch`）
 

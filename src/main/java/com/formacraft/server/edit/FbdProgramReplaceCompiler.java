@@ -96,7 +96,6 @@ public final class FbdProgramReplaceCompiler {
         List<BlockPatch> patches = new ArrayList<>();
         Map<BlockPos, String> targets = new LinkedHashMap<>();
         Set<BlockPos> allowed = new LinkedHashSet<>();
-        Map<BlockPos, String> expectedLive = new LinkedHashMap<>();
         java.util.function.Function<BlockPos, String> lookup =
                 liveLookup == null ? p -> null : liveLookup;
 
@@ -115,7 +114,6 @@ public final class FbdProgramReplaceCompiler {
             }
             BlockPos imm = world.toImmutable();
             allowed.add(imm);
-            expectedLive.put(imm, liveState);
             int dx = world.getX() - buildingOrigin.getX();
             int dy = world.getY() - buildingOrigin.getY();
             int dz = world.getZ() - buildingOrigin.getZ();

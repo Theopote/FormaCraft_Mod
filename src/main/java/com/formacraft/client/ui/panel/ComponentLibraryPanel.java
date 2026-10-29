@@ -335,11 +335,7 @@ public final class ComponentLibraryPanel extends BasePanel {
             String id = e.id.toLowerCase(Locale.ROOT);
             String nm = (e.name != null ? e.name : "").toLowerCase(Locale.ROOT);
             boolean ok = id.contains(q) || nm.contains(q);
-            if (!ok && e.tags != null) {
-                for (String t : e.tags) {
-                    if (t != null && t.toLowerCase(Locale.ROOT).contains(q)) { ok = true; break; }
-                }
-            }
+            if (!ok) ok = com.formacraft.common.component.query.ComponentQueryMatchUtil.tagSearchMatches(q, e.tags);
             if (ok) filtered.add(e);
         }
 
@@ -638,11 +634,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (q == null || q.isBlank()) return 0;
         String qq = q.trim().toLowerCase(Locale.ROOT);
 
-        if (e.tags != null) {
-            for (String t : e.tags) {
-                if (t != null && t.toLowerCase(Locale.ROOT).contains(qq)) return 3;
-            }
-        }
+        if (com.formacraft.common.component.query.ComponentQueryMatchUtil.tagSearchMatches(qq, e.tags)) return 3;
         String nm = (e.name != null ? e.name : "").toLowerCase(Locale.ROOT);
         if (nm.contains(qq)) return 2;
         String id = (e.id != null ? e.id : "").toLowerCase(Locale.ROOT);

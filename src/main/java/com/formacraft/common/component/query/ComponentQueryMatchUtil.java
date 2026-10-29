@@ -2,9 +2,10 @@ package com.formacraft.common.component.query;
 
 import java.util.Collection;
 import java.util.Locale;
+import java.text.Normalizer;
 
 /**
- * ComponentQuery 匹配工具：大小写不敏感、标签子串、role 推断。
+ * Normalized tag identities for constraints; bounded phrase matches for discovery.
  */
 public final class ComponentQueryMatchUtil {
     private ComponentQueryMatchUtil() {}
@@ -18,29 +19,44 @@ public final class ComponentQueryMatchUtil {
         if (queryTag == null || queryTag.isBlank() || componentTags == null) {
             return false;
         }
-        String q = queryTag.trim().toLowerCase(Locale.ROOT);
+        String q = normalizeTag(queryTag);
+        if (q.isEmpty()) return false;
         for (String tag : componentTags) {
             if (tag == null || tag.isBlank()) continue;
-            String t = tag.trim().toLowerCase(Locale.ROOT);
-            if (t.equals(q) || t.contains(q) || q.contains(t)) {
+            String t = normalizeTag(tag);
+            if (t.equals(q) || ("_" + t + "_").contains("_" + q + "_")
+                    || q.codePoints().allMatch(c -> Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN)
+                    && t.contains(q)) {
                 return true;
             }
         }
         return false;
     }
 
+    /** No semantic aliases or hierarchy are invented by spelling normalization. */
+    public static String normalizeTag(String tag) {
+        if (tag == null) return "";
+        return Normalizer.normalize(tag, Normalizer.Form.NFKC).strip().toLowerCase(Locale.ROOT)
+                .replaceAll("[\\s\\p{Z}_\\p{Pd}]+", "_");
+    }
+
+    public static boolean tagIdentityMatches(String queryTag, Collection<String> tags) {
+        String q = normalizeTag(queryTag);
+        return !q.isEmpty() && tags != null && tags.stream().anyMatch(t -> q.equals(normalizeTag(t)));
+    }
+
+    /** Player-entered search stays forgiving; never use this for asset permissions. */
+    public static boolean tagSearchMatches(String text, Collection<String> tags) {
+        String q = normalizeTag(text);
+        return !q.isEmpty() && tags != null && tags.stream().anyMatch(t -> normalizeTag(t).contains(q));
+    }
+
     public static boolean roleImpliedByTags(String role, Collection<String> tags) {
         if (role == null || role.isBlank() || tags == null || tags.isEmpty()) {
             return false;
         }
-        String r = role.trim().toLowerCase(Locale.ROOT);
-        for (String tag : tags) {
-            if (tag == null) continue;
-            String t = tag.trim().toLowerCase(Locale.ROOT);
-            if (t.contains(r) || r.contains(t)) {
-                return true;
-            }
-        }
+        String r = normalizeTag(role);
+        if (tagMatches(r, tags)) return true;
         return switch (r) {
             case "door" -> tagMatches("门", tags);
             case "window" -> tagMatches("窗", tags);
