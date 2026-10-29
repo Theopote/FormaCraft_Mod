@@ -41,10 +41,13 @@ class Live2252RegressionTest {
         }
     }
     private Map<BlockPos, Integer> roof(String style, String profile) {
+        return roof(style, profile, new Dimensions(21,25,10));
+    }
+    private Map<BlockPos, Integer> roof(String style, String profile, Dimensions dimensions) {
         var params = new HashMap<String,Object>(); params.put("roof_type", "gable"); params.put("gable_walls", false);
         params.put("roof_block", "minecraft:stone");
         if (profile != null) params.put("roof_slope_profile", profile);
-        var c = new Component("ROOF", null, new Vec3i(0, 10, 0), new Dimensions(21, 25, 10), List.of(), params);
+        var c = new Component("ROOF", null, new Vec3i(0, 10, 0), dimensions, List.of(), params);
         var tops = new HashMap<BlockPos,Integer>();
         for (var b : new RoofGenerator().generate(new SemanticComponent("ROOF", null, c, style)))
             tops.merge(new BlockPos(b.dx(), 0, b.dz()), b.dy(), Math::max);
@@ -85,6 +88,9 @@ class Live2252RegressionTest {
             for (int x=0; x<21; x++) assertEquals(tops.get(new BlockPos(x,0,12)), tops.get(new BlockPos(20-x,0,12)));
         }
         assertEquals(roof("CHINESE_TRADITIONAL", "linear"), roof("GOTHIC", "linear"));
+        var small = new Dimensions(9,11,3);
+        assertNotEquals(roof("CHINESE_TRADITIONAL",null,small), roof("JAPANESE",null,small),
+                "Style difference must survive quantization on a three-block-high roof");
     }
     @TestFactory Stream<DynamicTest> replayCurrentSession() {
         return Stream.of("225358", "225448", "225713", "225828", "230021", "230232", "230359", "230526", "230659", "230919", "231048", "231158", "231336", "231614", "231808", "231921", "232025", "232144")

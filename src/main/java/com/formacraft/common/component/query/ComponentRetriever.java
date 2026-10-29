@@ -101,7 +101,10 @@ public final class ComponentRetriever {
         for (var sc : scored) {
             ComponentScore score = new ComponentScore(sc.component().componentId);
             score.totalScore = sc.score();
-            // 其他维度分数可以从 ComponentRanker 扩展获取（如果需要）
+            score.breakdown = com.formacraft.common.component.rank.ComponentRanker.explain(query, sc.component());
+            score.semanticScore = score.breakdown.semantic();
+            score.contextScore = score.breakdown.placement();
+            score.styleScore = score.breakdown.style();
             scores.add(score);
         }
 
@@ -213,34 +216,61 @@ public final class ComponentRetriever {
      * On SUCCESS, {@link ComponentResolveResult#definition()} is the fitted definition.
      */
     public static ComponentResolveResult retrieveBestResolved(ComponentQuery query, java.util.Random random) {
+        return retrieveResolvedReport(query, random).result();
+    }
+
+    /** Ordered lookup evidence, including candidates that failed before a successful fit. */
+    public record CandidateAttempt(String sourceId, double score,
+                                   ComponentResolveResult.Status status) {}
+    public record ResolutionReport(ComponentResolveResult result, List<CandidateAttempt> attempts) {
+        public ResolutionReport { attempts = List.copyOf(attempts); }
+    }
+
+    public static ResolutionReport retrieveResolvedReport(ComponentQuery query, java.util.Random random) {
+        return resolveCandidates(query, random, query == null ? List.of() : retrieve(query, 20),
+                id -> ComponentStorage.loadComponent(null, id, VIEWER_PLAYER.get()));
+    }
+
+    static ResolutionReport resolveCandidates(ComponentQuery query, java.util.Random random,
+            List<ComponentScore> candidates, java.util.function.Function<String, ComponentDefinition> loader) {
+        List<CandidateAttempt> attempts = new ArrayList<>();
         if (query == null) {
-            return ComponentResolveResult.noCandidate("query_null");
+            return new ResolutionReport(ComponentResolveResult.noCandidate("query_null"), attempts);
         }
         boolean sawLoaded = false;
+        String loadFailedId = null;
         boolean sawUnfittable = false;
         String lastUnfittableId = "";
-        for (ComponentScore score : retrieve(query, 20)) {
+        for (ComponentScore score : candidates) {
             if (score.totalScore < 0.35) continue;
-            ComponentDefinition base = ComponentStorage.loadComponent(null, score.componentId, VIEWER_PLAYER.get());
-            if (base == null) continue;
+            ComponentDefinition base = loader.apply(score.componentId);
+            if (base == null) {
+                loadFailedId = score.componentId;
+                attempts.add(new CandidateAttempt(score.componentId, score.totalScore, ComponentResolveResult.Status.LOAD_FAILED));
+                continue;
+            }
             sawLoaded = true;
             var variant = com.formacraft.common.component.variant.VariantGenerator.generate(base, query, random);
             ComponentDefinition fitted =
                     com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, variant);
             if (fitted != null) {
-                return ComponentResolveResult.success(fitted);
+                attempts.add(new CandidateAttempt(score.componentId, score.totalScore, ComponentResolveResult.Status.SUCCESS));
+                return new ResolutionReport(ComponentResolveResult.success(fitted), attempts);
             }
+            attempts.add(new CandidateAttempt(score.componentId, score.totalScore, ComponentResolveResult.Status.ADAPT_FAILED));
             sawUnfittable = true;
             lastUnfittableId = score.componentId != null ? score.componentId : (base.id != null ? base.id : "");
         }
         if (sawUnfittable) {
-            return ComponentResolveResult.adaptFailed(lastUnfittableId,
-                    "candidates_exist_but_none_fit_query");
+            return new ResolutionReport(ComponentResolveResult.adaptFailed(lastUnfittableId,
+                    "candidates_exist_but_none_fit_query"), attempts);
         }
+        if (loadFailedId != null) return new ResolutionReport(
+                ComponentResolveResult.loadFailed(loadFailedId, "ranked_candidates_could_not_load"), attempts);
         if (!sawLoaded) {
-            return ComponentResolveResult.noCandidate("no_scored_loadable_candidate");
+            return new ResolutionReport(ComponentResolveResult.noCandidate("no_scored_loadable_candidate"), attempts);
         }
-        return ComponentResolveResult.noCandidate("no_candidate_above_score_threshold");
+        return new ResolutionReport(ComponentResolveResult.noCandidate("no_candidate_above_score_threshold"), attempts);
     }
 
     /**

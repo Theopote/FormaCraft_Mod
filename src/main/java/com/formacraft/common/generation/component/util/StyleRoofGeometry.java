@@ -27,7 +27,7 @@ public final class StyleRoofGeometry {
         if (style.contains("linear") || style.equals("none")) return t;
         // Keep the same eave and ridge elevations; vary how quickly the slope rises.
         if (style.contains("thai") || style.contains("泰式")) return Math.pow(t, 2.1);
-        if (style.contains("japanese") || style.contains("日式")) return Math.pow(t, 1.2);
+        if (style.contains("japanese") || style.contains("日式")) return t;
         if (style.contains("hui") || style.contains("徽")) return Math.pow(t, 1.0);
         if (style.contains("chinese") || style.contains("中式") || style.contains("curved")) return Math.pow(t, 1.7);
         if (style.contains("gothic") || style.contains("哥特")) return Math.pow(t, .72);

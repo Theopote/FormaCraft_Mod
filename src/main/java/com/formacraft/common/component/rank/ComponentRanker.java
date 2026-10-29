@@ -66,12 +66,21 @@ public class ComponentRanker {
      * ---------------------------- */
 
     private static double score(ComponentQuery q, ComponentMetadata m) {
-        return
-            semanticScore(q, m)  * W_SEMANTIC +
-            placementScore(q, m) * W_PLACEMENT +
-            geometryScore(q, m)  * W_GEOMETRY +
-            styleScore(q, m)     * W_STYLE +
-            usageScore(q, m)     * W_USAGE;
+        return explain(q, m).total();
+    }
+
+    /** Ranking evidence only; does not certify installation or adaptation feasibility. */
+    public static ScoreBreakdown explain(ComponentQuery q, ComponentMetadata m) {
+        return new ScoreBreakdown(semanticScore(q, m), placementScore(q, m),
+                geometryScore(q, m), styleScore(q, m), usageScore(q, m));
+    }
+
+    public record ScoreBreakdown(double semantic, double placement, double geometry,
+                                 double style, double usage) {
+        public double total() {
+            return semantic * W_SEMANTIC + placement * W_PLACEMENT
+                    + geometry * W_GEOMETRY + style * W_STYLE + usage * W_USAGE;
+        }
     }
 
     /* ----------------------------

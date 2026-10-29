@@ -11,6 +11,8 @@ package com.formacraft.common.component.query;
  * - totalScore - 总分（加权平均）
  */
 public class ComponentScore {
+    /** Exact ranker evidence; null only for legacy callers. */
+    public com.formacraft.common.component.rank.ComponentRanker.ScoreBreakdown breakdown;
     /**
      * 语义匹配度（标签匹配）
      */
