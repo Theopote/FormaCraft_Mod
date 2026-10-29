@@ -122,7 +122,9 @@ public final class LandmarkModuleRegistry {
         sb.append("- 金门大桥 / Golden Gate (explicit name) → RECOMMENDED STRUCTURE + typology:suspension_bridge (reference_landmark=golden_gate_bridge)\n");
         sb.append("- 悬索桥/吊桥（泛型） → RECOMMENDED typology:suspension_bridge OR ASSEMBLY preset=suspension_bridge_simple\n");
         sb.append("- 哥特大教堂 / Gothic cathedral (explicit preset) → RECOMMENDED STRUCTURE + typology:gothic_cathedral_hall (reference_landmark=gothic_cathedral)\n");
-        sb.append("- 哥特/教堂/玫瑰花窗（泛型） → RECOMMENDED typology:gothic_cathedral_hall OR assembly macro\n");
+        sb.append("- 哥特式/尖拱/飞扶壁/玫瑰花窗（明确哥特语汇） → RECOMMENDED typology:gothic_cathedral_hall OR assembly macro\n");
+        sb.append("- 教堂/大教堂（未指明哥特）→ compositional MASS+ROOF+ENTRANCE；勿默认 gothic_cathedral_hall\n");
+        sb.append("- 指名真实教堂（米兰大教堂/巴黎圣母院/圣家族等）→ research/compositional；禁止静默换成通用哥特模板\n");
         sb.append("- 明清官式院落 / Ming-Qing official courtyard (explicit preset) → RECOMMENDED STRUCTURE + typology:courtyard_compound (reference_landmark=mingqing_courtyard)\n");
         sb.append("- 四合院/民居院落（泛型） → compositional COURTYARD + MASS_WING（siheyuan）；勿与官式 preset 混用\n");
         sb.append("- 中世纪城堡 / Medieval castle compound (explicit preset) → RECOMMENDED STRUCTURE + typology:radial_fortress (reference_landmark=castle_compound)\n");

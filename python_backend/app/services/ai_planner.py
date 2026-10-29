@@ -4673,7 +4673,7 @@ def _derive_structured_intent(text: str) -> str:
     })
     style = _first({
         "Chinese traditional": ["中式", "中国", "古建", "chinese", "hui", "徽", "jiangnan", "江南", "imperial", "宫"],
-        "Gothic": ["哥特", "gothic", "cathedral"],
+        "Gothic": ["哥特", "gothic", "哥特式", "哥特风格"],
         "Modern": ["现代", "modern", "minimal", "curtain wall", "玻璃幕墙"],
         "Classical / European": ["欧式", "古典", "classical", "roman", "greek", "column", "柱"],
         "Rustic / medieval": ["中世纪", "medieval", "rustic", "乡村", "木屋"],

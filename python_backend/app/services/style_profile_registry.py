@@ -181,7 +181,10 @@ _ALIAS_GROUPS: list[tuple[list[str], list[str]]] = [
     (["中式", "中国", "唐", "宋", "明", "清", "宫殿", "牌坊", "四合院", "园林"], ["asian", "chinese", "imperial", "courtyard"]),
     (["日式", "日本", "和风", "神社", "寺", "鸟居"], ["asian", "japanese", "shrine"]),
     (["城堡", "堡垒", "要塞", "castle", "fortress", "medieval", "中世纪"], ["castle", "fortress", "medieval"]),
-    (["哥特", "gothic", "教堂", "cathedral"], ["gothic", "cathedral", "medieval"]),
+    # Do NOT map bare 教堂/cathedral/church → gothic; that collapses Milan/Baroque/modern
+    # churches into the hardcoded gothic_cathedral_hall template.
+    (["哥特", "gothic", "哥特式", "哥特风格"], ["gothic", "medieval"]),
+    (["教堂", "大教堂", "礼拜堂", "church", "cathedral", "chapel"], ["church", "religious", "sacred"]),
     (["古典", "希腊", "罗马", "classical", "marble", "大理石"], ["classical", "greco", "roman", "marble"]),
     (["现代", "modern", "玻璃", "写字楼", "office", "国际主义"], ["modern", "glass", "international"]),
 ]

@@ -199,7 +199,10 @@ public final class StyleIntentResolver {
             }
         }
 
-        if (containsAny(tokens, "gothic", "cathedral", "church", "cruciform", "rose_window")) {
+        // Require Gothic-specific cues. Bare church/cathedral must not force the Gothic
+        // flavor — otherwise Baroque / modern / named churches inherit pointed arches.
+        if (containsAny(tokens, "gothic", "pointed_arch", "flying_buttress", "rose_window", "tracery")
+                || (containsAny(tokens, "gothic_cathedral") && containsAny(tokens, "cathedral", "church"))) {
             return StyleFlavor.GOTHIC;
         }
         if (containsAny(tokens, "hui", "huizhou", "徽派")) {
