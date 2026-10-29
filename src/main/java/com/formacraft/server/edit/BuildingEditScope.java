@@ -86,6 +86,23 @@ public final class BuildingEditScope {
      * Window insert/seal envelope: only the cells this ticket will touch may change.
      * {@code protectedCells} should include roof (and other structural) cells.
      */
+    public static BuildingEditScope replaceFbdProgram(
+            BuildingInstance building,
+            Set<BlockPos> authorizedCells,
+            Map<BlockPos, String> expectedLiveStates
+    ) {
+        Objects.requireNonNull(building, "building");
+        return new BuildingEditScope(
+                building.buildingId(),
+                building.revision(),
+                BuildingEditOperation.REPLACE_FBD_PROGRAM,
+                authorizedCells,
+                Set.of(),
+                expectedLiveStates,
+                BuildingEditTargetPart.none()
+        );
+    }
+
     public static BuildingEditScope windowEdit(
             BuildingInstance building,
             BuildingEditOperation operation,

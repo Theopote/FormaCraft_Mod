@@ -1,1 +1,0 @@
-allprojects { layout.buildDirectory = file("build-component-assets") }

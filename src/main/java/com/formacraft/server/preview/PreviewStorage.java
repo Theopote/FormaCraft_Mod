@@ -3,7 +3,9 @@ package com.formacraft.server.preview;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.server.build.quality.BuildQualityReport;
+import com.formacraft.server.dsl.FbdSourcePlan;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
@@ -29,6 +31,8 @@ public class PreviewStorage {
     private static final Map<UUID, Object> skeletonLayouts = new HashMap<>();
     private static final Map<UUID, BuildQualityReport> qualityReports = new HashMap<>();
     private static final Map<UUID, PreviewMeta> metas = new HashMap<>();
+    /** Sanitized FBD source plan JSON pending confirm (cleared with structure). */
+    private static final Map<UUID, String> sourcePlans = new HashMap<>();
 
     public record PreviewMeta(
             Identifier dimension,
@@ -51,6 +55,28 @@ public class PreviewStorage {
                     structure.getBlocks() != null ? structure.getBlocks().size() : 0,
                     structure.getOrigin());
         }
+    }
+
+    /** Store sanitize FBD source plan for confirm → Memory. Non-FBD plans clear any prior plan. */
+    public static void storeSourcePlan(ServerPlayerEntity player, LlmPlan plan) {
+        if (player == null) return;
+        String json = FbdSourcePlan.sanitizeToJson(plan);
+        if (json == null) {
+            sourcePlans.remove(player.getUuid());
+        } else {
+            sourcePlans.put(player.getUuid(), json);
+        }
+    }
+
+    public static String peekSourcePlan(ServerPlayerEntity player) {
+        if (player == null) return null;
+        return sourcePlans.get(player.getUuid());
+    }
+
+    /** Take and clear the pending FBD source plan (may be null). */
+    public static String consumeSourcePlan(ServerPlayerEntity player) {
+        if (player == null) return null;
+        return sourcePlans.remove(player.getUuid());
     }
 
     /**
@@ -126,6 +152,7 @@ public class PreviewStorage {
         hasPreview.put(uuid, false);
         skeletonLayouts.remove(uuid);
         metas.remove(uuid);
+        // sourcePlans retained until explicit consumeSourcePlan so confirm can attach it to the build task.
         return structure;
     }
 
@@ -149,6 +176,7 @@ public class PreviewStorage {
             skeletonLayouts.remove(uuid);
             qualityReports.remove(uuid);
             metas.remove(uuid);
+            sourcePlans.remove(uuid);
         }
     }
 

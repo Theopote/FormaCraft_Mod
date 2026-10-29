@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.formacraft.common.component.variant.AsymmetricCaptureEdgesTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-29T16:37:52.604Z" hostname="DESKTOP-55APIDI" time="0.018">
+  <properties/>
+  <testcase name="legacySymmetricSettingsStillLoadAndSeparateEditsPreserveOtherEnd()" classname="com.formacraft.common.component.variant.AsymmetricCaptureEdgesTest" time="0.002"/>
+  <testcase name="stretchAndShrinkPreserveDistinctBaseAndTwoLayerCapital()" classname="com.formacraft.common.component.variant.AsymmetricCaptureEdgesTest" time="0.014"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

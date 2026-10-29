@@ -24,7 +24,8 @@ public final class BuildingEditTransaction {
     public enum Operation {
         REPLACE_ROOF_MATERIAL,
         INSERT_WINDOW,
-        SEAL_WINDOW;
+        SEAL_WINDOW,
+        REPLACE_FBD_PROGRAM;
 
         static Operation from(BuildingEditOperation op) {
             if (op == null) return REPLACE_ROOF_MATERIAL;
@@ -32,6 +33,7 @@ public final class BuildingEditTransaction {
                 case REPLACE_ROOF_MATERIAL -> REPLACE_ROOF_MATERIAL;
                 case INSERT_WINDOW -> INSERT_WINDOW;
                 case SEAL_WINDOW -> SEAL_WINDOW;
+                case REPLACE_FBD_PROGRAM -> REPLACE_FBD_PROGRAM;
             };
         }
 
@@ -40,6 +42,7 @@ public final class BuildingEditTransaction {
                 case REPLACE_ROOF_MATERIAL -> BuildingEditOperation.REPLACE_ROOF_MATERIAL;
                 case INSERT_WINDOW -> BuildingEditOperation.INSERT_WINDOW;
                 case SEAL_WINDOW -> BuildingEditOperation.SEAL_WINDOW;
+                case REPLACE_FBD_PROGRAM -> BuildingEditOperation.REPLACE_FBD_PROGRAM;
             };
         }
     }

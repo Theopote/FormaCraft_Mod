@@ -593,11 +593,12 @@ public class FormaCraftCommands {
             source.sendError(Text.translatable("formacraft.command.preview.no_structure_to_build"));
             return 0;
         }
+        String fbdSourcePlan = PreviewStorage.consumeSourcePlan(player);
 
         FormaCraftServerNetworking.sendClearOutline(player);
         PreviewStorage.clearQualityReport(player);
 
-        BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure);
+        BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure, fbdSourcePlan);
         com.formacraft.FormacraftMod.LOGGER.info(
                 "Preview confirmed: dimension={} origin={} blocks={} force={}",
                 serverWorld.getRegistryKey().getValue(), structure.getOrigin().toShortString(), structure.size(), force);

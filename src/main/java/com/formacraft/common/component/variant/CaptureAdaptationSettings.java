@@ -50,7 +50,7 @@ public final class CaptureAdaptationSettings {
             rule.fixedStart = fixedEdges[i];
             rule.fixedEnd = fixedEnd(i);
             rule.segment = "SEG_MID_" + axis;
-            rule.min = modes[i] == Mode.FIXED ? dimensions[i] : fixedEdges[i] + fixedEnd(i) + 1;
+            rule.min = CaptureBandLayout.of(this, i, dimensions[i]).minimumSize();
             rule.max = modes[i] == Mode.REPEAT ? Math.min(SegmentScaler.MAX_AXIS_SIZE,
                     Math.max(dimensions[i], dimensions[i] * 4)) : dimensions[i];
             rules.scaling.axes.put(axis.name(), rule);

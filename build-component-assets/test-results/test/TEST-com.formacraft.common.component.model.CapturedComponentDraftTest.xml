@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.formacraft.common.component.model.CapturedComponentDraftTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-29T16:25:16.085Z" hostname="DESKTOP-55APIDI" time="0.348">
+<testsuite name="com.formacraft.common.component.model.CapturedComponentDraftTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-29T16:37:49.635Z" hostname="DESKTOP-55APIDI" time="2.943">
   <properties/>
-  <testcase name="cancelRestoresPermissionsFromSnapshot()" classname="com.formacraft.common.component.model.CapturedComponentDraftTest" time="0.347"/>
+  <testcase name="cancelRestoresPermissionsFromSnapshot()" classname="com.formacraft.common.component.model.CapturedComponentDraftTest" time="2.942"/>
   <testcase name="commitRetainsPermissionsAndSnapshotsAreIndependent()" classname="com.formacraft.common.component.model.CapturedComponentDraftTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

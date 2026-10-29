@@ -88,23 +88,6 @@ class FbdGeometryRepairOrchestratorTest {
                         p -> p.getY() < 64 ? Blocks.STONE.getDefaultState() : Blocks.AIR.getDefaultState()));
 
         assertFalse(outcome.accepted());
-        assertTrue(outcome.reason().equals("NO_ACTIVE_ISSUE")
-                || outcome.reason().equals("NO_ACCEPTED_CANDIDATE")
-                || outcome.reason().equals("SKIPPED")
-                || outcome.reason().equals("UNSUPPORTED_ISSUE")
-                || outcome.reason().equals("UNMEASURED_QUALITY")
-                || outcome.reason().equals("MISSING_SOURCE")
-                || outcome.reason().equals("BLOCKED_QUALITY")
-                || outcome.reason().equals("NOT_FINAL")
-                || outcome.reason().equals("SYSTEM_OR_UNKNOWN_SOURCE")
-                || outcome.reason().equals("MULTI_INSTANCE")
-                || outcome.reason().equals("STALE_SOURCE")
-                || outcome.reason().equals("UNSUPPORTED_PRIMITIVE")
-                || outcome.reason().equals("NON_LITERAL_PARAMETER")
-                || outcome.reason().equals("PARAMETER_BOUNDARY")
-                || outcome.reason().equals("INVALID_PLAN")
-                || outcome.reason().equals("ELIGIBLE_CANDIDATE_ONLY"));
-        // Healthy roof: assess sees no FLOATING → NO_ACTIVE_ISSUE.
         assertEquals("NO_ACTIVE_ISSUE", outcome.reason());
     }
 }

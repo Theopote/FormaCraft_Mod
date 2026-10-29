@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.formacraft.common.component.model.CapturedComponentAdaptationTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-10-29T16:25:15.872Z" hostname="DESKTOP-55APIDI" time="0.209">
+<testsuite name="com.formacraft.common.component.model.CapturedComponentAdaptationTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-10-29T16:37:48.721Z" hostname="DESKTOP-55APIDI" time="0.911">
   <properties/>
-  <testcase name="safeShrinkPreservesTheTopCap()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.16"/>
-  <testcase name="geometryScalableFalseLocksAllAxes()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.002"/>
-  <testcase name="authorRulesSurviveJsonAndRuntimePrototypeBridge()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.002"/>
-  <testcase name="metadataMovesWithGeometryWithoutMutatingOriginal()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.005"/>
+  <testcase name="safeShrinkPreservesTheTopCap()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.801"/>
+  <testcase name="geometryScalableFalseLocksAllAxes()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.001"/>
+  <testcase name="authorRulesSurviveJsonAndRuntimePrototypeBridge()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.008"/>
+  <testcase name="metadataMovesWithGeometryWithoutMutatingOriginal()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.013"/>
   <testcase name="invalidCapThicknessIsReportedBeforeSave()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.001"/>
-  <testcase name="fixedAxesCannotBeBypassedByLegacyScale()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.003"/>
+  <testcase name="fixedAxesCannotBeBypassedByLegacyScale()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.046"/>
   <testcase name="impossibleShrinkIsRejected()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.003"/>
-  <testcase name="nullQueryDoesNotRandomlyAlterCapture()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.004"/>
-  <testcase name="nearestPermittedSizeMayFitTolerance()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.003"/>
-  <testcase name="tolerancePrefersUnmodifiedOriginal()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.001"/>
-  <testcase name="invalidZeroDimensionsAreRejected()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.0"/>
-  <testcase name="windowFrameRetainsFourSidesAfterShrinking()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.005"/>
-  <testcase name="explicitFitDoesNotApplyGlobalScalingTwice()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.004"/>
+  <testcase name="nullQueryDoesNotRandomlyAlterCapture()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.003"/>
+  <testcase name="nearestPermittedSizeMayFitTolerance()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.002"/>
+  <testcase name="tolerancePrefersUnmodifiedOriginal()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.0"/>
+  <testcase name="invalidZeroDimensionsAreRejected()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.001"/>
+  <testcase name="windowFrameRetainsFourSidesAfterShrinking()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.006"/>
+  <testcase name="explicitFitDoesNotApplyGlobalScalingTwice()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.002"/>
   <testcase name="thinWindowCannotLoseItsOpening()" classname="com.formacraft.common.component.model.CapturedComponentAdaptationTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

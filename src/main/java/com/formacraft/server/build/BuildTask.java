@@ -42,6 +42,8 @@ public class BuildTask {
     private final GeneratedStructure structure;
     private final ServerWorld world;
     private final com.formacraft.common.world.BlockMutationAccess access;
+    /** Optional sanitized FBD source plan JSON attached at enqueue. */
+    private final String fbdSourcePlanJson;
     private final List<BlockChange> appliedChanges = new ArrayList<>();
     /** ChunkPos 长键 → 该区块内待重试方块 */
     private final LinkedHashMap<Long, ArrayDeque<DeferredBlock>> deferredByChunk = new LinkedHashMap<>();
@@ -60,14 +62,28 @@ public class BuildTask {
     private record DeferredBlock(PlannedBlock planned, int attempts, long firstDeferredMs, long nextRetryTick) {}
 
     public BuildTask(GeneratedStructure structure, ServerWorld world) {
-        this(structure, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world));
+        this(structure, world, (String) null);
+    }
+
+    public BuildTask(GeneratedStructure structure, ServerWorld world, String fbdSourcePlanJson) {
+        this(structure, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world), fbdSourcePlanJson);
     }
 
     BuildTask(GeneratedStructure structure, ServerWorld world,
               com.formacraft.common.world.BlockMutationAccess access) {
+        this(structure, world, access, null);
+    }
+
+    BuildTask(GeneratedStructure structure, ServerWorld world,
+              com.formacraft.common.world.BlockMutationAccess access, String fbdSourcePlanJson) {
         this.structure = java.util.Objects.requireNonNull(structure, "structure");
         this.world = world;
         this.access = java.util.Objects.requireNonNull(access, "access");
+        this.fbdSourcePlanJson = fbdSourcePlanJson;
+    }
+
+    public String fbdSourcePlanJson() {
+        return fbdSourcePlanJson;
     }
 
     public boolean isFinished() {

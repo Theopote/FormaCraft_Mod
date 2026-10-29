@@ -17,6 +17,8 @@ import java.util.Set;
 public class ComponentCaptureDraft {
     public DraftPhase phase = DraftPhase.EMPTY;
     public boolean dirty = false;
+    /** Editor-only overlay selection, never an asset permission. */
+    public transient int adaptationPreviewAxis = -1;
 
     public final SelectionDraft selection = new SelectionDraft();
     public final HostDraft host = new HostDraft();

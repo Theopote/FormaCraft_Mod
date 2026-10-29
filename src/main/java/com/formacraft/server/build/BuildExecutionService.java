@@ -244,6 +244,10 @@ public class BuildExecutionService {
      * @return true 已入队；false 因同世界任务数超限被拒绝
      */
     public boolean enqueueBuild(ServerWorld world, GeneratedStructure structure) {
+        return enqueueBuild(world, structure, null);
+    }
+
+    public boolean enqueueBuild(ServerWorld world, GeneratedStructure structure, String fbdSourcePlanJson) {
         if (world == null || structure == null) return false;
         int worldActive = 0;
         for (BuildTask t : activeTasks) {
@@ -255,7 +259,7 @@ public class BuildExecutionService {
                     worldActive, MAX_ACTIVE_TASKS_PER_WORLD);
             return false;
         }
-        activeTasks.add(new BuildTask(structure, world));
+        activeTasks.add(new BuildTask(structure, world, fbdSourcePlanJson));
         FormacraftMod.LOGGER.info("Queued build task: {} blocks at {} (owner: {})",
                 structure.size(), structure.getOrigin(), structure.getOwner());
         return true;
@@ -386,9 +390,16 @@ public class BuildExecutionService {
                     BuildingPartIndex roofIndex = BuildingPartIndex.fromPlannedBlocks(structure.getBlocks());
                     BuildingEditService.attachRoofIndex(memory, roofIndex);
                     BuildingMemoryKeys.setRevision(memory, 0L);
+                    String fbdJson = task.fbdSourcePlanJson();
+                    if (fbdJson != null && !fbdJson.isBlank()) {
+                        BuildingMemoryKeys.storeFbdSourcePlan(memory, fbdJson);
+                        if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
+                        if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
+                    }
                     memoryManager.updateMemory(memory);
-                    FormacraftMod.LOGGER.info("Saved building to memory: {} ({}) roofCells={}",
-                            memory.getName(), memory.getUuid(), roofIndex.roof().cells().size());
+                    FormacraftMod.LOGGER.info("Saved building to memory: {} ({}) roofCells={} fbd={}",
+                            memory.getName(), memory.getUuid(), roofIndex.roof().cells().size(),
+                            BuildingMemoryKeys.hasFbdSourcePlan(memory));
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.warn("Failed to save building to memory: {}", e.getMessage());

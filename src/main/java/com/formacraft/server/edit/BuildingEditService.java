@@ -2,8 +2,10 @@ package com.formacraft.server.edit;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
+import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
+import com.formacraft.server.dsl.FbdSourcePlan;
 import com.formacraft.server.memory.MemoryManager;
 import com.formacraft.server.memory.MemoryUpdateResult;
 import com.formacraft.server.memory.ProjectMemory;
@@ -29,11 +31,24 @@ public final class BuildingEditService {
             BuildingEditScope scope,
             List<BlockPatch> patches,
             BuildingEditValidation validation,
-            List<String> refusals
+            List<String> refusals,
+            String fbdSourcePlanJson,
+            List<com.formacraft.common.build.PlannedBlock> fbdNewBlocks
     ) {
+        public PreparedEdit(
+                BuildingInstance building,
+                BuildingEditScope scope,
+                List<BlockPatch> patches,
+                BuildingEditValidation validation,
+                List<String> refusals
+        ) {
+            this(building, scope, patches, validation, refusals, null, List.of());
+        }
+
         public PreparedEdit {
             patches = patches == null ? List.of() : List.copyOf(patches);
             refusals = refusals == null ? List.of() : List.copyOf(refusals);
+            fbdNewBlocks = fbdNewBlocks == null ? List.of() : List.copyOf(fbdNewBlocks);
         }
 
         public boolean ok() {
@@ -131,6 +146,87 @@ public final class BuildingEditService {
             return new PreparedEdit(building, scope, compiled.patches(), validation, validation.conflicts());
         }
         return new PreparedEdit(building, scope, compiled.patches(), validation, List.of());
+    }
+
+    /**
+     * Prepare FBD program replace against a building that already stores {@code FBD_SOURCE_PLAN}.
+     * Returns patches + scope; caller must bind {@link BuildingEditPendingRegistry#putFbdSourcePlan}
+     * after issuing a ticket.
+     */
+    public PreparedEdit prepareFbdProgramReplace(
+            BuildingTargetResolver.Query targetQuery,
+            LlmPlan newPlan,
+            Map<BlockPos, String> liveWorldStates
+    ) {
+        return prepareFbdProgramReplace(targetQuery, newPlan,
+                liveWorldStates == null ? null : liveWorldStates::get);
+    }
+
+    public PreparedEdit prepareFbdProgramReplace(
+            BuildingTargetResolver.Query targetQuery,
+            LlmPlan newPlan,
+            java.util.function.Function<BlockPos, String> liveLookup
+    ) {
+        BuildingTargetResolver.Result target = targetResolver.resolve(targetQuery);
+        if (!target.ok()) {
+            return new PreparedEdit(null, null, List.of(), null,
+                    List.of(BuildingTargetResolver.refusalMessage(target).orElse("目标建筑解析失败")));
+        }
+        BuildingInstance building = target.instance();
+        ProjectMemory memory = memoryManager.getMemory(building.buildingId().toString());
+        if (memory == null) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("指定建筑未登记在 Memory 中，拒绝猜测性全局修改。"));
+        }
+        if (!BuildingMemoryKeys.hasFbdSourcePlan(memory)) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("该建筑没有持久化的 FBD 源计划，无法做程序替换编辑。"));
+        }
+        if (BuildingMemoryKeys.isMemorySyncBlocked(memory)
+                || BuildingEditTransactionStore.findOpenByBuilding(building.buildingId()) != null) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("该建筑存在未完成的编辑事务（RECOVERY_REQUIRED / EDIT_MEMORY_SYNC_FAILED），"
+                            + "增量编辑已暂停；请 Undo 或修复 Memory 后再试。"));
+        }
+        if (!FbdSourcePlan.hasProgram(newPlan)) {
+            return new PreparedEdit(building, null, List.of(), null,
+                    List.of("新计划缺少 params.fbd_program。"));
+        }
+
+        java.util.function.Function<BlockPos, String> lookup =
+                liveLookup == null ? p -> null : liveLookup;
+        FbdProgramReplaceCompiler.CompileResult compiled = FbdProgramReplaceCompiler.compile(
+                building.origin(),
+                BuildingMemoryKeys.fbdSourcePlan(memory),
+                newPlan,
+                lookup);
+        if (!compiled.ok()) {
+            return new PreparedEdit(building, null, List.of(), null, compiled.refusals());
+        }
+
+        Map<BlockPos, String> expected = new LinkedHashMap<>();
+        Map<BlockPos, String> liveForValidate = new LinkedHashMap<>();
+        for (BlockPos cell : compiled.allowedCells()) {
+            if (cell == null) continue;
+            String live = lookup.apply(cell);
+            if (live != null) {
+                expected.put(cell, live);
+                liveForValidate.put(cell, live);
+            }
+        }
+        BuildingEditScope scope = BuildingEditScope.replaceFbdProgram(
+                building, compiled.allowedCells(), expected);
+        BuildingEditValidation validation = BuildingEditScopeValidator.validate(
+                scope,
+                building.origin(),
+                compiled.patches(),
+                BuildingMemoryKeys.revisionOf(memory),
+                liveForValidate);
+        if (!validation.accepted()) {
+            return new PreparedEdit(building, scope, compiled.patches(), validation, validation.conflicts());
+        }
+        return new PreparedEdit(building, scope, compiled.patches(), validation, List.of(),
+                compiled.sanitizedNewPlanJson(), compiled.newBlocks());
     }
 
     /**
@@ -369,6 +465,10 @@ public final class BuildingEditService {
             if (!windowTargetsRecorded(index, txn.targetWorldStates())) {
                 return RepairResult.fail("memory_not_yet_committed");
             }
+        } else if (editOp.isFbdReplace()) {
+            if (!BuildingMemoryKeys.hasFbdSourcePlan(memory)) {
+                return RepairResult.fail("memory_not_yet_committed");
+            }
         }
         BuildingMemoryKeys.clearMemorySyncFailed(memory);
         MemoryUpdateResult cleared = memoryManager.updateMemoryStrict(memory);
@@ -409,7 +509,81 @@ public final class BuildingEditService {
             return commitSuccessfulWindowEdit(
                     buildingId, dimension, expectedBaseRevision, operation, targetStates, targetPart);
         }
+        if (operation != null && operation.isFbdReplace()) {
+            return commitSuccessfulFbdReplace(buildingId, dimension, expectedBaseRevision, targetStates, null);
+        }
         return commitSuccessfulRoofEdit(buildingId, dimension, expectedBaseRevision, targetStates);
+    }
+
+    /**
+     * After successful Apply of REPLACE_FBD_PROGRAM: store new source plan, rebuild part index, bump revision.
+     */
+    public boolean commitSuccessfulFbdReplace(
+            UUID buildingId,
+            Identifier dimension,
+            long expectedBaseRevision,
+            Map<BlockPos, String> targetStates,
+            String sanitizedNewPlanJson
+    ) {
+        if (buildingId == null || dimension == null) return false;
+        ProjectMemory memory = memoryManager.getMemory(buildingId.toString());
+        BuildingInstance instance = BuildingInstance.fromMemory(memory);
+        if (instance == null) return false;
+        if (!instance.dimension().equals(dimension)) return false;
+        long current = BuildingMemoryKeys.revisionOf(memory);
+        if (current == expectedBaseRevision + 1L && BuildingMemoryKeys.hasFbdSourcePlan(memory)) {
+            if (sanitizedNewPlanJson == null
+                    || sanitizedNewPlanJson.equals(BuildingMemoryKeys.fbdSourcePlan(memory))) {
+                BuildingMemoryKeys.clearMemorySyncFailed(memory);
+                return true;
+            }
+        }
+        if (current != expectedBaseRevision) return false;
+        if (sanitizedNewPlanJson == null || sanitizedNewPlanJson.isBlank()) {
+            // Recover plan from pending registry if Confirm path forgot to pass it.
+            return false;
+        }
+
+        BuildingPartIndex previous = BuildingPartIndex.fromMemory(memory);
+        List<com.formacraft.common.build.PlannedBlock> solids = new java.util.ArrayList<>();
+        if (targetStates != null) {
+            for (var e : targetStates.entrySet()) {
+                if (e.getKey() == null || e.getValue() == null) continue;
+                if ("minecraft:air".equalsIgnoreCase(e.getValue().trim())) continue;
+                var state = BlockPatchTargetResolver.parse(e.getValue());
+                if (state == null || state.isAir()) continue;
+                solids.add(new com.formacraft.common.build.PlannedBlock(e.getKey(), state));
+            }
+        }
+        BuildingPartIndex next = BuildingPartIndex.fromPlannedBlocks(solids);
+        next.persistTo(memory);
+        BuildingMemoryKeys.storeFbdSourcePlan(memory, sanitizedNewPlanJson);
+        if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
+        if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
+        BuildingMemoryKeys.bumpRevision(memory);
+        BuildingMemoryKeys.clearMemorySyncFailed(memory);
+        if (!solids.isEmpty()) {
+            BlockPos min = null;
+            BlockPos max = null;
+            for (var block : solids) {
+                if (block == null || block.getPos() == null) continue;
+                BlockPos p = block.getPos();
+                min = min == null ? p : new BlockPos(
+                        Math.min(min.getX(), p.getX()), Math.min(min.getY(), p.getY()), Math.min(min.getZ(), p.getZ()));
+                max = max == null ? p : new BlockPos(
+                        Math.max(max.getX(), p.getX()), Math.max(max.getY(), p.getY()), Math.max(max.getZ(), p.getZ()));
+            }
+            if (min != null && max != null) {
+                memory.expandBounds(min, max);
+            }
+        }
+        MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
+        if (!result.ok()) {
+            previous.persistTo(memory);
+            BuildingMemoryKeys.setRevision(memory, expectedBaseRevision);
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -665,6 +839,9 @@ public final class BuildingEditService {
                 newStates,
                 expiresAtMillis,
                 prepared.scope().targetPart()));
+        if (prepared.fbdSourcePlanJson() != null && !prepared.fbdSourcePlanJson().isBlank()) {
+            BuildingEditPendingRegistry.putFbdSourcePlan(ticketId, prepared.fbdSourcePlanJson());
+        }
     }
 
     /** Package helper for recovery coordinator / tests. */

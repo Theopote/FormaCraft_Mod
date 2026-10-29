@@ -122,6 +122,12 @@ public final class LlmPlanPreviewBuilder {
                 return tryServerOwnedRoofMaterialReplace(player, req, origin, serverWorld, hbAlive);
             }
 
+            // FBD program replace against a remembered FBD building (requires stored FBD_SOURCE_PLAN).
+            if (com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llmPlan)
+                    && tryFbdProgramReplace(player, req, origin, serverWorld, hbAlive, llmPlan)) {
+                return true;
+            }
+
             // patch.blocks 专用：走 PreviewTicket（增量 Patch 预览 + ticket 确认）
             if (llmPlan.mode() == LlmPlan.Mode.patch
                     && llmPlan.patch() != null
@@ -715,6 +721,9 @@ public final class LlmPlanPreviewBuilder {
 
             com.formacraft.common.build.GeneratedStructure structure = pipeline.structure();
             PreviewStorage.storeStructure(player, structure);
+            if (com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llmPlan)) {
+                PreviewStorage.storeSourcePlan(player, llmPlan);
+            }
 
             List<OutlineBlock> outline =
                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
@@ -871,6 +880,82 @@ public final class LlmPlanPreviewBuilder {
                 plan.planMeta(),
                 plan.designSources()
         );
+    }
+
+    /**
+     * When the look-at target is a remembered FBD building, replace via program diff.
+     * @return false if no FBD target (caller continues with new-build preview); true if handled.
+     */
+    private static boolean tryFbdProgramReplace(
+            ServerPlayerEntity player,
+            FormaRequest req,
+            BlockPos origin,
+            ServerWorld serverWorld,
+            AtomicBoolean hbAlive,
+            LlmPlan llmPlan
+    ) {
+        var memoryManager = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+        if (memoryManager == null) return false;
+
+        var dim = serverWorld.getRegistryKey().getValue();
+        BlockPos lookAt = origin != null ? origin : player.getBlockPos();
+        var query = new com.formacraft.server.edit.BuildingTargetResolver.Query(
+                dim, null, req.getSelectionMin(), req.getSelectionMax(), lookAt, 32.0);
+        var service = new com.formacraft.server.edit.BuildingEditService(memoryManager);
+        var target = service.targets().resolve(query);
+        if (!target.ok()) return false;
+        var memory = memoryManager.getMemory(target.instance().buildingId().toString());
+        if (!com.formacraft.server.edit.BuildingMemoryKeys.hasFbdSourcePlan(memory)) return false;
+
+        hbAlive.set(false);
+        var prepared = service.prepareFbdProgramReplace(query, llmPlan, cell ->
+                com.formacraft.common.component.transform.BlockStateStringUtil
+                        .fromState(serverWorld.getBlockState(cell)));
+        if (!prepared.ok()) {
+            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_fbd_refused");
+            String msg = prepared.refusals().isEmpty()
+                    ? "FBD 程序替换被拒绝。"
+                    : String.join("；", prepared.refusals());
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg));
+            return true;
+        }
+
+        com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
+        com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
+        boolean restrict = req.getPromptMode() != null
+                && "MODIFY_REGION".equalsIgnoreCase(req.getPromptMode().trim());
+        var ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
+                player,
+                prepared.building().origin(),
+                prepared.patches(),
+                com.formacraft.server.state.PlayerProtectedZoneStorage.get(player),
+                com.formacraft.server.state.PlayerOutlineStorage.get(player),
+                restrict,
+                req.getSelectionMin(),
+                req.getSelectionMax(),
+                true,
+                null,
+                com.formacraft.server.preview.PreviewEditKind.BUILDING_FBD_REPLACE
+        );
+        if (ticket == null) {
+            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_fbd_preview_failed");
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "FBD 程序替换预览创建失败。"));
+            return true;
+        }
+        com.formacraft.server.edit.BuildingEditService.bindPendingToTicket(
+                ticket.id(), player.getUuid(), ticket.expiresAtMillis(), prepared);
+        if (com.formacraft.server.edit.BuildingEditPendingRegistry.get(ticket.id()) == null
+                || com.formacraft.server.edit.BuildingEditPendingRegistry.peekFbdSourcePlan(ticket.id()) == null) {
+            com.formacraft.server.patch.PatchPreviewService.cancel(player, ticket.id());
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "FBD 替换上下文绑定失败，已取消预览。"));
+            return true;
+        }
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                "FBD 程序替换预览已就绪（确认后可 Undo/Redo）"));
+        LlmPlanRoutingMetrics.recordSuccess(player, req, prepared.patches().size(), prepared.patches().size());
+        return true;
     }
 
     /**

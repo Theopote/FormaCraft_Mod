@@ -482,13 +482,25 @@ public final class PatchPreviewService {
                 ));
                 return false;
             }
-            boolean committed = editService.commitSuccessfulBuildingEdit(
-                    pendingEdit.buildingId(),
-                    pendingEdit.dimension(),
-                    pendingEdit.baseRevision(),
-                    pendingEdit.operation(),
-                    pendingEdit.targetWorldStates(),
-                    pendingEdit.targetPart());
+            boolean committed;
+            if (pendingEdit.operation().isFbdReplace()) {
+                String fbdPlan = com.formacraft.server.edit.BuildingEditPendingRegistry
+                        .takeFbdSourcePlan(ticket.id());
+                committed = editService.commitSuccessfulFbdReplace(
+                        pendingEdit.buildingId(),
+                        pendingEdit.dimension(),
+                        pendingEdit.baseRevision(),
+                        pendingEdit.targetWorldStates(),
+                        fbdPlan);
+            } else {
+                committed = editService.commitSuccessfulBuildingEdit(
+                        pendingEdit.buildingId(),
+                        pendingEdit.dimension(),
+                        pendingEdit.baseRevision(),
+                        pendingEdit.operation(),
+                        pendingEdit.targetWorldStates(),
+                        pendingEdit.targetPart());
+            }
             if (!committed) {
                 editService.markMemorySyncFailed(
                         pendingEdit.buildingId(),
@@ -514,6 +526,7 @@ public final class PatchPreviewService {
                 case INSERT_WINDOW -> "开窗";
                 case SEAL_WINDOW -> "封窗";
                 case REPLACE_ROOF_MATERIAL -> "屋顶材质替换";
+                case REPLACE_FBD_PROGRAM -> "FBD 程序替换";
             };
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                     "【EDIT_COMMIT_SUCCESS】" + successLabel + "已写入世界并同步建筑 Memory。"

@@ -96,6 +96,25 @@ public final class BuildingEditConfirmGate {
             if (!Objects.equals(index.roof().cells(), pending.allowedCells())) {
                 return Outcome.reject("building_edit_roof_cells_drift");
             }
+        } else if (pending.operation().isFbdReplace()) {
+            if (!BuildingMemoryKeys.hasFbdSourcePlan(memory)) {
+                return Outcome.reject("building_edit_fbd_source_missing");
+            }
+            if (pending.allowedCells().isEmpty()) {
+                return Outcome.reject("building_edit_fbd_cells_missing");
+            }
+            if (BuildingEditPendingRegistry.peekFbdSourcePlan(
+                    pending.ticketId()) == null) {
+                return Outcome.reject("building_edit_fbd_plan_missing");
+            }
+            BlockPos originPos = origin == null ? BlockPos.ORIGIN : origin;
+            for (BlockPatch patch : patches) {
+                if (patch == null) continue;
+                BlockPos writeCell = originPos.add(patch.dx(), patch.dy(), patch.dz()).toImmutable();
+                if (!pending.allowedCells().contains(writeCell)) {
+                    return Outcome.reject("building_edit_fbd_unauthorized@" + writeCell.toShortString());
+                }
+            }
         } else if (pending.operation().isWindowOp()) {
             if (pending.allowedCells().isEmpty()) {
                 return Outcome.reject("building_edit_window_cells_missing");

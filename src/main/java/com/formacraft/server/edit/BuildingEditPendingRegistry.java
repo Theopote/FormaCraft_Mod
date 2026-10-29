@@ -101,12 +101,29 @@ public final class BuildingEditPendingRegistry {
     }
 
     private static final Map<UUID, Pending> BY_TICKET = new ConcurrentHashMap<>();
+    /** Optional sanitized FBD plan JSON keyed by ticket (REPLACE_FBD_PROGRAM). */
+    private static final Map<UUID, String> FBD_PLAN_BY_TICKET = new ConcurrentHashMap<>();
 
     private BuildingEditPendingRegistry() {}
 
     public static void put(Pending pending) {
         if (pending == null) return;
         BY_TICKET.put(pending.ticketId(), pending);
+    }
+
+    public static void putFbdSourcePlan(UUID ticketId, String sanitizedJson) {
+        if (ticketId == null || sanitizedJson == null || sanitizedJson.isBlank()) return;
+        FBD_PLAN_BY_TICKET.put(ticketId, sanitizedJson);
+    }
+
+    public static String takeFbdSourcePlan(UUID ticketId) {
+        if (ticketId == null) return null;
+        return FBD_PLAN_BY_TICKET.remove(ticketId);
+    }
+
+    public static String peekFbdSourcePlan(UUID ticketId) {
+        if (ticketId == null) return null;
+        return FBD_PLAN_BY_TICKET.get(ticketId);
     }
 
     /** Peek without removing; expired entries are dropped. */
@@ -116,6 +133,7 @@ public final class BuildingEditPendingRegistry {
         if (pending == null) return null;
         if (pending.isExpired(System.currentTimeMillis())) {
             BY_TICKET.remove(ticketId, pending);
+            FBD_PLAN_BY_TICKET.remove(ticketId);
             return null;
         }
         return pending;
@@ -125,6 +143,7 @@ public final class BuildingEditPendingRegistry {
         if (ticketId == null) return null;
         Pending pending = BY_TICKET.remove(ticketId);
         if (pending != null && pending.isExpired(System.currentTimeMillis())) {
+            FBD_PLAN_BY_TICKET.remove(ticketId);
             return null;
         }
         return pending;
@@ -136,17 +155,31 @@ public final class BuildingEditPendingRegistry {
         Pending pending = BY_TICKET.get(ticketId);
         if (pending == null) return false;
         if (!playerId.equals(pending.playerId())) return false;
-        return BY_TICKET.remove(ticketId, pending);
+        if (BY_TICKET.remove(ticketId, pending)) {
+            FBD_PLAN_BY_TICKET.remove(ticketId);
+            return true;
+        }
+        return false;
     }
 
     /** Unconditional drop after ownership was already verified by ticket storage. */
     public static void dropVerified(UUID ticketId) {
-        if (ticketId != null) BY_TICKET.remove(ticketId);
+        if (ticketId != null) {
+            BY_TICKET.remove(ticketId);
+            FBD_PLAN_BY_TICKET.remove(ticketId);
+        }
     }
 
     public static void clearPlayer(UUID playerId) {
         if (playerId == null) return;
-        BY_TICKET.entrySet().removeIf(e -> e.getValue() != null && playerId.equals(e.getValue().playerId()));
+        Iterator<Map.Entry<UUID, Pending>> it = BY_TICKET.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, Pending> e = it.next();
+            if (e.getValue() != null && playerId.equals(e.getValue().playerId())) {
+                FBD_PLAN_BY_TICKET.remove(e.getKey());
+                it.remove();
+            }
+        }
     }
 
     public static void purgeExpired() {
@@ -156,6 +189,7 @@ public final class BuildingEditPendingRegistry {
             Map.Entry<UUID, Pending> e = it.next();
             Pending p = e.getValue();
             if (p == null || p.isExpired(now)) {
+                FBD_PLAN_BY_TICKET.remove(e.getKey());
                 it.remove();
             }
         }

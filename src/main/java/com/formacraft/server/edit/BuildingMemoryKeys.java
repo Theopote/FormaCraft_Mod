@@ -26,8 +26,30 @@ public final class BuildingMemoryKeys {
     public static final String MEMORY_SYNC_BASE_REVISION = "building_edit_memory_sync_base_revision";
     public static final String MEMORY_SYNC_ROOF_STATES = "building_edit_memory_sync_roof_states";
     public static final String MEMORY_SYNC_DIMENSION = "building_edit_memory_sync_dimension";
+    /** Sanitized LlmPlan JSON containing ASSEMBLY.params.fbd_program only. */
+    public static final String FBD_SOURCE_PLAN = "fbd_source_plan";
+    public static final String FBD_SOURCE_FINGERPRINT = "fbd_source_fingerprint";
 
     private BuildingMemoryKeys() {}
+
+    public static String fbdSourcePlan(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return null;
+        Object raw = memory.getMetadata().get(FBD_SOURCE_PLAN);
+        return raw == null ? null : String.valueOf(raw);
+    }
+
+    public static void storeFbdSourcePlan(ProjectMemory memory, String sanitizedJson) {
+        if (memory == null || sanitizedJson == null || sanitizedJson.isBlank()) return;
+        Map<String, Object> meta = ensureMetadata(memory);
+        meta.put(FBD_SOURCE_PLAN, sanitizedJson);
+        String fp = com.formacraft.server.dsl.FbdSourcePlan.fingerprint(sanitizedJson);
+        if (fp != null) meta.put(FBD_SOURCE_FINGERPRINT, fp);
+    }
+
+    public static boolean hasFbdSourcePlan(ProjectMemory memory) {
+        String json = fbdSourcePlan(memory);
+        return json != null && !json.isBlank();
+    }
 
     public static boolean isMemorySyncBlocked(ProjectMemory memory) {
         if (memory == null || memory.getMetadata() == null) return false;

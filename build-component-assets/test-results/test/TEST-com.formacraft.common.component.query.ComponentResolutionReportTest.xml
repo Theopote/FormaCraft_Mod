@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.formacraft.common.component.query.ComponentResolutionReportTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-29T16:25:16.434Z" hostname="DESKTOP-55APIDI" time="0.037">
+<testsuite name="com.formacraft.common.component.query.ComponentResolutionReportTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-29T16:37:52.579Z" hostname="DESKTOP-55APIDI" time="0.023">
   <properties/>
-  <testcase name="originalSizeWinsAmongSimilarlyRankedPermittedFitsButNotOverBetterStyle()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.016"/>
-  <testcase name="skipsUnfittableCaptureAndPreservesOriginal()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.004"/>
-  <testcase name="comparesEverySuccessfulFitRatherThanTakingTheFirst()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.002"/>
-  <testcase name="lowScoreAndNullQueriesDoNotLoadAssets()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.002"/>
-  <testcase name="fittedScoreTiesHaveStableIdentityOrder()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.002"/>
+  <testcase name="originalSizeWinsAmongSimilarlyRankedPermittedFitsButNotOverBetterStyle()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.009"/>
+  <testcase name="skipsUnfittableCaptureAndPreservesOriginal()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.003"/>
+  <testcase name="comparesEverySuccessfulFitRatherThanTakingTheFirst()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.001"/>
+  <testcase name="lowScoreAndNullQueriesDoNotLoadAssets()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.001"/>
+  <testcase name="fittedScoreTiesHaveStableIdentityOrder()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.001"/>
   <testcase name="fittedGeometryReplacesPreliminaryEstimateAndInvalidPenaltyUsesDefault()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.002"/>
-  <testcase name="missingRankedAssetIsLoadFailureRatherThanLibraryMiss()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.007"/>
+  <testcase name="missingRankedAssetIsLoadFailureRatherThanLibraryMiss()" classname="com.formacraft.common.component.query.ComponentResolutionReportTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

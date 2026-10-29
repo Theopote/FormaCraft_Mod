@@ -9,6 +9,8 @@ import com.formacraft.common.component.model.ComponentModelApi;
 import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.variant.CaptureAdaptationSettings;
 import com.formacraft.common.component.variant.CapturedAxisLayout;
+import com.formacraft.common.component.variant.CaptureBandLayout;
+import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.common.json.JsonUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -24,6 +26,8 @@ public final class ComponentCaptureAdaptationSection {
     private final ButtonWidget[] targetButtons = new ButtonWidget[3];
     private final ButtonWidget materialButton;
     private final ButtonWidget previewButton;
+    private final ButtonWidget bandsButton;
+    private int bandDimension = -1;
     private final ComponentCaptureThumbnailService thumbnails = new ComponentCaptureThumbnailService();
     private final int[] offsets = {0, 0, 0};
     private String status;
@@ -57,6 +61,7 @@ public final class ComponentCaptureAdaptationSection {
         }
         materialButton = button(() -> { settings().allowMaterialSwap = !settings().allowMaterialSwap; changed(); });
         previewButton = button(this::preview);
+        bandsButton = button(() -> bandDimension = bandDimension == 2 ? -1 : bandDimension + 1);
     }
 
     private static ButtonWidget button(Runnable action) {
@@ -84,6 +89,8 @@ public final class ComponentCaptureAdaptationSection {
         for (var b : endEdgeButtons) b.visible = false;
         for (var b : targetButtons) b.visible = false;
         materialButton.visible = previewButton.visible = false;
+        bandsButton.visible = false;
+        ComponentTool.INSTANCE.getState().captureDraft.adaptationPreviewAxis = -1;
     }
 
     public int draw(DrawContext ctx, MinecraftClient client, int mouseX, int mouseY,
@@ -98,6 +105,13 @@ public final class ComponentCaptureAdaptationSection {
         if (displayedFacing != facing) { invalidate(); displayedFacing = facing; }
         var axes = CapturedAxisLayout.forFacing(facing);
         var settings = settings();
+        var draft = ComponentTool.INSTANCE.getState().captureDraft;
+        draft.adaptationPreviewAxis = bandDimension < 0 ? -1 : axes.worldAxis(bandDimension);
+        boolean draftBounds = draft.hasExplicitSelection() || !SelectionTool.INSTANCE.hasSelection();
+        var min = draftBounds ? draft.selection.aabbMin : SelectionTool.INSTANCE.getMin();
+        var max = draftBounds ? draft.selection.aabbMax : SelectionTool.INSTANCE.getMax();
+        int[] lengths = min == null || max == null ? null : new int[]{max.getX() - min.getX() + 1,
+                max.getY() - min.getY() + 1, max.getZ() - min.getZ() + 1};
         for (int dimension = 0; dimension < 3; dimension++) {
             int i = axes.worldAxis(dimension);
             String mode = switch (settings.modes[i]) {
@@ -115,7 +129,23 @@ public final class ComponentCaptureAdaptationSection {
             drawButton(ctx, endEdgeButtons[i], x + half + 2, y, half,
                     ends[i] + "保留 " + settings.fixedEnd(i), mouseX, mouseY);
             y += 20;
+            if (lengths != null) {
+                var band = CaptureBandLayout.of(settings, i, lengths[i]);
+                int color = !band.valid() ? 0xFFFF5555 : band.locked() ? 0xFF888888 : 0xFF55CC77;
+                ctx.fill(x, y, x + width, y + 5, color);
+                if (band.valid() && !band.locked()) {
+                    ctx.fill(x, y, x + width * band.start() / band.length(), y + 5, 0xFFFFAA44);
+                    ctx.fill(x + width * band.middleEnd() / band.length(), y, x + width, y + 5, 0xFFAA88FF);
+                }
+                y += 8;
+                y = wrapped(ctx, client, band.locked() ? "原尺寸 " + band.length() + " 格，已锁定"
+                        : !band.valid() ? "固定端占满选区，请减薄端部或扩大选区"
+                        : "中段 " + band.middleSize() + " 格；最小尺寸 " + band.minimumSize() + " 格", x, y, width);
+            }
         }
+        drawButton(ctx, bandsButton, x, y, width, "世界分区：" + (bandDimension < 0 ? "关" : axes.label(bandDimension)), mouseX, mouseY);
+        y += 20;
+        y = wrapped(ctx, client, "分区：橙色起端、绿色中段、紫色末端；红色表示无有效中段。分区框包含选区内空隙。", x, y, width);
         y = wrapped(ctx, client, "两端可分别保留 1–3 层，只增减中段。东西南北为世界方向；更改朝向不会旋转规则。", x, y, width);
         drawButton(ctx, materialButton, x, y, width,
                 "允许安全换材：" + (settings.allowMaterialSwap ? "开" : "关"), mouseX, mouseY);
@@ -162,7 +192,8 @@ public final class ComponentCaptureAdaptationSection {
         if (mouseY < visibleTop || mouseY >= visibleBottom) return false;
         for (var group : new ButtonWidget[][]{modeButtons, edgeButtons, endEdgeButtons, targetButtons})
             for (var b : group) if (b.visible && HudClickSupport.click(b, click)) return true;
-        return materialButton.visible && HudClickSupport.click(materialButton, click)
+        return bandsButton.visible && HudClickSupport.click(bandsButton, click)
+                || materialButton.visible && HudClickSupport.click(materialButton, click)
                 || previewButton.visible && HudClickSupport.click(previewButton, click);
     }
 

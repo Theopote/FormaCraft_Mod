@@ -25,6 +25,40 @@ public final class ComponentCaptureWorldOverlay {
         renderAnchor(ctx);
         renderHostFace(ctx);
         renderOrientationMarkers(ctx);
+        renderAdaptationBands(ctx);
+    }
+
+    private void renderAdaptationBands(ToolWorldRenderContext ctx) {
+        var draft = ComponentTool.INSTANCE.getState().captureDraft;
+        int axis = draft.adaptationPreviewAxis;
+        if (axis < 0 || axis > 2) return;
+        boolean draftBounds = draft.hasExplicitSelection() || !SelectionTool.INSTANCE.hasSelection();
+        BlockPos min = draftBounds ? draft.selection.aabbMin : SelectionTool.INSTANCE.getMin();
+        BlockPos max = draftBounds ? draft.selection.aabbMax : SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) return;
+        int length = axis == 0 ? max.getX() - min.getX() + 1 : axis == 1
+                ? max.getY() - min.getY() + 1 : max.getZ() - min.getZ() + 1;
+        var bands = com.formacraft.common.component.variant.CaptureBandLayout.of(draft.adaptation, axis, length);
+        if (!bands.valid() || bands.locked()) {
+            renderBand(ctx, min, max, axis, 0, length, bands.valid() ? 0.6f : 1f,
+                    bands.valid() ? 0.6f : 0.3f, bands.valid() ? 0.6f : 0.3f);
+            return;
+        }
+        renderBand(ctx, min, max, axis, 0, bands.start(), 1f, 0.67f, 0.27f);
+        renderBand(ctx, min, max, axis, bands.start(), bands.middleEnd(), 0.33f, 0.8f, 0.47f);
+        renderBand(ctx, min, max, axis, bands.middleEnd(), length, 0.67f, 0.53f, 1f);
+    }
+
+    private static void renderBand(ToolWorldRenderContext ctx, BlockPos min, BlockPos max,
+                                   int axis, int from, int to, float r, float g, float b) {
+        if (to <= from) return;
+        double[] lo = {min.getX(), min.getY(), min.getZ()};
+        double[] hi = {max.getX() + 1.0, max.getY() + 1.0, max.getZ() + 1.0};
+        hi[axis] = lo[axis] + to;
+        lo[axis] += from;
+        Box box = new Box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2])
+                .expand(0.015).offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+        VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, 0.85f);
     }
 
     private void renderAnchor(ToolWorldRenderContext ctx) {

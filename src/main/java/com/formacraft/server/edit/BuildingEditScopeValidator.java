@@ -34,7 +34,8 @@ public final class BuildingEditScopeValidator {
         BuildingEditOperation op = scope.operation();
         if (op != BuildingEditOperation.REPLACE_ROOF_MATERIAL
                 && op != BuildingEditOperation.INSERT_WINDOW
-                && op != BuildingEditOperation.SEAL_WINDOW) {
+                && op != BuildingEditOperation.SEAL_WINDOW
+                && op != BuildingEditOperation.REPLACE_FBD_PROGRAM) {
             conflicts.add("unsupported_operation:" + op);
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
@@ -43,7 +44,9 @@ public final class BuildingEditScopeValidator {
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
         if (scope.allowedCells().isEmpty()) {
-            conflicts.add(op.isWindowOp() ? "window_cells_unavailable" : "roof_cells_unavailable");
+            String emptyCode = op.isWindowOp() ? "window_cells_unavailable"
+                    : (op.isFbdReplace() ? "fbd_cells_unavailable" : "roof_cells_unavailable");
+            conflicts.add(emptyCode);
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
         if (patches == null || patches.isEmpty()) {
@@ -80,6 +83,8 @@ public final class BuildingEditScopeValidator {
                     conflicts.add("geometry_change_forbidden@" + world.toShortString());
                     continue;
                 }
+            } else if (op == BuildingEditOperation.REPLACE_FBD_PROGRAM) {
+                // Full rebuild may REMOVE vanished cells and PLACE new geometry.
             } else if (op == BuildingEditOperation.SEAL_WINDOW) {
                 if (BlockPatch.REMOVE.equals(patch.action()) || target.isAir()) {
                     conflicts.add("seal_must_place_wall@" + world.toShortString());
@@ -112,13 +117,15 @@ public final class BuildingEditScopeValidator {
             return BuildingEditValidation.rejected(conflicts, unexpected);
         }
         if (!anyChange) {
-            String code = op.isWindowOp() ? "no_effective_window_change" : "no_effective_roof_change";
+            String code = op.isWindowOp() ? "no_effective_window_change"
+                    : (op.isFbdReplace() ? "no_effective_fbd_change" : "no_effective_roof_change");
             return BuildingEditValidation.rejected(List.of(code), List.of());
         }
         String part = switch (op) {
             case REPLACE_ROOF_MATERIAL -> "ROOF";
             case INSERT_WINDOW -> "WINDOW_INSERT";
             case SEAL_WINDOW -> "WINDOW_SEAL";
+            case REPLACE_FBD_PROGRAM -> "FBD_REPLACE";
         };
         return BuildingEditValidation.accepted(List.of(part));
     }
