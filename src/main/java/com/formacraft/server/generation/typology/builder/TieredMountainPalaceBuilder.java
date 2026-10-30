@@ -901,8 +901,9 @@ public final class TieredMountainPalaceBuilder {
         PalaceTerrainSnapshot.Sample terminus = profile.get(Math.min(totalDrop, profile.size() - 1));
         if (terminus != null && Math.abs(terminus.groundLocalY() - expectedY) > 1
                 && Math.abs(terminus.groundLocalY() - (expectedY - 1)) > 1) {
-            return ApproachPlan.fail("APPROACH_TERMINUS_MISMATCH",
-                    "x=" + lx + "_ground=" + terminus.groundLocalY() + "_end=" + expectedY);
+            // Keep the stair run; terminus height is repaired by foundation fill / landing carve.
+            LOG.warn("tiered_mountain_palace approach terminus mismatch (soft): x={} ground={} end={}",
+                    lx, terminus.groundLocalY(), expectedY);
         }
         return ApproachPlan.success(steps);
     }

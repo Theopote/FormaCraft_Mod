@@ -171,11 +171,26 @@ final class ComponentEmitPass {
                 var missingSurfaces = GeneratedSurfaceCapture.missing(surfaceCells, patches);
                 if (!missingSurfaces.isEmpty()) {
                     var first = missingSurfaces.getFirst();
-                    AssemblyCompileDiagnostics.set(new CapabilityGap("E_SURFACE_GENERATION_INCOMPLETE",
-                            "生成器未提供声明的建筑表面：" + normalizedType + " " + first.role()
-                                    + " at component " + first.position().toShortString() + "; missing=" + missingSurfaces.size(),
-                            "components[]", List.of("Fix surface material or generator emission; keep authored openings explicitly marked.")));
-                    return patchOccupancy;
+                    String surfaceMsg = "生成器未提供声明的建筑表面：" + normalizedType + " " + first.role()
+                            + " at component " + first.position().toShortString()
+                            + "; missing=" + missingSurfaces.size();
+                    // Opening / decor incompleteness must not abort the whole compound
+                    // (e.g. FACADE_WINDOWS declaring WINDOW cells that the emitter skipped).
+                    if (isSoftSurfaceIncomplete(normalizedType)) {
+                        FormacraftMod.LOGGER.warn(
+                                "ComponentPlanCompiler: soft surface incomplete type={} id={} missing={}",
+                                normalizedType, ComponentPlanTypes.paramIdentity(c), missingSurfaces.size());
+                        AssemblyCompileDiagnostics.addSoftWarning(
+                                "E_SURFACE_GENERATION_INCOMPLETE",
+                                surfaceMsg,
+                                c.componentType(),
+                                ComponentPlanTypes.paramIdentity(c));
+                    } else {
+                        AssemblyCompileDiagnostics.set(new CapabilityGap("E_SURFACE_GENERATION_INCOMPLETE",
+                                surfaceMsg,
+                                "components[]", List.of("Fix surface material or generator emission; keep authored openings explicitly marked.")));
+                        return patchOccupancy;
+                    }
                 }
                 if (!patches.isEmpty()) {
                     if (allowAssemblyFacade && globalAnchor != null && ComponentPlanTypes.isMassType(normalizedType)
@@ -477,6 +492,19 @@ final class ComponentEmitPass {
         if (c == null) return false;
         String type = ComponentPlanTypes.normalizeType(c.componentType());
         return "DECOR_DETAIL".equals(type) || type.startsWith("DECOR");
+    }
+
+    /** Openings may partially miss declared surfaces without aborting the whole plan. */
+    static boolean isSoftSurfaceIncomplete(String normalizedType) {
+        if (normalizedType == null) return false;
+        return "FACADE_WINDOWS".equals(normalizedType)
+                || "FACADE".equals(normalizedType)
+                || "FACADE_OPENING".equals(normalizedType)
+                || "WINDOW".equals(normalizedType)
+                || "DOOR".equals(normalizedType)
+                || "GATE".equals(normalizedType)
+                || "DECOR_DETAIL".equals(normalizedType)
+                || normalizedType.startsWith("DECOR");
     }
 
     /**

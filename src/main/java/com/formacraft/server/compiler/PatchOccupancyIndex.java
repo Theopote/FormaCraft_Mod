@@ -28,6 +28,10 @@ public final class PatchOccupancyIndex {
             "ENTRANCE", "FACADE_WINDOWS", "DOOR", "WINDOW", "FACADE_OPENING", "FACADE",
             "STAIR", "STAIRS", "STAIR_SYSTEM", "STAIRCASE"
     );
+    /** Ground circulation that a GATE may replace at the threshold. */
+    private static final Set<String> GATE_PATH_SURFACES = Set.of(
+            "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "COURTYARD_SPACE"
+    );
 
     /** No sticky overwrite flag — authority is not inherited across writers. */
     public record PlaceRecord(String writerType, String targetBlock, Component owner) {}
@@ -307,6 +311,7 @@ public final class PatchOccupancyIndex {
                 PlaceRecord existing = placeMap.get(pos);
                 if (existing != null && !carveOk && !isHostedStairJoin(writer, existing, pos)
                         && !isBoundUpperMassSeam(writer, existing, pos)
+                        && !isHostedMassSecondaryCarve(writer, existing)
                         && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
                             type, p.targetBlock(), "unauthorized_remove"));
@@ -337,7 +342,10 @@ public final class PatchOccupancyIndex {
                                             : String.valueOf(prev.owner().params().get("host_id")).trim())
                                 && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "TOWER",
                                         "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())));
-                if (!overwriteOk && !chimneyFooting && !connectorAccess.contains(pos)
+                boolean gateOnPath = "GATE".equals(type)
+                        && prev.writerType() != null
+                        && GATE_PATH_SURFACES.contains(prev.writerType());
+                if (!overwriteOk && !chimneyFooting && !gateOnPath && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
@@ -378,6 +386,25 @@ public final class PatchOccupancyIndex {
                 )
                 && upper.minX() >= lower.minX() && upper.maxX() <= lower.maxX()
                 && upper.minZ() >= lower.minZ() && upper.maxZ() <= lower.maxZ();
+    }
+
+    /**
+     * Bridge piers / secondary supports may carve cells of their host deck or abutment
+     * without a blanket allow_carve grant (common LLM bridge composition).
+     */
+    private static boolean isHostedMassSecondaryCarve(Component writer, PlaceRecord previous) {
+        if (writer == null || writer.params() == null || previous.owner() == null
+                || previous.owner().params() == null
+                || !"MASS_SECONDARY".equalsIgnoreCase(writer.componentType())) {
+            return false;
+        }
+        Object ownerId = previous.owner().params().get("component_id");
+        String ownerIdStr = ownerId == null ? null : String.valueOf(ownerId).trim();
+        Object ownerHost = previous.owner().params().get("host_id");
+        String ownerHostStr = ownerHost == null ? null : String.valueOf(ownerHost).trim();
+        if (!bindsToOwner(writer, ownerIdStr, ownerHostStr)) return false;
+        return Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "FOUNDATION", "KEEP")
+                .contains(previous.writerType() == null ? "" : previous.writerType());
     }
 
     private static boolean isHostedStructuralJoin(Component writer, PlaceRecord previous) {

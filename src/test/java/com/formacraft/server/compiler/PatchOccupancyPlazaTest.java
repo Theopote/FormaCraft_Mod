@@ -28,6 +28,20 @@ class PatchOccupancyPlazaTest {
         assertEquals("minecraft:cobblestone", index.placeAt(new BlockPos(1, 0, 0)).targetBlock());
         assertFalse(PatchOccupancyIndex.canOverwritePlace(plaza));
     }
+
+    @Test void gateMayOverwritePathAtThreshold() {
+        var index = new PatchOccupancyIndex();
+        var path = new Component("PATH", null, new Vec3i(0, 0, 0), new Dimensions(4, 1, 1), List.of(),
+                Map.of("component_id", "manor_path"));
+        var gate = new Component("GATE", null, new Vec3i(0, 0, 0), new Dimensions(3, 5, 1), List.of(),
+                Map.of("component_id", "manor_gate", "host_id", "manor_main"));
+        index.commit(path, List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:cobblestone")));
+        assertTrue(index.accept(gate, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone_bricks"))).isEmpty());
+        assertEquals("GATE", index.placeAt(BlockPos.ORIGIN).writerType());
+        assertEquals("minecraft:stone_bricks", index.placeAt(BlockPos.ORIGIN).targetBlock());
+    }
+
     private static Component component(String type) {
         return new Component(type, null, new Vec3i(0, 0, 0), new Dimensions(2, 1, 1), List.of(), Map.of());
     }

@@ -172,11 +172,15 @@ final class ComponentSatelliteAligner {
         Dimensions body = mass.dimensions(), dims = detail.dimensions();
         if (origin == null || body == null || dims == null || detail.relativePosition() == null) return detail;
         String identity = ComponentPlanTypes.getParamString(detail.params(), "component_id");
+        String idLower = identity == null ? "" : identity.toLowerCase(Locale.ROOT);
         boolean chimney = "CHIMNEY".equals(ComponentPlanTypes.normalizeType(detail.componentType()))
-                || identity != null && identity.toLowerCase(Locale.ROOT).contains("chimney");
+                || idLower.contains("chimney");
+        boolean ridgeOrSpire = idLower.contains("ridge") || idLower.contains("crest")
+                || idLower.contains("spire") || idLower.contains("finial") || idLower.contains("cupola")
+                || idLower.contains("peak") || looksRidgeFeature(detail.features());
         boolean perimeter = dims.width() >= body.width() - 2 && dims.depth() >= body.depth() - 2
                 && dims.height() <= 1;
-        if (!chimney && !perimeter) return detail;
+        if (!chimney && !perimeter && !ridgeOrSpire) return detail;
         var params = new HashMap<String, Object>();
         if (detail.params() != null) params.putAll(detail.params());
         params.put("anchor_mode", "min_corner");
@@ -186,6 +190,26 @@ final class ComponentSatelliteAligner {
             int x = Math.max(origin.x() + 1, Math.min(origin.x() + body.width() - dims.width() - 1, detail.relativePosition().x()));
             int z = Math.max(origin.z() + 1, Math.min(origin.z() + body.depth() - dims.depth() - 1, detail.relativePosition().z()));
             position = new Vec3i(x, origin.y() + body.height() - 1, z);
+        } else if (ridgeOrSpire) {
+            // Center ridge / spire / cresting on the host roof plane — LLM often shifts these off-axis.
+            int x = origin.x() + Math.max(0, (body.width() - dims.width()) / 2);
+            int z = origin.z() + Math.max(0, (body.depth() - dims.depth()) / 2);
+            int y = Math.max(detail.relativePosition().y(), origin.y() + body.height() - 1);
+            // Thin long ridge: keep authored axis span but center the thin axis.
+            if (dims.width() <= 3 && dims.depth() > body.depth()) {
+                dims = new Dimensions(dims.width(), body.depth(), dims.height());
+                z = origin.z();
+                x = origin.x() + Math.max(0, (body.width() - dims.width()) / 2);
+            } else if (dims.depth() <= 3 && dims.width() > body.width()) {
+                dims = new Dimensions(body.width(), dims.depth(), dims.height());
+                x = origin.x();
+                z = origin.z() + Math.max(0, (body.depth() - dims.depth()) / 2);
+            } else if (dims.width() <= 5 && dims.depth() <= 5) {
+                // Compact spire / finial: center both axes on the roof.
+                x = origin.x() + Math.max(0, (body.width() - dims.width()) / 2);
+                z = origin.z() + Math.max(0, (body.depth() - dims.depth()) / 2);
+            }
+            position = new Vec3i(x, y, z);
         } else {
             // A cornice surrounds the facade; it must not fill the glazing plane.
             dims = new Dimensions(Math.max(dims.width(), body.width() + 2), Math.max(dims.depth(), body.depth() + 2), 1);
@@ -195,6 +219,19 @@ final class ComponentSatelliteAligner {
         }
         return new Component(chimney ? "CHIMNEY" : detail.componentType(), detail.slotId(), position,
                 dims, detail.features(), params);
+    }
+
+    private static boolean looksRidgeFeature(List<String> features) {
+        if (features == null) return false;
+        for (String f : features) {
+            if (f == null) continue;
+            String lower = f.toLowerCase(Locale.ROOT);
+            if (lower.contains("ridge") || lower.contains("crest") || lower.contains("spire")
+                    || lower.contains("finial") || lower.contains("cupola") || lower.contains("尖顶")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Component alignFoundationToMass(Component foundation, Component mass) {
@@ -504,13 +541,17 @@ final class ComponentSatelliteAligner {
 
     static Component alignEntranceToMass(Component llmEntrance, Component mass, LlmPlan plan,
                                                  GlobalConstraints.Facing facing) {
+        // Balcony / platform doors keep authored upper-floor Y; main doors snap to the mass floor.
+        if (isUpperPlatformDoor(llmEntrance)) {
+            return llmEntrance;
+        }
         if (llmEntrance.params() != null && (llmEntrance.params().containsKey("stair_connection")
                 || llmEntrance.params().containsKey("facing"))) {
             return alignStairEntrance(llmEntrance, mass, plan);
         }
         Component template = ComponentSatelliteInference.makeEntranceComponent(plan, mass, mass.slotId(), facing);
         if (template == null) {
-            return llmEntrance;
+            return snapEntranceToMassFloor(llmEntrance, mass);
         }
         if (template.params().get("facing") != null)
             facing = GlobalConstraints.Facing.valueOf(String.valueOf(template.params().get("facing")));
@@ -534,6 +575,43 @@ final class ComponentSatelliteAligner {
                 mergeFeatureLists(template.features(), llmEntrance.features()),
                 params
         );
+    }
+
+    /** True for balcony / upper-deck doors that intentionally sit above the ground storey. */
+    private static boolean isUpperPlatformDoor(Component door) {
+        if (door == null) return false;
+        String id = ComponentPlanTypes.getParamString(door.params(), "component_id");
+        if (id != null) {
+            String lower = id.toLowerCase(Locale.ROOT);
+            if (lower.contains("platform_door") || lower.contains("balcony") || lower.contains("#platform")) {
+                return true;
+            }
+        }
+        if (door.features() != null) {
+            for (String f : door.features()) {
+                if (f != null && (f.toLowerCase(Locale.ROOT).contains("balcony")
+                        || f.toLowerCase(Locale.ROOT).contains("platform"))) {
+                    return true;
+                }
+            }
+        }
+        if (door.params() == null) return false;
+        if (Boolean.TRUE.equals(door.params().get("platform_door"))) return true;
+        Object platform = door.params().get("platform_connection");
+        if (platform == null) platform = door.params().get("platformConnection");
+        return platform != null && !String.valueOf(platform).isBlank();
+    }
+
+    private static Component snapEntranceToMassFloor(Component door, Component mass) {
+        Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(mass);
+        if (origin == null || door.relativePosition() == null || mass.dimensions() == null) return door;
+        int y = origin.y() + 1;
+        Vec3i p = door.relativePosition();
+        if (p.y() <= origin.y() + 1) return door;
+        FormacraftMod.LOGGER.info(
+                "alignEntranceToMass: snap door Y {}→{} onto mass floor", p.y(), y);
+        return new Component(door.componentType(), door.slotId(), new Vec3i(p.x(), y, p.z()),
+                door.dimensions(), door.features(), door.params());
     }
 
     /** Preserve a flight's actual entrance, including upper-floor Y and wall side. */

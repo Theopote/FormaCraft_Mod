@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.style.ExplicitDesignPolicy;
 
 import java.util.ArrayList;
@@ -9,11 +10,17 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * Drop satellites that contradict an explicit host opt-out (e.g. FACADE_WINDOWS on a
- * windowless bridge deck) instead of failing the whole plan.
+ * Drop satellites that contradict an explicit host opt-out (e.g. FACADE_WINDOWS on an
+ * open pavilion) instead of failing the whole plan. Runs before authored validation.
  */
 final class ExplicitDesignConflictRepair {
     private ExplicitDesignConflictRepair() {}
+
+    static LlmPlan apply(LlmPlan plan) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
+        List<Component> repaired = apply(plan.components());
+        return repaired != plan.components() ? PlanComponentRewrite.withComponents(plan, repaired) : plan;
+    }
 
     static List<Component> apply(List<Component> components) {
         if (components == null || components.isEmpty()) return components;
@@ -37,6 +44,17 @@ final class ExplicitDesignConflictRepair {
                     && !ExplicitDesignPolicy.windowsDisabled(c)) {
                 FormacraftMod.LOGGER.info(
                         "ExplicitDesignConflictRepair: drop FACADE_WINDOWS host={} (windows disabled)",
+                        c.params().get("host_id"));
+                changed = true;
+                continue;
+            }
+            if (body != null
+                    && "ENTRANCE".equals(c.componentType())
+                    && ExplicitDesignPolicy.entranceDisabled(body)
+                    && !ExplicitDesignPolicy.entranceDisabled(c)
+                    && !Boolean.TRUE.equals(c.params().get("compiler_internal_portal"))) {
+                FormacraftMod.LOGGER.info(
+                        "ExplicitDesignConflictRepair: drop ENTRANCE host={} (entrance disabled)",
                         c.params().get("host_id"));
                 changed = true;
                 continue;

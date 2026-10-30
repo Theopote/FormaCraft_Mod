@@ -81,14 +81,12 @@ public class EntranceGenerator implements ComponentGenerator {
 
         int doorWidth;
         if (explicitDoorWidth) {
-            // Need door width plus at least one jamb cell of margin.
-            if (openingSpan < requestedDoorWidth + 1) {
+            // Clamp oversized LLM door_width into the opening (need ≥1 jamb cell).
+            if (openingSpan < 2) {
                 throw new IllegalArgumentException(
-                        "E_ENTRANCE_DOOR_WIDTH: requested=" + requestedDoorWidth
-                                + " openingSpan=" + openingSpan
-                                + " requiredMinSpan=" + (requestedDoorWidth + 1));
+                        "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
             }
-            doorWidth = requestedDoorWidth;
+            doorWidth = Math.max(1, Math.min(requestedDoorWidth, openingSpan - 1));
             if (hasArch && doorWidth < 2) {
                 throw new IllegalArgumentException(
                         "E_ENTRANCE_DOOR_WIDTH: arched entrance requires door_width>=2, got=" + doorWidth);

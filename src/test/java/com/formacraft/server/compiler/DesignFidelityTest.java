@@ -330,12 +330,14 @@ class DesignFidelityTest {
     }
 
     @Test
-    void negativeCourtyardRatioFailsCompileAsInvalid() throws Exception {
+    void negativeCourtyardRatioIsDroppedBeforeAuthoredValidation() throws Exception {
         LlmPlan plan = loadFidelityPlan("courtyard_ratio_negative.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_COURTYARD_RATIO_INVALID", AssemblyCompileDiagnostics.get().code());
+        // Invalid courtyard_ratio is repaired away (same as ratio=0 LLM noise) rather than
+        // aborting an otherwise buildable mass.
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
     }
 
     @Test
