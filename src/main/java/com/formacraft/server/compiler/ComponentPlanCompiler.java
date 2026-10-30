@@ -166,8 +166,16 @@ public final class ComponentPlanCompiler {
                 AssemblyCompileDiagnostics.set(hostGeomGap.get());
                 return List.of();
             }
-            patchOccupancy = ComponentEmitPass.compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
+            try (var librarySelections = com.formacraft.common.component.ComponentLibraryBatchContext.open(
+                    world == null ? List.of() : components, world == null ? 0 : world.getSeed())) {
+                for (var selection : librarySelections.plans().entrySet()) {
+                    FormacraftMod.LOGGER.info("Component suite coordination group={} suite={} selected={} unresolved={}",
+                            selection.getKey(), selection.getValue().suite(), selection.getValue().selected().size(),
+                            selection.getValue().unresolved().size());
+                }
+                patchOccupancy = ComponentEmitPass.compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
+                        slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
+            }
         } finally {
             com.formacraft.common.generation.component.util.BuildingGeometryContext.end();
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();

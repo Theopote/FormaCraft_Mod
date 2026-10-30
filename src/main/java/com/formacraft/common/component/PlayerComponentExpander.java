@@ -94,7 +94,7 @@ public final class PlayerComponentExpander {
     private static ComponentGenerationOutcome expandSingleResult(
             SemanticComponent semantic, ServerWorld world, Path worldDir, Map<String, Object> reqMap) {
         com.formacraft.common.component.query.ComponentResolveResult resolved =
-                resolveComponentResult(worldDir, reqMap, null);
+                resolveSingleRequest(semantic.source(), worldDir, reqMap);
         if (!resolved.ok()) {
             if (resolved.status() == com.formacraft.common.component.query.ComponentResolveResult.Status.ADAPT_FAILED) {
                 FormacraftMod.LOGGER.error(
@@ -753,6 +753,30 @@ public final class PlayerComponentExpander {
         return reqMap.get("host_id") != null
                 || reqMap.get("mount_id") != null
                 || reqMap.get("socket_id") != null;
+    }
+
+    /** Query-only standalone requests can participate; explicit IDs and mounts keep their existing paths. */
+    static ComponentQuery batchQuery(com.formacraft.common.llm.dto.Component component) {
+        if (component == null || com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter
+                .isExplicitlyDisabled(component)) return null;
+        String json = extractFeatureJson(component.features());
+        if (json == null) return null;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> request = JsonUtil.get().fromJson(json, Map.class);
+            if (request == null || isMountRequest(request) || getString(request, "id", "component_id", "componentId") != null) return null;
+            ComponentQuery query = parseComponentQuery(request, null);
+            if (query == null) query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(request, "");
+            return query != null && (query.selection == null || query.selection.coordinateSuite) ? query : null;
+        } catch (RuntimeException invalidRequest) {
+            return null; // Normal expansion retains the original parse diagnostic.
+        }
+    }
+
+    static com.formacraft.common.component.query.ComponentResolveResult resolveSingleRequest(
+            com.formacraft.common.llm.dto.Component component, Path worldDir, Map<String, Object> request) {
+        var prepared = ComponentLibraryBatchContext.lookup(component);
+        return prepared != null ? prepared : resolveComponentResult(worldDir, request, null);
     }
 
     private static com.formacraft.common.component.query.ComponentResolveResult resolveComponentResult(

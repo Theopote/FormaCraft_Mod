@@ -102,10 +102,7 @@ public final class ShapeLibrary {
         if (!insideCanonical(spec, local[0], local[1], local[2], voronoiSeeds)) {
             return false;
         }
-        if (spec.hollow() && isInteriorHollow(spec, local[0], local[1], local[2], voronoiSeeds)) {
-            return false;
-        }
-        return true;
+        return !spec.hollow() || !isInteriorHollow(spec, local[0], local[1], local[2], voronoiSeeds);
     }
 
     private static boolean insideCanonical(

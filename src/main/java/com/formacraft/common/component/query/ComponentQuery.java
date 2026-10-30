@@ -39,6 +39,8 @@ public class ComponentQuery {
     public Selection selection = new Selection();
 
     public static class Selection {
+        /** Opt out of compiler-level coordination while keeping standalone query preferences. */
+        public boolean coordinateSuite = true;
         /** Author-declared suite tag suffix, e.g. alice/courtyard. Null means no preference. */
         public String preferredSuite;
         public double suiteBonus = 0.05;

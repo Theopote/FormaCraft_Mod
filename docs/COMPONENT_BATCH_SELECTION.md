@@ -4,7 +4,7 @@
 
 ComponentBatchPlanner.plan 接收具名需求列表、确定性种子和同套系奖励。每个需求有唯一 id、ComponentQuery、required 标记。调用者按建筑分批，避免不同建筑意外共享风格。原 query 和资产均不改写。
 
-本服务只选型，不生成世界 Patch，也不承诺宿主、净空或多构件之间的碰撞已验证。目前不自动接入逐构件实时生成管线，后续由建筑需求预处理阶段调用。
+本服务只选型，不生成世界 Patch，也不承诺宿主、净空或多构件之间的碰撞已验证。实时编译的需求预处理阶段现已调用本服务，接入范围与退出方式见下文。
 
 ## 算法
 
@@ -20,3 +20,15 @@ ComponentBatchPlanner.plan 接收具名需求列表、确定性种子和同套�
 
 共同套系为空字符串时表示未选择组级套系偏好。selected 中保留原需求候选的独立评分；alternatives 中的总分包含本次组级奖励，matchedNeeds 表示相应方案的套系覆盖需求数。所有比较顺序固定，调用者可据此展示方案差异。
 验证：5 项批量选型测试与其余构件回归共 50 项测试全部通过；未进行游戏内验收。
+
+## 实时编译接入（2026-10-30）
+
+ComponentPlanCompiler 在准备列表与宿主几何检查完成后开启 ComponentLibraryBatchContext，预选后执行原 ComponentEmitPass，随后自动关闭上下文。PlayerComponentExpander 的单构件请求直接消费预选结果，避免重新随机适配。原始 plan、components 和 features 不改写；几何输出、清洞与占用冲突仍走原管线。
+
+只纳入已有 component_request 中不带显式资产 ID 的单构件查询（包括可转换的 legacy 查询），并排除挂载请求与 selection.coordinateSuite=false。分组优先级为 params.suite_group、building_id、宿主所属 building_id（缺失时用 host_id）、slotId。显式组可跨建筑协调；同组至少两个需求才启动。重复需求身份不参与批量协调，保留独立选择。组件身份使用 params.component_id，缺失时从组件内容派生。
+
+预选记录按当前准备组件的对象身份绑定，不跨组件副本、线程或编译泄漏。嵌套作用域恢复外层上下文。world 为空的离线编译不进行库预选。失败状态原样交给既有展开流程处理：ADAPT_FAILED/LOAD_FAILED 不变成无候选；原生组件、显式 ID 和挂载继续走原路径。编译日志输出协调组、套系及成功/未解决数。
+
+当前仍不会自行把原生细节改为库查询；构件库的自动使用边界仍由现有生成提示与显式请求决定。
+已通过现有禁用策略关闭的组件不会进入库预选，也不会影响其他需求的共同套系。
+实时接入验证：6 项上下文/展开接入用例与其余构件回归共 56 项测试全部通过；主代码与测试代码编译成功。尚未进行真实 ServerWorld 的游戏内验收。
