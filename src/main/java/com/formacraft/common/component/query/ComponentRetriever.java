@@ -230,6 +230,19 @@ public final class ComponentRetriever {
         public ResolutionReport { attempts = List.copyOf(attempts); }
     }
 
+    public record FittedCandidate(String sourceId, ComponentDefinition definition, ComponentFitScore score,
+                                  Set<String> suites) {
+        public FittedCandidate { suites = Set.copyOf(suites); }
+    }
+    public record CandidatePool(ResolutionReport report, List<FittedCandidate> candidates) {
+        public CandidatePool { candidates = List.copyOf(candidates); }
+    }
+
+    public static CandidatePool retrieveCandidatePool(ComponentQuery query, java.util.Random random) {
+        return fitCandidates(query, random, query == null ? List.of() : retrieve(query, 20),
+                id -> ComponentStorage.loadComponent(null, id, VIEWER_PLAYER.get()));
+    }
+
     public static ResolutionReport retrieveResolvedReport(ComponentQuery query, java.util.Random random) {
         return resolveCandidates(query, random, query == null ? List.of() : retrieve(query, 20),
                 id -> ComponentStorage.loadComponent(null, id, VIEWER_PLAYER.get()));
@@ -237,9 +250,21 @@ public final class ComponentRetriever {
 
     static ResolutionReport resolveCandidates(ComponentQuery query, java.util.Random random,
             List<ComponentScore> candidates, java.util.function.Function<String, ComponentDefinition> loader) {
+        return fitCandidates(query, random, candidates, loader, false).report();
+    }
+
+    static CandidatePool fitCandidates(ComponentQuery query, java.util.Random random,
+            List<ComponentScore> candidates, java.util.function.Function<String, ComponentDefinition> loader) {
+        return fitCandidates(query, random, candidates, loader, true);
+    }
+
+    private static CandidatePool fitCandidates(ComponentQuery query, java.util.Random random,
+            List<ComponentScore> candidates, java.util.function.Function<String, ComponentDefinition> loader,
+            boolean retainFits) {
         List<CandidateAttempt> attempts = new ArrayList<>();
+        List<FittedCandidate> fits = new ArrayList<>();
         if (query == null) {
-            return new ResolutionReport(ComponentResolveResult.noCandidate("query_null"), attempts);
+            return new CandidatePool(new ResolutionReport(ComponentResolveResult.noCandidate("query_null"), attempts), fits);
         }
         boolean sawLoaded = false;
         ComponentDefinition best = null;
@@ -264,6 +289,7 @@ public final class ComponentRetriever {
                     com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, variant);
             if (fitted != null) {
                 var fitScore = ComponentFitScore.evaluate(score, base, fitted, query);
+                if (retainFits) fits.add(new FittedCandidate(score.componentId, fitted, fitScore, suiteIds(base.tags)));
                 attempts.add(new CandidateAttempt(score.componentId, score.totalScore,
                         ComponentResolveResult.Status.SUCCESS, fitScore));
                 String id = Objects.toString(score.componentId, "");
@@ -279,17 +305,26 @@ public final class ComponentRetriever {
             sawUnfittable = true;
             lastUnfittableId = score.componentId != null ? score.componentId : (base.id != null ? base.id : "");
         }
-        if (best != null) return new ResolutionReport(ComponentResolveResult.success(best), attempts);
+        if (best != null) return new CandidatePool(new ResolutionReport(ComponentResolveResult.success(best), attempts), fits);
         if (sawUnfittable) {
-            return new ResolutionReport(ComponentResolveResult.adaptFailed(lastUnfittableId,
-                    "candidates_exist_but_none_fit_query"), attempts);
+            return new CandidatePool(new ResolutionReport(ComponentResolveResult.adaptFailed(lastUnfittableId,
+                    "candidates_exist_but_none_fit_query"), attempts), fits);
         }
-        if (loadFailedId != null) return new ResolutionReport(
-                ComponentResolveResult.loadFailed(loadFailedId, "ranked_candidates_could_not_load"), attempts);
+        if (loadFailedId != null) return new CandidatePool(new ResolutionReport(
+                ComponentResolveResult.loadFailed(loadFailedId, "ranked_candidates_could_not_load"), attempts), fits);
         if (!sawLoaded) {
-            return new ResolutionReport(ComponentResolveResult.noCandidate("no_scored_loadable_candidate"), attempts);
+            return new CandidatePool(new ResolutionReport(ComponentResolveResult.noCandidate("no_scored_loadable_candidate"), attempts), fits);
         }
-        return new ResolutionReport(ComponentResolveResult.noCandidate("no_candidate_above_score_threshold"), attempts);
+        return new CandidatePool(new ResolutionReport(ComponentResolveResult.noCandidate("no_candidate_above_score_threshold"), attempts), fits);
+    }
+
+    static Set<String> suiteIds(List<String> tags) {
+        Set<String> suites = new TreeSet<>();
+        if (tags != null) for (String tag : tags) {
+            String normalized = ComponentQueryMatchUtil.normalizeTag(tag);
+            if (normalized.startsWith("suite:") && normalized.length() > 6) suites.add(normalized.substring(6));
+        }
+        return suites;
     }
 
     /**

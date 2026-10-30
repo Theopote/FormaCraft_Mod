@@ -2,7 +2,7 @@ param(
     [string]$GradleExecutable,
     [switch]$Offline,
     [string[]]$Tests = @(
-        '*ComponentTagIdentityTest', '*ComponentSuiteSelectionTest',
+        '*ComponentTagIdentityTest', '*ComponentSuiteSelectionTest', '*ComponentBatchPlannerTest',
         '*ComponentQueryMatchUtilTest', '*ComponentRankerSoftMatchTest',
         '*ComponentRankingEvidenceTest', '*ComponentResolutionReportTest',
         '*CapturedComponentAdaptationTest', '*CapturedComponentDraftTest',
