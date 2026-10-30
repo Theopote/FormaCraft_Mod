@@ -890,8 +890,10 @@ public final class TieredMountainPalaceBuilder {
                         lx, s, g, stepY);
             }
             if (g > stepY + 1) {
-                return ApproachPlan.fail("APPROACH_COLLISION",
-                        "x=" + lx + "_s=" + s + "_ground=" + g + "_step=" + stepY);
+                // Hill cuts into the planned tread: keep the step and let landing/clearance
+                // carve the interference instead of hard-failing the whole palace.
+                LOG.warn("tiered_mountain_palace approach terrain collision (soft): x={} s={} ground={} step={}",
+                        lx, s, g, stepY);
             }
             expectedY = stepY;
             steps.add(new ApproachStep(lx, stepY, pathStartZ + s));

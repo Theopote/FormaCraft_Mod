@@ -163,11 +163,22 @@ class BuildingLandingPlannerTest {
         assertTrue(result.blocks().stream().noneMatch(p->p.getPos().getX()>10&&p.getPos().getX()<28));
         assertEquals(0,result.supports(),"independent landing avoids a tall artificial base");
     }
-    @Test void connectedBuildingsRetainTheirRelativeElevation() {
+    @Test void pathCorridorBetweenDistantHousesDoesNotForceSharedElevation() {
         var a=site(0,64);var b=site(30,64);
         var input=new ArrayList<>(house(a,false));input.addAll(house(b,false));
-        for(int x=9;x<30;x++) input.add(new PlannedBlock(new BlockPos(x,64,3),Blocks.STONE_BRICKS.getDefaultState()));
-        var result=prepare(input,List.of(a,b),ground((x,z)->x<15?64:74));
+        for(int x=9;x<30;x++) input.add(new PlannedBlock(new BlockPos(x,64,3),Blocks.DIRT_PATH.getDefaultState()));
+        var result=prepare(input,List.of(a,b),ground((x,z)->x<15?64:84));
+        assertNull(result.problem());
+        assertEquals(0,result.displacement(new BlockPos(4,65,3)));
+        assertEquals(20,result.displacement(new BlockPos(34,65,3)));
+        assertFalse(result.siteShifts().isEmpty(),"hillside village houses land independently");
+    }
+    @Test void connectedBuildingsRetainTheirRelativeElevation() {
+        // Abutting footprints (gap≤1) stay rigid; long village paths between distant houses do not.
+        var a=site(0,64);var b=site(9,64);
+        var input=new ArrayList<>(house(a,false));input.addAll(house(b,false));
+        for(int x=8;x<=9;x++) input.add(new PlannedBlock(new BlockPos(x,64,3),Blocks.STONE_BRICKS.getDefaultState()));
+        var result=prepare(input,List.of(a,b),ground((x,z)->x<8?64:74));
         assertNull(result.problem());assertTrue(result.siteShifts().isEmpty());
         var finalBlocks=finalMap(result.blocks());
         for(var block:input) assertEquals(block.getTargetState(),finalBlocks.get(block.getPos().up(result.dy())));

@@ -132,6 +132,15 @@ public final class ComponentStorage {
     }
 
     private static ComponentCatalog loadCatalogFromDir(Path dir) {
+        ComponentCatalog catalog = loadFlatCatalogFromDir(dir);
+        catalog.components.removeIf(e -> e != null && e.packageRef != null);
+        if (dir != null) for (var imported : ComponentPackageInstallations.entries(dir)) {
+            if (catalog.components.stream().noneMatch(e -> e != null && imported.id.equals(e.id))) catalog.components.add(imported);
+        }
+        return catalog;
+    }
+
+    private static ComponentCatalog loadFlatCatalogFromDir(Path dir) {
         if (dir == null) {
             ComponentCatalog c = new ComponentCatalog();
             c.components = new ArrayList<>();
@@ -220,7 +229,10 @@ public final class ComponentStorage {
             if (dir == null) return;
             Files.createDirectories(dir);
             Path file = dir.resolve("catalog.json");
-            writeJsonAtomic(file, catalog);
+            ComponentCatalog flat = new ComponentCatalog(); flat.schema = catalog.schema;
+            flat.components = catalog.components == null ? java.util.List.of() : catalog.components.stream()
+                    .filter(e -> e == null || e.packageRef == null).toList();
+            writeJsonAtomic(file, flat);
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("[ComponentStorage] Failed to save catalog to {}", dir, e);
             throw new RuntimeException("Failed to save catalog to " + dir, e);
@@ -239,7 +251,7 @@ public final class ComponentStorage {
      * @throws IllegalArgumentException 非法 ID / 冲突
      * @throws RuntimeException IO 失败
      */
-    public static void saveComponentWithContext(SaveContext ctx, ComponentDefinition def) {
+    public static synchronized void saveComponentWithContext(SaveContext ctx, ComponentDefinition def) {
         if (def == null) {
             throw new InvalidComponentException("Component is null");
         }
@@ -254,6 +266,10 @@ public final class ComponentStorage {
         Path worldDir = ctx != null ? ctx.worldDir() : null;
         boolean writeGlobal = ctx == null || ctx.writeGlobal();
         UUID playerId = ctx != null ? ctx.playerId() : null;
+
+        if (ComponentPackageInstallations.exists(getGlobalComponentDir(), id)
+                || !writeGlobal && playerId != null && ComponentPackageInstallations.exists(getPlayerComponentDir(playerId), id))
+            throw new IllegalArgumentException("Installed package IDs are immutable; choose a new component id");
 
         // 冲突：非全局写入时，不得覆盖已有全局同名构件
         if (!writeGlobal && playerId != null) {
@@ -411,17 +427,22 @@ public final class ComponentStorage {
                     ComponentIds.tryResolveComponentFile(getPlayerComponentDir(viewerPlayerId), loadId, ".json"),
                     loadId, worldDir);
             if (fromPlayer != null) return fromPlayer;
+            ComponentDefinition imported = ComponentPackageInstallations.load(getPlayerComponentDir(viewerPlayerId), loadId);
+            if (imported != null) return imported;
         }
 
         ComponentDefinition fromGlobal = readComponentFile(
                 ComponentIds.tryResolveComponentFile(getGlobalComponentDir(), loadId, ".json"),
                 loadId, worldDir);
         if (fromGlobal != null) return fromGlobal;
+        ComponentDefinition imported = ComponentPackageInstallations.load(getGlobalComponentDir(), loadId);
+        if (imported != null) return imported;
 
         if (worldDir != null) {
-            return readComponentFile(
+            ComponentDefinition legacy = readComponentFile(
                     ComponentIds.tryResolveComponentFile(getWorldComponentDir(worldDir), loadId, ".json"),
                     loadId, worldDir);
+            return legacy != null ? legacy : ComponentPackageInstallations.load(getWorldComponentDir(worldDir), loadId);
         }
         return null;
     }
@@ -505,7 +526,7 @@ public final class ComponentStorage {
         return deleteComponentWithContext(SaveContext.global(worldDir), componentId);
     }
 
-    public static boolean deleteComponentWithContext(SaveContext ctx, String componentId) {
+    public static synchronized boolean deleteComponentWithContext(SaveContext ctx, String componentId) {
         String id;
         try {
             id = ComponentIds.validateComponentId(componentId);
@@ -548,7 +569,8 @@ public final class ComponentStorage {
         }
     }
 
-    private static void deleteFromDir(Path dir, String id) {
+    private static void deleteFromDir(Path dir, String id) throws java.io.IOException {
+        ComponentPackageInstallations.delete(dir, id);
         Path jsonFile = ComponentIds.tryResolveComponentFile(dir, id, ".json");
         Path thumbFile = ComponentIds.tryResolveComponentFile(dir, id, ".png");
         try {

@@ -213,15 +213,13 @@ final class ComponentSatelliteInference {
                     var envelope = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                             .levelEnvelope(plateRole, origin.y(), HostedPlateDesignValidator.hostedEnvelopeHeight(body, components));
                     if (envelope != null && !envelope.contains(plateY)) {
-                        AssemblyCompileDiagnostics.set(new CapabilityGap(
-                                "E_HOSTED_PLATE_LEVEL_CONFLICT",
-                                "Explicit plate Y=" + plateY + " is outside " + plateRole + " envelope ["
-                                        + envelope.minInclusive() + "," + envelope.maxInclusive() + "]",
-                                "components[].relative_position.y",
-                                List.of("Keep interior plates within the host mass height.",
-                                        "Terrace may sit on the roof (host height + 1).",
-                                        "Bridge Y is not limited to a single host envelope.")));
-                        return new PreparedComponents(List.of(), Set.of());
+                        int clamped = Math.max(envelope.minInclusive(),
+                                Math.min(envelope.maxInclusive(), plateY));
+                        FormacraftMod.LOGGER.info(
+                                "HostedPlate soft-snap: Y={} → {} ({} envelope [{},{}])",
+                                plateY, clamped, plateRole,
+                                envelope.minInclusive(), envelope.maxInclusive());
+                        plateY = clamped;
                     }
                 }
                 var slabParams = new HashMap<String, Object>(slab.params());
@@ -423,7 +421,13 @@ final class ComponentSatelliteInference {
         // Elevated hosts only (see ExteriorDoorAttachmentCompiler): ground-level openings stay authored.
         ExteriorDoorAttachmentCompiler.apply(prepared);
         DoorFloorDatumCompiler.apply(prepared);
-        InteriorStairInferenceCompiler.apply(prepared);
+        // Infer interior stairs when satellites are allowed, or when circulation is REQUIRED
+        // (fidelity cases keep allow_compiler_satellites=false but still need vertical links).
+        if (plan.allowCompilerSatellites()
+                || com.formacraft.common.generation.design.DesignRequirementAccess.circulation(plan)
+                == com.formacraft.common.generation.design.DesignRequirement.REQUIRED) {
+            InteriorStairInferenceCompiler.apply(prepared);
+        }
         StairFloorPlaneCompiler.apply(prepared);
         ExteriorStairEndpointRepair.apply(prepared);
         BareStairFitCompiler.apply(prepared);
@@ -432,6 +436,7 @@ final class ComponentSatelliteInference {
         DeckRailingAccessCompiler.apply(prepared);
         ComponentFoundationEnforcer.apply(prepared);
         DeclaredInteriorOpeningCompiler.apply(prepared, slotMap);
+        prepared = ExplicitDesignConflictRepair.apply(prepared);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
     }

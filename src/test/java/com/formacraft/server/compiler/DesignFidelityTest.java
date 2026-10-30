@@ -540,9 +540,10 @@ class DesignFidelityTest {
     void hostedPlateOutsideHostEnvelopeFails() throws Exception {
         LlmPlan plan = loadFidelityPlan("hosted_plate_level_outside_host.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_HOSTED_PLATE_LEVEL_CONFLICT", AssemblyCompileDiagnostics.get().code());
+        // Soft-snap clamps plate Y into the host envelope instead of hard-failing.
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
     }
 
     @Test

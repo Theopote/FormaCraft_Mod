@@ -391,8 +391,8 @@ public class MassMainGenerator implements ComponentGenerator {
                     // Explicit open masses are pavilion frames. Do not reinterpret their
                     // absent walls as a hollow enclosed house (or inject default windows).
                     if (com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(massParams)) {
-                        boolean post = (x == 0 || x == currentWidth - 1)
-                                && (z == 0 || z == currentDepth - 1);
+                        boolean post = com.formacraft.common.generation.component.util.OpenFramePolicy
+                                .isPost(footprint, localX, localZ, currentWidth, currentDepth, massParams);
                         String block = y == 0 ? getBlockForPart(SemanticPart.FLOOR, semantic, palette)
                                 : post ? String.valueOf(massParams.getOrDefault("pillar_block", getBlockForPart(SemanticPart.WALL, semantic, palette))) : "minecraft:air";
                         out.add(new BlockPatch("minecraft:air".equals(block) ? BlockPatch.REMOVE : BlockPatch.PLACE,

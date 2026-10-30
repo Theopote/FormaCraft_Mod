@@ -2,8 +2,6 @@ package com.formacraft.common.component;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.component.semantic.BlockStatePropertyUtil;
-import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.ComponentTransformUtil;

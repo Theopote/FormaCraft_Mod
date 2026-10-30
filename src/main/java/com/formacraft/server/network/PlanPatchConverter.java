@@ -3,6 +3,7 @@ package com.formacraft.server.network;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
+import com.formacraft.common.patch.ConnectedBlockStateResolver;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 
@@ -73,7 +74,8 @@ public final class PlanPatchConverter {
                 addSample(samples, patch.dx(), patch.dy(), patch.dz(), patch.action(), patch.targetBlock(), true);
             }
         }
-        return new Result(blocks, invalid, criticalInvalid, softRecovered, List.copyOf(samples));
+        return new Result(ConnectedBlockStateResolver.apply(blocks), invalid, criticalInvalid,
+                softRecovered, List.copyOf(samples));
     }
 
     /** place/replace 解析失败默认关键；remove 或装饰前缀可 soft。 */

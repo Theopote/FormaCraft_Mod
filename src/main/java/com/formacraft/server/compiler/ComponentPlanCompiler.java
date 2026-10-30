@@ -114,6 +114,8 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = FootprintCombinationRepair.apply(plan);
+        plan = FloatingTowerSnapRepair.apply(plan);
+        plan = HostedPlateLevelRepair.apply(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
         var authoredIssue = DesignValidatorSuite.checkAuthored(plan);
         if (authoredIssue.isPresent()) {

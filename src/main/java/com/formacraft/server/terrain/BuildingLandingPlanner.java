@@ -195,26 +195,44 @@ public final class BuildingLandingPlanner {
             return prepareRigid(input,sites,ground,strategy,stilt,fill,policy);
         long area=sites.stream().mapToLong(s->(long)s.body().expand(4).width()*s.body().expand(4).depth()).sum();
         if(area>MAX_AREA) return failure(input,"建筑占地过大，建议分批生成或缩小范围。");
-        // Keep all authored contacts (including clearance volumes) rigid. Detached accessories
-        // belong to the nearest building; a connecting platform merges those buildings.
+        // Keep nearly-touching shells rigid. Detached village houses on a path must land
+        // independently — expand(2) + path corridors previously forced one shared dy.
         int[] parents=new int[sites.size()];
         for(int i=0;i<parents.length;i++) parents[i]=i;
         for(int i=0;i<sites.size();i++) for(int j=0;j<i;j++) {
-            var a=sites.get(i).body().expand(2);var b=sites.get(j).body().expand(2);
-            if(a.minX()<=b.maxX()&&b.minX()<=a.maxX()&&a.minZ()<=b.maxZ()&&b.minZ()<=a.maxZ())
+            var a=sites.get(i).body();var b=sites.get(j).body();
+            // Actual footprint overlap (or 1-block flush) only — not a 2-block halo.
+            if(a.minX()<=b.maxX()+1&&b.minX()<=a.maxX()+1&&a.minZ()<=b.maxZ()+1&&b.minZ()<=a.maxZ()+1
+                    && horizontalGap(a,b)<=1)
                 parents[root(parents,i)]=root(parents,j);
         }
+        // All blocks track a nearest site for grouping; only shell-local solids can merge sites.
         Map<BlockPos,Integer> owners=new HashMap<>();
-        for(var block:input) owners.put(block.getPos(),sites.indexOf(nearestSite(block.getPos(),sites)));
-        for(var entry:owners.entrySet()) for(int[] d:new int[][]{{1,0,0},{0,1,0},{0,0,1}}) {
-            Integer other=owners.get(entry.getKey().add(d[0],d[1],d[2]));
-            if(other!=null) parents[root(parents,other)]=root(parents,entry.getValue());
+        Map<BlockPos,Integer> mergeOwners=new HashMap<>();
+        for(var block:input) {
+            if(block==null||block.getPos()==null||block.getTargetState()==null) continue;
+            int nearest=sites.indexOf(nearestSite(block.getPos(),sites));
+            owners.put(block.getPos(),nearest);
+            if(!block.getTargetState().isAir()) {
+                int shell=indexOfNearSite(block.getPos(),sites);
+                if(shell>=0) mergeOwners.put(block.getPos(),shell);
+            }
+        }
+        for(var entry:mergeOwners.entrySet()) for(int[] d:new int[][]{{1,0,0},{0,1,0},{0,0,1}}) {
+            Integer other=mergeOwners.get(entry.getKey().add(d[0],d[1],d[2]));
+            if(other==null||Objects.equals(other,entry.getValue())) continue;
+            if(horizontalGap(sites.get(entry.getValue()).body(),sites.get(other).body())>1) continue;
+            parents[root(parents,other)]=root(parents,entry.getValue());
         }
         Map<Integer,List<Site>> groups=new LinkedHashMap<>();
         for(int i=0;i<sites.size();i++) groups.computeIfAbsent(root(parents,i),k->new ArrayList<>()).add(sites.get(i));
         if(groups.size()==1) return prepareRigid(input,sites,ground,strategy,stilt,fill,policy);
         Map<Integer,List<PlannedBlock>> grouped=new HashMap<>();
-        for(var block:input) grouped.computeIfAbsent(root(parents,owners.get(block.getPos())),k->new ArrayList<>()).add(block);
+        for(var block:input) {
+            Integer owner=owners.get(block.getPos());
+            if(owner==null) owner=sites.indexOf(nearestSite(block.getPos(),sites));
+            grouped.computeIfAbsent(root(parents,owner),k->new ArrayList<>()).add(block);
+        }
         List<PlannedBlock> combined=new ArrayList<>();
         Map<Site,Integer> shifts=new LinkedHashMap<>();
         Map<BlockPos,BlockState> occupied=new HashMap<>();
@@ -240,6 +258,37 @@ public final class BuildingLandingPlanner {
     private static int root(int[] parents,int i) {
         while(parents[i]!=i) {parents[i]=parents[parents[i]];i=parents[i];}
         return i;
+    }
+
+    /** Chebyshev gap between inclusive AABBs; 0 = overlapping/touching, 1 = one-block flush. */
+    private static int horizontalGap(LlmPlanTerrainBounds.Bounds a, LlmPlanTerrainBounds.Bounds b) {
+        int dx = Math.max(0, Math.max(a.minX() - b.maxX(), b.minX() - a.maxX()));
+        int dz = Math.max(0, Math.max(a.minZ() - b.maxZ(), b.minZ() - a.maxZ()));
+        return Math.max(dx, dz);
+    }
+
+    private static boolean inSiteShell(BlockPos p, Site site) {
+        var b = site.body().expand(1);
+        return p.getX() >= b.minX() && p.getX() <= b.maxX()
+                && p.getZ() >= b.minZ() && p.getZ() <= b.maxZ();
+    }
+
+    /** Owner only when the block sits on/near a building shell — paths between houses stay unowned. */
+    private static int indexOfNearSite(BlockPos p, List<Site> sites) {
+        int best = -1;
+        long bestDist = Long.MAX_VALUE;
+        for (int i = 0; i < sites.size(); i++) {
+            if (!inSiteShell(p, sites.get(i))) continue;
+            var b = sites.get(i).body();
+            long dx = Math.max(0, Math.max(b.minX() - p.getX(), p.getX() - b.maxX()));
+            long dz = Math.max(0, Math.max(b.minZ() - p.getZ(), p.getZ() - b.maxZ()));
+            long d = dx * dx + dz * dz;
+            if (d < bestDist) {
+                bestDist = d;
+                best = i;
+            }
+        }
+        return best;
     }
 
     private static Site nearestSite(BlockPos p,List<Site> sites) {

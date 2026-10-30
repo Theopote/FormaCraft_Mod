@@ -322,7 +322,7 @@ public final class ComponentLibraryPanel extends BasePanel {
             
             // 额外验证：确保构件文件确实存在（防止已删除的构件仍显示）
             // 这可以处理 catalog 更新延迟的情况
-            if (!existingComponentIds.contains(e.id)) {
+            if (e.packageRef == null && !existingComponentIds.contains(e.id)) {
                 // 文件不存在，跳过这个条目（可能已被删除但 catalog 还没更新）
                 continue;
             }

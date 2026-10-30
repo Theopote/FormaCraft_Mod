@@ -17,6 +17,8 @@ public class ComponentCatalog {
         public String name;
         public ComponentCategory category;
         public List<String> tags;
+        /** Derived imported entry: original package identity and payload hash. */
+        public String packageRef;
         public ComponentDefinition.Size size;
         public com.formacraft.common.component.model.ComponentPrototype.VariantRules variantRules;
         /** 文件名，例如 door_xxx.json */
