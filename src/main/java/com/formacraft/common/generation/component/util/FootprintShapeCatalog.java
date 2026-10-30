@@ -25,6 +25,14 @@ public final class FootprintShapeCatalog {
             "rounded_rect", "rounded", "roundrect", "round_rect"
     );
 
+    /**
+     * Octagon is authored as a rectangular AABB + {@code plan_type=octagon} cut-corners.
+     * Accept the shape token so validators do not reject LLM plans that say shape=octagon.
+     */
+    public static final Set<String> OCTAGON_TOKENS = Set.of(
+            "octagon", "octagonal", "regular_octagon", "8gon"
+    );
+
     public static final Set<String> SUPPORTED_TOKENS;
 
     static {
@@ -32,6 +40,7 @@ public final class FootprintShapeCatalog {
         all.addAll(RECTANGLE_TOKENS);
         all.addAll(CIRCLE_TOKENS);
         all.addAll(ROUNDED_RECT_TOKENS);
+        all.addAll(OCTAGON_TOKENS);
         SUPPORTED_TOKENS = Set.copyOf(all);
     }
 
@@ -76,6 +85,7 @@ public final class FootprintShapeCatalog {
         if (ROUNDED_RECT_TOKENS.contains(v)) {
             return Optional.of(ResolvedFootprint.FootprintShape.ROUNDED_RECT);
         }
+        // Octagon footprint is cut from a rectangle AABB (see PavilionOpenFrameRepair / plan_type).
         return Optional.of(ResolvedFootprint.FootprintShape.RECTANGLE);
     }
 }

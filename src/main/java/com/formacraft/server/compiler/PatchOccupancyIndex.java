@@ -102,7 +102,9 @@ public final class PatchOccupancyIndex {
     }
 
     public int trimWallTowerJoins(Component writer, List<BlockPatch> patches) {
-        if (writer == null || !Set.of("WALL","WALL_SEGMENT").contains(writer.componentType())) return 0;
+        if (writer == null || writer.componentType() == null) return 0;
+        String writerType = writer.componentType().trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("WALL", "WALL_SEGMENT", "PRIMITIVE", "FACADE").contains(writerType)) return 0;
         var joins = new HashSet<BlockPos>();
         var buildingIds = new HashSet<Object>();
         for (var record : places.values()) {
@@ -345,7 +347,11 @@ public final class PatchOccupancyIndex {
                 boolean gateOnPath = "GATE".equals(type)
                         && prev.writerType() != null
                         && GATE_PATH_SURFACES.contains(prev.writerType());
-                if (!overwriteOk && !chimneyFooting && !gateOnPath && !connectorAccess.contains(pos)
+                boolean hostedSecondaryOntoMass = "MASS_SECONDARY".equals(type)
+                        && prev.writerType() != null && prev.writerType().startsWith("MASS")
+                        && isHostedMassSecondaryCarve(writer, prev);
+                if (!overwriteOk && !chimneyFooting && !gateOnPath
+                        && !hostedSecondaryOntoMass && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),

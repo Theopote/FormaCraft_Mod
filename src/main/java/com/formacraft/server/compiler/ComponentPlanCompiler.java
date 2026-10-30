@@ -115,7 +115,10 @@ public final class ComponentPlanCompiler {
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = FootprintCombinationRepair.apply(plan);
         plan = CourtyardRatioRepair.apply(plan);
+        plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        plan = CastleTowerEnrichmentRepair.apply(plan);
+        plan = BridgeCompositionRepair.apply(plan);
         plan = FloatingTowerSnapRepair.apply(plan);
         plan = HostedPlateLevelRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);

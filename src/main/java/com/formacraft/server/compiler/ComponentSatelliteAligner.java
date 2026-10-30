@@ -177,7 +177,10 @@ final class ComponentSatelliteAligner {
                 || idLower.contains("chimney");
         boolean ridgeOrSpire = idLower.contains("ridge") || idLower.contains("crest")
                 || idLower.contains("spire") || idLower.contains("finial") || idLower.contains("cupola")
-                || idLower.contains("peak") || looksRidgeFeature(detail.features());
+                || idLower.contains("peak") || idLower.contains("pagoda") || idLower.contains("baota")
+                || idLower.contains("宝塔") || idLower.contains("尖顶")
+                || "spire".equalsIgnoreCase(ComponentPlanTypes.getParamString(detail.params(), "detail_kind"))
+                || looksRidgeFeature(detail.features());
         boolean perimeter = dims.width() >= body.width() - 2 && dims.depth() >= body.depth() - 2
                 && dims.height() <= 1;
         if (!chimney && !perimeter && !ridgeOrSpire) return detail;
@@ -204,8 +207,13 @@ final class ComponentSatelliteAligner {
                 dims = new Dimensions(body.width(), dims.depth(), dims.height());
                 x = origin.x();
                 z = origin.z() + Math.max(0, (body.depth() - dims.depth()) / 2);
-            } else if (dims.width() <= 5 && dims.depth() <= 5) {
-                // Compact spire / finial: center both axes on the roof.
+            } else {
+                // Spire / pagoda / finial (any footprint): always center on the host roof.
+                int maxW = Math.min(dims.width(), Math.max(3, body.width() - 2));
+                int maxD = Math.min(dims.depth(), Math.max(3, body.depth() - 2));
+                if (maxW != dims.width() || maxD != dims.depth()) {
+                    dims = new Dimensions(maxW, maxD, dims.height());
+                }
                 x = origin.x() + Math.max(0, (body.width() - dims.width()) / 2);
                 z = origin.z() + Math.max(0, (body.depth() - dims.depth()) / 2);
             }
@@ -227,7 +235,8 @@ final class ComponentSatelliteAligner {
             if (f == null) continue;
             String lower = f.toLowerCase(Locale.ROOT);
             if (lower.contains("ridge") || lower.contains("crest") || lower.contains("spire")
-                    || lower.contains("finial") || lower.contains("cupola") || lower.contains("尖顶")) {
+                    || lower.contains("finial") || lower.contains("cupola") || lower.contains("尖顶")
+                    || lower.contains("pagoda") || lower.contains("baota") || lower.contains("宝塔")) {
                 return true;
             }
         }
@@ -307,15 +316,19 @@ final class ComponentSatelliteAligner {
                     bboxOverhang = existing;
                 }
                 if (bboxOverhang > 0 && existing != bboxOverhang) {
-                    AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    // Prefer the authored roof bbox; soft-correct overhang instead of aborting.
+                    FormacraftMod.LOGGER.info(
+                            "alignRoofToMass: soft overhang {}→{} host={}",
+                            existing, bboxOverhang, ComponentPlanTypes.paramIdentity(mass));
+                    AssemblyCompileDiagnostics.addSoftWarning(
                             "E_ROOF_OVERHANG_CONFLICT",
-                            "explicit overhang=" + existing + " conflicts with roof bbox overhang=" + bboxOverhang
-                                    + " host=" + ComponentPlanTypes.paramIdentity(mass) + " host_size=" + mass.dimensions() + " roof_size=" + llmDims,
-                            "components[]",
-                            List.of("Align roof dimensions with overhang, or omit overhang to derive from bbox.")));
-                    return null;
+                            "explicit overhang=" + existing + " → " + bboxOverhang
+                                    + " (matched roof bbox) host=" + ComponentPlanTypes.paramIdentity(mass),
+                            llmRoof.componentType(),
+                            ComponentPlanTypes.paramIdentity(llmRoof));
+                    params.put("overhang", bboxOverhang);
                 }
-                // Keep explicit value; do not raise via Math.max(existing, bbox).
+                // Keep explicit value when it already matches bbox; do not raise via Math.max.
             } else if (bboxOverhang > 0) {
                 params.put("overhang", bboxOverhang);
             }

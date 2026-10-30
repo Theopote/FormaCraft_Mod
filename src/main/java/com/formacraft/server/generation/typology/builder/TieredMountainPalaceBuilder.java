@@ -864,8 +864,10 @@ public final class TieredMountainPalaceBuilder {
         }
         int totalDrop = padY - edge.groundLocalY();
         if (totalDrop > MAX_APPROACH_DROP) {
-            return ApproachPlan.fail("APPROACH_CLIFF",
-                    "x=" + lx + "_drop=" + totalDrop + "_max=" + MAX_APPROACH_DROP);
+            // Soft-cap the stair run instead of aborting the whole palace on steep terrain.
+            LOG.warn("tiered_mountain_palace approach cliff soft-cap: x={} drop={}→{}",
+                    lx, totalDrop, MAX_APPROACH_DROP);
+            totalDrop = MAX_APPROACH_DROP;
         }
 
         List<ApproachStep> steps = new ArrayList<>();

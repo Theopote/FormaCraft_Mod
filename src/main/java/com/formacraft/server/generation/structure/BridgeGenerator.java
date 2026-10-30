@@ -43,10 +43,17 @@ public class BridgeGenerator implements StructureGenerator {
         int width = Math.max(3, spec.getFootprint() != null ? spec.getFootprint().getWidth() : 5);
         int length = Math.max(6, spec.getFootprint() != null ? spec.getFootprint().getDepth() : 20);
 
-        // 获取材质
+        // 获取材质 — deck defaults to wood planks (stone walls/piers stay as support).
         BlockState floor = getState(world, spec.getMaterials() != null ? spec.getMaterials().getFloor() : null);
         BlockState support = getState(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null);
         BlockState railing = Blocks.OAK_FENCE.getDefaultState();
+        if (floor == null || floor.isAir() || floor.isOf(Blocks.STONE) || floor.isOf(Blocks.COBBLESTONE)
+                || floor.isOf(Blocks.STONE_BRICKS) || floor.isOf(Blocks.SMOOTH_STONE)) {
+            floor = Blocks.OAK_PLANKS.getDefaultState();
+        }
+        if (support == null || support.isAir()) {
+            support = Blocks.STONE_BRICKS.getDefaultState();
+        }
 
         // style + palette (best-effort)
         Map<String, Object> extra = spec.getExtra();
@@ -174,18 +181,9 @@ public class BridgeGenerator implements StructureGenerator {
             int yOffset = yOffsets[z];
             BlockPos left = p(origin2, forward, -width / 2 - 1, yOffset, z);
             BlockPos right = p(origin2, forward, width / 2 + 1, yOffset, z);
-            BlockState lr = railing;
-            if (paletteId != null && !paletteId.isBlank()) {
-                long saltL = (-31L) ^ (z * 17L) ^ (yOffset * 13L);
-                long saltR = (31L) ^ (z * 17L) ^ (yOffset * 13L);
-                lr = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", left, saltL, lr);
-                BlockState rr = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", right, saltR, railing);
-                blocks.add(new PlannedBlock(left, lr));
-                blocks.add(new PlannedBlock(right, rr));
-            } else {
-                blocks.add(new PlannedBlock(left, lr));
-                blocks.add(new PlannedBlock(right, lr));
-            }
+            // Keep open railings (fence / bars). Do not let DECOR palette swap in solid wool/terracotta.
+            blocks.add(new PlannedBlock(left, railing));
+            blocks.add(new PlannedBlock(right, railing));
         }
 
         // Ornaments (best-effort): signage/banners along the bridge sides

@@ -413,10 +413,10 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         String lattice=com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(semantic.source().params());
         if(lattice!=null)return lattice;
         String glazing = getParamString(semantic.source().params(), "glass_block", "glazing_block", "glass_material");
-        if (glazing != null) return glazing.contains(":") ? glazing : "minecraft:" + glazing;
+        if (glazing != null) return coerceWindowBlock(glazing.contains(":") ? glazing : "minecraft:" + glazing);
         String authored = getParamString(semantic.source().params(), "window_block", "block", "material");
         if (authored != null)
-            return authored.contains(":") ? authored : "minecraft:" + authored;
+            return coerceWindowBlock(authored.contains(":") ? authored : "minecraft:" + authored);
         // A component's authored window style precedes global material and style defaults.
         String explicitStyle = getParamString(semantic.source().params(), "window_style", "windowStyle");
         if (explicitStyle != null) {
@@ -429,7 +429,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         if (semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
             if (block != null && !block.isEmpty()) {
-                return block;
+                return coerceWindowBlock(block);
             }
         }
         
@@ -438,7 +438,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         if (c != null && c.features() != null) {
             String block = extractBlockFromFeatures(c.features());
             if (block != null && !block.isEmpty()) {
-                return block;
+                return coerceWindowBlock(block);
             }
         }
         
@@ -446,7 +446,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         if (palette != null && palette.has(part)) {
             String block = palette.pick(part);
             if (block != null && !block.isEmpty()) {
-                return block;
+                return coerceWindowBlock(block);
             }
         }
         
@@ -463,7 +463,25 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 return "minecraft:glass_pane";
             }
         }
-        return isLattice ? "minecraft:iron_bars" : "minecraft:glass";
+        return isLattice ? "minecraft:iron_bars" : "minecraft:glass_pane";
+    }
+
+    /** Opaque wall materials must not fill window openings as solid grey slabs. */
+    private static String coerceWindowBlock(String blockId) {
+        if (blockId == null || blockId.isBlank()) return "minecraft:glass_pane";
+        String id = blockId.contains(":") ? blockId.toLowerCase(java.util.Locale.ROOT)
+                : ("minecraft:" + blockId.toLowerCase(java.util.Locale.ROOT));
+        if (id.contains("glass") || id.contains("pane") || id.contains("bars")
+                || id.contains("fence") || id.contains("iron_bars")) {
+            return id;
+        }
+        if (id.contains("terracotta") || id.contains("concrete") || id.contains("wool")
+                || id.contains("stone") || id.contains("brick") || id.contains("planks")
+                || id.contains("log") || id.contains("copper") || id.contains("deepslate")
+                || id.contains("prismarine") || id.contains("quartz") || id.contains("mud")) {
+            return "minecraft:glass_pane";
+        }
+        return id;
     }
     
     /**
