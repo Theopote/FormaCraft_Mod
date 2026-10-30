@@ -253,6 +253,7 @@ public class ComponentMetadata {
         if (component.variantRules != null) {
             metadata.variantCapability = new VariantCapability();
             metadata.variantCapability.materialSwap = component.variantRules.material != null;
+            metadata.variantCapability.segmentRepeat = false;
             var scaling = component.variantRules.scaling;
             if (metadata.geometrySpec != null) {
                 var axes = new java.util.ArrayList<String>();
