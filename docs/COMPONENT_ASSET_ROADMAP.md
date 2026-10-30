@@ -95,3 +95,8 @@ retrieveBestResolved 现在比较前 20 个初筛候选中的所有成功适配�
 
 统一全半角、大小写和分隔符写法，保留自由标签原文；区分玩家搜索、自动发现和硬标签约束。修正 outdoor 被推断为 door、空标签匹配角色以及双向短子串满足必须标签的问题。风格 ID 按完整归一化身份比较，处理非有限评分；已有推断证据取最大值，避免标签顺序影响结果。构件库搜索框共用归一化但保留自由子串搜索。详见 COMPONENT_TAG_MATCHING.md；本阶段不实现材质换肤后的形态风格重判或多语言语义别名字典。
 本阶段验证：直接 javac 编译 ComponentQueryMatchUtil，通过 8 项 Java 断言；新增 6 项 JUnit 标签/风格用例，完整 Gradle 测试尚未执行成功。阻塞原因：Loom 重建的 Minecraft JAR 被 IntelliJ IDEA 占用，独立项目缓存仍指向该 JAR；未关闭 IDE 或修改其占用文件。
+
+## 套系偏好与验证隔离（2026-10-30）
+
+沿用自由标签表达 suite:namespace/name，捕获、存储、目录及变体通过现有 tags 保留身份。selection.preferredSuite 与 suiteBonus 提供显式的同套系偏好，实际适配后加分并写入候选证据；缺少可用同套系件不会阻断其他候选，硬限定可用 mustHave。尚未实现建筑级自动套系规划。详见 COMPONENT_SUITES.md。新增 verify-component-assets.ps1，以临时 Gradle 项目隔离 Loom 项目缓存，同时编译当前源码，避免运行中游戏与 IDE 缓存被覆盖。
+本阶段验证：临时 Gradle 项目构建成功，45 项测试全部通过，包含上一阶段尚未完成的标签/风格回归、本阶段套系选择，以及捕获分区、轴映射、端部保护和适配测试。游戏内体验尚未验收。

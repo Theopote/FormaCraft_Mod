@@ -39,6 +39,9 @@ public class ComponentQuery {
     public Selection selection = new Selection();
 
     public static class Selection {
+        /** Author-declared suite tag suffix, e.g. alice/courtyard. Null means no preference. */
+        public String preferredSuite;
+        public double suiteBonus = 0.05;
         /** Maximum score deduction for relative dimensional change, in [0, 1]. */
         public double adaptationPenalty = 0.10;
     }
