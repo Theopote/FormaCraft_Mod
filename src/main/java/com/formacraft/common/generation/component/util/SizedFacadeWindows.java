@@ -62,6 +62,8 @@ public final class SizedFacadeWindows {
         if (windowHeight < floorHeight) sill = Math.min(sill, floorHeight-windowHeight);
         int thickness=Math.max(1,ComponentParamParsers.intParam(params,1,"wall_thickness","wallThickness"));
         boolean explicitCount=hasExplicitCount(params);
+        var footprint=ComponentFootprintMask.from(semantic,params,width,depth);
+        boolean irregular=!footprint.isFullyRectangular();
         var out=new ArrayList<BlockPatch>();
         for(var face:faces) {
             boolean xFace=face==Facing.EAST || face==Facing.WEST;
@@ -84,6 +86,11 @@ public final class SizedFacadeWindows {
                     int x=xFace?(face==Facing.EAST?0:width-1):a;
                     int z=xFace?a:(face==Facing.SOUTH?0:depth-1);
                     int ix=xFace?(face==Facing.EAST?1:-1):0, iz=xFace?0:(face==Facing.SOUTH?1:-1);
+                    if(irregular) {
+                        int[] cell=footprintCellForFace(footprint,face,a,width,depth);
+                        if(cell==null) continue;
+                        x=cell[0]; z=cell[1]; ix=cell[2]; iz=cell[3];
+                    }
                     for(int layer=1;layer<thickness;layer++) out.add(new BlockPatch(BlockPatch.REMOVE,
                             rp.x()+x+ix*layer,rp.y()+y,rp.z()+z+iz*layer,"minecraft:air"));
                     GeneratedSurfaceCapture.record(rp.x()+x,rp.y()+y,rp.z()+z,GeneratedSurfaceCapture.Role.WINDOW);
@@ -92,6 +99,41 @@ public final class SizedFacadeWindows {
             }
         }
         return out;
+    }
+
+    /**
+     * Map an authored face+axis index onto a real footprint exterior cell.
+     * Returns {x,z,inwardX,inwardZ} or null when that bay is outside the footprint.
+     */
+    private static int[] footprintCellForFace(ComponentFootprintMask footprint,Facing face,int axis,
+                                              int width,int depth) {
+        int outwardDx=face==Facing.WEST?1:face==Facing.EAST?-1:0;
+        int outwardDz=face==Facing.NORTH?1:face==Facing.SOUTH?-1:0;
+        boolean xFace=face==Facing.EAST || face==Facing.WEST;
+        if(xFace) {
+            if(axis<0 || axis>=depth) return null;
+            int z=axis;
+            int prefer=face==Facing.EAST?0:width-1;
+            int step=face==Facing.EAST?1:-1;
+            for(int x=prefer;x>=0 && x<width;x+=step) {
+                if(!footprint.contains(x,z)) continue;
+                int nx=x+outwardDx, nz=z+outwardDz;
+                boolean empty=!footprint.contains(nx,nz);
+                if(empty) return new int[]{x,z,-outwardDx,-outwardDz};
+            }
+            return null;
+        }
+        if(axis<0 || axis>=width) return null;
+        int x=axis;
+        int prefer=face==Facing.SOUTH?0:depth-1;
+        int step=face==Facing.SOUTH?1:-1;
+        for(int z=prefer;z>=0 && z<depth;z+=step) {
+            if(!footprint.contains(x,z)) continue;
+            int nx=x+outwardDx, nz=z+outwardDz;
+            boolean empty=!footprint.contains(nx,nz);
+            if(empty) return new int[]{x,z,-outwardDx,-outwardDz};
+        }
+        return null;
     }
 
     private static Facing facingFromName(String name) {

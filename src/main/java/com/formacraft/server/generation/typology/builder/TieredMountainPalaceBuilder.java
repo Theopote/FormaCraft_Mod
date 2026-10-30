@@ -883,9 +883,11 @@ public final class TieredMountainPalaceBuilder {
             }
             int stepY = padY - s;
             int g = cell.groundLocalY();
+            // Deep voids under the planned tread: still emit the step; placeEntranceApproach
+            // fills foundation columns beneath, so floating is a soft terrain warning only.
             if (g < stepY - 1 && stepY - g > 3) {
-                return ApproachPlan.fail("APPROACH_FLOATING",
-                        "x=" + lx + "_s=" + s + "_ground=" + g + "_step=" + stepY);
+                LOG.warn("tiered_mountain_palace approach foundation fill: x={} s={} ground={} step={}",
+                        lx, s, g, stepY);
             }
             if (g > stepY + 1) {
                 return ApproachPlan.fail("APPROACH_COLLISION",

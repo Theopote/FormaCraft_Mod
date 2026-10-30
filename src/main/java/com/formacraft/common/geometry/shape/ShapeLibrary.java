@@ -398,6 +398,21 @@ public final class ShapeLibrary {
             double rz = spec.halfZ()*radius-t;
             return rx>0 && rz>0 && lx*lx/(rx*rx)+lz*lz/(rz*rz)<1;
         }
+        // BOX uses AABB half-extents, not radius — inset by wall thickness or the shell empties.
+        if (spec.kind() == ShapeKind.BOX) {
+            double ix = spec.halfX() - t;
+            double iy = spec.extrudeMode() == ShapeExtrudeMode.PLATE ? spec.halfY() + 1 : spec.halfY() - t;
+            double iz = spec.halfZ() - t;
+            if (ix <= 0.25 || iz <= 0.25 || (spec.extrudeMode() != ShapeExtrudeMode.PLATE && iy <= 0.25)) {
+                return false; // Too thin to hollow — keep a solid fill.
+            }
+            if (spec.extrudeMode() == ShapeExtrudeMode.PLATE) {
+                return Math.abs(lx) <= ix + 0.25 && Math.abs(lz) <= iz + 0.25;
+            }
+            return Math.abs(lx) <= ix + 0.25
+                    && Math.abs(ly) <= iy + 0.25
+                    && Math.abs(lz) <= iz + 0.25;
+        }
         ShapeSpec inner = new ShapeSpec(
                 spec.kind(), spec.width(), spec.depth(), spec.height(),
                 false, spec.wallThickness(), spec.sides(),

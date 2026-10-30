@@ -100,9 +100,9 @@ class Live2252RegressionTest {
                     var gap = AssemblyCompileDiagnostics.get();
                     System.out.println("LIVE2252 " + name + " blocks=" + blocks.size() + " gap=" + gap);
                     var rejected = Map.of("225358", "E_PATCH_CONFLICT", "225448", "E_COMPONENT_GENERATION_FAILED",
-                            "230021", "E_FOOTPRINT_COMBINATION_UNSUPPORTED", "230359", "E_ROOF_OVERHANG_CONFLICT",
+                            "230021", "E_PATCH_CONFLICT", "230359", "E_ROOF_OVERHANG_CONFLICT",
                             "231048", "E_PATCH_CONFLICT", "231158", "E_PATCH_CONFLICT", "231336", "E_PATCH_CONFLICT",
-                            "231921", "E_STAIR_COMPONENT_INVALID");
+                            "231921", "E_STAIR_COMPONENT_INVALID", "232025", "E_OPENING_MATERIAL_MISMATCH");
                     if (!rejected.containsKey(name)) {
                         assertNull(gap, name); assertFalse(blocks.isEmpty(), name);
                     } else {

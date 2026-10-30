@@ -423,6 +423,7 @@ final class ComponentSatelliteInference {
         // Elevated hosts only (see ExteriorDoorAttachmentCompiler): ground-level openings stay authored.
         ExteriorDoorAttachmentCompiler.apply(prepared);
         DoorFloorDatumCompiler.apply(prepared);
+        InteriorStairInferenceCompiler.apply(prepared);
         StairFloorPlaneCompiler.apply(prepared);
         ExteriorStairEndpointRepair.apply(prepared);
         BareStairFitCompiler.apply(prepared);

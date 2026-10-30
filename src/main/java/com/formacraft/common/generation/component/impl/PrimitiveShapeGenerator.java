@@ -42,7 +42,15 @@ public class PrimitiveShapeGenerator implements ComponentGenerator {
         if (!ops.isEmpty()) {
             voxels = ShapeLibrary.generateComposite(ops);
         } else {
-            voxels = ShapeLibrary.generate(ShapeSpec.fromParams(d.width(), d.depth(), d.height(), params));
+            ShapeSpec spec = ShapeSpec.fromParams(d.width(), d.depth(), d.height(), params);
+            voxels = ShapeLibrary.generate(spec);
+            // Hollow on undersized dims can empty the shell; keep a solid corridor/bridge body.
+            if (voxels.isEmpty() && spec.hollow()) {
+                java.util.HashMap<String, Object> solidParams = new java.util.HashMap<>(params);
+                solidParams.put("hollow", false);
+                voxels = ShapeLibrary.generate(
+                        ShapeSpec.fromParams(d.width(), d.depth(), d.height(), solidParams));
+            }
         }
 
         String block = resolveBlock(semantic, params);

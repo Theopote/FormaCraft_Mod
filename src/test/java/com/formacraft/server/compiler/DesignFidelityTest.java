@@ -297,12 +297,12 @@ class DesignFidelityTest {
     }
 
     @Test
-    void circleCrossCombinationFailsCompile() throws Exception {
+    void circleCrossCombinationRepairsAndCompiles() throws Exception {
         LlmPlan plan = loadFidelityPlan("circle_cross_combo_unsupported.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_FOOTPRINT_COMBINATION_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
     }
 
     @Test
@@ -666,19 +666,15 @@ class DesignFidelityTest {
     }
 
     @Test
-    void circulationMissingStairFailsCompileWhenCirculationRequired() throws Exception {
+    void circulationMissingStairIsInferredWhenCirculationRequired() throws Exception {
         LlmPlan plan = loadFidelityPlan("circulation_stair_bridge_missing_stair.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_BUILDING_CIRCULATION_INCOMPLETE", AssemblyCompileDiagnostics.get().code());
-        String message = AssemblyCompileDiagnostics.get().message();
-        assertTrue(
-                message.contains("host entry")
-                        || message.contains("bridge level")
-                        || message.contains("Standable region not reachable")
-                        || message.toLowerCase().contains("stair"),
-                () -> message);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        assertTrue(patches.stream().anyMatch(p -> p != null && p.targetBlock() != null
+                        && p.targetBlock().contains("stairs")),
+                "compiler must infer STAIR_SYSTEM blocks when circulation is REQUIRED");
     }
 
     @Test

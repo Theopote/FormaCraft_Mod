@@ -117,13 +117,33 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     explicitHeight>0?explicitHeight:2,floorHeight,reserveEntranceBay);
         }
 
+        var footprintMask = com.formacraft.common.generation.component.util.ComponentFootprintMask
+                .from(semantic, params, width, depth);
+        boolean irregularFootprint = !footprintMask.isFullyRectangular();
+
         // 生成窗户（通常只在立面，depth 通常为 1）
         for (int y = 0; y < height; y++) {
             if(!com.formacraft.common.generation.component.util.SizedFacadeWindows.floorAllowed(params,y/floorHeight+1)) continue;
             int floorIndex = Math.max(0, y / Math.max(1, floorHeight));
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    boolean isFacade = isFacadePosition(x, z, width, depth, facing, wrapFacade);
+                    if (irregularFootprint && !footprintMask.contains(x, z)) {
+                        continue;
+                    }
+                    int outwardDx = 0;
+                    int outwardDz = 0;
+                    boolean isFacade;
+                    if (irregularFootprint) {
+                        var edge = footprintEdgeTowardEmpty(footprintMask, x, z, width, depth);
+                        if (edge == null) {
+                            continue;
+                        }
+                        outwardDx = edge[0];
+                        outwardDz = edge[1];
+                        isFacade = wrapFacade || matchesFacingOutward(facing, outwardDx, outwardDz);
+                    } else {
+                        isFacade = isFacadePosition(x, z, width, depth, facing, wrapFacade);
+                    }
                     String excludedAxis = getParamString(params, "excluded_window_axis");
                     if (wrapFacade && ("x".equals(excludedAxis) && (x == 0 || x == width - 1)
                             || "z".equals(excludedAxis) && (z == 0 || z == depth - 1))) continue;
@@ -132,7 +152,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (!isFacade) {
                         continue;
                     }
-                    String localFace = MassMainGenerator.localFaceAt(x, z, width, depth);
+                    String localFace = irregularFootprint
+                            ? faceFromOutward(outwardDx, outwardDz)
+                            : MassMainGenerator.localFaceAt(x, z, width, depth);
                     if (localFace == null || !facadeScope.covers(localFace, floorIndex)) {
                         continue;
                     }
@@ -144,7 +166,15 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     }
                     int axis;
                     int axisMax;
-                    if (wrapFacade) {
+                    if (irregularFootprint) {
+                        if (outwardDz != 0) {
+                            axis = x;
+                            axisMax = width;
+                        } else {
+                            axis = z;
+                            axisMax = depth;
+                        }
+                    } else if (wrapFacade) {
                         if (z == 0 || z == depth - 1) {
                             axis = x;
                             axisMax = width;
@@ -174,10 +204,13 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                         continue;
                     }
                     // Reserve the central door bay on the entrance face for every window grammar.
+                    boolean onEntranceFace = irregularFootprint
+                            ? matchesFacingOutward(facing, outwardDx, outwardDz)
+                            : isEntranceFacade(x, z, width, depth, facing, wrapFacade);
                     if (reserveEntranceBay && axisMax >= 8
                             && (!useRhythmPlan || !rhythmPlans.computeIfAbsent(axisMax,
                                 am -> ComponentFacadeRhythmPlanner.resolve(semantic, params, am)).active())
-                            && isEntranceFacade(x, z, width, depth, facing, wrapFacade)
+                            && onEntranceFace
                             && Math.abs(axis - axisMax / 2) <= 1) continue;
                     if (useRhythmPlan) {
                         ComponentFacadeRhythmPlanner.RhythmPlan rhythmPlan = rhythmPlans.computeIfAbsent(
@@ -190,7 +223,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                             }
                             if (reserveEntranceBay
                                     && rhythmPlan.hasNonEntranceWindowAxes()
-                                    && isEntranceFacade(x, z, width, depth, facing, wrapFacade)
+                                    && onEntranceFace
                                     && rhythmPlan.isEntranceBayAxis(axis)) {
                                 continue;
                             }
@@ -207,13 +240,20 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     String block = getBlockForWindow(semantic, palette, part, isLattice, windowStyle);
 
                     int thickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness"));
-                    int inwardX = x == 0 ? 1 : x == width - 1 ? -1 : 0;
-                    int inwardZ = z == 0 ? 1 : z == depth - 1 ? -1 : 0;
-                    if (!wrapFacade) {
-                        inwardX = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST ? 1
-                                : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST ? -1 : 0;
-                        inwardZ = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH ? 1
-                                : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.NORTH ? -1 : 0;
+                    int inwardX;
+                    int inwardZ;
+                    if (irregularFootprint) {
+                        inwardX = -outwardDx;
+                        inwardZ = -outwardDz;
+                    } else {
+                        inwardX = x == 0 ? 1 : x == width - 1 ? -1 : 0;
+                        inwardZ = z == 0 ? 1 : z == depth - 1 ? -1 : 0;
+                        if (!wrapFacade) {
+                            inwardX = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST ? 1
+                                    : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST ? -1 : 0;
+                            inwardZ = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH ? 1
+                                    : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.NORTH ? -1 : 0;
+                        }
                     }
                     for (int layer = 1; layer < thickness; layer++)
                         out.add(new BlockPatch(BlockPatch.REMOVE, rp.x() + x + inwardX * layer,
@@ -233,6 +273,43 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         }
 
         return out;
+    }
+
+    /** First empty 4-neighbor outward normal, or null when the cell is not an exterior edge. */
+    private static int[] footprintEdgeTowardEmpty(
+            com.formacraft.common.generation.component.util.ComponentFootprintMask mask,
+            int x, int z, int width, int depth) {
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] d : dirs) {
+            int nx = x + d[0];
+            int nz = z + d[1];
+            boolean insideAabb = nx >= 0 && nz >= 0 && nx < width && nz < depth;
+            if (insideAabb && mask.contains(nx, nz)) {
+                continue;
+            }
+            return d;
+        }
+        return null;
+    }
+
+    /** Match MassMainGenerator face naming: -X=EAST, +X=WEST, -Z=SOUTH, +Z=NORTH. */
+    private static String faceFromOutward(int outwardDx, int outwardDz) {
+        if (outwardDx < 0) return "EAST";
+        if (outwardDx > 0) return "WEST";
+        if (outwardDz < 0) return "SOUTH";
+        if (outwardDz > 0) return "NORTH";
+        return null;
+    }
+
+    private static boolean matchesFacingOutward(
+            com.formacraft.common.llm.dto.GlobalConstraints.Facing facing, int outwardDx, int outwardDz) {
+        if (facing == null) return true;
+        return switch (facing) {
+            case EAST -> outwardDx < 0;
+            case WEST -> outwardDx > 0;
+            case SOUTH -> outwardDz < 0;
+            case NORTH -> outwardDz > 0;
+        };
     }
 
     /**
