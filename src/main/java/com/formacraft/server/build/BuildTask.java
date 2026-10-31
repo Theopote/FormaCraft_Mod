@@ -2,6 +2,8 @@ package com.formacraft.server.build;
 
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.patch.BuildExecutionStatus;
+import com.formacraft.common.patch.WorldMutationOutcome;
 import com.formacraft.common.world.BlockSnapshot;
 import com.formacraft.common.world.SnapshotWriteResult;
 import net.minecraft.server.world.ServerWorld;
@@ -15,6 +17,10 @@ import java.util.List;
 
 /**
  * 建造任务：分 Tick 施工，按 Chunk 分桶延迟重试，单方块异常隔离，写后校验。
+ * <p>
+ * Incomplete terminals (permanent fail / cancel) attempt full-batch rollback of
+ * {@link #appliedChanges} so Build aligns with {@link com.formacraft.common.patch.WorldPatchTransaction}
+ * history rules: only a clean success records undo/Memory.
  */
 public class BuildTask {
     public enum Status {
@@ -22,11 +28,14 @@ public class BuildTask {
         WAITING_CHUNKS,
         /** 全部按预期完成（无永久失败） */
         COMPLETED,
-        /** 有落地且存在永久失败 */
+        /** 有落地且回滚不完整（残留世界改动） */
         PARTIAL,
-        /** 无有效落地且无法继续 */
+        /** 无有效落地或已完整回滚后的失败 */
         FAILED,
-        CANCELLED
+        /** 中途取消；若曾写入则已尝试回滚 */
+        CANCELLED,
+        /** 不完整建造后已完整回滚到施工前 */
+        ROLLED_BACK
     }
 
     private static final int DEFAULT_MAX_DEFER_ATTEMPTS = 120;
@@ -58,6 +67,10 @@ public class BuildTask {
     private int failedWrites = 0;
     private int failedUnloaded = 0;
     private int deferredUnloadedPeak = 0;
+    private BuildExecutionStatus mutationStatus = null;
+    private int recoveredFull = 0;
+    private int recoveredStateOnly = 0;
+    private int recoveryFailed = 0;
 
     private record DeferredBlock(PlannedBlock planned, int attempts, long firstDeferredMs, long nextRetryTick) {}
 
@@ -88,11 +101,27 @@ public class BuildTask {
 
     public boolean isFinished() {
         return status == Status.COMPLETED || status == Status.PARTIAL
-                || status == Status.FAILED || status == Status.CANCELLED;
+                || status == Status.FAILED || status == Status.CANCELLED
+                || status == Status.ROLLED_BACK;
     }
 
     public Status status() {
         return status;
+    }
+
+    /** Unified mutation terminal (null while still running). */
+    public BuildExecutionStatus mutationStatus() {
+        return mutationStatus;
+    }
+
+    public WorldMutationOutcome mutationOutcome() {
+        BuildExecutionStatus st = mutationStatus != null
+                ? mutationStatus
+                : (status == Status.COMPLETED ? BuildExecutionStatus.SUCCESS : null);
+        if (st == null) {
+            return null;
+        }
+        return WorldMutationOutcome.build(st, appliedChanges.size(), recoveredFull, recoveredStateOnly, recoveryFailed);
     }
 
     public GeneratedStructure getStructure() {
@@ -107,13 +136,23 @@ public class BuildTask {
         return appliedChanges;
     }
 
-    /** 取消任务：停止主队列与延迟队列；已修改方块保留供 Undo。 */
+    /** 取消任务：停止主队列与延迟队列；已写入方块尝试全批回滚（与 Patch 事务语义对齐）。 */
     public void cancel() {
         if (isFinished()) return;
         deferredByChunk.clear();
         index = structure.getBlocks().size();
-        status = Status.CANCELLED;
-        com.formacraft.FormacraftMod.LOGGER.info("BuildTask: cancelled. {}", result().summaryZh());
+        if (!appliedChanges.isEmpty()) {
+            BuildExecutionStatus recovered = rollbackAppliedChanges();
+            mutationStatus = recovered;
+            status = Status.CANCELLED;
+            com.formacraft.FormacraftMod.LOGGER.info(
+                    "BuildTask: cancelled with rollback={} remainingChanges={}. {}",
+                    recovered, appliedChanges.size(), result().summaryZh());
+        } else {
+            mutationStatus = BuildExecutionStatus.PREFLIGHT_REJECTED;
+            status = Status.CANCELLED;
+            com.formacraft.FormacraftMod.LOGGER.info("BuildTask: cancelled. {}", result().summaryZh());
+        }
     }
 
     public BuildApplyResult result() {
@@ -321,7 +360,7 @@ public class BuildTask {
     }
 
     private void updateStatusAfterTick() {
-        if (status == Status.CANCELLED) return;
+        if (status == Status.CANCELLED || status == Status.ROLLED_BACK) return;
         boolean mainDone = index >= structure.getBlocks().size();
         if (!mainDone) {
             status = Status.RUNNING;
@@ -332,14 +371,64 @@ public class BuildTask {
             return;
         }
         boolean permanentFail = failedUnloaded + failedWrites + skippedIllegal + skippedOutOfBounds > 0;
-        if (!appliedChanges.isEmpty() && permanentFail) {
-            status = Status.PARTIAL;
-        } else if (appliedChanges.isEmpty() && permanentFail) {
-            status = Status.FAILED;
+        if (permanentFail) {
+            if (!appliedChanges.isEmpty()) {
+                BuildExecutionStatus recovered = rollbackAppliedChanges();
+                mutationStatus = recovered;
+                status = recovered == BuildExecutionStatus.ROLLED_BACK
+                        ? Status.ROLLED_BACK
+                        : Status.PARTIAL;
+            } else {
+                mutationStatus = BuildExecutionStatus.APPLY_FAILED;
+                status = Status.FAILED;
+            }
         } else {
+            mutationStatus = BuildExecutionStatus.SUCCESS;
             status = Status.COMPLETED;
         }
-        com.formacraft.FormacraftMod.LOGGER.info("BuildTask: finished ({}). {}", status, result().summaryZh());
+        com.formacraft.FormacraftMod.LOGGER.info("BuildTask: finished ({} mutation={}). {}",
+                status, mutationStatus, result().summaryZh());
+    }
+
+    /**
+     * Restore pre-build snapshots for every recorded change (reverse order).
+     * Mirrors {@link com.formacraft.common.patch.WorldPatchTransaction} recovery.
+     */
+    BuildExecutionStatus rollbackAppliedChanges() {
+        recoveredFull = 0;
+        recoveredStateOnly = 0;
+        recoveryFailed = 0;
+        if (appliedChanges.isEmpty()) {
+            return BuildExecutionStatus.ROLLED_BACK;
+        }
+        for (int i = appliedChanges.size() - 1; i >= 0; i--) {
+            BlockChange change = appliedChanges.get(i);
+            if (change == null || change.getPos() == null || change.getFrom() == null) {
+                recoveryFailed++;
+                continue;
+            }
+            try {
+                if (access.getSnapshot(change.getPos()).equals(change.getFrom())) {
+                    recoveredFull++;
+                    continue;
+                }
+                SnapshotWriteResult wr = access.writeSnapshot(change.getPos(), change.getFrom());
+                switch (wr) {
+                    case FULL -> recoveredFull++;
+                    case STATE_ONLY -> recoveredStateOnly++;
+                    case REJECTED, ERROR -> recoveryFailed++;
+                }
+            } catch (RuntimeException e) {
+                recoveryFailed++;
+                com.formacraft.FormacraftMod.LOGGER.warn(
+                        "BuildTask rollback failed at {}", change.getPos(), e);
+            }
+        }
+        if (recoveredStateOnly == 0 && recoveryFailed == 0) {
+            appliedChanges.clear();
+            return BuildExecutionStatus.ROLLED_BACK;
+        }
+        return BuildExecutionStatus.ROLLBACK_INCOMPLETE;
     }
 
     private static long chunkKey(BlockPos pos) {
@@ -415,6 +504,7 @@ public class BuildTask {
                 case PARTIAL -> "建造部分完成：计划 ";
                 case FAILED -> "建造失败：计划 ";
                 case CANCELLED -> "建造已取消：计划 ";
+                case ROLLED_BACK -> "建造失败已回滚：计划 ";
                 default -> isCompletePlacement() ? "建造完成：计划 " : "建造结束（部分未放置）：计划 ";
             };
             sb.append(head).append(totalPlanned).append(" 个方块");

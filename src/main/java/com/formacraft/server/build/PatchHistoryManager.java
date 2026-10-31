@@ -120,7 +120,8 @@ public final class PatchHistoryManager {
             LAST_APPLY_RESULT.put(playerId, txResult.apply());
         }
 
-        if (txResult.status() != BuildExecutionStatus.SUCCESS) {
+        var outcome = com.formacraft.common.patch.WorldMutationOutcome.patch(txResult, null);
+        if (!outcome.recordsHistory()) {
             return txResult;
         }
 

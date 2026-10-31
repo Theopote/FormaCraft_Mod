@@ -84,7 +84,7 @@ class BuildTaskTest {
     }
 
     @Test
-    void tickCountsActualWritesAndRetainsOnlySuccessfulUndoChanges() {
+    void tickCountsActualWritesAndRollsBackOnPermanentFail() {
         var access = new FakeBlockMutationAccess();
         var stone = Blocks.STONE.getDefaultState();
         var same = new BlockPos(1, 1, 0);
@@ -108,20 +108,22 @@ class BuildTaskTest {
         assertEquals(1, task.tick(10));
         assertTrue(task.isFinished());
         var result = task.result();
-        assertEquals(1, result.placed());
+        assertEquals(0, result.placed());
         assertEquals(1, result.failedWrites());
         assertEquals(1, result.failedUnloaded());
         assertEquals(1, result.skippedIllegal());
-        assertEquals(1, task.getAppliedChanges().size());
-        assertEquals(2, access.writes);
+        assertTrue(task.getAppliedChanges().isEmpty());
+        assertTrue(access.writes >= 2);
         assertFalse(result.isCompletePlacement());
-        assertEquals(BuildTask.Status.PARTIAL, task.status());
+        assertEquals(BuildTask.Status.ROLLED_BACK, task.status());
+        assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLED_BACK, task.mutationStatus());
+        assertFalse(task.mutationOutcome().recordsHistory());
         assertTrue(result.summaryZh().contains("写入失败 1"));
-        assertFalse(result.summaryZh().contains("未归类"));
+        assertTrue(result.summaryZh().contains("建造失败已回滚"));
     }
 
     @Test
-    void mutateThenRejectStillRecordsUndoChange() {
+    void mutateThenRejectRecordsChangeThenRollsBackCompletely() {
         var access = new FakeBlockMutationAccess();
         var stone = Blocks.STONE.getDefaultState();
         var pos = new BlockPos(0, 1, 0);
@@ -131,9 +133,34 @@ class BuildTaskTest {
         var task = new BuildTask(structure, null, access);
         assertEquals(1, task.tick(5));
         assertTrue(task.isFinished());
-        assertEquals(1, task.getAppliedChanges().size());
         assertEquals(1, task.result().failedWrites());
-        assertEquals(stone, access.states.get(pos));
+        assertEquals(BuildTask.Status.ROLLED_BACK, task.status());
+        assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLED_BACK, task.mutationStatus());
+        assertTrue(task.getAppliedChanges().isEmpty());
+        assertEquals(Blocks.AIR.getDefaultState(), access.states.getOrDefault(pos, Blocks.AIR.getDefaultState()));
+        assertFalse(task.mutationOutcome().recordsHistory());
+    }
+
+    @Test
+    void incompleteRollbackKeepsResidualChangesWhenRestoreRejected() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var kept = new BlockPos(0, 1, 0);
+        var rejected = new BlockPos(1, 1, 0);
+        access.rejected.add(rejected);
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "residual",
+                List.of(new PlannedBlock(kept, stone), new PlannedBlock(rejected, stone)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(1, task.tick(1));
+        assertEquals(stone, access.states.get(kept));
+        access.rejectRestore.add(kept);
+        assertEquals(1, task.tick(10));
+        assertTrue(task.isFinished());
+        assertEquals(BuildTask.Status.PARTIAL, task.status());
+        assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLBACK_INCOMPLETE, task.mutationStatus());
+        assertEquals(1, task.getAppliedChanges().size());
+        assertEquals(stone, access.states.get(kept));
+        assertFalse(task.mutationOutcome().recordsHistory());
     }
 
     @Test
@@ -177,7 +204,7 @@ class BuildTaskTest {
     }
 
     @Test
-    void perBlockExceptionIsIsolatedAndCountedAsFailedWrite() {
+    void perBlockExceptionIsIsolatedThenSuccessfulCellsAreRolledBack() {
         var access = new FakeBlockMutationAccess();
         var stone = Blocks.STONE.getDefaultState();
         var boom = new BlockPos(1, 1, 0);
@@ -189,26 +216,50 @@ class BuildTaskTest {
         assertEquals(2, task.tick(10));
         assertTrue(task.isFinished());
         assertEquals(1, task.result().failedWrites());
-        assertEquals(1, task.result().placed());
-        assertEquals(stone, access.states.get(ok));
+        assertEquals(0, task.result().placed());
+        assertEquals(BuildTask.Status.ROLLED_BACK, task.status());
+        assertEquals(Blocks.AIR.getDefaultState(), access.states.getOrDefault(ok, Blocks.AIR.getDefaultState()));
+        assertTrue(task.getAppliedChanges().isEmpty());
     }
 
     @Test
-    void cancelKeepsAppliedChangesForUndo() {
+    void cancelRollsBackAppliedChanges() {
         var access = new FakeBlockMutationAccess();
         var stone = Blocks.STONE.getDefaultState();
+        var first = new BlockPos(0, 1, 0);
         var blocks = List.of(
-                new PlannedBlock(new BlockPos(0, 1, 0), stone),
+                new PlannedBlock(first, stone),
                 new PlannedBlock(new BlockPos(1, 1, 0), stone),
                 new PlannedBlock(new BlockPos(2, 1, 0), stone));
         var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "cancel", blocks);
         var task = new BuildTask(structure, null, access);
         assertEquals(1, task.tick(1));
+        assertEquals(stone, access.states.get(first));
         task.cancel();
         assertTrue(task.isFinished());
         assertEquals(BuildTask.Status.CANCELLED, task.status());
-        assertEquals(1, task.getAppliedChanges().size());
+        assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLED_BACK, task.mutationStatus());
+        assertTrue(task.getAppliedChanges().isEmpty());
+        assertEquals(Blocks.AIR.getDefaultState(), access.states.getOrDefault(first, Blocks.AIR.getDefaultState()));
         assertEquals(0, task.tick(10));
+        assertFalse(task.mutationOutcome().recordsHistory());
+    }
+
+    @Test
+    void cleanSuccessRecordsHistoryStatus() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var pos = new BlockPos(0, 1, 0);
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "ok",
+                List.of(new PlannedBlock(pos, stone)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(1, task.tick(5));
+        assertTrue(task.isFinished());
+        assertEquals(BuildTask.Status.COMPLETED, task.status());
+        assertEquals(com.formacraft.common.patch.BuildExecutionStatus.SUCCESS, task.mutationStatus());
+        assertTrue(task.mutationOutcome().recordsHistory());
+        assertEquals(1, task.getAppliedChanges().size());
+        assertEquals(stone, access.states.get(pos));
     }
 
     @Test

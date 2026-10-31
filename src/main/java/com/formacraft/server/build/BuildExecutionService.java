@@ -266,7 +266,8 @@ public class BuildExecutionService {
     }
 
     /**
-     * 取消该玩家在本世界的进行中建造任务。已落地的方块仍会经 completeTask 写入 Undo。
+     * 取消该玩家在本世界的进行中建造任务。
+     * {@link BuildTask#cancel()} 会尝试全批回滚；仅回滚不完整时的残留经 completeTask 写入 Undo。
      * @return 取消的任务数
      */
     public int cancelBuildsForPlayer(java.util.UUID playerId, ServerWorld world) {
@@ -367,9 +368,21 @@ public class BuildExecutionService {
         ServerPlayerEntity ownerEntity = world.getServer().getPlayerManager().getPlayer(ownerUuid);
         String memoryUuid = null;
 
-        // Memory：仅在线时可取 Spec；失败不影响 Undo
-        if (ownerEntity != null && memoryManager != null
-                && !changes.isEmpty() && applyResult.isCompletePlacement()) {
+        // Shared gate with Patch: WorldMutationOutcome / BuildExecutionStatus.recordsHistory().
+        var outcome = task.mutationOutcome();
+        boolean recordsHistory = outcome != null
+                ? outcome.recordsHistory()
+                : (task.status() == BuildTask.Status.COMPLETED && applyResult.isCompletePlacement());
+        // Incomplete rollback may leave residual cells (PARTIAL or CANCELLED + ROLLBACK_INCOMPLETE).
+        boolean residualUndo = !recordsHistory && !changes.isEmpty();
+        if (outcome != null) {
+            FormacraftMod.LOGGER.info("Build mutation outcome: strategy={} status={} applied={} recovery={}/{}/{}",
+                    outcome.strategy(), outcome.status(), outcome.appliedCells(),
+                    outcome.recoveredFull(), outcome.recoveredStateOnly(), outcome.recoveryFailed());
+        }
+
+        // Memory：仅完整成功且可取 Spec
+        if (recordsHistory && ownerEntity != null && memoryManager != null && !changes.isEmpty()) {
             try {
                 String buildingJson = PlayerSpecRepository.getBuildingJson(ownerEntity);
                 BuildingSpec spec = null;
@@ -406,8 +419,8 @@ public class BuildExecutionService {
             }
         }
 
-        // Undo：按 UUID 记录，玩家可离线
-        if (!changes.isEmpty()) {
+        // Undo：成功全量，或回滚不完整时的残留变更；完整回滚/失败无历史
+        if ((recordsHistory || residualUndo) && !changes.isEmpty()) {
             undoService.pushUndo(ownerUuid, new UndoEntry(
                     world, structure.getOrigin(), structure.getDescription(), changes, memoryUuid));
         }

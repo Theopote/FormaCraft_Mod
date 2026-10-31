@@ -108,6 +108,19 @@ class OffThreadPlanCompileGuardTest {
     }
 
     @Test
+    void compiledBuildArtifactMatchesOriginExplicitly() {
+        LlmPlan plan = simpleMassPlan();
+        BlockPos origin = new BlockPos(4, 70, 8);
+        var compilation = ComponentPlanCompiler.compileWithCirculation(plan, origin, null, null, false);
+        assertNull(AssemblyCompileDiagnostics.get());
+        var artifact = new LlmPlanPreviewBuilder.CompiledBuildArtifact(
+                compilation, null, List.of(), origin);
+        assertTrue(artifact.matchesOrigin(origin));
+        assertFalse(artifact.matchesOrigin(origin.up()));
+        assertFalse(artifact.compilation().patches().isEmpty());
+    }
+
+    @Test
     void canOffThreadRejectsPatchAndWorldBoundPlans() {
         LlmPlan mass = simpleMassPlan();
         assertTrue(LlmPlanPreviewBuilder.canOffThreadComponentCompile(mass, buildReq()));

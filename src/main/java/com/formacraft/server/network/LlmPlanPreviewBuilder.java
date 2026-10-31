@@ -48,16 +48,18 @@ public final class LlmPlanPreviewBuilder {
 
     /**
      * components[] BUILD compile produced off the server thread (world=null).
-     * Consumed once by {@link #tryBuildPreview} on the main thread.
+     * Passed explicitly into {@link #tryBuildPreview} on the main thread (no ThreadLocal).
      */
-    private static final ThreadLocal<PrecompiledComponents> PRECOMPILED = new ThreadLocal<>();
-
-    private record PrecompiledComponents(
+    record CompiledBuildArtifact(
             ComponentPlanCompiler.Compilation compilation,
             com.formacraft.common.llm.dto.CapabilityGap gap,
             List<com.formacraft.server.assembly.AssemblyCompileDiagnostics.SoftWarning> softWarnings,
             BlockPos planOrigin
-    ) {}
+    ) {
+        boolean matchesOrigin(BlockPos expected) {
+            return Objects.equals(planOrigin, expected);
+        }
+    }
 
     private LlmPlanPreviewBuilder() {}
 
@@ -86,47 +88,42 @@ public final class LlmPlanPreviewBuilder {
         }
 
         BlockPos planOrigin = resolveBuildPlanOrigin(req, llmPlan, origin, serverWorld);
+        var compileCtx = com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false);
         PlanCompileWorkers.submit(() -> {
-            com.formacraft.server.generation.GenerationCompileContext.install(
-                    com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false));
             try {
-                com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
-                var sampler = new com.formacraft.common.terrain.TerrainStrategySampler();
-                var compilation = ComponentPlanCompiler.compileWithCirculation(
-                        llmPlan, planOrigin, null, sampler, false);
-                var gap = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
-                var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
-                boolean unusable = gap != null
-                        || compilation == null
-                        || compilation.patches() == null
-                        || compilation.patches().isEmpty();
-                if (unusable) {
-                    // Never deliver a null-world failure/empty result; recompile with live world.
-                    LOG.warn("off-thread components[] compile unusable (gap={}); falling back to server thread with world",
-                            gap != null ? gap.code() : "empty");
+                CompiledBuildArtifact artifact = com.formacraft.server.generation.GenerationCompileContext.runWith(
+                        compileCtx, () -> {
+                            com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+                            var sampler = new com.formacraft.common.terrain.TerrainStrategySampler();
+                            var compilation = ComponentPlanCompiler.compileWithCirculation(
+                                    llmPlan, planOrigin, null, sampler, false);
+                            var gap = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
+                            var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
+                            boolean unusable = gap != null
+                                    || compilation == null
+                                    || compilation.patches() == null
+                                    || compilation.patches().isEmpty();
+                            if (unusable) {
+                                return null;
+                            }
+                            return new CompiledBuildArtifact(compilation, null, softs, planOrigin);
+                        });
+                if (artifact == null) {
+                    LOG.warn("off-thread components[] compile unusable; falling back to server thread with world");
                     server.execute(() ->
                             finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
                     return;
                 }
-                var pre = new PrecompiledComponents(compilation, null, softs, planOrigin);
-                server.execute(() -> {
-                    PRECOMPILED.set(pre);
-                    com.formacraft.server.generation.GenerationCompileContext.install(
-                            com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false));
-                    try {
-                        finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive));
-                    } finally {
-                        PRECOMPILED.remove();
-                        com.formacraft.server.generation.GenerationCompileContext.clear();
-                    }
-                });
+                server.execute(() -> com.formacraft.server.generation.GenerationCompileContext.runWith(
+                        compileCtx,
+                        () -> finish.accept(tryBuildPreview(
+                                player, req, llmPlan, origin, serverWorld, hbAlive, true, artifact))));
             } catch (Throwable t) {
                 LOG.error("off-thread LlmPlan components[] compile failed; falling back to server thread", t);
                 server.execute(() ->
                         finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
             } finally {
                 com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
-                com.formacraft.server.generation.GenerationCompileContext.clear();
             }
         });
     }
@@ -174,11 +171,12 @@ public final class LlmPlanPreviewBuilder {
             ServerWorld serverWorld,
             AtomicBoolean hbAlive
     ) {
-        return tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive, true);
+        return tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive, true, null);
     }
 
     /**
      * @param allowGeometryRepair when false, skips FBD ±1 roof repair (used after one accepted candidate).
+     * @param compiled optional off-thread {@link CompiledBuildArtifact}; null means compile on this thread.
      */
     private static boolean tryBuildPreview(
             ServerPlayerEntity player,
@@ -187,7 +185,8 @@ public final class LlmPlanPreviewBuilder {
             BlockPos origin,
             ServerWorld serverWorld,
             AtomicBoolean hbAlive,
-            boolean allowGeometryRepair
+            boolean allowGeometryRepair,
+            CompiledBuildArtifact compiled
     ) {
         if (llmPlan == null) {
             return false;
@@ -272,15 +271,15 @@ public final class LlmPlanPreviewBuilder {
                     reportCapabilityGap(player, req, hbAlive, compileFailure);
                     return true;
                 }
-                List<com.formacraft.common.patch.BlockPatch> compiled = compilation.patches();
-                if (compiled == null || compiled.isEmpty()) {
+                List<com.formacraft.common.patch.BlockPatch> patchCompiled = compilation.patches();
+                if (patchCompiled == null || patchCompiled.isEmpty()) {
                     hbAlive.set(false);
                     LlmPlanRoutingMetrics.recordError(player, req, "patch_components_empty");
                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                             "增量 components[] 编译结果为空，无法应用局部修改。"));
                     return true;
                 }
-                return issueComponentOrBlockPatchPreview(player, req, origin, patchPlan, hbAlive, compiled);
+                return issueComponentOrBlockPatchPreview(player, req, origin, patchPlan, hbAlive, patchCompiled);
             }
 
             // Phase 1 A2：增量请求不得静默整栋重建（屋顶原点、二次生成等）。
@@ -365,14 +364,14 @@ public final class LlmPlanPreviewBuilder {
                     }
                 }
             } else {
-                PrecompiledComponents pre = PRECOMPILED.get();
-                if (pre != null && Objects.equals(pre.planOrigin(), planOrigin)) {
-                    if (pre.gap() != null) {
-                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(pre.gap());
+                if (compiled != null && compiled.matchesOrigin(planOrigin)) {
+                    if (compiled.gap() != null) {
+                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(compiled.gap());
                     }
-                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.replaceSoftWarnings(pre.softWarnings());
-                    patches = pre.compilation().patches();
-                    circulation.addAll(pre.compilation().circulation());
+                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.replaceSoftWarnings(
+                            compiled.softWarnings());
+                    patches = compiled.compilation().patches();
+                    circulation.addAll(compiled.compilation().circulation());
                 } else {
                     com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
                             new com.formacraft.common.terrain.TerrainStrategySampler();
@@ -819,7 +818,8 @@ public final class LlmPlanPreviewBuilder {
                         FormacraftMod.LOGGER.info(
                                 "FBD geometry repair accepted: y={} reason={}; regenerating preview",
                                 outcome.y(), outcome.reason());
-                        return tryBuildPreview(player, req, outcome.plan(), origin, serverWorld, hbAlive, false);
+                        return tryBuildPreview(
+                                player, req, outcome.plan(), origin, serverWorld, hbAlive, false, null);
                     }
                 } else if (pipeline.report() != null && !pipeline.report().activeDiagnostics().isEmpty()) {
                     // Still log pipeline-based eligibility when raw baseline has no active issues.

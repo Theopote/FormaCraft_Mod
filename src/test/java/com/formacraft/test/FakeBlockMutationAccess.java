@@ -17,8 +17,10 @@ public final class FakeBlockMutationAccess implements BlockMutationAccess {
     public final Set<BlockPos> throwOnWrite = new HashSet<>();
     /** 写入状态成功但拒绝写入/保留 NBT（模拟 STATE_ONLY）。 */
     public final Set<BlockPos> failNbtRestore = new HashSet<>();
-    /** 写入会改世界但 setState 返回 false（模拟漏记边界）。 */
+    /** 写入会改世界但 setState 返回 false（模拟漏记边界）；仅生效一次，便于回滚再写。 */
     public final Set<BlockPos> mutateThenReject = new HashSet<>();
+    /** 拒绝后续写入且不改世界（用于模拟回滚 REJECTED / 残留）。 */
+    public final Set<BlockPos> rejectRestore = new HashSet<>();
     public Predicate<BlockPos> chunkReadyOverride = null;
     public int writes;
 
@@ -48,14 +50,16 @@ public final class FakeBlockMutationAccess implements BlockMutationAccess {
         if (throwOnWrite.contains(p)) {
             throw new RuntimeException("simulated write failure at " + p);
         }
-        if (mutateThenReject.contains(p)) {
-            states.put(p.toImmutable(), state);
+        BlockPos key = p.toImmutable();
+        if (mutateThenReject.remove(key)) {
+            states.put(key, state);
             return false;
         }
+        if (rejectRestore.contains(key)) return false;
         if (rejected.contains(p)) return false;
-        states.put(p.toImmutable(), state);
+        states.put(key, state);
         if (state == null || state.isAir()) {
-            blockEntityNbt.remove(p.toImmutable());
+            blockEntityNbt.remove(key);
         }
         return true;
     }
