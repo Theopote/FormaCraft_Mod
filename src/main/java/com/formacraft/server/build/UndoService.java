@@ -32,11 +32,17 @@ public class UndoService {
     private final Map<UUID, PlayerHistory> undoStacks = new HashMap<>();
     private final Map<UUID, Map<UUID, BuildUndoMemoryUpdate>> pendingMemory = new HashMap<>();
     private Function<BuildUndoMemoryUpdate, Boolean> memoryUpdater;
+    /**
+     * Tells whether a Memory record already exists. {@code null} means "unknown" —
+     * the update is then attempted (a not-yet-committed build has no Memory record).
+     */
+    private Function<String, Boolean> memoryLookup;
 
     public UndoService() { this(update -> false); }
     UndoService(Function<BuildUndoMemoryUpdate, Boolean> memoryUpdater) { this.memoryUpdater = memoryUpdater; }
     public void setMemoryManager(MemoryManager manager) {
         memoryUpdater = manager == null ? update -> false : manager::recordBuildUndo;
+        memoryLookup = manager == null ? null : uuid -> manager.getMemory(uuid) != null;
     }
     public void pushUndo(ServerPlayerEntity player, UndoEntry entry) {
         if (player == null || entry == null) return;
@@ -123,7 +129,10 @@ public class UndoService {
             if (ledgerEntry != null) PlayerMutationLedger.get().restoreUndo(playerId, ledgerEntry);
         }
         if (result.available() && !result.wrongWorld() && build != null) {
-            if (build.memoryUuid() != null) {
+            // Undo happened before the Memory commit succeeded → tell the pending commit
+            // so a later retry does not resurrect an already-undone building.
+            notifyPendingMemoryUndo(build, build.total() - result.remaining(), build.total(), result.complete());
+            if (build.memoryUuid() != null && memoryExists(build.memoryUuid())) {
                 var update = new BuildUndoMemoryUpdate(build.transactionId(), build.memoryUuid(), build.dimension(),
                     build.total() - result.remaining(), build.total(), result.complete());
                 pendingMemory.computeIfAbsent(playerId, k -> new LinkedHashMap<>()).put(build.transactionId(), update);
@@ -135,6 +144,24 @@ public class UndoService {
             }
         }
         return result;
+    }
+
+    /** Propagate undo progress to a still-pending Memory commit for this transaction. */
+    private void notifyPendingMemoryUndo(BuildRecord build, int restored, int total, boolean complete) {
+        if (build == null || build.memoryUuid() == null) return;
+        BuildExecutionService service = BuildExecutionService.getInstance();
+        service.notePendingMemoryUndo(build.memoryUuid(), restored, total, complete);
+    }
+
+    /** True when a Memory record for this uuid exists (unknown counts as existing). */
+    private boolean memoryExists(String memoryUuid) {
+        if (memoryUuid == null) return false;
+        if (memoryLookup == null) return true;
+        try {
+            return Boolean.TRUE.equals(memoryLookup.apply(memoryUuid));
+        } catch (RuntimeException exception) {
+            return true;
+        }
     }
 
     public PatchReplayHistory.ReplayResult redo(UUID playerId, Object world, BlockMutationAccess access) {
@@ -185,6 +212,8 @@ public class UndoService {
                     } catch (IllegalArgumentException ignored) {
                     }
                 }
+                // A redo restores the building → a pending Memory commit may proceed again.
+                notifyPendingMemoryUndo(build, 0, build.total(), false);
                 history.redoBuilds.pop();
                 history.builds.push(build);
             }
@@ -222,6 +251,16 @@ public class UndoService {
     boolean hasPendingMemory(UUID playerId) {
         var pending = pendingMemory.get(playerId);
         return pending != null && !pending.isEmpty();
+    }
+
+    /**
+     * Periodic retry of pending Memory sync updates for every player.
+     * Undo/Redo no longer being invoked must not stall Memory synchronization.
+     */
+    public void retryAllPendingMemory() {
+        for (UUID playerId : new ArrayList<>(pendingMemory.keySet())) {
+            retryMemoryUpdates(playerId);
+        }
     }
     public int getUndoStackSize(ServerPlayerEntity player) {
         return player == null ? 0 : getUndoStackSize(player.getUuid());

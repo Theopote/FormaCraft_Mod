@@ -498,6 +498,20 @@ ChatPanel / ChatBuildRequestFactory
 
 **位置**: `com.formacraft.server.memory.*`
 
+### 10.4 建筑记忆提交的事务身份
+
+建造完成后的记忆写入以「建造事务」为单位，具有稳定身份与维度绑定：
+
+| 概念 | 实现 | 作用 |
+|------|------|------|
+| 稳定建筑 UUID | `BuildExecutionService.stableMemoryUuid`（UUID.nameUUIDFromBytes） | 重试只更新同一条记忆，不重复登记建筑 |
+| 维度绑定 | `MemoryCommitRecord.dimension` | 只有拥有该维度的世界 tick 才会重试该提交 |
+| 跨重启恢复 | `MemoryCommitStore`（`formacraft/memory_commits/`） | 服务器启动后继续未完成提交 |
+| 撤销联动 | `MemoryCommitRecord.undoComplete` | 已完整撤销的建筑不会被迟到的提交复活 |
+| 失败保留 | `Status.FAILED_NEEDS_ATTENTION` + `/formacraft_memory_commit retry` | 超过重试上限的提交不被静默丢弃 |
+
+详细契约见 [记忆事务契约](docs/MEMORY_TRANSACTION_CONTRACT.md)。
+
 ---
 
 ## 11. Preview & Safety

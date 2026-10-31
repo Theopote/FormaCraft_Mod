@@ -59,25 +59,58 @@ public class MemoryManager {
             String name,
             ServerWorld world) {
         try {
-            // 创建记忆
             Identifier dimension = world.getRegistryKey().getValue();
-            ProjectMemory memory = ProjectMemory.fromStructure(structure, spec, name, dimension);
-            
-            // 保存到磁盘
-            persistMemory(memory);
-            
-            // 添加到索引
-            spatialIndex.addMemory(memory);
-            semanticIndex.addMemory(memory);
-            
-            FormacraftMod.LOGGER.info("Registered building memory: {} ({})", name, memory.getUuid());
-            return memory;
+            String uuid = java.util.UUID.randomUUID().toString();
+            return commitBuilding(uuid, structure, spec, name, dimension);
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to register building memory", e);
             return null;
         }
     }
     
+    /**
+     * Register new building memory with a caller-provided identity.
+     * <p>
+     * Idempotent: the same {@code memoryUuid} updates the existing record instead of
+     * creating a second building. Used by the Memory commit retry path.
+     */
+    public ProjectMemory commitBuilding(
+            String memoryUuid,
+            GeneratedStructure structure,
+            BuildingSpec spec,
+            String name,
+            Identifier dimension) {
+        if (memoryUuid == null || memoryUuid.isBlank() || dimension == null) {
+            return null;
+        }
+        try {
+            ProjectMemory existing = getMemory(memoryUuid);
+            ProjectMemory memory = existing != null
+                    ? existing
+                    : ProjectMemory.fromStructure(structure, spec, name, dimension);
+            if (existing == null) {
+                memory.setUuid(memoryUuid);
+            } else {
+                if (name != null && !name.isBlank()) memory.setName(name);
+                if (spec != null) memory.setGeneData(spec);
+            }
+            // The dimension is bound to the record identity — never inherit a foreign one.
+            var bounds = memory.getBounds();
+            if (bounds != null) bounds.setDimension(dimension.toString());
+            persistMemory(memory);
+            // Refresh index entries only after the durable write succeeded.
+            spatialIndex.removeMemory(memoryUuid);
+            semanticIndex.removeMemory(memoryUuid);
+            spatialIndex.addMemory(memory);
+            semanticIndex.addMemory(memory);
+            FormacraftMod.LOGGER.info("Committed building memory: {} ({})", name, memoryUuid);
+            return memory;
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.error("Failed to commit building memory {}", memoryUuid, e);
+            return null;
+        }
+    }
+
     /**
      * 根据坐标查找建筑
      */
@@ -295,20 +328,52 @@ public class MemoryManager {
      */
     public boolean deleteMemory(String uuid) {
         try {
-            // 从索引中移除
+            // Durable delete first: a failed file delete must not drop the index entries,
+            // otherwise the record becomes invisible while still on disk.
+            boolean deleted = MemoryStorage.deleteMemory(server, uuid);
+            if (!deleted) {
+                FormacraftMod.LOGGER.warn("Memory delete failed for {}; index entries kept", uuid);
+                return false;
+            }
             spatialIndex.removeMemory(uuid);
             semanticIndex.removeMemory(uuid);
-            
-            // 从磁盘删除
-            boolean deleted = MemoryStorage.deleteMemory(server, uuid);
-            
-            if (deleted) {
-                FormacraftMod.LOGGER.info("Deleted memory: {}", uuid);
-            }
-            return deleted;
+            FormacraftMod.LOGGER.info("Deleted memory: {}", uuid);
+            return true;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to delete memory", e);
             return false;
+        }
+    }
+
+    /** Persist a building Memory commit record (survives restarts). */
+    public void saveCommitRecord(MemoryCommitRecord record) {
+        if (record == null) return;
+        try {
+            MemoryCommitStore.save(server, record);
+        } catch (Exception exception) {
+            FormacraftMod.LOGGER.warn("Failed to persist memory commit record {}: {}",
+                    record.memoryUuid, exception.getMessage());
+        }
+    }
+
+    /** Delete a building Memory commit record (commit finished or cancelled). */
+    public void deleteCommitRecord(String memoryUuid) {
+        if (memoryUuid == null) return;
+        try {
+            MemoryCommitStore.delete(server, memoryUuid);
+        } catch (RuntimeException exception) {
+            FormacraftMod.LOGGER.warn("Failed to delete memory commit record {}: {}",
+                    memoryUuid, exception.getMessage());
+        }
+    }
+
+    /** Load pending building Memory commit records (restart recovery). */
+    public List<MemoryCommitRecord> loadCommitRecords() {
+        try {
+            return MemoryCommitStore.loadAll(server);
+        } catch (RuntimeException exception) {
+            FormacraftMod.LOGGER.warn("Failed to load memory commit records: {}", exception.getMessage());
+            return List.of();
         }
     }
     

@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 建造任务：分 Tick 施工，按 Chunk 分桶延迟重试，单方块异常隔离，写后校验。
@@ -90,6 +91,14 @@ public class BuildTask {
     private boolean rollbackFromCancel = false;
 
     private record DeferredBlock(PlannedBlock planned, int attempts, long firstDeferredMs, long nextRetryTick) {}
+
+    /** Stable identity of this build transaction (binds Undo history and Memory identity). */
+    private final UUID transactionId = UUID.randomUUID();
+
+    /** Transaction id of this build (stable for the whole task). */
+    public UUID transactionId() {
+        return transactionId;
+    }
 
     public BuildTask(GeneratedStructure structure, ServerWorld world) {
         this(structure, world, (String) null);

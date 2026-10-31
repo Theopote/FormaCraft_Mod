@@ -29,7 +29,7 @@ class BuildMemoryCommitTest {
     void pendingMemoryCommitsStayEmptyWithoutMemoryManager() {
         BuildExecutionService service = BuildExecutionService.getInstance();
         // No MemoryManager bound → commit cannot succeed; retry must be a no-op, not a crash.
-        assertDoesNotThrow(() -> service.retryPendingMemoryCommits(null));
+        assertDoesNotThrow(() -> service.retryPendingMemoryCommits((net.minecraft.server.world.ServerWorld) null));
         assertEquals(0, service.pendingMemoryCommitCount());
     }
 }

@@ -34,7 +34,10 @@ public final class MutationHistoryFacade {
             };
             if (expected.equals(actual)) break;
             com.formacraft.FormacraftMod.LOGGER.warn(
-                    "Mutation ledger ghost undo entry {} ({}); dropping", expected, peek.kind());
+                    "Mutation ledger ghost undo entry {} ({}); dropping",
+                    expected, peek.kind());
+            MutationHistoryDiagnostics.recordGhostEntry(
+                    "undo", expected, peek.kind(), playerId, expected, actual, peek.kind().name());
             ledger.popUndo(playerId);
             ledger.remove(expected);
         }
@@ -80,6 +83,8 @@ public final class MutationHistoryFacade {
             if (expected.equals(actual)) break;
             com.formacraft.FormacraftMod.LOGGER.warn(
                     "Mutation ledger ghost redo entry {} ({}); dropping", expected, peek.kind());
+            MutationHistoryDiagnostics.recordGhostEntry(
+                    "redo", expected, peek.kind(), playerId, expected, actual, peek.kind().name());
             ledger.popRedo(playerId);
             ledger.remove(expected);
         }

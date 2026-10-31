@@ -116,6 +116,29 @@ public class FormaCraftCommands {
                     return n;
                 }));
 
+        // Memory 提交诊断与手动恢复入口
+        dispatcher.register(literal("formacraft_memory_commit")
+                .requires(source -> source.hasPermissionLevel(2))
+                .executes(ctx -> {
+                    var service = BuildExecutionService.getInstance();
+                    var failed = service.failedMemoryCommits();
+                    if (failed.isEmpty()) {
+                        ctx.getSource().sendFeedback(() -> Text.literal("没有需要人工处理的建筑记忆提交"), false);
+                        return 0;
+                    }
+                    ctx.getSource().sendFeedback(() -> Text.literal(
+                            "待处理建筑记忆提交 " + failed.size() + " 条：" + failed.stream()
+                                    .map(r -> r.memoryUuid + "[" + r.dimension + "]")
+                                    .limit(10).toList()), false);
+                    return failed.size();
+                })
+                .then(literal("retry").executes(ctx -> {
+                    int n = BuildExecutionService.getInstance().retryFailedMemoryCommits();
+                    ctx.getSource().sendFeedback(() -> Text.literal(
+                            n > 0 ? ("已重新排队 " + n + " 条建筑记忆提交") : "没有可重试的建筑记忆提交"), true);
+                    return n;
+                })));
+
         // 预览命令
         dispatcher.register(literal("forma_preview")
                 .requires(source -> source.hasPermissionLevel(2))
