@@ -548,40 +548,6 @@ public final class PlayerComponentExpander {
                 && (dims.length < 3 || (dims[2] > 0 && dims[2] <= cap));
     }
 
-    /** @deprecated self-AABB check removed; kept for Round15 tests that assert corner math. */
-    @Deprecated
-    static int[] carveOpeningAabb(SocketMask mask, BlockPos maskOriginLocal,
-            Direction fromFacing, ComponentTransform transform,
-            int baseX, int baseY, int baseZ, Direction carveFacing) {
-        Direction depth = carveFacing != null && carveFacing.getAxis().isHorizontal()
-                ? carveFacing : transform.facing();
-        BlockPos originOff = ComponentTransformUtil.transformOffset(maskOriginLocal, fromFacing, transform);
-        BlockPos originWorld = new BlockPos(baseX + originOff.getX(), baseY + originOff.getY(), baseZ + originOff.getZ());
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        for (int x : new int[]{0, Math.max(0, mask.width() - 1)}) {
-            for (int y : new int[]{0, Math.max(0, mask.height() - 1)}) {
-                for (int z : new int[]{0, Math.max(0, mask.depth() - 1)}) {
-                    BlockPos p = FacingUtil.offset(originWorld, depth, x, y, z);
-                    minX = Math.min(minX, p.getX());
-                    minY = Math.min(minY, p.getY());
-                    minZ = Math.min(minZ, p.getZ());
-                    maxX = Math.max(maxX, p.getX());
-                    maxY = Math.max(maxY, p.getY());
-                    maxZ = Math.max(maxZ, p.getZ());
-                }
-            }
-        }
-        return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
-    }
-
-    static boolean insideInclusiveAabb(BlockPos cell, int[] aabb) {
-        if (cell == null || aabb == null || aabb.length < 6) return false;
-        return cell.getX() >= aabb[0] && cell.getX() <= aabb[3]
-                && cell.getY() >= aabb[1] && cell.getY() <= aabb[4]
-                && cell.getZ() >= aabb[2] && cell.getZ() <= aabb[5];
-    }
-
     /** Carve REMOVEs share ComponentTransformUtil.transformOffset with PLACE. */
     static List<BlockPatch> emitCarveRemoves(SocketMask mask, BlockPos maskOriginLocal,
             Direction fromFacing, ComponentTransform transform,

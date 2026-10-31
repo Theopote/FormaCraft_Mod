@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -129,21 +130,31 @@ class CapturedAdaptRound15Test {
     }
 
     @Test
-    void carveAabbContainsLegalCellsOnFourFacings() {
+    void carveRemovesFillAxisAlignedBoxOnFourFacings() {
         SocketMask mask = new SocketMask(2, 3, 1);
         BlockPos origin = BlockPos.ORIGIN;
         Direction from = Direction.SOUTH;
+        int expected = mask.width() * mask.height() * mask.depth();
         for (Direction facing : List.of(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST)) {
             ComponentTransform t = new ComponentTransform(facing, Mirror.NONE);
-            int[] aabb = PlayerComponentExpander.carveOpeningAabb(
-                    mask, origin, from, t, 0, 0, 0, facing);
             List<BlockPatch> removes = PlayerComponentExpander.emitCarveRemoves(
                     mask, origin, from, t, 0, 0, 0, facing);
+            assertEquals(expected, removes.size(), "facing=" + facing);
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            Set<BlockPos> cells = new LinkedHashSet<>();
             for (BlockPatch p : removes) {
-                assertTrue(PlayerComponentExpander.insideInclusiveAabb(
-                        new BlockPos(p.dx(), p.dy(), p.dz()), aabb),
-                        "facing=" + facing + " cell=" + p.dx() + "," + p.dy() + "," + p.dz());
+                BlockPos cell = new BlockPos(p.dx(), p.dy(), p.dz());
+                assertTrue(cells.add(cell), "duplicate carve cell facing=" + facing + " " + cell);
+                minX = Math.min(minX, cell.getX());
+                minY = Math.min(minY, cell.getY());
+                minZ = Math.min(minZ, cell.getZ());
+                maxX = Math.max(maxX, cell.getX());
+                maxY = Math.max(maxY, cell.getY());
+                maxZ = Math.max(maxZ, cell.getZ());
             }
+            int volume = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+            assertEquals(expected, volume, "facing=" + facing + " carve must be a solid AABB");
         }
     }
 

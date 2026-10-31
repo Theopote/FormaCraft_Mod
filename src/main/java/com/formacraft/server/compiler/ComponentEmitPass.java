@@ -11,6 +11,7 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.palette.dynamic.GravityBlockPolicy;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.assembly.AssemblyCirculationConstraints;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
@@ -354,10 +355,7 @@ final class ComponentEmitPass {
                         return patchOccupancy;
                     }
                     // Avoid gravity/falling blocks (gravel, sand, concrete powder) collapsing after place.
-                    for (int gi = 0; gi < shiftedPatches.size(); gi++) {
-                        shiftedPatches.set(gi, com.formacraft.common.palette.dynamic.GravityBlockPolicy
-                                .stabilize(shiftedPatches.get(gi)));
-                    }
+                    shiftedPatches.replaceAll(GravityBlockPolicy::stabilize);
                     // Validate all materials before any ledger / result mutation (transactional commit).
                     var explicitTargets = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.targets(c, styleAttributes);
                     for (var patch : shiftedPatches) {
