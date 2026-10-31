@@ -162,6 +162,8 @@ public final class ComponentPlanCompiler {
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
         var flatRoofs = new ArrayList<FlatRoofCoverageValidator.Roof>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
+        com.formacraft.server.generation.GenerationCompileContext.install(
+                com.formacraft.server.generation.GenerationCompileContext.fromPlan(plan, typologyExclusivePlan));
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
         UnifiedGeneratorRouter.setPlanGenerationAuthority(
                 com.formacraft.common.generation.routing.PlanMetaAccess.planGenerationAuthority(plan));
@@ -196,6 +198,7 @@ public final class ComponentPlanCompiler {
             UnifiedGeneratorRouter.clearPlanGenerationAuthority();
             UnifiedGeneratorRouter.clearPlanMeta();
             TypologyPatchBridge.clearPlanWorldAnchor();
+            com.formacraft.server.generation.GenerationCompileContext.clear();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
         try {

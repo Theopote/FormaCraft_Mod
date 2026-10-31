@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .middleware.orchestrator_auth import OrchestratorAuthMiddleware
 from .routes import build, edit, blueprint, history, models, search, fbd_repair
 
 app = FastAPI(title="FormaCraft Orchestrator", version="0.1.0")
@@ -32,6 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Shared-secret gate (see FORMACRAFT_ORCHESTRATOR_SECRET). Added after CORS so it runs first.
+app.add_middleware(OrchestratorAuthMiddleware)
 
 # 注册路由
 app.include_router(build.router)

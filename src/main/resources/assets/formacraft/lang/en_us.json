@@ -1,4 +1,9 @@
 {
+  "formacraft.build.error.permission": "You need permission level %s to request builds on this server.",
+  "formacraft.build.error.concurrent": "You already have a build request in progress. Wait for it to finish.",
+  "formacraft.build.error.rate_limit": "Too many build requests (%s per %ss). Please wait.",
+  "formacraft.build.error.active_build": "A previous build is still applying. Wait for completion before incremental edits.",
+  "formacraft.build.error.internal": "Internal build gate error.",
   "formacraft.preview.patch.drag_hint": "Drag title to move · Enter apply · Esc cancel",
   "item.formacraft.formacraft_tool": "FormaCraft Stylus",
   "item.formacraft.formacraft_tool.desc": "Open the FormaCraft builder panel",

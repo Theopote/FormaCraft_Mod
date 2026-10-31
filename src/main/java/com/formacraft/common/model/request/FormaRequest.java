@@ -12,6 +12,13 @@ public class FormaRequest {
     private String requestText;
     /** 可选：玩家原始输入（不含系统拼接），用于 PATCH/编辑模式 */
     private String userMessage;
+    /**
+     * Optional explicit system prompt. Prefer leaving null so the Python orchestrator
+     * assembles the system prompt (avoids client injection / USER REQUEST truncation).
+     */
+    private String systemPrompt;
+    /** Optional explicit user prompt; when null, {@link #userMessage} / {@link #requestText} is used. */
+    private String userPrompt;
     /** 可选：BUILD/PATCH/MODIFY_REGION */
     private String promptMode;
     /** 
@@ -99,6 +106,22 @@ public class FormaRequest {
 
     public void setUserMessage(String userMessage) {
         this.userMessage = userMessage;
+    }
+
+    public String getSystemPrompt() {
+        return systemPrompt;
+    }
+
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
+    }
+
+    public String getUserPrompt() {
+        return userPrompt;
+    }
+
+    public void setUserPrompt(String userPrompt) {
+        this.userPrompt = userPrompt;
     }
 
     public String getPromptMode() {

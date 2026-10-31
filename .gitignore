@@ -66,3 +66,8 @@ python_backend/eval/reports/live_weekly_*.json
 
 config/formacraft_settings.json
 config/formacraft_server.properties
+
+# local scratch / tooling
+tmp*
+.tmp*
+.codegraph/

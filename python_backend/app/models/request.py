@@ -127,6 +127,10 @@ class BuildRequest(BaseModel):
     outputFormat: Optional[str] = None
     # 可选：玩家原始输入（不含系统拼接）
     userMessage: Optional[str] = None
+    # Explicit prompt parts (preferred). When set, backend must NOT split requestText on
+    # the legacy "USER REQUEST:" marker (which silently truncates user text containing it).
+    systemPrompt: Optional[str] = None
+    userPrompt: Optional[str] = None
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
 

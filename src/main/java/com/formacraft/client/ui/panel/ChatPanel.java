@@ -2,7 +2,6 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.client.ai.context.BrushContext;
 import com.formacraft.client.ai.context.SelectionContext;
-import com.formacraft.client.ai.prompt.PromptAssembler;
 import com.formacraft.client.ai.prompt.PromptMode;
 import com.formacraft.client.ai.prompt.PromptModeResolver;
 import com.formacraft.client.component.ClientComponentCatalogState;
@@ -928,9 +927,10 @@ public class ChatPanel extends BasePanel {
         // 记录本次使用的模式（用于 Prompt/BuildContext/PatchFilter 统一解析）
         PromptModeState.setLastMode(effectiveMode);
 
-        // Prompt 拼接（UI 显示 rawInput；发给 AI 的是 finalPrompt）
-        String finalPrompt = PromptAssembler.assemble(text, effectiveMode);
-        if (finalPrompt.isEmpty()) return;
+        // C2S sends raw user text + structured constraints. System prompt is assembled
+        // by the Python orchestrator (avoids client injection and "USER REQUEST:" truncation).
+        // PromptAssembler remains available for offline/debug tooling only.
+        if (text.isEmpty()) return;
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
         messages.add(new ChatMessage(text, true));
@@ -961,12 +961,11 @@ public class ChatPanel extends BasePanel {
 
         // 改为：发送到服务端 → 服务端请求 Orchestrator → 生成预览线框 → 客户端确认后再真正建造
         FormaRequest req = new FormaRequest();
-        req.setRequestText(finalPrompt);
+        req.setRequestText(text);
         req.setUserMessage(text);
         req.setReferences(ReferenceInputExtractor.extractFromText(text));
         req.setPromptMode(effectiveMode.name());
-        // 因为 PromptAssembler 总是生成 LlmPlan 格式的 prompt，所以默认使用 LlmPlan
-        // 用户可以通过 outputFormat 字段覆盖这个行为
+        // Default to LlmPlan; callers may override outputFormat later.
         req.setOutputFormat("llmplan");
         req.setPlayerPos(origin);
         if (effectiveMode == PromptMode.BUILD && com.formacraft.client.tool.WorkPlaneTool.INSTANCE.state().fixed()) {

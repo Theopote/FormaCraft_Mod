@@ -9,7 +9,8 @@ import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.*;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
-class Live2323RegressionTest {
+/** Stilts height + glass incremental patch contracts (from live-2323 fixtures). */
+class StiltAndGlassPatchRegressionTest {
     @BeforeAll static void init() { MinecraftRegistryTestBootstrap.initialize(); }
     @AfterEach void clear() { AssemblyCompileDiagnostics.clear(); }
     private LlmPlan load(String name) throws Exception {

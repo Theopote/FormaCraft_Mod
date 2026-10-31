@@ -27,49 +27,105 @@ import java.util.concurrent.TimeUnit;
  */
 public class OrchestratorClient {
     private final String endpoint;
+    private final String sharedSecret;
     private final HttpClient httpClient;
     // 复合/城市规划类请求可能耗时较长（尤其是 deepseek/reasoner），这里给足时间，避免过早中断。
     // 从配置读取，默认 600 秒
     private static final long ORCHESTRATOR_TIMEOUT_SEC = getTimeoutFromConfig();
-    
+    private static final long HEALTH_CACHE_TTL_MS = 10_000L;
+    private static final String SECRET_HEADER = "X-FormaCraft-Secret";
+
+    private volatile Boolean healthCache;
+    private volatile long healthCacheAtMs;
+    private final Object healthProbeLock = new Object();
+    private volatile boolean healthProbeInFlight;
+
     private static long getTimeoutFromConfig() {
         // TODO: 从 SettingsConfig 读取（如果将来添加超时配置选项）
         // 目前暂时保持 600 秒的默认值
         return 600;
     }
-    
+
     /**
-     * 检查后端健康状态
-     * @return true 如果后端可用，false 如果不可用
+     * Non-blocking health view: returns last known result (TTL-cached).
+     * Never performs a synchronous HTTP call on the caller thread.
+     * Miss / stale → schedule async probe and treat as unavailable until refreshed.
      */
     public boolean checkHealth() {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint + "/health"))
-                    .timeout(Duration.ofSeconds(5))
-                    .GET()
-                    .build();
-            
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() >= 200 && response.statusCode() < 300;
-        } catch (Exception e) {
-            FormacraftMod.LOGGER.debug("Health check failed for {}: {}", endpoint, e.getMessage());
-            return false;
+        long now = System.currentTimeMillis();
+        Boolean cached = healthCache;
+        if (cached != null && (now - healthCacheAtMs) < HEALTH_CACHE_TTL_MS) {
+            return cached;
         }
+        scheduleHealthProbe();
+        return cached != null && cached;
+    }
+
+    private void scheduleHealthProbe() {
+        if (healthProbeInFlight) return;
+        synchronized (healthProbeLock) {
+            if (healthProbeInFlight) return;
+            healthProbeInFlight = true;
+        }
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint + "/health"))
+                .timeout(Duration.ofSeconds(5))
+                .GET();
+        applySecret(builder);
+        httpClient.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofString())
+                .orTimeout(6, TimeUnit.SECONDS)
+                .whenComplete((resp, err) -> {
+                    boolean ok = err == null && resp != null
+                            && resp.statusCode() >= 200 && resp.statusCode() < 300;
+                    if (err != null) {
+                        FormacraftMod.LOGGER.debug("Health check failed for {}: {}", endpoint, err.getMessage());
+                    }
+                    healthCache = ok;
+                    healthCacheAtMs = System.currentTimeMillis();
+                    healthProbeInFlight = false;
+                });
     }
 
     public OrchestratorClient(String endpoint) {
+        this(endpoint, com.formacraft.server.config.ServerLlmConfig.orchestratorSecret());
+    }
+
+    public OrchestratorClient(String endpoint, String sharedSecret) {
         this.endpoint = endpoint;
+        this.sharedSecret = sharedSecret == null || sharedSecret.isBlank() ? null : sharedSecret.trim();
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
     }
 
-    private static String redactApiKeyForLog(String json) {
+    private void applySecret(HttpRequest.Builder builder) {
+        if (sharedSecret != null) {
+            builder.header(SECRET_HEADER, sharedSecret);
+        }
+    }
+
+    private static String redactSecretsForLog(String json) {
         if (json == null || json.isEmpty()) return json;
-        // 简单打码：避免在日志里泄露密钥（哪怕是本地开发也不安全）
-        // e.g. "apiKey":"sk-..." -> "apiKey":"***"
-        return json.replaceAll("(\"apiKey\"\\s*:\\s*\")([^\"]*)(\")", "$1***$3");
+        String out = json;
+        for (String key : new String[]{"apiKey", "searchApiKey", "googleCseCx", "orchestratorSecret"}) {
+            out = out.replaceAll("(\"" + key + "\"\\s*:\\s*\")([^\"]*)(\")", "$1***$3");
+        }
+        return out;
+    }
+
+    private static String requestLogSummary(FormaRequest req, String json) {
+        if (req == null) {
+            return "bytes=" + (json == null ? 0 : json.length());
+        }
+        String model = req.getModel() == null ? "-" : req.getModel();
+        boolean hasKey = req.getApiKey() != null && !req.getApiKey().isBlank();
+        boolean hasSearchKey = req.getSearchApiKey() != null && !req.getSearchApiKey().isBlank();
+        int history = req.getChatHistory() == null ? 0 : req.getChatHistory().size();
+        return "bytes=" + (json == null ? 0 : json.length())
+                + " model=" + model
+                + " hasApiKey=" + hasKey
+                + " hasSearchApiKey=" + hasSearchKey
+                + " chatHistory=" + history;
     }
 
     /**
@@ -131,14 +187,16 @@ public class OrchestratorClient {
     public CompletableFuture<AiPlanResult> requestAiPlan(FormaRequest req, java.util.function.Consumer<String> progress) {
         try {
             String json = JsonUtil.toJson(req);
-            FormacraftMod.LOGGER.info("Sending request to orchestrator: {}", redactApiKeyForLog(json));
+            FormacraftMod.LOGGER.info("Sending request to orchestrator ({})", requestLogSummary(req, json));
+            FormacraftMod.LOGGER.debug("Orchestrator request body: {}", redactSecretsForLog(json));
 
-            HttpRequest request = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(json));
+            applySecret(builder);
+            HttpRequest request = builder.build();
 
             long t0 = System.nanoTime();
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -185,9 +243,11 @@ public class OrchestratorClient {
             body.set("request", mapper.readTree(JsonUtil.toJson(req)));
             body.set("plan", mapper.valueToTree(plan)); body.set("diagnostic", mapper.valueToTree(diagnostic));
             body.put("round", round);
-            var request = HttpRequest.newBuilder().uri(URI.create(endpoint + "/fbd/repair"))
+            var repairBuilder = HttpRequest.newBuilder().uri(URI.create(endpoint + "/fbd/repair"))
                     .header("Content-Type", "application/json").timeout(Duration.ofSeconds(50))
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body))).build();
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
+            applySecret(repairBuilder);
+            var request = repairBuilder.build();
             FormacraftMod.LOGGER.info("FBD repair round {}/2: code={}, node={}, path={}", round, diagnostic.code(),
                     diagnostic.details() == null ? null : diagnostic.details().get("node"), diagnostic.path());
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -328,12 +388,13 @@ public class OrchestratorClient {
             String requestJson = com.formacraft.common.json.JsonUtil.toJson(requestBody);
             FormacraftMod.LOGGER.info("Sending city edit request to orchestrator: {}", editCommand);
 
-            HttpRequest request = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/edit/city"))
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
-                    .POST(HttpRequest.BodyPublishers.ofString(requestJson))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(requestJson));
+            applySecret(builder);
+            HttpRequest request = builder.build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
@@ -387,12 +448,13 @@ public class OrchestratorClient {
             String requestJson = com.formacraft.common.json.JsonUtil.toJson(requestBody);
             FormacraftMod.LOGGER.info("Sending building edit request to orchestrator: {}", editCommand);
 
-            HttpRequest request = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/edit/building"))
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
-                    .POST(HttpRequest.BodyPublishers.ofString(requestJson))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(requestJson));
+            applySecret(builder);
+            HttpRequest request = builder.build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)

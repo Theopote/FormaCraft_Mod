@@ -17,6 +17,10 @@ REFERENCE = re.compile(
     r"\bcom\.formacraft\.(client|server)\b"
     r"|\bnet\.minecraft\.client\b|\bnet\.fabricmc\.fabric\.api\.client\b"
 )
+# common must not grow new dependencies on Minecraft server runtime types.
+SERVER_TYPE = re.compile(
+    r"\b(?:ServerWorld|ServerPlayerEntity|MinecraftServer|net\.minecraft\.server)\b"
+)
 # Preserve line numbers while excluding comments and Java string/character literals.
 NON_CODE = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'')
 
@@ -39,6 +43,9 @@ def violations(root: Path, *, client_only_sources: set[str] = frozenset()) -> li
                 target = match.group(1) or "client"
                 if target in forbidden:
                     errors.append(f"{relative}: {layer} references {target}")
+        if layer == "common":
+            for _ in SERVER_TYPE.finditer(code):
+                errors.append(f"{relative}: common uses minecraft server type")
         if relative == "common/world/BlockMutationAccess.java":
             continue
         for match in re.finditer(r"\.\s*setBlockState\s*\(([^;]*)", code):

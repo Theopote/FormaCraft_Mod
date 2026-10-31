@@ -62,11 +62,12 @@ Without an API key, the backend falls back to rule-based generation so you can s
 ### 3. Start the backend
 
 ```bash
-# from python_backend/
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# from python_backend/ — bind loopback by default (do not expose without a shared secret)
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 The orchestrator listens at `http://localhost:8000`. API docs: `http://localhost:8000/docs`.
+For LAN/WAN access, set `FORMACRAFT_ORCHESTRATOR_SECRET` on both the backend and the Minecraft server (`orchestratorSecret` / env), and send header `X-FormaCraft-Secret`.
 
 ### 4. Build and run the mod
 

@@ -24,6 +24,8 @@ jobs:
         run: |
           python scripts/test_check_architecture.py
           python scripts/check_architecture.py
+          python scripts/check_structure_generator_freeze.py
+          python scripts/check_panel_line_budget.py
           python scripts/check_generation_entrypoints.py
       - name: python backend smoke
         run: |

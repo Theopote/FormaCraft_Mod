@@ -49,7 +49,7 @@ ChatPanel
 
 - ✅ **主干（新功能默认）**：LlmPlan → `server.compiler.ComponentPlanCompiler` / `common.compiler.PlanProgramCompiler` + 生成器 → `BlockPatch`；BuildingSpec 等兼容入口仍存在
 - 🟡 **精品库（Phase 5 并入主干）**：`server.generation.structure` 地标生成器 —— 目标是改造成"LlmPlan 可调用的命名模块"，而非独立的 BuildingSpec 并行路径
-- 🔴 **Quarantine / 待删除**：`common.assembly.AutoAssembler`、`server.cluster.ClusterLayoutPlanner`、`common.layout.PathClusterLayoutPlanner`、`common.mass` 占位实现、`ConfirmBuildPacket` 双轨确认；客户端 Prompt/工具上下文已迁入 `client.ai.*`
+- 🔴 **Quarantine / 待删除**：`common.assembly.AutoAssembler`、`server.cluster.ClusterLayoutPlanner`、`common.mass` 占位实现、`ConfirmBuildPacket` 双轨确认（`PathClusterLayoutPlanner` 已删除）；客户端 Prompt/工具上下文已迁入 `client.ai.*`；网络建造提示词由 Python 后端组装
 
 **新功能默认路径：** 只往 LlmPlan schema / ComponentPlanCompiler / 生成器上加；需要 bespoke 造型时，改为把生成器注册为 LlmPlan 可引用的模块，禁止新增第二条 spec 格式或第二套确认流程。
 
@@ -645,7 +645,7 @@ FormaCraftNetworking.sendToServer(applyPayload);
 
 | Metric | Count |
 |--------|-------|
-| Java source files | ~822 |
+| Java source files | ~1300 main + ~349 test (2026-10-31) |
 | Python backend files | ~33 |
 | Active markdown (excl. archive) | ~105 |
 

@@ -721,7 +721,7 @@ public final class PlayerComponentExpander {
 
     /** Query-only standalone requests can participate; explicit IDs and mounts keep their existing paths. */
     static ComponentQuery batchQuery(com.formacraft.common.llm.dto.Component component) {
-        if (component == null || com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter
+        if (component == null || com.formacraft.common.style.ExplicitDesignPolicy
                 .isExplicitlyDisabled(component)) return null;
         String json = extractFeatureJson(component.features());
         if (json == null) return null;

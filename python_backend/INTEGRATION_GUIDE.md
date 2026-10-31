@@ -106,7 +106,7 @@ Python 端的 `Vec3i` 模型完全匹配这个格式，适配器会自动处理�
 ```bash
 cd python_backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ### 2. 测试 API

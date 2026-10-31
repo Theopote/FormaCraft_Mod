@@ -4,3 +4,12 @@ apiKey=
 llmProvider=
 llmBaseUrl=
 model=
+# Must match FORMACRAFT_ORCHESTRATOR_SECRET on the Python backend when set / non-loopback.
+orchestratorSecret=
+# Permission level required for chat build requests (default: 2 on dedicated, 0 on integrated).
+# requireBuildPermissionLevel=2
+# Max in-flight builds per player (default 1).
+# buildMaxConcurrentPerPlayer=1
+# Sliding-window rate limit: max builds per windowSeconds (defaults 6 / 60).
+# buildRateLimitPerWindow=6
+# buildRateLimitWindowSeconds=60

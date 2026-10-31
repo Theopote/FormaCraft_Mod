@@ -76,6 +76,17 @@ class BoundaryTests(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertIn("world write bypasses", errors[0])
 
+    def test_common_minecraft_server_types_are_flagged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "common").mkdir()
+            (root / "common/Bad.java").write_text(
+                "import net.minecraft.server.world.ServerWorld;\nclass Bad { ServerWorld w; }\n",
+                encoding="utf-8",
+            )
+            errors = violations(root)
+            self.assertTrue(any("minecraft server type" in e for e in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

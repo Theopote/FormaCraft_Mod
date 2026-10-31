@@ -1,4 +1,9 @@
 {
+  "formacraft.build.error.permission": "本服务器建造需要权限等级 %s。",
+  "formacraft.build.error.concurrent": "已有建造请求进行中，请等待完成后再试。",
+  "formacraft.build.error.rate_limit": "建造请求过于频繁（%s 次 / %s 秒），请稍后再试。",
+  "formacraft.build.error.active_build": "上一项建造尚未完成，请等待“建造完成”后再发起增量修改。",
+  "formacraft.build.error.internal": "建造门控内部错误。",
   "formacraft.preview.patch.drag_hint": "拖动标题栏移动 · Enter 应用 · Esc 取消",
   "item.formacraft.formacraft_tool": "FormaCraft 塑形笔",
   "item.formacraft.formacraft_tool.desc": "打开 FormaCraft 建造面板",

@@ -1,0 +1,4 @@
+{
+  "maxRegisterCalls": 38,
+  "note": "Freeze new StructureGeneratorRegistry.register entries; prefer LlmPlan / UnifiedGeneratorRouter."
+}

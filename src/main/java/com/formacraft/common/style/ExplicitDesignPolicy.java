@@ -27,6 +27,24 @@ public final class ExplicitDesignPolicy {
     public static boolean entranceDisabled(Component component) {
         return component != null && none(component.params(), "entrance_type", "entranceType");
     }
+
+    /**
+     * Explicit design opt-outs and param disable flags that allow SUCCESS(empty) for required types.
+     * Lives in common so expanders can check without referencing server routers.
+     */
+    public static boolean isExplicitlyDisabled(Component component) {
+        if (component == null) return false;
+        if (roofDisabled(component) || windowsDisabled(component) || entranceDisabled(component)) {
+            return true;
+        }
+        Map<String, Object> params = component.params();
+        if (params == null) return false;
+        if (Boolean.TRUE.equals(params.get("disabled")) || Boolean.FALSE.equals(params.get("generate"))) {
+            return true;
+        }
+        Object gen = params.get("generate");
+        return gen != null && "false".equalsIgnoreCase(String.valueOf(gen).trim());
+    }
     public static boolean noComplexDecor(LlmPlan plan, Map<String, Object> params) {
         if (params != null && (Boolean.TRUE.equals(params.get("no_complex_decor"))
                 || none(params, "decor_style", "decoration_style"))) return true;

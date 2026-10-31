@@ -41,11 +41,6 @@ public final class UnifiedGeneratorRouter {
 
     private static final double ARCHETYPE_STRONG_THRESHOLD = 0.85;
 
-    private static final ThreadLocal<Boolean> TYPOLOGY_EXCLUSIVE_PLAN = new ThreadLocal<>();
-    private static final ThreadLocal<com.formacraft.common.generation.routing.GenerationAuthority> PLAN_AUTHORITY =
-            new ThreadLocal<>();
-    private static final ThreadLocal<Map<String, Object>> PLAN_META = new ThreadLocal<>();
-
     private static final Set<String> WHOLE_BUILDING_TYPES = Set.of(
             "HOUSE", "CASTLE", "COMPOUND", "LANDMARK", "BUILDING"
     );
@@ -54,50 +49,64 @@ public final class UnifiedGeneratorRouter {
 
     /** Set while compiling a plan that already owns a typology STRUCTURE (blocks archetype HouseGenerator fallback). */
     public static void setTypologyExclusivePlan(boolean exclusive) {
-        if (exclusive) {
-            TYPOLOGY_EXCLUSIVE_PLAN.set(Boolean.TRUE);
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        if (cur == null) {
+            com.formacraft.server.generation.GenerationCompileContext.install(
+                    new com.formacraft.server.generation.GenerationCompileContext(null, Map.of(), exclusive));
         } else {
-            TYPOLOGY_EXCLUSIVE_PLAN.remove();
+            com.formacraft.server.generation.GenerationCompileContext.install(cur.withTypologyExclusive(exclusive));
         }
     }
 
     public static void clearTypologyExclusivePlan() {
-        TYPOLOGY_EXCLUSIVE_PLAN.remove();
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        if (cur == null) return;
+        com.formacraft.server.generation.GenerationCompileContext.install(cur.withTypologyExclusive(false));
     }
 
     /** Plan-level {@code generation_authority} visible to the component pipeline for this compile. */
     public static void setPlanGenerationAuthority(
             com.formacraft.common.generation.routing.GenerationAuthority authority) {
-        if (authority == null) {
-            PLAN_AUTHORITY.remove();
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        if (cur == null) {
+            com.formacraft.server.generation.GenerationCompileContext.install(
+                    new com.formacraft.server.generation.GenerationCompileContext(authority, Map.of(), false));
         } else {
-            PLAN_AUTHORITY.set(authority);
+            com.formacraft.server.generation.GenerationCompileContext.install(cur.withAuthority(authority));
         }
     }
 
     public static void clearPlanGenerationAuthority() {
-        PLAN_AUTHORITY.remove();
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        if (cur == null) return;
+        com.formacraft.server.generation.GenerationCompileContext.install(cur.withAuthority(null));
     }
 
     /** Plan-level {@code plan_meta} visible to the component pipeline for this compile. */
     public static void setPlanMeta(Map<String, Object> planMeta) {
-        if (planMeta == null || planMeta.isEmpty()) {
-            PLAN_META.remove();
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        if (cur == null) {
+            com.formacraft.server.generation.GenerationCompileContext.install(
+                    new com.formacraft.server.generation.GenerationCompileContext(null, planMeta, false));
         } else {
-            PLAN_META.set(planMeta);
+            com.formacraft.server.generation.GenerationCompileContext.install(cur.withPlanMeta(planMeta));
         }
     }
 
     public static void clearPlanMeta() {
-        PLAN_META.remove();
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        if (cur == null) return;
+        com.formacraft.server.generation.GenerationCompileContext.install(cur.withPlanMeta(Map.of()));
     }
 
     static com.formacraft.common.generation.routing.GenerationAuthority planGenerationAuthority() {
-        return PLAN_AUTHORITY.get();
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        return cur == null ? null : cur.authority();
     }
 
     static Map<String, Object> planMeta() {
-        return PLAN_META.get();
+        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
+        return cur == null ? null : cur.planMeta();
     }
 
     public static List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
@@ -389,19 +398,7 @@ public final class UnifiedGeneratorRouter {
 
     /** Explicit design opt-outs and param disable flags that allow SUCCESS(empty) for required types. */
     public static boolean isExplicitlyDisabled(Component c) {
-        if (c == null) return false;
-        if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)
-                || com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c)
-                || com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c)) {
-            return true;
-        }
-        Map<String, Object> params = c.params();
-        if (params == null) return false;
-        if (Boolean.TRUE.equals(params.get("disabled")) || Boolean.FALSE.equals(params.get("generate"))) {
-            return true;
-        }
-        Object gen = params.get("generate");
-        return gen != null && "false".equalsIgnoreCase(String.valueOf(gen).trim());
+        return com.formacraft.common.style.ExplicitDesignPolicy.isExplicitlyDisabled(c);
     }
 
     public static boolean isRequiredComponentType(String type) {
@@ -548,7 +545,8 @@ public final class UnifiedGeneratorRouter {
             if (Boolean.TRUE.equals(params.get("useStructureGenerator"))) return true;
         }
 
-        if (Boolean.TRUE.equals(TYPOLOGY_EXCLUSIVE_PLAN.get())
+        var compileCtx = com.formacraft.server.generation.GenerationCompileContext.current();
+        if (compileCtx != null && compileCtx.typologyExclusive()
                 && !isExplicitStructureRoutingComponent(c)) {
             return false;
         }

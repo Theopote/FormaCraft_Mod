@@ -66,11 +66,11 @@ cp .env.example .env
 也可从游戏设置面板底部的“本机后端服务”配置后端目录、Python 和端口，然后点击“保存并启动”。首次仍需完成依赖安装；详细操作和验证边界见 [设置面板启动说明](../docs/BACKEND_STARTUP.md)。
 
 ```bash
-# 在 python_backend/ 目录下
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 在 python_backend/ 目录下 — 默认只监听本机
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-服务将在 `http://localhost:8000` 启动。
+服务将在 `http://localhost:8000` 启动。若要对局域网开放，必须设置环境变量 `FORMACRAFT_ORCHESTRATOR_SECRET`，并在 Minecraft 服务端配置相同密钥（`FORMACRAFT_ORCHESTRATOR_SECRET` / `orchestratorSecret`）；请求头为 `X-FormaCraft-Secret`。
 
 ## API 端点
 

@@ -71,8 +71,16 @@ def _fetch_remote_models(base_url: str, api_key: str) -> List[str]:
     """
     Fetch models list from OpenAI-compatible endpoint: GET {base_url}/models
     Note: This may block on DNS/SSL in some environments. Callers should wrap it with a hard timeout.
+    Uses url_safety to reject private/metadata hosts (SSRF).
     """
+    from ..services.url_safety import UnsafeUrlError, validate_reference_url
+
     url = base_url.rstrip("/") + "/models"
+    try:
+        url = validate_reference_url(url)
+    except UnsafeUrlError as e:
+        raise ValueError(f"unsafe models base_url: {e}") from e
+
     req = urllib.request.Request(url, method="GET")
     req.add_header("Accept", "application/json")
     if api_key:

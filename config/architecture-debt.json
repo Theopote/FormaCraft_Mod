@@ -1,1 +1,22 @@
-{}
+{
+  "common/assembly/SkeletonSocketGenerator.java: common uses minecraft server type": 3,
+  "common/compiler/PlanProgramCompiler.java: common uses minecraft server type": 9,
+  "common/component/PlayerComponentExpander.java: common uses minecraft server type": 6,
+  "common/logging/FcaLog.java: common uses minecraft server type": 3,
+  "common/patch/PatchExecutor.java: common uses minecraft server type": 3,
+  "common/skeleton/SkeletonExecutor.java: common uses minecraft server type": 4,
+  "common/typology/TypologyComponentRouter.java: common uses minecraft server type": 3,
+  "common/typology/TypologyInterpreter.java: common uses minecraft server type": 3,
+  "common/world/BlockMutationAccess.java: common uses minecraft server type": 3,
+  "common/world/WorldBuildBounds.java: common uses minecraft server type": 5,
+  "common/compiler/postprocess/PostProcessPipeline.java: common uses minecraft server type": 2,
+  "common/compiler/postprocess/TerrainAdaptationPostProcessor.java: common uses minecraft server type": 4,
+  "common/component/group/PlayerComponentGroupExpander.java: common uses minecraft server type": 4,
+  "common/component/socket/SocketFinder.java: common uses minecraft server type": 5,
+  "common/component/socket/SocketProviders.java: common uses minecraft server type": 3,
+  "common/llm/compiler/PlanCompileContext.java: common uses minecraft server type": 5,
+  "common/mass/integration/BuildingMassSystemIntegrator.java: common uses minecraft server type": 3,
+  "common/network/metrics/LandmarkRoutingMetrics.java: common uses minecraft server type": 4,
+  "common/network/metrics/LlmPlanRoutingMetrics.java: common uses minecraft server type": 9,
+  "common/network/metrics/TypologyRoutingMetrics.java: common uses minecraft server type": 5
+}

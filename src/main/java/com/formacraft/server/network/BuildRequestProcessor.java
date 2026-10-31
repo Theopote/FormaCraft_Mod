@@ -47,6 +47,14 @@ public final class BuildRequestProcessor {
                         return;
                     }
 
+                    BuildRequestGate.Rejection gateReject = BuildRequestGate.tryAdmit(player, context.server());
+                    if (gateReject != null) {
+                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                gateReject.message().getString()));
+                        return;
+                    }
+                    final boolean[] asyncStarted = {false};
+
                     // 使 AI 构件检索可见当前玩家私人库（ThreadLocal；异步回调线程需自行再设）
                     com.formacraft.common.component.query.ComponentRetriever.setViewerPlayer(player.getUuid());
                     try {
@@ -76,7 +84,7 @@ public final class BuildRequestProcessor {
                             && com.formacraft.server.build.BuildExecutionService.getInstance()
                                 .hasActiveBuildForPlayer(player.getUuid(), editWorld)) {
                         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                                "上一项建造尚未完成，请等待“建造完成”后再发起增量修改。"));
+                                net.minecraft.text.Text.translatable("formacraft.build.error.active_build").getString()));
                         return;
                     }
                     if (WindowSealPreview.tryHandle(player, req)) return;
@@ -119,8 +127,10 @@ public final class BuildRequestProcessor {
                                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(errorMsg));
                                 return;
                             }
+                            asyncStarted[0] = true;
                             orchestrator.editBuilding(buildingId, currentJson, req.getRequestText())
                                     .orTimeout(605, TimeUnit.SECONDS)
+                                    .whenComplete((r, e) -> BuildRequestGate.release(player))
                                     .exceptionally(ex -> {
                                         hbAlive.set(false);
                                         FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
@@ -205,8 +215,10 @@ public final class BuildRequestProcessor {
                         long hbStartMs = System.currentTimeMillis();
                         BuildStatusHeartbeat.start(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
+                        asyncStarted[0] = true;
                         orchestrator.requestAiPlan(req, hbPhase::set)
                                 .orTimeout(605, TimeUnit.SECONDS)
+                                .whenComplete((r, e) -> BuildRequestGate.release(player))
                                 .exceptionally(ex -> {
                                     hbAlive.set(false);
                                     FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
@@ -218,48 +230,68 @@ public final class BuildRequestProcessor {
                                 .thenAccept(aiResult -> {
                                     if (aiResult == null) return;
 
-                                    context.server().execute(() -> {
-                                        hbPhase.set("已收到 AI 结果，正在生成建筑预览");
-                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("已收到 AI 结果，正在生成建筑预览…"));
-                                        BlockPos origin = req.getPlayerPos();
-                                        if (origin == null || !(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
-                                            hbAlive.set(false);
-                                            return;
-                                        }
-
-                                        switch (aiResult) {
-                                            case AiPlanResult.Clarification(var clar) -> {
-                                                hbAlive.set(false);
-                                                String msg = clar.messageZh();
-                                                if (msg == null || msg.isBlank()) {
-                                                    msg = "需要补充更多信息才能开始生成，请描述建筑类型、风格或具体名称。";
-                                                }
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseClarificationPayload(msg));
+                                    // Bound worker: prepare explicit compile context off the HTTP callback thread,
+                                    // then hop to the server thread only for world reads / preview delivery.
+                                    PlanCompileWorkers.submit(() -> {
+                                        final com.formacraft.server.generation.GenerationCompileContext preparedCtx =
+                                                aiResult instanceof AiPlanResult.LlmPlan(var plan)
+                                                        ? com.formacraft.server.generation.GenerationCompileContext.fromPlan(plan, false)
+                                                        : null;
+                                        context.server().execute(() -> {
+                                            if (preparedCtx != null) {
+                                                com.formacraft.server.generation.GenerationCompileContext.install(preparedCtx);
                                             }
-                                            case AiPlanResult.LlmPlan(var plan) -> {
-                                                if (LlmPlanPreviewBuilder.tryBuildPreview(player, req, plan, origin, serverWorld, hbAlive)) {
+                                            try {
+                                                hbPhase.set("已收到 AI 结果，正在生成建筑预览");
+                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("已收到 AI 结果，正在生成建筑预览…"));
+                                                BlockPos origin = req.getPlayerPos();
+                                                if (origin == null || !(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
+                                                    hbAlive.set(false);
                                                     return;
                                                 }
-                                                LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                                                        "LlmPlan 预览生成失败（已跳过假 BuildingSpec 回退）。请调整请求或检查后端输出。"
-                                                ));
-                                                hbAlive.set(false);
+
+                                                switch (aiResult) {
+                                                    case AiPlanResult.Clarification(var clar) -> {
+                                                        hbAlive.set(false);
+                                                        String msg = clar.messageZh();
+                                                        if (msg == null || msg.isBlank()) {
+                                                            msg = "需要补充更多信息才能开始生成，请描述建筑类型、风格或具体名称。";
+                                                        }
+                                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseClarificationPayload(msg));
+                                                    }
+                                                    case AiPlanResult.LlmPlan(var plan) -> {
+                                                        if (LlmPlanPreviewBuilder.tryBuildPreview(player, req, plan, origin, serverWorld, hbAlive)) {
+                                                            return;
+                                                        }
+                                                        LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
+                                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                                                "LlmPlan 预览生成失败（已跳过假 BuildingSpec 回退）。请调整请求或检查后端输出。"
+                                                        ));
+                                                        hbAlive.set(false);
+                                                    }
+                                                    case AiPlanResult.BuildingSpec(var spec) -> {
+                                                        BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);
+                                                        LlmPlanRoutingMetrics.recordDirectStructurePreview(player, req);
+                                                        previewBuildingSpec(player, req, spec, origin, serverWorld, hbAlive);
+                                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
+                                                    }
+                                                    case AiPlanResult.CompositeSpec(var composite) -> previewCompositeSpec(player, req, composite, origin, serverWorld, hbAlive);
+                                                    case AiPlanResult.CitySpec(var city) -> previewCitySpec(player, req, city, origin, serverWorld, hbAlive);
+                                                }
+                                            } finally {
+                                                if (preparedCtx != null) {
+                                                    com.formacraft.server.generation.GenerationCompileContext.clear();
+                                                }
                                             }
-                                            case AiPlanResult.BuildingSpec(var spec) -> {
-                                                BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);
-                                                LlmPlanRoutingMetrics.recordDirectStructurePreview(player, req);
-                                                previewBuildingSpec(player, req, spec, origin, serverWorld, hbAlive);
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
-                                            }
-                                            case AiPlanResult.CompositeSpec(var composite) -> previewCompositeSpec(player, req, composite, origin, serverWorld, hbAlive);
-                                            case AiPlanResult.CitySpec(var city) -> previewCitySpec(player, req, city, origin, serverWorld, hbAlive);
-                                        }
+                                        });
                                     });
                                 });
                     }
                     } finally {
                         com.formacraft.common.component.query.ComponentRetriever.clearViewerPlayer();
+                        if (!asyncStarted[0]) {
+                            BuildRequestGate.release(player);
+                        }
                     }
                 }));
     }
