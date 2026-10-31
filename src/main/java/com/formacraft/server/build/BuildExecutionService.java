@@ -41,6 +41,8 @@ public class BuildExecutionService {
     static final int MAX_ACTIVE_TASKS_PER_WORLD = 32;
 
     private final List<BuildTask> activeTasks = new ArrayList<>();
+    /** Memory commits that failed to persist; retried on later ticks (world changed but Memory missing). */
+    private final List<PendingMemoryCommit> pendingMemoryCommits = new ArrayList<>();
     private final UndoService undoService = new UndoService();
     private MemoryManager memoryManager;
     /** 公平轮询下标：按世界分开，避免队首任务独占预算。 */
@@ -298,7 +300,9 @@ public class BuildExecutionService {
      * 每个世界 tick：全局预算公平调度本世界任务。
      */
     public void onWorldTick(ServerWorld world) {
-        if (world == null || activeTasks.isEmpty()) return;
+        if (world == null) return;
+        retryPendingMemoryCommits(world);
+        if (activeTasks.isEmpty()) return;
 
         List<Integer> worldIndices = new ArrayList<>();
         for (int i = 0; i < activeTasks.size(); i++) {
@@ -350,6 +354,99 @@ public class BuildExecutionService {
             if (t != null && t.getWorld() == world) c++;
         }
         return c;
+    }
+
+    /** Deferred Memory registration after a durable-persist failure. */
+    record PendingMemoryCommit(
+            GeneratedStructure structure,
+            BuildingSpec spec,
+            String memoryName,
+            String fbdSourcePlanJson,
+            int attempts,
+            long nextAttemptMs
+    ) {}
+
+    private static final int MAX_MEMORY_COMMIT_ATTEMPTS = 5;
+    private static final long MEMORY_COMMIT_RETRY_MS = 10_000L;
+
+    private void queuePendingMemoryCommit(
+            ServerWorld world,
+            GeneratedStructure structure,
+            BuildingSpec spec,
+            String memoryName,
+            String fbdSourcePlanJson
+    ) {
+        if (world == null || structure == null) return;
+        synchronized (pendingMemoryCommits) {
+            pendingMemoryCommits.add(new PendingMemoryCommit(
+                    structure, spec, memoryName, fbdSourcePlanJson, 1,
+                    System.currentTimeMillis() + MEMORY_COMMIT_RETRY_MS));
+        }
+    }
+
+    /** Number of deferred Memory commits awaiting retry (diagnostics / tests). */
+    int pendingMemoryCommitCount() {
+        synchronized (pendingMemoryCommits) {
+            return pendingMemoryCommits.size();
+        }
+    }
+
+    /** Retry deferred Memory commits so "world changed but Memory missing" is not permanent. */
+    void retryPendingMemoryCommits(ServerWorld world) {
+        if (world == null || memoryManager == null) return;
+        List<PendingMemoryCommit> snapshot;
+        synchronized (pendingMemoryCommits) {
+            if (pendingMemoryCommits.isEmpty()) return;
+            snapshot = new ArrayList<>(pendingMemoryCommits);
+        }
+        long now = System.currentTimeMillis();
+        for (PendingMemoryCommit pending : snapshot) {
+            if (pending.nextAttemptMs() > now) continue;
+            boolean done = commitMemory(world, pending.structure(), pending.spec(),
+                    pending.memoryName(), pending.fbdSourcePlanJson());
+            synchronized (pendingMemoryCommits) {
+                if (done) {
+                    pendingMemoryCommits.remove(pending);
+                } else if (pending.attempts() >= MAX_MEMORY_COMMIT_ATTEMPTS) {
+                    pendingMemoryCommits.remove(pending);
+                    FormacraftMod.LOGGER.error(
+                            "Memory commit permanently failed for {} after {} attempts",
+                            pending.memoryName(), pending.attempts());
+                } else {
+                    pendingMemoryCommits.remove(pending);
+                    pendingMemoryCommits.add(new PendingMemoryCommit(
+                            pending.structure(), pending.spec(), pending.memoryName(),
+                            pending.fbdSourcePlanJson(), pending.attempts() + 1,
+                            now + MEMORY_COMMIT_RETRY_MS));
+                }
+            }
+        }
+    }
+
+    /** @return true when Memory is durably registered. */
+    private boolean commitMemory(
+            ServerWorld world,
+            GeneratedStructure structure,
+            BuildingSpec spec,
+            String memoryName,
+            String fbdSourcePlanJson
+    ) {
+        try {
+            ProjectMemory memory = memoryManager.registerBuilding(structure, spec, memoryName, world);
+            if (memory == null) return false;
+            BuildingPartIndex roofIndex = BuildingPartIndex.fromPlannedBlocks(structure.getBlocks());
+            BuildingEditService.attachRoofIndex(memory, roofIndex);
+            BuildingMemoryKeys.setRevision(memory, 0L);
+            if (fbdSourcePlanJson != null && !fbdSourcePlanJson.isBlank()) {
+                BuildingMemoryKeys.storeFbdSourcePlan(memory, fbdSourcePlanJson);
+                if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
+                if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
+            }
+            return memoryManager.updateMemoryStrict(memory).ok();
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.warn("Memory commit retry failed: {}", e.getMessage());
+            return false;
+        }
     }
 
     private void completeTask(ServerWorld world, BuildTask task) {
@@ -414,6 +511,7 @@ public class BuildExecutionService {
                         FormacraftMod.LOGGER.warn(
                                 "Building placed but Memory persist failed for owner={} detail={}",
                                 ownerUuid, memUpdate.message());
+                        queuePendingMemoryCommit(world, structure, spec, memoryName, task.fbdSourcePlanJson());
                     } else {
                         FormacraftMod.LOGGER.info("Saved building to memory: {} ({}) roofCells={} fbd={} online={}",
                                 memory.getName(), memory.getUuid(), roofIndex.roof().cells().size(),
@@ -422,10 +520,22 @@ public class BuildExecutionService {
                 } else {
                     FormacraftMod.LOGGER.warn(
                             "Building placed but Memory registerBuilding returned null (owner={})", ownerUuid);
+                    queuePendingMemoryCommit(world, structure, spec, memoryName, task.fbdSourcePlanJson());
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.warn("Failed to save building to memory (owner={}): {}",
                         ownerUuid, e.getMessage());
+                try {
+                    String buildingJson = PlayerSpecRepository.getBuildingJson(ownerUuid);
+                    BuildingSpec spec = null;
+                    if (buildingJson != null && !buildingJson.isEmpty()) {
+                        spec = JsonUtil.fromJson(buildingJson, BuildingSpec.class);
+                    }
+                    queuePendingMemoryCommit(world, structure, spec, structure.getDescription(),
+                            task.fbdSourcePlanJson());
+                } catch (Exception ignored) {
+                    // Retry queue unavailable — log only.
+                }
             }
         }
 

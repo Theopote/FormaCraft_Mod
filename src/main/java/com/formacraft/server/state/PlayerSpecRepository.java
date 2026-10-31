@@ -51,7 +51,13 @@ public class PlayerSpecRepository {
      * 设置玩家的当前建筑规格
      */
     public static void setBuildingSpec(ServerPlayerEntity player, String buildingId, String json) {
-        UUID uuid = player.getUuid();
+        if (player == null) return;
+        setBuildingSpec(player.getUuid(), buildingId, json);
+    }
+
+    /** UUID-based variant so specs survive a disconnect (Memory commit may run offline). */
+    public static void setBuildingSpec(UUID uuid, String buildingId, String json) {
+        if (uuid == null) return;
         currentBuildingId.put(uuid, buildingId);
         currentBuildingJson.put(uuid, json);
     }
@@ -84,7 +90,13 @@ public class PlayerSpecRepository {
      * 清除玩家的所有规格缓存
      */
     public static void clear(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+        if (player == null) return;
+        clear(player.getUuid());
+    }
+
+    /** UUID-based clear (disconnect). */
+    public static void clear(UUID uuid) {
+        if (uuid == null) return;
         currentCityId.remove(uuid);
         currentCityJson.remove(uuid);
         currentBuildingId.remove(uuid);

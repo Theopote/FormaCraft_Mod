@@ -218,6 +218,7 @@ public final class BuildRequestProcessor {
                         BuildStatusHeartbeat.start(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
                         // Obtain the future before marking async so a sync throw cannot leak the gate.
+                        gateTicket.advance(BuildRequestGate.RequestState.PLANNING);
                         var aiPlanFuture = orchestrator.requestAiPlan(req, hbPhase::set)
                                 .orTimeout(605, TimeUnit.SECONDS);
                         asyncStarted[0] = true;
@@ -260,11 +261,16 @@ public final class BuildRequestProcessor {
                                                     // Quota covers compile/preview; release only when schedule finishes
                                                     // (scheduleBuildPreview always invokes this callback, even on throw).
                                                     releaseAfterPreview = false;
+                                                    gateTicket.advance(BuildRequestGate.RequestState.COMPILING);
                                                     LlmPlanPreviewBuilder.scheduleBuildPreview(
                                                             context.server(), player, req, plan, origin, serverWorld, hbAlive,
                                                             handled -> {
                                                                 try {
-                                                                    if (handled) return;
+                                                                    if (handled) {
+                                                                        gateTicket.advance(BuildRequestGate.RequestState.PREVIEW_READY);
+                                                                        return;
+                                                                    }
+                                                                    gateTicket.advance(BuildRequestGate.RequestState.FAILED);
                                                                     LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
                                                                     ServerPlayNetworking.send(player,
                                                                             new FormaCraftNetworking.ResponseBuildErrorPayload(

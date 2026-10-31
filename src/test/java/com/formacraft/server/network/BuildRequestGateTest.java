@@ -71,6 +71,33 @@ class BuildRequestGateTest {
     }
 
     @Test
+    void cancelAllInFlightBlocksPreviewDelivery() {
+        UUID id = UUID.randomUUID();
+        BuildRequestGate.Ticket ticket = BuildRequestGate.forceAdmitForTest(id);
+        assertTrue(ticket.mayDeliverPreview());
+        assertEquals(1, BuildRequestGate.cancelAllInFlight(id));
+        assertTrue(ticket.isCancelled());
+        assertFalse(ticket.mayDeliverPreview());
+        BuildRequestGate.releaseAll(id);
+    }
+
+    @Test
+    void requestStateAdvancesButStopsAtTerminalStates() {
+        UUID id = UUID.randomUUID();
+        BuildRequestGate.Ticket ticket = BuildRequestGate.forceAdmitForTest(id);
+        assertEquals(BuildRequestGate.RequestState.ADMITTED, ticket.state());
+        ticket.advance(BuildRequestGate.RequestState.PLANNING);
+        assertEquals(BuildRequestGate.RequestState.PLANNING, ticket.state());
+        ticket.advance(BuildRequestGate.RequestState.COMPILING);
+        assertEquals(BuildRequestGate.RequestState.COMPILING, ticket.state());
+        ticket.advance(BuildRequestGate.RequestState.FAILED);
+        assertEquals(BuildRequestGate.RequestState.FAILED, ticket.state());
+        ticket.advance(BuildRequestGate.RequestState.PREVIEW_READY);
+        assertEquals(BuildRequestGate.RequestState.FAILED, ticket.state(), "terminal state must not regress");
+        BuildRequestGate.releaseAll(id);
+    }
+
+    @Test
     void onceFinishStyleCallbackStillReleasesWhenWorkThrows() {
         // Mirrors scheduleBuildPreview deliverPreview + BuildRequestProcessor finish finally.
         UUID id = UUID.randomUUID();

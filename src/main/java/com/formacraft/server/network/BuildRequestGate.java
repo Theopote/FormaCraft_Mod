@@ -36,6 +36,17 @@ public final class BuildRequestGate {
 
     public record Rejection(Text message) {}
 
+    /** Lifecycle of one admitted build request. */
+    public enum RequestState {
+        ADMITTED,
+        PLANNING,
+        COMPILING,
+        PREVIEW_READY,
+        FINISHED,
+        FAILED,
+        CANCELLED
+    }
+
     /**
      * One-shot admit token. {@link #release(Ticket)} may be called any number of times;
      * only the first successful release frees the slot.
@@ -47,6 +58,8 @@ public final class BuildRequestGate {
         private final long previewGeneration;
         private final AtomicBoolean released = new AtomicBoolean(false);
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
+        private final java.util.concurrent.atomic.AtomicReference<RequestState> state =
+                new java.util.concurrent.atomic.AtomicReference<>(RequestState.ADMITTED);
 
         Ticket(UUID playerId, long expiresAtMs, long previewGeneration) {
             this.id = UUID.randomUUID();
@@ -67,6 +80,22 @@ public final class BuildRequestGate {
             return previewGeneration;
         }
 
+        public RequestState state() {
+            return state.get();
+        }
+
+        /** Advance the request state; cancelled/terminal tickets ignore transitions. */
+        public void advance(RequestState next) {
+            if (next == null) return;
+            state.updateAndGet(cur -> {
+                if (cur == RequestState.CANCELLED || cur == RequestState.FINISHED
+                        || cur == RequestState.FAILED) {
+                    return cur;
+                }
+                return next;
+            });
+        }
+
         long expiresAtMs() {
             return expiresAtMs;
         }
@@ -81,7 +110,9 @@ public final class BuildRequestGate {
 
         /** Soft-cancel: keep quota until {@link #release}, but block preview delivery. */
         public void cancel() {
-            cancelled.set(true);
+            if (cancelled.compareAndSet(false, true)) {
+                state.set(RequestState.CANCELLED);
+            }
         }
 
         boolean tryMarkReleased() {
@@ -159,6 +190,29 @@ public final class BuildRequestGate {
     /** True if {@code ticket} is still the player's newest non-cancelled lease for preview delivery. */
     public static boolean mayDeliverPreview(Ticket ticket) {
         return ticket != null && ticket.mayDeliverPreview();
+    }
+
+    /** Cancel every in-flight request for a player (e.g. /forma_cancel). */
+    public static int cancelAllInFlight(ServerPlayerEntity player) {
+        if (player == null) return 0;
+        return cancelAllInFlight(player.getUuid());
+    }
+
+    /** Cancel every in-flight request for a player UUID; returns cancelled count. */
+    public static int cancelAllInFlight(UUID playerId) {
+        if (playerId == null) return 0;
+        List<Ticket> leases = IN_FLIGHT.get(playerId);
+        if (leases == null) return 0;
+        int cancelled = 0;
+        synchronized (leases) {
+            for (Ticket t : leases) {
+                if (t != null && !t.isReleased() && !t.isCancelled()) {
+                    t.cancel();
+                    cancelled++;
+                }
+            }
+        }
+        return cancelled;
     }
 
     /** Idempotent release of a single admit ticket. */
@@ -247,8 +301,7 @@ public final class BuildRequestGate {
     }
 
     /** Test / diagnostics. */
-    static int inFlight(UUID playerId) {
-        List<Ticket> leases = IN_FLIGHT.get(playerId);
+    static int inFlight(UUID playerId) {        List<Ticket> leases = IN_FLIGHT.get(playerId);
         if (leases == null) return 0;
         synchronized (leases) {
             purgeExpiredLocked(leases, System.currentTimeMillis());

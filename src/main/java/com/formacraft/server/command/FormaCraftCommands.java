@@ -7,6 +7,7 @@ import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.composite.CompositeSpec;
 import com.formacraft.server.network.FormaCraftServerNetworking;
+import com.formacraft.server.network.BuildRequestGate;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.server.city.CityBuilder;
@@ -169,6 +170,14 @@ public class FormaCraftCommands {
                     PreviewStorage.setPreview(player, false);
                     PreviewStorage.clear(player);
                     com.formacraft.server.patch.PatchPreviewService.cancelAll(player);
+                    // Cancel in-flight build requests so a late result cannot overwrite the preview.
+                    int cancelledRequests = BuildRequestGate.cancelAllInFlight(player);
+                    if (cancelledRequests > 0) {
+                        ctx.getSource().sendFeedback(
+                                () -> Text.literal("已取消 " + cancelledRequests + " 个进行中的生成请求。"),
+                                false
+                        );
+                    }
 
                     ctx.getSource().sendFeedback(
                             () -> Text.translatable("formacraft.command.preview.canceled"),
