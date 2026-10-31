@@ -56,9 +56,7 @@ public final class PatchOccupancyIndex {
 
     /** Preserve existing geometry when an optional attachment cannot join it. */
     public int trimIncompatibleAttachment(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
-        if (writer != null && "COURTYARD_SPACE".equalsIgnoreCase(writer.componentType())
-                && (writer.dimensions() == null || writer.dimensions().height() != 1
-                    || writer.params() == null || !"plate".equals(writer.params().get("extrude_mode")))) return 0;
+        // Courtyard paving frequently overlaps host floors — trim conflicts instead of aborting.
         if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "COURTYARD_SPACE", "FOUNDATION", "BALCONY", "TERRACE")
                 .contains(writer.componentType().toUpperCase(Locale.ROOT))) return 0;
         Map<BlockPos, PlaceRecord> simulation = new HashMap<>(places);

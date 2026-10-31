@@ -178,11 +178,21 @@ final class ComponentSatelliteAligner {
                 || idLower.contains("spire") || idLower.contains("finial") || idLower.contains("cupola")
                 || idLower.contains("peak") || idLower.contains("pagoda") || idLower.contains("baota")
                 || idLower.contains("宝塔") || idLower.contains("尖顶")
+                || idLower.contains("ornament") || idLower.contains("stupa") || idLower.contains("finial")
+                || idLower.contains("roof_decor") || idLower.contains("屋脊") || idLower.contains("脊饰")
+                || idLower.contains("金顶") || idLower.contains("cross") || idLower.contains("gilded")
                 || "spire".equalsIgnoreCase(ComponentPlanTypes.getParamString(detail.params(), "detail_kind"))
                 || looksRidgeFeature(detail.features());
+        // Small roof-top ornaments (palace gold finials, church crosses) often lack ridge tokens —
+        // still center when they sit on/above the host roof plane.
+        boolean smallRoofOrnament = !ridgeOrSpire
+                && dims.width() <= Math.max(5, body.width() / 3)
+                && dims.depth() <= Math.max(5, body.depth() / 3)
+                && detail.relativePosition().y() >= origin.y() + Math.max(1, body.height() - 2);
         boolean perimeter = dims.width() >= body.width() - 2 && dims.depth() >= body.depth() - 2
                 && dims.height() <= 1;
-        if (!chimney && !perimeter && !ridgeOrSpire) return detail;
+        if (!chimney && !perimeter && !ridgeOrSpire && !smallRoofOrnament) return detail;
+        if (smallRoofOrnament) ridgeOrSpire = true;
         var params = new HashMap<String, Object>();
         if (detail.params() != null) params.putAll(detail.params());
         params.put("anchor_mode", "min_corner");
@@ -235,7 +245,9 @@ final class ComponentSatelliteAligner {
             String lower = f.toLowerCase(Locale.ROOT);
             if (lower.contains("ridge") || lower.contains("crest") || lower.contains("spire")
                     || lower.contains("finial") || lower.contains("cupola") || lower.contains("尖顶")
-                    || lower.contains("pagoda") || lower.contains("baota") || lower.contains("宝塔")) {
+                    || lower.contains("pagoda") || lower.contains("baota") || lower.contains("宝塔")
+                    || lower.contains("ornament") || lower.contains("stupa") || lower.contains("屋脊")
+                    || lower.contains("脊饰") || lower.contains("金顶") || lower.contains("cross")) {
                 return true;
             }
         }

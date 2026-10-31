@@ -3,11 +3,11 @@
   "palettes": {
     "PALETTE_TANG_TIMBER_A": {
       "meta": {
-        "display_name": "唐风木构",
+        "display_name": "??????",
         "tags": [
-          "唐风",
-          "唐风木构",
-          "唐代木构",
+          "???",
+          "??????",
+          "??????",
           "tang style",
           "tang timber",
           "tang_timber"
@@ -103,10 +103,10 @@
     },
     "PALETTE_RENAISSANCE_STONE_A": {
       "meta": {
-        "display_name": "文艺复兴立面",
+        "display_name": "?????????",
         "tags": [
-          "文艺复兴",
-          "文艺复兴风格",
+          "??????",
+          "?????????",
           "renaissance style",
           "renaissance palazzo",
           "renaissance_stone"
@@ -202,13 +202,13 @@
     },
     "PALETTE_ART_DECO_A": {
       "meta": {
-        "display_name": "Art Deco 退台塔�?,
+        "display_name": "Art Deco ???????",
         "tags": [
-          "装饰艺术",
-          "装饰艺术风格",
+          "??????",
+          "?????????",
           "Art Deco",
           "artdeco",
-          "装饰艺术�?,
+          "????????",
           "art_deco_vertical"
         ],
         "description": "Deterministic role palette for authored style fixtures."
@@ -4368,10 +4368,10 @@
     },
     "PALETTE_BRUTALIST_CONCRETE_A": {
       "meta": {
-        "display_name": "粗野主义混凝土馆",
+        "display_name": "????????????",
         "tags": [
-          "粗野主义",
-          "粗野�?,
+          "??????",
+          "?????",
           "brutalist",
           "brutalism",
           "brutalist_concrete"
@@ -4467,10 +4467,10 @@
     },
     "PALETTE_INDUSTRIAL_BRICK_A": {
       "meta": {
-        "display_name": "红砖工业厂房",
+        "display_name": "?????????",
         "tags": [
-          "红砖工业",
-          "砖砌工业",
+          "??????",
+          "??????",
           "industrial brick",
           "brick factory",
           "industrial_brick"
@@ -4566,11 +4566,11 @@
     },
     "PALETTE_JAPANESE_TIMBER_A": {
       "meta": {
-        "display_name": "日式传统木屋",
+        "display_name": "?????????",
         "tags": [
-          "日式传统",
-          "和风",
-          "日式建筑",
+          "??????",
+          "???",
+          "??????",
           "japanese traditional",
           "japanese timber",
           "japanese_timber"
@@ -4666,11 +4666,11 @@
     },
     "PALETTE_SCANDINAVIAN_TIMBER_A": {
       "meta": {
-        "display_name": "北欧木屋",
+        "display_name": "??????",
         "tags": [
-          "北欧木屋",
-          "北欧木构",
-          "斯堪的纳维亚木屋",
+          "??????",
+          "??????",
+          "????????????",
           "scandinavian timber",
           "nordic timber",
           "scandinavian_timber"
@@ -4766,10 +4766,10 @@
     },
     "PALETTE_MEDITERRANEAN_STUCCO_A": {
       "meta": {
-        "display_name": "地中海灰泥住�?,
+        "display_name": "???????????",
         "tags": [
-          "地中海灰�?,
-          "地中海风�?,
+          "????????",
+          "????????",
           "mediterranean stucco",
           "mediterranean style",
           "mediterranean_stucco"
@@ -4865,11 +4865,11 @@
     },
     "PALETTE_GEORGIAN_BRICK_A": {
       "meta": {
-        "display_name": "乔治王朝砖宅",
+        "display_name": "?????????",
         "tags": [
-          "乔治王朝",
-          "乔治王朝砖砌",
-          "乔治王朝风格",
+          "??????",
+          "?????????",
+          "?????????",
           "georgian brick",
           "georgian architecture",
           "georgian_brick"
@@ -4965,11 +4965,11 @@
     },
     "PALETTE_PRAIRIE_HORIZONTAL_A": {
       "meta": {
-        "display_name": "草原式住�?,
+        "display_name": "????????",
         "tags": [
-          "草原式住�?,
-          "草原�?,
-          "草原学派住宅",
+          "????????",
+          "?????",
+          "?????????",
           "prairie house",
           "prairie architecture",
           "prairie_horizontal"
@@ -5065,10 +5065,10 @@
     },
     "PALETTE_MIDCENTURY_PAVILION_A": {
       "meta": {
-        "display_name": "世纪中叶住宅",
+        "display_name": "?????????",
         "tags": [
-          "世纪中叶住宅",
-          "世纪中叶风格",
+          "?????????",
+          "?????????",
           "midcentury house",
           "mid-century house",
           "midcentury_pavilion"
@@ -5164,10 +5164,10 @@
     },
     "PALETTE_ALPINE_CHALET_A": {
       "meta": {
-        "display_name": "阿尔卑斯木屋",
+        "display_name": "?????????",
         "tags": [
-          "阿尔卑斯木屋",
-          "阿尔卑斯木构",
+          "?????????",
+          "?????????",
           "alpine chalet",
           "alpine timber",
           "alpine_chalet"
@@ -5263,10 +5263,10 @@
     },
     "PALETTE_NEOCLASSICAL_CIVIC_A": {
       "meta": {
-        "display_name": "新古典公共建�?,
+        "display_name": "???????????",
         "tags": [
-          "新古典公共建�?,
-          "新古典风�?,
+          "???????????",
+          "????????",
           "neoclassical civic",
           "neoclassical architecture",
           "neoclassical_civic"
@@ -5362,11 +5362,11 @@
     },
     "PALETTE_INTERNATIONAL_GLASS_A": {
       "meta": {
-        "display_name": "现代国际式办公楼",
+        "display_name": "????????????",
         "tags": [
-          "现代主义",
-          "现代风格",
-          "现代国际�?,
+          "??????",
+          "??????",
+          "????????",
           "international glass",
           "international style",
           "international_glass"
@@ -5462,9 +5462,9 @@
     },
     "PALETTE_DESERT_ADOBE": {
       "meta": {
-        "display_name": "沙漠泥砖",
+        "display_name": "??????",
         "tags": [
-          "沙漠泥砖",
+          "??????",
           "desert adobe",
           "desert_adobe"
         ]
@@ -5546,9 +5546,9 @@
     },
     "PALETTE_PRAIRIE_EARTH": {
       "meta": {
-        "display_name": "草原土坯",
+        "display_name": "??????",
         "tags": [
-          "草原土坯",
+          "??????",
           "prairie earth house",
           "prairie_earth"
         ]
@@ -5630,9 +5630,9 @@
     },
     "PALETTE_ARCTIC_IGLOO": {
       "meta": {
-        "display_name": "冰屋",
+        "display_name": "???",
         "tags": [
-          "冰屋",
+          "???",
           "arctic igloo",
           "arctic_igloo"
         ]
@@ -5714,9 +5714,9 @@
     },
     "PALETTE_STILT_TIMBER": {
       "meta": {
-        "display_name": "吊脚木楼",
+        "display_name": "??????",
         "tags": [
-          "吊脚木楼",
+          "??????",
           "stilt timber house",
           "stilt_timber"
         ]
@@ -5798,9 +5798,9 @@
     },
     "PALETTE_WATER_PLATFORM": {
       "meta": {
-        "display_name": "水上木屋",
+        "display_name": "??????",
         "tags": [
-          "水上木屋",
+          "??????",
           "water platform house",
           "water_platform"
         ]
@@ -5882,9 +5882,9 @@
     },
     "PALETTE_XIANXIA_ISLAND": {
       "meta": {
-        "display_name": "仙侠悬浮�?,
+        "display_name": "????????",
         "tags": [
-          "仙侠悬浮�?,
+          "????????",
           "xianxia floating island",
           "xianxia_island"
         ]
@@ -5966,9 +5966,9 @@
     },
     "PALETTE_DWARVEN_HALL": {
       "meta": {
-        "display_name": "矮人石殿",
+        "display_name": "??????",
         "tags": [
-          "矮人石殿",
+          "??????",
           "dwarven stone hall",
           "dwarven_hall"
         ]
@@ -6050,9 +6050,9 @@
     },
     "PALETTE_ELVEN_TREEHOUSE": {
       "meta": {
-        "display_name": "精灵树城",
+        "display_name": "??????",
         "tags": [
-          "精灵树城",
+          "??????",
           "elven forest city",
           "elven_treehouse",
           "elven treehouse"
@@ -6135,9 +6135,9 @@
     },
     "PALETTE_DARK_FORTRESS": {
       "meta": {
-        "display_name": "暗黑魔物�?,
+        "display_name": "????????",
         "tags": [
-          "暗黑魔物�?,
+          "????????",
           "dark fantasy fortress",
           "dark_fortress"
         ]
@@ -6219,9 +6219,9 @@
     },
     "PALETTE_CYBERPUNK": {
       "meta": {
-        "display_name": "赛博朋克",
+        "display_name": "??????",
         "tags": [
-          "赛博朋克",
+          "??????",
           "cyberpunk block",
           "cyberpunk_block"
         ]
@@ -6303,9 +6303,9 @@
     },
     "PALETTE_STEAMPUNK": {
       "meta": {
-        "display_name": "蒸汽朋克",
+        "display_name": "??????",
         "tags": [
-          "蒸汽朋克",
+          "??????",
           "steampunk hall",
           "steampunk_hall"
         ]
@@ -6441,12 +6441,12 @@
     },
     "PALETTE_JIANGNAN_QUAY": {
       "meta": {
-        "display_name": "江南水乡",
+        "display_name": "??????",
         "tags": [
-          "江南水乡",
+          "??????",
           "jiangnan water town",
           "jiangnan_quay",
-          "江南民居"
+          "??????"
         ]
       },
       "parts": {
@@ -6520,9 +6520,9 @@
     },
     "PALETTE_ROMANESQUE_HALL": {
       "meta": {
-        "display_name": "罗马�?,
+        "display_name": "?????",
         "tags": [
-          "罗马�?,
+          "?????",
           "romanesque hall",
           "romanesque_hall"
         ]
@@ -6598,9 +6598,9 @@
     },
     "PALETTE_TUDOR_HOUSE": {
       "meta": {
-        "display_name": "都铎",
+        "display_name": "???",
         "tags": [
-          "都铎",
+          "???",
           "tudor house",
           "tudor_house"
         ]

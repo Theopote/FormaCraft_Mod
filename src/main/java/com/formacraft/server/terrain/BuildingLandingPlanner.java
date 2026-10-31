@@ -78,6 +78,76 @@ public final class BuildingLandingPlanner {
         };
     }
 
+    /**
+     * When stilts/piles are authored in the plan, {@link #prepare} is skipped so automatic
+     * cobble piers do not fill the underfloor void. Drop those post columns to solid bed
+     * (through water) using the authored post material, without shifting dy.
+     */
+    public static List<PlannedBlock> extendAuthoredSupportsToGround(List<PlannedBlock> input, Ground ground) {
+        if (input == null || input.isEmpty() || ground == null) return input;
+        Map<BlockPos, BlockState> solids = new HashMap<>();
+        for (PlannedBlock pb : input) {
+            if (pb == null || pb.getPos() == null || pb.getTargetState() == null || pb.getTargetState().isAir()) continue;
+            solids.put(pb.getPos(), pb.getTargetState());
+        }
+        if (solids.isEmpty()) return input;
+        Map<Long, Integer> bottoms = new HashMap<>();
+        Map<Long, BlockState> bottomState = new HashMap<>();
+        for (var e : solids.entrySet()) {
+            BlockPos p = e.getKey();
+            long k = key(p.getX(), p.getZ());
+            Integer prev = bottoms.get(k);
+            if (prev == null || p.getY() < prev) {
+                bottoms.put(k, p.getY());
+                bottomState.put(k, e.getValue());
+            }
+        }
+        List<PlannedBlock> extras = new ArrayList<>();
+        int added = 0;
+        for (var e : bottoms.entrySet()) {
+            long k = e.getKey();
+            int bottom = e.getValue();
+            BlockState post = bottomState.get(k);
+            if (post == null || post.isAir() || !looksLikeAuthoredPost(post)) continue;
+            int x = (int) (k >> 32);
+            int z = (int) k;
+            // Count only neighboring post columns (ignore adjacent floor decks / walls).
+            int neighbors = 0;
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                long nk = key(x + d[0], z + d[1]);
+                Integer nBottom = bottoms.get(nk);
+                BlockState nPost = bottomState.get(nk);
+                if (nBottom != null && nBottom == bottom && nPost != null && looksLikeAuthoredPost(nPost)) {
+                    neighbors++;
+                }
+            }
+            if (neighbors > 1) continue;
+            int bed = ground.surfaceY(x, z);
+            if (bed <= ground.bottomY()) continue;
+            if (bottom <= bed) continue;
+            if (bottom - bed > MAX_SUPPORT) continue;
+            for (int y = bed; y < bottom && added < MAX_EDITS; y++) {
+                BlockPos p = new BlockPos(x, y, z);
+                if (solids.containsKey(p)) continue;
+                if (!BuildConstraintContext.allow(p)) continue;
+                extras.add(new PlannedBlock(p, post, com.formacraft.common.build.GeometrySource.generated("stilt_anchor")));
+                added++;
+            }
+        }
+        if (extras.isEmpty()) return input;
+        List<PlannedBlock> out = new ArrayList<>(input.size() + extras.size());
+        out.addAll(extras);
+        out.addAll(input);
+        return out;
+    }
+
+    private static boolean looksLikeAuthoredPost(BlockState state) {
+        // String match only — BlockTags may be unbound in unit tests.
+        String id = net.minecraft.registry.Registries.BLOCK.getId(state.getBlock()).getPath();
+        return id.contains("_log") || id.contains("stem") || id.endsWith("_wood")
+                || id.contains("pillar") || id.contains("fence");
+    }
+
     public static List<Site> sites(LlmPlan plan, BlockPos origin) {
         if (plan == null || plan.mode() != LlmPlan.Mode.build || plan.components() == null || plan.usesPlanProgramMode())
             return List.of();

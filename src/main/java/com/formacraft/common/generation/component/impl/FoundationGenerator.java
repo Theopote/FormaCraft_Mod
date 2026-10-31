@@ -47,12 +47,23 @@ public class FoundationGenerator implements ComponentGenerator {
             styleProfile = "MEDIEVAL_CLASSIC";
         }
 
+        var footprint = stilts
+                ? com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(c, width, depth)
+                : null;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // Nine discrete load-bearing posts, with the water/air between them untouched.
-                    if (stilts && !((x==0 || x==width/2 || x==width-1)
-                            && (z==0 || z==depth/2 || z==depth-1))) continue;
+                    // Discrete load-bearing posts aligned to open-frame / octagon vertices.
+                    if (stilts) {
+                        boolean post = footprint != null
+                                && com.formacraft.common.generation.component.util.OpenFramePolicy
+                                .isPost(footprint, x, z, width, depth, c.params());
+                        if (!post && footprint == null) {
+                            post = (x == 0 || x == width / 2 || x == width - 1)
+                                    && (z == 0 || z == depth / 2 || z == depth - 1);
+                        }
+                        if (!post) continue;
+                    }
                     SemanticPart part = SemanticPart.FOUNDATION;
                     String block = PaletteLibrary.resolveBlock(part, styleProfile, semantic.styleAttributes());
                     if (stilts) {

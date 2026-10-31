@@ -196,6 +196,33 @@ class BuildingLandingPlannerTest {
         assertNull(result.problem());assertEquals(0,result.dy());
         assertTrue(finalMap(result.blocks()).get(new BlockPos(2,60,2)).isOf(Blocks.COBBLESTONE));
     }
+    @Test void authoredWoodStiltsDropThroughWaterToLakebedWithoutCobble() {
+        var water=new BuildingLandingPlanner.Ground() {
+            public int surfaceY(int x,int z) {return 60;}
+            public int placementY(int x,int z) {return 64;}
+            public int bottomY(){return -64;}
+            public BlockState state(BlockPos p){return p.getY()<60?Blocks.STONE.getDefaultState()
+                    :p.getY()<64?Blocks.WATER.getDefaultState():Blocks.AIR.getDefaultState();}
+        };
+        // Four isolated oak posts under a deck at Y=64; posts currently stop at water surface.
+        List<PlannedBlock> input=new ArrayList<>();
+        for(int x=0;x<=6;x++) for(int z=0;z<=6;z++)
+            input.add(new PlannedBlock(new BlockPos(x,64,z),Blocks.OAK_PLANKS.getDefaultState()));
+        for(int[] c:new int[][]{{0,0},{0,6},{6,0},{6,6}})
+            for(int y=64;y<=67;y++)
+                input.add(new PlannedBlock(new BlockPos(c[0],y,c[1]),Blocks.OAK_LOG.getDefaultState()));
+        // Short stilts hovering at waterline (Y=64 only as deck corner — add underwater gap by
+        // treating post bottoms as Y=64; extendAuthoredSupports fills 60..63).
+        var out=BuildingLandingPlanner.extendAuthoredSupportsToGround(input,water);
+        var blocks=finalMap(out);
+        for(int[] c:new int[][]{{0,0},{0,6},{6,0},{6,6}}) {
+            assertTrue(blocks.get(new BlockPos(c[0],60,c[1])).isOf(Blocks.OAK_LOG),"post to lakebed at "+c[0]+","+c[1]);
+            assertTrue(blocks.get(new BlockPos(c[0],63,c[1])).isOf(Blocks.OAK_LOG));
+        }
+        assertFalse(out.stream().anyMatch(p->p.getTargetState().isOf(Blocks.COBBLESTONE)));
+        // Deck interior must stay open underfloor — no mass fill under planks at (3,3).
+        assertNull(blocks.get(new BlockPos(3,60,3)));
+    }
     @Test void entranceStepsDescendOneBlockAtATimeAndReachGround() {
         var s=site(0,64);var result=prepare(house(s,true),List.of(s),ground((x,z)->z<0?60:64));
         assertNull(result.problem());assertEquals(5,result.steps());

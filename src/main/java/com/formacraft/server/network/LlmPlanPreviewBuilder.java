@@ -319,6 +319,16 @@ public final class LlmPlanPreviewBuilder {
             var landingSites = com.formacraft.server.terrain.BuildingLandingPlanner.sites(llmPlan, planOrigin);
             if (!fixedBase) {
             boolean authoredSupports = LlmPlanTerrainBounds.hasAuthoredSupports(llmPlan);
+            if (authoredSupports) {
+                // Keep authored stilts (no cobble pad / no dy), but drop posts to lakebed / solid ground.
+                int before = plannedBlocks.size();
+                plannedBlocks = com.formacraft.server.terrain.BuildingLandingPlanner.extendAuthoredSupportsToGround(
+                        plannedBlocks, com.formacraft.server.terrain.BuildingLandingPlanner.ground(serverWorld));
+                if (plannedBlocks.size() > before) {
+                    FormacraftMod.LOGGER.info("LlmPlan stilts: anchored {} authored post blocks to terrain bed",
+                            plannedBlocks.size() - before);
+                }
+            }
             if (!landingSites.isEmpty() && !authoredSupports) {
                 var landingStrategy = llmPlan.globalConstraints() != null && llmPlan.globalConstraints().terrainStrategy() != null
                         ? llmPlan.globalConstraints().terrainStrategy() : GlobalConstraints.TerrainStrategy.ADAPTIVE;

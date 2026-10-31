@@ -497,7 +497,7 @@ final class ComponentEmitPass {
         return "DECOR_DETAIL".equals(type) || type.startsWith("DECOR");
     }
 
-    /** Openings may partially miss declared surfaces without aborting the whole plan. */
+    /** Openings / courtyards / cut-footprint masses may miss declared surfaces without aborting. */
     static boolean isSoftSurfaceIncomplete(String normalizedType) {
         if (normalizedType == null) return false;
         return "FACADE_WINDOWS".equals(normalizedType)
@@ -506,8 +506,12 @@ final class ComponentEmitPass {
                 || "WINDOW".equals(normalizedType)
                 || "DOOR".equals(normalizedType)
                 || "GATE".equals(normalizedType)
+                || "ENTRANCE".equals(normalizedType)
+                || "COURTYARD_SPACE".equals(normalizedType)
+                || "COURTYARD".equals(normalizedType)
                 || "DECOR_DETAIL".equals(normalizedType)
-                || normalizedType.startsWith("DECOR");
+                || normalizedType.startsWith("DECOR")
+                || ComponentPlanTypes.isMassType(normalizedType);
     }
 
     /**

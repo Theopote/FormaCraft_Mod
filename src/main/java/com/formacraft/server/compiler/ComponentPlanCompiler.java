@@ -120,8 +120,11 @@ public final class ComponentPlanCompiler {
         // Pavilion may reintroduce plan_type=octagon after the first pass — reconcile again.
         plan = FootprintCombinationRepair.apply(plan);
         plan = CastleTowerEnrichmentRepair.apply(plan);
+        plan = ChurchEntranceRepair.apply(plan);
+        plan = LandmarkMisrouteRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);
         plan = FloatingTowerSnapRepair.apply(plan);
+        plan = FloatingMassSnapRepair.apply(plan);
         plan = HostedPlateLevelRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);

@@ -53,9 +53,18 @@ final class PavilionOpenFrameRepair {
                 if (id != null) bodyFloorY.put(String.valueOf(id), repaired.relativePosition().y());
             }
         }
+        Map<String, Component> massById = new HashMap<>();
+        for (Component c : out) {
+            if (c == null || c.params() == null) continue;
+            Object id = c.params().get("component_id");
+            if (id != null && ("MASS_MAIN".equalsIgnoreCase(c.componentType())
+                    || "MAIN_MASS".equalsIgnoreCase(c.componentType()))) {
+                massById.put(String.valueOf(id), c);
+            }
+        }
         for (int i = 0; i < out.size(); i++) {
             Component c = out.get(i);
-            Component stilts = extendStilts(c, bodyFloorY);
+            Component stilts = extendStilts(c, bodyFloorY, massById);
             if (stilts != c) {
                 out.set(i, stilts);
                 changed = true;
@@ -84,14 +93,15 @@ final class PavilionOpenFrameRepair {
 
         Map<String, Object> params = new HashMap<>(mass.params());
         boolean changed = false;
-        if (!OpenFramePolicy.isOpen(params)) {
-            params.put("open", true);
-            params.put("wall_type", "none");
-            params.put("wall_style", "none");
-            params.put("suppress_windows", true);
-            params.put("window_style", "none");
-            changed = true;
-        }
+        // Pavilions must read as open frames — force wall-free + four open sides.
+        params.put("open", true);
+        params.put("wall_type", "none");
+        params.put("wall_style", "none");
+        params.put("suppress_windows", true);
+        params.put("window_style", "none");
+        params.put("suppress_doors", true);
+        params.put("open_sides", List.of("N", "E", "S", "W"));
+        changed = true;
         if (octagon) {
             // Prefer cut-corner octagon footprint (shape catalog has no native octagon).
             // Circle + plan_type=octagon is rejected by MassDesignValidator — always force rectangle.
@@ -108,19 +118,13 @@ final class PavilionOpenFrameRepair {
                 params.put("shape", "rectangle");
                 changed = true;
             }
-            Object planType = params.get("plan_type");
-            if (planType == null) planType = params.get("planType");
-            String pt = planType == null ? "" : String.valueOf(planType).toLowerCase(Locale.ROOT);
-            if (!Set.of("octagon", "octagonal", "cut_corners", "chamfer", "chamfered").contains(pt)) {
-                params.put("plan_type", "octagon");
-                changed = true;
-            }
-            int cut = Math.max(2, Math.min(mass.dimensions().width(), mass.dimensions().depth()) / 4);
-            if (!params.containsKey("corner_cut") && !params.containsKey("cornerCut")) {
-                params.put("corner_cut", cut);
-                changed = true;
-            }
-            params.putIfAbsent("sides", 8);
+            params.put("plan_type", "octagon");
+            // Visible octagon needs a deep corner cut (~40% of the short side).
+            int span = Math.min(mass.dimensions().width(), mass.dimensions().depth());
+            int cut = Math.max(3, Math.min(span / 2 - 1, (span * 2) / 5));
+            params.put("corner_cut", cut);
+            params.put("sides", 8);
+            changed = true;
         }
 
         Dimensions dims = mass.dimensions();
@@ -143,7 +147,11 @@ final class PavilionOpenFrameRepair {
                 new Dimensions(dims.width(), dims.depth(), height), mass.features(), params);
     }
 
-    private static Component extendStilts(Component foundation, Map<String, Integer> bodyFloorY) {
+    /** Plan-space depth below deck; preview also anchors posts to real lakebed. */
+    private static final int WATER_STILT_REACH = 12;
+
+    private static Component extendStilts(Component foundation, Map<String, Integer> bodyFloorY,
+                                          Map<String, Component> massById) {
         if (foundation == null || foundation.params() == null || foundation.relativePosition() == null
                 || foundation.dimensions() == null) {
             return foundation;
@@ -154,20 +162,50 @@ final class PavilionOpenFrameRepair {
         Object host = foundation.params().get("host_id");
         if (host == null) host = foundation.params().get("hostId");
         Integer floorY = host == null ? null : bodyFloorY.get(String.valueOf(host));
+        Component hostMass = host == null ? null : massById.get(String.valueOf(host));
         Vec3i rp = foundation.relativePosition();
         int height = foundation.dimensions().height();
-        if (floorY != null) {
-            int needed = floorY - rp.y();
-            if (needed > height) height = needed;
+        int bottomY = rp.y();
+        int width = foundation.dimensions().width();
+        int depth = foundation.dimensions().depth();
+        int x = rp.x();
+        int z = rp.z();
+        if (hostMass != null && hostMass.dimensions() != null && hostMass.relativePosition() != null) {
+            // Align pier grid to the pavilion deck footprint so posts sit under rim vertices.
+            width = hostMass.dimensions().width();
+            depth = hostMass.dimensions().depth();
+            x = hostMass.relativePosition().x();
+            z = hostMass.relativePosition().z();
         }
-        if (height < MIN_STILT_HEIGHT) height = MIN_STILT_HEIGHT;
-        if (height == foundation.dimensions().height()) return foundation;
+        if (floorY != null) {
+            // Drop pier bottoms well below the deck so posts reach lakebed / fill under water.
+            int targetHeight = Math.max(Math.max(height, MIN_STILT_HEIGHT), WATER_STILT_REACH);
+            bottomY = floorY - targetHeight;
+            height = floorY - bottomY;
+        } else if (height < MIN_STILT_HEIGHT) {
+            height = MIN_STILT_HEIGHT;
+        }
+        Map<String, Object> params = new HashMap<>(foundation.params());
+        params.putIfAbsent("sides", 8);
+        if (hostMass != null && hostMass.params() != null) {
+            for (String key : List.of("plan_type", "planType", "corner_cut", "cornerCut", "shape", "sides")) {
+                if (hostMass.params().get(key) != null) {
+                    params.put(key, hostMass.params().get(key));
+                }
+            }
+        }
+        if (height == foundation.dimensions().height() && bottomY == rp.y()
+                && width == foundation.dimensions().width() && depth == foundation.dimensions().depth()
+                && x == rp.x() && z == rp.z() && params.equals(foundation.params())) {
+            return foundation;
+        }
         FormacraftMod.LOGGER.info(
-                "PavilionOpenFrameRepair: extend stilts host={} height {}→{}",
-                host, foundation.dimensions().height(), height);
-        return new Component(foundation.componentType(), foundation.slotId(), rp,
-                new Dimensions(foundation.dimensions().width(), foundation.dimensions().depth(), height),
-                foundation.features(), foundation.params());
+                "PavilionOpenFrameRepair: extend stilts host={} y={}→{} height {}→{}",
+                host, rp.y(), bottomY, foundation.dimensions().height(), height);
+        return new Component(foundation.componentType(), foundation.slotId(),
+                new Vec3i(x, bottomY, z),
+                new Dimensions(width, depth, height),
+                foundation.features(), params);
     }
 
     private static boolean isStilts(Map<String, Object> params) {
