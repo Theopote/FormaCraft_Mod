@@ -3,7 +3,6 @@ package com.formacraft.server.compiler;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
-import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;

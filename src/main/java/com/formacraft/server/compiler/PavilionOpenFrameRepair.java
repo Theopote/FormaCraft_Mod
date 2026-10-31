@@ -94,9 +94,17 @@ final class PavilionOpenFrameRepair {
         }
         if (octagon) {
             // Prefer cut-corner octagon footprint (shape catalog has no native octagon).
-            Object shape = params.get("shape");
-            if (shape != null && Set.of("octagon", "octagonal", "8", "八角")
-                    .contains(String.valueOf(shape).trim().toLowerCase(Locale.ROOT))) {
+            // Circle + plan_type=octagon is rejected by MassDesignValidator — always force rectangle.
+            for (String key : com.formacraft.common.generation.component.util.FootprintShapeCatalog.SHAPE_KEYS) {
+                Object cur = params.get(key);
+                if (cur == null && !"shape".equals(key)) continue;
+                String s = cur == null ? "" : String.valueOf(cur).trim().toLowerCase(Locale.ROOT);
+                if (!com.formacraft.common.generation.component.util.FootprintShapeCatalog.RECTANGLE_TOKENS.contains(s)) {
+                    params.put(key, "rectangle");
+                    changed = true;
+                }
+            }
+            if (!params.containsKey("shape")) {
                 params.put("shape", "rectangle");
                 changed = true;
             }

@@ -202,13 +202,13 @@
     },
     "PALETTE_ART_DECO_A": {
       "meta": {
-        "display_name": "Art Deco 退台塔楼",
+        "display_name": "Art Deco 退台塔�?,
         "tags": [
           "装饰艺术",
           "装饰艺术风格",
           "Art Deco",
           "artdeco",
-          "装饰艺术派",
+          "装饰艺术�?,
           "art_deco_vertical"
         ],
         "description": "Deterministic role palette for authored style fixtures."
@@ -389,7 +389,7 @@
             "weight": 40
           },
           {
-            "id": "minecraft:gravel",
+            "id": "minecraft:cobblestone",
             "weight": 30
           },
           {
@@ -409,7 +409,7 @@
         ],
         "ROAD_SURFACE": [
           {
-            "id": "minecraft:gravel",
+            "id": "minecraft:cobblestone",
             "weight": 60
           },
           {
@@ -709,7 +709,7 @@
         ],
         "ROAD_SURFACE": [
           {
-            "id": "minecraft:gravel",
+            "id": "minecraft:cobblestone",
             "weight": 60
           },
           {
@@ -1080,7 +1080,7 @@
             "weight": 25
           },
           {
-            "id": "minecraft:gray_concrete_powder",
+            "id": "minecraft:gray_concrete",
             "weight": 20
           }
         ],
@@ -2308,7 +2308,7 @@
         ],
         "ROAD_SURFACE": [
           {
-            "id": "minecraft:gravel",
+            "id": "minecraft:cobblestone",
             "weight": 60
           },
           {
@@ -2832,7 +2832,7 @@
             "weight": 50
           },
           {
-            "id": "minecraft:gravel",
+            "id": "minecraft:cobblestone",
             "weight": 30
           },
           {
@@ -3109,7 +3109,7 @@
             "weight": 35
           },
           {
-            "id": "minecraft:gravel",
+            "id": "minecraft:cobblestone",
             "weight": 20
           }
         ],
@@ -4310,7 +4310,7 @@
             "weight": 30
           },
           {
-            "id": "minecraft:gravel",
+            "id": "minecraft:cobblestone",
             "weight": 20
           }
         ],
@@ -4371,7 +4371,7 @@
         "display_name": "粗野主义混凝土馆",
         "tags": [
           "粗野主义",
-          "粗野派",
+          "粗野�?,
           "brutalist",
           "brutalism",
           "brutalist_concrete"
@@ -4766,10 +4766,10 @@
     },
     "PALETTE_MEDITERRANEAN_STUCCO_A": {
       "meta": {
-        "display_name": "地中海灰泥住宅",
+        "display_name": "地中海灰泥住�?,
         "tags": [
-          "地中海灰泥",
-          "地中海风格",
+          "地中海灰�?,
+          "地中海风�?,
           "mediterranean stucco",
           "mediterranean style",
           "mediterranean_stucco"
@@ -4965,10 +4965,10 @@
     },
     "PALETTE_PRAIRIE_HORIZONTAL_A": {
       "meta": {
-        "display_name": "草原式住宅",
+        "display_name": "草原式住�?,
         "tags": [
-          "草原式住宅",
-          "草原式",
+          "草原式住�?,
+          "草原�?,
           "草原学派住宅",
           "prairie house",
           "prairie architecture",
@@ -5263,10 +5263,10 @@
     },
     "PALETTE_NEOCLASSICAL_CIVIC_A": {
       "meta": {
-        "display_name": "新古典公共建筑",
+        "display_name": "新古典公共建�?,
         "tags": [
-          "新古典公共建筑",
-          "新古典风格",
+          "新古典公共建�?,
+          "新古典风�?,
           "neoclassical civic",
           "neoclassical architecture",
           "neoclassical_civic"
@@ -5366,7 +5366,7 @@
         "tags": [
           "现代主义",
           "现代风格",
-          "现代国际式",
+          "现代国际�?,
           "international glass",
           "international style",
           "international_glass"
@@ -5882,9 +5882,9 @@
     },
     "PALETTE_XIANXIA_ISLAND": {
       "meta": {
-        "display_name": "仙侠悬浮岛",
+        "display_name": "仙侠悬浮�?,
         "tags": [
-          "仙侠悬浮岛",
+          "仙侠悬浮�?,
           "xianxia floating island",
           "xianxia_island"
         ]
@@ -6135,9 +6135,9 @@
     },
     "PALETTE_DARK_FORTRESS": {
       "meta": {
-        "display_name": "暗黑魔物堡",
+        "display_name": "暗黑魔物�?,
         "tags": [
-          "暗黑魔物堡",
+          "暗黑魔物�?,
           "dark fantasy fortress",
           "dark_fortress"
         ]
@@ -6520,9 +6520,9 @@
     },
     "PALETTE_ROMANESQUE_HALL": {
       "meta": {
-        "display_name": "罗马风",
+        "display_name": "罗马�?,
         "tags": [
-          "罗马风",
+          "罗马�?,
           "romanesque hall",
           "romanesque_hall"
         ]

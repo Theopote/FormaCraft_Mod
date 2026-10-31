@@ -27,7 +27,7 @@ public class PathSpec {
     private Point from;
     private Point to;
     private int width = 3;  // 默认宽度 3 格
-    private String material = "minecraft:gravel";  // 默认材质
+    private String material = "minecraft:cobblestone";  // 默认材质（避免重力方块掉落）
     private String style = "default";  // 道路样式
     private java.util.Map<String, Object> extra;   // 可选：扩展参数（paletteId/styleProfileId/roadLamps 等）
 

@@ -54,7 +54,9 @@ public final class MaterialFallbackPolicy {
         if ((key.endsWith("_block") || key.endsWith("_material")
                 || Set.of("material", "block", "floor", "supportMaterial").contains(key)) && value instanceof String) {
             String text = String.valueOf(value);
-            if (ExplicitMaterialPolicy.canonical(text) != null) return value;
+            if (ExplicitMaterialPolicy.canonical(text) != null) {
+                return stabilizeMaterial(text, key);
+            }
             return material(text.isBlank() ? "unspecified" : text, key);
         }
         return value;
@@ -63,11 +65,13 @@ public final class MaterialFallbackPolicy {
     public static String material(String requested, String role) {
         if (requested == null || requested.isBlank()) return requested;
         String exact = DynamicPaletteResolver.mapMaterialToBlock(requested);
-        if (exact != null) return exact;
+        if (exact != null) return stabilizeMaterial(exact, role);
         String name = requested.toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
         String replacement;
         if (role.contains("door")) replacement = "minecraft:oak_door";
         else if (role.contains("rail") || role.contains("fence")) replacement = "minecraft:oak_fence";
+        else if (name.contains("gravel") || name.contains("沙砾") || name.contains("碎石"))
+            replacement = "minecraft:cobblestone";
         else if (name.contains("tile") || name.contains("slate") || name.contains("瓦"))
             replacement = name.contains("red") ? "minecraft:bricks" : "minecraft:deepslate_tiles";
         else if (name.contains("glass") || role.contains("glass") || role.contains("glazing")) replacement = "minecraft:glass";
@@ -82,6 +86,14 @@ public final class MaterialFallbackPolicy {
             default -> "minecraft:stone_bricks";
         };
         FormacraftMod.LOGGER.warn("Material fallback: {}={} -> {}", role, requested, replacement);
-        return replacement;
+        return stabilizeMaterial(replacement, role);
+    }
+
+    private static String stabilizeMaterial(String blockId, String role) {
+        String stable = GravityBlockPolicy.stabilize(blockId);
+        if (!stable.equals(blockId)) {
+            FormacraftMod.LOGGER.info("Gravity block remap: {}={} -> {}", role, blockId, stable);
+        }
+        return stable;
     }
 }

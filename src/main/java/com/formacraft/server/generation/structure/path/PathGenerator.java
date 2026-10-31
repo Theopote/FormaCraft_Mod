@@ -606,22 +606,23 @@ public class PathGenerator {
      */
     private BlockState getState(ServerWorld world, String id) {
         if (id == null || id.isEmpty()) {
-            return Blocks.GRAVEL.getDefaultState();
+            return Blocks.COBBLESTONE.getDefaultState();
         }
+        String stable = com.formacraft.common.palette.dynamic.GravityBlockPolicy.stabilize(id);
 
         try {
             Identifier identifier;
-            if (id.contains(":")) {
-                identifier = Identifier.of(id);
+            if (stable.contains(":")) {
+                identifier = Identifier.of(stable);
             } else {
-                identifier = Identifier.of("minecraft", id);
+                identifier = Identifier.of("minecraft", stable);
             }
 
             Block block = Registries.BLOCK.get(identifier);
             return block.getDefaultState();
 
         } catch (Exception e) {
-            return resolveBlockFallback(id);
+            return resolveBlockFallback(stable);
         }
     }
 
@@ -629,18 +630,15 @@ public class PathGenerator {
      * 回退方案：通过字符串匹配解析常用方块
      */
     private BlockState resolveBlockFallback(String material) {
-        if (material == null) return Blocks.GRAVEL.getDefaultState();
+        if (material == null) return Blocks.COBBLESTONE.getDefaultState();
         
         String lower = material.toLowerCase();
         
-        if (lower.contains("gravel")) {
-            return Blocks.GRAVEL.getDefaultState();
+        if (lower.contains("gravel") || lower.contains("cobble") || lower.contains("andesite")) {
+            return Blocks.COBBLESTONE.getDefaultState();
         }
         if (lower.contains("stone") && lower.contains("brick")) {
             return Blocks.STONE_BRICKS.getDefaultState();
-        }
-        if (lower.contains("cobble")) {
-            return Blocks.COBBLESTONE.getDefaultState();
         }
         if (lower.contains("dirt")) {
             return Blocks.DIRT.getDefaultState();
@@ -649,7 +647,7 @@ public class PathGenerator {
             return Blocks.GRASS_BLOCK.getDefaultState();
         }
         
-        return Blocks.GRAVEL.getDefaultState();
+        return Blocks.COBBLESTONE.getDefaultState();
     }
 }
 

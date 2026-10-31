@@ -1147,7 +1147,8 @@ public class CityBuilder {
         Object s = m.get("skeletons");
         if (!(s instanceof java.util.List<?> list)) return java.util.List.of();
 
-        String mat = (materialId == null || materialId.isBlank()) ? "minecraft:gravel" : materialId.trim();
+        String mat = (materialId == null || materialId.isBlank()) ? "minecraft:cobblestone" : materialId.trim();
+        mat = com.formacraft.common.palette.dynamic.GravityBlockPolicy.stabilize(mat);
         String paletteId = null;
         String styleProfileId = null;
         try {

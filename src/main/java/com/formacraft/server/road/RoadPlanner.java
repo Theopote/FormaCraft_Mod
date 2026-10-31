@@ -43,7 +43,7 @@ public final class RoadPlanner {
                     12,
                     2,
                     6,
-                    Blocks.GRAVEL.getDefaultState(),
+                    Blocks.ANDESITE.getDefaultState(),
                     Blocks.COBBLESTONE.getDefaultState(),
                     false,
                     Blocks.OAK_PLANKS.getDefaultState(),

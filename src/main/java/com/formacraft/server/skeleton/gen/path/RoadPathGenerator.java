@@ -22,7 +22,8 @@ public class RoadPathGenerator extends BasePathGenerator implements com.formacra
             return List.of();
         }
 
-        String blockId = plan.get("block", "minecraft:gravel");
+        String blockId = com.formacraft.common.palette.dynamic.GravityBlockPolicy.stabilize(
+                plan.get("block", "minecraft:cobblestone"));
         
         // 生成道路走廊
         return generateCorridor(ctx, pathSkeleton.nodes, terrainPolicy, blockId);

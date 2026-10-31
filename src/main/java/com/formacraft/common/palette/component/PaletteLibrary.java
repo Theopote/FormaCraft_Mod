@@ -47,7 +47,7 @@ public final class PaletteLibrary {
 
         // 地面
         MEDIEVAL_STONE.add(SemanticPart.FLOOR, "minecraft:coarse_dirt", 40);
-        MEDIEVAL_STONE.add(SemanticPart.FLOOR, "minecraft:gravel", 30);
+        MEDIEVAL_STONE.add(SemanticPart.FLOOR, "minecraft:andesite", 30);
         MEDIEVAL_STONE.add(SemanticPart.FLOOR, "minecraft:cobblestone", 30);
 
         // 屋顶
@@ -61,7 +61,7 @@ public final class PaletteLibrary {
         MEDIEVAL_STONE.add(SemanticPart.DECOR, "minecraft:stone_slab", 20);
 
         // 道路表面
-        MEDIEVAL_STONE.add(SemanticPart.ROAD_SURFACE, "minecraft:gravel", 50);
+        MEDIEVAL_STONE.add(SemanticPart.ROAD_SURFACE, "minecraft:andesite", 50);
         MEDIEVAL_STONE.add(SemanticPart.ROAD_SURFACE, "minecraft:cobblestone", 40);
         MEDIEVAL_STONE.add(SemanticPart.ROAD_SURFACE, "minecraft:coarse_dirt", 10);
 

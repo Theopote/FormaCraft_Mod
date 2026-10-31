@@ -117,6 +117,8 @@ public final class ComponentPlanCompiler {
         plan = CourtyardRatioRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        // Pavilion may reintroduce plan_type=octagon after the first pass — reconcile again.
+        plan = FootprintCombinationRepair.apply(plan);
         plan = CastleTowerEnrichmentRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);
         plan = FloatingTowerSnapRepair.apply(plan);

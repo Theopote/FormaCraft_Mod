@@ -178,12 +178,12 @@ class DesignFidelityTest {
     }
 
     @Test
-    void floorLayoutOverflowFailsCompile() throws Exception {
+    void floorLayoutOverflowIsSoftRepaired() throws Exception {
         LlmPlan plan = loadFidelityPlan("floor_layout_overflow.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_FLOOR_LAYOUT_OVERFLOW", AssemblyCompileDiagnostics.get().code());
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty(), "floor overflow should soft-clamp and still compile");
     }
 
     @Test
@@ -242,12 +242,15 @@ class DesignFidelityTest {
     }
 
     @Test
-    void overhangBboxConflictFailsCompile() throws Exception {
+    void overhangBboxConflictIsSoftCorrected() throws Exception {
         LlmPlan plan = loadFidelityPlan("overhang_bbox_conflict.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_ROOF_OVERHANG_CONFLICT", AssemblyCompileDiagnostics.get().code());
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty(), "overhang bbox mismatch should soft-correct instead of aborting");
+        assertTrue(AssemblyCompileDiagnostics.softWarnings().stream()
+                        .anyMatch(w -> "E_ROOF_OVERHANG_CONFLICT".equals(w.code())),
+                "expected soft E_ROOF_OVERHANG_CONFLICT warning");
     }
 
     @Test

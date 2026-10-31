@@ -353,6 +353,11 @@ final class ComponentEmitPass {
                                 List.of("Keep decoration non-destructive; bind wall openings to their host building.")));
                         return patchOccupancy;
                     }
+                    // Avoid gravity/falling blocks (gravel, sand, concrete powder) collapsing after place.
+                    for (int gi = 0; gi < shiftedPatches.size(); gi++) {
+                        shiftedPatches.set(gi, com.formacraft.common.palette.dynamic.GravityBlockPolicy
+                                .stabilize(shiftedPatches.get(gi)));
+                    }
                     // Validate all materials before any ledger / result mutation (transactional commit).
                     var explicitTargets = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.targets(c, styleAttributes);
                     for (var patch : shiftedPatches) {

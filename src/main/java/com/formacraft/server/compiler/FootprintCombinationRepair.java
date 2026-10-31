@@ -16,7 +16,8 @@ import java.util.Optional;
 
 /**
  * Soft-repair incompatible circle + non-courtyard plan_type pairs before authored validation.
- * Prefer keeping an explicit circle (drop cut/cross/L) so round houses still generate.
+ * Cut-corners / octagon: keep the plan cut and convert shape to rectangle.
+ * Cross / L: prefer keeping an explicit circle (drop plan_type) so round houses still generate.
  */
 final class FootprintCombinationRepair {
     private FootprintCombinationRepair() {}
@@ -34,34 +35,7 @@ final class FootprintCombinationRepair {
             }
             out.add(repaired);
         }
-        if (!changed) {
-            return plan;
-        }
-        return new LlmPlan(
-                plan.mode(),
-                plan.styleProfile(),
-                plan.anchor(),
-                plan.globalConstraints(),
-                plan.layout(),
-                out,
-                plan.genome(),
-                plan.styleAttributes(),
-                plan.proportionHints(),
-                plan.alignmentAndSymmetry(),
-                plan.targetSlotId(),
-                plan.allowedArea(),
-                plan.patch(),
-                plan.planProgram(),
-                plan.planSkeleton(),
-                plan.planStatus(),
-                plan.error(),
-                plan.capabilityGap(),
-                plan.playerFidelityNoticeZh(),
-                plan.distinguishingFeatures(),
-                plan.enrichmentGuard(),
-                plan.planMeta(),
-                plan.designSources()
-        );
+        return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
     }
 
     private static Component repair(Component component) {
@@ -86,15 +60,30 @@ final class FootprintCombinationRepair {
             return component;
         }
         Map<String, Object> next = new HashMap<>(params);
-        for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
-            if (next.containsKey(key)) {
-                next.put(key, "none");
+        if (pattern == ResolvedFootprint.PlanPattern.CUT_CORNERS) {
+            for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
+                if (next.containsKey(key)) {
+                    next.put(key, "rectangle");
+                }
             }
+            if (!next.containsKey("shape")) {
+                next.put("shape", "rectangle");
+            }
+            FormacraftMod.LOGGER.info(
+                    "FootprintCombinationRepair: shape=circle incompatible with plan_type={} → shape=rectangle (component={})",
+                    planRaw.get().toLowerCase(Locale.ROOT),
+                    component.componentType());
+        } else {
+            for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
+                if (next.containsKey(key)) {
+                    next.put(key, "none");
+                }
+            }
+            FormacraftMod.LOGGER.info(
+                    "FootprintCombinationRepair: shape=circle incompatible with plan_type={} → plan_type=none (component={})",
+                    planRaw.get().toLowerCase(Locale.ROOT),
+                    component.componentType());
         }
-        FormacraftMod.LOGGER.info(
-                "FootprintCombinationRepair: shape=circle incompatible with plan_type={} → plan_type=none (component={})",
-                planRaw.get().toLowerCase(Locale.ROOT),
-                component.componentType());
         return new Component(
                 component.componentType(),
                 component.slotId(),

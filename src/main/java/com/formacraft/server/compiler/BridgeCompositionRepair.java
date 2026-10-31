@@ -6,9 +6,11 @@ import com.formacraft.common.llm.dto.LlmPlan;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Compositional LLM bridges often arrive as solid MASS walls for "piers" and opaque railings.
@@ -20,17 +22,37 @@ final class BridgeCompositionRepair {
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         if (!looksBridge(plan)) return plan;
+        Set<String> hostedEndpoints = hostedPlateEndpoints(plan);
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
-            Component repaired = repair(c);
+            Component repaired = repair(c, hostedEndpoints);
             if (repaired != c) changed = true;
             out.add(repaired);
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
     }
 
-    private static Component repair(Component c) {
+    private static Set<String> hostedPlateEndpoints(LlmPlan plan) {
+        Set<String> ids = new HashSet<>();
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            Object role = c.params().get("plate_role");
+            if (role == null) role = c.params().get("plateRole");
+            boolean plate = "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))
+                    || (role != null && String.valueOf(role).toLowerCase(Locale.ROOT).contains("bridge"));
+            if (!plate) continue;
+            Object host = c.params().get("host_id");
+            if (host == null) host = c.params().get("hostId");
+            Object target = c.params().get("target_host_id");
+            if (target == null) target = c.params().get("targetHostId");
+            if (host != null) ids.add(String.valueOf(host).toLowerCase(Locale.ROOT));
+            if (target != null) ids.add(String.valueOf(target).toLowerCase(Locale.ROOT));
+        }
+        return ids;
+    }
+
+    private static Component repair(Component c, Set<String> hostedEndpoints) {
         if (c == null || c.params() == null) return c;
         String id = c.params().get("component_id") == null ? ""
                 : String.valueOf(c.params().get("component_id")).toLowerCase(Locale.ROOT);
@@ -44,7 +66,8 @@ final class BridgeCompositionRepair {
                 || id.contains("span");
         boolean rail = id.contains("rail") || id.contains("parapet") || id.contains("护栏");
 
-        if (pier && type.startsWith("MASS")) {
+        // Hosted-plate endpoints must stay solid so portal carve / walkability works.
+        if (pier && type.startsWith("MASS") && !hostedEndpoints.contains(id)) {
             params.put("open", true);
             params.put("wall_type", "none");
             params.put("wall_style", "none");

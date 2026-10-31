@@ -23,9 +23,9 @@ public final class DefaultPalettes {
         // 兜底默认调色板
         SemanticPaletteRegistry.register(new SemanticPalette("DEFAULT")
                 .put(SemanticPart.PATH_BASE, List.of(
-                        new WeightedBlock("minecraft:gravel", 40),
+                        new WeightedBlock("minecraft:cobblestone", 45),
                         new WeightedBlock("minecraft:coarse_dirt", 35),
-                        new WeightedBlock("minecraft:cobblestone", 25)
+                        new WeightedBlock("minecraft:stone", 20)
                 ))
                 .put(SemanticPart.WALL, List.of(
                         new WeightedBlock("minecraft:stone_bricks", 70),
