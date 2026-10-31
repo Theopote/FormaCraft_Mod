@@ -13,8 +13,6 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import com.formacraft.config.SettingsConfig;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -740,20 +738,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         final String finalUrl = computedUrl;
 
         CompletableFuture.supplyAsync(() -> {
-            try {
-                HttpRequest.Builder b = HttpRequest.newBuilder()
-                        .uri(URI.create(finalUrl))
-                        .timeout(Duration.ofSeconds(15))
-                        .header("Accept", "application/json")
-                        .GET();
-                if (!searchApiKey.isBlank()) {
-                    b.header("Authorization", "Bearer " + searchApiKey);
-                }
-                HttpResponse<String> resp = httpClient.send(b.build(), HttpResponse.BodyHandlers.ofString());
-                return new DetectResponse(resp.statusCode(), resp.body());
-            } catch (Exception e) {
-                return new DetectResponse(-1, e.toString());
-            }
+            var r = SettingsHttpProbe.get(httpClient, finalUrl, searchApiKey, Duration.ofSeconds(15));
+            return new DetectResponse(r.status(), r.body());
         }).thenAccept(resp -> client.execute(() -> {
             validatingSearchKey = false;
             if (testSearchKeyButton != null) {
@@ -932,26 +918,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 base, provider, llmBaseUrl, finalUrl);
 
         CompletableFuture.supplyAsync(() -> {
-            try {
-                HttpRequest.Builder b = HttpRequest.newBuilder()
-                        .uri(URI.create(finalUrl))
-                        // /models 可能触发后端去探测外网（OpenAI/DeepSeek/OpenRouter 等），4s 太容易超时
-                        .timeout(Duration.ofSeconds(12))
-                        .header("Accept", "application/json")
-                        .GET();
-
-                // OpenAI / OpenAI-compatible：/models 通常需要 Authorization
-                if (!apiKey.isBlank()) {
-                    b.header("Authorization", "Bearer " + apiKey);
-                }
-
-                HttpRequest req = b.build();
-                HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-                return new DetectResponse(resp.statusCode(), resp.body());
-            } catch (Exception e) {
-                // 保留异常信息，方便用户排查（URL 非法/连接失败/DNS 失败等）
-                return new DetectResponse(-1, e.toString());
-            }
+            var r = SettingsHttpProbe.get(httpClient, finalUrl, apiKey, Duration.ofSeconds(12));
+            return new DetectResponse(r.status(), r.body());
         }).thenAccept(resp -> client.execute(() -> {
             detectingModel = false;
             if (resp == null) {
@@ -1069,22 +1037,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         final String finalUrl = computedUrl;
 
         CompletableFuture.supplyAsync(() -> {
-            try {
-                HttpRequest.Builder b = HttpRequest.newBuilder()
-                        .uri(URI.create(finalUrl))
-                        .timeout(Duration.ofSeconds(10))
-                        .header("Accept", "application/json")
-                        .GET();
-
-                if (!apiKey.isBlank()) {
-                    b.header("Authorization", "Bearer " + apiKey);
-                }
-
-                HttpResponse<String> resp = httpClient.send(b.build(), HttpResponse.BodyHandlers.ofString());
-                return new DetectResponse(resp.statusCode(), resp.body());
-            } catch (Exception e) {
-                return new DetectResponse(-1, e.toString());
-            }
+            var r = SettingsHttpProbe.get(httpClient, finalUrl, apiKey, Duration.ofSeconds(10));
+            return new DetectResponse(r.status(), r.body());
         }).thenAccept(resp -> client.execute(() -> {
             validatingKey = false;
             if (testKeyButton != null) {

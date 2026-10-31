@@ -47,6 +47,13 @@ public final class AssemblyCompileDiagnostics {
         ));
     }
 
+    /** Restore soft warnings captured on another thread (e.g. off-thread plan compile). */
+    public static void replaceSoftWarnings(List<SoftWarning> warnings) {
+        SOFT_WARNINGS.set(warnings == null || warnings.isEmpty()
+                ? new ArrayList<>()
+                : new ArrayList<>(warnings));
+    }
+
     public static List<SoftWarning> softWarnings() {
         return List.copyOf(SOFT_WARNINGS.get());
     }

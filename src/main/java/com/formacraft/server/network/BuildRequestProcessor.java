@@ -260,14 +260,17 @@ public final class BuildRequestProcessor {
                                                         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseClarificationPayload(msg));
                                                     }
                                                     case AiPlanResult.LlmPlan(var plan) -> {
-                                                        if (LlmPlanPreviewBuilder.tryBuildPreview(player, req, plan, origin, serverWorld, hbAlive)) {
-                                                            return;
-                                                        }
-                                                        LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
-                                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                                                                "LlmPlan 预览生成失败（已跳过假 BuildingSpec 回退）。请调整请求或检查后端输出。"
-                                                        ));
-                                                        hbAlive.set(false);
+                                                        LlmPlanPreviewBuilder.scheduleBuildPreview(
+                                                                context.server(), player, req, plan, origin, serverWorld, hbAlive,
+                                                                handled -> {
+                                                                    if (handled) return;
+                                                                    LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
+                                                                    ServerPlayNetworking.send(player,
+                                                                            new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                                                                    "LlmPlan 预览生成失败（已跳过假 BuildingSpec 回退）。请调整请求或检查后端输出。"
+                                                                            ));
+                                                                    hbAlive.set(false);
+                                                                });
                                                     }
                                                     case AiPlanResult.BuildingSpec(var spec) -> {
                                                         BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);

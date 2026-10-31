@@ -26,12 +26,15 @@ import com.formacraft.server.terrain.TerrainFit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -43,7 +46,109 @@ public final class LlmPlanPreviewBuilder {
 
     private static final FcaLog LOG = FcaLog.of("LlmPlanPreviewBuilder");
 
+    /**
+     * components[] BUILD compile produced off the server thread (world=null).
+     * Consumed once by {@link #tryBuildPreview} on the main thread.
+     */
+    private static final ThreadLocal<PrecompiledComponents> PRECOMPILED = new ThreadLocal<>();
+
+    private record PrecompiledComponents(
+            ComponentPlanCompiler.Compilation compilation,
+            com.formacraft.common.llm.dto.CapabilityGap gap,
+            List<com.formacraft.server.assembly.AssemblyCompileDiagnostics.SoftWarning> softWarnings,
+            BlockPos planOrigin
+    ) {}
+
     private LlmPlanPreviewBuilder() {}
+
+    /**
+     * Prefer off-thread components[] compile (null world), then hop back for terrain / delivery.
+     * {@code done} receives {@code tryBuildPreview}'s handled flag (may run async).
+     */
+    public static void scheduleBuildPreview(
+            MinecraftServer server,
+            ServerPlayerEntity player,
+            FormaRequest req,
+            LlmPlan llmPlan,
+            BlockPos origin,
+            ServerWorld serverWorld,
+            AtomicBoolean hbAlive,
+            Consumer<Boolean> done
+    ) {
+        Consumer<Boolean> finish = done == null ? ignored -> {} : done;
+        if (llmPlan == null) {
+            finish.accept(false);
+            return;
+        }
+        if (!canOffThreadComponentCompile(llmPlan, req)) {
+            finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive));
+            return;
+        }
+
+        BlockPos planOrigin = resolveBuildPlanOrigin(req, llmPlan, origin, serverWorld);
+        PlanCompileWorkers.submit(() -> {
+            com.formacraft.server.generation.GenerationCompileContext.install(
+                    com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false));
+            try {
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+                var sampler = new com.formacraft.common.terrain.TerrainStrategySampler();
+                var compilation = ComponentPlanCompiler.compileWithCirculation(
+                        llmPlan, planOrigin, null, sampler, false);
+                var pre = new PrecompiledComponents(
+                        compilation,
+                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.get(),
+                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings(),
+                        planOrigin
+                );
+                server.execute(() -> {
+                    PRECOMPILED.set(pre);
+                    com.formacraft.server.generation.GenerationCompileContext.install(
+                            com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false));
+                    try {
+                        finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive));
+                    } finally {
+                        PRECOMPILED.remove();
+                        com.formacraft.server.generation.GenerationCompileContext.clear();
+                    }
+                });
+            } catch (Throwable t) {
+                LOG.error("off-thread LlmPlan components[] compile failed; falling back to server thread", t);
+                server.execute(() ->
+                        finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
+            } finally {
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+                com.formacraft.server.generation.GenerationCompileContext.clear();
+            }
+        });
+    }
+
+    /** BUILD + components[] only (no PlanProgram / patch / FBD program). */
+    private static boolean canOffThreadComponentCompile(LlmPlan plan, FormaRequest req) {
+        if (plan == null || plan.hasCapabilityGap()) return false;
+        if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) return false;
+        boolean patchRequest = req != null && req.getPromptMode() != null
+                && !"BUILD".equalsIgnoreCase(req.getPromptMode().trim());
+        if (patchRequest) return false;
+        if (plan.mode() == LlmPlan.Mode.patch) return false;
+        if (com.formacraft.server.dsl.FbdRepairLoop.hasProgram(plan)) return false;
+        if (plan.usesPlanProgramMode()) return false;
+        return plan.usesComponentMode();
+    }
+
+    private static BlockPos resolveBuildPlanOrigin(
+            FormaRequest req, LlmPlan llmPlan, BlockPos origin, ServerWorld serverWorld
+    ) {
+        BlockPos planOrigin = origin;
+        if (llmPlan.anchor() != null) {
+            planOrigin = new BlockPos(
+                    llmPlan.anchor().x(),
+                    llmPlan.anchor().y(),
+                    llmPlan.anchor().z()
+            );
+        }
+        return FixedBasePlacement.origin(req, planOrigin,
+                serverWorld.getBottomY(), serverWorld.getBottomY() + serverWorld.getHeight() - 1);
+    }
 
     /**
      * @param llmPlan 编排器返回的 LlmPlan（非伪装 BuildingSpec）
@@ -179,18 +284,8 @@ public final class LlmPlanPreviewBuilder {
 
             // 获取 anchor（全局或第一个 slot）
             // 注意：LLM返回的anchor通常是建筑底平面的中心点
-            BlockPos planOrigin = origin;
-            if (llmPlan.anchor() != null) {
-                planOrigin = new BlockPos(
-                        llmPlan.anchor().x(),
-                        llmPlan.anchor().y(),
-                        llmPlan.anchor().z()
-                );
-            }
-
             boolean fixedBase = FixedBasePlacement.enabled(req);
-            planOrigin = FixedBasePlacement.origin(req, planOrigin,
-                    serverWorld.getBottomY(), serverWorld.getBottomY() + serverWorld.getHeight() - 1);
+            BlockPos planOrigin = resolveBuildPlanOrigin(req, llmPlan, origin, serverWorld);
 
             // 对于使用BuildingSpec路径的情况，需要检查是否需要将锚点（中心）转换为左下角
             // 但对于LlmPlan系统，ComponentPlanCompiler和PlanProgramCompiler已经处理了相对坐标
@@ -258,12 +353,22 @@ public final class LlmPlanPreviewBuilder {
                     }
                 }
             } else {
-                com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
-                        new com.formacraft.common.terrain.TerrainStrategySampler();
-                var compilation = ComponentPlanCompiler.compileWithCirculation(
-                        llmPlan, planOrigin, serverWorld, terrainSampler, false);
-                patches = compilation.patches();
-                circulation.addAll(compilation.circulation());
+                PrecompiledComponents pre = PRECOMPILED.get();
+                if (pre != null && Objects.equals(pre.planOrigin(), planOrigin)) {
+                    if (pre.gap() != null) {
+                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(pre.gap());
+                    }
+                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.replaceSoftWarnings(pre.softWarnings());
+                    patches = pre.compilation().patches();
+                    circulation.addAll(pre.compilation().circulation());
+                } else {
+                    com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
+                            new com.formacraft.common.terrain.TerrainStrategySampler();
+                    var compilation = ComponentPlanCompiler.compileWithCirculation(
+                            llmPlan, planOrigin, serverWorld, terrainSampler, false);
+                    patches = compilation.patches();
+                    circulation.addAll(compilation.circulation());
+                }
             }
 
             // Compilation failures invalidate mixed plans as well as assembly-only plans.
