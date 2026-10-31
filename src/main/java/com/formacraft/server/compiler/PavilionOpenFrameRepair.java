@@ -95,7 +95,7 @@ final class PavilionOpenFrameRepair {
                 if (host == null) host = c.params().get("hostId");
                 if (host == null || !hostsNeedingStilts.contains(String.valueOf(host))) continue;
                 Component forced = forceOakStilts(c, String.valueOf(host), massById.get(String.valueOf(host)));
-                if (forced != c) {
+                if (!forced.equals(c)) {
                     out.set(i, forced);
                     changed = true;
                 }
@@ -385,10 +385,7 @@ final class PavilionOpenFrameRepair {
                 if (f != null && looksStiltToken(f)) return true;
             }
         }
-        if (plan.playerFidelityNoticeZh() != null && looksStiltToken(plan.playerFidelityNoticeZh())) {
-            return true;
-        }
-        return false;
+        return plan.playerFidelityNoticeZh() != null && looksStiltToken(plan.playerFidelityNoticeZh());
     }
 
     private static boolean looksPavilion(List<String> features) {

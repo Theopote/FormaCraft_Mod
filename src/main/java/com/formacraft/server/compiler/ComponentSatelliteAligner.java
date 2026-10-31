@@ -299,10 +299,12 @@ final class ComponentSatelliteAligner {
         // Fill support up to the host floor.
         int bottom = Math.min(fp.y(), massOrigin.y() - 1);
         if (Boolean.TRUE.equals(params.get("terrain_adaptive")) && !params.containsKey("foundation_margin")) {
-            return new Component(foundation.componentType(), foundation.slotId(),
-                    new Vec3i(massOrigin.x(), bottom, massOrigin.z()),
-                    new Dimensions(mass.dimensions().width(), mass.dimensions().depth(), massOrigin.y()-bottom),
-                    foundation.features(), params);
+            if (mass.dimensions() != null) {
+                return new Component(foundation.componentType(), foundation.slotId(),
+                        new Vec3i(massOrigin.x(), bottom, massOrigin.z()),
+                        new Dimensions(mass.dimensions().width(), mass.dimensions().depth(), massOrigin.y()-bottom),
+                        foundation.features(), params);
+            }
         }
         return new Component(foundation.componentType(), foundation.slotId(),
                 new Vec3i(centered ? fp.x() - dims.width()/2 : corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
