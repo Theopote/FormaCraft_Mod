@@ -78,7 +78,9 @@ final class InteriorStairInferenceCompiler {
             return List.of();
         }
         int wall = Math.max(1, ComponentParamParsers.intParam(host.params(), 1, "wall_thickness", "wallThickness"));
-        int width = 3;
+        int clearSpan = Math.min(dims.width(), dims.depth()) - 2 * wall;
+        // Narrow shafts clog with width-3 flights — default to a single-block stair.
+        int width = clearSpan <= 5 || Math.min(dims.width(), dims.depth()) <= 9 ? 1 : 3;
         ResolvedFloorLayout layout = ResolvedFloorLayout.from(host, dims.height());
         int fh = layout.bandHeight();
         List<Integer> floorYs = layout.floorYs();
@@ -93,11 +95,11 @@ final class InteriorStairInferenceCompiler {
         int laneB = span - wall - 1 - (width - 1) / 2;
         if (laneB - laneA < width || interiorRun < fh) {
             // Narrow tower: single-lane flights without switchback.
-            laneA = laneB = wall + Math.min(width, Math.max(1, span - 2 * wall)) / 2;
+            width = Math.max(1, Math.min(width, Math.max(1, span - 2 * wall)));
+            laneA = laneB = wall + width / 2;
             if (span - 2 * wall < 1 || interiorRun < fh) {
                 return List.of();
             }
-            width = Math.max(1, Math.min(width, span - 2 * wall));
         }
         int low = wall;
         int high = run - wall - 1;

@@ -872,10 +872,13 @@ final class ComponentSatelliteInference {
         }
         features.add("roof");
 
+        // Open-frame pavilions need the roof fully above post tops; enclosed masses seal at height-1.
+        boolean openFrame = com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(base.params());
+        int roofY = rp.y() + (openFrame ? Math.max(1, dims.height()) : Math.max(1, dims.height() - 1));
         return new Component(
                 "ROOF",
                 slotId,
-                new Vec3i(rp.x(), rp.y() + Math.max(1, dims.height() - 1), rp.z()),
+                new Vec3i(rp.x(), roofY, rp.z()),
                 new Dimensions(width, depth, roofHeight),
                 features,
                 params

@@ -57,7 +57,8 @@ public final class PatchOccupancyIndex {
     /** Preserve existing geometry when an optional attachment cannot join it. */
     public int trimIncompatibleAttachment(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
         // Courtyard paving frequently overlaps host floors — trim conflicts instead of aborting.
-        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "COURTYARD_SPACE", "FOUNDATION", "BALCONY", "TERRACE")
+        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "COURTYARD_SPACE",
+                "FOUNDATION", "BALCONY", "TERRACE", "STAIR_SYSTEM", "STAIRCASE", "STAIRS", "STAIR")
                 .contains(writer.componentType().toUpperCase(Locale.ROOT))) return 0;
         Map<BlockPos, PlaceRecord> simulation = new HashMap<>(places);
         Set<BlockPos> removed = new HashSet<>(removes);
@@ -345,11 +346,11 @@ public final class PatchOccupancyIndex {
                 boolean gateOnPath = "GATE".equals(type)
                         && prev.writerType() != null
                         && GATE_PATH_SURFACES.contains(prev.writerType());
-                boolean hostedSecondaryOntoMass = "MASS_SECONDARY".equals(type)
-                        && prev.writerType() != null && prev.writerType().startsWith("MASS")
-                        && isHostedMassSecondaryCarve(writer, prev);
+                // MASS_SECONDARY may REMOVE (carve) host cells via isHostedMassSecondaryCarve,
+                // but PLACE overwrite still requires a seam/plate/tier join — otherwise interior
+                // tiers and unrelated secondary masses punch through the host body.
                 if (!overwriteOk && !chimneyFooting && !gateOnPath
-                        && !hostedSecondaryOntoMass && !connectorAccess.contains(pos)
+                        && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
@@ -500,6 +501,11 @@ public final class PatchOccupancyIndex {
         if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY").contains(previous.writerType())
                 && !"plate".equals(previous.owner().params().get("extrude_mode")))
             return id.equals(prevId);
+        // Interior stairs must open through host walls without aborting the whole plan.
+        if (Set.of("WALL", "WALL_SEGMENT", "PRIMITIVE").contains(previous.writerType())
+                && (id.equals(prevId) || id.equals(prevHost))) {
+            return true;
+        }
         boolean softJoin = (Set.of("TERRACE", "BALCONY", "FOUNDATION", "DECOR_DETAIL", "ROOF").contains(previous.writerType())
                 || ("MASS_SECONDARY".equals(previous.writerType())
                     && "plate".equals(previous.owner().params().get("extrude_mode"))))

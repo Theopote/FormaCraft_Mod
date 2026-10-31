@@ -73,7 +73,19 @@ final class ComponentSatelliteAligner {
                 continue;
             }
             String type = ComponentPlanTypes.normalizeType(c.componentType());
-            if (ComponentPlanTypes.isMassType(type) || ComponentSatelliteInference.isResolvedPartRoof(c, components, plan)) {
+            // Small roof-top masses (palace gold finials) skip the satellite path unless centered here.
+            if (ComponentPlanTypes.isMassType(type) || "TOWER".equals(type)) {
+                Component ornamentHost = resolveRoofOrnamentHost(c, components, slotKey);
+                if (ornamentHost != null) {
+                    Component centered = alignHostedDetail(c, ornamentHost);
+                    if (centered != null && centered != c) {
+                        components.set(i, centered);
+                        realigned++;
+                    }
+                }
+                continue;
+            }
+            if (ComponentSatelliteInference.isResolvedPartRoof(c, components, plan)) {
                 continue;
             }
             Object hostId = c.params() == null ? null : c.params().get("host_id");
@@ -124,7 +136,7 @@ final class ComponentSatelliteAligner {
                         ? ExteriorStairEndpointRepair.preserveDoor(c) : alignEntranceToMass(c, mass, plan, facing);
                 case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
                 case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
-                case "DECOR_DETAIL", "CHIMNEY" -> alignHostedDetail(c, mass);
+                case "DECOR_DETAIL", "DECOR", "ORNAMENT", "CHIMNEY", "SIGNAGE" -> alignHostedDetail(c, mass);
                 default -> ComponentPlanTypes.isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
             if (AssemblyCompileDiagnostics.hasGap()) {
@@ -181,6 +193,8 @@ final class ComponentSatelliteAligner {
                 || idLower.contains("ornament") || idLower.contains("stupa") || idLower.contains("finial")
                 || idLower.contains("roof_decor") || idLower.contains("屋脊") || idLower.contains("脊饰")
                 || idLower.contains("金顶") || idLower.contains("cross") || idLower.contains("gilded")
+                || idLower.contains("疙瘩") || idLower.contains("宝顶") || idLower.contains("脊刹")
+                || idLower.contains("rooftop") || idLower.contains("roof_ornament")
                 || "spire".equalsIgnoreCase(ComponentPlanTypes.getParamString(detail.params(), "detail_kind"))
                 || looksRidgeFeature(detail.features());
         // Small roof-top ornaments (palace gold finials, church crosses) often lack ridge tokens —
@@ -188,7 +202,7 @@ final class ComponentSatelliteAligner {
         boolean smallRoofOrnament = !ridgeOrSpire
                 && dims.width() <= Math.max(5, body.width() / 3)
                 && dims.depth() <= Math.max(5, body.depth() / 3)
-                && detail.relativePosition().y() >= origin.y() + Math.max(1, body.height() - 2);
+                && detail.relativePosition().y() >= origin.y() + Math.max(0, body.height() - 3);
         boolean perimeter = dims.width() >= body.width() - 2 && dims.depth() >= body.depth() - 2
                 && dims.height() <= 1;
         if (!chimney && !perimeter && !ridgeOrSpire && !smallRoofOrnament) return detail;
@@ -247,7 +261,8 @@ final class ComponentSatelliteAligner {
                     || lower.contains("finial") || lower.contains("cupola") || lower.contains("尖顶")
                     || lower.contains("pagoda") || lower.contains("baota") || lower.contains("宝塔")
                     || lower.contains("ornament") || lower.contains("stupa") || lower.contains("屋脊")
-                    || lower.contains("脊饰") || lower.contains("金顶") || lower.contains("cross")) {
+                    || lower.contains("脊饰") || lower.contains("金顶") || lower.contains("cross")
+                    || lower.contains("疙瘩") || lower.contains("宝顶") || lower.contains("脊刹")) {
                 return true;
             }
         }
@@ -263,6 +278,19 @@ final class ComponentSatelliteAligner {
         if (massOrigin == null || fp == null || dims == null) return foundation;
         Map<String, Object> params = new HashMap<>();
         if (foundation.params() != null) params.putAll(foundation.params());
+        boolean stilts = Set.of("stilt", "stilts", "piles", "piling")
+                .contains(String.valueOf(params.get("foundation_type")).toLowerCase(Locale.ROOT));
+        // Stilts keep authored pier height / footprint; only snap XZ under the host deck.
+        if (stilts && mass.dimensions() != null) {
+            params.put("anchor_mode", "min_corner");
+            params.putIfAbsent("material", "minecraft:oak_log");
+            int bottom = Math.min(fp.y(), massOrigin.y() - Math.max(3, dims.height()));
+            int height = Math.max(dims.height(), massOrigin.y() - bottom);
+            return new Component(foundation.componentType(), foundation.slotId(),
+                    new Vec3i(massOrigin.x(), bottom, massOrigin.z()),
+                    new Dimensions(mass.dimensions().width(), mass.dimensions().depth(), height),
+                    foundation.features(), params);
+        }
         boolean rebased = Boolean.TRUE.equals(params.get("coordinate_frame_rebased"));
         boolean corner = ComponentFootprintUtil.isCornerAnchor(params) && !rebased;
         boolean centered = !rebased && "center".equalsIgnoreCase(
@@ -280,6 +308,36 @@ final class ComponentSatelliteAligner {
                 new Vec3i(centered ? fp.x() - dims.width()/2 : corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
                         bottom, centered ? fp.z() - dims.depth()/2 : corner ? fp.z() : massOrigin.z() - (rebased ? Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2) : 0)),
                 new Dimensions(dims.width(), dims.depth(), massOrigin.y() - bottom), foundation.features(), params);
+    }
+
+    /** Small MASS/TOWER sitting on a larger host roof plane — center like DECOR_DETAIL. */
+    private static Component resolveRoofOrnamentHost(Component ornament, List<Component> components, String slotKey) {
+        if (ornament == null || ornament.dimensions() == null || ornament.relativePosition() == null) return null;
+        Dimensions dims = ornament.dimensions();
+        if (dims.width() > 7 || dims.depth() > 7 || dims.height() > 10) return null;
+        Object hostId = ornament.params() == null ? null : ornament.params().get("host_id");
+        Component best = null;
+        double bestArea = 0;
+        for (Component candidate : components) {
+            if (candidate == null || candidate == ornament || candidate.dimensions() == null
+                    || candidate.relativePosition() == null || candidate.params() == null) continue;
+            String ctype = ComponentPlanTypes.normalizeType(candidate.componentType());
+            if (!ComponentPlanTypes.isMassType(ctype) && !ComponentPlanTypes.isRoofType(ctype)) continue;
+            if (!ComponentPlanTypes.slotKey(candidate).equals(slotKey)) continue;
+            if (hostId != null && !hostId.equals(candidate.params().get("component_id"))) continue;
+            if (candidate.dimensions().width() < dims.width() * 2
+                    || candidate.dimensions().depth() < dims.depth() * 2) continue;
+            Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(candidate);
+            if (origin == null) continue;
+            int roofY = origin.y() + Math.max(1, candidate.dimensions().height() - 2);
+            if (ornament.relativePosition().y() < roofY - 1) continue;
+            double area = (double) candidate.dimensions().width() * candidate.dimensions().depth();
+            if (area > bestArea) {
+                bestArea = area;
+                best = candidate;
+            }
+        }
+        return best;
     }
 
     static Component alignRoofToMass(Component llmRoof, Component mass, LlmPlan plan) {
@@ -361,6 +419,15 @@ final class ComponentSatelliteAligner {
                     top = Math.max(top, support.relativePosition().y() + support.dimensions().height());
             }
             roofOrigin = new Vec3i(roofOrigin.x(), top, roofOrigin.z());
+        } else if (com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(mass.params())
+                && mass.dimensions() != null) {
+            Vec3i massOrigin = ComponentPlanCompiler.resolveMassOrigin(mass);
+            if (massOrigin != null) {
+                int openTop = massOrigin.y() + mass.dimensions().height();
+                if (roofOrigin.y() < openTop) {
+                    roofOrigin = new Vec3i(roofOrigin.x(), openTop, roofOrigin.z());
+                }
+            }
         }
         return ComponentSatelliteInference.applyRoofGrammar(plan, new Component(
                 llmRoof.componentType(),

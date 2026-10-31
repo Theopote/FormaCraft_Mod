@@ -120,6 +120,7 @@ public final class ComponentPlanCompiler {
         // Pavilion may reintroduce plan_type=octagon after the first pass — reconcile again.
         plan = FootprintCombinationRepair.apply(plan);
         plan = CastleTowerEnrichmentRepair.apply(plan);
+        plan = NarrowTowerStairRepair.apply(plan);
         plan = ChurchEntranceRepair.apply(plan);
         plan = LandmarkMisrouteRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);
