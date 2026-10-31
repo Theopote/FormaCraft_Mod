@@ -36,6 +36,10 @@ def test_user_message_with_marker_not_truncated():
     assert "truncated" not in user
     assert marker_text in user
     assert "Formacraft Core" in system
+    assert "ASSEMBLY COMPONENT LIBRARY" in system
+    assert "LlmPlan JSON shape" in system
+    assert "ASSEMBLY COMPONENT LIBRARY" in system
+    assert "LlmPlan JSON shape" in system
 
 
 def test_client_system_and_user_prompt_ignored():
@@ -85,3 +89,21 @@ def test_format_spatial_constraints_empty_without_extras():
     text = format_spatial_constraints(_req())
     assert "Anchor/player pos" in text
     assert "Facing: NORTH" in text
+
+
+def test_polygon_outline_includes_bbox_and_full_vertex_count():
+    verts = [Vec3i(x=i, y=64, z=i * 2) for i in range(12)]
+    text = format_spatial_constraints(
+        _req(
+            outline=OutlineShape(
+                shapeType="polygon",
+                vertices=verts,
+                minY=60,
+                maxY=80,
+            )
+        )
+    )
+    assert "vertices=12" in text
+    assert "bboxXZ=" in text
+    assert "(11,64,22)" in text  # last vertex within raised 32-cap
+    assert "omitted" not in text

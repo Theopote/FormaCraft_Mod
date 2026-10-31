@@ -925,7 +925,7 @@ public class ChatPanel extends BasePanel {
 
         // C2S sends raw user text + structured constraints. System prompt is assembled
         // by the Python orchestrator (avoids client injection and "USER REQUEST:" truncation).
-        // PromptAssembler remains available for offline/debug tooling only.
+        // PromptAssembler is @Deprecated — offline/debug/tests only; do not wire into C2S.
         if (text.isEmpty()) return;
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）

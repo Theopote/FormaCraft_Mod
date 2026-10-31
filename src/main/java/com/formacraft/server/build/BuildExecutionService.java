@@ -469,6 +469,12 @@ public class BuildExecutionService {
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));
         // Low-frequency reclaim of expired preview tickets / bound plans while idle.
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
-                server -> com.formacraft.server.preview.PreviewTicketStorage.onServerTick());
+                server -> {
+                    com.formacraft.server.preview.PreviewTicketStorage.onServerTick();
+                    // Expire abandoned build-request leases (missed finish / stuck async).
+                    if ((server.getTicks() % 200) == 0) {
+                        com.formacraft.server.network.BuildRequestGate.sweepStale(System.currentTimeMillis());
+                    }
+                });
     }
 }

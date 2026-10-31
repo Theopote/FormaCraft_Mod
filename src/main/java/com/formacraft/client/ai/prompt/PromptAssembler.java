@@ -3,8 +3,15 @@ package com.formacraft.client.ai.prompt;
 import com.formacraft.client.ai.context.SelectionContext;
 
 /**
- * Prompt 拼接器：把用户自然语言增强为“可控、可解析”的结构化 Prompt。
+ * Offline/debug Prompt 拼接器（<b>生产路径已弃用</b>）。
+ * <p>
+ * Chat build 的 system prompt 由 Python {@code llm_plan_system_prompt} 拥有；
+ * 客户端只发 {@code userMessage} + 结构化约束。勿在 C2S 请求中再注入本类输出。
+ * 保留供单元测试与本地调试；新能力请加到后端 prompt_assembly / llm_plan_system_prompt。
+ *
+ * @deprecated Production builds must not call this; use backend-owned prompts.
  */
+@Deprecated
 public final class PromptAssembler {
 
     private static final boolean ASSEMBLY_HARD_MANDATE =

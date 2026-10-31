@@ -106,7 +106,7 @@ class BuildTaskTest {
         assertEquals(4, task.tick(10));
         assertFalse(task.isFinished());
         assertEquals(1, task.tick(10));
-        assertTrue(task.isFinished());
+        drainUntilFinished(task);
         var result = task.result();
         assertEquals(0, result.placed());
         assertEquals(1, result.failedWrites());
@@ -132,7 +132,7 @@ class BuildTaskTest {
                 List.of(new PlannedBlock(pos, stone)));
         var task = new BuildTask(structure, null, access);
         assertEquals(1, task.tick(5));
-        assertTrue(task.isFinished());
+        drainUntilFinished(task);
         assertEquals(1, task.result().failedWrites());
         assertEquals(BuildTask.Status.ROLLED_BACK, task.status());
         assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLED_BACK, task.mutationStatus());
@@ -155,7 +155,7 @@ class BuildTaskTest {
         assertEquals(stone, access.states.get(kept));
         access.rejectRestore.add(kept);
         assertEquals(1, task.tick(10));
-        assertTrue(task.isFinished());
+        drainUntilFinished(task);
         assertEquals(BuildTask.Status.PARTIAL, task.status());
         assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLBACK_INCOMPLETE, task.mutationStatus());
         assertEquals(1, task.getAppliedChanges().size());
@@ -214,7 +214,7 @@ class BuildTaskTest {
                 List.of(new PlannedBlock(boom, stone), new PlannedBlock(ok, stone)));
         var task = new BuildTask(structure, null, access);
         assertEquals(2, task.tick(10));
-        assertTrue(task.isFinished());
+        drainUntilFinished(task);
         assertEquals(1, task.result().failedWrites());
         assertEquals(0, task.result().placed());
         assertEquals(BuildTask.Status.ROLLED_BACK, task.status());
@@ -223,7 +223,7 @@ class BuildTaskTest {
     }
 
     @Test
-    void cancelRollsBackAppliedChanges() {
+    void cancelRollsBackAppliedChangesAcrossTicks() {
         var access = new FakeBlockMutationAccess();
         var stone = Blocks.STONE.getDefaultState();
         var first = new BlockPos(0, 1, 0);
@@ -233,16 +233,27 @@ class BuildTaskTest {
                 new PlannedBlock(new BlockPos(2, 1, 0), stone));
         var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "cancel", blocks);
         var task = new BuildTask(structure, null, access);
-        assertEquals(1, task.tick(1));
+        assertEquals(2, task.tick(2));
         assertEquals(stone, access.states.get(first));
         task.cancel();
-        assertTrue(task.isFinished());
+        assertEquals(BuildTask.Status.ROLLING_BACK, task.status());
+        assertFalse(task.isFinished());
+        assertEquals(1, task.tick(1)); // one restore per tick
+        assertFalse(task.isFinished());
+        drainUntilFinished(task);
         assertEquals(BuildTask.Status.CANCELLED, task.status());
         assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLED_BACK, task.mutationStatus());
         assertTrue(task.getAppliedChanges().isEmpty());
         assertEquals(Blocks.AIR.getDefaultState(), access.states.getOrDefault(first, Blocks.AIR.getDefaultState()));
         assertEquals(0, task.tick(10));
         assertFalse(task.mutationOutcome().recordsHistory());
+    }
+
+    private static void drainUntilFinished(BuildTask task) {
+        for (int i = 0; i < 64 && !task.isFinished(); i++) {
+            task.tick(16);
+        }
+        assertTrue(task.isFinished(), "task should finish within drain budget, status=" + task.status());
     }
 
     @Test

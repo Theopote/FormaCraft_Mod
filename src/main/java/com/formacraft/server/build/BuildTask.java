@@ -26,6 +26,8 @@ public class BuildTask {
     public enum Status {
         RUNNING,
         WAITING_CHUNKS,
+        /** 正在分 Tick 回滚已落地方块（未完成，不算终态） */
+        ROLLING_BACK,
         /** 全部按预期完成（无永久失败） */
         COMPLETED,
         /** 有落地且回滚不完整（残留世界改动） */
@@ -71,6 +73,14 @@ public class BuildTask {
     private int recoveredFull = 0;
     private int recoveredStateOnly = 0;
     private int recoveryFailed = 0;
+    /** When set, {@link #tick} drains rollback instead of forward placement. */
+    private boolean rollbackActive = false;
+    /** Index into {@link #appliedChanges} for reverse-order rollback (inclusive). */
+    private int rollbackIndex = -1;
+    /** Cells that failed to restore; kept as residual undo after rollback finishes. */
+    private final List<BlockChange> rollbackResiduals = new ArrayList<>();
+    /** True if rollback was started by {@link #cancel()} (terminal becomes CANCELLED). */
+    private boolean rollbackFromCancel = false;
 
     private record DeferredBlock(PlannedBlock planned, int attempts, long firstDeferredMs, long nextRetryTick) {}
 
@@ -136,18 +146,20 @@ public class BuildTask {
         return appliedChanges;
     }
 
-    /** 取消任务：停止主队列与延迟队列；已写入方块尝试全批回滚（与 Patch 事务语义对齐）。 */
+    /** 取消任务：停止主队列与延迟队列；已写入方块分 Tick 全批回滚（与 Patch 事务语义对齐）。 */
     public void cancel() {
         if (isFinished()) return;
+        if (rollbackActive) {
+            rollbackFromCancel = true;
+            return;
+        }
         deferredByChunk.clear();
         index = structure.getBlocks().size();
         if (!appliedChanges.isEmpty()) {
-            BuildExecutionStatus recovered = rollbackAppliedChanges();
-            mutationStatus = recovered;
-            status = Status.CANCELLED;
+            beginRollback(true);
             com.formacraft.FormacraftMod.LOGGER.info(
-                    "BuildTask: cancelled with rollback={} remainingChanges={}. {}",
-                    recovered, appliedChanges.size(), result().summaryZh());
+                    "BuildTask: cancel → rolling back {} cells. {}",
+                    appliedChanges.size(), result().summaryZh());
         } else {
             mutationStatus = BuildExecutionStatus.PREFLIGHT_REJECTED;
             status = Status.CANCELLED;
@@ -172,11 +184,14 @@ public class BuildTask {
     }
 
     /**
-     * 执行最多 maxPerTick 个方块修改（含主队列与待重试）。
+     * 执行最多 maxPerTick 个方块修改（含主队列与待重试）；回滚中则只做恢复写入。
      */
     public int tick(int maxPerTick) {
         if (isFinished() || maxPerTick <= 0) return 0;
         tickCounter++;
+        if (rollbackActive) {
+            return tickRollback(maxPerTick);
+        }
 
         int count = 0;
         count += drainDeferred(maxPerTick);
@@ -360,7 +375,11 @@ public class BuildTask {
     }
 
     private void updateStatusAfterTick() {
-        if (status == Status.CANCELLED || status == Status.ROLLED_BACK) return;
+        if (status == Status.CANCELLED || status == Status.ROLLED_BACK
+                || status == Status.ROLLING_BACK || status == Status.PARTIAL
+                || status == Status.FAILED || status == Status.COMPLETED) {
+            return;
+        }
         boolean mainDone = index >= structure.getBlocks().size();
         if (!mainDone) {
             status = Status.RUNNING;
@@ -373,15 +392,11 @@ public class BuildTask {
         boolean permanentFail = failedUnloaded + failedWrites + skippedIllegal + skippedOutOfBounds > 0;
         if (permanentFail) {
             if (!appliedChanges.isEmpty()) {
-                BuildExecutionStatus recovered = rollbackAppliedChanges();
-                mutationStatus = recovered;
-                status = recovered == BuildExecutionStatus.ROLLED_BACK
-                        ? Status.ROLLED_BACK
-                        : Status.PARTIAL;
-            } else {
-                mutationStatus = BuildExecutionStatus.APPLY_FAILED;
-                status = Status.FAILED;
+                beginRollback(false);
+                return;
             }
+            mutationStatus = BuildExecutionStatus.APPLY_FAILED;
+            status = Status.FAILED;
         } else {
             mutationStatus = BuildExecutionStatus.SUCCESS;
             status = Status.COMPLETED;
@@ -390,45 +405,95 @@ public class BuildTask {
                 status, mutationStatus, result().summaryZh());
     }
 
-    /**
-     * Restore pre-build snapshots for every recorded change (reverse order).
-     * Mirrors {@link com.formacraft.common.patch.WorldPatchTransaction} recovery.
-     */
-    BuildExecutionStatus rollbackAppliedChanges() {
+    private void beginRollback(boolean fromCancel) {
+        rollbackFromCancel = fromCancel;
+        rollbackActive = true;
+        rollbackResiduals.clear();
         recoveredFull = 0;
         recoveredStateOnly = 0;
         recoveryFailed = 0;
+        rollbackIndex = appliedChanges.size() - 1;
+        status = Status.ROLLING_BACK;
+        mutationStatus = null;
+    }
+
+    private int tickRollback(int maxPerTick) {
+        int n = 0;
+        while (n < maxPerTick && rollbackIndex >= 0) {
+            BlockChange change = appliedChanges.get(rollbackIndex);
+            rollbackIndex--;
+            n++;
+            restoreOne(change);
+        }
+        if (rollbackIndex >= 0) {
+            return n;
+        }
+        finishRollback();
+        return n;
+    }
+
+    private void restoreOne(BlockChange change) {
+        if (change == null || change.getPos() == null || change.getFrom() == null) {
+            recoveryFailed++;
+            return;
+        }
+        try {
+            if (access.getSnapshot(change.getPos()).equals(change.getFrom())) {
+                recoveredFull++;
+                return;
+            }
+            SnapshotWriteResult wr = access.writeSnapshot(change.getPos(), change.getFrom());
+            switch (wr) {
+                case FULL -> recoveredFull++;
+                case STATE_ONLY -> {
+                    recoveredStateOnly++;
+                    rollbackResiduals.add(change);
+                }
+                case REJECTED, ERROR -> {
+                    recoveryFailed++;
+                    rollbackResiduals.add(change);
+                }
+            }
+        } catch (RuntimeException e) {
+            recoveryFailed++;
+            rollbackResiduals.add(change);
+            com.formacraft.FormacraftMod.LOGGER.warn(
+                    "BuildTask rollback failed at {}", change.getPos(), e);
+        }
+    }
+
+    private void finishRollback() {
+        appliedChanges.clear();
+        appliedChanges.addAll(rollbackResiduals);
+        rollbackResiduals.clear();
+        rollbackActive = false;
+        boolean clean = recoveredStateOnly == 0 && recoveryFailed == 0;
+        mutationStatus = clean
+                ? BuildExecutionStatus.ROLLED_BACK
+                : BuildExecutionStatus.ROLLBACK_INCOMPLETE;
+        if (rollbackFromCancel) {
+            status = Status.CANCELLED;
+        } else {
+            status = clean ? Status.ROLLED_BACK : Status.PARTIAL;
+        }
+        com.formacraft.FormacraftMod.LOGGER.info(
+                "BuildTask: rollback done ({} mutation={}) remaining={}. {}",
+                status, mutationStatus, appliedChanges.size(), result().summaryZh());
+    }
+
+    /**
+     * Restore all applied changes in one call (tests / sync callers).
+     * Production cancel/fail paths use {@link #tickRollback} via {@link #tick}.
+     */
+    BuildExecutionStatus rollbackAppliedChanges() {
         if (appliedChanges.isEmpty()) {
             return BuildExecutionStatus.ROLLED_BACK;
         }
-        for (int i = appliedChanges.size() - 1; i >= 0; i--) {
-            BlockChange change = appliedChanges.get(i);
-            if (change == null || change.getPos() == null || change.getFrom() == null) {
-                recoveryFailed++;
-                continue;
-            }
-            try {
-                if (access.getSnapshot(change.getPos()).equals(change.getFrom())) {
-                    recoveredFull++;
-                    continue;
-                }
-                SnapshotWriteResult wr = access.writeSnapshot(change.getPos(), change.getFrom());
-                switch (wr) {
-                    case FULL -> recoveredFull++;
-                    case STATE_ONLY -> recoveredStateOnly++;
-                    case REJECTED, ERROR -> recoveryFailed++;
-                }
-            } catch (RuntimeException e) {
-                recoveryFailed++;
-                com.formacraft.FormacraftMod.LOGGER.warn(
-                        "BuildTask rollback failed at {}", change.getPos(), e);
-            }
+        beginRollback(false);
+        while (rollbackActive) {
+            tickRollback(Math.max(1, appliedChanges.size()));
         }
-        if (recoveredStateOnly == 0 && recoveryFailed == 0) {
-            appliedChanges.clear();
-            return BuildExecutionStatus.ROLLED_BACK;
-        }
-        return BuildExecutionStatus.ROLLBACK_INCOMPLETE;
+        return mutationStatus != null ? mutationStatus : BuildExecutionStatus.ROLLED_BACK;
     }
 
     private static long chunkKey(BlockPos pos) {
@@ -505,6 +570,7 @@ public class BuildTask {
                 case FAILED -> "建造失败：计划 ";
                 case CANCELLED -> "建造已取消：计划 ";
                 case ROLLED_BACK -> "建造失败已回滚：计划 ";
+                case ROLLING_BACK -> "建造回滚中：计划 ";
                 default -> isCompletePlacement() ? "建造完成：计划 " : "建造结束（部分未放置）：计划 ";
             };
             sb.append(head).append(totalPlanned).append(" 个方块");

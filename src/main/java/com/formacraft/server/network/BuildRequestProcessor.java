@@ -47,12 +47,13 @@ public final class BuildRequestProcessor {
                         return;
                     }
 
-                    BuildRequestGate.Rejection gateReject = BuildRequestGate.tryAdmit(player, context.server());
-                    if (gateReject != null) {
+                    BuildRequestGate.AdmitResult admit = BuildRequestGate.tryAdmit(player, context.server());
+                    if (admit.rejected()) {
                         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                                gateReject.message().getString()));
+                                admit.rejection().message().getString()));
                         return;
                     }
+                    final BuildRequestGate.Ticket gateTicket = admit.ticket();
                     final boolean[] asyncStarted = {false};
 
                     // 使 AI 构件检索可见当前玩家私人库（ThreadLocal；异步回调线程需自行再设）
@@ -130,7 +131,7 @@ public final class BuildRequestProcessor {
                             asyncStarted[0] = true;
                             orchestrator.editBuilding(buildingId, currentJson, req.getRequestText())
                                     .orTimeout(605, TimeUnit.SECONDS)
-                                    .whenComplete((r, e) -> BuildRequestGate.release(player))
+                                    .whenComplete((r, e) -> BuildRequestGate.release(gateTicket))
                                     .exceptionally(ex -> {
                                         hbAlive.set(false);
                                         FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
@@ -226,7 +227,7 @@ public final class BuildRequestProcessor {
                                     String msg = OrchestratorErrorHumanizer.humanize("AiPlan", req, ex);
                                     context.server().execute(() ->
                                             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg)));
-                                    BuildRequestGate.release(player);
+                                    BuildRequestGate.release(gateTicket);
                                     return null;
                                 })
                                 .thenAccept(aiResult -> {
@@ -255,7 +256,8 @@ public final class BuildRequestProcessor {
                                                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseClarificationPayload(msg));
                                                 }
                                                 case AiPlanResult.LlmPlan(var plan) -> {
-                                                    // Quota covers compile/preview; release only when schedule finishes.
+                                                    // Quota covers compile/preview; release only when schedule finishes
+                                                    // (scheduleBuildPreview always invokes this callback, even on throw).
                                                     releaseAfterPreview = false;
                                                     LlmPlanPreviewBuilder.scheduleBuildPreview(
                                                             context.server(), player, req, plan, origin, serverWorld, hbAlive,
@@ -269,7 +271,7 @@ public final class BuildRequestProcessor {
                                                                             ));
                                                                     hbAlive.set(false);
                                                                 } finally {
-                                                                    BuildRequestGate.release(player);
+                                                                    BuildRequestGate.release(gateTicket);
                                                                 }
                                                             });
                                                 }
@@ -289,7 +291,7 @@ public final class BuildRequestProcessor {
                                                     "生成预览时发生内部错误，请重试。"));
                                         } finally {
                                             if (releaseAfterPreview) {
-                                                BuildRequestGate.release(player);
+                                                BuildRequestGate.release(gateTicket);
                                             }
                                         }
                                     });
@@ -298,7 +300,7 @@ public final class BuildRequestProcessor {
                     } finally {
                         com.formacraft.common.component.query.ComponentRetriever.clearViewerPlayer();
                         if (!asyncStarted[0]) {
-                            BuildRequestGate.release(player);
+                            BuildRequestGate.release(gateTicket);
                         }
                     }
                 }));

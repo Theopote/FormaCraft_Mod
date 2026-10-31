@@ -65,10 +65,21 @@ def format_spatial_constraints(req: BuildRequest | None) -> str:
             else:
                 vs = getattr(outline, "vertices", None) or []
                 if vs:
-                    head = "; ".join([f"({p.x},{p.y},{p.z})" for p in vs[:8]])
-                    more = "" if len(vs) <= 8 else f" ... (+{len(vs) - 8} more)"
+                    # Prefer AABB + full vertex count so truncated vertex lists are not
+                    # mistaken for the complete HARD outline (review: 12-gon → 8 verts).
+                    xs = [getattr(p, "x", 0) for p in vs]
+                    zs = [getattr(p, "z", 0) for p in vs]
+                    bbox = (
+                        f"bboxXZ=[({min(xs)},{min(zs)})-({max(xs)},{max(zs)})]"
+                        if xs and zs
+                        else "bboxXZ=?"
+                    )
+                    max_verts = 32
+                    shown = vs if len(vs) <= max_verts else vs[:max_verts]
+                    head = "; ".join([f"({p.x},{p.y},{p.z})" for p in shown])
+                    more = "" if len(vs) <= max_verts else f" ... (+{len(vs) - max_verts} more omitted)"
                     parts.append(
-                        f"Outline (HARD): polygon vertices={len(vs)} {head}{more}, "
+                        f"Outline (HARD): polygon vertices={len(vs)} {bbox} {head}{more}, "
                         f"yRange=[{getattr(outline, 'minY', '?')},{getattr(outline, 'maxY', '?')}]"
                     )
                 else:
@@ -81,23 +92,26 @@ def format_spatial_constraints(req: BuildRequest | None) -> str:
 
     zones = getattr(req, "protectedZones", None) or []
     if zones:
-        parts.append("ProtectedZones (HARD): do NOT place blocks inside these AABBs:")
-        for z in zones[:12]:
+        max_zones = 24
+        parts.append(
+            f"ProtectedZones (HARD, total={len(zones)}): do NOT place blocks inside these AABBs:"
+        )
+        for z in zones[:max_zones]:
             parts.append(
                 f"  - min=({z.min.x},{z.min.y},{z.min.z}) max=({z.max.x},{z.max.y},{z.max.z})"
             )
-        if len(zones) > 12:
-            parts.append(f"  - ... (+{len(zones) - 12} more)")
+        if len(zones) > max_zones:
+            parts.append(f"  - ... (+{len(zones) - max_zones} more omitted)")
 
     path = getattr(req, "path", None)
     if path is not None:
         nodes = getattr(path, "nodes", None) or []
         radius = getattr(path, "radius", None)
         if nodes:
-            head = "; ".join(
-                [f"({n.x},{n.y},{n.z})" for n in nodes[:8] if n is not None]
-            )
-            more = "" if len(nodes) <= 8 else f" ... (+{len(nodes) - 8} more)"
+            max_nodes = 32
+            shown = [n for n in nodes[:max_nodes] if n is not None]
+            head = "; ".join([f"({n.x},{n.y},{n.z})" for n in shown])
+            more = "" if len(nodes) <= max_nodes else f" ... (+{len(nodes) - max_nodes} more omitted)"
             parts.append(
                 f"Path corridor (HARD): radius={radius if radius is not None else '?'}, "
                 f"nodes={len(nodes)} {head}{more}"

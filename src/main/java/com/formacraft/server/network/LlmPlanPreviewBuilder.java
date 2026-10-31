@@ -77,55 +77,90 @@ public final class LlmPlanPreviewBuilder {
             AtomicBoolean hbAlive,
             Consumer<Boolean> done
     ) {
-        Consumer<Boolean> finish = done == null ? ignored -> {} : done;
-        if (llmPlan == null) {
-            finish.accept(false);
-            return;
-        }
-        if (!canOffThreadComponentCompile(llmPlan, req)) {
-            finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive));
-            return;
-        }
-
-        BlockPos planOrigin = resolveBuildPlanOrigin(req, llmPlan, origin, serverWorld);
-        var compileCtx = com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false);
-        PlanCompileWorkers.submit(() -> {
-            try {
-                CompiledBuildArtifact artifact = com.formacraft.server.generation.GenerationCompileContext.runWith(
-                        compileCtx, () -> {
-                            com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
-                            var sampler = new com.formacraft.common.terrain.TerrainStrategySampler();
-                            var compilation = ComponentPlanCompiler.compileWithCirculation(
-                                    llmPlan, planOrigin, null, sampler, false);
-                            var gap = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
-                            var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
-                            boolean unusable = gap != null
-                                    || compilation == null
-                                    || compilation.patches() == null
-                                    || compilation.patches().isEmpty();
-                            if (unusable) {
-                                return null;
-                            }
-                            return new CompiledBuildArtifact(compilation, null, softs, planOrigin);
-                        });
-                if (artifact == null) {
-                    LOG.warn("off-thread components[] compile unusable; falling back to server thread with world");
-                    server.execute(() ->
-                            finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
-                    return;
-                }
-                server.execute(() -> com.formacraft.server.generation.GenerationCompileContext.runWith(
-                        compileCtx,
-                        () -> finish.accept(tryBuildPreview(
-                                player, req, llmPlan, origin, serverWorld, hbAlive, true, artifact))));
-            } catch (Throwable t) {
-                LOG.error("off-thread LlmPlan components[] compile failed; falling back to server thread", t);
-                server.execute(() ->
-                        finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
-            } finally {
-                com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        // Always invoke done exactly once so BuildRequestGate tickets cannot leak on exceptions.
+        Consumer<Boolean> finish = onceFinish(done);
+        try {
+            if (llmPlan == null) {
+                finish.accept(false);
+                return;
             }
-        });
+            if (!canOffThreadComponentCompile(llmPlan, req)) {
+                deliverPreview(finish, () -> tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive));
+                return;
+            }
+
+            BlockPos planOrigin = resolveBuildPlanOrigin(req, llmPlan, origin, serverWorld);
+            var compileCtx = com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false);
+            PlanCompileWorkers.submit(() -> {
+                try {
+                    CompiledBuildArtifact artifact = com.formacraft.server.generation.GenerationCompileContext.runWith(
+                            compileCtx, () -> {
+                                com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+                                var sampler = new com.formacraft.common.terrain.TerrainStrategySampler();
+                                var compilation = ComponentPlanCompiler.compileWithCirculation(
+                                        llmPlan, planOrigin, null, sampler, false);
+                                var gap = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
+                                var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
+                                boolean unusable = gap != null
+                                        || compilation == null
+                                        || compilation.patches() == null
+                                        || compilation.patches().isEmpty();
+                                if (unusable) {
+                                    return null;
+                                }
+                                return new CompiledBuildArtifact(compilation, null, softs, planOrigin);
+                            });
+                    if (artifact == null) {
+                        LOG.warn("off-thread components[] compile unusable; falling back to server thread with world");
+                        server.execute(() -> deliverPreview(finish,
+                                () -> tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
+                        return;
+                    }
+                    server.execute(() -> com.formacraft.server.generation.GenerationCompileContext.runWith(
+                            compileCtx,
+                            () -> deliverPreview(finish, () -> tryBuildPreview(
+                                    player, req, llmPlan, origin, serverWorld, hbAlive, true, artifact))));
+                } catch (Throwable t) {
+                    LOG.error("off-thread LlmPlan components[] compile failed; falling back to server thread", t);
+                    server.execute(() -> deliverPreview(finish,
+                            () -> tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
+                } finally {
+                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+                }
+            });
+        } catch (Throwable t) {
+            LOG.error("scheduleBuildPreview failed before async compile", t);
+            finish.accept(true);
+        }
+    }
+
+    /** Ensure {@code done} runs at most once even if both success and error paths race. */
+    private static Consumer<Boolean> onceFinish(Consumer<Boolean> done) {
+        Consumer<Boolean> raw = done == null ? ignored -> {} : done;
+        java.util.concurrent.atomic.AtomicBoolean called = new java.util.concurrent.atomic.AtomicBoolean(false);
+        return handled -> {
+            if (!called.compareAndSet(false, true)) {
+                return;
+            }
+            try {
+                raw.accept(handled);
+            } catch (Throwable t) {
+                LOG.error("scheduleBuildPreview finish callback failed", t);
+            }
+        };
+    }
+
+    /** Run preview work; always notify finish (even when work throws). */
+    private static void deliverPreview(Consumer<Boolean> finish, java.util.function.BooleanSupplier work) {
+        boolean handled = false;
+        try {
+            handled = work.getAsBoolean();
+        } catch (Throwable t) {
+            LOG.error("tryBuildPreview failed", t);
+            handled = true;
+        } finally {
+            finish.accept(handled);
+        }
     }
 
     /**

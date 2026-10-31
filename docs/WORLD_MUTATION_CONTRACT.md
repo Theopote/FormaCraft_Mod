@@ -39,7 +39,7 @@
 - **恢复分级**：`FULL` / `STATE_ONLY` / 失败计数；STATE_ONLY → `ROLLBACK_INCOMPLETE`。
 - **WriteScope**：`PostProcessWriteScope`（volume ∪ surface ∪ seed；carve 排除 clearance）；越权 `out_of_scope_*`。
 - **净空**：`ProtectedClearanceRestorer` 产出可审计 `ProcessorDelta`。
-- **BuildTask 全批回滚（Phase 1）**：永久失败 / 取消时对 `appliedChanges` 逆序恢复；`BuildExecutionStatus` 经 `mutationStatus()` / `WorldMutationOutcome` 暴露；仅 `SUCCESS` 入 Undo/Memory，`ROLLBACK_INCOMPLETE` 残留可 Undo。见 [Golden Path 审计](phase1/GOLDEN_PATH_AUDIT.md)。
+- **BuildTask 全批回滚（产品决策）**：永久失败 / 取消时**不保留**已落地部分——与 `WorldPatchTransaction` 对齐，整批逆序恢复；`BuildExecutionStatus` 经 `mutationStatus()` / `WorldMutationOutcome` 暴露；仅 `SUCCESS` 入 Undo/Memory，`ROLLBACK_INCOMPLETE` 残留可 Undo。回滚按 Tick 分片执行（避免大建筑一次性 tick 尖峰）。见 [Golden Path 审计](phase1/GOLDEN_PATH_AUDIT.md)。
 
 ### 第四十六批（2026-10-15）— 后处理 WritePolicy 与分处理器增量
 
