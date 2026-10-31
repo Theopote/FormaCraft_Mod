@@ -19,6 +19,9 @@ public final class SettingsHttpProbe {
     public static Response get(
             HttpClient client, String url, String bearerToken, Duration timeout, String orchestratorSecret
     ) {
+        if (!com.formacraft.common.network.OrchestratorEndpointAccess.clientMayCallDirectly(url)) {
+            return new Response(401, com.formacraft.common.network.OrchestratorEndpointAccess.REMOTE_SECRET_HINT_ZH);
+        }
         try {
             HttpRequest.Builder b = HttpRequest.newBuilder()
                     .uri(URI.create(url))

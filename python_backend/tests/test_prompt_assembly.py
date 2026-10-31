@@ -91,6 +91,23 @@ def test_format_spatial_constraints_empty_without_extras():
     assert "Facing: NORTH" in text
 
 
+def test_library_and_memory_summaries_appended():
+    system, user = resolve_llm_plan_prompts(
+        _req(
+            userMessage="reuse my door component",
+            componentCatalogSummary="Player component library:\n- DOOR: oak_door (id=oak_door)",
+            componentGroupSummary="group: porch_kit components=3",
+            nearbyMemorySummary="Nearby building memory:\n- name=Cabin uuid=abc",
+        ),
+        default_system="SYS",
+    )
+    assert system == "SYS"
+    assert "LIBRARY / MEMORY CONTEXT" in user
+    assert "oak_door" in user
+    assert "porch_kit" in user
+    assert "Cabin" in user
+
+
 def test_polygon_outline_includes_bbox_and_full_vertex_count():
     verts = [Vec3i(x=i, y=64, z=i * 2) for i in range(12)]
     text = format_spatial_constraints(

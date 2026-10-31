@@ -47,6 +47,15 @@ public class FormaRequest {
     private Integer pathRadius;
     /** Explicit work-plane base for a new build; absent for terrain-following and edits. */
     private Integer fixedBaseY;
+    /**
+     * Compact player component library summary (server-filled). Injected into backend
+     * LlmPlan user prompt; clients may leave null.
+     */
+    private String componentCatalogSummary;
+    /** Compact registered component-group list (server-filled). */
+    private String componentGroupSummary;
+    /** Nearest remembered building summary near the player (server-filled). */
+    private String nearbyMemorySummary;
 
     public Integer getFixedBaseY() { return fixedBaseY; }
     public void setFixedBaseY(Integer fixedBaseY) { this.fixedBaseY = fixedBaseY; }
@@ -322,6 +331,30 @@ public class FormaRequest {
 
     public void setReferences(java.util.List<ReferenceInput> references) {
         this.references = references != null ? references : java.util.Collections.emptyList();
+    }
+
+    public String getComponentCatalogSummary() {
+        return componentCatalogSummary;
+    }
+
+    public void setComponentCatalogSummary(String componentCatalogSummary) {
+        this.componentCatalogSummary = componentCatalogSummary;
+    }
+
+    public String getComponentGroupSummary() {
+        return componentGroupSummary;
+    }
+
+    public void setComponentGroupSummary(String componentGroupSummary) {
+        this.componentGroupSummary = componentGroupSummary;
+    }
+
+    public String getNearbyMemorySummary() {
+        return nearbyMemorySummary;
+    }
+
+    public void setNearbyMemorySummary(String nearbyMemorySummary) {
+        this.nearbyMemorySummary = nearbyMemorySummary;
     }
 }
 

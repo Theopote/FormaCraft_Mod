@@ -47,6 +47,9 @@ class FormaRequestAdapter(BaseModel):
     searchApiKey: Optional[str] = None
     googleCseCx: Optional[str] = None
     references: Optional[list[ReferenceInput]] = None
+    componentCatalogSummary: Optional[str] = None
+    componentGroupSummary: Optional[str] = None
+    nearbyMemorySummary: Optional[str] = None
     
     # Python 端格式（嵌套结构，向后兼容）
     player: Optional[dict] = None
@@ -135,6 +138,9 @@ class FormaRequestAdapter(BaseModel):
                 searchApiKey=self.searchApiKey,
                 googleCseCx=self.googleCseCx,
                 references=self.references,
+                componentCatalogSummary=self.componentCatalogSummary,
+                componentGroupSummary=self.componentGroupSummary,
+                nearbyMemorySummary=self.nearbyMemorySummary,
             )
         else:
             # Python 端格式：从嵌套结构构建
@@ -200,5 +206,8 @@ class FormaRequestAdapter(BaseModel):
                 searchApiKey=self.searchApiKey,
                 googleCseCx=self.googleCseCx,
                 references=self.references,
+                componentCatalogSummary=self.componentCatalogSummary,
+                componentGroupSummary=self.componentGroupSummary,
+                nearbyMemorySummary=self.nearbyMemorySummary,
             )
 

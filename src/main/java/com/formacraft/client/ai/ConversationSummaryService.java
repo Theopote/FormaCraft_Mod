@@ -40,21 +40,26 @@ public class ConversationSummaryService {
         if (text.isEmpty()) return new Summary("新对话", "");
 
         try {
-            String url = resolveSummarizeUrl();
-            String body = buildRequestJson(text);
+            String base = SettingsConfig.INSTANCE != null ? SettingsConfig.INSTANCE.orchestratorEndpoint : null;
+            if (!com.formacraft.common.network.OrchestratorEndpointAccess.clientMayCallDirectly(base)) {
+                LOG.debug("skip remote /summarize without orchestrator secret; using local fallback");
+            } else {
+                String url = resolveSummarizeUrl();
+                String body = buildRequestJson(text);
 
-            HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(10))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body));
-            com.formacraft.common.network.OrchestratorSecretHeaders.apply(
-                    builder, com.formacraft.common.network.OrchestratorSecretHeaders.fromEnvironment());
-            HttpRequest httpRequest = builder.build();
+                HttpRequest.Builder builder = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .timeout(Duration.ofSeconds(10))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body));
+                com.formacraft.common.network.OrchestratorSecretHeaders.apply(
+                        builder, com.formacraft.common.network.OrchestratorSecretHeaders.fromEnvironment());
+                HttpRequest httpRequest = builder.build();
 
-            HttpResponse<String> resp = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
-                return parseSummary(resp.body());
+                HttpResponse<String> resp = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
+                    return parseSummary(resp.body());
+                }
             }
         } catch (IOException | InterruptedException ex) {
             LOG.debug("summarize request failed, using local fallback", ex);

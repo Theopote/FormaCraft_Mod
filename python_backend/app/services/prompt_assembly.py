@@ -126,6 +126,25 @@ def format_spatial_constraints(req: BuildRequest | None) -> str:
     return "REQUEST CONTEXT (HARD — respect these constraints):\n" + "\n".join(parts)
 
 
+def format_library_context(req: BuildRequest | None) -> str:
+    """Soft context: player library, groups, nearby memory (server-filled summaries)."""
+    if req is None:
+        return ""
+    parts: list[str] = []
+    catalog = (getattr(req, "componentCatalogSummary", None) or "").strip()
+    if catalog and "no player components" not in catalog.lower():
+        parts.append(catalog)
+    groups = (getattr(req, "componentGroupSummary", None) or "").strip()
+    if groups and "no component groups" not in groups.lower():
+        parts.append("Component groups:\n" + groups if not groups.lower().startswith("component") else groups)
+    memory = (getattr(req, "nearbyMemorySummary", None) or "").strip()
+    if memory and "no nearby" not in memory.lower() and "unavailable" not in memory.lower():
+        parts.append(memory)
+    if not parts:
+        return ""
+    return "LIBRARY / MEMORY CONTEXT (prefer these when relevant):\n" + "\n\n".join(parts)
+
+
 def resolve_llm_plan_prompts(
     req: BuildRequest,
     *,
@@ -148,11 +167,16 @@ def resolve_llm_plan_prompts(
         else:
             user_message = request_text.strip()
 
+    chunks: list[str] = []
+    if user_message:
+        chunks.append(user_message)
     context = format_spatial_constraints(req)
     if context:
-        user_prompt = f"{user_message}\n\n{context}" if user_message else context
-    else:
-        user_prompt = user_message
+        chunks.append(context)
+    library = format_library_context(req)
+    if library:
+        chunks.append(library)
+    user_prompt = "\n\n".join(chunks)
 
     return default_system, user_prompt
 

@@ -108,6 +108,35 @@ class OffThreadPlanCompileGuardTest {
     }
 
     @Test
+    void concurrentNullWorldCompilesDoNotCorruptSharedDiagnostics() throws Exception {
+        LlmPlan plan = simpleMassPlan();
+        BlockPos origin = new BlockPos(0, 64, 0);
+        int workers = 8;
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(workers);
+        var errors = new java.util.concurrent.ConcurrentLinkedQueue<String>();
+        var latch = new java.util.concurrent.CountDownLatch(workers);
+        for (int i = 0; i < workers; i++) {
+            final int seed = i;
+            pool.execute(() -> {
+                try {
+                    var compilation = ComponentPlanCompiler.compileWithCirculation(
+                            plan, origin.add(seed, 0, 0), null, null, false);
+                    if (compilation == null || compilation.patches() == null || compilation.patches().isEmpty()) {
+                        errors.add("empty patches worker=" + seed);
+                    }
+                } catch (Throwable t) {
+                    errors.add("worker=" + seed + " " + t);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        assertTrue(latch.await(30, java.util.concurrent.TimeUnit.SECONDS));
+        pool.shutdownNow();
+        assertTrue(errors.isEmpty(), () -> String.join("; ", errors));
+    }
+
+    @Test
     void compiledBuildArtifactMatchesOriginExplicitly() {
         LlmPlan plan = simpleMassPlan();
         BlockPos origin = new BlockPos(4, 70, 8);

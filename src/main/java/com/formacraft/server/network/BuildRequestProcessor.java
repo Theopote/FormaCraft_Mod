@@ -74,6 +74,7 @@ public final class BuildRequestProcessor {
                     // 注意：客户端可能已填充这些字段；这里仅在缺失时兜底。
                     try {
                         enrichRequestFromPlayer(req, player);
+                        BuildPromptContextEnricher.enrich(req, player);
                     } catch (Throwable t) {
                         LOG.player(player).warn("enrichRequestFromPlayer failed", t);
                     }

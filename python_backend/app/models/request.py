@@ -152,3 +152,8 @@ class BuildRequest(BaseModel):
     # PR-4: 参考图 / 网页链接
     references: Optional[list[ReferenceInput]] = None
 
+    # Server-filled compact context for LlmPlan prompts (may be truncated).
+    componentCatalogSummary: Optional[str] = None
+    componentGroupSummary: Optional[str] = None
+    nearbyMemorySummary: Optional[str] = None
+

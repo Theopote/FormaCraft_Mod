@@ -136,7 +136,17 @@ public final class FormaRequestCompactor {
         dst.setSearchProvider(src.getSearchProvider());
         dst.setSearchApiKey(src.getSearchApiKey());
         dst.setGoogleCseCx(src.getGoogleCseCx());
+        dst.setComponentCatalogSummary(truncateField(src.getComponentCatalogSummary(), 1800));
+        dst.setComponentGroupSummary(truncateField(src.getComponentGroupSummary(), 1800));
+        dst.setNearbyMemorySummary(truncateField(src.getNearbyMemorySummary(), 1800));
         return dst;
+    }
+
+    private static String truncateField(String s, int max) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.length() <= max) return t;
+        return t.substring(0, Math.max(0, max - 1)) + "…";
     }
 
     private static void compactReferences(FormaRequest req) {
