@@ -43,12 +43,14 @@ public class ConversationSummaryService {
             String url = resolveSummarizeUrl();
             String body = buildRequestJson(text);
 
-            HttpRequest httpRequest = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(body));
+            com.formacraft.common.network.OrchestratorSecretHeaders.apply(
+                    builder, com.formacraft.common.network.OrchestratorSecretHeaders.fromEnvironment());
+            HttpRequest httpRequest = builder.build();
 
             HttpResponse<String> resp = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() >= 200 && resp.statusCode() < 300) {

@@ -185,12 +185,13 @@ public final class BackendAutoStarter {
             if (base == null || base.isBlank()) base = "http://localhost:8000";
             while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
             String url = base + "/health";
-            HttpRequest req = HttpRequest.newBuilder()
+            HttpRequest.Builder b = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(Duration.ofSeconds(1))
-                    .GET()
-                    .build();
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+                    .GET();
+            com.formacraft.common.network.OrchestratorSecretHeaders.apply(
+                    b, com.formacraft.common.network.OrchestratorSecretHeaders.fromEnvironment());
+            HttpResponse<String> resp = http.send(b.build(), HttpResponse.BodyHandlers.ofString());
             return resp.statusCode() >= 200 && resp.statusCode() < 300
                     && com.google.gson.JsonParser.parseString(resp.body()).getAsJsonObject().get("ok").getAsBoolean();
         } catch (Exception e) {
@@ -465,6 +466,11 @@ public final class BackendAutoStarter {
             try {
                 ProcessBuilder pb = new ProcessBuilder(cmd);
                 pb.environment().put("FORMACRAFT_STYLE_PACKS_DIR", java.nio.file.Path.of(cfg.userStylePacksDirectory).toAbsolutePath().normalize().toString());
+                // Inherit / forward shared secret so autostarted backend and client probes match.
+                String secret = com.formacraft.common.network.OrchestratorSecretHeaders.fromEnvironment();
+                if (secret != null) {
+                    pb.environment().put(com.formacraft.common.network.OrchestratorSecretHeaders.ENV, secret);
+                }
                 pb.directory(wd);
                 pb.redirectErrorStream(true);
                 pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));

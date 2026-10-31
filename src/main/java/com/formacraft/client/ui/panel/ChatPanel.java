@@ -1227,13 +1227,14 @@ public class ChatPanel extends BasePanel {
 
     private boolean isHealthy(String healthUrl) {
         try {
-            HttpRequest req = HttpRequest.newBuilder()
+            HttpRequest.Builder b = HttpRequest.newBuilder()
                     .uri(URI.create(healthUrl))
                     .timeout(Duration.ofSeconds(2))
                     .header("Accept", "application/json")
-                    .GET()
-                    .build();
-            HttpResponse<String> resp = healthHttp.send(req, HttpResponse.BodyHandlers.ofString());
+                    .GET();
+            com.formacraft.common.network.OrchestratorSecretHeaders.apply(
+                    b, com.formacraft.common.network.OrchestratorSecretHeaders.fromEnvironment());
+            HttpResponse<String> resp = healthHttp.send(b.build(), HttpResponse.BodyHandlers.ofString());
             return resp.statusCode() >= 200 && resp.statusCode() < 300;
         } catch (Exception e) {
             LOG.debug("backend health check failed url={}", healthUrl, e);

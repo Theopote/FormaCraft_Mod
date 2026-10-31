@@ -215,54 +215,52 @@ public final class BuildRequestProcessor {
                         long hbStartMs = System.currentTimeMillis();
                         BuildStatusHeartbeat.start(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
+                        // Obtain the future before marking async so a sync throw cannot leak the gate.
+                        var aiPlanFuture = orchestrator.requestAiPlan(req, hbPhase::set)
+                                .orTimeout(605, TimeUnit.SECONDS);
                         asyncStarted[0] = true;
-                        orchestrator.requestAiPlan(req, hbPhase::set)
-                                .orTimeout(605, TimeUnit.SECONDS)
-                                .whenComplete((r, e) -> BuildRequestGate.release(player))
+                        aiPlanFuture
                                 .exceptionally(ex -> {
                                     hbAlive.set(false);
                                     FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
                                     String msg = OrchestratorErrorHumanizer.humanize("AiPlan", req, ex);
                                     context.server().execute(() ->
                                             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg)));
+                                    BuildRequestGate.release(player);
                                     return null;
                                 })
                                 .thenAccept(aiResult -> {
                                     if (aiResult == null) return;
 
-                                    // Bound worker: prepare explicit compile context off the HTTP callback thread,
-                                    // then hop to the server thread only for world reads / preview delivery.
-                                    PlanCompileWorkers.submit(() -> {
-                                        final com.formacraft.server.generation.GenerationCompileContext preparedCtx =
-                                                aiResult instanceof AiPlanResult.LlmPlan(var plan)
-                                                        ? com.formacraft.server.generation.GenerationCompileContext.fromPlan(plan, false)
-                                                        : null;
-                                        context.server().execute(() -> {
-                                            if (preparedCtx != null) {
-                                                com.formacraft.server.generation.GenerationCompileContext.install(preparedCtx);
+                                    // Hop to the server thread for world reads / preview delivery.
+                                    // LlmPlan off-thread compile is owned by scheduleBuildPreview.
+                                    context.server().execute(() -> {
+                                        boolean releaseAfterPreview = true;
+                                        try {
+                                            hbPhase.set("已收到 AI 结果，正在生成建筑预览");
+                                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("已收到 AI 结果，正在生成建筑预览…"));
+                                            BlockPos origin = req.getPlayerPos();
+                                            if (origin == null || !(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
+                                                hbAlive.set(false);
+                                                return;
                                             }
-                                            try {
-                                                hbPhase.set("已收到 AI 结果，正在生成建筑预览");
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("已收到 AI 结果，正在生成建筑预览…"));
-                                                BlockPos origin = req.getPlayerPos();
-                                                if (origin == null || !(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
-                                                    hbAlive.set(false);
-                                                    return;
-                                                }
 
-                                                switch (aiResult) {
-                                                    case AiPlanResult.Clarification(var clar) -> {
-                                                        hbAlive.set(false);
-                                                        String msg = clar.messageZh();
-                                                        if (msg == null || msg.isBlank()) {
-                                                            msg = "需要补充更多信息才能开始生成，请描述建筑类型、风格或具体名称。";
-                                                        }
-                                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseClarificationPayload(msg));
+                                            switch (aiResult) {
+                                                case AiPlanResult.Clarification(var clar) -> {
+                                                    hbAlive.set(false);
+                                                    String msg = clar.messageZh();
+                                                    if (msg == null || msg.isBlank()) {
+                                                        msg = "需要补充更多信息才能开始生成，请描述建筑类型、风格或具体名称。";
                                                     }
-                                                    case AiPlanResult.LlmPlan(var plan) -> {
-                                                        LlmPlanPreviewBuilder.scheduleBuildPreview(
-                                                                context.server(), player, req, plan, origin, serverWorld, hbAlive,
-                                                                handled -> {
+                                                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseClarificationPayload(msg));
+                                                }
+                                                case AiPlanResult.LlmPlan(var plan) -> {
+                                                    // Quota covers compile/preview; release only when schedule finishes.
+                                                    releaseAfterPreview = false;
+                                                    LlmPlanPreviewBuilder.scheduleBuildPreview(
+                                                            context.server(), player, req, plan, origin, serverWorld, hbAlive,
+                                                            handled -> {
+                                                                try {
                                                                     if (handled) return;
                                                                     LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
                                                                     ServerPlayNetworking.send(player,
@@ -270,23 +268,30 @@ public final class BuildRequestProcessor {
                                                                                     "LlmPlan 预览生成失败（已跳过假 BuildingSpec 回退）。请调整请求或检查后端输出。"
                                                                             ));
                                                                     hbAlive.set(false);
-                                                                });
-                                                    }
-                                                    case AiPlanResult.BuildingSpec(var spec) -> {
-                                                        BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);
-                                                        LlmPlanRoutingMetrics.recordDirectStructurePreview(player, req);
-                                                        previewBuildingSpec(player, req, spec, origin, serverWorld, hbAlive);
-                                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
-                                                    }
-                                                    case AiPlanResult.CompositeSpec(var composite) -> previewCompositeSpec(player, req, composite, origin, serverWorld, hbAlive);
-                                                    case AiPlanResult.CitySpec(var city) -> previewCitySpec(player, req, city, origin, serverWorld, hbAlive);
+                                                                } finally {
+                                                                    BuildRequestGate.release(player);
+                                                                }
+                                                            });
                                                 }
-                                            } finally {
-                                                if (preparedCtx != null) {
-                                                    com.formacraft.server.generation.GenerationCompileContext.clear();
+                                                case AiPlanResult.BuildingSpec(var spec) -> {
+                                                    BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);
+                                                    LlmPlanRoutingMetrics.recordDirectStructurePreview(player, req);
+                                                    previewBuildingSpec(player, req, spec, origin, serverWorld, hbAlive);
+                                                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
                                                 }
+                                                case AiPlanResult.CompositeSpec(var composite) -> previewCompositeSpec(player, req, composite, origin, serverWorld, hbAlive);
+                                                case AiPlanResult.CitySpec(var city) -> previewCitySpec(player, req, city, origin, serverWorld, hbAlive);
                                             }
-                                        });
+                                        } catch (Throwable t) {
+                                            hbAlive.set(false);
+                                            FormacraftMod.LOGGER.error("Build preview delivery failed", t);
+                                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                                    "生成预览时发生内部错误，请重试。"));
+                                        } finally {
+                                            if (releaseAfterPreview) {
+                                                BuildRequestGate.release(player);
+                                            }
+                                        }
                                     });
                                 });
                     }

@@ -32,7 +32,11 @@ public final class ServerLlmConfig {
     }
 
     public static void apply(FormaRequest request, boolean dedicated) {
-        if (request == null || !dedicated) return;
+        if (request == null) return;
+        // Backend owns prompts; never trust client-supplied system/user prompt blobs.
+        request.setSystemPrompt(null);
+        request.setUserPrompt(null);
+        if (!dedicated) return;
         request.setApiKey(value("FORMACRAFT_API_KEY", "apiKey"));
         request.setLlmBaseUrl(value("FORMACRAFT_LLM_BASE_URL", "llmBaseUrl"));
         request.setLlmProvider(value("FORMACRAFT_LLM_PROVIDER", "llmProvider"));

@@ -94,12 +94,21 @@ public final class LlmPlanPreviewBuilder {
                 var sampler = new com.formacraft.common.terrain.TerrainStrategySampler();
                 var compilation = ComponentPlanCompiler.compileWithCirculation(
                         llmPlan, planOrigin, null, sampler, false);
-                var pre = new PrecompiledComponents(
-                        compilation,
-                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.get(),
-                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings(),
-                        planOrigin
-                );
+                var gap = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
+                var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
+                boolean unusable = gap != null
+                        || compilation == null
+                        || compilation.patches() == null
+                        || compilation.patches().isEmpty();
+                if (unusable) {
+                    // Never deliver a null-world failure/empty result; recompile with live world.
+                    LOG.warn("off-thread components[] compile unusable (gap={}); falling back to server thread with world",
+                            gap != null ? gap.code() : "empty");
+                    server.execute(() ->
+                            finish.accept(tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
+                    return;
+                }
+                var pre = new PrecompiledComponents(compilation, null, softs, planOrigin);
                 server.execute(() -> {
                     PRECOMPILED.set(pre);
                     com.formacraft.server.generation.GenerationCompileContext.install(
@@ -122,8 +131,11 @@ public final class LlmPlanPreviewBuilder {
         });
     }
 
-    /** BUILD + components[] only (no PlanProgram / patch / FBD program). */
-    private static boolean canOffThreadComponentCompile(LlmPlan plan, FormaRequest req) {
+    /**
+     * BUILD + components[] only, and only when null-world compile cannot degrade
+     * (see {@link OffThreadPlanCompileGuard}).
+     */
+    static boolean canOffThreadComponentCompile(LlmPlan plan, FormaRequest req) {
         if (plan == null || plan.hasCapabilityGap()) return false;
         if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) return false;
         boolean patchRequest = req != null && req.getPromptMode() != null
@@ -132,7 +144,7 @@ public final class LlmPlanPreviewBuilder {
         if (plan.mode() == LlmPlan.Mode.patch) return false;
         if (com.formacraft.server.dsl.FbdRepairLoop.hasProgram(plan)) return false;
         if (plan.usesPlanProgramMode()) return false;
-        return plan.usesComponentMode();
+        return OffThreadPlanCompileGuard.allowsNullWorldCompile(plan);
     }
 
     private static BlockPos resolveBuildPlanOrigin(

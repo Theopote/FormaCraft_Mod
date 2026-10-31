@@ -164,6 +164,12 @@ Copy `python_backend/.env.example` to `python_backend/.env`. Key variables:
 | `LLM_PROVIDER` | Provider hint: `openai`, `deepseek`, `ollama`, … |
 | `LLM_BASE_URL` | Base URL for compatible APIs |
 | `DEEPSEEK_MODEL` | Model when using DeepSeek |
+| `FORMACRAFT_ORCHESTRATOR_SECRET` | Shared secret for `X-FormaCraft-Secret` (required for non-loopback; when set, local client probes must use the same env var) |
+
+### Dedicated server notes
+
+- Chat build requests default to **permission level 2 (OP)** on dedicated servers (`FORMACRAFT_REQUIRE_BUILD_PERMISSION_LEVEL` / `requireBuildPermissionLevel` can lower this). Integrated/singleplayer defaults to 0.
+- Dedicated servers should set LLM credentials and `FORMACRAFT_ORCHESTRATOR_SECRET` in the server environment or `config/formacraft_server.properties` — never rely on client-injected prompts or keys.
 
 See [python_backend/README.md](python_backend/README.md) for the full list.
 

@@ -27,4 +27,19 @@ class ServerLlmConfigTest {
         assertEquals("client-secret", request.getApiKey());
         assertEquals("https://attacker.invalid/v1", request.getLlmBaseUrl());
     }
+    @Test void clearsClientInjectedPromptsOnDedicatedAndIntegrated() {
+        FormaRequest dedicated = clientRequest();
+        dedicated.setSystemPrompt("INJECT_SYS");
+        dedicated.setUserPrompt("INJECT_USR");
+        ServerLlmConfig.apply(dedicated, true);
+        assertNull(dedicated.getSystemPrompt());
+        assertNull(dedicated.getUserPrompt());
+
+        FormaRequest integrated = clientRequest();
+        integrated.setSystemPrompt("INJECT_SYS");
+        integrated.setUserPrompt("INJECT_USR");
+        ServerLlmConfig.apply(integrated, false);
+        assertNull(integrated.getSystemPrompt());
+        assertNull(integrated.getUserPrompt());
+    }
 }

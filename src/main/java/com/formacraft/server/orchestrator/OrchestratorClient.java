@@ -49,7 +49,8 @@ public class OrchestratorClient {
     /**
      * Non-blocking health view: returns last known result (TTL-cached).
      * Never performs a synchronous HTTP call on the caller thread.
-     * Miss / stale → schedule async probe and treat as unavailable until refreshed.
+     * Miss / stale → schedule async probe. Cold miss (never probed) fails open so the
+     * first build after startup is not falsely rejected as "backend unavailable".
      */
     public boolean checkHealth() {
         long now = System.currentTimeMillis();
@@ -58,7 +59,11 @@ public class OrchestratorClient {
             return cached;
         }
         scheduleHealthProbe();
-        return cached != null && cached;
+        // Cold start: probe in flight, no prior sample → allow; /build will surface real errors.
+        if (cached == null) {
+            return true;
+        }
+        return cached;
     }
 
     private void scheduleHealthProbe() {
@@ -96,6 +101,8 @@ public class OrchestratorClient {
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
+        // Warm the health cache so the first build is less likely to race a cold miss.
+        scheduleHealthProbe();
     }
 
     private void applySecret(HttpRequest.Builder builder) {

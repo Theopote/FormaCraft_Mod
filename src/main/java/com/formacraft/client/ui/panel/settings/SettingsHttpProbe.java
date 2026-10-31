@@ -13,6 +13,12 @@ public final class SettingsHttpProbe {
     public record Response(int status, String body) {}
 
     public static Response get(HttpClient client, String url, String bearerToken, Duration timeout) {
+        return get(client, url, bearerToken, timeout, com.formacraft.common.network.OrchestratorSecretHeaders.fromEnvironment());
+    }
+
+    public static Response get(
+            HttpClient client, String url, String bearerToken, Duration timeout, String orchestratorSecret
+    ) {
         try {
             HttpRequest.Builder b = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -22,6 +28,7 @@ public final class SettingsHttpProbe {
             if (bearerToken != null && !bearerToken.isBlank()) {
                 b.header("Authorization", "Bearer " + bearerToken);
             }
+            com.formacraft.common.network.OrchestratorSecretHeaders.apply(b, orchestratorSecret);
             HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString());
             return new Response(resp.statusCode(), resp.body());
         } catch (Exception e) {
