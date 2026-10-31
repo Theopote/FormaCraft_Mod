@@ -7,7 +7,7 @@ import java.util.Set;
  * ComponentQuery
  * <p>
  * 描述"我想要一个什么样的构件"
- * —— 由 PromptAssembler / LLM 生成
+ * —— 由后端 Prompt / LLM 生成
  * —— 由 ComponentRetriever / Ranker 消费
  * <p>
  * 设计目标：

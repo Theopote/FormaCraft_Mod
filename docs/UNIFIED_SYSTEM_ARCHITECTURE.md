@@ -25,11 +25,11 @@ Formacraft 模组包含以下主要系统：
   ↓
 工具状态收集（PathTool, SelectionTool, OutlineTool, ...）
   ↓
-PromptAssembler（组装 Prompt）
+FormaRequest + BuildPromptContextEnricher（结构化字段 / library·memory）
   ↓
 OrchestratorClient（调用 Python 后端）
   ↓
-Python 后端（LLM 调用）
+Python 后端 prompt_assembly / llm_plan_system_prompt → LLM
   ↓
 返回 LlmPlan 或 BuildingSpec
   ↓
@@ -72,9 +72,9 @@ Preview / Apply ←────────────┘
 - **功能**：收集工具状态，用于约束生成
 
 #### 1.3 Prompt 组装
-- **位置**：`com.formacraft.client.ai.prompt.PromptAssembler`
-- **功能**：将用户输入和工具状态组装成 LLM Prompt
-- **输出**：结构化的 Prompt（包含约束、意图、输出格式）
+- **位置**：后端 `python_backend/app/services/llm_plan_system_prompt.py` + `prompt_assembly.py`；服务端 `BuildPromptContextEnricher`；客户端仅保留 `PromptMode` / `PromptModeResolver`
+- **功能**：后端拥有 system prompt；客户端下发 `userMessage` + 工具结构化字段；服务端注入 library/memory 摘要；后端追加 spatial HARD 约束
+- **输出**：发给 LLM 的 system + user prompt（约束、意图、输出格式）
 
 ### 2. AI 规划系统
 
@@ -297,7 +297,7 @@ TerrainAdaptationPostProcessor（地形适应）
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      用户输入层                              │
-│  ChatPanel → 工具状态收集 → PromptAssembler                 │
+│  ChatPanel → 工具状态 → FormaRequest → BuildPromptContextEnricher │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -347,9 +347,9 @@ TerrainAdaptationPostProcessor（地形适应）
 
 **流程**：
 ```
-1. 用户输入 → PromptAssembler
-2. OrchestratorClient → Python 后端
-3. 返回 LlmPlan
+1. 用户输入 → FormaRequest（userMessage + 工具字段）
+2. BuildPromptContextEnricher → OrchestratorClient → Python 后端
+3. prompt_assembly / llm_plan_system_prompt → 返回 LlmPlan
 4. ComponentPlanCompiler.compile()
 5. ComponentGenerator.generate()
 6. PostProcessPipeline.process()
@@ -366,8 +366,8 @@ TerrainAdaptationPostProcessor（地形适应）
 
 **流程**：
 ```
-1. 用户输入 → PromptAssembler
-2. OrchestratorClient → Python 后端
+1. 用户输入 → FormaRequest（userMessage + 工具字段）
+2. OrchestratorClient → Python 后端（building_spec_prompts）
 3. 返回 BuildingSpec
 4. GeneratorRouter.route()
 5. StructureGenerator.generate()

@@ -143,7 +143,7 @@ public final class LandmarkModuleRegistry {
     }
 
     /**
-     * 按 {@link LandmarkRoutingPolicy} 分级注入地标路由提示（注入 PromptAssembler）。
+     * 按 {@link LandmarkRoutingPolicy} 分级注入地标路由提示（后端 llm_plan_system_prompt / prompt_assembly）。
      */
     public static String promptRoutingHintForIntent(String userIntentText) {
         LandmarkRoutingPolicy.RoutingDecision decision =

@@ -3,7 +3,7 @@ package com.formacraft.common.component.archetype;
 /**
  * GeometryHint（几何提示）：专门给 AI / Generator 的形态提示。
  * <p>
- * 这不是强约束，而是"生成风格提示"，用于 PromptAssembler。
+ * 这不是强约束，而是"生成风格提示"，用于后端 Prompt 组装。
  */
 public class GeometryHint {
     /**

@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Policy that constrains how the generator can modify terrain.
  * 
- * This is what PromptAssembler will serialize into prompt JSON.
+ * Serialized into backend prompt spatial context (FormaRequest / prompt_assembly).
  * 
  * 地形策略参数 + 作用域
  */

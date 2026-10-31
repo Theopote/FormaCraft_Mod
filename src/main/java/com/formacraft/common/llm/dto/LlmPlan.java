@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * LLM 输出的统一 Plan（build 或 patch）
- * 与 PromptAssembler 的 JSON schema 对齐。
+ * 与后端 LlmPlan JSON schema（llm_plan_system_prompt / Python 校验）对齐。
  * <p>
  * 增强支持：
  * - 传统的 components[] 模式（现有系统）

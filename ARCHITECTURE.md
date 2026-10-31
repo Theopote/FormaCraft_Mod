@@ -91,7 +91,7 @@ ChatPanel
    - 目标维度：体量（massing：主体块的层叠/退台）、立面节奏（facade rhythm：开窗间距/壁柱）、屋顶（类型/坡度/出檐）、材质分层（勒脚/墙身/檐口不同材质）。
    - 每加一个字段，必须同步：Python 模型校验 + Java DTO/解析 + `ComponentPlanCompiler`/生成器消费 + 下方 eval 断言。
 
-3. **Prompt 与 few-shot**（Java 端 `com.formacraft.client.ai.prompt.PromptAssembler` 系列——系统 prompt 在 Java 组装后随 `requestText` 下发）
+3. **Prompt 与 few-shot**（后端拥有：`python_backend/app/services/llm_plan_system_prompt.py` + `prompt_assembly.py`；客户端只下发 `userMessage` + 结构化工具字段，由 `BuildPromptContextEnricher` 注入 library/memory 摘要）
    - 补高质量 golden 样例（覆盖 1.6 清单的代表场景），提升 LLM plan 的稳定性与几何丰富度。
    - few-shot 必须落在**当前合法 schema** 内，避免诱导 LLM 输出解析器会拒绝的字段。
 
@@ -115,14 +115,17 @@ Player
 Tool Layer
   │   (Selection / Path / Outline / Component / Symmetry)
   ▼
-PromptAssembler
-  │   (RAG + Constraints + System Prompt)
+FormaRequest + BuildPromptContextEnricher
+  │   (userMessage + structured constraints + library/memory summaries)
   ▼
-LLM (Python Backend)
-  │   (Blueprint / Components / Skeleton JSON)
+Python Backend prompt_assembly / llm_plan_system_prompt
+  │   (System Prompt + spatial HARD caps + RAG)
+  ▼
+LLM → LlmPlan
+  │   (components / plan_program / patch)
   ▼
 Compiler Pipeline
-  │   (Skeleton → Components → Variants)
+  │   (ComponentPlanCompiler / PlanProgramCompiler → generators)
   ▼
 Patch System
   │   (Preview / Diff / Undo / Redo)
@@ -139,7 +142,7 @@ Minecraft World
 
 ### 2.1 Package Layering Rules（common / server / client）
 
-以下是目标分层规则，而非已完全实现的状态。2026-10-03 第二轮已将 10 个内置 TypologyInterpreter 的创建迁到 `server.init.TypologySystemInitializer`，由 `FormacraftMod.onInitialize` 注册，common 注册表只保存外部提供的解释器。`PatchHistoryManager` 仍有 20 处完全限定的 server 引用，`common.patch` 仍使用 ServerWorld。仅查 import 会漏报。新代码必须遵守以下规则，既有债务由 `scripts/check_architecture.py` 和 `config/architecture-debt.json` 冻结，整改见 [审计](docs/refactoring/ARCHITECTURE_AUDIT.md)：
+以下是目标分层规则，而非已完全实现的状态。2026-10-03 第二轮已将 10 个内置 TypologyInterpreter 的创建迁到 `server.init.TypologySystemInitializer`，由 `FormacraftMod.onInitialize` 注册，common 注册表只保存外部提供的解释器。`PatchHistoryManager` 的直接调用点已收敛到少数 server 路径（`MutationHistoryFacade` / `PatchPreviewService` / `BuildExecutionService` 等），`common.patch` 仍使用 ServerWorld。仅查 import 会漏报。新代码必须遵守以下规则，既有债务由 `scripts/check_architecture.py` 和 `config/architecture-debt.json` 冻结，整改见 [审计](docs/refactoring/ARCHITECTURE_AUDIT.md)：
 
 | 包 | 允许 | 禁止 |
 |----|------|------|
@@ -426,41 +429,39 @@ AI 通过语义查询构件库，而不是直接选择具体构件：
 
 工具不会直接修改世界，而是：
 
-1. 转译为空间约束
-2. 注入 `PromptAssembler`
-3. 影响 LLM 的规划结果
+1. 转译为空间约束（写入 `FormaRequest` 结构化字段）
+2. 服务端 `BuildPromptContextEnricher` 注入 library / nearby memory 摘要
+3. 后端 `prompt_assembly` / `llm_plan_system_prompt` 组装最终 Prompt，影响 LLM 规划结果
 
 **位置**: `com.formacraft.client.tool.*`
 
 ---
 
-## 9. PromptAssembler (AI Interface)
+## 9. Backend Prompt Assembly (AI Interface)
 
-**PromptAssembler 是系统的"前额叶"：**
+**Prompt 组装由 Python 后端拥有（客户端不再拼接 system prompt）：**
 
-- ✅ 汇总工具状态
-- ✅ 注入 Memory（RAG）
-- ✅ 拼接 System Prompt / User Prompt
-- ✅ 严格约束 JSON 输出结构
+- ✅ 客户端：`userMessage` + 工具结构化字段 + `PromptMode`
+- ✅ 服务端：`BuildPromptContextEnricher` 注入构件库 / 记忆摘要
+- ✅ 后端：`llm_plan_system_prompt`（system）+ `prompt_assembly`（spatial HARD / library）
+- ✅ BuildingSpec 遗留路径：`building_spec_prompts`
 
 ### Prompt 组装流程
 
-```java
-public static String assemble(String userInput, PromptMode mode) {
-    PromptContext ctx = new PromptContext();
-    
-    // 1. 工具 → 结构化上下文
-    ToolPromptBuilder.buildToolContext(ctx);
-    
-    // 2. Memory Context（RAG）
-    MemoryContext memory = retrieveMemory(ctx);
-    
-    // 3. 拼装最终 Prompt
-    return buildFinalPrompt(ctx);
-}
+```
+ChatPanel / ChatBuildRequestFactory
+  → FormaRequest(userMessage, selection, outline, ...)
+  → BuildPromptContextEnricher.enrich(...)
+  → OrchestratorClient /build
+  → resolve_llm_plan_prompts(req, default_system=build_llm_plan_system_prompt(req))
+  → LLM → LlmPlan JSON
 ```
 
-**位置**: `com.formacraft.client.ai.prompt.PromptAssembler`
+**位置**:
+- `python_backend/app/services/llm_plan_system_prompt.py`
+- `python_backend/app/services/prompt_assembly.py`
+- `com.formacraft.server.network.BuildPromptContextEnricher`
+- 客户端模式解析：`com.formacraft.client.ai.prompt.PromptModeResolver`
 
 ---
 
@@ -555,7 +556,7 @@ FormaCraftNetworking.sendToServer(applyPayload);
 ```
 实现 FormacraftTool
   ↓
-提供状态 → PromptAssembler
+提供状态 → FormaRequest 结构化字段（+ BuildPromptContextEnricher）
   ↓
 （可选）提供 SocketProvider
   ↓

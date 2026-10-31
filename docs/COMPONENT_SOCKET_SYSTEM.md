@@ -411,7 +411,7 @@ if (tool instanceof SocketAwareTool sat) {
 - 从 Skeleton 节点提取 Socket
 - 从选区边界启发式推断 Socket
 - Socket 高亮渲染（客户端）
-- AI Prompt 集成（PromptAssembler）
+- AI Prompt 集成（后端 `prompt_assembly` / `llm_plan_system_prompt`）
 
 ---
 

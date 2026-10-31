@@ -5,6 +5,8 @@
 > **Formacraft is not a building command.**  
 > **It is a semantic architecture compiler for Minecraft.**
 
+> **2026-10 更新**：客户端 `PromptAssembler` 已删除。Prompt 由后端 `llm_plan_system_prompt` + `prompt_assembly` 拥有；以 [ARCHITECTURE.md](../ARCHITECTURE.md) §9 与 [UNIFIED_SYSTEM_ARCHITECTURE.md](UNIFIED_SYSTEM_ARCHITECTURE.md) 为准。下文 §五标题保留仅为目录兼容。
+
 ---
 
 ## 目录
@@ -13,7 +15,7 @@
 - [二、整体系统架构（宏观）](#二整体系统架构宏观)
 - [三、核心概念总览（必须理解）](#三核心概念总览必须理解)
 - [四、工具系统（Tool Layer）](#四工具系统tool-layer)
-- [五、PromptAssembler（AI 接口层）](#五promptassemblerai-接口层)
+- [五、Prompt 组装（后端拥有）](#五promptassemblerai-接口层)
 - [六、Memory 系统（Forma-Cortex）](#六memory-系统forma-cortex)
 - [七、Preview / Patch 流程](#七preview--patch-流程)
 - [八、Socket 系统（H 系列）](#八socket-系统h-系列)
@@ -380,15 +382,18 @@ public class MyCustomTool implements FormacraftTool {
 
 ### 5.1 职责
 
-**PromptAssembler 是 Formacraft 的"大脑前额叶"。**
+**Prompt 组装已迁到 Python 后端（原客户端 PromptAssembler 已删除）。**
 
-它负责：
-- ✅ 收集工具状态
-- ✅ 读取 Memory（RAG）
-- ✅ 拼接 System Prompt + User Prompt
-- ✅ 约束 LLM 输出格式
+当前链路：
+- ✅ 客户端：`userMessage` + 工具结构化字段 + `PromptModeResolver`
+- ✅ 服务端：`BuildPromptContextEnricher`（library / nearby memory）
+- ✅ 后端：`llm_plan_system_prompt` + `prompt_assembly`（system / spatial HARD / RAG）
+- ✅ 约束 LLM 输出 LlmPlan JSON schema
 
-**位置**: `com.formacraft.client.ai.prompt.PromptAssembler`
+**位置**:
+- `python_backend/app/services/llm_plan_system_prompt.py`
+- `python_backend/app/services/prompt_assembly.py`
+- `com.formacraft.server.network.BuildPromptContextEnricher`
 
 ### 5.2 Prompt 的职责分工
 

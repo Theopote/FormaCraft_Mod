@@ -515,7 +515,7 @@ public class ComponentLibraryPanel extends BasePanel {
 
 ---
 
-## 十一、Component × AI（PromptAssembler）
+## 十一、Component × AI（后端 Prompt）
 
 AI 不再生成方块，而是：
 
@@ -538,14 +538,12 @@ AI 只回答：
 
 ### Prompt 系统实现
 
-**实现状态：** ✅ 已实现 Prompt 注入
+**实现状态：** ✅ 后端拥有 Prompt；服务端 `BuildPromptContextEnricher` 注入构件库 / 记忆摘要
 
-```java
-// src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java
-public class PromptAssembler {
-    // 将构件库信息注入到 AI Prompt
-    public String assemblePrompt(BuildContext ctx, PromptMode mode);
-}
+```
+FormaRequest(userMessage, componentCatalogSummary, ...)
+  → prompt_assembly / llm_plan_system_prompt
+  → LLM → LlmPlan
 ```
 
 ### Component 在 Prompt 中的表示
@@ -784,7 +782,8 @@ ComponentDefinitionPayload(json)
 - `ComponentDefinitionPayload` - 构件定义
 
 ### AI 集成
-- `PromptAssembler` - Prompt 组装器
+- `prompt_assembly` / `llm_plan_system_prompt` - 后端 Prompt 组装
+- `BuildPromptContextEnricher` - 服务端 library/memory 注入
 - `BuildContext` - 构建上下文
 
 ---
