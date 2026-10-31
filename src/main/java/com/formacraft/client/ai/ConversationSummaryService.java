@@ -5,7 +5,6 @@ import com.formacraft.config.SettingsConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -41,12 +40,16 @@ public class ConversationSummaryService {
 
         try {
             String base = SettingsConfig.INSTANCE != null ? SettingsConfig.INSTANCE.orchestratorEndpoint : null;
+            String body = buildRequestJson(text);
             if (!com.formacraft.common.network.OrchestratorEndpointAccess.clientMayCallDirectly(base)) {
-                LOG.debug("skip remote /summarize without orchestrator secret; using local fallback");
+                var proxied = com.formacraft.client.network.OrchestratorProxyClient.summarize(base, body)
+                        .get(12, java.util.concurrent.TimeUnit.SECONDS);
+                if (proxied != null && proxied.status() >= 200 && proxied.status() < 300) {
+                    return parseSummary(proxied.body());
+                }
+                LOG.debug("remote /summarize via proxy unavailable; using local fallback");
             } else {
                 String url = resolveSummarizeUrl();
-                String body = buildRequestJson(text);
-
                 HttpRequest.Builder builder = HttpRequest.newBuilder()
                         .uri(URI.create(url))
                         .timeout(Duration.ofSeconds(10))
@@ -61,7 +64,7 @@ public class ConversationSummaryService {
                     return parseSummary(resp.body());
                 }
             }
-        } catch (IOException | InterruptedException ex) {
+        } catch (Exception ex) {
             LOG.debug("summarize request failed, using local fallback", ex);
         }
 

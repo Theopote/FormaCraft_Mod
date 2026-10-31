@@ -111,6 +111,58 @@ public class OrchestratorClient {
         }
     }
 
+    /** Allowlisted proxy result for client→server→orchestrator hops. */
+    public record ProxyHttpResult(int status, String body) {
+        public static ProxyHttpResult of(int status, String body) {
+            return new ProxyHttpResult(status, body == null ? "" : body);
+        }
+    }
+
+    /**
+     * GET {@code /models} with optional query string (no leading '?') and bearer token.
+     * Uses the server-side shared secret header.
+     */
+    public ProxyHttpResult proxyGetModels(String query, String bearerToken) {
+        String q = query == null ? "" : query.trim();
+        while (q.startsWith("?")) q = q.substring(1);
+        String url = endpoint + "/models" + (q.isEmpty() ? "" : ("?" + q));
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(12))
+                    .header("Accept", "application/json")
+                    .GET();
+            applySecret(builder);
+            if (bearerToken != null && !bearerToken.isBlank()) {
+                builder.header("Authorization", "Bearer " + bearerToken.trim());
+            }
+            HttpResponse<String> resp = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            return ProxyHttpResult.of(resp.statusCode(), resp.body());
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.debug("proxyGetModels failed: {}", e.toString());
+            return ProxyHttpResult.of(-1, e.toString());
+        }
+    }
+
+    /** POST {@code /summarize} with a JSON body (transcript + optional LLM overrides). */
+    public ProxyHttpResult proxySummarize(String jsonBody) {
+        String body = jsonBody == null || jsonBody.isBlank() ? "{\"transcript\":\"\"}" : jsonBody;
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint + "/summarize"))
+                    .timeout(Duration.ofSeconds(12))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body));
+            applySecret(builder);
+            HttpResponse<String> resp = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            return ProxyHttpResult.of(resp.statusCode(), resp.body());
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.debug("proxySummarize failed: {}", e.toString());
+            return ProxyHttpResult.of(-1, e.toString());
+        }
+    }
+
     private static String redactSecretsForLog(String json) {
         if (json == null || json.isEmpty()) return json;
         String out = json;

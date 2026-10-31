@@ -58,6 +58,10 @@ public class FormaCraftNetworking {
     public static final Identifier COMPONENT_GET_REQUEST = Identifier.of("formacraft", "component_get_request");
     public static final Identifier COMPONENT_DEFINITION = Identifier.of("formacraft", "component_definition");
 
+    /** C2S/S2C：客户端经服务端转发编排器 HTTP（带服务端密钥；仅允许 /models 与 /summarize）。 */
+    public static final Identifier ORCHESTRATOR_PROXY_REQUEST = Identifier.of("formacraft", "orchestrator_proxy_request");
+    public static final Identifier ORCHESTRATOR_PROXY_RESPONSE = Identifier.of("formacraft", "orchestrator_proxy_response");
+
     // 防止在客户端/集成服务器环境下重复注册导致崩溃（PayloadTypeRegistry 不允许重复 register）
     private static boolean registeredC2SPayloadTypes = false;
     private static boolean registeredS2CPayloadTypes = false;
@@ -513,6 +517,45 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /**
+     * C2S：请求服务端代发编排器 HTTP。
+     * {@code op} = {@code models} | {@code summarize}; {@code payloadJson} 为查询/正文（可空）。
+     */
+    public record OrchestratorProxyRequestPayload(String requestId, String op, String payloadJson) implements CustomPayload {
+        public static final CustomPayload.Id<OrchestratorProxyRequestPayload> ID =
+                new CustomPayload.Id<>(ORCHESTRATOR_PROXY_REQUEST);
+        public static final PacketCodec<PacketByteBuf, OrchestratorProxyRequestPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeString(payload.requestId == null ? "" : payload.requestId);
+                    buf.writeString(payload.op == null ? "" : payload.op);
+                    buf.writeString(payload.payloadJson == null ? "" : payload.payloadJson);
+                },
+                buf -> new OrchestratorProxyRequestPayload(buf.readString(), buf.readString(), buf.readString())
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** S2C：编排器代理响应（body 可能被截断以适配 packet 字符串上限）。 */
+    public record OrchestratorProxyResponsePayload(
+            String requestId, int status, String body
+    ) implements CustomPayload {
+        public static final CustomPayload.Id<OrchestratorProxyResponsePayload> ID =
+                new CustomPayload.Id<>(ORCHESTRATOR_PROXY_RESPONSE);
+        public static final PacketCodec<PacketByteBuf, OrchestratorProxyResponsePayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeString(payload.requestId == null ? "" : payload.requestId);
+                    buf.writeVarInt(payload.status);
+                    buf.writeString(payload.body == null ? "" : payload.body);
+                },
+                buf -> new OrchestratorProxyResponsePayload(buf.readString(), buf.readVarInt(), buf.readString())
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** 注册所有 C2S PayloadType（客户端编码 & 服务端解码都需要）。 */
     public static void registerPayloadTypesC2S() {
         if (registeredC2SPayloadTypes) return;
@@ -529,6 +572,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playC2S().register(ComponentSavePayload.ID, ComponentSavePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentCatalogRequestPayload.ID, ComponentCatalogRequestPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentGetRequestPayload.ID, ComponentGetRequestPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(OrchestratorProxyRequestPayload.ID, OrchestratorProxyRequestPayload.CODEC);
     }
 
     /** 注册所有 S2C PayloadType（客户端解码 & 服务端编码都需要）。 */
@@ -549,5 +593,6 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(ComponentCatalogPayload.ID, ComponentCatalogPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentSaveAckPayload.ID, ComponentSaveAckPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentDefinitionPayload.ID, ComponentDefinitionPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(OrchestratorProxyResponsePayload.ID, OrchestratorProxyResponsePayload.CODEC);
     }
 }

@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * 客户端侧缓存的“世界构件目录”（从服务端同步）。
  * <p>
- * v1：仅用于 PromptAssembler 注入摘要 + 工具 UI 展示。
+ * v1：工具 UI 展示；服务端另经 BuildPromptContextEnricher 注入后端 prompt。
  */
 public final class ClientComponentCatalogState {
     private ClientComponentCatalogState() {}

@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * 说明：
  * - v1：代码侧注册（后续可扩展到 world save / datapack）
- * - 用于 PromptAssembler 注入“可用 group 列表”，让 LLM 只做选组规划
+ * - 摘要经 BuildPromptContextEnricher 注入后端 LlmPlan prompt，供 LLM 选组
  */
 public final class ComponentGroupRegistry {
     private ComponentGroupRegistry() {}

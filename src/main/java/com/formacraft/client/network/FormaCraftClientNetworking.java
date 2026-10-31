@@ -134,6 +134,9 @@ public final class FormaCraftClientNetworking {
             com.formacraft.client.component.ClientComponentCatalogState.setFromJson(json);
         }));
 
+        ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.OrchestratorProxyResponsePayload.ID,
+                (payload, context) -> context.client().execute(() -> OrchestratorProxyClient.onResponse(payload)));
+
         // Component Library: 保存结果确认（服务端 -> 客户端）
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ComponentSaveAckPayload.ID, (payload, context) -> context.client().execute(() -> {
             try {

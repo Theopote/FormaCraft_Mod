@@ -239,6 +239,14 @@ public final class FormaCraftServerNetworking {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentCatalogPayload(catJson));
         }));
 
+        // Multiplayer: client asks server to call orchestrator /models or /summarize with server secret.
+        ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.OrchestratorProxyRequestPayload.ID,
+                (payload, context) -> {
+                    ServerPlayerEntity player = context.player();
+                    if (player == null || context.server() == null) return;
+                    OrchestratorProxyHandler.handleAsync(context.server(), player, payload);
+                });
+
         // Component Library: 请求单个构件定义（客户端 -> 服务端）
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ComponentGetRequestPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
