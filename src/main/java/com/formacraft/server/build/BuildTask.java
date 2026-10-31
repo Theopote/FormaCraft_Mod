@@ -12,8 +12,10 @@ import net.minecraft.util.math.ChunkPos;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 建造任务：分 Tick 施工，按 Chunk 分桶延迟重试，单方块异常隔离，写后校验。
@@ -56,6 +58,8 @@ public class BuildTask {
     /** Optional sanitized FBD source plan JSON attached at enqueue. */
     private final String fbdSourcePlanJson;
     private final List<BlockChange> appliedChanges = new ArrayList<>();
+    /** First pre-txn snapshot per cell (for residual undo / conflict residuals). */
+    private final LinkedHashMap<BlockPos, BlockSnapshot> txnBeforeByPos = new LinkedHashMap<>();
     /** ChunkPos 长键 → 该区块内待重试方块 */
     private final LinkedHashMap<Long, ArrayDeque<DeferredBlock>> deferredByChunk = new LinkedHashMap<>();
     private final long startedAtMs = System.currentTimeMillis();
@@ -73,12 +77,15 @@ public class BuildTask {
     private int recoveredFull = 0;
     private int recoveredStateOnly = 0;
     private int recoveryFailed = 0;
+    private int recoveryConflicts = 0;
     /** When set, {@link #tick} drains rollback instead of forward placement. */
     private boolean rollbackActive = false;
     /** Index into {@link #appliedChanges} for reverse-order rollback (inclusive). */
     private int rollbackIndex = -1;
     /** Cells that failed to restore; kept as residual undo after rollback finishes. */
     private final List<BlockChange> rollbackResiduals = new ArrayList<>();
+    /** Positions with external conflict — skip further reverse steps for that cell. */
+    private final Set<BlockPos> rollbackConflicted = new HashSet<>();
     /** True if rollback was started by {@link #cancel()} (terminal becomes CANCELLED). */
     private boolean rollbackFromCancel = false;
 
@@ -131,7 +138,13 @@ public class BuildTask {
         if (st == null) {
             return null;
         }
-        return WorldMutationOutcome.build(st, appliedChanges.size(), recoveredFull, recoveredStateOnly, recoveryFailed);
+        return WorldMutationOutcome.build(
+                st, appliedChanges.size(), recoveredFull, recoveredStateOnly, recoveryFailed + recoveryConflicts);
+    }
+
+    /** External concurrent edits detected during rollback (three-way mismatch). */
+    public int recoveryConflicts() {
+        return recoveryConflicts;
     }
 
     public GeneratedStructure getStructure() {
@@ -344,7 +357,9 @@ public class BuildTask {
             return 1;
         }
         if (!before.equals(after)) {
-            appliedChanges.add(new BlockChange(pos.toImmutable(), before, after));
+            BlockPos key = pos.toImmutable();
+            txnBeforeByPos.putIfAbsent(key, before);
+            appliedChanges.add(new BlockChange(key, before, after));
         }
         if (!writeResult.changedWorldPossibly() || !matchesForwardTarget(target, after)) {
             failedWrites++;
@@ -409,9 +424,11 @@ public class BuildTask {
         rollbackFromCancel = fromCancel;
         rollbackActive = true;
         rollbackResiduals.clear();
+        rollbackConflicted.clear();
         recoveredFull = 0;
         recoveredStateOnly = 0;
         recoveryFailed = 0;
+        recoveryConflicts = 0;
         rollbackIndex = appliedChanges.size() - 1;
         status = Status.ROLLING_BACK;
         mutationStatus = null;
@@ -437,37 +454,66 @@ public class BuildTask {
             recoveryFailed++;
             return;
         }
+        BlockPos pos = change.getPos();
+        if (rollbackConflicted.contains(pos)) {
+            return;
+        }
         try {
-            if (access.getSnapshot(change.getPos()).equals(change.getFrom())) {
+            BlockSnapshot current = access.getSnapshot(pos);
+            // Already at this step's Before (or fully restored earlier).
+            if (current.equals(change.getFrom())) {
                 recoveredFull++;
                 return;
             }
-            SnapshotWriteResult wr = access.writeSnapshot(change.getPos(), change.getFrom());
+            // Three-way: only overwrite when the cell still holds this txn's After.
+            BlockSnapshot expectedAfter = change.getTo();
+            if (expectedAfter != null && !current.equals(expectedAfter)) {
+                recoveryConflicts++;
+                recoveryFailed++;
+                rollbackConflicted.add(pos);
+                BlockSnapshot txnBefore = txnBeforeByPos.getOrDefault(pos, change.getFrom());
+                rollbackResiduals.add(new BlockChange(pos, txnBefore, current));
+                if (recoveryConflicts <= 5) {
+                    com.formacraft.FormacraftMod.LOGGER.warn(
+                            "BuildTask rollback conflict at {}: expected txn after={}, actual={}",
+                            pos, expectedAfter.state(), current.state());
+                }
+                return;
+            }
+            SnapshotWriteResult wr = access.writeSnapshot(pos, change.getFrom());
             switch (wr) {
                 case FULL -> recoveredFull++;
                 case STATE_ONLY -> {
                     recoveredStateOnly++;
-                    rollbackResiduals.add(change);
+                    BlockSnapshot txnBefore = txnBeforeByPos.getOrDefault(pos, change.getFrom());
+                    rollbackResiduals.add(new BlockChange(pos, txnBefore, access.getSnapshot(pos)));
                 }
                 case REJECTED, ERROR -> {
                     recoveryFailed++;
-                    rollbackResiduals.add(change);
+                    BlockSnapshot txnBefore = txnBeforeByPos.getOrDefault(pos, change.getFrom());
+                    rollbackResiduals.add(new BlockChange(pos, txnBefore, current));
                 }
             }
         } catch (RuntimeException e) {
             recoveryFailed++;
-            rollbackResiduals.add(change);
+            BlockSnapshot txnBefore = txnBeforeByPos.getOrDefault(pos, change.getFrom());
+            try {
+                rollbackResiduals.add(new BlockChange(pos, txnBefore, access.getSnapshot(pos)));
+            } catch (RuntimeException ignored) {
+                rollbackResiduals.add(change);
+            }
             com.formacraft.FormacraftMod.LOGGER.warn(
-                    "BuildTask rollback failed at {}", change.getPos(), e);
+                    "BuildTask rollback failed at {}", pos, e);
         }
     }
 
     private void finishRollback() {
         appliedChanges.clear();
-        appliedChanges.addAll(rollbackResiduals);
+        appliedChanges.addAll(collapseResidualsByPos(rollbackResiduals));
         rollbackResiduals.clear();
+        rollbackConflicted.clear();
         rollbackActive = false;
-        boolean clean = recoveredStateOnly == 0 && recoveryFailed == 0;
+        boolean clean = recoveredStateOnly == 0 && recoveryFailed == 0 && recoveryConflicts == 0;
         mutationStatus = clean
                 ? BuildExecutionStatus.ROLLED_BACK
                 : BuildExecutionStatus.ROLLBACK_INCOMPLETE;
@@ -477,8 +523,31 @@ public class BuildTask {
             status = clean ? Status.ROLLED_BACK : Status.PARTIAL;
         }
         com.formacraft.FormacraftMod.LOGGER.info(
-                "BuildTask: rollback done ({} mutation={}) remaining={}. {}",
-                status, mutationStatus, appliedChanges.size(), result().summaryZh());
+                "BuildTask: rollback done ({} mutation={}) remaining={} conflicts={}. {}",
+                status, mutationStatus, appliedChanges.size(), recoveryConflicts, result().summaryZh());
+    }
+
+    /**
+     * Collapse per-step residuals into one txn-level Before→current After per coordinate
+     * so residual Undo can restore the pre-build world state.
+     */
+    static List<BlockChange> collapseResidualsByPos(List<BlockChange> residuals) {
+        if (residuals == null || residuals.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashMap<BlockPos, BlockChange> byPos = new LinkedHashMap<>();
+        for (BlockChange c : residuals) {
+            if (c == null || c.getPos() == null || c.getFrom() == null) continue;
+            BlockPos key = c.getPos().toImmutable();
+            BlockChange prev = byPos.get(key);
+            if (prev == null) {
+                byPos.put(key, c);
+            } else {
+                // Keep earliest Before; refresh After to the latest observed residual.
+                byPos.put(key, new BlockChange(key, prev.getFrom(), c.getTo() != null ? c.getTo() : prev.getTo()));
+            }
+        }
+        return new ArrayList<>(byPos.values());
     }
 
     /**

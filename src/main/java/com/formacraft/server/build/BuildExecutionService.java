@@ -381,10 +381,10 @@ public class BuildExecutionService {
                     outcome.recoveredFull(), outcome.recoveredStateOnly(), outcome.recoveryFailed());
         }
 
-        // Memory：仅完整成功且可取 Spec
-        if (recordsHistory && ownerEntity != null && memoryManager != null && !changes.isEmpty()) {
+        // Memory：完整成功即登记（不依赖玩家仍在线）；Spec 按 owner UUID 取缓存。
+        if (recordsHistory && memoryManager != null && !changes.isEmpty()) {
             try {
-                String buildingJson = PlayerSpecRepository.getBuildingJson(ownerEntity);
+                String buildingJson = PlayerSpecRepository.getBuildingJson(ownerUuid);
                 BuildingSpec spec = null;
                 if (buildingJson != null && !buildingJson.isEmpty()) {
                     try {
@@ -409,13 +409,23 @@ public class BuildExecutionService {
                         if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
                         if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
                     }
-                    memoryManager.updateMemory(memory);
-                    FormacraftMod.LOGGER.info("Saved building to memory: {} ({}) roofCells={} fbd={}",
-                            memory.getName(), memory.getUuid(), roofIndex.roof().cells().size(),
-                            BuildingMemoryKeys.hasFbdSourcePlan(memory));
+                    var memUpdate = memoryManager.updateMemoryStrict(memory);
+                    if (!memUpdate.ok()) {
+                        FormacraftMod.LOGGER.warn(
+                                "Building placed but Memory persist failed for owner={} detail={}",
+                                ownerUuid, memUpdate.message());
+                    } else {
+                        FormacraftMod.LOGGER.info("Saved building to memory: {} ({}) roofCells={} fbd={} online={}",
+                                memory.getName(), memory.getUuid(), roofIndex.roof().cells().size(),
+                                BuildingMemoryKeys.hasFbdSourcePlan(memory), ownerEntity != null);
+                    }
+                } else {
+                    FormacraftMod.LOGGER.warn(
+                            "Building placed but Memory registerBuilding returned null (owner={})", ownerUuid);
                 }
             } catch (Exception e) {
-                FormacraftMod.LOGGER.warn("Failed to save building to memory: {}", e.getMessage());
+                FormacraftMod.LOGGER.warn("Failed to save building to memory (owner={}): {}",
+                        ownerUuid, e.getMessage());
             }
         }
 

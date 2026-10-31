@@ -274,6 +274,73 @@ class BuildTaskTest {
     }
 
     @Test
+    void rollbackSkipsExternalConflictWithoutOverwrite() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var dirt = Blocks.DIRT.getDefaultState();
+        var pos = new BlockPos(0, 1, 0);
+        // Extra planned cells keep the task RUNNING so cancel can start rollback.
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "conflict",
+                List.of(
+                        new PlannedBlock(pos, stone),
+                        new PlannedBlock(new BlockPos(1, 1, 0), stone),
+                        new PlannedBlock(new BlockPos(2, 1, 0), stone)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(1, task.tick(1));
+        assertEquals(stone, access.states.get(pos));
+        assertFalse(task.isFinished());
+        // Player (or another build) edits the cell after our write.
+        access.states.put(pos, dirt);
+        task.cancel();
+        drainUntilFinished(task);
+        assertEquals(BuildTask.Status.CANCELLED, task.status());
+        assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLBACK_INCOMPLETE, task.mutationStatus());
+        assertEquals(dirt, access.states.get(pos), "must not overwrite external edit");
+        assertEquals(1, task.recoveryConflicts());
+        assertEquals(1, task.getAppliedChanges().size());
+        assertEquals(Blocks.AIR.getDefaultState(), task.getAppliedChanges().get(0).getFrom().state());
+        assertEquals(dirt, task.getAppliedChanges().get(0).getTo().state());
+    }
+
+    @Test
+    void samePosMultiWriteRollsBackToOriginalBefore() {
+        var access = new FakeBlockMutationAccess();
+        var oak = Blocks.OAK_PLANKS.getDefaultState();
+        var glass = Blocks.GLASS.getDefaultState();
+        var pos = new BlockPos(0, 1, 0);
+        // Trailing illegal target forces permanent-fail rollback after both writes.
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "multi",
+                List.of(
+                        new PlannedBlock(pos, oak),
+                        new PlannedBlock(pos, glass),
+                        new PlannedBlock(new BlockPos(3, 1, 0), null)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(3, task.tick(10));
+        drainUntilFinished(task);
+        assertEquals(BuildTask.Status.ROLLED_BACK, task.status());
+        assertEquals(com.formacraft.common.patch.BuildExecutionStatus.ROLLED_BACK, task.mutationStatus());
+        assertEquals(Blocks.AIR.getDefaultState(), access.states.getOrDefault(pos, Blocks.AIR.getDefaultState()));
+        assertTrue(task.getAppliedChanges().isEmpty());
+        assertEquals(0, task.recoveryConflicts());
+    }
+
+    @Test
+    void collapseResidualsKeepsEarliestBefore() {
+        var pos = new BlockPos(1, 2, 3);
+        var air = com.formacraft.common.world.BlockSnapshot.of(Blocks.AIR.getDefaultState());
+        var oak = com.formacraft.common.world.BlockSnapshot.of(Blocks.OAK_PLANKS.getDefaultState());
+        var glass = com.formacraft.common.world.BlockSnapshot.of(Blocks.GLASS.getDefaultState());
+        var dirt = com.formacraft.common.world.BlockSnapshot.of(Blocks.DIRT.getDefaultState());
+        // First residual's Before is kept; To refreshes to the latest residual.
+        var collapsed = BuildTask.collapseResidualsByPos(List.of(
+                new BlockChange(pos, air, glass),
+                new BlockChange(pos, oak, dirt)));
+        assertEquals(1, collapsed.size());
+        assertEquals(air, collapsed.get(0).getFrom());
+        assertEquals(dirt, collapsed.get(0).getTo());
+    }
+
+    @Test
     void nbtStateOnlyCountsAsFailedWriteButRecordsStateChange() {
         var access = new FakeBlockMutationAccess();
         var chest = Blocks.CHEST.getDefaultState();

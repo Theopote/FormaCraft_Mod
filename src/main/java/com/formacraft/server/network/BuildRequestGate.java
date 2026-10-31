@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Permission, per-player concurrency, and sliding-window rate limits for chat build requests.
@@ -30,6 +31,8 @@ public final class BuildRequestGate {
 
     private static final Map<UUID, List<Ticket>> IN_FLIGHT = new ConcurrentHashMap<>();
     private static final Map<UUID, Deque<Long>> WINDOW_HITS = new ConcurrentHashMap<>();
+    /** Monotonic per-player preview generation; only the newest ticket may deliver preview. */
+    private static final Map<UUID, AtomicLong> PREVIEW_GENERATION = new ConcurrentHashMap<>();
 
     public record Rejection(Text message) {}
 
@@ -41,12 +44,15 @@ public final class BuildRequestGate {
         private final UUID id;
         private final UUID playerId;
         private final long expiresAtMs;
+        private final long previewGeneration;
         private final AtomicBoolean released = new AtomicBoolean(false);
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
-        Ticket(UUID playerId, long expiresAtMs) {
+        Ticket(UUID playerId, long expiresAtMs, long previewGeneration) {
             this.id = UUID.randomUUID();
             this.playerId = playerId;
             this.expiresAtMs = expiresAtMs;
+            this.previewGeneration = previewGeneration;
         }
 
         public UUID id() {
@@ -57,6 +63,10 @@ public final class BuildRequestGate {
             return playerId;
         }
 
+        public long previewGeneration() {
+            return previewGeneration;
+        }
+
         long expiresAtMs() {
             return expiresAtMs;
         }
@@ -65,8 +75,25 @@ public final class BuildRequestGate {
             return released.get();
         }
 
+        public boolean isCancelled() {
+            return cancelled.get();
+        }
+
+        /** Soft-cancel: keep quota until {@link #release}, but block preview delivery. */
+        public void cancel() {
+            cancelled.set(true);
+        }
+
         boolean tryMarkReleased() {
             return released.compareAndSet(false, true);
+        }
+
+        /** True when this ticket may still deliver preview (not stale / cancelled / expired). */
+        public boolean mayDeliverPreview() {
+            if (released.get() || cancelled.get()) return false;
+            if (System.currentTimeMillis() > expiresAtMs) return false;
+            AtomicLong gen = PREVIEW_GENERATION.get(playerId);
+            return gen != null && gen.get() == previewGeneration;
         }
     }
 
@@ -122,10 +149,16 @@ public final class BuildRequestGate {
                 hits.addLast(t);
             }
 
-            Ticket ticket = new Ticket(id, t + LEASE_TTL_MS);
+            long gen = PREVIEW_GENERATION.computeIfAbsent(id, u -> new AtomicLong()).incrementAndGet();
+            Ticket ticket = new Ticket(id, t + LEASE_TTL_MS, gen);
             leases.add(ticket);
             return AdmitResult.ok(ticket);
         }
+    }
+
+    /** True if {@code ticket} is still the player's newest non-cancelled lease for preview delivery. */
+    public static boolean mayDeliverPreview(Ticket ticket) {
+        return ticket != null && ticket.mayDeliverPreview();
     }
 
     /** Idempotent release of a single admit ticket. */
@@ -225,17 +258,13 @@ public final class BuildRequestGate {
 
     /** Test-only: add a live lease without permission / rate checks. */
     static Ticket forceAdmitForTest(UUID playerId) {
-        Ticket ticket = new Ticket(playerId, System.currentTimeMillis() + LEASE_TTL_MS);
-        List<Ticket> leases = IN_FLIGHT.computeIfAbsent(playerId, u -> new ArrayList<>(2));
-        synchronized (leases) {
-            leases.add(ticket);
-        }
-        return ticket;
+        return forceAdmitForTest(playerId, System.currentTimeMillis() + LEASE_TTL_MS);
     }
 
     /** Test-only: admit with a custom expiry. */
     static Ticket forceAdmitForTest(UUID playerId, long expiresAtMs) {
-        Ticket ticket = new Ticket(playerId, expiresAtMs);
+        long gen = PREVIEW_GENERATION.computeIfAbsent(playerId, u -> new AtomicLong()).incrementAndGet();
+        Ticket ticket = new Ticket(playerId, expiresAtMs, gen);
         List<Ticket> leases = IN_FLIGHT.computeIfAbsent(playerId, u -> new ArrayList<>(2));
         synchronized (leases) {
             leases.add(ticket);

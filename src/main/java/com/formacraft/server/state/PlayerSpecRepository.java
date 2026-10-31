@@ -60,14 +60,24 @@ public class PlayerSpecRepository {
      * 获取玩家的当前建筑 ID
      */
     public static String getBuildingId(ServerPlayerEntity player) {
-        return currentBuildingId.get(player.getUuid());
+        return player == null ? null : getBuildingId(player.getUuid());
+    }
+
+    /** UUID lookup so Memory commit can proceed after the owner disconnects. */
+    public static String getBuildingId(UUID playerId) {
+        return playerId == null ? null : currentBuildingId.get(playerId);
     }
     
     /**
      * 获取玩家的当前建筑规格 JSON
      */
     public static String getBuildingJson(ServerPlayerEntity player) {
-        return currentBuildingJson.get(player.getUuid());
+        return player == null ? null : getBuildingJson(player.getUuid());
+    }
+
+    /** UUID lookup so Memory commit can proceed after the owner disconnects. */
+    public static String getBuildingJson(UUID playerId) {
+        return playerId == null ? null : currentBuildingJson.get(playerId);
     }
     
     /**

@@ -274,7 +274,8 @@ public final class BuildRequestProcessor {
                                                                 } finally {
                                                                     BuildRequestGate.release(gateTicket);
                                                                 }
-                                                            });
+                                                            },
+                                                            gateTicket);
                                                 }
                                                 case AiPlanResult.BuildingSpec(var spec) -> {
                                                     BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);

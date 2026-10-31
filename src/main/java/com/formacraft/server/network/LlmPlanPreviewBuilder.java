@@ -77,6 +77,24 @@ public final class LlmPlanPreviewBuilder {
             AtomicBoolean hbAlive,
             Consumer<Boolean> done
     ) {
+        scheduleBuildPreview(server, player, req, llmPlan, origin, serverWorld, hbAlive, done, null);
+    }
+
+    /**
+     * @param gateTicket when non-null, stale/cancelled tickets skip preview delivery
+     *                   (newer admit bumps preview generation).
+     */
+    public static void scheduleBuildPreview(
+            MinecraftServer server,
+            ServerPlayerEntity player,
+            FormaRequest req,
+            LlmPlan llmPlan,
+            BlockPos origin,
+            ServerWorld serverWorld,
+            AtomicBoolean hbAlive,
+            Consumer<Boolean> done,
+            BuildRequestGate.Ticket gateTicket
+    ) {
         // Always invoke done exactly once so BuildRequestGate tickets cannot leak on exceptions.
         Consumer<Boolean> finish = onceFinish(done);
         try {
@@ -85,7 +103,14 @@ public final class LlmPlanPreviewBuilder {
                 return;
             }
             if (!canOffThreadComponentCompile(llmPlan, req)) {
-                deliverPreview(finish, () -> tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive));
+                deliverPreview(finish, () -> {
+                    if (gateTicket != null && !BuildRequestGate.mayDeliverPreview(gateTicket)) {
+                        LOG.warn("skipping on-thread preview; ticket stale/cancelled");
+                        hbAlive.set(false);
+                        return true;
+                    }
+                    return tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive);
+                });
                 return;
             }
 
@@ -101,29 +126,64 @@ public final class LlmPlanPreviewBuilder {
                                         llmPlan, planOrigin, null, sampler, false);
                                 var gap = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
                                 var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
-                                boolean unusable = gap != null
-                                        || compilation == null
+                                if (gap != null) {
+                                    // Deterministic capability gap — do not recompile on the main thread.
+                                    return new CompiledBuildArtifact(null, gap, softs, planOrigin);
+                                }
+                                if (compilation == null
                                         || compilation.patches() == null
-                                        || compilation.patches().isEmpty();
-                                if (unusable) {
-                                    return null;
+                                        || compilation.patches().isEmpty()) {
+                                    return new CompiledBuildArtifact(
+                                            null,
+                                            new com.formacraft.common.llm.dto.CapabilityGap(
+                                                    "E_EMPTY_COMPILE",
+                                                    "Off-thread components[] compile produced no patches.",
+                                                    "compile",
+                                                    List.of("Simplify the plan or retry.")),
+                                            softs,
+                                            planOrigin);
                                 }
                                 return new CompiledBuildArtifact(compilation, null, softs, planOrigin);
                             });
-                    if (artifact == null) {
-                        LOG.warn("off-thread components[] compile unusable; falling back to server thread with world");
-                        server.execute(() -> deliverPreview(finish,
-                                () -> tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
-                        return;
-                    }
-                    server.execute(() -> com.formacraft.server.generation.GenerationCompileContext.runWith(
-                            compileCtx,
-                            () -> deliverPreview(finish, () -> tryBuildPreview(
-                                    player, req, llmPlan, origin, serverWorld, hbAlive, true, artifact))));
+                    server.execute(() -> {
+                        if (gateTicket != null && !BuildRequestGate.mayDeliverPreview(gateTicket)) {
+                            LOG.warn("skipping compiled preview delivery; ticket stale/cancelled");
+                            hbAlive.set(false);
+                            finish.accept(true);
+                            return;
+                        }
+                        if (artifact == null || artifact.compilation() == null
+                                || artifact.gap() != null) {
+                            // Structured error path — never a generic main-thread full recompile.
+                            deliverPreview(finish, () -> {
+                                var gap = artifact != null && artifact.gap() != null
+                                        ? artifact.gap()
+                                        : new com.formacraft.common.llm.dto.CapabilityGap(
+                                                "E_EMPTY_COMPILE",
+                                                "Off-thread components[] compile failed.",
+                                                "compile",
+                                                List.of());
+                                reportCapabilityGap(player, req, hbAlive, gap);
+                                return true;
+                            });
+                            return;
+                        }
+                        com.formacraft.server.generation.GenerationCompileContext.runWith(
+                                compileCtx,
+                                () -> deliverPreview(finish, () -> tryBuildPreview(
+                                        player, req, llmPlan, origin, serverWorld, hbAlive, true, artifact)));
+                    });
                 } catch (Throwable t) {
-                    LOG.error("off-thread LlmPlan components[] compile failed; falling back to server thread", t);
-                    server.execute(() -> deliverPreview(finish,
-                            () -> tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive)));
+                    // Deterministic off-thread failures must not kick a full main-thread recompile.
+                    LOG.error("off-thread LlmPlan components[] compile failed (no main-thread recompile)", t);
+                    server.execute(() -> deliverPreview(finish, () -> {
+                        hbAlive.set(false);
+                        LlmPlanRoutingMetrics.recordError(player, req, "off_thread_compile_failed");
+                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                "建筑方案编译失败（后台）。请简化请求或重试；不会在主线程重跑完整编译。"
+                        ));
+                        return true;
+                    }));
                 } finally {
                     com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
                 }

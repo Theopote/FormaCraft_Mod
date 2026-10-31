@@ -57,6 +57,20 @@ class BuildRequestGateTest {
     }
 
     @Test
+    void newerAdmitSupersedesOlderPreviewGeneration() {
+        UUID id = UUID.randomUUID();
+        BuildRequestGate.Ticket older = BuildRequestGate.forceAdmitForTest(id);
+        assertTrue(older.mayDeliverPreview());
+        BuildRequestGate.Ticket newer = BuildRequestGate.forceAdmitForTest(id);
+        assertFalse(older.mayDeliverPreview(), "older ticket must not deliver after a newer admit");
+        assertTrue(newer.mayDeliverPreview());
+        older.cancel();
+        assertFalse(older.mayDeliverPreview());
+        assertTrue(newer.mayDeliverPreview());
+        BuildRequestGate.releaseAll(id);
+    }
+
+    @Test
     void onceFinishStyleCallbackStillReleasesWhenWorkThrows() {
         // Mirrors scheduleBuildPreview deliverPreview + BuildRequestProcessor finish finally.
         UUID id = UUID.randomUUID();
