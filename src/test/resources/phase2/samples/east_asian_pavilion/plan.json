@@ -6,6 +6,9 @@
     "allow_compiler_satellites": false,
     "phase2_sample": "east_asian_pavilion"
   },
+  "style_attributes": {
+    "roof_material": "dark_oak_stairs"
+  },
   "components": [
     {
       "component_type": "MASS_MAIN",
@@ -53,12 +56,12 @@
       "slot_id": "hall",
       "relative_position": { "x": -1, "y": 4, "z": -1 },
       "dimensions": { "width": 13, "depth": 13, "height": 4 },
-      "features": [],
+      "features": ["flying_eaves", "重檐"],
       "params": {
         "host_id": "hall",
         "roof_type": "hip",
         "material": "dark_oak_stairs",
-        "overhang": 1,
+        "roof_material": "dark_oak_stairs",
         "allow_patch_overwrite": true
       }
     },
@@ -67,12 +70,12 @@
       "slot_id": "upper",
       "relative_position": { "x": 1, "y": 8, "z": 1 },
       "dimensions": { "width": 9, "depth": 9, "height": 4 },
-      "features": [],
+      "features": ["flying_eaves", "重檐"],
       "params": {
         "host_id": "upper",
         "roof_type": "hip",
         "material": "dark_oak_stairs",
-        "overhang": 1,
+        "roof_material": "dark_oak_stairs",
         "allow_patch_overwrite": true
       }
     },

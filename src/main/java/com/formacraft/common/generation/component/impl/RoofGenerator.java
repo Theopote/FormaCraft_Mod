@@ -67,6 +67,10 @@ public class RoofGenerator implements ComponentGenerator {
             overhang = 2;
         } else if (roofType == RoofTypeKind.XIESHAN && overhang <= 0) {
             overhang = 1;
+        } else if (roofType == RoofTypeKind.HIP && overhang <= 0
+                && (isAsianStyleProfile(styleProfile) || hasRoofFeature(c, semantic, "flying_eaves", "flying eaves", "飞檐", "重檐"))) {
+            // East-asian hip roofs read incomplete without a one-block eave strip.
+            overhang = 1;
         }
         if (hasRoofFeature(c, semantic, "flying_eaves", "flying eaves", "飞檐")) {
             int minOverhang = (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN) ? 3 : 2;
@@ -128,7 +132,8 @@ public class RoofGenerator implements ComponentGenerator {
                     out, out, baseX, rp.y(), baseZ, width, depth, height, trim, glass, roofBlock);
         }
 
-        boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱");
+        boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱", "重檐")
+                || (roofType == RoofTypeKind.HIP && appliedOverhang > 0 && isAsianStyleProfile(styleProfile));
         if (emphasizeEaves && roofType != RoofTypeKind.FLAT
                 && !com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params)) {
             int eaveOutset = hasRoofFeature(c, semantic, "dougong", "斗拱") ? 2 : 1;
@@ -802,14 +807,22 @@ public class RoofGenerator implements ComponentGenerator {
     }
 
     private static String getBlockForPart(SemanticComponent semantic, Palette palette, SemanticPart part) {
+        if (semantic != null && semantic.source() != null && semantic.source().params() != null
+                && (part == SemanticPart.ROOF || part == SemanticPart.ROOF_SURFACE)) {
+            String resolved = resolveRoofMaterial(semantic.source().params(), part);
+            if (resolved != null) {
+                return resolved;
+            }
+        }
         String key = switch (part) {
-            case ROOF, ROOF_SURFACE -> "roof_block";
             case WALL, WALL_BASE, WALL_ACCENT -> "wall_block";
             default -> null;
         };
         if (key != null && semantic != null && semantic.source() != null) {
             String explicit = getParamString(semantic.source().params(), key);
-            if (explicit != null && !explicit.isBlank()) return explicit.contains(":") ? explicit : "minecraft:" + explicit;
+            if (explicit != null && !explicit.isBlank()) {
+                return explicit.contains(":") ? explicit : "minecraft:" + explicit;
+            }
         }
         if (semantic != null && semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
@@ -827,6 +840,40 @@ public class RoofGenerator implements ComponentGenerator {
             case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
             default -> "minecraft:stone_bricks";
         };
+    }
+
+    /**
+     * Honors {@code roof_block} / {@code roof_material} / {@code material}.
+     * Pitched slopes prefer stairs; roof plates prefer slabs when the family exists.
+     */
+    static String resolveRoofMaterial(Map<String, Object> params, SemanticPart part) {
+        if (params == null) return null;
+        String explicit = getParamString(params, "roof_block", "roof_material", "material");
+        if (explicit == null || explicit.isBlank()) return null;
+        String id = explicit.contains(":") ? explicit.trim() : "minecraft:" + explicit.trim();
+        String base = id.split("\\[", 2)[0].toLowerCase(java.util.Locale.ROOT);
+        if (part == SemanticPart.ROOF_SURFACE) {
+            if (base.endsWith("_slab")) return id;
+            String slab = com.formacraft.common.palette.component.MaterialBlockFamily.slab(base);
+            if (slab != null) return slab;
+            if (base.endsWith("_stairs")) {
+                String fromStairs = com.formacraft.common.palette.component.MaterialBlockFamily.slab(base);
+                if (fromStairs != null) return fromStairs;
+            }
+            return id;
+        }
+        // ROOF slope / ridge
+        if (base.endsWith("_stairs")) return id;
+        String stairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(base);
+        if (stairs != null) return stairs;
+        return id;
+    }
+
+    private static boolean isAsianStyleProfile(String styleProfile) {
+        if (styleProfile == null || styleProfile.isBlank()) return false;
+        String s = styleProfile.trim().toUpperCase(java.util.Locale.ROOT);
+        return s.contains("ASIAN") || s.contains("CHINESE") || s.contains("JAPAN")
+                || s.contains("MING") || s.contains("QING") || s.contains("TANG");
     }
 
 }

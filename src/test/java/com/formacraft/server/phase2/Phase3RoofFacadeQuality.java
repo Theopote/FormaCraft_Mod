@@ -24,7 +24,8 @@ public final class Phase3RoofFacadeQuality {
             double coverageRatio,
             int roofRiseSpan,
             int ridgeOrPeakCells,
-            boolean hasPitchedProfile
+            boolean hasPitchedProfile,
+            int shapedRoofCells
     ) {}
 
     public record FacadeReport(
@@ -50,7 +51,7 @@ public final class Phase3RoofFacadeQuality {
             boolean requireOpeningLike
     ) {
         Map<BlockPos, String> cells = Phase2StructuralChecks.collapseFinalPlaceCells(patches);
-        RoofReport roof = analyzeRoof(cells);
+        RoofReport roof = analyzeRoof(cells, patches);
         FacadeReport facade = analyzeFacade(cells);
         List<String> issues = new ArrayList<>();
         Set<String> f = focus == null ? Set.of() : focus;
@@ -82,6 +83,12 @@ public final class Phase3RoofFacadeQuality {
                 issues.add("expected pitched roof profile, riseSpan=" + roof.roofRiseSpan()
                         + " pitched=" + roof.hasPitchedProfile());
             }
+            if ((f.contains("complex_roof") || f.contains("multi_eave") || f.contains("roof"))
+                    && !flatRoofOk
+                    && roof.shapedRoofCells() < 8) {
+                issues.add("shapedRoofCells=" + roof.shapedRoofCells()
+                        + " < 8 (pitched roofs should express stairs/slabs)");
+            }
         }
 
         boolean checkOpenings = requireOpeningLike
@@ -109,21 +116,32 @@ public final class Phase3RoofFacadeQuality {
     }
 
     static RoofReport analyzeRoof(Map<BlockPos, String> cells) {
+        return analyzeRoof(cells, null);
+    }
+
+    static RoofReport analyzeRoof(Map<BlockPos, String> cells, List<BlockPatch> patches) {
         if (cells.isEmpty()) {
-            return new RoofReport(0, 0, 0, 0, 0, false);
+            return new RoofReport(0, 0, 0, 0, 0, false, 0);
         }
         Map<Long, Integer> maxYByColumn = new TreeMap<>();
         int globalMinY = Integer.MAX_VALUE;
         int globalMaxY = Integer.MIN_VALUE;
-        for (BlockPos p : cells.keySet()) {
+        int shaped = 0;
+        for (var e : cells.entrySet()) {
+            BlockPos p = e.getKey();
             long key = pack(p.getX(), p.getZ());
             maxYByColumn.merge(key, p.getY(), Math::max);
             globalMinY = Math.min(globalMinY, p.getY());
             globalMaxY = Math.max(globalMaxY, p.getY());
+            String b = e.getValue() == null ? "" : e.getValue().toLowerCase(Locale.ROOT);
+            if (b.contains("stairs") || b.contains("slab")) shaped++;
+        }
+        if (patches != null) {
+            // Prefer counting from final cells; patches already collapsed above.
         }
 
         // Pitched / multi-eave roofs have eaves far below the ridge. Measure coverage
-        // against the upper height band (top ~40%), not only globalMaxY-1.
+        // against the upper height band, not only globalMaxY-1.
         int heightSpan = Math.max(1, globalMaxY - globalMinY + 1);
         int roofBandMin = globalMinY + (int) Math.floor(heightSpan * 0.50);
 
@@ -145,7 +163,7 @@ public final class Phase3RoofFacadeQuality {
         int rise = (minTop == Integer.MAX_VALUE) ? 0 : (maxTop - minTop + 1);
         boolean pitched = topYs.size() >= 2 && rise >= 2;
         double ratio = footprint == 0 ? 0 : (double) covered / (double) footprint;
-        return new RoofReport(footprint, covered, ratio, rise, peak, pitched);
+        return new RoofReport(footprint, covered, ratio, rise, peak, pitched, shaped);
     }
 
     static FacadeReport analyzeFacade(Map<BlockPos, String> cells) {

@@ -54,6 +54,7 @@
         "faces": ["SOUTH"],
         "window_ratio": 0.4,
         "window_aspect": "square",
+        "rhythm": "regular",
         "window_width": 2,
         "window_height": 2,
         "sill_offset": 1,
