@@ -122,7 +122,8 @@ public final class DistinguishingFeaturesBridge {
         }
 
         if (attrs == null) {
-            return new StyleAttributes(null, null, null, null, null, null, mergedDecorative, null);
+            return new StyleAttributes(null, null, null, null, null, null, mergedDecorative, null,
+                    null, null, null, null, null);
         }
         return new StyleAttributes(
                 attrs.wallColor(),
@@ -132,7 +133,12 @@ public final class DistinguishingFeaturesBridge {
                 attrs.accentMaterial(),
                 attrs.floorMaterial(),
                 mergedDecorative,
-                attrs.customAttributes()
+                attrs.customAttributes(),
+                attrs.palette(),
+                attrs.materials(),
+                attrs.blockPalette(),
+                attrs.primaryMaterial(),
+                attrs.roofForm()
         );
     }
 

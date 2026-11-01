@@ -452,6 +452,7 @@ final class ComponentSatelliteInference {
         ComponentFoundationEnforcer.apply(prepared);
         DeclaredInteriorOpeningCompiler.apply(prepared, slotMap);
         prepared = ExplicitDesignConflictRepair.apply(prepared);
+        prepared = FootprintCenterRepair.apply(prepared);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
     }
@@ -1675,14 +1676,24 @@ final class ComponentSatelliteInference {
             hintD = ComponentParamParsers.intParam(hints, 0, "target_depth", "targetDepth");
             hintH = ComponentParamParsers.intParam(hints, 0, "target_body_height", "targetBodyHeight", "target_height");
         }
+        PlanIntentFidelityRepair.IntentHints intent = PlanIntentFidelityRepair.parse(plan);
         for (Slot slot : slots) {
             if (slot == null) continue;
             Vec3i size = slot.size();
-            int w = size != null ? Math.max(1, size.x()) : hintW;
-            int h = size != null ? Math.max(1, size.y()) : hintH;
-            int d = size != null ? Math.max(1, size.z()) : hintD;
+            int w = size != null ? Math.max(0, size.x()) : 0;
+            int h = size != null ? Math.max(0, size.y()) : 0;
+            int d = size != null ? Math.max(0, size.z()) : 0;
+            if (w < 4) w = hintW;
+            if (d < 4) d = hintD;
+            if (h < 3) h = hintH;
+            // Orchestrator sometimes emits {w,d} without height — infer from storey intent.
+            if (h < 3) {
+                int floors = Math.max(1, intent.floorCount());
+                h = Math.max(4, floors * 4);
+            }
             if (w < 4 || d < 4 || h < 3) continue;
-            Vec3i anchor = slot.anchor() != null ? slot.anchor() : new Vec3i(0, 0, 0);
+            // Footprint center at plan origin: ignore noisy slot anchors that only partially center.
+            Vec3i origin = new Vec3i(-(w / 2), 0, -(d / 2));
             String slotId = slot.slotId() != null ? slot.slotId() : "recovered_main";
             Map<String, Object> params = new HashMap<>();
             params.put("component_id", "mass:" + slotId);
@@ -1692,11 +1703,15 @@ final class ComponentSatelliteInference {
             params.put("roof_requirement", "REQUIRED");
             params.put("entrance_requirement", "REQUIRED");
             params.put("facade_requirement", "REQUIRED");
+            if (intent.floorCount() > 0) {
+                params.put("floor_count", intent.floorCount());
+                params.put("floor_height", Math.max(3, h / Math.max(1, intent.floorCount())));
+            }
             if (slot.facing() != null) params.put("facing", slot.facing().name());
             out.add(new Component(
                     "MASS_MAIN",
                     slotId,
-                    anchor,
+                    origin,
                     new Dimensions(w, d, h),
                     List.of(),
                     params

@@ -80,7 +80,7 @@ class RoofGeneratorGeometryQualityTest {
     }
 
     @Test
-    void hipSlopeStairsCarryOutwardFacing() {
+    void hipSlopeStairsFaceTowardRidge() {
         List<BlockPatch> patches = generate(
                 "hip",
                 List.of(),
@@ -94,12 +94,12 @@ class RoofGeneratorGeometryQualityTest {
                 .count();
         assertTrue(faced >= 8, "hip slopes should emit facing= stairs, faced=" + faced);
 
-        // West edge column should prefer facing=west on slope stairs.
-        long westFacing = patches.stream()
+        // West edge: higher half toward ridge ⇒ facing=east.
+        long westEdgeFacesEast = patches.stream()
                 .filter(p -> p.dx() == 0)
-                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("facing=west"))
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("facing=east"))
                 .count();
-        assertTrue(westFacing >= 1, "west edge should face west");
+        assertTrue(westEdgeFacesEast >= 1, "west edge should face east toward ridge");
     }
 
     @Test
@@ -179,8 +179,8 @@ class RoofGeneratorGeometryQualityTest {
     }
 
     @Test
-    void gableSlopeStairsFaceAwayFromRidge() {
-        // depth >= width ⇒ ridge along Z; slopes face west/east.
+    void gableSlopeStairsFaceTowardRidge() {
+        // depth >= width ⇒ ridge along Z; higher half faces inward (west pitch → east).
         List<BlockPatch> patches = generate(
                 "gable",
                 List.of(),
@@ -193,10 +193,10 @@ class RoofGeneratorGeometryQualityTest {
                 .toList();
         assertFalse(stairs.isEmpty(), "gable slopes need faced stairs");
         int midX = stairs.stream().mapToInt(BlockPatch::dx).max().orElse(0) / 2;
-        long west = stairs.stream().filter(p -> p.dx() < midX && p.targetBlock().contains("facing=west")).count();
-        long east = stairs.stream().filter(p -> p.dx() > midX && p.targetBlock().contains("facing=east")).count();
-        assertTrue(west >= 2, "west pitch facing=west, west=" + west);
-        assertTrue(east >= 2, "east pitch facing=east, east=" + east);
+        long west = stairs.stream().filter(p -> p.dx() < midX && p.targetBlock().contains("facing=east")).count();
+        long east = stairs.stream().filter(p -> p.dx() > midX && p.targetBlock().contains("facing=west")).count();
+        assertTrue(west >= 2, "west pitch facing=east toward ridge, west=" + west);
+        assertTrue(east >= 2, "east pitch facing=west toward ridge, east=" + east);
         // Full column coverage over the authored footprint (ASIAN xuanshan/gable may expand eaves).
         Set<Long> columns = new HashSet<>();
         for (BlockPatch p : patches) {
@@ -226,9 +226,9 @@ class RoofGeneratorGeometryQualityTest {
         // Mid-span west pitch (away from hip ends).
         long midWest = stairs.stream()
                 .filter(p -> p.dx() == minX + 1 && Math.abs(p.dz() - midZ) <= 1)
-                .filter(p -> p.targetBlock().contains("facing=west"))
+                .filter(p -> p.targetBlock().contains("facing=east"))
                 .count();
-        assertTrue(midWest >= 1, "xieshan mid-span west pitch should face west, not north/south");
+        assertTrue(midWest >= 1, "xieshan mid-span west pitch should face east (toward ridge)");
 
         int[][] corners = {{minX, minZ}, {minX, maxZ}, {maxX, minZ}, {maxX, maxZ}};
         for (int[] c : corners) {

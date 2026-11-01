@@ -248,5 +248,71 @@ class InGameAcceptanceRepairTest {
                 .build());
         assertEquals("hip", hints.roofType());
         assertEquals("minecraft:stone_brick_stairs", hints.roofBlock());
+        assertTrue(hints.preferStairs());
+    }
+
+    @Test
+    void slotSizeWhdRecoversMassInsteadOfEmptyOutput() {
+        // Orchestrator often emits size:{w,h,d} which must deserialize into Vec3i.
+        String json = """
+                {"mode":"build","anchor":{"x":0,"y":64,"z":0},
+                 "layout":{"slots":[{"slot_id":"main","anchor":{"x":0,"y":0,"z":0},
+                   "facing":"SOUTH","size":{"w":12,"h":8,"d":10}}]},
+                 "components":[],
+                 "proportion_hints":{"architecture_intent":{"scopes":[{"text":
+                   "盖一座约12×10的两层砖房，石砖墙，屋顶用双坡"}]}}}
+                """;
+        LlmPlan plan;
+        try {
+            plan = com.formacraft.common.llm.parser.LlmPlanParser.parse(json);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+        assertNotNull(plan.layout().slots().getFirst().size());
+        assertEquals(12, plan.layout().slots().getFirst().size().x());
+        assertEquals(8, plan.layout().slots().getFirst().size().y());
+        assertEquals(10, plan.layout().slots().getFirst().size().z());
+        var prepared = ComponentSatelliteInference.prepareComponents(
+                plan, Map.of("main", plan.layout().slots().getFirst()), false);
+        assertFalse(prepared.components().isEmpty(), "w/h/d slot.size must recover MASS_MAIN");
+        Component mass = prepared.components().stream()
+                .filter(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertEquals(2, ((Number) mass.params().get("floor_count")).intValue());
+        assertEquals(0, (mass.relativePosition().x() * 2 + mass.dimensions().width()) / 2,
+                "footprint should be centered on origin");
+    }
+
+    @Test
+    void oakStairGableForcedFromIntent() {
+        Slot slot = new Slot("hall", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH,
+                null, null, null, new Vec3i(12, 5, 10));
+        Map<String, Object> hints = new HashMap<>();
+        hints.put("architecture_intent", Map.of("scopes", List.of(Map.of("text",
+                "盖一座约12×10的单层木构小厅，深色橡木墙，橡木楼梯坡屋顶（双坡/人字顶），屋脊沿东西向，南北两坡用楼梯方块，南侧正门一门两窗"))));
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of(slot)))
+                .components(List.of())
+                .distinguishingFeatures(List.of(
+                        "gable (double-pitch / 人字) roof built from oak stair blocks",
+                        "south facade: one centred door with a window on each side"))
+                .styleAttributes(new com.formacraft.common.llm.dto.StyleAttributes(
+                        null, null, null, null, null, null, null, null,
+                        Map.of("wall", "minecraft:dark_oak_planks", "roof", "minecraft:oak_planks"),
+                        null, null, null, null))
+                .proportionHints(hints)
+                .build();
+        var prepared = ComponentSatelliteInference.prepareComponents(plan, Map.of("hall", slot), false);
+        Component roof = prepared.components().stream()
+                .filter(c -> "ROOF".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertTrue(String.valueOf(roof.params().get("roof_block")).contains("stairs"),
+                "oak planks roof must promote to stairs, got " + roof.params().get("roof_block"));
+        assertEquals("x", String.valueOf(roof.params().get("ridge_axis")));
+        Component mass = prepared.components().stream()
+                .filter(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertEquals(2, ((Number) mass.params().getOrDefault("entrance_flank_windows", 0)).intValue());
     }
 }

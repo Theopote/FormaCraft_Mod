@@ -102,7 +102,7 @@ public class RoofGenerator implements ComponentGenerator {
                 case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         palette, footprint, appliedOverhang);
                 case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
-                        footprint, appliedOverhang);
+                        footprint, appliedOverhang, resolveGableAlongDepth(params, width, depth));
                 case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
                 case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -304,18 +304,33 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                    int width, int depth, int height, Palette palette,
                                    ComponentFootprintMask footprint, int overhang) {
-        generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+        generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0,
+                depth >= width);
+    }
+
+    private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                   int width, int depth, int height, Palette palette,
+                                   ComponentFootprintMask footprint, int overhang, boolean alongDepth) {
+        generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0,
+                alongDepth);
     }
 
     private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                    int width, int depth, int height, Palette palette,
                                    ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
+        generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                fpOffsetX, fpOffsetZ, depth >= width);
+    }
+
+    private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                   int width, int depth, int height, Palette palette,
+                                   ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ,
+                                   boolean alongDepth) {
         if (width < 2 || depth < 2 || height < 2) {
             generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
                     fpOffsetX, fpOffsetZ);
             return;
         }
-        boolean alongDepth = depth >= width;
         int across = alongDepth ? width : depth;
         int maxSpan = Math.max(1, (across - 1) / 2);
         for (int x = 0; x < width; x++) {
@@ -330,7 +345,8 @@ public class RoofGenerator implements ComponentGenerator {
                 SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 if (part == SemanticPart.ROOF) {
-                    block = withStairsFacing(block, gableOutwardFacing(alongDepth, x, z, width, depth));
+                    // Minecraft stairs facing = higher half. Point toward the ridge (inward).
+                    block = withStairsFacing(block, gableRidgeFacing(alongDepth, x, z, width, depth));
                 }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
@@ -341,6 +357,24 @@ public class RoofGenerator implements ComponentGenerator {
                 ));
             }
         }
+    }
+
+    /** ridge_axis x ⇒ slopes face N/S (ridge along width); z ⇒ slopes face E/W. */
+    static boolean resolveGableAlongDepth(Map<String, Object> params, int width, int depth) {
+        String axis = getParamString(params, "ridge_axis", "ridgeAxis");
+        if (axis != null) {
+            String a = axis.trim().toLowerCase(java.util.Locale.ROOT);
+            if ("x".equals(a) || "east_west".equals(a) || "east-west".equals(a) || "ew".equals(a)) {
+                return false; // across = depth → N/S slopes
+            }
+            if ("z".equals(a) || "north_south".equals(a) || "north-south".equals(a) || "ns".equals(a)) {
+                return true; // across = width → E/W slopes
+            }
+            if ("long".equals(a) || "long_side".equals(a)) {
+                return width >= depth; // ridge along longer plan axis
+            }
+        }
+        return depth >= width;
     }
 
     private void generateHipRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
@@ -369,7 +403,8 @@ public class RoofGenerator implements ComponentGenerator {
                 SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 if (part == SemanticPart.ROOF) {
-                    String facing = outwardFacingFromEdges(x, z, width, depth);
+                    // Higher half toward ridge (inward), opposite of eave outward.
+                    String facing = inwardFacingFromEdges(x, z, width, depth);
                     String shape = isPerimeterCorner(x, z, width, depth)
                             ? cornerOuterShape(x, z, width, depth, facing) : null;
                     block = withStairsFacing(block, facing, shape);
@@ -433,10 +468,10 @@ public class RoofGenerator implements ComponentGenerator {
                         : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 if (part == SemanticPart.ROOF) {
-                    // Gable mid-span faces away from the ridge; hip ends / corners use nearest-edge.
+                    // Higher half toward ridge: mid-span like gable; hip ends use inward nearest-edge.
                     String facing = isPerimeterCorner(x, z, width, depth) || distAlong < ridgeInset
-                            ? outwardFacingFromEdges(x, z, width, depth)
-                            : gableOutwardFacing(ridgeAlongDepth, x, z, width, depth);
+                            ? inwardFacingFromEdges(x, z, width, depth)
+                            : gableRidgeFacing(ridgeAlongDepth, x, z, width, depth);
                     String shape = isPerimeterCorner(x, z, width, depth)
                             ? cornerOuterShape(x, z, width, depth, facing) : null;
                     block = withStairsFacing(block, facing, shape);
@@ -532,7 +567,7 @@ public class RoofGenerator implements ComponentGenerator {
                 if (outer) {
                     int lx = x - ox0;
                     int lz = z - oz0;
-                    String facing = outwardFacingFromEdges(lx, lz, outerW, outerD);
+                    String facing = inwardFacingFromEdges(lx, lz, outerW, outerD);
                     String shape = isPerimeterCorner(lx, lz, outerW, outerD)
                             ? cornerOuterShape(lx, lz, outerW, outerD, facing) : null;
                     block = withStairsFacing(lip, facing, shape);
@@ -564,7 +599,7 @@ public class RoofGenerator implements ComponentGenerator {
         return out;
     }
 
-    /** Cardinal facing toward the nearest roof edge (outward downslope). */
+    /** Cardinal facing toward the nearest roof edge (outward / downslope). */
     static String outwardFacingFromEdges(int x, int z, int width, int depth) {
         int dW = x;
         int dE = Math.max(0, width - 1 - x);
@@ -584,6 +619,22 @@ public class RoofGenerator implements ComponentGenerator {
         return "east";
     }
 
+    /** Stair facing toward the ridge (Minecraft higher-half direction). */
+    static String inwardFacingFromEdges(int x, int z, int width, int depth) {
+        return oppositeFacing(outwardFacingFromEdges(x, z, width, depth));
+    }
+
+    static String oppositeFacing(String facing) {
+        if (facing == null) return null;
+        return switch (facing.toLowerCase(java.util.Locale.ROOT)) {
+            case "north" -> "south";
+            case "south" -> "north";
+            case "east" -> "west";
+            case "west" -> "east";
+            default -> facing;
+        };
+    }
+
     static boolean isPerimeterCorner(int x, int z, int width, int depth) {
         boolean xEdge = x == 0 || x == width - 1;
         boolean zEdge = z == 0 || z == depth - 1;
@@ -592,7 +643,7 @@ public class RoofGenerator implements ComponentGenerator {
 
     /**
      * Outer miter shape for hip/xieshan corner stairs (Minecraft outer_left / outer_right).
-     * Facing is the primary downslope axis chosen by {@link #outwardFacingFromEdges}.
+     * Facing is the higher-half axis (toward ridge / inward).
      */
     static String cornerOuterShape(int x, int z, int width, int depth, String facing) {
         if (facing == null || !isPerimeterCorner(x, z, width, depth)) return null;
@@ -600,11 +651,12 @@ public class RoofGenerator implements ComponentGenerator {
         boolean south = z == depth - 1;
         boolean west = x == 0;
         boolean east = x == width - 1;
+        // Mirror of the outward-facing table: inward facing swaps left/right.
         return switch (facing.toLowerCase(java.util.Locale.ROOT)) {
-            case "west" -> north ? "outer_right" : "outer_left";
-            case "east" -> north ? "outer_left" : "outer_right";
-            case "north" -> west ? "outer_left" : "outer_right";
-            case "south" -> west ? "outer_right" : "outer_left";
+            case "west" -> north ? "outer_left" : "outer_right";
+            case "east" -> north ? "outer_right" : "outer_left";
+            case "north" -> west ? "outer_right" : "outer_left";
+            case "south" -> west ? "outer_left" : "outer_right";
             default -> null;
         };
     }
@@ -616,6 +668,11 @@ public class RoofGenerator implements ComponentGenerator {
         }
         int mid = Math.max(0, (depth - 1) / 2);
         return z <= mid ? "north" : "south";
+    }
+
+    /** Higher half toward the ridge for gable/xuanshan pitches. */
+    static String gableRidgeFacing(boolean alongDepth, int x, int z, int width, int depth) {
+        return oppositeFacing(gableOutwardFacing(alongDepth, x, z, width, depth));
     }
 
     private void generatePyramidRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
@@ -949,39 +1006,41 @@ public class RoofGenerator implements ComponentGenerator {
     }
 
     private static String getBlockForPart(SemanticComponent semantic, Palette palette, SemanticPart part) {
-        if (semantic != null && semantic.source() != null && semantic.source().params() != null
-                && (part == SemanticPart.ROOF || part == SemanticPart.ROOF_SURFACE)) {
-            String resolved = resolveRoofMaterial(semantic.source().params(), part);
+        Map<String, Object> params = semantic != null && semantic.source() != null
+                ? semantic.source().params() : null;
+        if (params != null && (part == SemanticPart.ROOF || part == SemanticPart.ROOF_SURFACE)) {
+            String resolved = resolveRoofMaterial(params, part);
             if (resolved != null) {
-                return resolved;
+                return coerceRoofShape(resolved, part, params);
             }
         }
         String key = switch (part) {
             case WALL, WALL_BASE, WALL_ACCENT -> "wall_block";
             default -> null;
         };
-        if (key != null && semantic != null && semantic.source() != null) {
-            String explicit = getParamString(semantic.source().params(), key);
+        if (key != null && params != null) {
+            String explicit = getParamString(params, key);
             if (explicit != null && !explicit.isBlank()) {
                 return explicit.contains(":") ? explicit : "minecraft:" + explicit;
             }
         }
+        String block = null;
         if (semantic != null && semantic.styleAttributes() != null) {
-            String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
-            if (block != null && !block.isEmpty()) {
-                return block;
-            }
+            block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
         }
-        if (palette != null) {
-            String block = palette.pick(part);
-            if (block != null && !block.isEmpty()) {
-                return block;
-            }
+        if ((block == null || block.isEmpty()) && palette != null) {
+            block = palette.pick(part);
         }
-        return switch (part) {
-            case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
-            default -> "minecraft:stone_bricks";
-        };
+        if (block == null || block.isEmpty()) {
+            block = switch (part) {
+                case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
+                default -> "minecraft:stone_bricks";
+            };
+        }
+        if (part == SemanticPart.ROOF || part == SemanticPart.ROOF_SURFACE) {
+            return coerceRoofShape(block, part, params);
+        }
+        return block;
     }
 
     /**
@@ -992,23 +1051,32 @@ public class RoofGenerator implements ComponentGenerator {
         if (params == null) return null;
         String explicit = getParamString(params, "roof_block", "roof_material", "material");
         if (explicit == null || explicit.isBlank()) return null;
-        String id = explicit.contains(":") ? explicit.trim() : "minecraft:" + explicit.trim();
+        return coerceRoofShape(
+                explicit.contains(":") ? explicit.trim() : "minecraft:" + explicit.trim(),
+                part,
+                params);
+    }
+
+    static String coerceRoofShape(String id, SemanticPart part, Map<String, Object> params) {
+        if (id == null || id.isBlank()) return id;
         String base = id.split("\\[", 2)[0].toLowerCase(java.util.Locale.ROOT);
+        boolean preferStairs = getParamBoolean(params, "prefer_stairs", "preferStairs", "stair_roof")
+                || base.endsWith("_stairs")
+                || (params != null && String.valueOf(params.getOrDefault("roof_type", ""))
+                .toLowerCase(java.util.Locale.ROOT)
+                .matches(".*(gable|hip|xieshan|xuanshan|yingshan|mansard|wudian|wu_dian).*"));
         if (part == SemanticPart.ROOF_SURFACE) {
             if (base.endsWith("_slab")) return id;
             String slab = com.formacraft.common.palette.component.MaterialBlockFamily.slab(base);
             if (slab != null) return slab;
-            if (base.endsWith("_stairs")) {
-                String fromStairs = com.formacraft.common.palette.component.MaterialBlockFamily.slab(base);
-                if (fromStairs != null) return fromStairs;
-            }
             return id;
         }
-        // ROOF slope / ridge
-        if (base.endsWith("_stairs")) return id;
-        String stairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(base);
-        if (stairs != null) return stairs;
-        return id;
+        if (preferStairs || base.endsWith("_stairs")) {
+            if (base.endsWith("_stairs")) return id.contains(":") ? id : "minecraft:" + id;
+            String stairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(base);
+            if (stairs != null) return stairs;
+        }
+        return id.contains(":") ? id : "minecraft:" + id;
     }
 
     private static boolean isAsianStyleProfile(String styleProfile) {

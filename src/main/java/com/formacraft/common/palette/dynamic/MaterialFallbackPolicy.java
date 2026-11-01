@@ -16,7 +16,8 @@ public final class MaterialFallbackPolicy {
         var attrs = a == null ? null : new StyleAttributes(a.wallColor(),
                 material(a.wallMaterial(), "wall_material"), a.roofColor(),
                 material(a.roofMaterial(), "roof_material"), material(a.accentMaterial(), "accent_material"),
-                material(a.floorMaterial(), "floor_material"), a.decorativeElements(), a.customAttributes());
+                material(a.floorMaterial(), "floor_material"), a.decorativeElements(), a.customAttributes(),
+                a.palette(), a.materials(), a.blockPalette(), a.primaryMaterial(), a.roofForm());
         var components = p.components() == null ? null : p.components().stream().map(c -> c == null ? null :
                 new Component(c.componentType(), c.slotId(), c.relativePosition(), c.dimensions(), c.features(),
                         normalizeParams(c.params()))).toList();

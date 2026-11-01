@@ -473,8 +473,11 @@ public class MassMainGenerator implements ComponentGenerator {
                                 && Boolean.FALSE.equals(semantic.source().params().get("gable_windows"))
                                 && (depth >= width ? localZ == 0 || localZ == depth - 1 : localX == 0 || localX == width - 1);
                     }
-                    if (hasWindows && !forbiddenGableWindow && isWindowPosition(localX, localZ, width, depth, y, height,
-                            footprint, windowSpacing, userFloorHeight)
+                    boolean flankWindow = isEntranceFlankWindow(localX, localZ, width, depth, y, footprint,
+                            massParams, doorFacing);
+                    if ((hasWindows || flankWindow) && !forbiddenGableWindow
+                            && (flankWindow || isWindowPosition(localX, localZ, width, depth, y, height,
+                            footprint, windowSpacing, userFloorHeight))
                             && !isOpeningSuppressed(localX, localZ, y, width, depth, userFloorHeight,
                             suppressWindowFaces, suppressWindowRegions)) {
                         SemanticPart part = SemanticPart.WINDOW;
@@ -757,6 +760,28 @@ public class MassMainGenerator implements ComponentGenerator {
             return false;
         }
         return isWindowSpacing(x, z, spacing);
+    }
+
+    /** One door + two flanking windows on the entrance facade when requested. */
+    private boolean isEntranceFlankWindow(int x, int z, int width, int depth, int y,
+                                          com.formacraft.common.generation.component.util.ResolvedFootprint footprint,
+                                          Map<String, Object> params,
+                                          com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
+        if (params == null || footprint == null) return false;
+        int flank = ComponentParamParsers.intParam(params, 0, "entrance_flank_windows", "entranceFlankWindows");
+        if (flank <= 0) return false;
+        if (y <= 0 || !isExteriorWallPosition(x, z, footprint) || isCornerPosition(x, z, footprint)) {
+            return false;
+        }
+        int centerX = width / 2;
+        int centerZ = depth / 2;
+        // Door bay is ~1–3 cells at center; place one window cell on each side.
+        return switch (facing != null ? facing : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH) {
+            case SOUTH -> z <= 0 && (x == centerX - 2 || x == centerX + 2);
+            case NORTH -> z >= depth - 1 && (x == centerX - 2 || x == centerX + 2);
+            case EAST -> x <= 0 && (z == centerZ - 2 || z == centerZ + 2);
+            case WEST -> x >= width - 1 && (z == centerZ - 2 || z == centerZ + 2);
+        };
     }
 
     private boolean isWindowBand(int y, int height, int floorHeight) {

@@ -25,8 +25,13 @@ final class PlanIntentFidelityRepair {
     record IntentHints(
             String roofType,
             boolean doubleEave,
+            boolean preferStairs,
             String wallBlock,
             String roofBlock,
+            String floorBlock,
+            int floorCount,
+            String ridgeAxis,
+            boolean doorFlankWindows,
             List<String> solidSides,
             List<String> windowSides,
             List<String> featureSeeds
@@ -40,12 +45,22 @@ final class PlanIntentFidelityRepair {
         if (roofType == null) {
             roofType = roofTypeFromCorpus(lower);
         }
+        if (roofType == null && plan != null && plan.styleAttributes() != null
+                && plan.styleAttributes().roofForm() != null) {
+            roofType = roofTypeFromCorpus(plan.styleAttributes().roofForm().toLowerCase(Locale.ROOT));
+        }
         boolean doubleEave = lower.contains("重檐")
                 || lower.contains("double_eave")
                 || lower.contains("double-eave")
                 || lower.contains("double_eave_hip")
                 || lower.contains("上下两层屋檐")
                 || eaveTiers(plan) >= 2;
+
+        boolean preferStairs = lower.contains("楼梯") || lower.contains("stair")
+                || lower.contains("坡屋面") || lower.contains("坡屋顶")
+                || lower.contains("pitched") || lower.contains("gable")
+                || lower.contains("双坡") || lower.contains("人字")
+                || lower.contains("歇山") || lower.contains("庑殿") || lower.contains("悬山");
 
         String wallBlock = wallBlockFromStyle(plan);
         if (wallBlock == null) {
@@ -55,6 +70,41 @@ final class PlanIntentFidelityRepair {
         if (roofBlock == null) {
             roofBlock = roofBlockFromCorpus(lower);
         }
+        if (preferStairs && roofBlock != null && !roofBlock.contains("stairs")) {
+            String stairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(roofBlock);
+            if (stairs != null) roofBlock = stairs;
+        }
+        String floorBlock = floorBlockFromStyle(plan);
+
+        int floorCount = 0;
+        if (lower.contains("两层") || lower.contains("二层") || lower.contains("2层")
+                || lower.contains("two-stor") || lower.contains("two stor") || lower.contains("2-stor")) {
+            floorCount = 2;
+        } else if (lower.contains("三层") || lower.contains("3层") || lower.contains("three-stor")) {
+            floorCount = 3;
+        } else if (lower.contains("四层") || lower.contains("4层")) {
+            floorCount = 4;
+        } else if (lower.contains("单层") || lower.contains("single-stor") || lower.contains("single stor")) {
+            floorCount = 1;
+        }
+
+        String ridgeAxis = null;
+        if (lower.contains("屋脊沿东西")
+                || (lower.contains("ridge") && lower.contains("east-west"))
+                || lower.contains("ridge_axis:x")
+                || (lower.contains("南北两坡") && lower.contains("东西"))) {
+            ridgeAxis = "x";
+        } else if (lower.contains("屋脊沿南北")
+                || (lower.contains("ridge") && lower.contains("north-south"))
+                || lower.contains("ridge_axis:z")) {
+            ridgeAxis = "z";
+        } else if (lower.contains("屋脊沿长边")) {
+            ridgeAxis = "long";
+        }
+
+        boolean doorFlank = lower.contains("一门两窗") || lower.contains("正门两侧窗")
+                || lower.contains("两侧窗户") || lower.contains("window on each side")
+                || lower.contains("windows on both sides") || lower.contains("door with a window on each");
 
         List<String> solid = new ArrayList<>();
         List<String> windows = new ArrayList<>();
@@ -69,8 +119,11 @@ final class PlanIntentFidelityRepair {
         }
         if (roofType != null) features.add(roofType);
         if (doubleEave) features.add("double_eave");
+        if (preferStairs) features.add("stair_roof");
+        if (doorFlank) features.add("door_flank_windows");
 
-        return new IntentHints(roofType, doubleEave, wallBlock, roofBlock, solid, windows, features);
+        return new IntentHints(roofType, doubleEave, preferStairs, wallBlock, roofBlock, floorBlock,
+                floorCount, ridgeAxis, doorFlank, solid, windows, features);
     }
 
     static Component enrich(LlmPlan plan, Component component) {
@@ -132,10 +185,58 @@ final class PlanIntentFidelityRepair {
                 && isBlank(ComponentPlanTypes.getParamString(params, "roof_block", "roof_material", "roof_stairs_block"))) {
             changed |= DesignProvenance.putIfAllowed(plan, params, "roof_block", hints.roofBlock());
         }
+        if ((mass || roof || structure) && hints.preferStairs()) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "prefer_stairs", true);
+            // Re-promote non-stair roof blocks to stairs when the prompt asked for 楼梯坡屋面.
+            String currentRoof = ComponentPlanTypes.getParamString(params, "roof_block", "roof_material", "material");
+            if (currentRoof != null && !currentRoof.toLowerCase(Locale.ROOT).contains("stairs")) {
+                String stairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(currentRoof);
+                if (stairs != null) {
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "roof_block", stairs);
+                }
+            }
+        }
+        if (mass && hints.floorBlock() != null
+                && isBlank(ComponentPlanTypes.getParamString(params, "floor_block"))) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "floor_block", hints.floorBlock());
+        }
+        if (mass && hints.floorCount() > 0
+                && ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount") <= 0) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "floor_count", hints.floorCount());
+            if (ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight") <= 0) {
+                int bodyH = component.dimensions() != null ? component.dimensions().height() : 0;
+                int fh = hints.floorCount() <= 1 ? Math.max(3, bodyH)
+                        : Math.max(3, bodyH > 0 ? bodyH / hints.floorCount() : 4);
+                changed |= DesignProvenance.putIfAllowed(plan, params, "floor_height", fh);
+            }
+        }
+        if ((mass || roof) && hints.ridgeAxis() != null
+                && isBlank(ComponentPlanTypes.getParamString(params, "ridge_axis", "ridgeAxis"))) {
+            String axis = hints.ridgeAxis();
+            if ("long".equals(axis) && component.dimensions() != null) {
+                axis = component.dimensions().width() >= component.dimensions().depth() ? "x" : "z";
+            }
+            changed |= DesignProvenance.putIfAllowed(plan, params, "ridge_axis", axis);
+        }
 
         if (mass || facade) {
             changed |= applySolidWindowSides(plan, params, features, hints);
             changed |= applyFacadeRatioSides(plan, params);
+        }
+        if (facade) {
+            changed |= applyThinFacadeFace(plan, params, component, features);
+        }
+        if (facade && hints.doorFlankWindows()) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "entrance_flank_windows", 2);
+            changed |= DesignProvenance.putIfAllowed(plan, params, "windows_per_wall", 2);
+            changed |= DesignProvenance.putIfAllowed(plan, params, "reserve_entrance_bay", true);
+        }
+        if (mass && hints.doorFlankWindows()) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "entrance_flank_windows", 2);
+            // Keep host entrance-face windows even when other faces are solid.
+            if (!params.containsKey("window_sides") && !params.containsKey("windowSides")) {
+                changed |= DesignProvenance.putIfAllowed(plan, params, "window_sides", List.of("SOUTH"));
+            }
         }
 
         if (entrance && !params.containsKey("door_width") && !params.containsKey("doorWidth")) {
@@ -283,14 +384,10 @@ final class PlanIntentFidelityRepair {
     private static String wallBlockFromStyle(LlmPlan plan) {
         if (plan == null || plan.styleAttributes() == null) return null;
         StyleAttributes a = plan.styleAttributes();
+        String fromPalette = a.resolvePaletteBlock("wall", "primary");
+        if (fromPalette != null) return stabilizeBlock(fromPalette);
         if (a.wallMaterial() != null && !a.wallMaterial().isBlank()) {
             return stabilizeBlock(a.wallMaterial());
-        }
-        if (a.customAttributes() != null) {
-            for (String key : List.of("wall", "primary_material", "primaryMaterial", "palette_wall")) {
-                String v = a.customAttributes().get(key);
-                if (v != null && !v.isBlank()) return stabilizeBlock(v);
-            }
         }
         return null;
     }
@@ -298,14 +395,21 @@ final class PlanIntentFidelityRepair {
     private static String roofBlockFromStyle(LlmPlan plan) {
         if (plan == null || plan.styleAttributes() == null) return null;
         StyleAttributes a = plan.styleAttributes();
+        String fromPalette = a.resolvePaletteBlock("roof", "roof_stairs", "roof_trim");
+        if (fromPalette != null) return stabilizeBlock(fromPalette);
         if (a.roofMaterial() != null && !a.roofMaterial().isBlank()) {
             return stabilizeBlock(a.roofMaterial());
         }
-        if (a.customAttributes() != null) {
-            for (String key : List.of("roof", "roof_stairs", "palette_roof")) {
-                String v = a.customAttributes().get(key);
-                if (v != null && !v.isBlank()) return stabilizeBlock(v);
-            }
+        return null;
+    }
+
+    private static String floorBlockFromStyle(LlmPlan plan) {
+        if (plan == null || plan.styleAttributes() == null) return null;
+        StyleAttributes a = plan.styleAttributes();
+        String fromPalette = a.resolvePaletteBlock("floor");
+        if (fromPalette != null) return stabilizeBlock(fromPalette);
+        if (a.floorMaterial() != null && !a.floorMaterial().isBlank()) {
+            return stabilizeBlock(a.floorMaterial());
         }
         return null;
     }
@@ -337,8 +441,13 @@ final class PlanIntentFidelityRepair {
         if (lower.contains("深灰屋顶") || lower.contains("deepslate")) {
             return "minecraft:deepslate_tile_stairs";
         }
-        if (lower.contains("橡木楼梯") && !lower.contains("深色")) {
+        if ((lower.contains("橡木楼梯") || lower.contains("oak stair")) && !lower.contains("深色")
+                && !lower.contains("dark_oak") && !lower.contains("dark oak")) {
             return "minecraft:oak_stairs";
+        }
+        if (lower.contains("深色橡木坡屋顶")
+                || (lower.contains("dark_oak_planks") && lower.contains("roof"))) {
+            return "minecraft:dark_oak_stairs";
         }
         return null;
     }
@@ -418,6 +527,34 @@ final class PlanIntentFidelityRepair {
         if (!fromFeatures.isEmpty() && !params.containsKey("solid_sides") && !params.containsKey("solidSides")) {
             changed |= DesignProvenance.putIfAllowed(plan, params, "solid_sides", List.copyOf(fromFeatures));
         }
+        return changed;
+    }
+
+    /** Thin 1-deep / 1-wide facade strips often omit faces[]; infer from features or shape. */
+    private static boolean applyThinFacadeFace(
+            LlmPlan plan, Map<String, Object> params, Component component, List<String> features) {
+        if (params.containsKey("faces") || params.containsKey("window_sides")
+                || params.containsKey("windowSides") || params.containsKey("facade_side")) {
+            return false;
+        }
+        String fromFeature = null;
+        for (String f : features) {
+            if (f == null) continue;
+            String fl = f.toLowerCase(Locale.ROOT);
+            if (fl.contains("north")) { fromFeature = "NORTH"; break; }
+            if (fl.contains("south")) { fromFeature = "SOUTH"; break; }
+            if (fl.contains("east") && !fl.contains("west")) { fromFeature = "EAST"; break; }
+            if (fl.contains("west") && !fl.contains("east")) { fromFeature = "WEST"; break; }
+        }
+        if (fromFeature == null && component.dimensions() != null) {
+            int w = component.dimensions().width();
+            int d = component.dimensions().depth();
+            if (d == 1 && w > 1) fromFeature = "SOUTH";
+            else if (w == 1 && d > 1) fromFeature = "EAST";
+        }
+        if (fromFeature == null) return false;
+        boolean changed = DesignProvenance.putIfAllowed(plan, params, "faces", List.of(fromFeature));
+        changed |= DesignProvenance.putIfAllowed(plan, params, "facade_side", fromFeature.toLowerCase(Locale.ROOT));
         return changed;
     }
 
