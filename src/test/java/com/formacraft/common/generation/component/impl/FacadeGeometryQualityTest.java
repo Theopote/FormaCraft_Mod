@@ -199,6 +199,89 @@ class FacadeGeometryQualityTest {
                 p.targetBlock() != null && p.targetBlock().contains("glass")), "side bays still glazed");
     }
 
+    @Test
+    void northOnlyOpeningsLandOnMaxZ() {
+        int depth = 9;
+        List<BlockPatch> patches = sizedFacade(
+                12, depth, 8,
+                Map.of(
+                        "faces", List.of("NORTH"),
+                        "window_width", 2,
+                        "window_height", 2,
+                        "windows_per_wall", 2,
+                        "sill_offset", 1,
+                        "floor_count", 2,
+                        "floor_height", 4,
+                        "reserve_entrance_bay", false
+                )
+        );
+        List<BlockPatch> glass = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("glass"))
+                .toList();
+        assertFalse(glass.isEmpty());
+        assertTrue(glass.stream().allMatch(p -> p.dz() == depth - 1), "NORTH = maxZ");
+        assertEquals(0, glass.stream().filter(p -> p.dz() == 0).count());
+    }
+
+    @Test
+    void eastFaceKeepsPierGapsBetweenWindowBays() {
+        int depth = 16;
+        List<BlockPatch> patches = sizedFacade(
+                8, depth, 8,
+                Map.of(
+                        "faces", List.of("EAST"),
+                        "window_width", 2,
+                        "window_height", 2,
+                        "windows_per_wall", 3,
+                        "sill_offset", 1,
+                        "floor_count", 2,
+                        "floor_height", 4,
+                        "reserve_entrance_bay", false
+                )
+        );
+        Set<Integer> glassZs = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("glass"))
+                .filter(p -> p.dx() == 0)
+                .map(BlockPatch::dz)
+                .collect(Collectors.toCollection(HashSet::new));
+        assertTrue(glassZs.size() >= 4, "east bays zs=" + glassZs);
+        int min = glassZs.stream().mapToInt(Integer::intValue).min().orElse(0);
+        int max = glassZs.stream().mapToInt(Integer::intValue).max().orElse(0);
+        int span = max - min + 1;
+        double pierRatio = span <= 0 ? 0 : (double) (span - glassZs.size()) / (double) span;
+        assertTrue(pierRatio >= 0.12, "east pier gaps=" + pierRatio + " zs=" + glassZs);
+        // Must not sheet the entire east wall with glass.
+        assertTrue(glassZs.size() < depth - 2, "east wall must keep solid piers");
+    }
+
+    @Test
+    void eachCardinalFaceAloneHitsOnlyThatWall() {
+        record Case(String face, java.util.function.Predicate<BlockPatch> onWall) {}
+        int w = 11, d = 9;
+        List<Case> cases = List.of(
+                new Case("SOUTH", p -> p.dz() == 0),
+                new Case("NORTH", p -> p.dz() == d - 1),
+                new Case("EAST", p -> p.dx() == 0),
+                new Case("WEST", p -> p.dx() == w - 1)
+        );
+        for (Case c : cases) {
+            List<BlockPatch> glass = sizedFacade(w, d, 6, Map.of(
+                    "faces", List.of(c.face()),
+                    "window_width", 2,
+                    "window_height", 2,
+                    "windows_per_wall", 2,
+                    "sill_offset", 1,
+                    "floor_count", 1,
+                    "floor_height", 6,
+                    "reserve_entrance_bay", false
+            )).stream()
+                    .filter(p -> p.targetBlock() != null && p.targetBlock().contains("glass"))
+                    .toList();
+            assertFalse(glass.isEmpty(), c.face() + " empty");
+            assertTrue(glass.stream().allMatch(c.onWall()), c.face() + " leaked off-wall: " + glass);
+        }
+    }
+
     private static List<BlockPatch> sizedFacade(int w, int d, int h, Map<String, Object> params) {
         Map<String, Object> p = new HashMap<>(params);
         Component c = new Component(

@@ -433,7 +433,10 @@ public class RoofGenerator implements ComponentGenerator {
                         : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 if (part == SemanticPart.ROOF) {
-                    String facing = outwardFacingFromEdges(x, z, width, depth);
+                    // Gable mid-span faces away from the ridge; hip ends / corners use nearest-edge.
+                    String facing = isPerimeterCorner(x, z, width, depth) || distAlong < ridgeInset
+                            ? outwardFacingFromEdges(x, z, width, depth)
+                            : gableOutwardFacing(ridgeAlongDepth, x, z, width, depth);
                     String shape = isPerimeterCorner(x, z, width, depth)
                             ? cornerOuterShape(x, z, width, depth, facing) : null;
                     block = withStairsFacing(block, facing, shape);

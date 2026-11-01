@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -175,6 +176,139 @@ class RoofGeneratorGeometryQualityTest {
                         s.dx() == p.dx() && s.dy() == p.dy() && s.dz() == p.dz()
                                 && java.util.Objects.equals(s.targetBlock(), p.targetBlock()))),
                 "oak vs spruce materials must change landing block ids");
+    }
+
+    @Test
+    void gableSlopeStairsFaceAwayFromRidge() {
+        // depth >= width ⇒ ridge along Z; slopes face west/east.
+        List<BlockPatch> patches = generate(
+                "gable",
+                List.of(),
+                Map.of("material", "oak_stairs", "overhang", 0),
+                10, 14, 5, 0, 8, 0
+        );
+        List<BlockPatch> stairs = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("stairs"))
+                .filter(p -> p.targetBlock().contains("facing="))
+                .toList();
+        assertFalse(stairs.isEmpty(), "gable slopes need faced stairs");
+        int midX = stairs.stream().mapToInt(BlockPatch::dx).max().orElse(0) / 2;
+        long west = stairs.stream().filter(p -> p.dx() < midX && p.targetBlock().contains("facing=west")).count();
+        long east = stairs.stream().filter(p -> p.dx() > midX && p.targetBlock().contains("facing=east")).count();
+        assertTrue(west >= 2, "west pitch facing=west, west=" + west);
+        assertTrue(east >= 2, "east pitch facing=east, east=" + east);
+        // Full column coverage over the authored footprint (ASIAN xuanshan/gable may expand eaves).
+        Set<Long> columns = new HashSet<>();
+        for (BlockPatch p : patches) {
+            if (!BlockPatch.PLACE.equals(p.action())) continue;
+            columns.add((((long) p.dx()) << 32) ^ (p.dz() & 0xffffffffL));
+        }
+        assertTrue(columns.size() >= 10 * 14, "gable must cover footprint columns, cols=" + columns.size());
+    }
+
+    @Test
+    void xieshanMidSpanFacesLikeGableWhileCornersKeepOuterMiter() {
+        // Wide-deep hall: ridge along depth; mid-span should face E/W like a gable, not flip to N/S.
+        List<BlockPatch> patches = generate(
+                "xieshan",
+                List.of(),
+                Map.of("material", "dark_oak_stairs", "overhang", 1),
+                12, 16, 6, 0, 8, 0
+        );
+        List<BlockPatch> stairs = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("stairs"))
+                .toList();
+        int minX = stairs.stream().mapToInt(BlockPatch::dx).min().orElse(0);
+        int maxX = stairs.stream().mapToInt(BlockPatch::dx).max().orElse(0);
+        int minZ = stairs.stream().mapToInt(BlockPatch::dz).min().orElse(0);
+        int maxZ = stairs.stream().mapToInt(BlockPatch::dz).max().orElse(0);
+        int midZ = (minZ + maxZ) / 2;
+        // Mid-span west pitch (away from hip ends).
+        long midWest = stairs.stream()
+                .filter(p -> p.dx() == minX + 1 && Math.abs(p.dz() - midZ) <= 1)
+                .filter(p -> p.targetBlock().contains("facing=west"))
+                .count();
+        assertTrue(midWest >= 1, "xieshan mid-span west pitch should face west, not north/south");
+
+        int[][] corners = {{minX, minZ}, {minX, maxZ}, {maxX, minZ}, {maxX, maxZ}};
+        for (int[] c : corners) {
+            Optional<BlockPatch> at = stairs.stream()
+                    .filter(p -> p.dx() == c[0] && p.dz() == c[1])
+                    .findFirst();
+            assertTrue(at.isPresent(), "xieshan corner " + c[0] + "," + c[1]);
+            assertTrue(at.get().targetBlock().contains("shape=outer_"),
+                    "corner miter: " + at.get().targetBlock());
+        }
+    }
+
+    @Test
+    void doubleEaveMidLipCornersCarryOuterShape() {
+        List<BlockPatch> patches = generate(
+                "hip",
+                List.of("double_eave"),
+                Map.of("material", "stone_brick_stairs", "overhang", 1),
+                16, 14, 8, 0, 10, 0
+        );
+        int height = 8;
+        int baseY = 10;
+        int upperHeight = Math.max(2, height / 2);
+        int upperBaseY = baseY + (height - upperHeight);
+        int midY = Math.max(baseY, upperBaseY - 1);
+        List<BlockPatch> midLips = patches.stream()
+                .filter(p -> p.dy() == midY)
+                .filter(p -> p.targetBlock() != null
+                        && p.targetBlock().contains("stairs")
+                        && p.targetBlock().contains("facing="))
+                .toList();
+        assertTrue(midLips.size() >= 4, "mid lip stairs=" + midLips.size());
+        int minX = midLips.stream().mapToInt(BlockPatch::dx).min().orElse(0);
+        int maxX = midLips.stream().mapToInt(BlockPatch::dx).max().orElse(0);
+        int minZ = midLips.stream().mapToInt(BlockPatch::dz).min().orElse(0);
+        int maxZ = midLips.stream().mapToInt(BlockPatch::dz).max().orElse(0);
+        // Mid shelf is emitted after the lower tier; apply last-wins at each corner cell.
+        for (int[] c : new int[][]{{minX, minZ}, {minX, maxZ}, {maxX, minZ}, {maxX, maxZ}}) {
+            List<BlockPatch> at = patches.stream()
+                    .filter(p -> p.dy() == midY && p.dx() == c[0] && p.dz() == c[1])
+                    .filter(p -> p.targetBlock() != null && p.targetBlock().contains("stairs"))
+                    .toList();
+            assertFalse(at.isEmpty(), "mid-eave corner " + c[0] + "," + c[1]);
+            String landed = at.get(at.size() - 1).targetBlock();
+            assertTrue(landed.contains("facing="), "mid-eave corner facing: " + landed);
+            assertTrue(landed.contains("shape=outer_"), "mid-eave corner miter: " + landed);
+        }
+    }
+
+    @Test
+    void fourRoofKindsCoverFootprintWithoutConflictingCellIds() {
+        for (String type : List.of("gable", "hip", "xieshan")) {
+            List<BlockPatch> patches = generate(
+                    type,
+                    List.of(),
+                    Map.of("material", "oak_stairs", "overhang", 1),
+                    12, 10, 5, 0, 6, 0
+            );
+            Map<String, String> cellToBlock = new HashMap<>();
+            int conflicts = 0;
+            for (BlockPatch p : patches) {
+                if (!BlockPatch.PLACE.equals(p.action()) || p.targetBlock() == null) continue;
+                String key = p.dx() + "," + p.dy() + "," + p.dz();
+                String prev = cellToBlock.put(key, p.targetBlock());
+                if (prev != null && !prev.equals(p.targetBlock())) conflicts++;
+            }
+            assertFalse(patches.isEmpty(), type + " empty");
+            assertTrue(cellToBlock.size() >= 12 * 10,
+                    type + " coverage cells=" + cellToBlock.size());
+            // Later layers (seal/specialty) may overwrite; hard conflict budget stays low.
+            assertTrue(conflicts <= cellToBlock.size() / 4,
+                    type + " conflicting overwrites=" + conflicts + "/" + cellToBlock.size());
+        }
+        List<BlockPatch> doubleEave = generate(
+                "hip",
+                List.of("double_eave"),
+                Map.of("material", "oak_stairs", "overhang", 1),
+                14, 12, 8, 0, 8, 0
+        );
+        assertTrue(doubleEave.stream().mapToInt(BlockPatch::dy).distinct().count() >= 4);
     }
 
     private static List<BlockPatch> generate(
