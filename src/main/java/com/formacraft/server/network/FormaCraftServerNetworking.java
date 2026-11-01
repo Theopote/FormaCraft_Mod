@@ -31,6 +31,7 @@ public final class FormaCraftServerNetworking {
         FormaCraftNetworking.registerPayloadTypesC2S();
         // 服务端也需要注册 S2C payload types（用于编码回包）。否则可能出现“服务端处理了但发不出包”，客户端只能超时。
         FormaCraftNetworking.registerPayloadTypesS2C();
+        ComponentImportHandler.register();
 
         ServerPlayNetworking.registerGlobalReceiver(com.formacraft.common.network.ComponentSourceNetworking.Request.ID,
                 (payload, context) -> context.server().execute(() -> {

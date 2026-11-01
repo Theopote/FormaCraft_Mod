@@ -84,6 +84,11 @@ public final class ComponentPackageIO {
     public static Verified read(Path path, Environment environment) throws IOException {
         byte[] bytes;
         try (var stream = Files.newInputStream(path)) { bytes = stream.readNBytes(MAX_PACKAGE_BYTES + 1); }
+        return readBytes(bytes, environment);
+    }
+
+    public static Verified readBytes(byte[] bytes, Environment environment) throws IOException {
+        require(bytes != null, "Missing package bytes");
         require(bytes.length <= MAX_PACKAGE_BYTES, "Package exceeds byte limit");
         Envelope envelope;
         String jsonText = StandardCharsets.UTF_8.newDecoder()

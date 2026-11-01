@@ -27,6 +27,7 @@ public final class FormaCraftClientNetworking {
         // 否则发送自定义 payload 时编码会走 UnknownCustomPayload 并 ClassCastException 断连。
         FormaCraftNetworking.registerPayloadTypesC2S();
         FormaCraftNetworking.registerPayloadTypesS2C();
+        com.formacraft.client.component.ClientComponentImport.register();
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
                 (handler, client) -> com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear());

@@ -54,6 +54,8 @@ public final class ComponentLibraryPanel extends BasePanel {
     // 删除按钮（当选中构件时显示）
     private ButtonWidget deleteButton;
     private ButtonWidget sourceButton, prevSourceButton, nextSourceButton;
+    private ButtonWidget importButton, confirmImportButton, cancelImportButton;
+    private com.formacraft.client.component.ComponentImportClientState.Phase lastImportPhase = com.formacraft.client.component.ComponentImportClientState.Phase.IDLE;
 
     // 节流的构件文件存在性快照：避免每帧对每个 catalog 条目做磁盘 Files.exists 检查。
     private long lastExistScanMs = 0L;
@@ -97,6 +99,10 @@ public final class ComponentLibraryPanel extends BasePanel {
 
     private void ensureWidgets() {
         if (sortButton != null) return;
+
+        importButton = ButtonWidget.builder(Text.literal("导入构件包…"), b -> { scrollY = 0; com.formacraft.client.component.ClientComponentImport.chooseFile(); }).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
+        confirmImportButton = ButtonWidget.builder(Text.literal("确认入库"), b -> com.formacraft.client.component.ClientComponentImport.confirm()).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
+        cancelImportButton = ButtonWidget.builder(Text.literal("取消导入"), b -> com.formacraft.client.component.ClientComponentImport.cancel()).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
 
         sourceButton = ButtonWidget.builder(Text.literal("查看 / 刷新来源"), b -> requestSource(0)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
         prevSourceButton = ButtonWidget.builder(Text.literal("上一份来源"), b -> stepSource(-1)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
@@ -233,6 +239,13 @@ public final class ComponentLibraryPanel extends BasePanel {
     @Override
     protected void drawContents(DrawContext ctx) {
         ensureWidgets();
+        var importPhase = com.formacraft.client.component.ClientComponentImport.STATE.phase();
+        if (importPhase != lastImportPhase) {
+            if (importPhase == com.formacraft.client.component.ComponentImportClientState.Phase.PREVIEW
+                    || importPhase == com.formacraft.client.component.ComponentImportClientState.Phase.ERROR
+                    || importPhase == com.formacraft.client.component.ComponentImportClientState.Phase.DONE) scrollY = 0;
+            lastImportPhase = importPhase;
+        }
 
         int x = panelX + CONTENT_PADDING;
         int w = panelWidth - CONTENT_PADDING * 2;
@@ -243,6 +256,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         gridValid = false;
         searchBoundsValid = false;
         sourceButton.visible = prevSourceButton.visible = nextSourceButton.visible = false;
+        confirmImportButton.visible = cancelImportButton.visible = false;
 
         drawContentBackground(ctx);
 
@@ -307,11 +321,13 @@ public final class ComponentLibraryPanel extends BasePanel {
         categoryButton.render(ctx, (int) (client.mouse.getX() / client.getWindow().getScaleFactor()),
                 (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
 
-        return y + LABEL_OFFSET;
+        y += LABEL_OFFSET;
+        return renderSourceButton(ctx, importButton, x, y, w, !com.formacraft.client.component.ClientComponentImport.STATE.busy());
     }
 
     /** 可滚动区：分页、网格、选中/验证/修复等 */
     private int drawLibraryScrollable(DrawContext ctx, int x, int w, int y, ComponentToolState st) {
+        y = drawImportStatus(ctx, x, w, y);
         ComponentCatalog cat = ClientComponentCatalogState.getCatalog();
         if (cat == null || cat.components == null || cat.components.isEmpty()) {
             return drawWrappedText(ctx, Text.literal("构件库为空：请先保存构件或等待 catalog 同步。"), x, y, w, 0xFFAAAAAA);
@@ -639,6 +655,41 @@ public final class ComponentLibraryPanel extends BasePanel {
         FormaCraftClientNetworking.sendComponentSourceRequest(ComponentTool.INSTANCE.getState().librarySelectedId, index);
     }
 
+    private int drawImportStatus(DrawContext ctx, int x, int w, int y) {
+        var state = com.formacraft.client.component.ClientComponentImport.STATE;
+        var phase = state.phase();
+        String status = switch (phase) {
+            case IDLE -> ""; case READING -> "正在读取构件包…";
+            case UPLOADING -> "正在上传构件包：" + state.progress() + "%";
+            case VERIFYING -> "服务端正在校验构件包…"; case PREVIEW -> "导入信息预览";
+            case COMMITTING -> "正在确认入库…"; case DONE -> "导入完成，已选中构件";
+            case ERROR -> state.message();
+        };
+        if (status.isEmpty()) return y;
+        y = drawWrappedText(ctx, Text.literal(status), x, y, w, phase == com.formacraft.client.component.ComponentImportClientState.Phase.ERROR ? 0xFFFFAA55 : 0xFFFFFFFF);
+        var preview = state.preview();
+        if (preview != null || state.busy()) {
+            if (preview != null) {
+                int half = (w - 4) / 2;
+                renderSourceButton(ctx, confirmImportButton, x, y, half, phase == com.formacraft.client.component.ComponentImportClientState.Phase.PREVIEW);
+                renderSourceButton(ctx, cancelImportButton, x + half + 4, y, w - half - 4, phase != com.formacraft.client.component.ComponentImportClientState.Phase.COMMITTING);
+            } else renderSourceButton(ctx, cancelImportButton, x, y, w, phase != com.formacraft.client.component.ComponentImportClientState.Phase.COMMITTING);
+            y += LABEL_OFFSET;
+        }
+        if (preview != null) {
+            y = drawWrappedText(ctx, Text.literal("名称: " + preview.name()), x, y, w, 0xFFCCCCCC);
+            y = drawWrappedText(ctx, Text.literal("尺寸: " + preview.width() + "×" + preview.height() + "×" + preview.depth() + "，方块 " + preview.blocks()), x, y, w, 0xFFCCCCCC);
+            y = drawWrappedText(ctx, Text.literal("发布: " + preview.namespace() + " @ " + preview.version()), x, y, w, 0xFFCCCCCC);
+            y = drawWrappedText(ctx, Text.literal("作者声明: " + preview.author()), x, y, w, 0xFFCCCCCC);
+            y = drawWrappedText(ctx, Text.literal("目标: " + (preview.global() ? "全局库" : "私人库")), x, y, w, 0xFFCCCCCC);
+            String training = switch (preview.trainingPermission()) { case ALLOWED -> "允许"; case DENIED -> "禁止"; case UNSPECIFIED -> "未声明"; };
+            y = drawWrappedText(ctx, Text.literal("训练授权: " + training), x, y, w, 0xFFCCCCCC);
+            y = drawWrappedText(ctx, Text.literal("许可: " + preview.license()), x, y, w, 0xFFCCCCCC);
+            y = drawWrappedText(ctx, Text.literal("确认后按内容去重"), x, y, w, 0xFFAAAAAA);
+        }
+        return y + 6;
+    }
+
     private void stepSource(int delta) {
         var state = com.formacraft.client.component.ClientComponentSourceState.INSTANCE;
         var page = state.page();
@@ -735,11 +786,13 @@ public final class ComponentLibraryPanel extends BasePanel {
         // allow buttons
         if (clickButton(sortButton, click)) return true;
         if (clickButton(categoryButton, click)) return true;
+        if (clickButton(importButton, click)) return true;
         if (clickButton(prevPageButton, click)) return true;
         if (clickButton(nextPageButton, click)) return true;
         if (clickButton(validateButton, click)) return true;
         if (clickButton(autoFixButton, click)) return true;
         if (clickButton(deleteButton, click)) return true;
+        if (mouseY >= scrollAreaTop && (clickButton(confirmImportButton, click) || clickButton(cancelImportButton, click))) return true;
         if (mouseY >= scrollAreaTop && (clickButton(sourceButton, click) || clickButton(prevSourceButton, click) || clickButton(nextSourceButton, click))) return true;
 
         if (searchBoundsValid) {
