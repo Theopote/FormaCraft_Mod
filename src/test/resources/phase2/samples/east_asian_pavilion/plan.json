@@ -59,9 +59,10 @@
       "features": ["flying_eaves", "重檐"],
       "params": {
         "host_id": "hall",
-        "roof_type": "hip",
+        "roof_type": "xieshan",
         "material": "dark_oak_stairs",
         "roof_material": "dark_oak_stairs",
+        "overhang": 1,
         "allow_patch_overwrite": true
       }
     },
@@ -70,12 +71,13 @@
       "slot_id": "upper",
       "relative_position": { "x": 1, "y": 8, "z": 1 },
       "dimensions": { "width": 9, "depth": 9, "height": 4 },
-      "features": ["flying_eaves", "重檐"],
+      "features": ["flying_eaves"],
       "params": {
         "host_id": "upper",
         "roof_type": "hip",
         "material": "dark_oak_stairs",
         "roof_material": "dark_oak_stairs",
+        "overhang": 1,
         "allow_patch_overwrite": true
       }
     },

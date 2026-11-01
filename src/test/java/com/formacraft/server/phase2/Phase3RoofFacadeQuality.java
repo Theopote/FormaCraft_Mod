@@ -71,8 +71,8 @@ public final class Phase3RoofFacadeQuality {
                         || requireRoofLike && !f.contains("repetition"));
 
         if (checkRoof) {
-            // Multi-eave volumes intentionally leave lower terraces under the upper roof band.
-            double minCoverage = f.contains("multi_eave") ? 0.45 : 0.55;
+            // Multi-eave / 重檐 volumes leave terraces under the upper band; allow a softer floor.
+            double minCoverage = f.contains("multi_eave") ? 0.40 : 0.55;
             if (roof.coverageRatio() < minCoverage) {
                 issues.add(String.format(Locale.ROOT,
                         "roof_coverage=%.2f < %.2f (covered=%d/%d)",

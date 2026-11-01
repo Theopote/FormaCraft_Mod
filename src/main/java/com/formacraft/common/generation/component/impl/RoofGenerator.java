@@ -475,6 +475,30 @@ public class RoofGenerator implements ComponentGenerator {
                         upper.originOffsetX(), upper.originOffsetZ());
             }
         }
+        emitMidEaveShelf(out, semantic, palette, upper, upperBaseY);
+    }
+
+    /** One-block slab cornice at the upper-tier attachment — reads as a second eave line. */
+    private void emitMidEaveShelf(
+            List<BlockPatch> out,
+            SemanticComponent semantic,
+            Palette palette,
+            com.formacraft.common.generation.component.util.RoofLayerFrame upper,
+            int midY
+    ) {
+        String slab = getBlockForPart(semantic, palette, SemanticPart.ROOF_SURFACE);
+        int x0 = upper.worldBaseX() - 1;
+        int z0 = upper.worldBaseZ() - 1;
+        int x1 = upper.worldBaseX() + upper.width();
+        int z1 = upper.worldBaseZ() + upper.depth();
+        for (int x = x0; x <= x1; x++) {
+            out.add(new BlockPatch(BlockPatch.PLACE, x, midY, z0, slab));
+            out.add(new BlockPatch(BlockPatch.PLACE, x, midY, z1, slab));
+        }
+        for (int z = z0 + 1; z <= z1 - 1; z++) {
+            out.add(new BlockPatch(BlockPatch.PLACE, x0, midY, z, slab));
+            out.add(new BlockPatch(BlockPatch.PLACE, x1, midY, z, slab));
+        }
     }
 
     private void generatePyramidRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
@@ -740,9 +764,10 @@ public class RoofGenerator implements ComponentGenerator {
             if (feature == null) {
                 continue;
             }
-            String lower = feature.toLowerCase().trim();
+            String lower = feature.toLowerCase(java.util.Locale.ROOT).trim();
             if (lower.contains("double_eave") || lower.contains("double-eave")
-                    || (lower.contains("double") && lower.contains("eave"))) {
+                    || (lower.contains("double") && lower.contains("eave"))
+                    || lower.contains("重檐") || lower.contains("多层屋檐") || lower.contains("叠檐")) {
                 return true;
             }
         }
