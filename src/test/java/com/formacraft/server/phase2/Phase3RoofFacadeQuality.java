@@ -35,7 +35,9 @@ public final class Phase3RoofFacadeQuality {
             int westOpenings,
             int totalOpenings,
             int openingDistinctYs,
-            double southRhythmScore
+            double southRhythmScore,
+            /** 0..1 share of SOUTH-face span that is solid pier between first/last opening. */
+            double southPierGapRatio
     ) {}
 
     public record Report(RoofReport roof, FacadeReport facade, List<String> issues) {}
@@ -111,6 +113,12 @@ public final class Phase3RoofFacadeQuality {
                 issues.add(String.format(Locale.ROOT,
                         "southRhythmScore=%.2f < 0.35", facade.southRhythmScore()));
             }
+            // Curtain-wall sheets fail this; bay rhythm needs solid mullions/piers between openings.
+            if (facade.southOpenings() >= 4 && facade.southPierGapRatio() < 0.12) {
+                issues.add(String.format(Locale.ROOT,
+                        "southPierGapRatio=%.2f < 0.12 (missing window piers)",
+                        facade.southPierGapRatio()));
+            }
         }
         return new Report(roof, facade, List.copyOf(issues));
     }
@@ -168,7 +176,7 @@ public final class Phase3RoofFacadeQuality {
 
     static FacadeReport analyzeFacade(Map<BlockPos, String> cells) {
         if (cells.isEmpty()) {
-            return new FacadeReport(0, 0, 0, 0, 0, 0, 0);
+            return new FacadeReport(0, 0, 0, 0, 0, 0, 0, 0);
         }
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
         int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
@@ -178,39 +186,66 @@ public final class Phase3RoofFacadeQuality {
             minZ = Math.min(minZ, p.getZ());
             maxZ = Math.max(maxZ, p.getZ());
         }
+        // Face axes match MassMainGenerator / FacadeWindowsGenerator / SizedFacadeWindows:
+        // SOUTH=-Z(minZ), NORTH=+Z(maxZ), EAST=-X(minX), WEST=+X(maxX).
         int south = 0, north = 0, east = 0, west = 0;
         Set<Integer> openingYs = new LinkedHashSet<>();
         Map<Integer, Integer> southOpeningsByX = new LinkedHashMap<>();
+        Set<Integer> southOpeningXs = new LinkedHashSet<>();
         for (var e : cells.entrySet()) {
             BlockPos p = e.getKey();
             String b = e.getValue() == null ? "" : e.getValue().toLowerCase(Locale.ROOT);
             if (!isOpening(b)) continue;
             openingYs.add(p.getY());
-            if (p.getZ() == maxZ) {
+            if (p.getZ() == minZ) {
                 south++;
                 southOpeningsByX.merge(p.getX(), 1, Integer::sum);
-            } else if (p.getZ() == minZ) {
+                southOpeningXs.add(p.getX());
+            } else if (p.getZ() == maxZ) {
                 north++;
-            } else if (p.getX() == maxX) {
-                east++;
             } else if (p.getX() == minX) {
+                east++;
+            } else if (p.getX() == maxX) {
                 west++;
             } else {
                 // Interior-ish openings still count toward total via face-nearest
                 int dxMin = Math.min(p.getX() - minX, maxX - p.getX());
                 int dzMin = Math.min(p.getZ() - minZ, maxZ - p.getZ());
                 if (dzMin <= dxMin) {
-                    if (p.getZ() - minZ <= maxZ - p.getZ()) north++;
-                    else south++;
+                    if (p.getZ() - minZ <= maxZ - p.getZ()) {
+                        south++;
+                        southOpeningsByX.merge(p.getX(), 1, Integer::sum);
+                        southOpeningXs.add(p.getX());
+                    } else {
+                        north++;
+                    }
                 } else {
-                    if (p.getX() - minX <= maxX - p.getX()) west++;
-                    else east++;
+                    if (p.getX() - minX <= maxX - p.getX()) east++;
+                    else west++;
                 }
             }
         }
         int total = south + north + east + west;
         double rhythm = rhythmScore(southOpeningsByX, minX, maxX);
-        return new FacadeReport(south, north, east, west, total, openingYs.size(), rhythm);
+        double pierGap = pierGapRatio(southOpeningXs);
+        return new FacadeReport(south, north, east, west, total, openingYs.size(), rhythm, pierGap);
+    }
+
+    /**
+     * Fraction of the span between the first and last SOUTH opening columns that is not itself
+     * an opening — i.e. mullion / pier cells. Continuous glass sheets score near 0.
+     */
+    private static double pierGapRatio(Set<Integer> openingXs) {
+        if (openingXs == null || openingXs.size() < 2) return openingXs == null || openingXs.isEmpty() ? 0 : 1.0;
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        for (int x : openingXs) {
+            min = Math.min(min, x);
+            max = Math.max(max, x);
+        }
+        int span = Math.max(1, max - min + 1);
+        int pier = span - openingXs.size();
+        return Math.max(0, (double) pier / (double) span);
     }
 
     /** 0..1 — openings spread across SOUTH face X span (not clustered in one bay). */

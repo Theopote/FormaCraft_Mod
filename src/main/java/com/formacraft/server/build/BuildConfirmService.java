@@ -117,9 +117,7 @@ public final class BuildConfirmService {
         }
         if (expectedOrigin != null) {
             BlockPos origin = candidate.getOrigin();
-            if (origin == null || !expectedOrigin.equals(origin)) {
-                return false;
-            }
+            return origin != null && expectedOrigin.equals(origin);
         }
         return true;
     }

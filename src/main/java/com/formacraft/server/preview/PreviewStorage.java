@@ -62,8 +62,7 @@ public class PreviewStorage {
             if (meta == null || structure == null || digest == null || digest.isEmpty()) return false;
             if (meta.generation() != generation) return false;
             if (meta.structureDigest() != null && !meta.structureDigest().equals(digest)) return false;
-            if (meta.origin() != null && origin != null && !meta.origin().equals(origin)) return false;
-            return true;
+            return meta.origin() == null || origin == null || meta.origin().equals(origin);
         }
     }
 

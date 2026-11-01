@@ -53,7 +53,16 @@ public final class SizedFacadeWindows {
                 Facing f=facingFromName(name);
                 if(f!=null) faces.add(f);
             }
-        } else faces.add(facing);
+        } else if(!scope.isFullMass() && !scope.faceNames().isEmpty()) {
+            // Authored faces list (e.g. ["EAST"] or ["SOUTH","WEST"]) must seed the set —
+            // do not start from slot facing then filter, or non-primary faces become empty.
+            for(String name:scope.faceNames()) {
+                Facing f=facingFromName(name);
+                if(f!=null) faces.add(f);
+            }
+        } else {
+            faces.add(facing);
+        }
         if(!scope.isFullMass()) {
             faces.removeIf(f -> !scope.faceNames().contains(f.name()));
         }
