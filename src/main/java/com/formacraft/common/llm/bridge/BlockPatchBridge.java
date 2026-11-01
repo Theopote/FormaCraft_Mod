@@ -3,6 +3,7 @@ package com.formacraft.common.llm.bridge;
 import com.formacraft.common.llm.dto.PatchBlock;
 import com.formacraft.common.llm.dto.PatchBlockSection;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -10,11 +11,12 @@ import java.util.List;
 
 /**
  * BlockPatchBridge（BlockPatch 转换桥接器）
- * 
+ *
  * 核心功能：
  * - 将 LLM 输出的 PatchBlockSection 转换为现有的 BlockPatch 系统
  * - 处理 action 标准化（place/remove/replace）
  * - 处理 targetBlock 默认值
+ * - 输出最终每格一写（last-write-wins），与 Ticket / Apply 身份一致
  */
 public final class BlockPatchBridge {
 
@@ -29,7 +31,7 @@ public final class BlockPatchBridge {
     }
 
     /**
-     * 将 PatchBlockSection 转换为 BlockPatch 列表
+     * 将 PatchBlockSection 转换为 BlockPatch 列表（同坐标保留最后一次写入）。
      */
     public static List<BlockPatch> toBlockPatches(PatchBlockSection section) {
         List<BlockPatch> out = new ArrayList<>();
@@ -41,7 +43,7 @@ public final class BlockPatchBridge {
             String target = (action.equals(BlockPatch.REMOVE)) ? "minecraft:air" : safeTarget(b.targetBlock());
             out.add(new BlockPatch(action, b.dx(), b.dy(), b.dz(), target));
         }
-        return out;
+        return ConfirmedPlanIdentity.toFinalPatches(out);
     }
 
     /**

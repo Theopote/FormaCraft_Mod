@@ -240,7 +240,15 @@ public class PreviewStorage {
         );
     }
 
-    /** 方块坐标与目标状态摘要（确认前后一致性）。 */
+    /**
+     * Digest of the <b>final planned world state</b> for confirm integrity.
+     * <p>
+     * Per-cell last-write-wins (chronological list order), then positions sorted.
+     * Same final layout ⇒ same digest regardless of distinct-cell list order —
+     * aligned with {@link com.formacraft.common.patch.ConfirmedPlanIdentity} /
+     * build execution-hash semantics so preview confirm cannot false-fail on
+     * harmless reorderings or collide when intermediate overwrites differ only in log order.
+     */
     public static String digestStructure(GeneratedStructure structure) {
         if (structure == null) return "";
         try {
@@ -251,13 +259,17 @@ public class PreviewStorage {
             }
             List<PlannedBlock> blocks = structure.getBlocks();
             if (blocks != null) {
-                md.update(("n:" + blocks.size()).getBytes(StandardCharsets.UTF_8));
+                java.util.TreeMap<String, String> finalByPos = new java.util.TreeMap<>();
                 for (PlannedBlock b : blocks) {
-                    if (b == null) continue;
+                    if (b == null || b.getPos() == null) continue;
                     BlockPos p = b.getPos();
+                    String key = p.getX() + "," + p.getY() + "," + p.getZ();
                     String state = b.getTargetState() != null ? b.getTargetState().toString() : "null";
-                    String line = (p != null ? p.getX() + "," + p.getY() + "," + p.getZ() : "null") + "|" + state;
-                    md.update(line.getBytes(StandardCharsets.UTF_8));
+                    finalByPos.put(key, state);
+                }
+                md.update(("n:" + finalByPos.size()).getBytes(StandardCharsets.UTF_8));
+                for (var entry : finalByPos.entrySet()) {
+                    md.update((entry.getKey() + "|" + entry.getValue()).getBytes(StandardCharsets.UTF_8));
                 }
             }
             return HexFormat.of().formatHex(md.digest());

@@ -12,7 +12,9 @@ import com.formacraft.server.preview.PreviewStorage;
 import com.formacraft.server.assembly.AssemblyCirculationConstraints;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -109,8 +111,34 @@ public final class BuildPreviewPipeline {
             return new Result(null, report, false);
         }
 
+        // Deliver final-state cells only so preview digest / outline / apply share one identity
+        // (quality above may still have observed pre-collapse duplicates).
+        if (generated != null) {
+            structure = new GeneratedStructure(
+                    player.getUuid(),
+                    generated.getOrigin(),
+                    generated.getDescription(),
+                    collapseToFinalCells(clipped)
+            );
+        }
+
         storeReport(player, report);
         return new Result(structure, report, true);
+    }
+
+    /**
+     * Last-write-wins per world position, stable first-seen iteration order.
+     * Aligns delivered BUILD preview with {@link com.formacraft.common.patch.ConfirmedPlanIdentity}
+     * and {@link com.formacraft.server.preview.PreviewStorage#digestStructure}.
+     */
+    static List<PlannedBlock> collapseToFinalCells(List<PlannedBlock> blocks) {
+        if (blocks == null || blocks.isEmpty()) return List.of();
+        LinkedHashMap<BlockPos, PlannedBlock> byPos = new LinkedHashMap<>();
+        for (PlannedBlock block : blocks) {
+            if (block == null || block.getPos() == null) continue;
+            byPos.put(block.getPos().toImmutable(), block);
+        }
+        return List.copyOf(byPos.values());
     }
 
     static boolean allowsAutomaticSupports(FormaRequest req) {

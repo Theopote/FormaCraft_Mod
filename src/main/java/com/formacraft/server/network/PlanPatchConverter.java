@@ -3,6 +3,7 @@ package com.formacraft.server.network;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
+import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.common.patch.ConnectedBlockStateResolver;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -11,7 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Converts plan-local patches to world placements with graded invalid handling. */
+/**
+ * Converts plan-local patches to world placements with graded invalid handling.
+ * <p>
+ * Input is normalized to the <b>final per-cell set</b> ({@link ConfirmedPlanIdentity#toFinalPatches})
+ * before conversion so preview / digest / apply share one last-write-wins identity.
+ */
 public final class PlanPatchConverter {
     private PlanPatchConverter() {}
 
@@ -45,7 +51,9 @@ public final class PlanPatchConverter {
         if (patches == null || origin == null) {
             return new Result(blocks, 0, 0, 0, samples);
         }
-        for (BlockPatch patch : patches) {
+        // Collapse same-cell multi-writes before resolving — matches confirmed-plan identity.
+        List<BlockPatch> finalPatches = ConfirmedPlanIdentity.toFinalPatches(patches);
+        for (BlockPatch patch : finalPatches) {
             if (patch == null) {
                 invalid++;
                 criticalInvalid++;

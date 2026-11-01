@@ -39,6 +39,33 @@ class PreviewStorageDigestTest {
         assertNotEquals(PreviewStorage.digestStructure(a), PreviewStorage.digestStructure(b));
     }
 
+    @Test
+    void digestIsOrderIndependentForDistinctCells() {
+        GeneratedStructure forward = structure(List.of(
+                new PlannedBlock(new BlockPos(1, 2, 3), null),
+                new PlannedBlock(new BlockPos(4, 5, 6), null)
+        ));
+        GeneratedStructure backward = structure(List.of(
+                new PlannedBlock(new BlockPos(4, 5, 6), null),
+                new PlannedBlock(new BlockPos(1, 2, 3), null)
+        ));
+        assertEquals(PreviewStorage.digestStructure(forward), PreviewStorage.digestStructure(backward));
+    }
+
+    @Test
+    void digestUsesFinalStatePerCellLastWriteWins() {
+        // Intermediate overwrite at the same cell must not change the final digest.
+        GeneratedStructure withIntermediate = structure(List.of(
+                new PlannedBlock(new BlockPos(1, 2, 3), null),
+                new PlannedBlock(new BlockPos(1, 2, 3), null)
+        ));
+        GeneratedStructure finalOnly = structure(List.of(
+                new PlannedBlock(new BlockPos(1, 2, 3), null)
+        ));
+        assertEquals(PreviewStorage.digestStructure(withIntermediate),
+                PreviewStorage.digestStructure(finalOnly));
+    }
+
     private static GeneratedStructure structure(List<PlannedBlock> blocks) {
         return new GeneratedStructure(UUID.randomUUID(), new BlockPos(0, 64, 0), "test", blocks);
     }

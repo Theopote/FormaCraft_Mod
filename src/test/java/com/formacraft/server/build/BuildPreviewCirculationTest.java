@@ -59,4 +59,19 @@ class BuildPreviewCirculationTest {
     @Test void callersWithoutCirculationMetadataKeepExistingBehavior() {
         assertTrue(BuildPreviewPipeline.validateCirculation(List.of(), List.of(), new BuildQualityReport()));
     }
+
+    @Test void collapseToFinalCellsKeepsLastWritePerPosition() {
+        var pos = new BlockPos(1, 2, 3);
+        var other = new BlockPos(4, 5, 6);
+        var blocks = List.of(
+                new PlannedBlock(pos, Blocks.STONE.getDefaultState()),
+                new PlannedBlock(other, Blocks.OAK_PLANKS.getDefaultState()),
+                new PlannedBlock(pos, Blocks.GLASS.getDefaultState())
+        );
+        var collapsed = BuildPreviewPipeline.collapseToFinalCells(blocks);
+        assertEquals(2, collapsed.size());
+        assertEquals(Blocks.GLASS.getDefaultState(), collapsed.get(0).getTargetState());
+        assertEquals(pos, collapsed.get(0).getPos());
+        assertEquals(other, collapsed.get(1).getPos());
+    }
 }

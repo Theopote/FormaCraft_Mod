@@ -183,23 +183,22 @@ public final class BuildAutoRepair {
     }
 
     /**
-     * 去重：移除重复位置的方块（保留最后一个）
+     * 去重：移除重复位置的方块（保留最后一个），并保持首次出现顺序。
      */
     private static List<PlannedBlock> deduplicateBlocks(List<PlannedBlock> blocks) {
         if (blocks == null || blocks.isEmpty()) return blocks == null ? List.of() : blocks;
-        
-        // 使用 Map 去重：相同位置的方块，后面的覆盖前面的
-        Map<BlockPos, PlannedBlock> finalStates = new HashMap<>(blocks.size());
+
+        // LinkedHashMap: last-write-wins per cell, stable first-seen iteration (preview/outline).
+        Map<BlockPos, PlannedBlock> finalStates = new java.util.LinkedHashMap<>(blocks.size());
         for (PlannedBlock block : blocks) {
             if (block == null) continue;
             BlockPos pos = block.getPos();
             BlockState state = block.getTargetState();
             if (pos != null && state != null) {
-                finalStates.put(pos, block);
+                finalStates.put(pos.toImmutable(), block);
             }
         }
-        
-        // 转换回 PlannedBlock 列表
+
         return new ArrayList<>(finalStates.values());
     }
 

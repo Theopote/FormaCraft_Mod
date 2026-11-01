@@ -1290,7 +1290,10 @@ public final class LlmPlanPreviewBuilder {
             AtomicBoolean hbAlive,
             List<com.formacraft.common.patch.BlockPatch> patchList
     ) {
-        if (patchList == null || patchList.isEmpty()) {
+        // Normalize before ticket/metrics so compile duplicates match Apply identity.
+        List<com.formacraft.common.patch.BlockPatch> finalPatches =
+                com.formacraft.common.patch.ConfirmedPlanIdentity.toFinalPatches(patchList);
+        if (finalPatches.isEmpty()) {
             LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
             return false;
         }
@@ -1303,7 +1306,7 @@ public final class LlmPlanPreviewBuilder {
         var ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
                 player,
                 patchOrigin,
-                patchList,
+                finalPatches,
                 com.formacraft.server.state.PlayerProtectedZoneStorage.get(player),
                 com.formacraft.server.state.PlayerOutlineStorage.get(player),
                 restrict,
@@ -1318,7 +1321,7 @@ public final class LlmPlanPreviewBuilder {
         hbAlive.set(false);
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                 "Patch 预览已就绪：检查改动后点击「应用」（可 Undo/Redo）"));
-        LlmPlanRoutingMetrics.recordSuccess(player, req, patchList.size(), patchList.size());
+        LlmPlanRoutingMetrics.recordSuccess(player, req, finalPatches.size(), finalPatches.size());
         return true;
     }
 
