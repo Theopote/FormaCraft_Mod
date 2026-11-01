@@ -2,6 +2,8 @@ param(
     [string]$GradleExecutable,
     [switch]$Offline,
     [string[]]$Tests = @(
+        '*ComponentTypesTest', '*ComponentCaptureTypesTest', '*ComponentTypeQueryTest', '*ComponentTypePersistenceTest',
+        '*CapturedAdaptRound*Test', '*ComponentValidatorSocketPlacementTest', '*ComponentAutoFixTest', '*ComponentVariantApplierRepeatTest',
         '*ComponentImportSessionsTest', '*ComponentImportClientStateTest', '*ComponentImportNetworkingTest',
         '*ComponentSourceViewTest', '*ClientComponentSourceStateTest', '*ComponentSourceNetworkingTest',
         '*ComponentCapturePersistenceTest', '*ComponentContentIdentityTest', '*ComponentTagIdentityTest', '*ComponentSuiteSelectionTest', '*ComponentBatchPlannerTest', '*ComponentLibraryBatchContextTest', '*ComponentLibraryAcceptanceTest', '*ComponentPackageIOTest', '*ComponentPackageInstallationsTest',

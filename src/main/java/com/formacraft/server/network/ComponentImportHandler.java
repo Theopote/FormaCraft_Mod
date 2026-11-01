@@ -28,6 +28,7 @@ final class ComponentImportHandler {
             try {
                 switch (request.operation()) {
                     case START -> SESSIONS.begin(player.getUuid(), request.token(), request.length(), save);
+                    case CAPTURE_START -> SESSIONS.beginCapture(player.getUuid(), request.token(), request.length(), save);
                     case CHUNK -> SESSIONS.append(player.getUuid(), request.token(), request.offset(), request.data());
                     case CANCEL -> SESSIONS.cancel(player.getUuid(), request.token());
                     case PREVIEW -> {

@@ -600,6 +600,8 @@ public final class ComponentStorage {
                     .append(": ")
                     .append(e.name != null ? e.name : e.id)
                     .append(" (id=").append(e.id).append(")");
+            var type = ComponentTypes.effective(e.type, e.category);
+            sb.append(" type=").append(type.label()).append(" typeKey=").append(type.key());
             if (e.tags != null) sb.append(" tags=").append(e.tags);
             if (e.size != null) {
                 sb.append(" size=").append(e.size.w).append("x").append(e.size.h).append("x").append(e.size.d);

@@ -496,6 +496,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
 
         // 底部按钮
         cancelButton = ButtonWidget.builder(Text.literal("重置"), b -> {
+                    if (st.isCaptureSavePending()) { com.formacraft.client.component.ClientComponentImport.cancel(); return; }
                     st.pickingAnchor = false;
                     st.cancelCapture();
                     clearSelection();
@@ -1051,7 +1052,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         cancelButton.setWidth(half);
         cancelButton.visible = true;
         var st = ComponentTool.INSTANCE.getState();
-        cancelButton.active = !st.isCaptureSavePending();
+        cancelButton.setMessage(Text.literal(st.isCaptureSavePending() ? "取消保存" : "重置"));
+        cancelButton.active = !st.isCaptureSavePending() || com.formacraft.client.component.ClientComponentImport.canCancelCapture();
         cancelButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
         if (st.isCaptureSavePending() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(st)) {
@@ -1291,7 +1293,11 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         String componentName = st.name.trim();
         ComponentTool.INSTANCE.markSavePending(componentName);
         HudToast.show("正在保存构件「" + componentName + "」…");
-        FormaCraftClientNetworking.sendSaveComponent(json, thumbnailPng);
+        try { FormaCraftClientNetworking.sendSaveComponent(json, thumbnailPng); }
+        catch (Exception failedSend) {
+            com.formacraft.FormacraftMod.LOGGER.warn("Capture upload failed", failedSend);
+            ComponentTool.INSTANCE.onSaveAckFromServer("", componentName, false, "保存构件失败：" + failedSend.getMessage());
+        }
     }
 
     @Override
@@ -1303,7 +1309,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         var captureState = ComponentTool.INSTANCE.getState();
-        if (captureState.isCaptureSavePending()) return true;
+        if (captureState.isCaptureSavePending()) { clickButton(cancelButton, click); return true; }
         if (typeSection.click(mouseX, mouseY, click)) {
             nameInput.setFocused(false); tagsInput.setFocused(false); socketIdInput.setFocused(false); return true;
         }

@@ -38,7 +38,7 @@ public final class ComponentTypes {
         return PRESETS.stream().filter(p -> p.category == actual).findFirst().orElseThrow();
     }
     public static Ref custom(String name) {
-        if (name != null && name.codePoints().anyMatch(Character::isISOControl))
+        if (name != null && name.codePoints().anyMatch(c -> Character.isISOControl(c) || c >= 0xD800 && c <= 0xDFFF))
             throw new IllegalArgumentException("自定义类型名称不能包含控制字符");
         String label = Normalizer.normalize(name == null ? "" : name, Normalizer.Form.NFKC).strip().replaceAll("[\\s\\p{Z}]+", " ");
         if (label.isBlank() || label.length() > 64 || label.codePoints().anyMatch(Character::isISOControl))

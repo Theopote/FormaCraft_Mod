@@ -94,6 +94,7 @@ public final class ComponentTool implements FormacraftTool {
 
     @Override
     public boolean onMouseClick(double mx, double my, int button) {
+        if (state.captureActive && (state.isCaptureSavePending() || !ComponentCaptureTypes.ready(state))) return true;
         if (button == 1) {
             ComponentToolLibraryPlacement.PlaceResult placeResult = ComponentToolLibraryPlacement.tryPlaceFromLibrary(
                     net.minecraft.client.MinecraftClient.getInstance(), state, loadedComponent);

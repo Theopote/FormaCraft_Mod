@@ -307,14 +307,8 @@ public final class FormaCraftClientNetworking {
     }
 
     /** 客户端请求：保存一个构件（服务端落盘到 world save） */
-    public static void sendSaveComponent(String componentJson, byte[] thumbnailPng) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        FormaCraftNetworking.ComponentSavePayload payload = new FormaCraftNetworking.ComponentSavePayload(componentJson, thumbnailPng);
-        if (mc != null && mc.getNetworkHandler() != null) {
-            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
-            return;
-        }
-        ClientPlayNetworking.send(payload);
+    public static void sendSaveComponent(String componentJson, byte[] thumbnailPng) throws java.io.IOException {
+        com.formacraft.client.component.ClientComponentImport.submitCapture(componentJson, thumbnailPng);
     }
 
     /** 客户端请求：拉取某个构件定义（ComponentDefinition JSON）。 */

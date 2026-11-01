@@ -19,6 +19,8 @@ public final class ComponentImportSessions {
         ComponentStorage.SaveContext context;
         ByteArrayOutputStream bytes;
         ComponentPackageIO.Verified verified;
+        boolean capture;
+        byte[] thumbnail;
     }
     public ComponentImportSessions() { this(System::nanoTime); }
     public ComponentImportSessions(LongSupplier clock) { this.clock = Objects.requireNonNull(clock); }
@@ -41,12 +43,19 @@ public final class ComponentImportSessions {
         }
         s.bytes.writeBytes(data); s.touched = clock.getAsLong();
     }
+    public synchronized void beginCapture(UUID player, UUID token, int length, ComponentStorage.SaveContext context) throws IOException {
+        begin(player, token, length, context); sessions.get(player).capture = true;
+    }
     public synchronized Preview preview(UUID player, UUID token, ComponentPackageIO.Environment environment) throws IOException {
         var s = get(player, token);
         if (s.verified != null) throw new IOException("构件包已完成校验");
         if (s.bytes.size() != s.length) { sessions.remove(player); throw new IOException("构件包上传不完整"); }
         try {
-            var verified = ComponentPackageIO.readBytes(s.bytes.toByteArray(), environment);
+            ComponentPackageIO.Verified verified;
+            if (s.capture) {
+                var prepared = ComponentCapturePersistence.prepareUpload(s.bytes.toByteArray(), player, s.context, environment);
+                verified = prepared.verified(); s.thumbnail = prepared.thumbnail();
+            } else verified = ComponentPackageIO.readBytes(s.bytes.toByteArray(), environment);
             var d = verified.component();
             if (!d.isCapturedOrigin() && d.variantRules == null) throw new IOException("构件包缺少自包含的作者变化规则");
             s.verified = verified; s.bytes = null; s.touched = clock.getAsLong();
@@ -65,6 +74,11 @@ public final class ComponentImportSessions {
         if (s.verified == null) throw new IOException("请先完成构件包预览");
         if (!s.context.equals(current)) throw new IOException("保存权限或目标库已变化，请重新预览");
         var result = ComponentPackageInstallations.importVerified(s.verified, current);
+        if (s.thumbnail != null && (result.status() == ComponentPackageInstallations.ImportStatus.NEW_ASSET
+                || result.status() == ComponentPackageInstallations.ImportStatus.NEW_CONFIGURATION)) {
+            try { ComponentStorage.saveThumbnail(current, result.assetId(), s.thumbnail); }
+            catch (Exception thumbnailFailure) { com.formacraft.FormacraftMod.LOGGER.warn("Capture thumbnail save failed", thumbnailFailure); }
+        }
         var root = current.writeGlobal() ? ComponentStorage.getGlobalComponentDir() : ComponentStorage.getPlayerComponentDir(player);
         var name = ComponentPackageInstallations.inspect(root, result.assetId()).component().name;
         return new Installed(result.assetId(), ComponentSourceView.bounded(name, 256), result.status());

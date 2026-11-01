@@ -14,18 +14,24 @@ import java.util.concurrent.CompletableFuture;
 
 public final class ClientComponentImport {
     public static final ComponentImportClientState STATE = new ComponentImportClientState(System::nanoTime);
+    private static boolean captureSubmission;
     private ClientComponentImport() {}
     public static void register() {
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> STATE.clear());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> { STATE.clear(); captureSubmission = false; });
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
         ClientPlayNetworking.registerGlobalReceiver(ComponentImportNetworking.Response.ID, (response, context) -> context.client().execute(() -> {
             var before = STATE.phase(); STATE.accept(response);
+            if (captureSubmission && STATE.phase() == ComponentImportClientState.Phase.PREVIEW) { confirm(); return; }
+            if (captureSubmission && STATE.phase() == ComponentImportClientState.Phase.ERROR) { captureFailed(STATE.message()); return; }
             if (before != ComponentImportClientState.Phase.DONE && STATE.phase() == ComponentImportClientState.Phase.DONE) {
                 var result = STATE.installed(); var tool = com.formacraft.client.tool.ComponentTool.INSTANCE.getState();
                 tool.librarySelectedId = result.assetId(); tool.librarySelectedName = result.name(); tool.libraryPage = 0; tool.librarySearch = "";
                 ClientComponentSourceState.INSTANCE.clear();
                 String action = switch (result.status()) { case NEW_ASSET -> "已导入构件："; case NEW_CONFIGURATION -> "已导入新配置："; case SOURCE_ADDED -> "已复用构件并补充来源："; case REUSED -> "已复用已有构件："; };
-                HudToast.show(action + result.name());
+                if (captureSubmission) {
+                    captureSubmission = false;
+                    com.formacraft.client.tool.ComponentTool.INSTANCE.onSaveAckFromServer(result.assetId(), result.name(), true, action + result.name());
+                } else HudToast.show(action + result.name());
             }
         }));
     }
@@ -58,17 +64,17 @@ public final class ClientComponentImport {
         }));
     }
     private static void tick() {
-        if (STATE.expire()) { sendCancel(); return; }
+        if (STATE.expire()) { sendCancel(); captureFailed(STATE.message()); return; }
         for (int i = 0; i < 2; i++) {
             var request = STATE.nextUploadRequest(); if (request == null) break;
             try { ClientPlayNetworking.send(request); }
-            catch (RuntimeException invalid) { sendCancel(); STATE.fail("构件包上传中断"); break; }
+            catch (RuntimeException invalid) { sendCancel(); STATE.fail("构件包上传中断"); captureFailed(STATE.message()); break; }
         }
     }
     public static void confirm() {
         var request = STATE.confirm(); if (request == null) return;
         try { ClientPlayNetworking.send(request); }
-        catch (RuntimeException invalid) { STATE.fail("无法提交构件包导入"); }
+        catch (RuntimeException invalid) { STATE.fail("无法提交构件包导入"); captureFailed(STATE.message()); }
     }
     private static void sendCancel() {
         try {
@@ -76,5 +82,25 @@ public final class ClientComponentImport {
                 ClientPlayNetworking.send(new ComponentImportNetworking.Request(STATE.token(), ComponentImportNetworking.Operation.CANCEL, 0, 0, null));
         } catch (RuntimeException disconnected) { /* Server expiry also releases abandoned uploads. */ }
     }
-    public static void cancel() { sendCancel(); STATE.clear(); }
+    public static void cancel() { sendCancel(); captureFailed("捕获保存已取消，可继续编辑草案"); STATE.clear(); }
+    private static void captureFailed(String message) {
+        if (!captureSubmission) return;
+        captureSubmission = false;
+        com.formacraft.client.tool.ComponentTool.INSTANCE.onSaveAckFromServer("", "", false, message);
+    }
+    public static boolean canCancelCapture() {
+        return captureSubmission && STATE.phase() != ComponentImportClientState.Phase.COMMITTING;
+    }
+    public static void submitCapture(String json, byte[] png) throws java.io.IOException {
+        if (STATE.busy() || STATE.phase() == ComponentImportClientState.Phase.PREVIEW)
+            throw new java.io.IOException("请先完成或取消当前构件包导入");
+        if (!ClientPlayNetworking.canSend(ComponentImportNetworking.Request.ID))
+            throw new java.io.IOException("服务器未提供分块捕获保存功能");
+        byte[] bytes = com.formacraft.common.component.ComponentCapturePersistence.encodeUpload(json, png);
+        cancel(); var token = STATE.begin();
+        if (!STATE.fileReady(token, bytes)) throw new java.io.IOException(STATE.message());
+        captureSubmission = true;
+        try { ClientPlayNetworking.send(new ComponentImportNetworking.Request(token, ComponentImportNetworking.Operation.CAPTURE_START, bytes.length, 0, null)); }
+        catch (RuntimeException failure) { STATE.fail("无法开始捕获上传"); captureSubmission = false; throw failure; }
+    }
 }

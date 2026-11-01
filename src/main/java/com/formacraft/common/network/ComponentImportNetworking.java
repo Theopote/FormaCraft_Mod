@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 
 public final class ComponentImportNetworking {
     private ComponentImportNetworking() {}
-    public enum Operation { START, CHUNK, PREVIEW, CONFIRM, CANCEL }
+    public enum Operation { START, CHUNK, PREVIEW, CONFIRM, CANCEL, CAPTURE_START }
     public enum Reply { PREVIEW, INSTALLED, ERROR }
     private static boolean c2s, s2c;
     public static synchronized void registerC2S() {

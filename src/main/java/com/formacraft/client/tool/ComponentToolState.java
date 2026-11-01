@@ -34,16 +34,17 @@ public class ComponentToolState {
     private Metadata confirmedMetadata, submittedMetadata;
     private record Metadata(ComponentCategory category, com.formacraft.common.component.ComponentTypes.Ref type,
                             boolean chosen, boolean custom, String customName, String name, Set<String> tags,
-                            String culturalStyle, String geometryArchetype) {}
+                            String culturalStyle, String geometryArchetype, boolean useLibrary) {}
     private Metadata metadata() {
         return new Metadata(category, type, captureTypeChosen, customTypeMode, customTypeName, name,
-                tags == null ? new HashSet<>() : new HashSet<>(tags), culturalStyleOverride, geometryArchetypeOverride);
+                tags == null ? new HashSet<>() : new HashSet<>(tags), culturalStyleOverride, geometryArchetypeOverride, useLibrary);
     }
     private void restoreMetadata(Metadata value) {
         if (value == null) return;
         category = value.category; type = value.type; captureTypeChosen = value.chosen; customTypeMode = value.custom;
         customTypeName = value.customName; name = value.name; tags = new HashSet<>(value.tags);
         culturalStyleOverride = value.culturalStyle; geometryArchetypeOverride = value.geometryArchetype;
+        useLibrary = value.useLibrary;
     }
     public String name = "New Component";
     public Set<String> tags = new HashSet<>();
@@ -246,6 +247,7 @@ public class ComponentToolState {
         confirmedMetadata = metadata();
         confirmedDraft.loadFrom(this);
         captureDraft.loadFrom(this);
+        useLibrary = false;
         captureTypeChosen = false;
         captureDraft.host.manualAttachment = false;
         captureDraft.orientation.manualDirectionality = false;
@@ -288,6 +290,7 @@ public class ComponentToolState {
     public void beginCaptureSave() {
         if (!captureActive || captureSavePending) throw new IllegalStateException("Capture is not ready to submit");
         submittedDraft = captureDraft.copy(); submittedMetadata = metadata(); captureSavePending = true;
+        pickingAnchor = false; pickingSocket = false;
     }
     public void completeCaptureSave(boolean success) {
         if (!captureSavePending) return;

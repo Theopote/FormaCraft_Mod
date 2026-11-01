@@ -26,6 +26,16 @@ public final class ComponentCapturePersistence {
 
     public static Saved save(ComponentDefinition input, UUID submittingPlayer, ComponentStorage.SaveContext context,
                              ComponentPackageIO.Environment environment, Map<String, String> namespaceOwners) throws IOException {
+        var verified = prepare(input, submittingPlayer, context, environment, namespaceOwners);
+        synchronized (ComponentStorage.class) {
+            var result = ComponentPackageInstallations.importVerified(verified, context);
+            var root = context.writeGlobal() ? ComponentStorage.getGlobalComponentDir() : ComponentStorage.getPlayerComponentDir(context.playerId());
+            return new Saved(result, ComponentPackageInstallations.inspect(root, result.assetId()).component().name);
+        }
+    }
+
+    public static ComponentPackageIO.Verified prepare(ComponentDefinition input, UUID submittingPlayer, ComponentStorage.SaveContext context,
+                             ComponentPackageIO.Environment environment, Map<String, String> namespaceOwners) throws IOException {
         if (context == null || submittingPlayer == null || !submittingPlayer.equals(context.playerId()))
             throw new IOException("Capture requires a trusted player save context");
         if (input == null || input.blocks == null || input.blocks.isEmpty() || input.blocks.size() > ComponentIds.MAX_BLOCKS)
@@ -62,12 +72,41 @@ public final class ComponentCapturePersistence {
         var manifest = new ComponentPackageIO.Manifest("capture_" + submittingPlayer.toString().replace("-", ""), "1",
                 submittingPlayer.toString(), "LicenseRef-Unspecified", ComponentPackageIO.TrainingPermission.UNSPECIFIED,
                 environment.minecraftVersion(), dependencies, owners, List.of());
-        var verified = ComponentPackageIO.create(definition, manifest, environment);
-        synchronized (ComponentStorage.class) {
-            var result = ComponentPackageInstallations.importVerified(verified, context);
-            var root = context.writeGlobal() ? ComponentStorage.getGlobalComponentDir() : ComponentStorage.getPlayerComponentDir(context.playerId());
-            var stored = ComponentPackageInstallations.inspect(root, result.assetId()).component();
-            return new Saved(result, stored.name);
-        }
+        return ComponentPackageIO.create(definition, manifest, environment);
+    }
+
+    private record Upload(String json, String thumbnail) {}
+    public record PreparedUpload(ComponentPackageIO.Verified verified, byte[] thumbnail) {}
+    public static byte[] encodeUpload(String json, byte[] png) throws IOException {
+        if (json == null || json.length() > ComponentIds.MAX_JSON_CHARS) throw new IOException("捕获数据过大或为空");
+        validateThumbnail(png);
+        var data = JsonUtil.toJson(new Upload(json, png == null ? null : Base64.getEncoder().encodeToString(png)))
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        if (data.length > ComponentPackageIO.MAX_PACKAGE_BYTES) throw new IOException("捕获数据超过上传上限");
+        return data;
+    }
+    public static PreparedUpload prepareUpload(byte[] bytes, UUID player, ComponentStorage.SaveContext context,
+                                               ComponentPackageIO.Environment environment) throws IOException {
+        if (bytes == null || bytes.length > ComponentPackageIO.MAX_PACKAGE_BYTES) throw new IOException("捕获数据超过上传上限");
+        try {
+            String text = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+            var upload = JsonUtil.fromJson(text, Upload.class);
+            if (upload == null || upload.json == null || upload.json.length() > ComponentIds.MAX_JSON_CHARS)
+                throw new IOException("捕获数据过大或为空");
+            if (upload.thumbnail != null && upload.thumbnail.length() > 1_398_104) throw new IOException("缩略图超过上限");
+            byte[] png = upload.thumbnail == null ? null : Base64.getDecoder().decode(upload.thumbnail);
+            validateThumbnail(png);
+            var definition = JsonUtil.fromJson(upload.json, ComponentDefinition.class);
+            return new PreparedUpload(prepare(definition, player, context, environment, Map.of()), png);
+        } catch (RuntimeException invalid) { throw new IOException("捕获上传数据无效", invalid); }
+    }
+    private static void validateThumbnail(byte[] png) throws IOException {
+        if (png == null) return;
+        if (png.length < 33 || png.length > 1024 * 1024) throw new IOException("缩略图大小无效");
+        var header = java.nio.ByteBuffer.wrap(png);
+        if (header.getLong(0) != 0x89504e470d0a1a0aL || header.getInt(8) != 13 || header.getInt(12) != 0x49484452
+                || header.getInt(16) <= 0 || header.getInt(20) <= 0 || header.getInt(16) > 1024 || header.getInt(20) > 1024)
+            throw new IOException("缩略图需为尺寸不超过 1024×1024 的 PNG");
     }
 }
