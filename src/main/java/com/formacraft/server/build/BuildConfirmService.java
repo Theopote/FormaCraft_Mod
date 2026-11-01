@@ -12,17 +12,20 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.UUID;
 
 /**
  * Preview → Confirm → Apply 的统一入口。
  * <p>
- * 事务顺序：校验预览与质量 → 入队成功 → 再消费预览并清轮廓。
- * 入队失败时保留预览结构与 FBD 来源，避免“提示已开始建造却无任务且预览已丢”。
- * <p>
- * After enqueue, consume must return the same preview identity (digest + origin)
- * that was submitted; otherwise confirm is not treated as successful.
+ * Transaction order (P0):
+ * <ol>
+ *   <li>Capture immutable preview snapshot (digest + origin + generation)</li>
+ *   <li>Validate dimension / quality / snapshot↔meta identity <b>before</b> enqueue</li>
+ *   <li>Enqueue the snapshot structure</li>
+ *   <li>On enqueue success: consume only if storage still matches the snapshot;
+ *       on mismatch cancel the enqueued task and restore the snapshot preview</li>
+ *   <li>On enqueue failure: keep preview untouched</li>
+ * </ol>
  */
 public final class BuildConfirmService {
     private BuildConfirmService() {}
@@ -35,7 +38,10 @@ public final class BuildConfirmService {
         QUALITY_REJECTED,
         QUEUE_FULL,
         CANNOT_BUILD,
-        /** Enqueue succeeded but consumed preview did not match the bound identity. */
+        /**
+         * Snapshot/meta identity failed before enqueue, or consume no longer matched
+         * the snapshot after enqueue (enqueued task must be cancelled).
+         */
         PREVIEW_IDENTITY_MISMATCH
     }
 
@@ -54,8 +60,14 @@ public final class BuildConfirmService {
         boolean enqueue(ServerWorld world, GeneratedStructure structure, String fbdSourcePlanJson);
     }
 
+    @FunctionalInterface
+    public interface TaskCanceler {
+        /** Cancel queued/active builds for the player in this world; return cancelled count. */
+        int cancel(UUID playerId, ServerWorld world);
+    }
+
     /**
-     * 纯事务决策（可单测）：仅当 {@code enqueue} 返回 true 时调用 {@code onAccepted}（消费预览）。
+     * Pure gate used by unit tests: enqueue must succeed before consume callback runs.
      */
     public static Status commitIfEnqueued(
             boolean hasPreview,
@@ -87,21 +99,31 @@ public final class BuildConfirmService {
     }
 
     /**
-     * Verify that a consumed structure matches the identity bound at confirm time.
+     * Post-enqueue consume outcome: mismatch ⇒ cancel task and do not treat confirm as accepted.
      */
+    public record ConsumeOutcome(boolean matched, boolean shouldCancelEnqueuedTask) {
+        public static ConsumeOutcome ok() {
+            return new ConsumeOutcome(true, false);
+        }
+
+        public static ConsumeOutcome mismatch() {
+            return new ConsumeOutcome(false, true);
+        }
+    }
+
     public static boolean matchesBoundIdentity(
-            GeneratedStructure consumed,
+            GeneratedStructure candidate,
             String expectedDigest,
             BlockPos expectedOrigin
     ) {
-        if (consumed == null) return false;
+        if (candidate == null) return false;
         if (expectedDigest != null && !expectedDigest.isEmpty()) {
-            if (!Objects.equals(expectedDigest, PreviewStorage.digestStructure(consumed))) {
+            if (!Objects.equals(expectedDigest, PreviewStorage.digestStructure(candidate))) {
                 return false;
             }
         }
         if (expectedOrigin != null) {
-            BlockPos origin = consumed.getOrigin();
+            BlockPos origin = candidate.getOrigin();
             if (origin == null || !expectedOrigin.equals(origin)) {
                 return false;
             }
@@ -109,11 +131,36 @@ public final class BuildConfirmService {
         return true;
     }
 
+    /**
+     * Decide whether a consumed structure still matches the pre-enqueue snapshot.
+     * Null consume (validate failed / already gone) is a mismatch → cancel enqueued work.
+     */
+    public static ConsumeOutcome evaluateConsume(
+            GeneratedStructure consumed,
+            PreviewStorage.PreviewSnapshot snapshot
+    ) {
+        if (snapshot == null) return ConsumeOutcome.mismatch();
+        if (!matchesBoundIdentity(consumed, snapshot.digest(), snapshot.origin())) {
+            return ConsumeOutcome.mismatch();
+        }
+        return ConsumeOutcome.ok();
+    }
+
     public static Result confirm(ServerPlayerEntity player, boolean force) {
-        return confirm(player, force, BuildExecutionService.getInstance()::enqueueBuild);
+        BuildExecutionService svc = BuildExecutionService.getInstance();
+        return confirm(player, force, svc::enqueueBuild, svc::cancelBuildsForPlayer);
     }
 
     public static Result confirm(ServerPlayerEntity player, boolean force, Enqueuer enqueuer) {
+        return confirm(player, force, enqueuer, BuildExecutionService.getInstance()::cancelBuildsForPlayer);
+    }
+
+    public static Result confirm(
+            ServerPlayerEntity player,
+            boolean force,
+            Enqueuer enqueuer,
+            TaskCanceler canceler
+    ) {
         if (player == null || !PreviewStorage.hasPreview(player)) {
             return Result.of(Status.NO_PREVIEW);
         }
@@ -140,74 +187,67 @@ public final class BuildConfirmService {
             return new Result(Status.QUALITY_REJECTED, quality, null, false);
         }
 
-        GeneratedStructure structure = PreviewStorage.getStructure(player);
-        if (structure == null) {
+        // 1) Immutable snapshot + pre-enqueue identity bind (digest / origin / generation).
+        PreviewStorage.PreviewSnapshot snapshot = PreviewStorage.captureSnapshot(player);
+        if (snapshot == null || snapshot.structure() == null) {
             return Result.of(Status.NO_PREVIEW);
         }
-        String fbdSourcePlan = PreviewStorage.peekSourcePlan(player);
+        if (!snapshot.matchesMeta(meta)) {
+            FormacraftMod.LOGGER.error(
+                    "Confirm refused: snapshot/meta identity mismatch before enqueue player={} gen={} digest={}",
+                    player.getName().getString(),
+                    snapshot.generation(),
+                    snapshot.digest());
+            return new Result(Status.PREVIEW_IDENTITY_MISMATCH, quality, snapshot.structure(), false);
+        }
 
-        final String boundDigest = meta != null ? meta.structureDigest() : PreviewStorage.digestStructure(structure);
-        final BlockPos boundOrigin = meta != null && meta.origin() != null
-                ? meta.origin().toImmutable()
-                : (structure.getOrigin() != null ? structure.getOrigin().toImmutable() : null);
-
-        AtomicBoolean identityOk = new AtomicBoolean(true);
-        AtomicReference<GeneratedStructure> consumedRef = new AtomicReference<>();
-
-        boolean enqueued = enqueuer != null && enqueuer.enqueue(world, structure, fbdSourcePlan);
-        Status status = commitIfEnqueued(
-                true,
-                true,
-                true,
-                true,
-                quality,
-                force,
-                enqueued,
-                () -> {
-                    GeneratedStructure consumed = PreviewStorage.consumeStructure(player);
-                    if (!matchesBoundIdentity(consumed, boundDigest, boundOrigin)) {
-                        identityOk.set(false);
-                        FormacraftMod.LOGGER.error(
-                                "Confirm preview identity mismatch after enqueue: player={} expectedDigest={} expectedOrigin={} consumedNull={} consumedDigest={} consumedOrigin={}",
-                                player.getName().getString(),
-                                boundDigest,
-                                boundOrigin != null ? boundOrigin.toShortString() : "?",
-                                consumed == null,
-                                consumed != null ? PreviewStorage.digestStructure(consumed) : "n/a",
-                                consumed != null && consumed.getOrigin() != null
-                                        ? consumed.getOrigin().toShortString() : "n/a");
-                    } else {
-                        consumedRef.set(consumed);
-                    }
-                    PreviewStorage.consumeSourcePlan(player);
-                    PreviewStorage.clearQualityReport(player);
-                    FormaCraftServerNetworking.sendClearOutline(player);
-                }
-        );
-        if (status == Status.QUEUE_FULL) {
+        // 2) Accept task with the bound snapshot (not a live mutable storage reference).
+        boolean enqueued = enqueuer != null
+                && enqueuer.enqueue(world, snapshot.structure(), snapshot.fbdSourcePlanJson());
+        if (!enqueued) {
             FormacraftMod.LOGGER.warn(
                     "Confirm refused (queue full): player={} dim={} origin={} blocks={}",
                     player.getName().getString(),
                     currentDim,
-                    structure.getOrigin() != null ? structure.getOrigin().toShortString() : "?",
-                    structure.size());
-            return new Result(Status.QUEUE_FULL, quality, structure, false);
-        }
-        if (status != Status.ACCEPTED) {
-            return new Result(status, quality, structure, false);
-        }
-        if (!identityOk.get()) {
-            return new Result(Status.PREVIEW_IDENTITY_MISMATCH, quality, structure, false);
+                    snapshot.origin() != null ? snapshot.origin().toShortString() : "?",
+                    snapshot.structure().size());
+            return new Result(Status.QUEUE_FULL, quality, snapshot.structure(), false);
         }
 
-        GeneratedStructure confirmed = consumedRef.get() != null ? consumedRef.get() : structure;
+        // 3) Consume only after enqueue; mismatch ⇒ cancel task + restore preview.
+        GeneratedStructure consumed = PreviewStorage.consumeStructure(player);
+        ConsumeOutcome consume = evaluateConsume(consumed, snapshot);
+        if (!consume.matched()) {
+            FormacraftMod.LOGGER.error(
+                    "Confirm preview identity mismatch after enqueue — cancelling task: player={} expectedDigest={} expectedOrigin={} expectedGen={} consumedNull={}",
+                    player.getName().getString(),
+                    snapshot.digest(),
+                    snapshot.origin() != null ? snapshot.origin().toShortString() : "?",
+                    snapshot.generation(),
+                    consumed == null);
+            if (canceler != null) {
+                int cancelled = canceler.cancel(player.getUuid(), world);
+                FormacraftMod.LOGGER.warn(
+                        "Cancelled {} build task(s) after confirm identity mismatch for player={}",
+                        cancelled, player.getName().getString());
+            }
+            // Restore if consume removed storage, or reinforce if consume returned null.
+            PreviewStorage.restoreSnapshot(player, snapshot, quality);
+            return new Result(Status.PREVIEW_IDENTITY_MISMATCH, quality, snapshot.structure(), false);
+        }
+
+        PreviewStorage.consumeSourcePlan(player);
+        PreviewStorage.clearQualityReport(player);
+        FormaCraftServerNetworking.sendClearOutline(player);
+
         boolean forced = force && quality != null && quality.hasError();
         FormacraftMod.LOGGER.info(
-                "Preview confirmed: dimension={} origin={} blocks={} force={}",
+                "Preview confirmed: dimension={} origin={} blocks={} force={} gen={}",
                 currentDim,
-                confirmed.getOrigin() != null ? confirmed.getOrigin().toShortString() : "?",
-                confirmed.size(),
-                force);
-        return new Result(Status.ACCEPTED, quality, confirmed, forced);
+                consumed.getOrigin() != null ? consumed.getOrigin().toShortString() : "?",
+                consumed.size(),
+                force,
+                snapshot.generation());
+        return new Result(Status.ACCEPTED, quality, consumed, forced);
     }
 }

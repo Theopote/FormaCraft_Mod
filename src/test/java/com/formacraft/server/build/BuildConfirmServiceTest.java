@@ -126,6 +126,72 @@ class BuildConfirmServiceTest {
     }
 
     @Test
+    void evaluateConsumeMismatchRequiresCancellingEnqueuedTask() {
+        var structure = new GeneratedStructure(
+                null,
+                new BlockPos(1, 70, 2),
+                "hut",
+                List.of(new PlannedBlock(new BlockPos(1, 70, 2), Blocks.STONE.getDefaultState()))
+        );
+        var snapshot = new PreviewStorage.PreviewSnapshot(
+                structure,
+                PreviewStorage.digestStructure(structure),
+                new BlockPos(1, 70, 2),
+                7L,
+                null,
+                null
+        );
+        assertTrue(BuildConfirmService.evaluateConsume(structure, snapshot).matched());
+        assertFalse(BuildConfirmService.evaluateConsume(structure, snapshot).shouldCancelEnqueuedTask());
+
+        assertFalse(BuildConfirmService.evaluateConsume(null, snapshot).matched());
+        assertTrue(BuildConfirmService.evaluateConsume(null, snapshot).shouldCancelEnqueuedTask(),
+                "null consume after enqueue must cancel the task");
+
+        var other = new GeneratedStructure(
+                null,
+                new BlockPos(9, 70, 2),
+                "hut",
+                List.of(new PlannedBlock(new BlockPos(9, 70, 2), Blocks.STONE.getDefaultState()))
+        );
+        var mismatch = BuildConfirmService.evaluateConsume(other, snapshot);
+        assertFalse(mismatch.matched());
+        assertTrue(mismatch.shouldCancelEnqueuedTask());
+    }
+
+    @Test
+    void identityMismatchAfterEnqueueCancelsTaskAndDoesNotAccept() {
+        AtomicBoolean enqueued = new AtomicBoolean(false);
+        AtomicInteger cancelCalls = new AtomicInteger();
+        AtomicBoolean acceptedConsumeSideEffects = new AtomicBoolean(false);
+
+        // Pure decision path mirroring confirm(): enqueue ok → consume mismatch → cancel.
+        boolean enqueueOk = true;
+        enqueued.set(enqueueOk);
+        var consume = BuildConfirmService.evaluateConsume(null, new PreviewStorage.PreviewSnapshot(
+                new GeneratedStructure(null, new BlockPos(0, 64, 0), "x",
+                        List.of(new PlannedBlock(new BlockPos(0, 64, 0), Blocks.STONE.getDefaultState()))),
+                "abc",
+                new BlockPos(0, 64, 0),
+                1L,
+                null,
+                null
+        ));
+        assertTrue(enqueueOk);
+        assertTrue(consume.shouldCancelEnqueuedTask());
+        if (consume.shouldCancelEnqueuedTask()) {
+            cancelCalls.incrementAndGet();
+        } else {
+            acceptedConsumeSideEffects.set(true);
+        }
+        assertEquals(1, cancelCalls.get());
+        assertFalse(acceptedConsumeSideEffects.get(), "must not clear preview side-effects on mismatch");
+        assertEquals(BuildConfirmService.Status.PREVIEW_IDENTITY_MISMATCH,
+                consume.matched() ? BuildConfirmService.Status.ACCEPTED
+                        : BuildConfirmService.Status.PREVIEW_IDENTITY_MISMATCH);
+    }
+
+    @Test
     void queueFullKeepsPreviewAliveForRetry() {
         AtomicBoolean previewAlive = new AtomicBoolean(true);
         AtomicInteger enqueueAttempts = new AtomicInteger();
