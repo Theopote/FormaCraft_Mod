@@ -284,6 +284,39 @@ class InGameAcceptanceRepairTest {
     }
 
     @Test
+    void slotPrimaryAnchorRepairZerosResidualOffset() {
+        Slot slot = new Slot("studio_slot", new Vec3i(-8, 0, 0), GlobalConstraints.Facing.SOUTH,
+                null, null, null, new Vec3i(12, 8, 12));
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .anchor(new Vec3i(1768, 72, -446))
+                .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of(slot)))
+                .components(List.of())
+                .build();
+        LlmPlan fixed = SlotPrimaryAnchorRepair.apply(plan);
+        assertEquals(0, fixed.layout().slots().getFirst().anchor().x());
+        assertEquals(0, fixed.layout().slots().getFirst().anchor().z());
+    }
+
+    @Test
+    void f4NorthFacadeStudioCompilesWithRidgeRise() throws Exception {
+        String json = new String(java.nio.file.Files.readAllBytes(
+                java.nio.file.Path.of("src/test/resources/regressions/f4_north_facade_studio.json")));
+        LlmPlan plan = com.formacraft.common.llm.parser.LlmPlanParser.parse(json);
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(patches.isEmpty(), "F4 must not fail RoofShapeAudit/E_ROOF_SHAPE_FAILED; gap="
+                + com.formacraft.server.assembly.AssemblyCompileDiagnostics.get());
+        int minY = patches.stream().mapToInt(BlockPatch::dy).min().orElse(0);
+        int maxY = patches.stream().mapToInt(BlockPatch::dy).max().orElse(0);
+        assertTrue(maxY - minY >= 6, "body+roof should span multiple Y bands, span=" + (maxY - minY));
+        // Building footprint center near plan origin (slot -8 must not remain).
+        double avgX = patches.stream().mapToInt(BlockPatch::dx).average().orElse(0);
+        double avgZ = patches.stream().mapToInt(BlockPatch::dz).average().orElse(0);
+        assertTrue(Math.abs(avgX) < 4 && Math.abs(avgZ) < 4,
+                "centered on cursor, avgXZ=(" + avgX + "," + avgZ + ")");
+    }
+
+    @Test
     void oakStairGableForcedFromIntent() {
         Slot slot = new Slot("hall", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH,
                 null, null, null, new Vec3i(12, 5, 10));

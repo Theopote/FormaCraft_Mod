@@ -216,7 +216,9 @@ public class RoofGenerator implements ComponentGenerator {
         if (hasExplicitShallowPitch(params, half) && !stairs) {
             return Math.max(2, height);
         }
-        // Stair roofs: promote near-45° so we do not get 3-wide flat stair terraces.
+        // Stair roofs: promote near-45° so we do not get 3-wide flat stair terraces / grooves.
+        // Pure stair surfaces only look right near 45°; shallower angles need full-block fill
+        // under stairs (emitSlopeColumn / sealSlopeRisers) AND enough rise to avoid plateaus.
         if (stairs && rise < half * 0.65) {
             return Math.max(height, half + 1);
         }
@@ -224,6 +226,12 @@ public class RoofGenerator implements ComponentGenerator {
         if (rise < Math.max(2, half / 3)) {
             int bumped = stairs ? half + 1 : Math.max(4, half / 2 + 1);
             return Math.max(height, Math.min(bumped, half + 1));
+        }
+        // Non-stair shallow pitches (e.g. roof_height=3 on a 12+ span) quantize to a
+        // multi-cell ridge plateau that RoofShapeAudit reads as no_ridge_rise when
+        // sampling is noisy — bump at least to half/2+1 so the ridge is distinct.
+        if (!stairs && rise < half * 0.45 && half >= 4) {
+            return Math.max(height, Math.min(half / 2 + 1, half + 1));
         }
         return Math.max(2, height);
     }
