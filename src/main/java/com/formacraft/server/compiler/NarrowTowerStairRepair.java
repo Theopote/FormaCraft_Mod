@@ -51,6 +51,11 @@ final class NarrowTowerStairRepair {
     private static Component repairHostShell(Component host) {
         if (host == null || host.params() == null || host.dimensions() == null) return host;
         String type = host.componentType() == null ? "" : host.componentType().toUpperCase(Locale.ROOT);
+        // Only harden structural hosts. Thin FACADE_WINDOWS / ENTRANCE strips (depth=1)
+        // otherwise match the narrow-span heuristic and inherit window_style=none.
+        if (!(ComponentPlanTypes.isMassType(type) || "TOWER".equals(type) || type.startsWith("TOWER_"))) {
+            return host;
+        }
         String id = host.params().get("component_id") == null ? ""
                 : String.valueOf(host.params().get("component_id")).toLowerCase(Locale.ROOT);
         boolean spireLike = "TOWER".equals(type) || type.startsWith("TOWER_")
