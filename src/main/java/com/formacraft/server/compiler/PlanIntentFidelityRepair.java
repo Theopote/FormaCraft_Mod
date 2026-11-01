@@ -197,16 +197,13 @@ final class PlanIntentFidelityRepair {
             }
             // Drop shallow authored roof_height so normalizeStairRoofRise can lift to ~45°.
             if (roof || mass) {
-                Object rh = params.get("roof_height");
-                if (rh == null) rh = params.get("roofHeight");
-                if (rh instanceof Number n && n.intValue() > 0 && n.intValue() <= 3
-                        && component.dimensions() != null
-                        && Math.min(component.dimensions().width(), component.dimensions().depth()) >= 8) {
-                    params.remove("roof_height");
-                    params.remove("roofHeight");
-                    changed = true;
-                }
+                changed |= dropShallowRoofHeight(params, component);
             }
+        }
+        // Even without prefer_stairs, shallow roof_height on a wide span flattens the ridge
+        // (RoofShapeAudit no_ridge_rise) — drop so normalizeStairRoofRise can bump rise.
+        if ((roof || mass) && !hints.preferStairs()) {
+            changed |= dropShallowRoofHeight(params, component);
         }
         if (mass && hints.floorBlock() != null
                 && isBlank(ComponentPlanTypes.getParamString(params, "floor_block"))) {
@@ -618,6 +615,18 @@ final class PlanIntentFidelityRepair {
         String id = raw.trim();
         if (!id.contains(":")) id = "minecraft:" + id;
         return id.toLowerCase(Locale.ROOT);
+    }
+
+    /** Remove roof_height≤3 on wide footprints so rise can be normalized toward a visible ridge. */
+    private static boolean dropShallowRoofHeight(Map<String, Object> params, Component component) {
+        if (params == null || component == null || component.dimensions() == null) return false;
+        Object rh = params.get("roof_height");
+        if (rh == null) rh = params.get("roofHeight");
+        if (!(rh instanceof Number n) || n.intValue() <= 0 || n.intValue() > 3) return false;
+        if (Math.min(component.dimensions().width(), component.dimensions().depth()) < 8) return false;
+        params.remove("roof_height");
+        params.remove("roofHeight");
+        return true;
     }
 
     private static boolean isBlank(String value) {
