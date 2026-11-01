@@ -88,16 +88,27 @@ public final class TailiangTimberHallBuilder {
                 ? StructureSpecParsers.resolveEntranceFacing(specHint, Direction.SOUTH)
                 : facingFromParam(p.strVal("facing", "SOUTH"));
 
-        int baysX = p.intVal("baysX", 7, 5, 9);
-        int baysZ = p.intVal("baysZ", 4, 3, 5);
-        int bayWidth = p.intVal("bayWidth", 3, 2, 4);
         Envelope envelope = envelope(params);
         int w = envelope.width();
         int d = envelope.depth();
+        // Legacy halls keep 7×4 defaults; only shrink when the LLM overpacks a short span.
+        int minBaySpan = w <= 18 || d <= 14 ? 4 : 3;
+        int maxBaysX = Math.max(1, (w - 1) / minBaySpan);
+        int maxBaysZ = Math.max(1, (d - 1) / minBaySpan);
+        int baysX = Math.min(p.intVal("baysX", 7, 1, 9), maxBaysX);
+        int baysZ = Math.min(p.intVal("baysZ", 4, 1, 5), maxBaysZ);
+        baysX = Math.max(1, baysX);
+        baysZ = Math.max(1, baysZ);
+        int bayWidth = p.intVal("bayWidth", 3, 2, 4);
         int platformH = p.intVal("platformHeight", 2, 1, 4);
         int bodyH = p.intVal("hallHeight", 7, 5, 12);
-        boolean subEaves = p.boolVal("includeSubEaves", true);
+        boolean doubleEave = wantsDoubleEave(p);
+        boolean subEaves = doubleEave ? false : p.boolVal("includeSubEaves", true);
         int subDepth = envelope.subDepth();
+        if (doubleEave) {
+            // True 重檐 uses an inset upper roof, not the dense outer colonnade.
+            subDepth = 0;
+        }
 
         int outerW = w + subDepth * 2;
         int outerD = d + subDepth * 2;
@@ -110,10 +121,10 @@ public final class TailiangTimberHallBuilder {
         int oz = subDepth;
         int[] xAxis = bayAxis(w, baysX), zAxis = bayAxis(d, baysZ);
         var mainColumns = columnPositions(ox, oz, xAxis, zAxis);
-        int doorBay = baysX / 2;
+        int doorBay = Math.min(baysX - 1, baysX / 2);
         int doorMin = ox + xAxis[doorBay] + 1, doorMax = ox + xAxis[doorBay + 1] - 1;
-        var outerColumns = columnPositions(0,0,bayAxis(outerW,Math.max(1,(outerW-1)/bayWidth)),
-                bayAxis(outerD,Math.max(1,(outerD-1)/bayWidth)));
+        var outerColumns = columnPositions(0, 0, bayAxis(outerW, Math.max(1, (outerW - 1) / bayWidth)),
+                bayAxis(outerD, Math.max(1, (outerD - 1) / bayWidth)));
         if (p.boolVal("includeEntrance", true)) outerColumns.removeIf(col ->
                 col[1] == outerD - 1 && col[0] >= doorMin && col[0] <= doorMax);
 
@@ -173,7 +184,10 @@ public final class TailiangTimberHallBuilder {
         int yCol1 = yCol0 + bodyH - 2;
         int yWallTop = yCol0 + bodyH - 1;
         int bodyTop = platformH + bodyH;
-        boolean interiorColumns = p.boolVal("includeInteriorColumns", true);
+        // Short Minecraft footprints cannot absorb a full jin-column grid; keep classic large halls.
+        boolean interiorColumns = p.raw().containsKey("includeInteriorColumns")
+                ? p.boolVal("includeInteriorColumns", true)
+                : (w >= 21 && d >= 13);
         boolean timberFrame = p.boolVal("includeTimberFrame", true);
         int frameLevels = p.intVal("frameLevels", Math.min(3, bodyH - 3), 1, 4);
         if (timberFrame && frameLevels > bodyH - 3) throw new IllegalArgumentException(
@@ -200,10 +214,40 @@ public final class TailiangTimberHallBuilder {
         String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
         int roofRun = roofForm.equals("wu_dian") ? Math.min((w-1)/2,(d-1)/2)+roofOverhang : (w-1)/2+roofOverhang;
         int roofRise = p.intVal("roofRise", roofRun, 3, 18);
-        int roofCurve = p.intVal("roofCurve",0,0,100), roofCornerLift=p.intVal("roofCornerLift",0,0,3);
-        ChineseHallRoofGenerator.generate(
-                roofBlocks, w, d, bodyTop, roofForm, roofRise,
-                new ChineseHallRoofGenerator.Shape(roofOverhang,roofCurve,roofCornerLift), roofTile, roofStairs, wall);
+        boolean softRoof = doubleEave || p.boolVal("flying_eaves", false)
+                || "飞檐".equals(p.strVal("features", ""));
+        int roofCurve = p.intVal("roofCurve", softRoof ? 35 : 0, 0, 100);
+        int roofCornerLift = p.intVal("roofCornerLift", softRoof ? 1 : 0, 0, 3);
+        ChineseHallRoofGenerator.Shape roofShape =
+                new ChineseHallRoofGenerator.Shape(roofOverhang, roofCurve, roofCornerLift);
+        int upperInset = 0;
+        int upperBaseY = bodyTop;
+        int midEaveY = bodyTop;
+        if (doubleEave) {
+            upperInset = Math.max(2, Math.min(w, d) / 4);
+            int upperW = Math.max(5, w - upperInset * 2);
+            int upperD = Math.max(5, d - upperInset * 2);
+            int lowerRise = Math.max(2, roofRise / 2);
+            int upperRise = Math.max(2, roofRise - lowerRise + 1);
+            upperBaseY = bodyTop + lowerRise;
+            midEaveY = Math.max(bodyTop, upperBaseY - 1);
+            // Lower eave: full hall footprint.
+            ChineseHallRoofGenerator.generate(
+                    roofBlocks, w, d, bodyTop, roofForm, lowerRise, roofShape, roofTile, roofStairs, wall);
+            // Upper eave: inset hip/xieshan seated above the mid cornice.
+            List<PlannedBlock> upperRoof = new ArrayList<>();
+            ChineseHallRoofGenerator.generate(
+                    upperRoof, upperW, upperD, upperBaseY, roofForm, upperRise, roofShape, roofTile, roofStairs, wall);
+            for (PlannedBlock pb : upperRoof) {
+                roofBlocks.add(new PlannedBlock(
+                        pb.getPos().add(upperInset, 0, upperInset), pb.getTargetState()));
+            }
+            emitDoubleEaveMidShelf(blocks, origin, entrance,
+                    ox + upperInset, oz + upperInset, upperW, upperD, midEaveY, roofSlab, roofStairs);
+        } else {
+            ChineseHallRoofGenerator.generate(
+                    roofBlocks, w, d, bodyTop, roofForm, roofRise, roofShape, roofTile, roofStairs, wall);
+        }
         Map<BlockPos, Integer> roofBottom = new java.util.HashMap<>();
         for (PlannedBlock roofBlock : roofBlocks) {
             BlockPos pos = roofBlock.getPos();
@@ -245,12 +289,12 @@ public final class TailiangTimberHallBuilder {
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
                 "木构大殿 tailiang_timber_hall（主体%d×%d格，外台基%d×%d格；开间%d×%d，堂高%d格，台基高%d格，入口%s，锚点%s；"
-                        +"屋顶%s，升高%d格，出檐%d格，曲率%d，翘角%d格；副檐%s，内柱%s，梁架%d层，斗拱%s，彩画%s；"
+                        +"屋顶%s，升高%d格，出檐%d格，曲率%d，翘角%d格；重檐%s，副檐%s，内柱%s，梁架%d层，斗拱%s，彩画%s；"
                         +"墙=%s，柱=%s，地面=%s，台基=%s，梁枋=%s，屋面=%s，坡面=%s，副檐材=%s，窗=%s，斗拱材=%s，彩画材=%s；参考=%s）",
                 w,d,outerW,outerD,baysX,baysZ,bodyH,platformH,entrance.name(),
                 "corner".equalsIgnoreCase(p.strVal("anchorMode","center"))?"corner":"center",
                 roofForm,roofRise,roofOverhang,roofCurve,roofCornerLift,
-                subEaves,interiorColumns,timberFrame?frameLevels:0,p.boolVal("includeBrackets",true),
+                doubleEave,subEaves,interiorColumns,timberFrame?frameLevels:0,p.boolVal("includeBrackets",true),
                 paint!=null&&p.boolVal("includeBrackets",true),
                 materialId(wall),materialId(pillar),materialId(floor),materialId(stone),materialId(trim),
                 materialId(roofTile),materialId(roofStairs),materialId(roofSlab),materialId(lattice),materialId(bracket),
@@ -259,6 +303,47 @@ public final class TailiangTimberHallBuilder {
         desc += "；立面窗框/檐枋细化=" + facadeDetails;
         com.formacraft.FormacraftMod.LOGGER.info("[ChineseHall] {}",desc);
         return new GeneratedStructure(null, anchor, desc, blocks);
+    }
+
+    public static boolean wantsDoubleEave(TypologyParams p) {
+        if (p.boolVal("double_eaves", false) || p.boolVal("double_eave", false)
+                || p.boolVal("doubleEaves", false) || p.boolVal("doubleEave", false)) {
+            return true;
+        }
+        if (p.intVal("eave_tiers", 1, 1, 4) >= 2 || p.intVal("eaveTiers", 1, 1, 4) >= 2) {
+            return true;
+        }
+        String roof = p.strVal("roofType", "");
+        return roof.toLowerCase(java.util.Locale.ROOT).contains("重檐")
+                || roof.toLowerCase(java.util.Locale.ROOT).contains("double_eave");
+    }
+
+    /** Mid cornice under the upper tier: slab rim + outward stair lip. */
+    private static void emitDoubleEaveMidShelf(
+            List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+            int ux0, int uz0, int upperW, int upperD, int midY,
+            BlockState slab, BlockState stairs
+    ) {
+        int ux1 = ux0 + Math.max(0, upperW - 1);
+        int uz1 = uz0 + Math.max(0, upperD - 1);
+        int ox0 = ux0 - 1, oz0 = uz0 - 1, ox1 = ux1 + 1, oz1 = uz1 + 1;
+        for (int x = ox0; x <= ox1; x++) {
+            for (int z = oz0; z <= oz1; z++) {
+                boolean outer = x == ox0 || x == ox1 || z == oz0 || z == oz1;
+                boolean onUpperRim = x >= ux0 && x <= ux1 && z >= uz0 && z <= uz1
+                        && (x == ux0 || x == ux1 || z == uz0 || z == uz1);
+                if (!outer && !onUpperRim) continue;
+                BlockState block = slab;
+                if (outer && stairs != null && stairs.contains(Properties.HORIZONTAL_FACING)) {
+                    Direction facing = x == ox0 ? Direction.WEST
+                            : x == ox1 ? Direction.EAST
+                            : z == oz0 ? Direction.NORTH
+                            : Direction.SOUTH;
+                    block = stairs.with(Properties.HORIZONTAL_FACING, facing);
+                }
+                put(blocks, origin, entrance, x, midY, z, block);
+            }
+        }
     }
 
     private static void addSubEavesBeams(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,

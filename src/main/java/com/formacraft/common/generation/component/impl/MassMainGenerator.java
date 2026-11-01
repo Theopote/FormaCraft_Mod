@@ -178,7 +178,18 @@ public class MassMainGenerator implements ComponentGenerator {
         if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params)) hasDecor = false;
         boolean suppressDoors = getParamBoolean(params, "suppress_doors", "suppressDoors")
                 || com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
-        java.util.Set<String> suppressWindowFaces = parseSuppressFaces(params, "suppress_window_faces");
+        java.util.Set<String> suppressWindowFaces = new java.util.LinkedHashSet<>(
+                parseSuppressFaces(params, "suppress_window_faces"));
+        // Orchestrator aliases: solid_sides = no windows; window_sides = only these faces.
+        suppressWindowFaces.addAll(parseSuppressFaces(params, "solid_sides"));
+        suppressWindowFaces.addAll(parseSuppressFaces(params, "solidSides"));
+        java.util.Set<String> onlyWindowFaces = parseSuppressFaces(params, "window_sides");
+        if (onlyWindowFaces.isEmpty()) onlyWindowFaces = parseSuppressFaces(params, "windowSides");
+        if (!onlyWindowFaces.isEmpty()) {
+            for (String face : java.util.List.of("NORTH", "SOUTH", "EAST", "WEST")) {
+                if (!onlyWindowFaces.contains(face)) suppressWindowFaces.add(face);
+            }
+        }
         java.util.Set<String> suppressDoorFaces = parseSuppressFaces(params, "suppress_door_faces");
         java.util.List<java.util.Map<String, Object>> suppressWindowRegions = parseSuppressRegions(params, "suppress_window_regions");
         java.util.List<java.util.Map<String, Object>> suppressDoorRegions = parseSuppressRegions(params, "suppress_door_regions");

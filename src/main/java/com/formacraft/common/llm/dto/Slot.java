@@ -10,6 +10,19 @@ public record Slot(
         @JsonProperty("facing") GlobalConstraints.Facing facing,
         @JsonProperty("program") String program,
         @JsonProperty("component_preset_id") String componentPresetId,
-        @JsonProperty("component_preset") String componentPreset
-) {}
-
+        @JsonProperty("component_preset") String componentPreset,
+        /** Optional authored envelope {@code {x:width,y:height,z:depth}} from orchestrator. */
+        @JsonProperty("size") Vec3i size
+) {
+    /** Backward-compatible ctor used by tests and older call sites. */
+    public Slot(
+            String slotId,
+            Vec3i anchor,
+            GlobalConstraints.Facing facing,
+            String program,
+            String componentPresetId,
+            String componentPreset
+    ) {
+        this(slotId, anchor, facing, program, componentPresetId, componentPreset, null);
+    }
+}

@@ -50,7 +50,15 @@ final class ComponentSatelliteInference {
             normalized.addAll(plan.components());
         }
         if (normalized.isEmpty()) {
-            return new PreparedComponents(normalized, Set.of());
+            // Orchestrator sometimes returns layout.slots with size but empty components[].
+            List<Component> recovered = synthesizeMassFromSlots(plan, slotMap);
+            if (recovered.isEmpty()) {
+                return new PreparedComponents(normalized, Set.of());
+            }
+            FormacraftMod.LOGGER.info(
+                    "ComponentSatelliteInference: recovered {} MASS_MAIN from empty components via slot.size",
+                    recovered.size());
+            normalized.addAll(recovered);
         }
 
         normalized = com.formacraft.server.dsl.FbdPlanLowering.lower(normalized);
@@ -1623,6 +1631,55 @@ final class ComponentSatelliteInference {
         }
         String v = facadeProfile.trim().toLowerCase(Locale.ROOT);
         return v.contains("mullion") || v.contains("module_grid") || v.contains("curtain");
+    }
+
+    /**
+     * When the LLM returns layout.slots[].size but no components[], synthesize a minimal MASS_MAIN
+     * so preview does not die as EMPTY_OUTPUT. Satellite roof/windows/entrance are inferred later.
+     */
+    static List<Component> synthesizeMassFromSlots(LlmPlan plan, Map<String, Slot> slotMap) {
+        List<Component> out = new ArrayList<>();
+        List<Slot> slots = new ArrayList<>();
+        if (slotMap != null && !slotMap.isEmpty()) {
+            slots.addAll(slotMap.values());
+        } else if (plan != null && plan.layout() != null && plan.layout().slots() != null) {
+            slots.addAll(plan.layout().slots());
+        }
+        int hintW = 0, hintD = 0, hintH = 0;
+        if (plan != null && plan.proportionHints() != null) {
+            Map<String, Object> hints = plan.proportionHints();
+            hintW = ComponentParamParsers.intParam(hints, 0, "target_width", "targetWidth");
+            hintD = ComponentParamParsers.intParam(hints, 0, "target_depth", "targetDepth");
+            hintH = ComponentParamParsers.intParam(hints, 0, "target_body_height", "targetBodyHeight", "target_height");
+        }
+        for (Slot slot : slots) {
+            if (slot == null) continue;
+            Vec3i size = slot.size();
+            int w = size != null ? Math.max(1, size.x()) : hintW;
+            int h = size != null ? Math.max(1, size.y()) : hintH;
+            int d = size != null ? Math.max(1, size.z()) : hintD;
+            if (w < 4 || d < 4 || h < 3) continue;
+            Vec3i anchor = slot.anchor() != null ? slot.anchor() : new Vec3i(0, 0, 0);
+            String slotId = slot.slotId() != null ? slot.slotId() : "recovered_main";
+            Map<String, Object> params = new HashMap<>();
+            params.put("component_id", "mass:" + slotId);
+            params.put("anchor_mode", "min_corner");
+            params.put("hollow", true);
+            params.put("wall_thickness", 1);
+            params.put("roof_requirement", "REQUIRED");
+            params.put("entrance_requirement", "REQUIRED");
+            params.put("facade_requirement", "REQUIRED");
+            if (slot.facing() != null) params.put("facing", slot.facing().name());
+            out.add(new Component(
+                    "MASS_MAIN",
+                    slotId,
+                    anchor,
+                    new Dimensions(w, d, h),
+                    List.of(),
+                    params
+            ));
+        }
+        return out;
     }
 
 }

@@ -123,8 +123,7 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
 
     static FacePresence facePresence(Map<String, Object> params) {
         if (params == null) return FacePresence.ABSENT;
-        Object raw = params.get("faces");
-        if (raw == null) raw = params.get("suppress_faces");
+        Object raw = firstFaceRaw(params);
         if (raw == null) return FacePresence.ABSENT;
         if (raw instanceof List<?> list) {
             if (list.isEmpty()) return FacePresence.EXPLICIT_EMPTY;
@@ -137,6 +136,17 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
         String s = raw.toString().trim();
         if (s.isEmpty()) return FacePresence.EXPLICIT_EMPTY;
         return FacePresence.PRESENT;
+    }
+
+    /** Prefer faces, then window_sides / facade_side aliases emitted by the orchestrator. */
+    private static Object firstFaceRaw(Map<String, Object> params) {
+        Object raw = params.get("faces");
+        if (raw == null) raw = params.get("window_sides");
+        if (raw == null) raw = params.get("windowSides");
+        if (raw == null) raw = params.get("facade_side");
+        if (raw == null) raw = params.get("facadeSide");
+        if (raw == null) raw = params.get("suppress_faces");
+        return raw;
     }
 
     public boolean isFullMass() {
@@ -164,8 +174,7 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
 
     public static Set<String> parseFaceNames(Map<String, Object> params) {
         if (params == null) return Set.of();
-        Object raw = params.get("faces");
-        if (raw == null) raw = params.get("suppress_faces");
+        Object raw = firstFaceRaw(params);
         if (raw == null) return Set.of();
         var out = new LinkedHashSet<String>();
         if (raw instanceof List<?> list) {
