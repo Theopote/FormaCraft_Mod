@@ -247,16 +247,37 @@ public class BuildExecutionService {
         queueCityBuild(world, origin, citySpec, null);
     }
 
+    /**
+     * Result of attempting to enqueue a build task.
+     * {@code transactionId} is set only when {@link #accepted()} is true.
+     */
+    public record EnqueueResult(boolean accepted, UUID transactionId, String reason) {
+        public static EnqueueResult ok(UUID transactionId) {
+            return new EnqueueResult(true, transactionId, null);
+        }
+
+        public static EnqueueResult rejected(String reason) {
+            return new EnqueueResult(false, null, reason == null ? "rejected" : reason);
+        }
+    }
+
    /**
      * 提交一个建造任务（使用 GeneratedStructure）
      * @return true 已入队；false 因同世界任务数超限被拒绝
      */
     public boolean enqueueBuild(ServerWorld world, GeneratedStructure structure) {
-        return enqueueBuild(world, structure, null);
+        return enqueueBuildWithResult(world, structure, null).accepted();
     }
 
     public boolean enqueueBuild(ServerWorld world, GeneratedStructure structure, String fbdSourcePlanJson) {
-        if (world == null || structure == null) return false;
+        return enqueueBuildWithResult(world, structure, fbdSourcePlanJson).accepted();
+    }
+
+    /** Enqueue and return the task's stable {@link BuildTask#transactionId()}. */
+    public EnqueueResult enqueueBuildWithResult(ServerWorld world, GeneratedStructure structure, String fbdSourcePlanJson) {
+        if (world == null || structure == null) {
+            return EnqueueResult.rejected("null_world_or_structure");
+        }
         int worldActive = 0;
         for (BuildTask t : activeTasks) {
             if (t != null && t.getWorld() == world) worldActive++;
@@ -265,12 +286,28 @@ public class BuildExecutionService {
             FormacraftMod.LOGGER.warn(
                     "Rejecting build enqueue: world already has {} active tasks (max={})",
                     worldActive, MAX_ACTIVE_TASKS_PER_WORLD);
-            return false;
+            return EnqueueResult.rejected("queue_full");
         }
-        activeTasks.add(new BuildTask(structure, world, fbdSourcePlanJson));
-        FormacraftMod.LOGGER.info("Queued build task: {} blocks at {} (owner: {})",
-                structure.size(), structure.getOrigin(), structure.getOwner());
-        return true;
+        BuildTask task = new BuildTask(structure, world, fbdSourcePlanJson);
+        activeTasks.add(task);
+        FormacraftMod.LOGGER.info("Queued build task: {} blocks at {} (owner: {}, tx={})",
+                structure.size(), structure.getOrigin(), structure.getOwner(), task.transactionId());
+        return EnqueueResult.ok(task.transactionId());
+    }
+
+    /**
+     * Cancel exactly one unfinished task by transaction id (does not touch sibling builds).
+     * @return true if a matching unfinished task was cancelled
+     */
+    public boolean cancelBuildByTransactionId(UUID transactionId) {
+        if (transactionId == null) return false;
+        for (BuildTask t : activeTasks) {
+            if (t == null || t.isFinished()) continue;
+            if (!transactionId.equals(t.transactionId())) continue;
+            t.cancel();
+            return true;
+        }
+        return false;
     }
 
     /**

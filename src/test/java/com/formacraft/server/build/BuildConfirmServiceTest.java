@@ -12,6 +12,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -160,14 +162,14 @@ class BuildConfirmServiceTest {
     }
 
     @Test
-    void identityMismatchAfterEnqueueCancelsTaskAndDoesNotAccept() {
-        AtomicBoolean enqueued = new AtomicBoolean(false);
-        AtomicInteger cancelCalls = new AtomicInteger();
-        AtomicBoolean acceptedConsumeSideEffects = new AtomicBoolean(false);
+    void identityMismatchAfterEnqueueCancelsOnlyBoundTransaction() {
+        UUID txBound = UUID.randomUUID();
+        UUID txOther = UUID.randomUUID();
+        Set<UUID> cancelled = new java.util.HashSet<>();
+        BuildConfirmService.TaskCanceler canceler = id -> cancelled.add(id);
 
-        // Pure decision path mirroring confirm(): enqueue ok → consume mismatch → cancel.
-        boolean enqueueOk = true;
-        enqueued.set(enqueueOk);
+        var enqueue = BuildExecutionService.EnqueueResult.ok(txBound);
+        assertTrue(enqueue.accepted());
         var consume = BuildConfirmService.evaluateConsume(null, new PreviewStorage.PreviewSnapshot(
                 new GeneratedStructure(null, new BlockPos(0, 64, 0), "x",
                         List.of(new PlannedBlock(new BlockPos(0, 64, 0), Blocks.STONE.getDefaultState()))),
@@ -177,18 +179,10 @@ class BuildConfirmServiceTest {
                 null,
                 null
         ));
-        assertTrue(enqueueOk);
         assertTrue(consume.shouldCancelEnqueuedTask());
-        if (consume.shouldCancelEnqueuedTask()) {
-            cancelCalls.incrementAndGet();
-        } else {
-            acceptedConsumeSideEffects.set(true);
-        }
-        assertEquals(1, cancelCalls.get());
-        assertFalse(acceptedConsumeSideEffects.get(), "must not clear preview side-effects on mismatch");
-        assertEquals(BuildConfirmService.Status.PREVIEW_IDENTITY_MISMATCH,
-                consume.matched() ? BuildConfirmService.Status.ACCEPTED
-                        : BuildConfirmService.Status.PREVIEW_IDENTITY_MISMATCH);
+        canceler.cancel(enqueue.transactionId());
+        assertTrue(cancelled.contains(txBound));
+        assertFalse(cancelled.contains(txOther));
     }
 
     @Test

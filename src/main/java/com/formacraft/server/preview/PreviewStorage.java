@@ -157,14 +157,43 @@ public class PreviewStorage {
         );
     }
 
-    /** Restore a confirm snapshot after a failed post-enqueue consume (keeps preview usable). */
-    public static void restoreSnapshot(ServerPlayerEntity player, PreviewSnapshot snapshot, BuildQualityReport quality) {
-        if (player == null || snapshot == null || snapshot.structure() == null) return;
+    /**
+     * Restore a confirm snapshot after a failed post-enqueue consume.
+     * Refuses to overwrite a newer preview generation or a cancel tombstone
+     * ({@link #clear} advances the generation counter without storing structure).
+     *
+     * @return true if the snapshot was written back; false if a newer preview/cancel wins
+     */
+    public static boolean restoreSnapshot(ServerPlayerEntity player, PreviewSnapshot snapshot, BuildQualityReport quality) {
+        if (player == null || snapshot == null || snapshot.structure() == null) return false;
         UUID uuid = player.getUuid();
+        long currentGen = previewGenerations.getOrDefault(uuid, 0L);
+        if (currentGen > snapshot.generation()) {
+            FormacraftMod.LOGGER.info(
+                    "Skipping restoreSnapshot: live generation {} > snapshot {} (newer preview or cancel)",
+                    currentGen, snapshot.generation());
+            return false;
+        }
+        PreviewMeta liveMeta = metas.get(uuid);
+        if (liveMeta != null && liveMeta.generation() > snapshot.generation()) {
+            FormacraftMod.LOGGER.info(
+                    "Skipping restoreSnapshot: live meta generation {} > snapshot {}",
+                    liveMeta.generation(), snapshot.generation());
+            return false;
+        }
+        if (Boolean.TRUE.equals(hasPreview.get(uuid)) && liveMeta != null
+                && liveMeta.generation() >= snapshot.generation()
+                && lastStructures.get(uuid) != null) {
+            FormacraftMod.LOGGER.info(
+                    "Skipping restoreSnapshot: active preview gen {} already present",
+                    liveMeta.generation());
+            return false;
+        }
         lastStructures.put(uuid, snapshot.structure());
         hasPreview.put(uuid, true);
         metas.put(uuid, buildMeta(player, snapshot.structure(), snapshot.generation()));
-        previewGenerations.put(uuid, snapshot.generation());
+        // Keep counter monotonic: never rewind below the restored generation.
+        previewGenerations.put(uuid, Math.max(currentGen, snapshot.generation()));
         if (snapshot.buildingSpec() != null) {
             buildingSpecs.put(uuid, snapshot.buildingSpec());
         } else {
@@ -176,6 +205,13 @@ public class PreviewStorage {
         if (quality != null) {
             qualityReports.put(uuid, quality);
         }
+        return true;
+    }
+
+    /** Current monotonic preview generation for the player (0 if never stored). */
+    public static long getPreviewGeneration(ServerPlayerEntity player) {
+        if (player == null) return 0L;
+        return previewGenerations.getOrDefault(player.getUuid(), 0L);
     }
 
     public static GeneratedStructure copyStructure(GeneratedStructure source) {
@@ -244,6 +280,7 @@ public class PreviewStorage {
 
     /**
      * 取出并清除预览结构（一次性确认消费）。
+     * Generation counter is retained so subsequent previews keep a strictly increasing identity.
      *
      * @return 结构，无效或不存在时返回 null
      */
@@ -251,13 +288,36 @@ public class PreviewStorage {
         if (!validatePreview(player)) {
             return null;
         }
+        return consumeValidated(player.getUuid());
+    }
+
+    /**
+     * CAS consume: only succeeds when the live preview generation still equals {@code expectedGeneration}.
+     * Does not remove or rewind the monotonic generation counter.
+     */
+    public static GeneratedStructure consumeIfGenerationMatches(ServerPlayerEntity player, long expectedGeneration) {
+        if (player == null) return null;
+        if (!validatePreview(player)) return null;
         UUID uuid = player.getUuid();
+        PreviewMeta meta = metas.get(uuid);
+        long liveGen = previewGenerations.getOrDefault(uuid, 0L);
+        if (meta == null || meta.generation() != expectedGeneration || liveGen != expectedGeneration) {
+            FormacraftMod.LOGGER.warn(
+                    "Preview generation CAS miss for {}: expected={} meta={} live={}",
+                    player.getName().getString(), expectedGeneration,
+                    meta != null ? meta.generation() : -1L, liveGen);
+            return null;
+        }
+        return consumeValidated(uuid);
+    }
+
+    private static GeneratedStructure consumeValidated(UUID uuid) {
         GeneratedStructure structure = lastStructures.remove(uuid);
         hasPreview.put(uuid, false);
         skeletonLayouts.remove(uuid);
         metas.remove(uuid);
         buildingSpecs.remove(uuid);
-        previewGenerations.remove(uuid);
+        // Keep previewGenerations — identity must stay monotonic across confirms.
         // sourcePlans retained until explicit consumeSourcePlan so confirm can attach it to the build task.
         return structure;
     }
@@ -274,17 +334,22 @@ public class PreviewStorage {
         return lastStructures.get(player.getUuid());
     }
 
+    /**
+     * Drop the active preview (user cancel / disconnect cleanup).
+     * Advances the generation counter as a tombstone so a stale confirm snapshot
+     * cannot {@link #restoreSnapshot} a cancelled preview.
+     */
     public static void clear(ServerPlayerEntity player) {
         if (player != null) {
             UUID uuid = player.getUuid();
             lastStructures.remove(uuid);
-            hasPreview.remove(uuid);
+            hasPreview.put(uuid, false);
             skeletonLayouts.remove(uuid);
             qualityReports.remove(uuid);
             metas.remove(uuid);
             buildingSpecs.remove(uuid);
-            previewGenerations.remove(uuid);
             sourcePlans.remove(uuid);
+            nextGeneration(uuid); // cancel tombstone — do not reset the counter
         }
     }
 

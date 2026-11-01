@@ -17,14 +17,13 @@ import java.util.UUID;
 /**
  * Preview → Confirm → Apply 的统一入口。
  * <p>
- * Transaction order (P0):
+ * Transaction order:
  * <ol>
  *   <li>Capture immutable preview snapshot (digest + origin + generation)</li>
  *   <li>Validate dimension / quality / snapshot↔meta identity <b>before</b> enqueue</li>
- *   <li>Enqueue the snapshot structure</li>
- *   <li>On enqueue success: consume only if storage still matches the snapshot;
- *       on mismatch cancel the enqueued task and restore the snapshot preview</li>
- *   <li>On enqueue failure: keep preview untouched</li>
+ *   <li>Enqueue snapshot → receive {@code transactionId}</li>
+ *   <li>CAS-consume that generation only; on mismatch cancel <b>that</b> transactionId
+ *       and attempt restore (refuses to overwrite a newer preview/cancel)</li>
  * </ol>
  */
 public final class BuildConfirmService {
@@ -38,10 +37,6 @@ public final class BuildConfirmService {
         QUALITY_REJECTED,
         QUEUE_FULL,
         CANNOT_BUILD,
-        /**
-         * Snapshot/meta identity failed before enqueue, or consume no longer matched
-         * the snapshot after enqueue (enqueued task must be cancelled).
-         */
         PREVIEW_IDENTITY_MISMATCH
     }
 
@@ -57,13 +52,14 @@ public final class BuildConfirmService {
 
     @FunctionalInterface
     public interface Enqueuer {
-        boolean enqueue(ServerWorld world, GeneratedStructure structure, String fbdSourcePlanJson);
+        BuildExecutionService.EnqueueResult enqueue(
+                ServerWorld world, GeneratedStructure structure, String fbdSourcePlanJson);
     }
 
     @FunctionalInterface
     public interface TaskCanceler {
-        /** Cancel queued/active builds for the player in this world; return cancelled count. */
-        int cancel(UUID playerId, ServerWorld world);
+        /** Cancel exactly one task by transaction id. */
+        boolean cancel(UUID transactionId);
     }
 
     /**
@@ -98,9 +94,6 @@ public final class BuildConfirmService {
         return Status.ACCEPTED;
     }
 
-    /**
-     * Post-enqueue consume outcome: mismatch ⇒ cancel task and do not treat confirm as accepted.
-     */
     public record ConsumeOutcome(boolean matched, boolean shouldCancelEnqueuedTask) {
         public static ConsumeOutcome ok() {
             return new ConsumeOutcome(true, false);
@@ -132,8 +125,8 @@ public final class BuildConfirmService {
     }
 
     /**
-     * Decide whether a consumed structure still matches the pre-enqueue snapshot.
-     * Null consume (validate failed / already gone) is a mismatch → cancel enqueued work.
+     * Post-CAS consume check: generation was already enforced by
+     * {@link PreviewStorage#consumeIfGenerationMatches}; still verify digest/origin.
      */
     public static ConsumeOutcome evaluateConsume(
             GeneratedStructure consumed,
@@ -148,11 +141,11 @@ public final class BuildConfirmService {
 
     public static Result confirm(ServerPlayerEntity player, boolean force) {
         BuildExecutionService svc = BuildExecutionService.getInstance();
-        return confirm(player, force, svc::enqueueBuild, svc::cancelBuildsForPlayer);
+        return confirm(player, force, svc::enqueueBuildWithResult, svc::cancelBuildByTransactionId);
     }
 
     public static Result confirm(ServerPlayerEntity player, boolean force, Enqueuer enqueuer) {
-        return confirm(player, force, enqueuer, BuildExecutionService.getInstance()::cancelBuildsForPlayer);
+        return confirm(player, force, enqueuer, BuildExecutionService.getInstance()::cancelBuildByTransactionId);
     }
 
     public static Result confirm(
@@ -187,7 +180,6 @@ public final class BuildConfirmService {
             return new Result(Status.QUALITY_REJECTED, quality, null, false);
         }
 
-        // 1) Immutable snapshot + pre-enqueue identity bind (digest / origin / generation).
         PreviewStorage.PreviewSnapshot snapshot = PreviewStorage.captureSnapshot(player);
         if (snapshot == null || snapshot.structure() == null) {
             return Result.of(Status.NO_PREVIEW);
@@ -201,38 +193,40 @@ public final class BuildConfirmService {
             return new Result(Status.PREVIEW_IDENTITY_MISMATCH, quality, snapshot.structure(), false);
         }
 
-        // 2) Accept task with the bound snapshot (not a live mutable storage reference).
-        boolean enqueued = enqueuer != null
-                && enqueuer.enqueue(world, snapshot.structure(), snapshot.fbdSourcePlanJson());
-        if (!enqueued) {
+        BuildExecutionService.EnqueueResult enqueued = enqueuer == null
+                ? BuildExecutionService.EnqueueResult.rejected("null_enqueuer")
+                : enqueuer.enqueue(world, snapshot.structure(), snapshot.fbdSourcePlanJson());
+        if (!enqueued.accepted()) {
             FormacraftMod.LOGGER.warn(
-                    "Confirm refused (queue full): player={} dim={} origin={} blocks={}",
+                    "Confirm refused (queue full): player={} dim={} origin={} blocks={} reason={}",
                     player.getName().getString(),
                     currentDim,
                     snapshot.origin() != null ? snapshot.origin().toShortString() : "?",
-                    snapshot.structure().size());
+                    snapshot.structure().size(),
+                    enqueued.reason());
             return new Result(Status.QUEUE_FULL, quality, snapshot.structure(), false);
         }
 
-        // 3) Consume only after enqueue; mismatch ⇒ cancel task + restore preview.
-        GeneratedStructure consumed = PreviewStorage.consumeStructure(player);
+        UUID transactionId = enqueued.transactionId();
+        GeneratedStructure consumed = PreviewStorage.consumeIfGenerationMatches(player, snapshot.generation());
         ConsumeOutcome consume = evaluateConsume(consumed, snapshot);
         if (!consume.matched()) {
             FormacraftMod.LOGGER.error(
-                    "Confirm preview identity mismatch after enqueue — cancelling task: player={} expectedDigest={} expectedOrigin={} expectedGen={} consumedNull={}",
+                    "Confirm preview identity/generation mismatch after enqueue — cancelling tx={}: player={} expectedGen={} expectedDigest={}",
+                    transactionId,
                     player.getName().getString(),
-                    snapshot.digest(),
-                    snapshot.origin() != null ? snapshot.origin().toShortString() : "?",
                     snapshot.generation(),
-                    consumed == null);
-            if (canceler != null) {
-                int cancelled = canceler.cancel(player.getUuid(), world);
+                    snapshot.digest());
+            if (canceler != null && transactionId != null) {
+                boolean cancelled = canceler.cancel(transactionId);
                 FormacraftMod.LOGGER.warn(
-                        "Cancelled {} build task(s) after confirm identity mismatch for player={}",
-                        cancelled, player.getName().getString());
+                        "Cancel-by-transactionId after confirm mismatch: tx={} cancelled={}",
+                        transactionId, cancelled);
             }
-            // Restore if consume removed storage, or reinforce if consume returned null.
-            PreviewStorage.restoreSnapshot(player, snapshot, quality);
+            boolean restored = PreviewStorage.restoreSnapshot(player, snapshot, quality);
+            FormacraftMod.LOGGER.info(
+                    "restoreSnapshot after confirm mismatch: restored={} snapshotGen={}",
+                    restored, snapshot.generation());
             return new Result(Status.PREVIEW_IDENTITY_MISMATCH, quality, snapshot.structure(), false);
         }
 
@@ -242,12 +236,13 @@ public final class BuildConfirmService {
 
         boolean forced = force && quality != null && quality.hasError();
         FormacraftMod.LOGGER.info(
-                "Preview confirmed: dimension={} origin={} blocks={} force={} gen={}",
+                "Preview confirmed: dimension={} origin={} blocks={} force={} gen={} tx={}",
                 currentDim,
                 consumed.getOrigin() != null ? consumed.getOrigin().toShortString() : "?",
                 consumed.size(),
                 force,
-                snapshot.generation());
+                snapshot.generation(),
+                transactionId);
         return new Result(Status.ACCEPTED, quality, consumed, forced);
     }
 }
