@@ -29,6 +29,17 @@ public final class BuildingMemoryKeys {
     /** Sanitized LlmPlan JSON containing ASSEMBLY.params.fbd_program only. */
     public static final String FBD_SOURCE_PLAN = "fbd_source_plan";
     public static final String FBD_SOURCE_FINGERPRINT = "fbd_source_fingerprint";
+
+    /** Whether the Memory record is backed by a confirmed world result. */
+    public static final String EXECUTION_SOURCE = "build_execution_source";
+    /** Number of positions actually changed in the world by the build. */
+    public static final String EXECUTION_APPLIED = "build_execution_applied_positions";
+    /** Number of positions the plan intended to change. */
+    public static final String EXECUTION_PLANNED = "build_execution_planned_positions";
+    /** Stable digest of the confirmed world changes. */
+    public static final String EXECUTION_HASH = "build_execution_hash";
+    /** Build terminal status recorded when the build finished. */
+    public static final String EXECUTION_STATUS = "build_execution_status";
     /** Pending sanitized plan after world apply when Memory commit failed. */
     public static final String FBD_SOURCE_PLAN_PENDING = "fbd_source_plan_pending";
 
@@ -172,6 +183,24 @@ public final class BuildingMemoryKeys {
     public static void setRevision(ProjectMemory memory, long revision) {
         if (memory == null) return;
         ensureMetadata(memory).put(REVISION, Math.max(0L, revision));
+    }
+
+    /** Persist the execution summary of a building commit onto its Memory record. */
+    public static void storeExecutionSummary(
+            ProjectMemory memory,
+            String sourceKind,
+            int appliedPositions,
+            int plannedPositions,
+            String executionHash,
+            String buildStatus
+    ) {
+        if (memory == null) return;
+        Map<String, Object> meta = ensureMetadata(memory);
+        if (sourceKind != null) meta.put(EXECUTION_SOURCE, sourceKind);
+        meta.put(EXECUTION_APPLIED, Math.max(0, appliedPositions));
+        meta.put(EXECUTION_PLANNED, Math.max(0, plannedPositions));
+        if (executionHash != null && !executionHash.isBlank()) meta.put(EXECUTION_HASH, executionHash);
+        if (buildStatus != null && !buildStatus.isBlank()) meta.put(EXECUTION_STATUS, buildStatus);
     }
 
     public static long bumpRevision(ProjectMemory memory) {

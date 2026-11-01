@@ -30,6 +30,8 @@ class MemoryCommitRetryTest {
         final List<String> deletedUuids = new ArrayList<>();
         final List<MemoryCommitRecord> savedRecords = new ArrayList<>();
         boolean failCommit = false;
+        boolean failCommitRecordSave = false;
+        boolean failUndoMetadata = false;
 
         StubMemoryManager() {
             super(null);
@@ -46,18 +48,31 @@ class MemoryCommitRetryTest {
         public ProjectMemory commitBuilding(String memoryUuid, GeneratedStructure structure,
                 com.formacraft.common.model.build.BuildingSpec spec, String name, Identifier dimension) {
             if (failCommit) return null;
-            ProjectMemory memory = new ProjectMemory();
-            memory.setUuid(memoryUuid);
-            memory.setName(name);
-            memory.setBounds(new ProjectMemory.SpatialBounds(
-                    new BlockPos(0, 0, 0), new BlockPos(2, 2, 2), dimension));
-            persistMemory(memory);
-            return memory;
+            // Keep the real implementation so index/revision behaviour stays authentic.
+            return super.commitBuilding(memoryUuid, structure, spec, name, dimension);
         }
 
         @Override
-        public void saveCommitRecord(MemoryCommitRecord record) {
+        public boolean recordBuildUndo(com.formacraft.server.memory.BuildUndoMemoryUpdate update) {
+            if (failUndoMetadata) return false;
+            return super.recordBuildUndo(update);
+        }
+
+        /** Seed an existing Memory record (as if an earlier commit already created it). */
+        void putMemory(ProjectMemory memory) {
+            var structure = new GeneratedStructure(null, new BlockPos(0, 0, 0),
+                    memory.getName(), List.of());
+            var committed = super.commitBuilding(memory.getUuid(), structure, null,
+                    memory.getName(), Identifier.of("minecraft:overworld"));
+            com.formacraft.server.edit.BuildingMemoryKeys.setRevision(committed,
+                    com.formacraft.server.edit.BuildingMemoryKeys.revisionOf(memory));
+            updateMemoryStrict(committed);
+        }
+
+        @Override
+        public boolean saveCommitRecord(MemoryCommitRecord record) {
             savedRecords.add(record);
+            return !failCommitRecordSave;
         }
 
         @Override
@@ -226,5 +241,145 @@ class MemoryCommitRetryTest {
         assertEquals(1, rebuilt.size());
         assertEquals(new BlockPos(1, 2, 3), rebuilt.getOrigin());
         assertEquals(Blocks.STONE.getDefaultState(), rebuilt.getBlocks().getFirst().getTargetState());
+    }
+
+    @Test
+    void queueingReportsWhetherTheCompensationRecordIsDurable() {
+        var manager = new StubMemoryManager();
+        var service = BuildExecutionService.getInstance();
+        service.setMemoryManager(manager);
+        try {
+            manager.failCommitRecordSave = false;
+            MemoryCommitRecord durable = record("minecraft:overworld", UUID.randomUUID().toString());
+            assertTrue(service.queuePendingMemoryCommit(durable));
+
+            manager.failCommitRecordSave = true;
+            MemoryCommitRecord volatileRecord = record("minecraft:overworld", UUID.randomUUID().toString());
+            // A failed persistence must not be reported as reliably queued.
+            assertFalse(service.queuePendingMemoryCommit(volatileRecord));
+        } finally {
+            service.setMemoryManager(null);
+        }
+    }
+
+    @Test
+    void failedUndoMetadataKeepsTheCommitRetryable() {
+        var manager = new StubMemoryManager();
+        manager.failUndoMetadata = true;
+        var service = BuildExecutionService.getInstance();
+        service.setMemoryManager(manager);
+        try {
+            MemoryCommitRecord overworld = record("minecraft:overworld", UUID.randomUUID().toString());
+            overworld.undoRestoredPositions = 1;
+            overworld.undoTotalPositions = 3;
+            overworld.undoComplete = false;
+            queue(service, overworld);
+
+            service.retryPendingMemoryCommits("minecraft:overworld");
+            // The commit must not be marked COMMITTED while the undo state is not durable.
+            assertNotEquals(MemoryCommitRecord.Status.COMMITTED, overworld.status);
+            assertEquals("undo_metadata_persist_failed", overworld.lastError);
+            // It stays in the queue for a later retry.
+            assertEquals(1, service.pendingMemoryCommitCount());
+        } finally {
+            service.setMemoryManager(null);
+        }
+    }
+
+    @Test
+    void retryDoesNotResetANewerRevision() {
+        var manager = new StubMemoryManager();
+        var service = BuildExecutionService.getInstance();
+        service.setMemoryManager(manager);
+        try {
+            MemoryCommitRecord overworld = record("minecraft:overworld", UUID.randomUUID().toString());
+            overworld.markExecuted(1, "hash-1", "COMPLETED");
+
+            // A Memory record already exists and an incremental edit advanced its revision.
+            var existing = new ProjectMemory();
+            existing.setUuid(overworld.memoryUuid);
+            existing.setName("tower");
+            existing.setBounds(new ProjectMemory.SpatialBounds(
+                    new BlockPos(0, 0, 0), new BlockPos(2, 2, 2),
+                    Identifier.of("minecraft:overworld")));
+            com.formacraft.server.edit.BuildingMemoryKeys.setRevision(existing, 7L);
+            manager.putMemory(existing);
+
+            queue(service, overworld);
+            service.retryPendingMemoryCommits("minecraft:overworld");
+
+            assertEquals(MemoryCommitRecord.Status.COMMITTED, overworld.status);
+            // The newer revision must survive the retry.
+            assertEquals(7L, com.formacraft.server.edit.BuildingMemoryKeys.revisionOf(
+                    manager.getMemory(overworld.memoryUuid)));
+        } finally {
+            service.setMemoryManager(null);
+        }
+    }
+
+    @Test
+    void firstCommitInitializesTheRevision() {
+        var manager = new StubMemoryManager();
+        var service = BuildExecutionService.getInstance();
+        service.setMemoryManager(manager);
+        try {
+            MemoryCommitRecord overworld = record("minecraft:overworld", UUID.randomUUID().toString());
+            overworld.markExecuted(1, "hash-1", "COMPLETED");
+            queue(service, overworld);
+            service.retryPendingMemoryCommits("minecraft:overworld");
+
+            assertEquals(MemoryCommitRecord.Status.COMMITTED, overworld.status);
+            assertEquals(0L, com.formacraft.server.edit.BuildingMemoryKeys.revisionOf(
+                    manager.getMemory(overworld.memoryUuid)));
+        } finally {
+            service.setMemoryManager(null);
+        }
+    }
+
+    @Test
+    void executionSummaryDistinguishesPlannedFromExecuted() {
+        MemoryCommitRecord planned = record("minecraft:overworld", UUID.randomUUID().toString());
+        assertFalse(planned.isExecuted());
+        assertEquals(MemoryCommitRecord.SourceKind.PLANNED, planned.sourceKind);
+
+        MemoryCommitRecord executed = record("minecraft:overworld", UUID.randomUUID().toString());
+        executed.markExecuted(12, "abc123", "COMPLETED");
+        assertTrue(executed.isExecuted());
+        assertEquals(12, executed.appliedPositions);
+        assertEquals("abc123", executed.executionHash);
+        assertEquals("COMPLETED", executed.buildStatus);
+
+        MemoryCommitRecord parsed = MemoryCommitRecord.fromJson(executed.toJson());
+        assertNotNull(parsed);
+        assertTrue(parsed.isExecuted());
+        assertEquals(12, parsed.appliedPositions);
+        assertEquals("abc123", parsed.executionHash);
+        assertEquals("COMPLETED", parsed.buildStatus);
+    }
+
+    @Test
+    void appliedPositionCountAndHashUseTheWorldResultNotThePlan() {
+        var pos = new BlockPos(0, 1, 0);
+        var stone = Blocks.STONE.getDefaultState();
+        var changes = List.of(
+                new BlockChange(pos, Blocks.AIR.getDefaultState(), stone),
+                new BlockChange(pos, stone, Blocks.OAK_PLANKS.getDefaultState()));
+        // The same position written twice is one distinct position.
+        assertEquals(1, BuildExecutionService.appliedPositionCount(changes));
+        // The hash reflects the final state of that position (last write wins).
+        String hash = BuildExecutionService.executionHash(changes);
+        assertNotNull(hash);
+        assertFalse(hash.isBlank());
+        assertEquals(0, BuildExecutionService.appliedPositionCount(List.of()));
+
+        // Distinct positions: the digest is order independent.
+        var other = new BlockPos(1, 1, 0);
+        var forward = List.of(
+                new BlockChange(pos, Blocks.AIR.getDefaultState(), stone),
+                new BlockChange(other, Blocks.AIR.getDefaultState(), stone));
+        var backward = List.of(forward.get(1), forward.get(0));
+        assertEquals(2, BuildExecutionService.appliedPositionCount(forward));
+        assertEquals(BuildExecutionService.executionHash(forward),
+                BuildExecutionService.executionHash(backward));
     }
 }

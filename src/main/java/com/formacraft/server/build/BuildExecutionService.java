@@ -381,17 +381,34 @@ public class BuildExecutionService {
         return record.dimension.equals(worldDimension);
     }
 
-    void queuePendingMemoryCommit(MemoryCommitRecord record) {
-        if (record == null || record.memoryUuid == null) return;
+    /**
+     * Queue a pending Memory commit.
+     * <p>
+     * The record is written to the durable commit log first. If that write fails the
+     * record is <b>not</b> treated as reliably queued: it stays in the in-memory queue
+     * for this session, but the caller is told so it can raise a high-priority error
+     * instead of silently assuming restart recovery.
+     *
+     * @return true when the record is durably persisted (survives a restart)
+     */
+    boolean queuePendingMemoryCommit(MemoryCommitRecord record) {
+        if (record == null || record.memoryUuid == null) return false;
         if (record.nextAttemptMs <= 0L) {
             record.nextAttemptMs = System.currentTimeMillis() + MEMORY_COMMIT_RETRY_MS;
         }
-        if (memoryManager != null) memoryManager.saveCommitRecord(record);
+        boolean durable = memoryManager != null && memoryManager.saveCommitRecord(record);
+        if (!durable) {
+            FormacraftMod.LOGGER.error(
+                    "Memory commit compensation record could not be persisted for {}; "
+                            + "the pending commit lives in memory only and will be lost on restart",
+                    record.memoryUuid);
+        }
         synchronized (pendingMemoryCommits) {
             pendingMemoryCommits.removeIf(existing ->
                     existing.memoryUuid != null && existing.memoryUuid.equals(record.memoryUuid));
             pendingMemoryCommits.add(record);
         }
+        return durable;
     }
 
     /** Number of deferred Memory commits awaiting retry (diagnostics / tests). */
@@ -437,7 +454,11 @@ public class BuildExecutionService {
                 record.attempts = 0;
                 record.nextAttemptMs = 0L;
                 pendingMemoryCommits.add(record);
-                if (memoryManager != null) memoryManager.saveCommitRecord(record);
+                if (memoryManager != null && !memoryManager.saveCommitRecord(record)) {
+                    FormacraftMod.LOGGER.error(
+                            "Revived Memory commit {} could not be persisted; recovery after restart is lost",
+                            record.memoryUuid);
+                }
                 FormacraftMod.LOGGER.info("Revived cancelled Memory commit {} after redo", memoryUuid);
                 return;
             }
@@ -448,7 +469,11 @@ public class BuildExecutionService {
         record.undoRestoredPositions = restored;
         record.undoTotalPositions = total;
         record.undoComplete = complete;
-        if (memoryManager != null) memoryManager.saveCommitRecord(record);
+        if (memoryManager != null && !memoryManager.saveCommitRecord(record)) {
+            FormacraftMod.LOGGER.error(
+                    "Memory commit record {} could not be persisted; undo state survives only in memory",
+                    record.memoryUuid);
+        }
     }
 
     /**
@@ -473,7 +498,11 @@ public class BuildExecutionService {
                 record.attempts = 0;
                 record.nextAttemptMs = 0L;
                 record.lastError = null;
-                if (memoryManager != null) memoryManager.saveCommitRecord(record);
+                if (memoryManager != null && !memoryManager.saveCommitRecord(record)) {
+                    FormacraftMod.LOGGER.error(
+                            "Memory commit record {} could not be persisted; manual recovery may be lost on restart",
+                            record.memoryUuid);
+                }
                 pendingMemoryCommits.removeIf(existing -> existing.memoryUuid.equals(record.memoryUuid));
                 pendingMemoryCommits.add(record);
                 scheduled++;
@@ -582,24 +611,84 @@ public class BuildExecutionService {
                 } else if (pending.attempts >= MAX_MEMORY_COMMIT_ATTEMPTS) {
                     pending.status = MemoryCommitRecord.Status.FAILED_NEEDS_ATTENTION;
                     pending.lastError = "max_attempts_exceeded";
-                    memoryManager.saveCommitRecord(pending);
+                    boolean durable = memoryManager.saveCommitRecord(pending);
                     pendingMemoryCommits.remove(pending);
                     failedMemoryCommitRecords.removeIf(existing -> existing.memoryUuid.equals(pending.memoryUuid));
                     failedMemoryCommitRecords.add(pending);
                     FormacraftMod.LOGGER.error(
-                            "Memory commit needs attention for {} after {} attempts (record kept for recovery)",
-                            pending.memoryUuid, pending.attempts);
+                            "Memory commit needs attention for {} after {} attempts (record kept for recovery{})",
+                            pending.memoryUuid, pending.attempts, durable ? "" : " — NOT persisted, lost on restart");
                 } else {
                     pending.attempts++;
                     pending.nextAttemptMs = now + MEMORY_COMMIT_RETRY_MS;
                     pending.status = MemoryCommitRecord.Status.PENDING;
-                    memoryManager.saveCommitRecord(pending);
+                    if (!memoryManager.saveCommitRecord(pending)) {
+                        FormacraftMod.LOGGER.error(
+                                "Memory commit record {} could not be persisted; recovery after restart is lost",
+                                pending.memoryUuid);
+                    }
                 }
             }
         }
     }
 
-    /** @return true when Memory is durably registered for this record. */
+    /**
+     * Number of distinct positions actually changed in the world by the build.
+     * The plan may contain more positions than were really written.
+     */
+    static int appliedPositionCount(List<BlockChange> changes) {
+        if (changes == null || changes.isEmpty()) return 0;
+        java.util.Set<net.minecraft.util.math.BlockPos> positions = new java.util.HashSet<>();
+        for (BlockChange change : changes) {
+            if (change == null || change.getPos() == null) continue;
+            positions.add(change.getPos().toImmutable());
+        }
+        return positions.size();
+    }
+
+    /**
+     * Stable digest of the confirmed world changes.
+     * Two builds with the same result produce the same hash, independent of order.
+     */
+    static String executionHash(List<BlockChange> changes) {
+        if (changes == null || changes.isEmpty()) return "";
+        java.util.TreeMap<String, String> byPosition = new java.util.TreeMap<>();
+        for (BlockChange change : changes) {
+            if (change == null || change.getPos() == null) continue;
+            var pos = change.getPos();
+            String key = pos.getX() + "," + pos.getY() + "," + pos.getZ();
+            String state = change.getToState() == null
+                    ? "" : com.formacraft.common.component.transform.BlockStateStringUtil.fromState(change.getToState());
+            byPosition.put(key, state);
+        }
+        if (byPosition.isEmpty()) return "";
+        StringBuilder payload = new StringBuilder();
+        for (var entry : byPosition.entrySet()) {
+            payload.append(entry.getKey()).append('=').append(entry.getValue()).append(';');
+        }
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(payload.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < 8; i++) {
+                hex.append(String.format("%02x", hash[i]));
+            }
+            return hex.toString();
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            return Integer.toHexString(payload.toString().hashCode());
+        }
+    }
+
+    /**
+     * Commit a building Memory record.
+     * <p>
+     * The commit has explicit phases. Every phase that touches durable state reports
+     * its own result; only when <b>all</b> required phases succeeded is the record
+     * marked {@link MemoryCommitRecord.Status#COMMITTED}. A failure in any phase keeps
+     * the record retryable.
+     *
+     * @return true when the record is fully committed
+     */
     private boolean commitMemory(MemoryCommitRecord record) {
         if (record == null || record.memoryUuid == null) return false;
         try {
@@ -610,7 +699,12 @@ public class BuildExecutionService {
                 record.lastError = "invalid_dimension";
                 return false;
             }
+
+            // ---- Phase 1: building identity + plan-derived data ----
             var structure = record.toStructure();
+            // First commit = no Memory record exists yet. A retry must only fill in
+            // missing data and must never reset state a newer edit produced.
+            boolean firstCommit = !memoryManager.hasMemory(record.memoryUuid);
             ProjectMemory memory = memoryManager.commitBuilding(
                     record.memoryUuid, structure, record.toSpec(), record.name, dimension);
             if (memory == null) {
@@ -618,20 +712,44 @@ public class BuildExecutionService {
                 return false;
             }
             BuildingPartIndex roofIndex = BuildingPartIndex.fromPlannedBlocks(structure.getBlocks());
-            BuildingEditService.attachRoofIndex(memory, roofIndex);
-            BuildingMemoryKeys.setRevision(memory, 0L);
+            if (firstCommit) {
+                // Initial registration: identity, roof index and revision are ours to set.
+                BuildingEditService.attachRoofIndex(memory, roofIndex);
+                BuildingMemoryKeys.setRevision(memory, 0L);
+            } else {
+                // Retry of an unfinished commit: only fill gaps, never reset a newer revision.
+                long existingRevision = BuildingMemoryKeys.revisionOf(memory);
+                if (existingRevision > 0L) {
+                    BuildingMemoryKeys.setRevision(memory, existingRevision);
+                } else {
+                    BuildingMemoryKeys.setRevision(memory, 0L);
+                }
+                if (BuildingMemoryKeys.roofCellsRaw(memory).isEmpty()
+                        && !roofIndex.roof().isEmpty()) {
+                    roofIndex.persistTo(memory);
+                }
+            }
             if (record.fbdSourcePlanJson != null && !record.fbdSourcePlanJson.isBlank()) {
                 BuildingMemoryKeys.storeFbdSourcePlan(memory, record.fbdSourcePlanJson);
                 if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
                 if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
             }
+            // Persist the execution summary so the record states whether it is backed
+            // by a confirmed world result or only by the generation plan.
+            BuildingMemoryKeys.storeExecutionSummary(
+                    memory,
+                    record.sourceKind == null ? null : record.sourceKind.name(),
+                    record.appliedPositions,
+                    record.plannedPositions,
+                    record.executionHash,
+                    record.buildStatus);
             var update = memoryManager.updateMemoryStrict(memory);
             if (!update.ok()) {
                 record.lastError = update.message();
                 return false;
             }
-            // The building was undone before the Memory existed → persist the undo state
-            // onto the freshly committed record so Memory matches the world.
+
+            // ---- Phase 2: undo progress of an already-undone building ----
             if (record.undoRestoredPositions != null && record.undoTotalPositions != null
                     && record.undoTotalPositions > 0) {
                 int total = record.undoTotalPositions;
@@ -639,19 +757,33 @@ public class BuildExecutionService {
                         ? total
                         : Math.min(Math.max(record.undoRestoredPositions, 0), total);
                 boolean complete = restored == total;
+                boolean undoApplied;
                 try {
                     var undoUpdate = new BuildUndoMemoryUpdate(
                             record.transactionId == null ? java.util.UUID.randomUUID()
                                     : java.util.UUID.fromString(record.transactionId),
                             record.memoryUuid, dimension,
                             restored, total, complete);
-                    memoryManager.recordBuildUndo(undoUpdate);
+                    // The undo metadata write is a separate durable step — never ignore it.
+                    undoApplied = memoryManager.recordBuildUndo(undoUpdate);
                 } catch (RuntimeException exception) {
+                    undoApplied = false;
+                    record.lastError = exception.getMessage() == null
+                            ? exception.getClass().getSimpleName() : exception.getMessage();
                     FormacraftMod.LOGGER.warn("Failed to apply pending undo state to memory {}: {}",
-                            record.memoryUuid, exception.getMessage());
+                            record.memoryUuid, record.lastError);
+                }
+                if (!undoApplied) {
+                    if (record.lastError == null) record.lastError = "undo_metadata_persist_failed";
+                    // The building record exists but its undo state is not durable yet:
+                    // keep the commit pending so the next retry can finish it.
+                    record.status = MemoryCommitRecord.Status.PENDING;
+                    return false;
                 }
             }
+
             record.status = MemoryCommitRecord.Status.COMMITTED;
+            record.lastError = null;
             return true;
         } catch (Exception e) {
             record.lastError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
@@ -694,6 +826,7 @@ public class BuildExecutionService {
         // Memory 身份绑定建造事务，重试只会更新同一条记录，不会重复登记建筑。
         if (recordsHistory && memoryManager != null && !changes.isEmpty()) {
             String dimension = world.getRegistryKey().getValue().toString();
+            MemoryCommitRecord record = null;
             try {
                 String buildingJson = PlayerSpecRepository.getBuildingJson(ownerUuid);
                 BuildingSpec spec = null;
@@ -709,43 +842,64 @@ public class BuildExecutionService {
                     memoryName = spec.getNotes();
                 }
                 memoryUuid = stableMemoryUuid(task.transactionId(), ownerUuid, dimension);
-                MemoryCommitRecord record = MemoryCommitRecord.create(
+                record = MemoryCommitRecord.create(
                         memoryUuid, task.transactionId(), dimension, memoryName,
                         structure, spec, task.fbdSourcePlanJson());
+                record.plannedPositions = structure.size();
+                record.markExecuted(
+                        appliedPositionCount(changes),
+                        executionHash(changes),
+                        task.status() == null ? null : task.status().name());
                 record.nextAttemptMs = 0L;
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.warn("Failed to prepare building memory commit (owner={}): {}",
+                        ownerUuid, e.getMessage());
+                record = null;
+            }
+
+            if (record == null) {
+                // Could not even prepare the record — fall back to a minimal pending record.
+                try {
+                    String pendingDimension = world.getRegistryKey().getValue().toString();
+                    String pendingUuid = stableMemoryUuid(task.transactionId(), ownerUuid, pendingDimension);
+                    record = MemoryCommitRecord.create(
+                            pendingUuid, task.transactionId(), pendingDimension,
+                            structure.getDescription(), structure, null, task.fbdSourcePlanJson());
+                    record.plannedPositions = structure.size();
+                    memoryUuid = pendingUuid;
+                } catch (Exception ignored) {
+                    FormacraftMod.LOGGER.error(
+                            "Building placed but Memory commit could not be prepared (owner={})", ownerUuid);
+                }
+            }
+
+            if (record != null) {
                 if (commitMemory(record)) {
                     memoryManager.deleteCommitRecord(memoryUuid);
                     FormacraftMod.LOGGER.info("Saved building to memory: {} ({}) online={}",
-                            memoryName, memoryUuid, ownerEntity != null);
+                            record.name, memoryUuid, ownerEntity != null);
                 } else {
                     FormacraftMod.LOGGER.warn(
                             "Building placed but Memory commit failed for owner={} detail={}",
                             ownerUuid, record.lastError);
-                    queuePendingMemoryCommit(record);
-                }
-            } catch (Exception e) {
-                FormacraftMod.LOGGER.warn("Failed to save building to memory (owner={}): {}",
-                        ownerUuid, e.getMessage());
-                try {
-                    String buildingJson = PlayerSpecRepository.getBuildingJson(ownerUuid);
-                    BuildingSpec spec = null;
-                    if (buildingJson != null && !buildingJson.isEmpty()) {
-                        spec = JsonUtil.fromJson(buildingJson, BuildingSpec.class);
+                    boolean durable = queuePendingMemoryCommit(record);
+                    if (!durable) {
+                        // The compensation record is memory-only: a restart would lose it.
+                        // This must be a hard error, never a silent "queued" state.
+                        FormacraftMod.LOGGER.error(
+                                "CRITICAL: building {} was placed but its Memory commit is not durable "
+                                        + "(owner={} uuid={} detail={}); the pending commit will be lost on restart",
+                                structure.getDescription(), ownerUuid, record.memoryUuid, record.lastError);
+                        if (ownerEntity != null) {
+                            try {
+                                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                                        ownerEntity,
+                                        new com.formacraft.common.network.FormaCraftNetworking
+                                                .ResponseBuildStatusPayload(
+                                                "建筑已放置，但记忆保存失败且补偿记录未能持久化，请联系管理员"));
+                            } catch (Throwable ignored) {}
+                        }
                     }
-                    String pendingDimension = world.getRegistryKey().getValue().toString();
-                    String memoryName = structure.getDescription();
-                    if (spec != null && spec.getNotes() != null && !spec.getNotes().isEmpty()) {
-                        memoryName = spec.getNotes();
-                    }
-                    String pendingUuid = stableMemoryUuid(task.transactionId(), ownerUuid, pendingDimension);
-                    MemoryCommitRecord record = MemoryCommitRecord.create(
-                            pendingUuid, task.transactionId(), pendingDimension, memoryName,
-                            structure, spec, task.fbdSourcePlanJson());
-                    record.lastError = e.getMessage();
-                    queuePendingMemoryCommit(record);
-                    memoryUuid = pendingUuid;
-                } catch (Exception ignored) {
-                    // Retry queue unavailable — log only.
                 }
             }
         }

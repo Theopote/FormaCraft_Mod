@@ -112,6 +112,23 @@ public class MemoryManager {
     }
 
     /**
+     * True when a Memory record with this uuid already exists.
+     * <p>
+     * Checks the in-memory indexes first, then the durable store. Used to tell a
+     * <b>first commit</b> (no record yet) from a <b>retry</b> (record already
+     * registered), so a retry never overwrites newer state.
+     */
+    public boolean hasMemory(String uuid) {
+        if (uuid == null || uuid.isBlank()) return false;
+        if (getMemory(uuid) != null) return true;
+        try {
+            return MemoryStorage.loadMemory(server, uuid) != null;
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
+    /**
      * 根据坐标查找建筑
      */
     public List<ProjectMemory> findAtPosition(Identifier dimension, BlockPos pos) {
@@ -345,14 +362,22 @@ public class MemoryManager {
         }
     }
 
-    /** Persist a building Memory commit record (survives restarts). */
-    public void saveCommitRecord(MemoryCommitRecord record) {
-        if (record == null) return;
+    /**
+     * Persist a building Memory commit record (survives restarts).
+     *
+     * @return {@code true} only when the record is durably on disk. A {@code false}
+     *         result means the record exists in memory only and would be lost on
+     *         restart — the caller must not treat it as reliably queued.
+     */
+    public boolean saveCommitRecord(MemoryCommitRecord record) {
+        if (record == null || record.memoryUuid == null) return false;
         try {
             MemoryCommitStore.save(server, record);
+            return true;
         } catch (Exception exception) {
-            FormacraftMod.LOGGER.warn("Failed to persist memory commit record {}: {}",
+            FormacraftMod.LOGGER.error("Failed to persist memory commit record {}: {}",
                     record.memoryUuid, exception.getMessage());
+            return false;
         }
     }
 

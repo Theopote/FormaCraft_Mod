@@ -38,12 +38,16 @@ public final class MemoryCommitStore {
         return "commit_" + memoryUuid.replaceAll("[^a-zA-Z0-9-]", "") + ".json";
     }
 
-    /** Persist (or overwrite) a commit record durably. */
-    public static void save(MinecraftServer server, MemoryCommitRecord record) throws IOException {
+    /**
+     * Persist (or overwrite) a commit record durably.
+     *
+     * @return {@code true} only when the record reached the disk
+     */
+    public static boolean save(MinecraftServer server, MemoryCommitRecord record) throws IOException {
         if (record == null || record.memoryUuid == null) {
             throw new IllegalArgumentException("commit record requires memoryUuid");
         }
-        if (server == null) return;
+        if (server == null) return false;
         Path dir = dirFor(server);
         Files.createDirectories(dir);
         Path path = dir.resolve(fileName(record.memoryUuid));
@@ -59,6 +63,7 @@ public final class MemoryCommitStore {
         } finally {
             Files.deleteIfExists(tmp);
         }
+        return true;
     }
 
     /** Remove a commit record (commit finished or cancelled). */

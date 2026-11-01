@@ -58,6 +58,27 @@ public final class MemoryCommitRecord {
     public Integer undoTotalPositions;
     public boolean undoComplete;
 
+    // ---- Execution summary (distinguishes planned design from confirmed world result) ----
+
+    /** Where the recorded content comes from. */
+    public enum SourceKind {
+        /** Only the generated plan is known — the build outcome was never confirmed. */
+        PLANNED,
+        /** The plan plus the confirmed world changes of the build. */
+        EXECUTED
+    }
+
+    /** Whether this record is backed by a confirmed world result. */
+    public SourceKind sourceKind = SourceKind.PLANNED;
+    /** Number of distinct positions actually changed in the world by the build. */
+    public int appliedPositions;
+    /** Number of planned positions (may exceed {@link #appliedPositions}). */
+    public int plannedPositions;
+    /** Stable digest of the confirmed world changes; empty when not executed. */
+    public String executionHash;
+    /** Build terminal status recorded when the build finished. */
+    public String buildStatus;
+
     public static MemoryCommitRecord create(
             String memoryUuid,
             UUID transactionId,
@@ -130,5 +151,27 @@ public final class MemoryCommitRecord {
 
     public boolean fullyUndone() {
         return undoComplete;
+    }
+
+    /**
+     * Record the confirmed world result of the build.
+     * <p>
+     * The plan stays the semantic source of the building, but the record can now state
+     * whether it is backed by an executed world result or only by a plan.
+     *
+     * @param appliedPositions distinct positions actually changed in the world
+     * @param executionHash    stable digest of the confirmed changes
+     * @param buildStatus      build terminal status (COMPLETED / PARTIAL / ...)
+     */
+    public void markExecuted(int appliedPositions, String executionHash, String buildStatus) {
+        this.sourceKind = SourceKind.EXECUTED;
+        this.appliedPositions = Math.max(0, appliedPositions);
+        this.executionHash = executionHash;
+        this.buildStatus = buildStatus;
+    }
+
+    /** True when the record is backed by a confirmed world result. */
+    public boolean isExecuted() {
+        return sourceKind == SourceKind.EXECUTED;
     }
 }
