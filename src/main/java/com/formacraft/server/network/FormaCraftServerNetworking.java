@@ -32,6 +32,15 @@ public final class FormaCraftServerNetworking {
         // 服务端也需要注册 S2C payload types（用于编码回包）。否则可能出现“服务端处理了但发不出包”，客户端只能超时。
         FormaCraftNetworking.registerPayloadTypesS2C();
 
+        ServerPlayNetworking.registerGlobalReceiver(com.formacraft.common.network.ComponentSourceNetworking.Request.ID,
+                (payload, context) -> context.server().execute(() -> {
+                    var player = context.player();
+                    if (player == null || !ServerPlayNetworking.canSend(player, com.formacraft.common.network.ComponentSourceNetworking.Response.ID)) return;
+                    var page = com.formacraft.common.component.ComponentSourceView.query(
+                            context.server().getSavePath(WorldSavePath.ROOT), player.getUuid(), payload.assetId(), payload.index());
+                    ServerPlayNetworking.send(player, new com.formacraft.common.network.ComponentSourceNetworking.Response(payload.token(), JsonUtil.toJson(page)));
+                }));
+
         // Player disconnect: drop tickets + bound plans + build-request quota for that player only.
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
                 (handler, server) -> {

@@ -229,6 +229,21 @@ public final class ComponentPackageInstallations {
                     entry.file = "packages/" + id + "/" + SOURCE; entry.packageRef = verified.contentRef();
                     if (Files.isRegularFile(root.resolve(id + ".png"))) entry.thumbnail = id + ".png";
                     entry.updatedAtMs = Files.getLastModifiedTime(directory).toMillis();
+                    try {
+                        var sourceRecords = sources(root, id);
+                        entry.sourceCount = sourceRecords.size();
+                        var aliases = new LinkedHashMap<String, String>();
+                        String primaryName = com.formacraft.common.component.query.ComponentQueryMatchUtil.normalizeTag(ComponentSourceView.bounded(def.name, 64));
+                        for (var source : sourceRecords.subList(1, sourceRecords.size())) {
+                            String name = ComponentSourceView.bounded(source.component().name, 64);
+                            String key = com.formacraft.common.component.query.ComponentQueryMatchUtil.normalizeTag(name);
+                            if (!key.isBlank() && !key.equals(primaryName)) aliases.putIfAbsent(key, name);
+                        }
+                        entry.aliases = List.copyOf(aliases.values());
+                    } catch (IOException invalidSources) {
+                        entry.sourceMetadataError = true;
+                        entry.aliases = List.of();
+                    }
                     entries.add(entry);
                 } catch (IOException invalid) { /* Invalid or incomplete installations are not candidates. */ }
             }

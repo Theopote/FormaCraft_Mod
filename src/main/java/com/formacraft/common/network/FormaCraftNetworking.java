@@ -560,6 +560,7 @@ public class FormaCraftNetworking {
     public static void registerPayloadTypesC2S() {
         if (registeredC2SPayloadTypes) return;
         registeredC2SPayloadTypes = true;
+        ComponentSourceNetworking.registerC2S();
 
         PayloadTypeRegistry.playC2S().register(RequestBuildPayload.ID, RequestBuildPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
@@ -579,6 +580,7 @@ public class FormaCraftNetworking {
     public static void registerPayloadTypesS2C() {
         if (registeredS2CPayloadTypes) return;
         registeredS2CPayloadTypes = true;
+        ComponentSourceNetworking.registerS2C();
 
         PayloadTypeRegistry.playS2C().register(ResponseBuildSpecPayload.ID, ResponseBuildSpecPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ResponseBuildErrorPayload.ID, ResponseBuildErrorPayload.CODEC);

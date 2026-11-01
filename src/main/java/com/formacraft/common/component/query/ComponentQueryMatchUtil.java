@@ -51,6 +51,11 @@ public final class ComponentQueryMatchUtil {
         return !q.isEmpty() && tags != null && tags.stream().anyMatch(t -> normalizeTag(t).contains(q));
     }
 
+    public static boolean nameSearchMatches(String text, String name, Collection<String> aliases) {
+        String q = normalizeTag(text);
+        return !q.isEmpty() && (normalizeTag(name).contains(q) || tagSearchMatches(text, aliases));
+    }
+
     public static boolean roleImpliedByTags(String role, Collection<String> tags) {
         if (role == null || role.isBlank() || tags == null || tags.isEmpty()) {
             return false;

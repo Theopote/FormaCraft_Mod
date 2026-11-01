@@ -53,6 +53,7 @@ public final class ComponentLibraryPanel extends BasePanel {
     
     // 删除按钮（当选中构件时显示）
     private ButtonWidget deleteButton;
+    private ButtonWidget sourceButton, prevSourceButton, nextSourceButton;
 
     // 节流的构件文件存在性快照：避免每帧对每个 catalog 条目做磁盘 Files.exists 检查。
     private long lastExistScanMs = 0L;
@@ -96,6 +97,10 @@ public final class ComponentLibraryPanel extends BasePanel {
 
     private void ensureWidgets() {
         if (sortButton != null) return;
+
+        sourceButton = ButtonWidget.builder(Text.literal("查看 / 刷新来源"), b -> requestSource(0)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
+        prevSourceButton = ButtonWidget.builder(Text.literal("上一份来源"), b -> stepSource(-1)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
+        nextSourceButton = ButtonWidget.builder(Text.literal("下一份来源"), b -> stepSource(1)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
 
         sortButton = ButtonWidget.builder(Text.literal("排序：最近"), b -> cycleSort())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -237,6 +242,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         grid.clear();
         gridValid = false;
         searchBoundsValid = false;
+        sourceButton.visible = prevSourceButton.visible = nextSourceButton.visible = false;
 
         drawContentBackground(ctx);
 
@@ -333,8 +339,7 @@ public final class ComponentLibraryPanel extends BasePanel {
                 continue;
             }
             String id = e.id.toLowerCase(Locale.ROOT);
-            String nm = (e.name != null ? e.name : "").toLowerCase(Locale.ROOT);
-            boolean ok = id.contains(q) || nm.contains(q);
+            boolean ok = id.contains(q) || com.formacraft.common.component.query.ComponentQueryMatchUtil.nameSearchMatches(q, e.name, e.aliases);
             if (!ok) ok = com.formacraft.common.component.query.ComponentQueryMatchUtil.tagSearchMatches(q, e.tags);
             if (ok) filtered.add(e);
         }
@@ -443,6 +448,7 @@ public final class ComponentLibraryPanel extends BasePanel {
                         ctx, selectedImage, previewX + 2, y + 2, previewSize - 4, previewSize - 4);
                 y += previewSize + 3;
                 if (entry.size != null) y = drawWrappedText(ctx, Text.literal("尺寸: " + entry.size.w + " × " + entry.size.h + " × " + entry.size.d), x, y, w, 0xFFAAAAAA);
+                if (entry.packageRef != null) y = drawSourceDetails(ctx, x, w, y + 2, entry);
                 y += 2;
                 break;
             }
@@ -629,14 +635,60 @@ public final class ComponentLibraryPanel extends BasePanel {
      * tags 命中优先：在有搜索词时，tag 命中 > name 命中 > id 命中。
      * 返回 0~3，越大越靠前。
      */
+    private void requestSource(int index) {
+        FormaCraftClientNetworking.sendComponentSourceRequest(ComponentTool.INSTANCE.getState().librarySelectedId, index);
+    }
+
+    private void stepSource(int delta) {
+        var state = com.formacraft.client.component.ClientComponentSourceState.INSTANCE;
+        var page = state.page();
+        if (page != null && java.util.Objects.equals(state.assetId(), ComponentTool.INSTANCE.getState().librarySelectedId))
+            requestSource(page.index() + delta);
+    }
+
+    private int renderSourceButton(DrawContext ctx, ButtonWidget button, int x, int y, int w, boolean active) {
+        button.setPosition(x, y); button.setWidth(w); button.visible = true; button.active = active;
+        button.render(ctx, getScaledMouseXForSources(), (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
+        return y + LABEL_OFFSET;
+    }
+
+    private int getScaledMouseXForSources() { return (int) (client.mouse.getX() / client.getWindow().getScaleFactor()); }
+
+    private int drawSourceDetails(DrawContext ctx, int x, int w, int y, ComponentCatalog.Entry entry) {
+        if (entry.aliases != null && !entry.aliases.isEmpty())
+            y = drawWrappedText(ctx, Text.literal("其他名称: " + String.join("、", entry.aliases.subList(0, Math.min(3, entry.aliases.size())))), x, y, w, 0xFFAAAAAA);
+        if (entry.sourceMetadataError) y = drawWrappedText(ctx, Text.literal("附加来源信息待核验"), x, y, w, 0xFFFFAA55);
+        else if (entry.sourceCount != null) y = drawWrappedText(ctx, Text.literal("来源记录: " + entry.sourceCount), x, y, w, 0xFFAAAAAA);
+        var state = com.formacraft.client.component.ClientComponentSourceState.INSTANCE;
+        boolean selected = entry.id.equals(state.assetId());
+        boolean loading = selected && state.loading();
+        y = renderSourceButton(ctx, sourceButton, x, y + 2, w, !loading);
+        if (loading) return drawWrappedText(ctx, Text.literal("正在读取来源…"), x, y, w, 0xFFAAAAAA);
+        if (!selected) return y;
+        if (state.error() != null) return drawWrappedText(ctx, Text.literal(state.error()), x, y, w, 0xFFFFAA55);
+        var page = state.page(); if (page == null) return y;
+        int half = (w - 4) / 2;
+        renderSourceButton(ctx, prevSourceButton, x, y, half, page.index() > 0);
+        renderSourceButton(ctx, nextSourceButton, x + half + 4, y, w - half - 4, page.index() + 1 < page.total());
+        y += LABEL_OFFSET;
+        y = drawWrappedText(ctx, Text.literal("来源 " + (page.index() + 1) + "/" + page.total() + (page.primary() ? "（首份）" : "（附加）")), x, y, w, 0xFFFFFFFF);
+        y = drawWrappedText(ctx, Text.literal("名称: " + page.name()), x, y, w, 0xFFCCCCCC);
+        y = drawWrappedText(ctx, Text.literal("发布: " + page.namespace() + " @ " + page.version()), x, y, w, 0xFFCCCCCC);
+        y = drawWrappedText(ctx, Text.literal("作者声明: " + page.author()), x, y, w, 0xFFCCCCCC);
+        y = drawWrappedText(ctx, Text.literal("许可: " + page.license()), x, y, w, 0xFFCCCCCC);
+        String permission = switch (page.trainingPermission()) { case ALLOWED -> "允许"; case DENIED -> "禁止"; case UNSPECIFIED -> "未声明"; };
+        y = drawWrappedText(ctx, Text.literal("训练授权: " + permission), x, y, w, 0xFFCCCCCC);
+        y = drawWrappedText(ctx, Text.literal("内容引用: " + page.contentRef()), x, y, w, 0xFFAAAAAA);
+        return drawWrappedText(ctx, Text.literal("各来源授权独立，不自动合并"), x, y, w, 0xFFAAAAAA);
+    }
+
     private static int matchScore(ComponentCatalog.Entry e, String q) {
         if (e == null) return 0;
         if (q == null || q.isBlank()) return 0;
         String qq = q.trim().toLowerCase(Locale.ROOT);
 
         if (com.formacraft.common.component.query.ComponentQueryMatchUtil.tagSearchMatches(qq, e.tags)) return 3;
-        String nm = (e.name != null ? e.name : "").toLowerCase(Locale.ROOT);
-        if (nm.contains(qq)) return 2;
+        if (com.formacraft.common.component.query.ComponentQueryMatchUtil.nameSearchMatches(qq, e.name, e.aliases)) return 2;
         String id = (e.id != null ? e.id : "").toLowerCase(Locale.ROOT);
         if (id.contains(qq)) return 1;
         return 0;
@@ -688,6 +740,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (clickButton(validateButton, click)) return true;
         if (clickButton(autoFixButton, click)) return true;
         if (clickButton(deleteButton, click)) return true;
+        if (mouseY >= scrollAreaTop && (clickButton(sourceButton, click) || clickButton(prevSourceButton, click) || clickButton(nextSourceButton, click))) return true;
 
         if (searchBoundsValid) {
             if (searchInput.mouseClicked(mouseX, mouseY, searchX, searchY, searchW, searchH)) {
@@ -700,6 +753,7 @@ public final class ComponentLibraryPanel extends BasePanel {
                 if (it != null && it.hit(mouseX, mouseY)) {
                     var st = ComponentTool.INSTANCE.getState();
                     st.librarySelectedId = it.entry.id;
+                    com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear();
                     st.librarySelectedName = displayName(it.entry);
 
                     long now = System.currentTimeMillis();
@@ -782,6 +836,13 @@ public final class ComponentLibraryPanel extends BasePanel {
             lines.add(Text.literal("§7ID: §f" + entry.id)); // 灰色标签 + 白色值
         }
         
+        // 分类
+        if (entry.aliases != null && !entry.aliases.isEmpty()) {
+            lines.add(Text.literal("其他名称: " + String.join("、", entry.aliases.subList(0, Math.min(3, entry.aliases.size())))));
+        }
+        if (entry.sourceCount != null) lines.add(Text.literal("来源记录: " + entry.sourceCount));
+        if (entry.sourceMetadataError) lines.add(Text.literal("来源信息待核验"));
+
         // 分类
         if (entry.category != null) {
             lines.add(Text.literal("§7分类: §f" + entry.category.name()));

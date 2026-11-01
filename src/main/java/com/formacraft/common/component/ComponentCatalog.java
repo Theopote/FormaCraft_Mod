@@ -19,6 +19,10 @@ public class ComponentCatalog {
         public List<String> tags;
         /** Derived imported entry: original package identity and payload hash. */
         public String packageRef;
+        /** Verified source names for player discovery only; never treated as permission tags. */
+        public List<String> aliases;
+        public Integer sourceCount;
+        public boolean sourceMetadataError;
         public ComponentDefinition.Size size;
         public com.formacraft.common.component.model.ComponentPrototype.VariantRules variantRules;
         /** 文件名，例如 door_xxx.json */

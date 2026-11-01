@@ -28,6 +28,12 @@ public final class FormaCraftClientNetworking {
         FormaCraftNetworking.registerPayloadTypesC2S();
         FormaCraftNetworking.registerPayloadTypesS2C();
 
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
+                (handler, client) -> com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear());
+        ClientPlayNetworking.registerGlobalReceiver(com.formacraft.common.network.ComponentSourceNetworking.Response.ID,
+                (payload, context) -> context.client().execute(() ->
+                        com.formacraft.client.component.ClientComponentSourceState.INSTANCE.accept(payload.token(), payload.json())));
+
         // 注册接收器
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ResponseBuildSpecPayload.ID, (payload, context) -> context.client().execute(() -> {
             BuildingSpec spec = payload.spec();
@@ -132,6 +138,7 @@ public final class FormaCraftClientNetworking {
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ComponentCatalogPayload.ID, (payload, context) -> context.client().execute(() -> {
             String json = payload.json();
             com.formacraft.client.component.ClientComponentCatalogState.setFromJson(json);
+            com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear();
         }));
 
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.OrchestratorProxyResponsePayload.ID,
@@ -315,6 +322,17 @@ public final class FormaCraftClientNetworking {
             return;
         }
         ClientPlayNetworking.send(payload);
+    }
+
+    public static void sendComponentSourceRequest(String componentId, int index) {
+        var state = com.formacraft.client.component.ClientComponentSourceState.INSTANCE;
+        String id = com.formacraft.common.component.ComponentIds.tryNormalizeLoadId(componentId);
+        if (id == null || index < 0 || index >= 129) { state.unavailable(componentId, "请选择有效构件来源"); return; }
+        if (!ClientPlayNetworking.canSend(com.formacraft.common.network.ComponentSourceNetworking.Request.ID)) {
+            state.unavailable(id, "服务器未提供来源查看功能"); return;
+        }
+        var token = state.begin(id, index);
+        ClientPlayNetworking.send(new com.formacraft.common.network.ComponentSourceNetworking.Request(token, id, index));
     }
 
     /** 已由 OrchestratorErrorHumanizer 格式化的多行说明，不再叠加「请求失败：」前缀。 */
