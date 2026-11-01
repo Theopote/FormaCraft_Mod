@@ -81,24 +81,34 @@ public class EntranceGenerator implements ComponentGenerator {
 
         int doorWidth;
         if (explicitDoorWidth) {
-            // Clamp oversized LLM door_width into the opening (need ≥1 jamb cell).
+            // Explicit door_width must leave ≥1 jamb cell; oversize is a contract error.
             if (openingSpan < 2) {
                 throw new IllegalArgumentException(
                         "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
             }
-            doorWidth = Math.max(1, Math.min(requestedDoorWidth, openingSpan - 1));
+            if (requestedDoorWidth > openingSpan - 1) {
+                throw new IllegalArgumentException(
+                        "E_ENTRANCE_DOOR_WIDTH: door_width=" + requestedDoorWidth
+                                + " exceeds openingSpan-1=" + (openingSpan - 1));
+            }
+            doorWidth = Math.max(1, requestedDoorWidth);
             if (hasArch && doorWidth < 2) {
                 throw new IllegalArgumentException(
                         "E_ENTRANCE_DOOR_WIDTH: arched entrance requires door_width>=2, got=" + doorWidth);
             }
         } else {
-            int auto = Math.max(2, Math.min(requestedDoorWidth, Math.max(1, openingSpan - 1)));
-            if (openingSpan < 3) {
+            if (openingSpan < 2) {
                 throw new IllegalArgumentException(
                         "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
             }
-            if (hasArch) auto = Math.max(3, auto);
-            doorWidth = Math.min(auto, openingSpan - 1);
+            // Default: center the door; pick 1/2/3 so the bay is symmetric on the facade span.
+            int auto = symmetricDoorWidth(openingSpan);
+            if (hasArch) auto = Math.max(3, auto % 2 == 0 ? auto + 1 : auto);
+            if (auto > openingSpan - 1) {
+                throw new IllegalArgumentException(
+                        "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
+            }
+            doorWidth = Math.max(1, Math.min(auto, openingSpan - 1));
         }
         doorHeight = Math.max(2, Math.min(doorHeight, height));
         int canopyDepth = ComponentParamParsers.intParam(params, 0, "canopy_depth", "canopyDepth");
@@ -268,6 +278,24 @@ public class EntranceGenerator implements ComponentGenerator {
             case DECOR -> "minecraft:stone_brick_slab";
             default -> "minecraft:stone";
         };
+    }
+
+    /**
+     * Pick door leaf width 1/2/3 so a centered bay stays symmetric on {@code openingSpan}.
+     * Odd spans prefer odd widths; even spans prefer even widths.
+     */
+    public static int symmetricDoorWidth(int openingSpan) {
+        if (openingSpan < 2) return 1;
+        int door;
+        if (openingSpan <= 3) door = 1;
+        else if (openingSpan <= 5) door = Math.min(2, openingSpan - 1);
+        else door = Math.min(3, openingSpan - 1);
+        if ((openingSpan % 2 == 1) && (door % 2 == 0)) {
+            door = door <= 2 ? 1 : door - 1;
+        } else if ((openingSpan % 2 == 0) && (door % 2 == 1) && door > 1) {
+            door = door - 1;
+        }
+        return Math.max(1, Math.min(door, openingSpan - 1));
     }
 
     private boolean hasFeature(Component c, String... keywords) {

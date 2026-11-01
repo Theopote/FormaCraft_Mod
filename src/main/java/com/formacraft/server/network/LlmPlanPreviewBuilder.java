@@ -676,7 +676,7 @@ public final class LlmPlanPreviewBuilder {
                             int padDepth = terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN ? 4 : 1;
                             int clearHeight = terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN
                                     ? buildingHeight + 8
-                                    : Math.min(6, buildingHeight + 2);
+                                    : Math.max(buildingHeight + 2, Math.min(12, buildingHeight + 4));
 
                             if (terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
                                 out.addAll(TerrainFit.balancedPad(
@@ -685,13 +685,14 @@ public final class LlmPlanPreviewBuilder {
                                 // Only bearing columns, not roof overhangs or gaps between independent pavilions.
                                 out.addAll(TerrainFit.adaptivePad(serverWorld, proceduralFootprint, finalTargetY,
                                         finalFillMaterial, padDepth, 0, true, true));
-                            } else if (analysis.range() > 1) {
+                            } else {
+                                // Always pad+clear under footprint (range<=1 still buries doors on mild slopes).
                                 out.addAll(TerrainFit.adaptivePad(
                                         serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
                             }
 
-                            // 占地掩码驱动清净空：不清理包围盒内庭院/L 形空白列
-                            int clearFromY = finalTargetY + 1;
+                            // 占地掩码驱动清净空：含地坪层，避免入口被草方块/土坡挡住
+                            int clearFromY = finalTargetY;
                             int clearBuffer = 5;
                             if (!occupancy.isEmpty()) {
                                 for (long col : occupancy.columnKeys()) {

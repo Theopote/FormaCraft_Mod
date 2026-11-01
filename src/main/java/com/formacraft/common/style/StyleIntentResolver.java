@@ -208,7 +208,9 @@ public final class StyleIntentResolver {
         if (containsAny(tokens, "hui", "huizhou", "徽派")) {
             return StyleFlavor.HUI;
         }
-        if (containsAny(tokens, "chinese", "中式", "siheyuan", "courtyard", "dougong")) {
+        if (containsAny(tokens, "chinese", "中式", "siheyuan", "courtyard", "dougong",
+                "xieshan", "歇山", "xuanshan", "悬山", "wudian", "wu_dian", "庑殿", "yingshan", "硬山",
+                "tailiang", "chinese_heritage")) {
             return StyleFlavor.CHINESE;
         }
         if (containsAny(tokens, "japanese", "shoji", "engawa")) {

@@ -15,7 +15,7 @@ import net.minecraft.util.math.Vec3d;
  */
 public final class AnchorRenderer {
     /** 指北短线长度（方块单位），从中心指向 -Z（Minecraft 北向）。 */
-    private static final double NORTH_MARKER_LENGTH = 0.42;
+    private static final double NORTH_MARKER_LENGTH = 1.50;
 
     private AnchorRenderer() {}
 

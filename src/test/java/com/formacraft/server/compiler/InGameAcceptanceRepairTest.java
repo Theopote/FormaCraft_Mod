@@ -162,4 +162,91 @@ class InGameAcceptanceRepairTest {
         assertTrue(prepared.components().stream()
                 .anyMatch(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType())));
     }
+
+    @Test
+    void emptyComponentsLandXieshanAndDarkOakFromIntent() {
+        Slot slot = new Slot(
+                "main",
+                new Vec3i(0, 0, 0),
+                GlobalConstraints.Facing.SOUTH,
+                null, null, null,
+                new Vec3i(12, 10, 16));
+        Map<String, Object> hints = new HashMap<>();
+        hints.put("architecture_intent", Map.of(
+                "schema", "formacraft.architecture_intent.v1",
+                "scopes", List.of(Map.of(
+                        "scope", "global",
+                        "text", "盖一座约 12×16 的中式殿堂，深色橡木墙，深色橡木楼梯歇山顶，南向正门"))));
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of(slot)))
+                .components(List.of())
+                .distinguishingFeatures(List.of("飞檐", "歇山"))
+                .proportionHints(hints)
+                .build();
+        var prepared = ComponentSatelliteInference.prepareComponents(plan, Map.of("main", slot), false);
+        Component mass = prepared.components().stream()
+                .filter(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertEquals("minecraft:dark_oak_planks", mass.params().get("wall_block"));
+        Component roof = prepared.components().stream()
+                .filter(c -> "ROOF".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        String roofType = String.valueOf(roof.params().get("roof_type"));
+        assertTrue(roofType.toLowerCase().contains("xieshan"), "expected xieshan, got " + roofType);
+        assertTrue(String.valueOf(roof.params().get("roof_block")).contains("dark_oak"));
+    }
+
+    @Test
+    void facadeRatioZeroKeepsEastWestSolid() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("facade_ratio_north", 0.38);
+        params.put("facade_ratio_south", 0.08);
+        params.put("facade_ratio_east", 0.0);
+        params.put("facade_ratio_west", 0.0);
+        params.put("window_width", 2);
+        params.put("window_height", 2);
+        params.put("windows_per_wall", 2);
+        params.put("floor_count", 1);
+        params.put("floor_height", 4);
+        params.put("sill_offset", 1);
+        params.put("reserve_entrance_bay", false);
+        assertEquals(Set.of("NORTH", "SOUTH"),
+                FacadeScope.parseStrict(params, 1).faceNames());
+        Component c = new Component(
+                "FACADE_WINDOWS", "studio", new Vec3i(0, 0, 0),
+                new Dimensions(12, 9, 4),
+                List.of("east_west:no_openings"), params);
+        Slot slot = new Slot("studio", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
+        List<BlockPatch> glass = new FacadeWindowsGenerator()
+                .generate(new SemanticComponent("FACADE_WINDOWS", slot, c)).stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("glass"))
+                .toList();
+        assertFalse(glass.isEmpty());
+        assertTrue(glass.stream().noneMatch(p -> p.dx() == 0 || p.dx() == 11),
+                "facade_ratio east/west=0 must not open E/W");
+    }
+
+    @Test
+    void symmetricDoorWidthPrefersOddOnOddSpan() {
+        assertEquals(1, com.formacraft.common.generation.component.impl.EntranceGenerator.symmetricDoorWidth(3));
+        assertEquals(2, com.formacraft.common.generation.component.impl.EntranceGenerator.symmetricDoorWidth(6));
+        assertEquals(3, com.formacraft.common.generation.component.impl.EntranceGenerator.symmetricDoorWidth(11));
+        assertEquals(1, com.formacraft.common.generation.component.impl.EntranceGenerator.symmetricDoorWidth(5));
+    }
+
+    @Test
+    void hipRoofFromWudianContract() {
+        var hints = PlanIntentFidelityRepair.parse(com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .distinguishingFeatures(List.of("庑殿顶四面落坡", "石砖楼梯瓦面"))
+                .proportionHints(Map.of(
+                        "architecture_intent", Map.of(
+                                "scopes", List.of(Map.of("text", "石砖楼梯庑殿顶（四坡顶），四面落坡"))),
+                        "chinese_roof_contract", Map.of(
+                                "requirements", List.of(Map.of("property", "roofType", "value", "wu_dian")))))
+                .build());
+        assertEquals("hip", hints.roofType());
+        assertEquals("minecraft:stone_brick_stairs", hints.roofBlock());
+    }
 }

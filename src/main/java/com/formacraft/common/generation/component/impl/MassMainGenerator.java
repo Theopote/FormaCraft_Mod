@@ -183,8 +183,10 @@ public class MassMainGenerator implements ComponentGenerator {
         // Orchestrator aliases: solid_sides = no windows; window_sides = only these faces.
         suppressWindowFaces.addAll(parseSuppressFaces(params, "solid_sides"));
         suppressWindowFaces.addAll(parseSuppressFaces(params, "solidSides"));
+        suppressWindowFaces.addAll(solidFacesFromFeatures(c));
         java.util.Set<String> onlyWindowFaces = parseSuppressFaces(params, "window_sides");
         if (onlyWindowFaces.isEmpty()) onlyWindowFaces = parseSuppressFaces(params, "windowSides");
+        if (onlyWindowFaces.isEmpty()) onlyWindowFaces = windowFacesFromFacadeRatios(params);
         if (!onlyWindowFaces.isEmpty()) {
             for (String face : java.util.List.of("NORTH", "SOUTH", "EAST", "WEST")) {
                 if (!onlyWindowFaces.contains(face)) suppressWindowFaces.add(face);
@@ -626,6 +628,41 @@ public class MassMainGenerator implements ComponentGenerator {
                 if (!part.isBlank()) out.add(part.trim().toUpperCase(java.util.Locale.ROOT));
             }
         }
+        return out;
+    }
+
+    static java.util.Set<String> solidFacesFromFeatures(Component c) {
+        var out = new java.util.LinkedHashSet<String>();
+        if (c == null || c.features() == null) return out;
+        for (String f : c.features()) {
+            if (f == null) continue;
+            String fl = f.toLowerCase(java.util.Locale.ROOT);
+            if (fl.contains("east_west_solid") || fl.contains("east_west:no_openings")
+                    || fl.contains("walls:east_west")) {
+                out.add("EAST");
+                out.add("WEST");
+            }
+            if (fl.contains("north_south_solid") || fl.contains("north_south:no_openings")
+                    || fl.contains("walls:north_south")) {
+                out.add("NORTH");
+                out.add("SOUTH");
+            }
+        }
+        return out;
+    }
+
+    static java.util.Set<String> windowFacesFromFacadeRatios(Map<String, Object> params) {
+        if (params == null) return java.util.Set.of();
+        Double n = ComponentParamParsers.doubleOrNull(params, "facade_ratio_north", "facadeRatioNorth");
+        Double s = ComponentParamParsers.doubleOrNull(params, "facade_ratio_south", "facadeRatioSouth");
+        Double e = ComponentParamParsers.doubleOrNull(params, "facade_ratio_east", "facadeRatioEast");
+        Double w = ComponentParamParsers.doubleOrNull(params, "facade_ratio_west", "facadeRatioWest");
+        if (n == null && s == null && e == null && w == null) return java.util.Set.of();
+        var out = new java.util.LinkedHashSet<String>();
+        if (n != null && n > 0) out.add("NORTH");
+        if (s != null && s > 0) out.add("SOUTH");
+        if (e != null && e > 0) out.add("EAST");
+        if (w != null && w > 0) out.add("WEST");
         return out;
     }
 

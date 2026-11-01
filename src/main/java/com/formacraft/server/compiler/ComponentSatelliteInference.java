@@ -58,7 +58,10 @@ final class ComponentSatelliteInference {
             FormacraftMod.LOGGER.info(
                     "ComponentSatelliteInference: recovered {} MASS_MAIN from empty components via slot.size",
                     recovered.size());
-            normalized.addAll(recovered);
+            PlanIntentFidelityRepair.IntentHints intentHints = PlanIntentFidelityRepair.parse(plan);
+            for (Component recoveredMass : recovered) {
+                normalized.add(PlanIntentFidelityRepair.enrich(plan, recoveredMass, intentHints));
+            }
         }
 
         normalized = com.formacraft.server.dsl.FbdPlanLowering.lower(normalized);
@@ -89,6 +92,7 @@ final class ComponentSatelliteInference {
                 normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
                         normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
             }
+            normalizedComponent = PlanIntentFidelityRepair.enrich(plan, normalizedComponent);
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
             normalizedComponent = OpeningGrammarResolver.apply(plan, normalizedComponent);
             normalizedComponent = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(normalizedComponent);
@@ -422,7 +426,10 @@ final class ComponentSatelliteInference {
 
         if (!inferred.isEmpty()) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: inferred {} facade/entrance/roof/crown components", inferred.size());
-            prepared.addAll(inferred);
+            PlanIntentFidelityRepair.IntentHints inferHints = PlanIntentFidelityRepair.parse(plan);
+            for (Component sat : inferred) {
+                prepared.add(PlanIntentFidelityRepair.enrich(plan, sat, inferHints));
+            }
         }
 
         ComponentSatelliteAligner.realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
@@ -687,18 +694,17 @@ final class ComponentSatelliteInference {
         if (baySnap != null) {
             facadeBoxSpan = Math.max(3, Math.min(baySnap.axisSpan(), width - baySnap.axisStart()));
         }
+        int facadeAxisLength = facing == GlobalConstraints.Facing.EAST || facing == GlobalConstraints.Facing.WEST ? depth : width;
         int doorWidth = paramDoorW > 0
-                ? Math.max(2, Math.min(facadeBoxSpan - 1, paramDoorW))
-                : Math.max(2, Math.min(facadeBoxSpan - 1, facadeBoxSpan - 1));
-        if (doorWidth % 2 == 0 && doorWidth > 2) {
-            doorWidth--;
-        }
+                ? Math.max(1, Math.min(facadeBoxSpan - 1, paramDoorW))
+                : com.formacraft.common.generation.component.impl.EntranceGenerator
+                        .symmetricDoorWidth(Math.max(2, facadeAxisLength));
+        doorWidth = Math.max(1, Math.min(facadeBoxSpan - 1, doorWidth));
 
         int relX = rp.x();
         int relZ = rp.z();
         int boxWidth;
         int boxDepth;
-        int facadeAxisLength = facing == GlobalConstraints.Facing.EAST || facing == GlobalConstraints.Facing.WEST ? depth : width;
         int facadeAxisStart = baySnap != null ? baySnap.axisStart() : Math.max(0, (facadeAxisLength - facadeBoxSpan) / 2);
         switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
             case NORTH -> {
@@ -1414,6 +1420,10 @@ final class ComponentSatelliteInference {
         if (fromFeatures != null) {
             return fromFeatures;
         }
+        PlanIntentFidelityRepair.IntentHints intent = PlanIntentFidelityRepair.parse(plan);
+        if (intent.roofType() != null) {
+            return intent.roofType();
+        }
         String fromStyle = roofTypeHintFromStyleAttributes(plan);
         if (fromStyle != null) {
             return fromStyle;
@@ -1458,17 +1468,27 @@ final class ComponentSatelliteInference {
         if (base == null || base.features() == null) {
             return null;
         }
+        // Priority: explicit Chinese roof forms before generic gable/eave tokens.
+        String joined = String.join(" ", base.features()).toLowerCase(Locale.ROOT);
+        if (joined.contains("xieshan") || joined.contains("歇山") || joined.contains("hip_gable")
+                || joined.contains("hip-gable") || joined.contains("hip_and_gable")) {
+            return "xieshan";
+        }
+        if (joined.contains("wu_dian") || joined.contains("wudian") || joined.contains("庑殿")
+                || joined.contains("四坡")) {
+            return "hip";
+        }
+        if (joined.contains("xuanshan") || joined.contains("悬山")) {
+            return "xuanshan";
+        }
+        if (joined.contains("yingshan") || joined.contains("硬山")) {
+            return "yingshan";
+        }
         for (String feature : base.features()) {
             if (feature == null) {
                 continue;
             }
             String lower = feature.toLowerCase(Locale.ROOT);
-            if (lower.contains("xuanshan") || lower.contains("悬山")) {
-                return "xuanshan";
-            }
-            if (lower.contains("xieshan") || lower.contains("歇山")) {
-                return "xieshan";
-            }
             if (lower.contains("double_gable") || lower.contains("shuangpo") || lower.contains("双坡")) {
                 return "double_gable";
             }
@@ -1505,14 +1525,17 @@ final class ComponentSatelliteInference {
         }
         List<String> decorative = attrs.decorativeElements();
         if (decorative != null) {
-            for (String element : decorative) {
-                if (element == null) {
-                    continue;
-                }
-                String lower = element.toLowerCase(Locale.ROOT);
-                if (lower.contains("curved_eaves") || lower.contains("flying_eaves") || lower.contains("飞檐")) {
-                    return "xuanshan";
-                }
+            String joined = String.join(" ", decorative).toLowerCase(Locale.ROOT);
+            // 飞檐 alone is not a roof-form cue — prefer 歇山/庑殿 when present.
+            if (joined.contains("歇山") || joined.contains("xieshan") || joined.contains("hip_gable")
+                    || joined.contains("hip-gable") || joined.contains("double_eave_hip_gable")) {
+                return "xieshan";
+            }
+            if (joined.contains("庑殿") || joined.contains("wu_dian") || joined.contains("四坡")) {
+                return "hip";
+            }
+            if (joined.contains("悬山") || joined.contains("xuanshan")) {
+                return "xuanshan";
             }
         }
         return null;

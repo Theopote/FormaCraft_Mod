@@ -854,12 +854,12 @@ public class RoofGenerator implements ComponentGenerator {
         }
         String profile = getStyleProfile(semantic);
         String upper = profile.toUpperCase();
-        if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
-                || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
-            return RoofTypeKind.XIESHAN;
+        if (upper.contains("HUI") || upper.contains("HUIZHOU")) {
+            return RoofTypeKind.GABLE; // 硬山/徽派默认走 gable；显式 yingshan/xuanshan 由 params 覆盖
         }
-        if (upper.contains("CHINESE") || upper.contains("HUI")) {
-            return RoofTypeKind.XUANSHAN;
+        // 中式殿堂默认歇山；悬山/庑殿需显式 roof_type（见 RoofTypeCatalog / PlanIntentFidelityRepair）
+        if (upper.contains("CHINESE") || upper.contains("ASIAN") || upper.contains("SIHEYUAN")) {
+            return RoofTypeKind.XIESHAN;
         }
         if (upper.contains("GOTHIC") || upper.contains("MEDIEVAL")) {
             return RoofTypeKind.GABLE;

@@ -89,7 +89,7 @@ public final class DistinguishingFeaturesBridge {
         return out.size() > MAX_FEATURES ? out.subList(0, MAX_FEATURES) : out;
     }
 
-    static String slugify(String token) {
+    public static String slugify(String token) {
         if (token == null || token.isBlank()) {
             return "";
         }

@@ -25,8 +25,7 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
 
         public boolean coversFloor(int floorIndex) {
             if (minFloor != null && floorIndex < minFloor) return false;
-            if (maxFloor != null && floorIndex > maxFloor) return false;
-            return true;
+            return maxFloor == null || floorIndex <= maxFloor;
         }
     }
 
@@ -94,6 +93,13 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
             }
         }
         if (presence == FacePresence.ABSENT) {
+            // Orchestrator often emits facade_ratio_* = 0 for solid sides without faces[].
+            Set<String> fromRatios = facesFromFacadeRatios(params);
+            if (!fromRatios.isEmpty()) {
+                var regions = new LinkedHashSet<Region>();
+                for (String f : fromRatios) regions.add(new Region(f, minFloor, maxFloor));
+                return new FacadeScope(false, regions);
+            }
             return full();
         }
         if (presence == FacePresence.EXPLICIT_EMPTY) {
@@ -192,6 +198,36 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
         return Collections.unmodifiableSet(out);
     }
 
+    static Set<String> facesFromFacadeRatios(Map<String, Object> params) {
+        if (params == null) return Set.of();
+        Double n = doubleOrNull(params, "facade_ratio_north", "facadeRatioNorth");
+        Double s = doubleOrNull(params, "facade_ratio_south", "facadeRatioSouth");
+        Double e = doubleOrNull(params, "facade_ratio_east", "facadeRatioEast");
+        Double w = doubleOrNull(params, "facade_ratio_west", "facadeRatioWest");
+        if (n == null && s == null && e == null && w == null) return Set.of();
+        var out = new LinkedHashSet<String>();
+        if (n != null && n > 0) out.add("NORTH");
+        if (s != null && s > 0) out.add("SOUTH");
+        if (e != null && e > 0) out.add("EAST");
+        if (w != null && w > 0) out.add("WEST");
+        return Collections.unmodifiableSet(out);
+    }
+
+    private static Double doubleOrNull(Map<String, Object> params, String... keys) {
+        if (params == null) return null;
+        for (String key : keys) {
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) return n.doubleValue();
+            try {
+                return Double.parseDouble(v.toString().trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private static Integer intOrNull(Map<String, Object> params, String... keys) {
         if (params == null) return null;
         for (String key : keys) {
@@ -210,8 +246,8 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof FacadeScope that)) return false;
-        return fullMass == that.fullMass && Objects.equals(regions, that.regions);
+        if (!(o instanceof FacadeScope(boolean mass, Set<Region> regions1))) return false;
+        return fullMass == mass && Objects.equals(regions, regions1);
     }
 
     @Override

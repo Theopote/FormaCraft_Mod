@@ -18,7 +18,7 @@ public final class RoofTypeCatalog {
             "gable", "gabled", "gable_low_pitch", "low_pitch_gable",
             "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山",
             "double_gable", "doublegable", "shuangpo", "双坡",
-            "hip", "hipped", "chinese_hip",
+            "hip", "hipped", "chinese_hip", "wu_dian", "wudian", "wu-dian", "庑殿", "四坡",
             "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山",
             "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山",
             "pyramid", "pyramidal",
@@ -97,6 +97,9 @@ public final class RoofTypeCatalog {
                     || lower.contains("歇山")) {
                 return Optional.of("xieshan");
             }
+            if (lower.contains("wu_dian") || lower.contains("wudian") || lower.contains("庑殿") || lower.contains("四坡")) {
+                return Optional.of("hip");
+            }
             if (lower.contains("double_gable") || lower.contains("double gable") || lower.contains("shuangpo")
                     || lower.contains("双坡")) {
                 return Optional.of("double_gable");
@@ -173,7 +176,7 @@ public final class RoofTypeCatalog {
             case "shed", "lean_to", "single_slope" -> RoofTypeKind.SHED;
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;
-            case "hip", "hipped", "chinese_hip" -> RoofTypeKind.HIP;
+            case "hip", "hipped", "chinese_hip", "wu_dian", "wudian", "wu-dian", "庑殿", "四坡" -> RoofTypeKind.HIP;
             case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山" -> RoofTypeKind.XIESHAN;
             case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofTypeKind.XUANSHAN;
             case "pyramid", "pyramidal" -> RoofTypeKind.PYRAMID;
