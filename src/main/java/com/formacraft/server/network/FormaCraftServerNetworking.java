@@ -198,8 +198,10 @@ public final class FormaCraftServerNetworking {
             ComponentStorage.SaveContext saveCtx =
                     ComponentStorage.SaveContext.forPlayer(worldDir, player.getUuid(), dedicated, op);
 
+            com.formacraft.common.component.ComponentCapturePersistence.Saved saved;
             try {
-                ComponentStorage.saveComponentWithContext(saveCtx, def);
+                saved = com.formacraft.common.component.ComponentCapturePersistence.save(def, player.getUuid(), saveCtx,
+                        com.formacraft.common.component.ComponentPackageIO.currentEnvironment(), java.util.Map.of());
             } catch (Throwable t) {
                 FormacraftMod.LOGGER.error("Failed to save component {}", def.id, t);
                 sendComponentSaveAck(player, def.id, def.name, false, "保存构件失败：" + t.getMessage());
@@ -207,17 +209,15 @@ public final class FormaCraftServerNetworking {
             }
 
             byte[] thumbnailPng = payload.thumbnailPng();
-            if (thumbnailPng != null && thumbnailPng.length > 0) {
+            if (saved.isNew() && thumbnailPng != null && thumbnailPng.length > 0) {
                 try {
-                    ComponentStorage.saveThumbnail(saveCtx, def.id, thumbnailPng);
+                    ComponentStorage.saveThumbnail(saveCtx, saved.imported().assetId(), thumbnailPng);
                 } catch (Throwable t) {
                     FormacraftMod.LOGGER.warn("Failed to save thumbnail for component {}: {}", def.id, t.getMessage());
                 }
             }
 
-            String scope = saveCtx.writeGlobal() ? "全局库" : "私人库";
-            String ackMessage = "已保存构件到" + scope + "：" + def.name + "（" + def.id + "）";
-            sendComponentSaveAck(player, def.id, def.name, true, ackMessage);
+            sendComponentSaveAck(player, saved.imported().assetId(), saved.displayName(), true, saved.message(saveCtx.writeGlobal()));
 
             ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir, player.getUuid());
             String catJson = JsonUtil.toJson(cat);

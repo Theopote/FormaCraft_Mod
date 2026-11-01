@@ -102,6 +102,18 @@ public final class ComponentPackageIO {
             envelope = JsonUtil.get().fromJson(root, Envelope.class);
         }
         catch (RuntimeException invalidJson) { throw new IOException("Invalid package JSON", invalidJson); }
+        return verifyEnvironment(envelope, environment);
+    }
+
+    /** Creates the same immutable validated snapshot as reading a package, without temporary files. */
+    public static Verified create(ComponentDefinition definition, Manifest manifest, Environment environment) throws IOException {
+        String payload = JsonUtil.toJson(definition);
+        var envelope = new Envelope(SCHEMA, manifest, payload, hash(payload));
+        require(JsonUtil.toJson(envelope).getBytes(StandardCharsets.UTF_8).length <= MAX_PACKAGE_BYTES, "Package exceeds byte limit");
+        return verifyEnvironment(envelope, environment);
+    }
+
+    private static Verified verifyEnvironment(Envelope envelope, Environment environment) throws IOException {
         ComponentDefinition definition = validate(envelope);
         require(environment != null, "Runtime environment is required");
         require(envelope.manifest().minecraftVersion().equals(environment.minecraftVersion()), "Minecraft version mismatch");

@@ -41,6 +41,11 @@ public final class ComponentPackageInstallations {
                                              ComponentStorage.SaveContext context) throws IOException {
         requireContext(context);
         var incoming = ComponentPackageIO.read(source, environment);
+        return importVerified(incoming, context);
+    }
+
+    static ImportResult importVerified(ComponentPackageIO.Verified incoming, ComponentStorage.SaveContext context) throws IOException {
+        requireContext(context);
         requirePortable(incoming);
         ComponentContentIdentity.Fingerprints fingerprints;
         try { fingerprints = ComponentContentIdentity.fingerprints(incoming.component()); }
@@ -222,6 +227,7 @@ public final class ComponentPackageInstallations {
                     entry.category = def.category; entry.tags = def.tags; entry.size = def.size;
                     entry.variantRules = def.variantRules; entry.sockets = def.sockets; entry.placementSpec = def.placementSpec;
                     entry.file = "packages/" + id + "/" + SOURCE; entry.packageRef = verified.contentRef();
+                    if (Files.isRegularFile(root.resolve(id + ".png"))) entry.thumbnail = id + ".png";
                     entry.updatedAtMs = Files.getLastModifiedTime(directory).toMillis();
                     entries.add(entry);
                 } catch (IOException invalid) { /* Invalid or incomplete installations are not candidates. */ }

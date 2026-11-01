@@ -615,6 +615,13 @@ public final class ComponentTool implements FormacraftTool {
             return;
         }
 
+        String componentId = com.formacraft.common.component.ComponentIds.tryNormalizeLoadId(id);
+        if (componentId == null) {
+            HudToast.show("保存回执缺少有效构件 ID，请刷新构件库", true);
+            FormaCraftClientNetworking.sendComponentCatalogRequest();
+            return;
+        }
+
         String displayName = (name != null && !name.isBlank())
                 ? name
                 : ((pendingName == null || pendingName.isBlank()) ? "（未命名）" : pendingName);
@@ -623,9 +630,6 @@ public final class ComponentTool implements FormacraftTool {
                 : message;
         HudToast.show(toast);
 
-        String componentId = (id != null && !id.isBlank())
-                ? id
-                : ComponentToolJsonBuilder.makeId(state.category, displayName);
         net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
         if (client == null) {
             return;
