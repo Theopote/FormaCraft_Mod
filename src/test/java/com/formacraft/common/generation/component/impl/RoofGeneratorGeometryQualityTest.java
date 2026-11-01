@@ -29,17 +29,53 @@ class RoofGeneratorGeometryQualityTest {
     }
 
     @Test
-    void withStairsFacingAppendsPropertyOnce() {
+    void withStairsFacingMergesFacingWithoutDroppingSiblingProps() {
         assertEquals("minecraft:oak_stairs[facing=south]",
                 RoofGenerator.withStairsFacing("minecraft:oak_stairs", "south"));
-        assertEquals("minecraft:oak_stairs[facing=north]",
-                RoofGenerator.withStairsFacing("minecraft:oak_stairs[facing=north]", "east"));
+        // Existing facing is overwritten; unrelated props (half) are kept.
+        assertEquals("minecraft:oak_stairs[facing=east,half=top]",
+                RoofGenerator.withStairsFacing("minecraft:oak_stairs[half=top]", "east"));
+        assertEquals("minecraft:oak_stairs[facing=east,half=top]",
+                RoofGenerator.withStairsFacing("minecraft:oak_stairs[facing=north,half=top]", "east"));
+        assertEquals("minecraft:oak_stairs[facing=west,shape=outer_left]",
+                RoofGenerator.withStairsFacing("minecraft:oak_stairs", "west", "outer_left"));
         assertEquals("minecraft:oak_slab",
                 RoofGenerator.withStairsFacing("minecraft:oak_slab", "west"));
         assertEquals("west", RoofGenerator.outwardFacingFromEdges(0, 3, 10, 10));
         assertEquals("east", RoofGenerator.outwardFacingFromEdges(9, 3, 10, 10));
         assertEquals("north", RoofGenerator.outwardFacingFromEdges(4, 0, 10, 10));
         assertEquals("south", RoofGenerator.outwardFacingFromEdges(4, 9, 10, 10));
+        // True corner prefers E/W over N/S.
+        assertEquals("west", RoofGenerator.outwardFacingFromEdges(0, 0, 10, 10));
+        assertEquals("east", RoofGenerator.outwardFacingFromEdges(9, 0, 10, 10));
+    }
+
+    @Test
+    void hipCornersEmitOuterShapeAndFacing() {
+        // ASIAN hip forces overhang≥1, so eave corners are at the expanded AABB, not core (0,0).
+        List<BlockPatch> patches = generate(
+                "hip",
+                List.of(),
+                Map.of("material", "stone_brick_stairs", "overhang", 0),
+                12, 12, 5, 0, 8, 0
+        );
+        List<BlockPatch> stairs = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("stairs"))
+                .toList();
+        int minX = stairs.stream().mapToInt(BlockPatch::dx).min().orElse(0);
+        int maxX = stairs.stream().mapToInt(BlockPatch::dx).max().orElse(0);
+        int minZ = stairs.stream().mapToInt(BlockPatch::dz).min().orElse(0);
+        int maxZ = stairs.stream().mapToInt(BlockPatch::dz).max().orElse(0);
+        int[][] corners = {{minX, minZ}, {minX, maxZ}, {maxX, minZ}, {maxX, maxZ}};
+        for (int[] c : corners) {
+            List<BlockPatch> at = stairs.stream()
+                    .filter(p -> p.dx() == c[0] && p.dz() == c[1])
+                    .toList();
+            assertFalse(at.isEmpty(), "corner " + c[0] + "," + c[1] + " should have stairs");
+            String block = at.get(0).targetBlock();
+            assertTrue(block.contains("facing="), "corner needs facing: " + block);
+            assertTrue(block.contains("shape=outer_"), "corner needs outer miter shape: " + block);
+        }
     }
 
     @Test

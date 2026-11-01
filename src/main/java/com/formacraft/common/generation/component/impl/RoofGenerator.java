@@ -369,7 +369,10 @@ public class RoofGenerator implements ComponentGenerator {
                 SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 if (part == SemanticPart.ROOF) {
-                    block = withStairsFacing(block, outwardFacingFromEdges(x, z, width, depth));
+                    String facing = outwardFacingFromEdges(x, z, width, depth);
+                    String shape = isPerimeterCorner(x, z, width, depth)
+                            ? cornerOuterShape(x, z, width, depth, facing) : null;
+                    block = withStairsFacing(block, facing, shape);
                 }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
@@ -430,7 +433,10 @@ public class RoofGenerator implements ComponentGenerator {
                         : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 if (part == SemanticPart.ROOF) {
-                    block = withStairsFacing(block, outwardFacingFromEdges(x, z, width, depth));
+                    String facing = outwardFacingFromEdges(x, z, width, depth);
+                    String shape = isPerimeterCorner(x, z, width, depth)
+                            ? cornerOuterShape(x, z, width, depth, facing) : null;
+                    block = withStairsFacing(block, facing, shape);
                 }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
@@ -519,22 +525,40 @@ public class RoofGenerator implements ComponentGenerator {
                 boolean onUpperRim = x >= ix0 && x <= ix1 && z >= iz0 && z <= iz1
                         && (x == ix0 || x == ix1 || z == iz0 || z == iz1);
                 if (!outer && !onUpperRim) continue;
-                String block = outer
-                        ? withStairsFacing(lip, outwardFacingFromEdges(x - ox0, z - oz0, outerW, outerD))
-                        : slab;
+                String block;
+                if (outer) {
+                    int lx = x - ox0;
+                    int lz = z - oz0;
+                    String facing = outwardFacingFromEdges(lx, lz, outerW, outerD);
+                    String shape = isPerimeterCorner(lx, lz, outerW, outerD)
+                            ? cornerOuterShape(lx, lz, outerW, outerD, facing) : null;
+                    block = withStairsFacing(lip, facing, shape);
+                } else {
+                    block = slab;
+                }
                 out.add(new BlockPatch(BlockPatch.PLACE, x, midY, z, block));
             }
         }
     }
 
-    /** Stairs block id with horizontal facing; no-op for non-stairs or already-propertied ids. */
+    /**
+     * Stairs block id with horizontal facing. Merges into existing properties
+     * (keeps {@code half}/{@code shape}/{@code waterlogged}) via {@link BlockStateStringUtil#withFacing}.
+     */
     static String withStairsFacing(String blockId, String facing) {
+        return withStairsFacing(blockId, facing, null);
+    }
+
+    static String withStairsFacing(String blockId, String facing, String shape) {
         if (blockId == null || facing == null || facing.isBlank()) return blockId;
         String lower = blockId.toLowerCase(java.util.Locale.ROOT);
         if (!lower.contains("stairs")) return blockId;
-        if (blockId.indexOf('[') >= 0) return blockId;
         String base = blockId.contains(":") ? blockId.trim() : "minecraft:" + blockId.trim();
-        return base + "[facing=" + facing.trim().toLowerCase(java.util.Locale.ROOT) + "]";
+        String out = com.formacraft.common.component.transform.BlockStateStringUtil.withFacing(base, facing);
+        if (shape != null && !shape.isBlank()) {
+            out = com.formacraft.common.component.transform.BlockStateStringUtil.withProperty(out, "shape", shape);
+        }
+        return out;
     }
 
     /** Cardinal facing toward the nearest roof edge (outward downslope). */
@@ -544,10 +568,42 @@ public class RoofGenerator implements ComponentGenerator {
         int dN = z;
         int dS = Math.max(0, depth - 1 - z);
         int min = Math.min(Math.min(dW, dE), Math.min(dN, dS));
+        boolean ns = dN == min || dS == min;
+        boolean ew = dW == min || dE == min;
+        // 45° hip corners: prefer E/W so miter pairs are not all forced north/south.
+        if (ns && ew) {
+            if (dW == min) return "west";
+            if (dE == min) return "east";
+        }
         if (dN == min) return "north";
         if (dS == min) return "south";
         if (dW == min) return "west";
         return "east";
+    }
+
+    static boolean isPerimeterCorner(int x, int z, int width, int depth) {
+        boolean xEdge = x == 0 || x == width - 1;
+        boolean zEdge = z == 0 || z == depth - 1;
+        return xEdge && zEdge && width >= 2 && depth >= 2;
+    }
+
+    /**
+     * Outer miter shape for hip/xieshan corner stairs (Minecraft outer_left / outer_right).
+     * Facing is the primary downslope axis chosen by {@link #outwardFacingFromEdges}.
+     */
+    static String cornerOuterShape(int x, int z, int width, int depth, String facing) {
+        if (facing == null || !isPerimeterCorner(x, z, width, depth)) return null;
+        boolean north = z == 0;
+        boolean south = z == depth - 1;
+        boolean west = x == 0;
+        boolean east = x == width - 1;
+        return switch (facing.toLowerCase(java.util.Locale.ROOT)) {
+            case "west" -> north ? "outer_right" : "outer_left";
+            case "east" -> north ? "outer_left" : "outer_right";
+            case "north" -> west ? "outer_left" : "outer_right";
+            case "south" -> west ? "outer_right" : "outer_left";
+            default -> null;
+        };
     }
 
     static String gableOutwardFacing(boolean alongDepth, int x, int z, int width, int depth) {

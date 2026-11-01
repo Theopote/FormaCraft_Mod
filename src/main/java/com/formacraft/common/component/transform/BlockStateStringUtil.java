@@ -48,6 +48,61 @@ public final class BlockStateStringUtil {
     }
 
     /**
+     * Merge or replace a single blockstate property while preserving siblings
+     * ({@code half}, {@code shape}, {@code waterlogged}, …).
+     * <p>
+     * Examples:
+     * <ul>
+     *   <li>{@code oak_stairs} + facing=east → {@code oak_stairs[facing=east]}</li>
+     *   <li>{@code oak_stairs[half=top]} + facing=south → {@code oak_stairs[facing=south,half=top]}</li>
+     * </ul>
+     */
+    public static String withProperty(String blockStateString, String key, String value) {
+        if (blockStateString == null || blockStateString.isBlank()) return blockStateString;
+        if (key == null || key.isBlank() || value == null || value.isBlank()) return blockStateString;
+        String propKey = key.trim().toLowerCase(Locale.ROOT);
+        String propVal = value.trim().toLowerCase(Locale.ROOT);
+
+        String id = blockStateString.trim();
+        String inner = null;
+        int bracket = id.indexOf('[');
+        if (bracket >= 0) {
+            if (!id.endsWith("]")) return blockStateString;
+            inner = id.substring(bracket + 1, id.length() - 1);
+            id = id.substring(0, bracket);
+        }
+        java.util.LinkedHashMap<String, String> props = new java.util.LinkedHashMap<>();
+        if (inner != null && !inner.isBlank()) {
+            for (String part : inner.split(",")) {
+                String token = part.trim();
+                if (token.isEmpty()) continue;
+                int eq = token.indexOf('=');
+                if (eq <= 0) continue;
+                String k = token.substring(0, eq).trim().toLowerCase(Locale.ROOT);
+                String v = token.substring(eq + 1).trim().toLowerCase(Locale.ROOT);
+                if (!k.isEmpty() && !v.isEmpty()) props.put(k, v);
+            }
+        }
+        props.put(propKey, propVal);
+        java.util.List<String> keys = new java.util.ArrayList<>(props.keySet());
+        keys.sort(String::compareTo);
+        StringBuilder sb = new StringBuilder(id);
+        sb.append('[');
+        for (int i = 0; i < keys.size(); i++) {
+            if (i > 0) sb.append(',');
+            String k = keys.get(i);
+            sb.append(k).append('=').append(props.get(k));
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+    /** Set {@code facing=} (and preserve other properties). */
+    public static String withFacing(String blockStateString, String facing) {
+        return withProperty(blockStateString, "facing", facing);
+    }
+
+    /**
      * 将 BlockState 序列化为 blockstate string（稳定排序属性，便于 diff/存档）。
      * 形如：minecraft:oak_stairs[facing=east,half=bottom]
      */

@@ -139,6 +139,66 @@ class FacadeGeometryQualityTest {
         assertEquals(0, report.westOpenings());
     }
 
+    @Test
+    void eastWestOnlyFacesDoNotLeakOntoSouth() {
+        int width = 12;
+        int depth = 10;
+        List<BlockPatch> patches = sizedFacade(
+                width, depth, 8,
+                Map.of(
+                        "faces", List.of("EAST", "WEST"),
+                        "window_width", 2,
+                        "window_height", 2,
+                        "windows_per_wall", 2,
+                        "sill_offset", 1,
+                        "floor_count", 2,
+                        "floor_height", 4,
+                        "reserve_entrance_bay", false
+                )
+        );
+        List<BlockPatch> glass = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("glass"))
+                .toList();
+        assertFalse(glass.isEmpty());
+        assertTrue(glass.stream().anyMatch(p -> p.dx() == 0), "EAST (minX) openings");
+        assertTrue(glass.stream().anyMatch(p -> p.dx() == width - 1), "WEST (maxX) openings");
+        // Pure SOUTH/NORTH wall cells (not E/W corner columns) must stay opaque.
+        long leakedSouth = glass.stream()
+                .filter(p -> p.dz() == 0 && p.dx() > 0 && p.dx() < width - 1)
+                .count();
+        long leakedNorth = glass.stream()
+                .filter(p -> p.dz() == depth - 1 && p.dx() > 0 && p.dx() < width - 1)
+                .count();
+        assertEquals(0, leakedSouth, "SOUTH wall must stay clear when faces=EAST/WEST");
+        assertEquals(0, leakedNorth, "NORTH wall must stay clear when faces=EAST/WEST");
+    }
+
+    @Test
+    void reservedEntranceBayKeepsCenterClearOnSouth() {
+        int width = 13;
+        List<BlockPatch> patches = sizedFacade(
+                width, 1, 8,
+                Map.of(
+                        "faces", List.of("SOUTH"),
+                        "window_width", 2,
+                        "window_height", 2,
+                        "windows_per_wall", 2,
+                        "sill_offset", 1,
+                        "floor_count", 2,
+                        "floor_height", 4,
+                        "reserve_entrance_bay", true,
+                        "exclude_center_width", 3
+                )
+        );
+        int mid = width / 2;
+        boolean glassInEntrance = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("glass"))
+                .anyMatch(p -> Math.abs(p.dx() - mid) <= 1);
+        assertFalse(glassInEntrance, "entrance bay must not be glazed over");
+        assertTrue(patches.stream().anyMatch(p ->
+                p.targetBlock() != null && p.targetBlock().contains("glass")), "side bays still glazed");
+    }
+
     private static List<BlockPatch> sizedFacade(int w, int d, int h, Map<String, Object> params) {
         Map<String, Object> p = new HashMap<>(params);
         Component c = new Component(
