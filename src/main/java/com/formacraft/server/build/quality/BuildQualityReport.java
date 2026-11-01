@@ -132,6 +132,9 @@ public final class BuildQualityReport {
         if (stats.duplicatePositions > 0) {
             parts.add("合并 " + stats.duplicatePositions + " 个重复坐标");
         }
+        if (stats.conflictingOverwrites > 0) {
+            parts.add("冲突覆盖 " + stats.conflictingOverwrites + " 处");
+        }
 
         if (!parts.isEmpty()) {
             sb.append("，").append(String.join("，", parts));

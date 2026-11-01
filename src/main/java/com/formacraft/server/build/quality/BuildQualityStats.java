@@ -13,6 +13,8 @@ public final class BuildQualityStats {
     public int repairedColumns;
     public int supportBlocksAdded;
     public int duplicatePositions;
+    /** Same position written with different block states (last write wins). */
+    public int conflictingOverwrites;
     public int rejectedPatches;
 
     public void mergeFrom(BuildQualityStats other) {
@@ -26,6 +28,7 @@ public final class BuildQualityStats {
         repairedColumns += other.repairedColumns;
         supportBlocksAdded += other.supportBlocksAdded;
         duplicatePositions += other.duplicatePositions;
+        conflictingOverwrites += other.conflictingOverwrites;
         rejectedPatches += other.rejectedPatches;
     }
 }

@@ -89,8 +89,9 @@ public class MemoryManager {
         }
         try {
             ProjectMemory existing = getMemory(memoryUuid);
+            // Copy-on-Write: never mutate the indexed object before a durable write succeeds.
             ProjectMemory memory = existing != null
-                    ? existing
+                    ? ProjectMemory.copyOf(existing)
                     : ProjectMemory.fromStructure(structure, spec, name, dimension);
             if (existing == null) {
                 memory.setUuid(memoryUuid);

@@ -74,4 +74,18 @@ class BuildPreviewCirculationTest {
         assertEquals(pos, collapsed.get(0).getPos());
         assertEquals(other, collapsed.get(1).getPos());
     }
+
+    @Test void collapseStatsDistinguishIdenticalAndConflictingOverwrites() {
+        var pos = new BlockPos(1, 2, 3);
+        var stone = Blocks.STONE.getDefaultState();
+        var stats = BuildPreviewPipeline.collapseToFinalCellsWithStats(List.of(
+                new PlannedBlock(pos, stone),
+                new PlannedBlock(pos, stone),
+                new PlannedBlock(pos, Blocks.GLASS.getDefaultState())
+        ));
+        assertEquals(1, stats.blocks().size());
+        assertEquals(2, stats.duplicatePositions());
+        assertEquals(1, stats.conflictingOverwrites());
+        assertEquals(Blocks.GLASS.getDefaultState(), stats.blocks().getFirst().getTargetState());
+    }
 }

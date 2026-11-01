@@ -764,12 +764,18 @@ public class BuildExecutionService {
                     record.lastError = update.message();
                     return false;
                 }
-                record.phaseMemoryPersisted = true;
+                record.phaseMemoryPersisted = true; // MEMORY_APPLIED
                 // Persist the phase marker before attempting phase 2 so a crash mid-way
                 // does not redo semantic initialization on the next retry.
-                if (!memoryManager.saveCommitRecord(record)) {
+                if (memoryManager.saveCommitRecord(record)) {
+                    record.phaseMemoryCheckpointed = true; // MEMORY_CHECKPOINTED
+                } else {
+                    record.phaseMemoryCheckpointed = false;
+                    // Safe to continue: phase-1 Memory write already succeeded and retries
+                    // are idempotent via hasMemory. Cross-restart marker may be stale.
                     FormacraftMod.LOGGER.error(
-                            "Memory commit phase-1 marker for {} could not be persisted",
+                            "Memory commit MEMORY_APPLIED but not MEMORY_CHECKPOINTED for {} "
+                                    + "(pending phase marker missing on disk; recovery uses hasMemory)",
                             record.memoryUuid);
                 }
             }

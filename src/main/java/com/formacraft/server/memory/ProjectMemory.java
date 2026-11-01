@@ -1,5 +1,6 @@
 package com.formacraft.server.memory;
 
+import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.genome.BuildingGenome;
 import net.minecraft.util.math.BlockPos;
@@ -288,6 +289,21 @@ public class ProjectMemory {
         }
     }
     
+    /**
+     * Independent deep copy via JSON round-trip. Used by commit paths so a failed
+     * persist cannot leave the indexed live object half-modified.
+     */
+    public static ProjectMemory copyOf(ProjectMemory source) {
+        if (source == null) {
+            throw new IllegalArgumentException("source");
+        }
+        ProjectMemory copy = JsonUtil.fromJson(JsonUtil.toJson(source), ProjectMemory.class);
+        if (copy == null) {
+            throw new IllegalStateException("ProjectMemory.copyOf produced null");
+        }
+        return copy;
+    }
+
     /**
      * 从 GeneratedStructure 和 BuildingSpec 创建记忆
      */

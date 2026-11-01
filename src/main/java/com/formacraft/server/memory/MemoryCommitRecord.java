@@ -61,13 +61,23 @@ public final class MemoryCommitRecord {
     // ---- Commit phase markers (retries skip phases that already finished) ----
 
     /**
-     * Phase 1 finished: building Memory identity / summary is durably on disk.
-     * A retry must not redo semantic initialization when this is true.
+     * Phase 1 applied: building Memory identity / summary exists on disk
+     * ({@code MEMORY_APPLIED}). A retry must not redo semantic initialization when
+     * this is true <em>or</em> {@link com.formacraft.server.memory.MemoryManager#hasMemory}
+     * already reports the row.
      */
     public boolean phaseMemoryPersisted;
     /**
-     * Phase 2 finished: undo metadata was written, or was not required.
-     * The overall commit is only {@link Status#COMMITTED} when both phases are done.
+     * Phase-1 checkpoint written into this pending commit record
+     * ({@code MEMORY_CHECKPOINTED}). When false after {@link #phaseMemoryPersisted},
+     * Memory itself is durable but the cross-restart phase marker may be stale —
+     * recovery still relies on {@code hasMemory} idempotency.
+     */
+    public boolean phaseMemoryCheckpointed;
+    /**
+     * Phase 2 finished: undo metadata was written, or was not required
+     * ({@code UNDO_METADATA_APPLIED}). The overall commit is only
+     * {@link Status#COMMITTED} when both phases are done.
      */
     public boolean phaseUndoPersisted;
 

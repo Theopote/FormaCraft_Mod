@@ -16,10 +16,15 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Preview pipeline: initial quality → auto-repair → constraint clip → circulation → final quality.
+ * Preview pipeline: initial quality → auto-repair → constraint clip →
+ * collapse to final cells → circulation → final quality → deliver.
+ * <p>
+ * Final-state collapse runs before circulation and final quality so checks,
+ * digest, outline, and Apply share one cell set.
  */
 public final class BuildPreviewPipeline {
     private BuildPreviewPipeline() {}
@@ -28,6 +33,13 @@ public final class BuildPreviewPipeline {
             GeneratedStructure structure,
             BuildQualityReport report,
             boolean delivered
+    ) {}
+
+    /** Last-write-wins collapse plus overwrite diagnostics. */
+    public record CollapseStats(
+            List<PlannedBlock> blocks,
+            int duplicatePositions,
+            int conflictingOverwrites
     ) {}
 
     public static Result prepare(
@@ -81,9 +93,26 @@ public final class BuildPreviewPipeline {
             return new Result(null, report, false);
         }
 
-        report.stats().totalBlocks = countSolid(clipped);
+        // Normalize before circulation / final QC so checks match delivered preview.
+        CollapseStats collapse = collapseToFinalCellsWithStats(clipped);
+        List<PlannedBlock> finalCells = collapse.blocks();
+        report.stats().duplicatePositions += collapse.duplicatePositions();
+        report.stats().conflictingOverwrites += collapse.conflictingOverwrites();
+        if (collapse.conflictingOverwrites() > 0) {
+            report.add(BuildQualitySeverity.WARNING, "CONFLICTING_OVERWRITES",
+                    "同坐标不同方块覆盖 " + collapse.conflictingOverwrites()
+                            + " 处（已按最后写入交付；请检查上游构件冲突）");
+        }
+        if (finalCells.isEmpty()) {
+            report.add(BuildQualitySeverity.FATAL, "STRUCT_EMPTY_AFTER_COLLAPSE",
+                    "归一化后没有任何方块，无法预览");
+            storeReport(player, report);
+            return new Result(null, report, false);
+        }
 
-        if (!validateCirculation(clipped, circulation, report)) {
+        report.stats().totalBlocks = countSolid(finalCells);
+
+        if (!validateCirculation(finalCells, circulation, report)) {
             storeReport(player, report);
             return new Result(null, report, false);
         }
@@ -94,11 +123,11 @@ public final class BuildPreviewPipeline {
                     player.getUuid(),
                     generated.getOrigin(),
                     generated.getDescription(),
-                    clipped
+                    finalCells
             );
         }
 
-        // 最终交付结构复检（修复/裁剪之后）
+        // Final QC on the same cells that will be stored / outlined / applied.
         BuildQualityReport finalReport = GradedQualityChecker.checkStructure(
                 structure, spec, world, landingPrepared);
         report = finalizedReport(report, finalReport);
@@ -111,17 +140,6 @@ public final class BuildPreviewPipeline {
             return new Result(null, report, false);
         }
 
-        // Deliver final-state cells only so preview digest / outline / apply share one identity
-        // (quality above may still have observed pre-collapse duplicates).
-        if (generated != null) {
-            structure = new GeneratedStructure(
-                    player.getUuid(),
-                    generated.getOrigin(),
-                    generated.getDescription(),
-                    collapseToFinalCells(clipped)
-            );
-        }
-
         storeReport(player, report);
         return new Result(structure, report, true);
     }
@@ -132,13 +150,31 @@ public final class BuildPreviewPipeline {
      * and {@link com.formacraft.server.preview.PreviewStorage#digestStructure}.
      */
     static List<PlannedBlock> collapseToFinalCells(List<PlannedBlock> blocks) {
-        if (blocks == null || blocks.isEmpty()) return List.of();
+        return collapseToFinalCellsWithStats(blocks).blocks();
+    }
+
+    static CollapseStats collapseToFinalCellsWithStats(List<PlannedBlock> blocks) {
+        if (blocks == null || blocks.isEmpty()) {
+            return new CollapseStats(List.of(), 0, 0);
+        }
         LinkedHashMap<BlockPos, PlannedBlock> byPos = new LinkedHashMap<>();
+        int duplicates = 0;
+        int conflicts = 0;
         for (PlannedBlock block : blocks) {
             if (block == null || block.getPos() == null) continue;
-            byPos.put(block.getPos().toImmutable(), block);
+            BlockPos key = block.getPos().toImmutable();
+            PlannedBlock previous = byPos.put(key, block);
+            if (previous == null) continue;
+            duplicates++;
+            if (!Objects.equals(stateKey(previous), stateKey(block))) {
+                conflicts++;
+            }
         }
-        return List.copyOf(byPos.values());
+        return new CollapseStats(List.copyOf(byPos.values()), duplicates, conflicts);
+    }
+
+    private static String stateKey(PlannedBlock block) {
+        return block.getTargetState() == null ? "null" : block.getTargetState().toString();
     }
 
     static boolean allowsAutomaticSupports(FormaRequest req) {
@@ -165,6 +201,7 @@ public final class BuildPreviewPipeline {
         to.clippedByConstraint = from.clippedByConstraint;
         to.rejectedPatches = from.rejectedPatches;
         to.duplicatePositions = Math.max(to.duplicatePositions, from.duplicatePositions);
+        to.conflictingOverwrites = Math.max(to.conflictingOverwrites, from.conflictingOverwrites);
         return delivered;
     }
 

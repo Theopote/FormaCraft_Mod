@@ -23,8 +23,9 @@ class MemoryCommitIdempotencyTest {
     private static final Identifier NETHER = Identifier.of("minecraft:the_nether");
 
     /** MemoryManager with an in-memory persistence stub (no world folder needed). */
-    private static final class TestMemoryManager extends MemoryManager {
+    private static class TestMemoryManager extends MemoryManager {
         final List<ProjectMemory> persisted = new ArrayList<>();
+        boolean failNextPersist;
 
         TestMemoryManager() {
             super(null);
@@ -32,6 +33,9 @@ class MemoryCommitIdempotencyTest {
 
         @Override
         protected void persistMemory(ProjectMemory memory) {
+            if (failNextPersist) {
+                throw new RuntimeException("disk full");
+            }
             persisted.add(memory);
         }
     }
@@ -54,7 +58,7 @@ class MemoryCommitIdempotencyTest {
         var second = manager.commitBuilding(uuid, structure(0), null, "tower", OVERWORLD);
         assertNotNull(second);
         assertEquals(uuid, second.getUuid());
-        assertSame(first, second);
+        assertSame(manager.getMemory(uuid), second);
 
         // Only one indexed building exists for this identity.
         assertEquals(1, manager.getStats().getSpatialCount());
@@ -100,10 +104,25 @@ class MemoryCommitIdempotencyTest {
         staleRetrySpec.setNotes("original-build");
         var retry = manager.commitBuilding(uuid, structure(0), staleRetrySpec, "tower", OVERWORLD);
         assertNotNull(retry);
-        assertSame(first, retry);
+        assertSame(manager.getMemory(uuid), retry);
         assertEquals("renamed-tower", retry.getName());
         assertNotNull(retry.getGeneData());
         assertEquals("after-edit", retry.getGeneData().getNotes());
+    }
+
+    @Test
+    void persistFailureDoesNotMutateIndexedMemory() {
+        var manager = new TestMemoryManager();
+        var uuid = UUID.randomUUID().toString();
+        var first = manager.commitBuilding(uuid, structure(0), null, "tower", OVERWORLD);
+        assertNotNull(first);
+        assertEquals("tower", manager.getMemory(uuid).getName());
+
+        manager.failNextPersist = true;
+        assertNull(manager.commitBuilding(uuid, structure(0), null, "retry-name", OVERWORLD));
+        // Indexed object must remain the pre-failure name (CoW; failed write discarded).
+        assertEquals("tower", manager.getMemory(uuid).getName());
+        assertSame(first, manager.getMemory(uuid));
     }
 
     @Test
