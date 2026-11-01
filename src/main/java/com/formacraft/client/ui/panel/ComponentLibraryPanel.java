@@ -356,6 +356,7 @@ public final class ComponentLibraryPanel extends BasePanel {
             }
             String id = e.id.toLowerCase(Locale.ROOT);
             boolean ok = id.contains(q) || com.formacraft.common.component.query.ComponentQueryMatchUtil.nameSearchMatches(q, e.name, e.aliases);
+            if (!ok) ok = typeSearchMatches(e, q);
             if (!ok) ok = com.formacraft.common.component.query.ComponentQueryMatchUtil.tagSearchMatches(q, e.tags);
             if (ok) filtered.add(e);
         }
@@ -740,6 +741,7 @@ public final class ComponentLibraryPanel extends BasePanel {
 
         if (com.formacraft.common.component.query.ComponentQueryMatchUtil.tagSearchMatches(qq, e.tags)) return 3;
         if (com.formacraft.common.component.query.ComponentQueryMatchUtil.nameSearchMatches(qq, e.name, e.aliases)) return 2;
+        if (typeSearchMatches(e, qq)) return 2;
         String id = (e.id != null ? e.id : "").toLowerCase(Locale.ROOT);
         if (id.contains(qq)) return 1;
         return 0;
@@ -749,6 +751,13 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (e == null) return "";
         if (e.name != null && !e.name.isBlank()) return e.name;
         return e.id != null ? e.id : "";
+    }
+
+    private static boolean typeSearchMatches(ComponentCatalog.Entry entry, String text) {
+        var type = com.formacraft.common.component.ComponentTypes.effective(entry.type, entry.category);
+        var match = com.formacraft.common.component.query.ComponentQueryMatchUtil.nameSearchMatches(text, type.label(), java.util.List.of(type.key()));
+        return match || entry.typeAliases != null && entry.typeAliases.stream().anyMatch(alias ->
+                com.formacraft.common.component.query.ComponentQueryMatchUtil.nameSearchMatches(text, alias.label(), java.util.List.of(alias.key())));
     }
 
     // 简化复制 ToolPanel 的换行绘制（BasePanel 没提供该工具方法）
@@ -890,6 +899,9 @@ public final class ComponentLibraryPanel extends BasePanel {
         }
         
         // 分类
+        lines.add(Text.literal("类型: " + com.formacraft.common.component.ComponentTypes.effective(entry.type, entry.category).label()));
+        if (entry.typeAliases != null && !entry.typeAliases.isEmpty())
+            lines.add(Text.literal("其他类型: " + entry.typeAliases.stream().limit(3).map(com.formacraft.common.component.ComponentTypes.Ref::label).collect(java.util.stream.Collectors.joining("、"))));
         if (entry.aliases != null && !entry.aliases.isEmpty()) {
             lines.add(Text.literal("其他名称: " + String.join("、", entry.aliases.subList(0, Math.min(3, entry.aliases.size())))));
         }

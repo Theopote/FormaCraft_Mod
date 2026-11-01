@@ -158,6 +158,7 @@ public final class ComponentPackageIO {
         require(definition != null && "formacraft.component.v1".equals(definition.schema) && definition.version == 1,
                 "Unsupported component schema or version");
         require(ComponentIds.isSafeId(definition.id), "Invalid component ID");
+        require(ComponentTypes.error(definition.type, definition.category) == null, "Invalid component classification");
         require(definition.archetypeRef == null || definition.archetypeRef.isBlank()
                 || ComponentIds.tryNormalizeLoadId(definition.archetypeRef) != null, "Invalid archetype reference");
         require(definition.blocks != null && definition.blocks.size() <= ComponentIds.MAX_BLOCKS, "Invalid component block count");

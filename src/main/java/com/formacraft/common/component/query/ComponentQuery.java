@@ -53,6 +53,8 @@ public class ComponentQuery {
      * ---------------------------- */
 
     public static class Semantic {
+        /** Optional exact preset/custom type key or display label. Independent of permission tags. */
+        public String assetType;
         /** 构件语义角色：door / window / column / balcony / railing ... */
         public String role;
 

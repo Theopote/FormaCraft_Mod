@@ -83,7 +83,7 @@ public final class ComponentCaptureSemanticSection {
             y += FIELD_SPACING;
 
             String categoryEmoji = categoryEmoji(st.category);
-            categoryButton.setMessage(Text.literal("你正在定义的是：" + categoryEmoji + " " + host.getCategoryDisplayName(st.category)));
+            categoryButton.setMessage(Text.literal("当前类型：" + com.formacraft.common.component.ComponentTypes.effective(st.type, st.category).label() + "（更改）"));
             categoryButton.setPosition(x, y);
             categoryButton.setWidth(w);
             categoryButton.visible = true;

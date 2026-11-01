@@ -24,6 +24,27 @@ public class ComponentToolState {
     public com.formacraft.common.component.variant.CaptureAdaptationSettings adaptation =
             new com.formacraft.common.component.variant.CaptureAdaptationSettings();
     public ComponentCategory category = ComponentCategory.GENERIC;
+    public com.formacraft.common.component.ComponentTypes.Ref type;
+    public boolean captureTypeChosen;
+    public boolean customTypeMode;
+    public String customTypeName = "";
+    public boolean manualAttachment, manualDirectionality;
+    private boolean captureSavePending;
+    private ComponentCaptureDraft submittedDraft;
+    private Metadata confirmedMetadata, submittedMetadata;
+    private record Metadata(ComponentCategory category, com.formacraft.common.component.ComponentTypes.Ref type,
+                            boolean chosen, boolean custom, String customName, String name, Set<String> tags,
+                            String culturalStyle, String geometryArchetype) {}
+    private Metadata metadata() {
+        return new Metadata(category, type, captureTypeChosen, customTypeMode, customTypeName, name,
+                tags == null ? new HashSet<>() : new HashSet<>(tags), culturalStyleOverride, geometryArchetypeOverride);
+    }
+    private void restoreMetadata(Metadata value) {
+        if (value == null) return;
+        category = value.category; type = value.type; captureTypeChosen = value.chosen; customTypeMode = value.custom;
+        customTypeName = value.customName; name = value.name; tags = new HashSet<>(value.tags);
+        culturalStyleOverride = value.culturalStyle; geometryArchetypeOverride = value.geometryArchetype;
+    }
     public String name = "New Component";
     public Set<String> tags = new HashSet<>();
 
@@ -222,8 +243,12 @@ public class ComponentToolState {
      */
     public void beginCapture() {
         if (captureActive) return;
+        confirmedMetadata = metadata();
         confirmedDraft.loadFrom(this);
         captureDraft.loadFrom(this);
+        captureTypeChosen = false;
+        captureDraft.host.manualAttachment = false;
+        captureDraft.orientation.manualDirectionality = false;
         captureDraft.updatePhase();
         captureActive = true;
     }
@@ -241,10 +266,11 @@ public class ComponentToolState {
      * 提交草案为最终状态。
      */
     public void commitCapture() {
-        if (!captureActive) return;
+        if (!captureActive || captureSavePending) return;
         captureDraft.updatePhase();
         captureDraft.applyTo(this);
         confirmedDraft.loadFrom(this);
+        confirmedMetadata = metadata();
         captureActive = false;
     }
 
@@ -252,9 +278,24 @@ public class ComponentToolState {
      * 取消捕获，恢复到进入捕获态前的快照。
      */
     public void cancelCapture() {
-        if (!captureActive) return;
+        if (!captureActive || captureSavePending) return;
         confirmedDraft.applyTo(this);
+        restoreMetadata(confirmedMetadata);
         captureActive = false;
+    }
+
+    public boolean isCaptureSavePending() { return captureSavePending; }
+    public void beginCaptureSave() {
+        if (!captureActive || captureSavePending) throw new IllegalStateException("Capture is not ready to submit");
+        submittedDraft = captureDraft.copy(); submittedMetadata = metadata(); captureSavePending = true;
+    }
+    public void completeCaptureSave(boolean success) {
+        if (!captureSavePending) return;
+        captureSavePending = false;
+        if (success) {
+            captureDraft.copyFrom(submittedDraft); restoreMetadata(submittedMetadata); commitCapture();
+        }
+        submittedDraft = null; submittedMetadata = null;
     }
 }
 

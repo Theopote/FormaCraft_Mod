@@ -38,6 +38,9 @@ public final class ComponentCapturePersistence {
         var definition = JsonUtil.fromJson(json, ComponentDefinition.class);
         definition.id = "capture"; definition.name = definition.name.trim(); definition.archetypeRef = null;
         definition.sourceOrigin = ComponentDefinition.ORIGIN_CAPTURED;
+        String typeError = ComponentTypes.error(definition.type, definition.category);
+        if (typeError != null) throw new IOException(typeError);
+        definition.type = ComponentTypes.effective(definition.type, definition.category);
         com.formacraft.common.component.semantic.ComponentSemanticInference.ensureSemanticFields(definition);
         // Semantic inference supplies a legacy archetype reference; captures are self-contained.
         definition.archetypeRef = null;

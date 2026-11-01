@@ -238,6 +238,7 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public void cycleCategory() {
+        if (state.isCaptureSavePending()) return;
         ComponentCategory[] v = ComponentCategory.values();
         int idx = 0;
         for (int i = 0; i < v.length; i++) {
@@ -246,7 +247,9 @@ public final class ComponentTool implements FormacraftTool {
                 break;
             }
         }
-        state.category = v[(idx + 1) % v.length];
+        var next = com.formacraft.common.component.ComponentTypes.base(v[(idx + 1) % v.length]);
+        if (state.captureActive) ComponentCaptureTypes.select(state, next);
+        else { state.category = next.category(); state.type = next.type(); }
     }
 
     public void toggleSemanticSkin() {
@@ -597,6 +600,7 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public void markSavePending(String displayName) {
+        state.beginCaptureSave();
         this.awaitingSaveAck = true;
         this.awaitingSaveName = (displayName == null || displayName.isBlank()) ? null : displayName.trim();
     }
@@ -610,6 +614,7 @@ public final class ComponentTool implements FormacraftTool {
         awaitingSaveName = null;
 
         if (!success) {
+            state.completeCaptureSave(false);
             String error = (message == null || message.isBlank()) ? "保存构件失败" : message;
             HudToast.show(error, true);
             return;
@@ -617,6 +622,7 @@ public final class ComponentTool implements FormacraftTool {
 
         String componentId = com.formacraft.common.component.ComponentIds.tryNormalizeLoadId(id);
         if (componentId == null) {
+            state.completeCaptureSave(false);
             HudToast.show("保存回执缺少有效构件 ID，请刷新构件库", true);
             FormaCraftClientNetworking.sendComponentCatalogRequest();
             return;
@@ -625,6 +631,7 @@ public final class ComponentTool implements FormacraftTool {
         String displayName = (name != null && !name.isBlank())
                 ? name
                 : ((pendingName == null || pendingName.isBlank()) ? "（未命名）" : pendingName);
+        state.completeCaptureSave(true);
         String toast = (message == null || message.isBlank())
                 ? ("✓ 构件「" + displayName + "」已保存到库")
                 : message;
@@ -689,6 +696,11 @@ public final class ComponentTool implements FormacraftTool {
         if (!force) {
             HudToast.show("已开启构件预览");
         }
+    }
+
+    public void onCaptureDisconnected() {
+        awaitingSaveAck = false; awaitingSaveName = null;
+        state.completeCaptureSave(false); state.captureTypeChosen = false;
     }
 
     public void preview(net.minecraft.client.MinecraftClient client) {

@@ -72,6 +72,7 @@ final class ComponentToolJsonBuilder {
         ComponentDefinition def = new ComponentDefinition();
         def.id = makeId(state.category, state.name);
         def.name = state.name;
+        def.type = state.type;
         def.category = state.category != null ? state.category : ComponentCategory.GENERIC;
         def.tags = state.tags != null ? new ArrayList<>(state.tags) : new ArrayList<>();
 

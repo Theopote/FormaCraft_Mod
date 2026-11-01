@@ -85,6 +85,7 @@ public final class ComponentRetriever {
 
             // 创建元数据
             ComponentMetadata metadata = ComponentMetadata.fromComponent(component, archetype);
+            metadata.typeAliases = entry.typeAliases == null ? List.of() : entry.typeAliases;
 
             // 硬过滤（必须通过）
             if (hardFilter(metadata, query)) {
@@ -131,6 +132,9 @@ public final class ComponentRetriever {
      * 避免用户构件因 metadata 不完整被整批剔除。
      */
     static boolean hardFilter(ComponentMetadata metadata, ComponentQuery query) {
+        if (query.semantic != null && !com.formacraft.common.component.ComponentTypes.matches(query.semantic.assetType, metadata.type, metadata.category)
+                && (metadata.typeAliases == null || metadata.typeAliases.stream().noneMatch(type ->
+                com.formacraft.common.component.ComponentTypes.matches(query.semantic.assetType, type, null)))) return false;
         // 1. forbidden_tags 不命中
         if (query.constraints != null && query.constraints.forbiddenTags != null) {
             if (metadata.semantic != null && metadata.semantic.tags != null) {

@@ -19,6 +19,9 @@ public class ComponentMetadata {
      * 构件 ID
      */
     public String componentId;
+    public com.formacraft.common.component.ComponentCategory category;
+    public com.formacraft.common.component.ComponentTypes.Ref type;
+    public List<com.formacraft.common.component.ComponentTypes.Ref> typeAliases = List.of();
 
     /**
      * 语义信息
@@ -184,6 +187,8 @@ public class ComponentMetadata {
     ) {
         ComponentMetadata metadata = new ComponentMetadata();
         metadata.componentId = component.id;
+        metadata.category = component.category;
+        metadata.type = com.formacraft.common.component.ComponentTypes.effective(component.type, component.category);
 
         // 语义信息
         metadata.semantic = new Semantic();

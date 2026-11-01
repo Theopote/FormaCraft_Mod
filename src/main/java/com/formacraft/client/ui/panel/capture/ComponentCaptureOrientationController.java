@@ -47,6 +47,7 @@ public final class ComponentCaptureOrientationController {
     }
 
     public void cycleDirectionality() {
+        ComponentTool.INSTANCE.getState().captureDraft.orientation.manualDirectionality = true;
         directionalityMode = directionalityMode.next();
         applyDirectionalityToDraft();
         if (DEBUG) {
@@ -64,22 +65,27 @@ public final class ComponentCaptureOrientationController {
     }
 
     public void startMarkingInside() {
+        ComponentTool.INSTANCE.getState().captureDraft.orientation.manualDirectionality = true;
         markingMode = DirectionMarkingMode.MARKING_INSIDE;
     }
 
     public void startMarkingOutside() {
+        ComponentTool.INSTANCE.getState().captureDraft.orientation.manualDirectionality = true;
         markingMode = DirectionMarkingMode.MARKING_OUTSIDE;
     }
 
     public void startMarkingBottom() {
+        ComponentTool.INSTANCE.getState().captureDraft.orientation.manualDirectionality = true;
         markingMode = DirectionMarkingMode.MARKING_BOTTOM;
     }
 
     public void startMarkingTop() {
+        ComponentTool.INSTANCE.getState().captureDraft.orientation.manualDirectionality = true;
         markingMode = DirectionMarkingMode.MARKING_TOP;
     }
 
     public void startMarkingHostFace() {
+        ComponentTool.INSTANCE.getState().captureDraft.host.manualAttachment = true;
         markingMode = DirectionMarkingMode.MARKING_HOST_FACE;
     }
 
@@ -142,6 +148,8 @@ public final class ComponentCaptureOrientationController {
         draft.host.normal = null;
         st.syncDraftToState();
     }
+
+    public void stopMarking() { markingMode = DirectionMarkingMode.NONE; }
 
     private void setHostFace(BlockHitResult hit, Predicate<BlockPos> anchorAllowed) {
         if (hit == null) {

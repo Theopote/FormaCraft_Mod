@@ -69,6 +69,9 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     private final HudTextInput nameInput = new HudTextInput();
     private final HudTextInput tagsInput = new HudTextInput();
     private final HudTextInput socketIdInput = new HudTextInput();
+    private final com.formacraft.client.ui.panel.capture.ComponentCaptureTypeSection typeSection =
+            new com.formacraft.client.ui.panel.capture.ComponentCaptureTypeSection(this::typeChanged);
+    private java.util.List<ButtonWidget> captureButtons = java.util.List.of();
 
     // 基础信息按钮
     private ButtonWidget categoryButton;
@@ -178,12 +181,12 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         var st = ComponentTool.INSTANCE.getState();
 
         // 基础信息按钮
-        categoryButton = ButtonWidget.builder(Text.literal("分类：GENERIC"), b -> cycleCategory())
+        categoryButton = ButtonWidget.builder(Text.literal("更改捕获类型"), b -> { typeSection.open(); scrollY = 0; })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         构件分类
                         ━━━━━━━━━━━━
-                        点击循环切换构件的类型分类
+                        返回顶部选择预设或自定义类型
                         
                         分类用于：
                         • AI 智能放置时的语义识别
@@ -717,6 +720,14 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                         
                         帮助 AI 区分斗拱、窗套、栏杆等形态""")))
                 .build();
+        captureButtons = java.util.List.of(categoryButton, pickAnchorButton, clearAnchorButton, hostFaceButton,
+                anchorOutsideButton, autoAnchorButton, facingButton, mirrorButton, semanticSkinButton,
+                semanticTagOnSaveButton, semanticStyleButton, semanticPartButton, socketContextButton,
+                socketPickOriginButton, socketFacingButton, socketAddButton, socketPreviewButton, socketClearButton,
+                autoAnalyzeButton, autoDetectSocketsButton, autoFixButton, undoAutoFixButton, cancelButton, saveButton,
+                boxSelectButton, pointSelectButton, clearSelectionButton, advancedOptionsButton, attachmentModeButton,
+                directionalityButton, culturalStyleButton, geometryArchetypeButton, setInsideButton, setOutsideButton,
+                setBottomButton, setTopButton);
     }
     
     /**
@@ -807,6 +818,10 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     @Override
     protected void drawContents(DrawContext ctx) {
         ensureWidgets();
+        if (!ComponentTool.INSTANCE.getState().captureActive) {
+            ComponentTool.INSTANCE.getState().beginCapture(); syncLocalFromState();
+        }
+        captureButtons.forEach(b -> b.visible = false);
 
         int x = panelX + CONTENT_PADDING;
         int w = panelWidth - CONTENT_PADDING * 2;
@@ -825,11 +840,19 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         ctx.enableScissor(contentScissorLeft(), getContentY(), contentScissorRight(), scrollBottom);
 
         phaseHeaders.reset();
-        autoCollapseNonActivePhases();
 
         // 标题
         y = drawWrappedText(ctx, Text.translatable("formacraft.capture.title"), x, y, w, 0xFFFFFFFF);
         y += 4;
+        y = typeSection.draw(ctx, client, this::drawWrappedText, getScaledMouseX(), getScaledMouseY(), x, y, w, getContentY(), scrollBottom);
+        var captureState = ComponentTool.INSTANCE.getState();
+        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(captureState) || captureState.isCaptureSavePending()) {
+            y = drawWrappedText(ctx, Text.literal(captureState.isCaptureSavePending()
+                    ? "正在等待服务端保存结果…" : "先选择类型，再定义选区；现有选区会保留。"), x, y, w, 0xFFAAAAAA);
+            finishCaptureLayout(ctx, x, w, y);
+            return;
+        }
+        autoCollapseNonActivePhases();
         
         // 阶段提示（顶部弱引导）
         y = drawWrappedText(
@@ -998,6 +1021,13 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
             y = aiExplanation.renderSection(ctx, client, this::drawWrappedText, x, y, w);
         }
 
+        finishCaptureLayout(ctx, x, w, y);
+    }
+
+    private void finishCaptureLayout(DrawContext ctx, int x, int w, int y) {
+        if (!nameInputBoundsValid) nameInput.setFocused(false);
+        if (!tagsInputBoundsValid) tagsInput.setFocused(false);
+        if (!socketIdInputBoundsValid) socketIdInput.setFocused(false);
         // 计算最大滚动
         int contentStartY = getContentY() + CONTENT_PADDING;
         int totalContentHeight = (y + scrollY) - contentStartY;
@@ -1020,12 +1050,17 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         cancelButton.setPosition(x, footerTop + 4);
         cancelButton.setWidth(half);
         cancelButton.visible = true;
-        cancelButton.active = true;
+        var st = ComponentTool.INSTANCE.getState();
+        cancelButton.active = !st.isCaptureSavePending();
         cancelButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
-        var healthResult = healthCoordinator.check();
-        boolean canSaveBase = canSaveWithoutHealthCheck();
-        ComponentCaptureHealthDrawer.configureSaveButton(saveButton, healthResult, canSaveBase);
+        if (st.isCaptureSavePending() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(st)) {
+            saveButton.active = false;
+            saveButton.setMessage(Text.literal(st.isCaptureSavePending() ? "保存中…" : "请先选择类型"));
+        } else {
+            var healthResult = healthCoordinator.check();
+            ComponentCaptureHealthDrawer.configureSaveButton(saveButton, healthResult, canSaveWithoutHealthCheck());
+        }
 
         saveButton.setPosition(x + half + 4, footerTop + 4);
         saveButton.setWidth(w - half - 4);
@@ -1045,57 +1080,13 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         }
     }
 
-    private void cycleCategory() {
-        var st = ComponentTool.INSTANCE.getState();
-        st.category = ComponentCaptureCategoryOrder.next(st.category);
-
-        applyCategoryDefaults(st.category);
-        semanticPreview.invalidate();
-    }
-
-    /**
-     * 根据分类自动设置附着模式和方向性
-     */
-    private void applyCategoryDefaults(ComponentCategory category) {
+    private void typeChanged() {
         var draft = ComponentTool.INSTANCE.getState().captureDraft;
-        draft.host.manualAttachment = false;
-        switch (category) {
-            case DOOR, WINDOW:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
-                orientationController.setDirectionalityMode(DirectionalityMode.INSIDE_OUTSIDE);
-                break;
-            case BALCONY:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.CORNER;
-                orientationController.setDirectionalityMode(DirectionalityMode.INSIDE_OUTSIDE);
-                break;
-            case RAILING:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.EDGE;
-                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
-                break;
-            case PANEL:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_SURFACE;
-                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
-                break;
-            case COLUMN:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.FLOOR;
-                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
-                break;
-            case STAIRS:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.FLOOR;
-                orientationController.setDirectionalityMode(DirectionalityMode.BOTTOM_TOP);
-                break;
-            case BRACKET:
-            case ORNAMENT:
-            case ARCH:
-            case ROOF_DETAIL:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_SURFACE;
-                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
-                break;
-            default:
-                // GENERIC 保持当前设置
-                break;
-        }
-        syncPlacementHintsToState();
+        attachmentMode = draft.host.attachment;
+        orientationController.stopMarking();
+        orientationController.loadFromDraft(draft);
+        semanticPreview.invalidate();
+        adaptationSection.invalidate();
     }
     
     /**
@@ -1130,7 +1121,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
             case ANCHOR_ORIENTATION:
                 return st.captureDraft.anchor.worldPos != null;
             case SEMANTIC:
-                return st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
+                return com.formacraft.client.tool.ComponentCaptureTypes.ready(st) && st.name != null && !st.name.isBlank();
             case AI_GUARANTEE:
                 return true;
             default:
@@ -1229,6 +1220,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     
     private boolean canSaveWithoutHealthCheck() {
         var st = ComponentTool.INSTANCE.getState();
+        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(st) || st.isCaptureSavePending()) return false;
         if (!selectionController.hasValidSelection(client)) {
             return false;
         }
@@ -1295,7 +1287,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
             com.formacraft.FormacraftMod.LOGGER.warn("Failed to generate thumbnail", t);
         }
 
-        st.commitCapture();
         // 等待服务端 ComponentSaveAck；catalog 仅刷新目录数据
         String componentName = st.name.trim();
         ComponentTool.INSTANCE.markSavePending(componentName);
@@ -1311,6 +1302,15 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
 
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        var captureState = ComponentTool.INSTANCE.getState();
+        if (captureState.isCaptureSavePending()) return true;
+        if (typeSection.click(mouseX, mouseY, click)) {
+            nameInput.setFocused(false); tagsInput.setFocused(false); socketIdInput.setFocused(false); return true;
+        }
+        if (clickButton(cancelButton, click)) return true;
+        if (clickButton(saveButton, click)) return true;
+        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(captureState)) return true;
+        if (mouseY < getContentY() || mouseY >= panelY + panelHeight - STICKY_FOOTER_HEIGHT - 4) return true;
 
         if (adaptationSection.click(click, mouseY)) return true;
 
@@ -1413,6 +1413,9 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     @Override
     public void keyPressed(int keyCode, int scanCode, int modifiers) {
         ensureWidgets();
+        if (ComponentTool.INSTANCE.getState().isCaptureSavePending()) return;
+        typeSection.keyPressed(keyCode, modifiers);
+        if (typeSection.focused() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(ComponentTool.INSTANCE.getState())) return;
         nameInput.keyPressed(keyCode, modifiers);
         tagsInput.keyPressed(keyCode, modifiers);
         socketIdInput.keyPressed(keyCode, modifiers);
@@ -1420,6 +1423,9 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
 
     @Override
     public void charTyped(char chr) {
+        if (ComponentTool.INSTANCE.getState().isCaptureSavePending()) return;
+        typeSection.charTyped(chr);
+        if (typeSection.focused() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(ComponentTool.INSTANCE.getState())) return;
         ensureWidgets();
         nameInput.charTyped(chr);
         tagsInput.charTyped(chr);
@@ -1428,7 +1434,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
 
     @Override
     public boolean wantsKeyboardInput() {
-        return nameInput.isFocused() || tagsInput.isFocused() || socketIdInput.isFocused();
+        return typeSection.focused() || nameInput.isFocused() || tagsInput.isFocused() || socketIdInput.isFocused();
     }
 
     private int drawWrappedText(DrawContext ctx, Text text, int x, int y, int maxWidth, int color) {
@@ -1456,6 +1462,9 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
      * @return true 如果事件被处理
      */
     public boolean handleWorldClick(BlockHitResult hit, int button) {
+        var st = ComponentTool.INSTANCE.getState();
+        if (st.isCaptureSavePending() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(st)) return true;
+        typeSection.unfocus();
         if (hit == null) return false;
         BlockPos pos = hit.getBlockPos();
         if (pos == null) return false;
@@ -1536,6 +1545,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
 
     public void tick() {
         var st = ComponentTool.INSTANCE.getState();
+        if (st.isCaptureSavePending()) return;
         boolean wasActive = st.captureActive;
         st.beginCapture();
         if (!wasActive && st.captureActive) {
@@ -1543,6 +1553,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         }
         st.syncDraftToState();
         selectionController.tick(client);
+        attachmentMode = st.captureDraft.host.attachment;
+        orientationController.loadFromDraft(st.captureDraft);
     }
 
     public void renderWorldSelection(com.formacraft.client.tool.ToolWorldRenderContext ctx) {

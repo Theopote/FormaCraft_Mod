@@ -16,6 +16,8 @@ public class ComponentCatalog {
         public String id;
         public String name;
         public ComponentCategory category;
+        public ComponentTypes.Ref type;
+        public List<ComponentTypes.Ref> typeAliases;
         public List<String> tags;
         /** Derived imported entry: original package identity and payload hash. */
         public String packageRef;

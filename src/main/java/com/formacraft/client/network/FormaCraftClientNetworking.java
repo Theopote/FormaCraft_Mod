@@ -30,7 +30,10 @@ public final class FormaCraftClientNetworking {
         com.formacraft.client.component.ClientComponentImport.register();
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
-                (handler, client) -> com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear());
+                (handler, client) -> {
+                    com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear();
+                    com.formacraft.client.tool.ComponentTool.INSTANCE.onCaptureDisconnected();
+                });
         ClientPlayNetworking.registerGlobalReceiver(com.formacraft.common.network.ComponentSourceNetworking.Response.ID,
                 (payload, context) -> context.client().execute(() ->
                         com.formacraft.client.component.ClientComponentSourceState.INSTANCE.accept(payload.token(), payload.json())));

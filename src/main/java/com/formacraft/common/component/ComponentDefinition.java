@@ -18,6 +18,8 @@ public class ComponentDefinition {
     public String id;
     public String name;
     public ComponentCategory category = ComponentCategory.GENERIC;
+    /** Fine-grained preset or user-defined classification; independent of asset identity and permissions. */
+    public ComponentTypes.Ref type;
 
     public List<String> tags;
 

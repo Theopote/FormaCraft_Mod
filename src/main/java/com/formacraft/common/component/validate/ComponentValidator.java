@@ -41,6 +41,8 @@ public final class ComponentValidator {
         // 1) Identity
         // -------------------------
         validateIdentity(def, out);
+        String typeError = com.formacraft.common.component.ComponentTypes.error(def.type, def.category);
+        if (typeError != null) out.error("type", typeError);
 
         // -------------------------
         // 2) Geometry

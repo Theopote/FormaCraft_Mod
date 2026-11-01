@@ -29,7 +29,7 @@ public final class ComponentContentIdentity {
     private static Snapshot snapshot(ComponentDefinition definition) {
         Objects.requireNonNull(definition, "definition");
         JsonObject full = JsonUtil.get().toJsonTree(definition).getAsJsonObject();
-        for (String field : List.of("id", "name", "tags", "category", "culturalStyle", "geometryArchetype", "archetypeRef"))
+        for (String field : List.of("id", "name", "tags", "category", "type", "culturalStyle", "geometryArchetype", "archetypeRef"))
             full.remove(field);
         JsonObject structure = new JsonObject();
         for (String field : List.of("size", "anchor", "blocks", "sockets", "socketPlacements"))

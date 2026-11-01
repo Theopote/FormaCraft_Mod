@@ -225,6 +225,7 @@ public final class ComponentPackageInstallations {
                     var verified = inspect(root, id); var def = verified.component();
                     var entry = new ComponentCatalog.Entry(); entry.id = id; entry.name = def.name;
                     entry.category = def.category; entry.tags = def.tags; entry.size = def.size;
+                    entry.type = ComponentTypes.effective(def.type, def.category);
                     entry.variantRules = def.variantRules; entry.sockets = def.sockets; entry.placementSpec = def.placementSpec;
                     entry.file = "packages/" + id + "/" + SOURCE; entry.packageRef = verified.contentRef();
                     if (Files.isRegularFile(root.resolve(id + ".png"))) entry.thumbnail = id + ".png";
@@ -233,16 +234,22 @@ public final class ComponentPackageInstallations {
                         var sourceRecords = sources(root, id);
                         entry.sourceCount = sourceRecords.size();
                         var aliases = new LinkedHashMap<String, String>();
+                        var typeAliases = new LinkedHashMap<String, ComponentTypes.Ref>();
                         String primaryName = com.formacraft.common.component.query.ComponentQueryMatchUtil.normalizeTag(ComponentSourceView.bounded(def.name, 64));
                         for (var source : sourceRecords.subList(1, sourceRecords.size())) {
+                            var sourceDef = source.component();
+                            var sourceType = ComponentTypes.effective(sourceDef.type, sourceDef.category);
+                            if (!sourceType.key().equals(entry.type.key())) typeAliases.putIfAbsent(sourceType.key(), sourceType);
                             String name = ComponentSourceView.bounded(source.component().name, 64);
                             String key = com.formacraft.common.component.query.ComponentQueryMatchUtil.normalizeTag(name);
                             if (!key.isBlank() && !key.equals(primaryName)) aliases.putIfAbsent(key, name);
                         }
                         entry.aliases = List.copyOf(aliases.values());
+                        entry.typeAliases = List.copyOf(typeAliases.values());
                     } catch (IOException invalidSources) {
                         entry.sourceMetadataError = true;
                         entry.aliases = List.of();
+                        entry.typeAliases = List.of();
                     }
                     entries.add(entry);
                 } catch (IOException invalid) { /* Invalid or incomplete installations are not candidates. */ }

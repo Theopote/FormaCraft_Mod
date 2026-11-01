@@ -211,6 +211,7 @@ public final class ComponentVariantApplier {
         out.id = base.id;
         out.name = base.name;
         out.category = base.category;
+        out.type = base.type;
         out.tags = base.tags;
         out.culturalStyle = base.culturalStyle;
         out.archetypeRef = base.archetypeRef;

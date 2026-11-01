@@ -105,6 +105,7 @@ public class ComponentCaptureDraft {
     }
 
     public static class OrientationDraft {
+        public boolean manualDirectionality;
         public DirectionalityMode mode = DirectionalityMode.NONE;
         public Direction facing = Direction.SOUTH;
         public Mirror mirror = Mirror.NONE;
@@ -135,6 +136,8 @@ public class ComponentCaptureDraft {
         }
 
         adaptation = state.adaptation.copy();
+        host.manualAttachment = state.manualAttachment;
+        orientation.manualDirectionality = state.manualDirectionality;
         anchor.worldPos = state.anchorWorld;
         anchor.allowOutsideSelection = state.allowAnchorOutsideSelection;
 
@@ -168,6 +171,8 @@ public class ComponentCaptureDraft {
                 : null;
         state.useExplicitSelection = selection.explicit;
         state.adaptation = adaptation.copy();
+        state.manualAttachment = host.manualAttachment;
+        state.manualDirectionality = orientation.manualDirectionality;
         state.anchorWorld = anchor.worldPos;
         state.allowAnchorOutsideSelection = anchor.allowOutsideSelection;
         state.attachmentMode = host.attachment;
@@ -226,6 +231,7 @@ public class ComponentCaptureDraft {
         out.host.planeOffset = this.host.planeOffset;
         out.host.confirmed = this.host.confirmed;
         out.host.manualAttachment = this.host.manualAttachment;
+        out.orientation.manualDirectionality = this.orientation.manualDirectionality;
 
         out.anchor.worldPos = this.anchor.worldPos;
         out.anchor.localNormalized = this.anchor.localNormalized;
@@ -272,6 +278,7 @@ public class ComponentCaptureDraft {
         this.host.planeOffset = tmp.host.planeOffset;
         this.host.confirmed = tmp.host.confirmed;
         this.host.manualAttachment = tmp.host.manualAttachment;
+        this.orientation.manualDirectionality = tmp.orientation.manualDirectionality;
 
         this.anchor.worldPos = tmp.anchor.worldPos;
         this.anchor.localNormalized = tmp.anchor.localNormalized;

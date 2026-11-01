@@ -374,6 +374,7 @@ public final class ComponentStorage {
         e.id = id;
         e.name = toSave.name;
         e.category = toSave.category;
+        e.type = toSave.type;
         e.tags = toSave.tags;
         e.size = toSave.size;
         e.variantRules = toSave.variantRules;
