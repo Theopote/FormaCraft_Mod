@@ -96,4 +96,30 @@ class BuildConfirmServiceTest {
     void maxActiveTasksPerWorldIsDocumentedBound() {
         assertEquals(32, BuildExecutionService.MAX_ACTIVE_TASKS_PER_WORLD);
     }
+
+    @Test
+    void queueFullKeepsPreviewAliveForRetry() {
+        AtomicBoolean previewAlive = new AtomicBoolean(true);
+        AtomicInteger enqueueAttempts = new AtomicInteger();
+        // First attempt: queue full
+        enqueueAttempts.incrementAndGet();
+        var refused = BuildConfirmService.commitIfEnqueued(
+                previewAlive.get(), true, true, true,
+                null, false, false,
+                () -> previewAlive.set(false)
+        );
+        assertEquals(BuildConfirmService.Status.QUEUE_FULL, refused);
+        assertTrue(previewAlive.get());
+
+        // Retry after capacity frees
+        enqueueAttempts.incrementAndGet();
+        var accepted = BuildConfirmService.commitIfEnqueued(
+                previewAlive.get(), true, true, true,
+                null, false, true,
+                () -> previewAlive.set(false)
+        );
+        assertEquals(BuildConfirmService.Status.ACCEPTED, accepted);
+        assertFalse(previewAlive.get());
+        assertEquals(2, enqueueAttempts.get());
+    }
 }

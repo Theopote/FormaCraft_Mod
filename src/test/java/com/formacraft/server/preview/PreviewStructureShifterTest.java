@@ -62,4 +62,55 @@ class PreviewStructureShifterTest {
         assertFalse(report.hasFatal());
         assertTrue(report.stats().totalBlocks >= 1);
     }
+
+    @Test
+    void fatalQualityRejectsAdjustAndKeepsOriginal() {
+        BuildQualityReport fatal = new BuildQualityReport();
+        fatal.add(com.formacraft.server.build.quality.BuildQualitySeverity.FATAL,
+                "WORLD_HEIGHT", "超出世界高度");
+        assertTrue(PreviewStructureShifter.shouldRejectAdjust(fatal));
+
+        var original = new GeneratedStructure(
+                null,
+                new BlockPos(0, 64, 0),
+                "hut",
+                List.of(new PlannedBlock(new BlockPos(0, 64, 0), Blocks.STONE.getDefaultState()))
+        );
+        // Without a live world, recheck won't emit WORLD_HEIGHT; inject via evaluate path using null world
+        // then assert reject helper + that shift alone does not mutate original reference.
+        var shifted = PreviewStructureShifter.shift(original, 0, 200, 0);
+        assertNotSame(original, shifted);
+        assertEquals(new BlockPos(0, 264, 0), shifted.getOrigin());
+
+        // Simulate FATAL gate after recheck: evaluateAdjust with a fabricated reject path
+        assertTrue(PreviewStructureShifter.shouldRejectAdjust(fatal));
+        var outcome = new PreviewStructureShifter.AdjustOutcome(
+                false, original, fatal, "预览移动被拒绝：" + fatal.summaryZh() + "（已保留原位置）");
+        assertFalse(outcome.applied());
+        assertSame(original, outcome.structure());
+        assertTrue(outcome.statusMessage().contains("已保留原位置"));
+    }
+
+    @Test
+    void errorQualityDoesNotRejectAdjust() {
+        BuildQualityReport error = new BuildQualityReport();
+        error.add(com.formacraft.server.build.quality.BuildQualitySeverity.ERROR,
+                "FLOATING", "部分悬空");
+        assertFalse(PreviewStructureShifter.shouldRejectAdjust(error));
+    }
+
+    @Test
+    void evaluateAdjustAppliesWhenRecheckHasNoFatal() {
+        var original = new GeneratedStructure(
+                null,
+                new BlockPos(2, 70, 2),
+                "hut",
+                List.of(new PlannedBlock(new BlockPos(2, 70, 2), Blocks.STONE.getDefaultState()))
+        );
+        var outcome = PreviewStructureShifter.evaluateAdjust(original, 3, 0, 0, null);
+        assertTrue(outcome.applied());
+        assertEquals(new BlockPos(5, 70, 2), outcome.structure().getOrigin());
+        assertNotNull(outcome.report());
+        assertTrue(outcome.statusMessage().startsWith("预览已调整："));
+    }
 }

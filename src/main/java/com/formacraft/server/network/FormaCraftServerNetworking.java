@@ -294,41 +294,36 @@ public final class FormaCraftServerNetworking {
                 return;
             }
 
-            int dx = com.formacraft.server.preview.PreviewStructureShifter.clampOffset(payload.dx());
-            int dy = com.formacraft.server.preview.PreviewStructureShifter.clampOffset(payload.dy());
-            int dz = com.formacraft.server.preview.PreviewStructureShifter.clampOffset(payload.dz());
-            if (dx == 0 && dy == 0 && dz == 0) return;
+            net.minecraft.server.world.ServerWorld adjustWorld =
+                    player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw ? sw : null;
+            var outcome = com.formacraft.server.preview.PreviewStructureShifter.evaluateAdjust(
+                    structure, payload.dx(), payload.dy(), payload.dz(), adjustWorld);
+            if (outcome.statusMessage() == null) {
+                return;
+            }
 
-            com.formacraft.common.build.GeneratedStructure shifted =
-                    com.formacraft.server.preview.PreviewStructureShifter.shift(structure, dx, dy, dz);
-            PreviewStorage.updateStructure(player, shifted);
-            PreviewStorage.setPreview(player, true);
+            if (outcome.applied()) {
+                PreviewStorage.updateStructure(player, outcome.structure());
+                PreviewStorage.setPreview(player, true);
+                if (outcome.report() != null) {
+                    PreviewStorage.storeQualityReport(player, outcome.report());
+                }
+                List<OutlineBlock> outline =
+                        com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(
+                                outcome.structure().getBlocks());
+                sendPreviewOutline(player, outline);
+                sendPreviewOrigin(player, outcome.structure().getOrigin());
 
-            // 平移后复检位置相关质量（支撑/高度/区块等），确认时不得沿用旧报告
-            String qualityNote = "";
-            if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld adjustWorld) {
-                var report = com.formacraft.server.preview.PreviewStructureShifter
-                        .recheckAtWorld(shifted, adjustWorld);
-                PreviewStorage.storeQualityReport(player, report);
-                if (report != null && (report.hasFatal() || report.hasError()
-                        || report.hasSeverity(com.formacraft.server.build.quality.BuildQualitySeverity.WARNING))) {
-                    qualityNote = " | 质量：" + report.summaryZh();
+                Object layout = PreviewStorage.getSkeletonLayout(player);
+                if (layout != null) {
+                    java.util.Map<String, Object> extra = new java.util.HashMap<>();
+                    extra.put("skeletonLayout", layout);
+                    sendPreviewSkeleton(player, outcome.structure().getOrigin(), extra);
                 }
             }
+            // FATAL：不更新结构/轮廓，保留原预览；仍把失败报告发给玩家便于理解原因
 
-            List<OutlineBlock> outline =
-                    com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(shifted.getBlocks());
-            sendPreviewOutline(player, outline);
-            sendPreviewOrigin(player, shifted.getOrigin());
-
-            Object layout = PreviewStorage.getSkeletonLayout(player);
-            if (layout != null) {
-                java.util.Map<String, Object> extra = new java.util.HashMap<>();
-                extra.put("skeletonLayout", layout);
-                sendPreviewSkeleton(player, shifted.getOrigin(), extra);
-            }
-
-            final String statusMsg = "预览已调整：dx=" + dx + " dy=" + dy + " dz=" + dz + qualityNote;
+            final String statusMsg = outcome.statusMessage();
             try {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(statusMsg));
             } catch (Throwable t) {
