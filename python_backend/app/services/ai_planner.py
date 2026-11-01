@@ -80,7 +80,7 @@ from .rag_budget import int_env as _int_env, resolve_rag_budget as _resolve_rag_
 from .building_spec_prompts import (
     build_system_prompt as _build_system_prompt,
     build_user_prompt as _build_user_prompt,
-)
+    )
 
 
 def _clamp_temperature(v: Optional[float], default: float) -> float:

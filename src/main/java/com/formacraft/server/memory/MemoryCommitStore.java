@@ -12,11 +12,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Durable log of pending building Memory commits.
+ * Pending building Memory commit log.
  * <p>
  * Lives next to the Memory files: {@code saves/<world>/formacraft/memory_commits/}.
  * Each file is one {@link MemoryCommitRecord}; the file name carries the stable
  * memory UUID so a retry always targets the same building identity.
+ * <p>
+ * <b>Durability boundary:</b> {@link #save} uses a temp file plus replace/move so a
+ * crash mid-write cannot leave a truncated final JSON. A {@code true} return means
+ * the filesystem rename/replace completed — it does <em>not</em> guarantee an
+ * explicit {@code fsync} to stable storage. Ordinary server restarts recover from
+ * completed writes; sudden power loss on some devices may still lose the last write.
  */
 public final class MemoryCommitStore {
     private MemoryCommitStore() {}
@@ -39,16 +45,33 @@ public final class MemoryCommitStore {
     }
 
     /**
-     * Persist (or overwrite) a commit record durably.
+     * Persist (or overwrite) a commit record.
      *
-     * @return {@code true} only when the record reached the disk
+     * @return {@code true} only when the replace/move of the record file completed;
+     *         {@code false} when {@code server} is null
      */
     public static boolean save(MinecraftServer server, MemoryCommitRecord record) throws IOException {
         if (record == null || record.memoryUuid == null) {
             throw new IllegalArgumentException("commit record requires memoryUuid");
         }
         if (server == null) return false;
-        Path dir = dirFor(server);
+        return saveToDir(dirFor(server), record);
+    }
+
+    /**
+     * Persist under an explicit world-save root (tests / tooling).
+     *
+     * @return {@code true} when the replace/move completed
+     */
+    public static boolean saveToRoot(Path saveRoot, MemoryCommitRecord record) throws IOException {
+        if (record == null || record.memoryUuid == null) {
+            throw new IllegalArgumentException("commit record requires memoryUuid");
+        }
+        if (saveRoot == null) return false;
+        return saveToDir(dirForRoot(saveRoot), record);
+    }
+
+    private static boolean saveToDir(Path dir, MemoryCommitRecord record) throws IOException {
         Files.createDirectories(dir);
         Path path = dir.resolve(fileName(record.memoryUuid));
         Path tmp = Files.createTempFile(dir, ".commit-", ".tmp");
@@ -79,9 +102,18 @@ public final class MemoryCommitStore {
 
     /** Load all commit records still on disk (survives restarts). */
     public static List<MemoryCommitRecord> loadAll(MinecraftServer server) {
+        if (server == null) return List.of();
+        return loadAllFromDir(dirFor(server));
+    }
+
+    /** Load all commit records under an explicit world-save root (tests / tooling). */
+    public static List<MemoryCommitRecord> loadAllFromRoot(Path saveRoot) {
+        if (saveRoot == null) return List.of();
+        return loadAllFromDir(dirForRoot(saveRoot));
+    }
+
+    private static List<MemoryCommitRecord> loadAllFromDir(Path dir) {
         List<MemoryCommitRecord> records = new ArrayList<>();
-        if (server == null) return records;
-        Path dir = dirFor(server);
         if (!Files.exists(dir)) return records;
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "commit_*.json")) {
             for (Path path : stream) {

@@ -647,31 +647,37 @@ public class BuildExecutionService {
     }
 
     /**
-     * Stable digest of the confirmed world changes.
-     * Two builds with the same result produce the same hash, independent of order.
+     * Full SHA-256 hex digest of the <b>final confirmed world state</b> after apply.
+     * <p>
+     * This is <em>not</em> an execution-log digest. For each position, only the last
+     * write in the chronologically ordered {@code changes} list is kept (last-write-wins),
+     * then positions are sorted for a stable payload. Distinct-position reorderings with
+     * the same final per-cell state therefore collide; reordering writes to the <em>same</em>
+     * cell changes which state is treated as final and can change the digest.
      */
     static String executionHash(List<BlockChange> changes) {
         if (changes == null || changes.isEmpty()) return "";
-        java.util.TreeMap<String, String> byPosition = new java.util.TreeMap<>();
+        // Final state per cell, assuming {@code changes} is chronological application order.
+        java.util.TreeMap<String, String> finalByPosition = new java.util.TreeMap<>();
         for (BlockChange change : changes) {
             if (change == null || change.getPos() == null) continue;
             var pos = change.getPos();
             String key = pos.getX() + "," + pos.getY() + "," + pos.getZ();
             String state = change.getToState() == null
                     ? "" : com.formacraft.common.component.transform.BlockStateStringUtil.fromState(change.getToState());
-            byPosition.put(key, state);
+            finalByPosition.put(key, state);
         }
-        if (byPosition.isEmpty()) return "";
+        if (finalByPosition.isEmpty()) return "";
         StringBuilder payload = new StringBuilder();
-        for (var entry : byPosition.entrySet()) {
+        for (var entry : finalByPosition.entrySet()) {
             payload.append(entry.getKey()).append('=').append(entry.getValue()).append(';');
         }
         try {
             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(payload.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (int i = 0; i < 8; i++) {
-                hex.append(String.format("%02x", hash[i]));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
             }
             return hex.toString();
         } catch (java.security.NoSuchAlgorithmException exception) {
@@ -682,10 +688,10 @@ public class BuildExecutionService {
     /**
      * Commit a building Memory record.
      * <p>
-     * The commit has explicit phases. Every phase that touches durable state reports
-     * its own result; only when <b>all</b> required phases succeeded is the record
-     * marked {@link MemoryCommitRecord.Status#COMMITTED}. A failure in any phase keeps
-     * the record retryable.
+     * The commit has explicit phases with durable completion markers on the
+     * compensation record. A retry skips phases that already finished; only when
+     * <b>all</b> required phases succeeded is the record marked
+     * {@link MemoryCommitRecord.Status#COMMITTED}.
      *
      * @return true when the record is fully committed
      */
@@ -701,85 +707,108 @@ public class BuildExecutionService {
             }
 
             // ---- Phase 1: building identity + plan-derived data ----
-            var structure = record.toStructure();
-            // First commit = no Memory record exists yet. A retry must only fill in
-            // missing data and must never reset state a newer edit produced.
-            boolean firstCommit = !memoryManager.hasMemory(record.memoryUuid);
-            ProjectMemory memory = memoryManager.commitBuilding(
-                    record.memoryUuid, structure, record.toSpec(), record.name, dimension);
-            if (memory == null) {
-                record.lastError = "commit_failed";
-                return false;
+            // If a previous attempt already persisted Memory, do not redo semantic init.
+            if (record.phaseMemoryPersisted && !memoryManager.hasMemory(record.memoryUuid)) {
+                // Marker without a Memory row is inconsistent — redo phase 1.
+                record.phaseMemoryPersisted = false;
             }
-            BuildingPartIndex roofIndex = BuildingPartIndex.fromPlannedBlocks(structure.getBlocks());
-            if (firstCommit) {
-                // Initial registration: identity, roof index and revision are ours to set.
-                BuildingEditService.attachRoofIndex(memory, roofIndex);
-                BuildingMemoryKeys.setRevision(memory, 0L);
-            } else {
-                // Retry of an unfinished commit: only fill gaps, never reset a newer revision.
-                long existingRevision = BuildingMemoryKeys.revisionOf(memory);
-                if (existingRevision > 0L) {
-                    BuildingMemoryKeys.setRevision(memory, existingRevision);
-                } else {
+            if (!record.phaseMemoryPersisted) {
+                var structure = record.toStructure();
+                // First commit = no Memory record exists yet. A retry must only fill in
+                // missing data and must never reset state a newer edit produced.
+                boolean firstCommit = !memoryManager.hasMemory(record.memoryUuid);
+                ProjectMemory memory = memoryManager.commitBuilding(
+                        record.memoryUuid, structure, record.toSpec(), record.name, dimension);
+                if (memory == null) {
+                    record.lastError = "commit_failed";
+                    return false;
+                }
+                BuildingPartIndex roofIndex = BuildingPartIndex.fromPlannedBlocks(structure.getBlocks());
+                if (firstCommit) {
+                    // Initial registration: identity, roof index and revision are ours to set.
+                    BuildingEditService.attachRoofIndex(memory, roofIndex);
                     BuildingMemoryKeys.setRevision(memory, 0L);
+                } else {
+                    // Retry of an unfinished commit: only fill gaps, never reset a newer revision.
+                    long existingRevision = BuildingMemoryKeys.revisionOf(memory);
+                    if (existingRevision > 0L) {
+                        BuildingMemoryKeys.setRevision(memory, existingRevision);
+                    } else {
+                        BuildingMemoryKeys.setRevision(memory, 0L);
+                    }
+                    if (BuildingMemoryKeys.roofCellsRaw(memory).isEmpty()
+                            && !roofIndex.roof().isEmpty()) {
+                        roofIndex.persistTo(memory);
+                    }
                 }
-                if (BuildingMemoryKeys.roofCellsRaw(memory).isEmpty()
-                        && !roofIndex.roof().isEmpty()) {
-                    roofIndex.persistTo(memory);
+                // FBD plan / execution summary: initialize once; retries only backfill if missing.
+                if (record.fbdSourcePlanJson != null && !record.fbdSourcePlanJson.isBlank()
+                        && (firstCommit || !BuildingMemoryKeys.hasFbdSourcePlan(memory))) {
+                    BuildingMemoryKeys.storeFbdSourcePlan(memory, record.fbdSourcePlanJson);
+                    if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
+                    if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
                 }
-            }
-            if (record.fbdSourcePlanJson != null && !record.fbdSourcePlanJson.isBlank()) {
-                BuildingMemoryKeys.storeFbdSourcePlan(memory, record.fbdSourcePlanJson);
-                if (memory.getTags() == null) memory.setTags(new java.util.ArrayList<>());
-                if (!memory.getTags().contains("fbd")) memory.getTags().add("fbd");
-            }
-            // Persist the execution summary so the record states whether it is backed
-            // by a confirmed world result or only by the generation plan.
-            BuildingMemoryKeys.storeExecutionSummary(
-                    memory,
-                    record.sourceKind == null ? null : record.sourceKind.name(),
-                    record.appliedPositions,
-                    record.plannedPositions,
-                    record.executionHash,
-                    record.buildStatus);
-            var update = memoryManager.updateMemoryStrict(memory);
-            if (!update.ok()) {
-                record.lastError = update.message();
-                return false;
+                boolean missingExecutionSummary = memory.getMetadata() == null
+                        || !memory.getMetadata().containsKey(BuildingMemoryKeys.EXECUTION_HASH);
+                if (firstCommit || missingExecutionSummary) {
+                    BuildingMemoryKeys.storeExecutionSummary(
+                            memory,
+                            record.sourceKind == null ? null : record.sourceKind.name(),
+                            record.appliedPositions,
+                            record.plannedPositions,
+                            record.executionHash,
+                            record.buildStatus);
+                }
+                var update = memoryManager.updateMemoryStrict(memory);
+                if (!update.ok()) {
+                    record.lastError = update.message();
+                    return false;
+                }
+                record.phaseMemoryPersisted = true;
+                // Persist the phase marker before attempting phase 2 so a crash mid-way
+                // does not redo semantic initialization on the next retry.
+                if (!memoryManager.saveCommitRecord(record)) {
+                    FormacraftMod.LOGGER.error(
+                            "Memory commit phase-1 marker for {} could not be persisted",
+                            record.memoryUuid);
+                }
             }
 
             // ---- Phase 2: undo progress of an already-undone building ----
-            if (record.undoRestoredPositions != null && record.undoTotalPositions != null
-                    && record.undoTotalPositions > 0) {
-                int total = record.undoTotalPositions;
-                int restored = record.undoComplete
-                        ? total
-                        : Math.min(Math.max(record.undoRestoredPositions, 0), total);
-                boolean complete = restored == total;
-                boolean undoApplied;
-                try {
-                    var undoUpdate = new BuildUndoMemoryUpdate(
-                            record.transactionId == null ? java.util.UUID.randomUUID()
-                                    : java.util.UUID.fromString(record.transactionId),
-                            record.memoryUuid, dimension,
-                            restored, total, complete);
-                    // The undo metadata write is a separate durable step — never ignore it.
-                    undoApplied = memoryManager.recordBuildUndo(undoUpdate);
-                } catch (RuntimeException exception) {
-                    undoApplied = false;
-                    record.lastError = exception.getMessage() == null
-                            ? exception.getClass().getSimpleName() : exception.getMessage();
-                    FormacraftMod.LOGGER.warn("Failed to apply pending undo state to memory {}: {}",
-                            record.memoryUuid, record.lastError);
+            boolean undoRequired = record.undoRestoredPositions != null
+                    && record.undoTotalPositions != null
+                    && record.undoTotalPositions > 0;
+            if (!record.phaseUndoPersisted) {
+                if (undoRequired) {
+                    int total = record.undoTotalPositions;
+                    int restored = record.undoComplete
+                            ? total
+                            : Math.min(Math.max(record.undoRestoredPositions, 0), total);
+                    boolean complete = restored == total;
+                    boolean undoApplied;
+                    try {
+                        var undoUpdate = new BuildUndoMemoryUpdate(
+                                record.transactionId == null ? java.util.UUID.randomUUID()
+                                        : java.util.UUID.fromString(record.transactionId),
+                                record.memoryUuid, dimension,
+                                restored, total, complete);
+                        // The undo metadata write is a separate durable step — never ignore it.
+                        undoApplied = memoryManager.recordBuildUndo(undoUpdate);
+                    } catch (RuntimeException exception) {
+                        undoApplied = false;
+                        record.lastError = exception.getMessage() == null
+                                ? exception.getClass().getSimpleName() : exception.getMessage();
+                        FormacraftMod.LOGGER.warn("Failed to apply pending undo state to memory {}: {}",
+                                record.memoryUuid, record.lastError);
+                    }
+                    if (!undoApplied) {
+                        if (record.lastError == null) record.lastError = "undo_metadata_persist_failed";
+                        // Phase 1 is done; keep pending so the next retry only finishes undo.
+                        record.status = MemoryCommitRecord.Status.PENDING;
+                        return false;
+                    }
                 }
-                if (!undoApplied) {
-                    if (record.lastError == null) record.lastError = "undo_metadata_persist_failed";
-                    // The building record exists but its undo state is not durable yet:
-                    // keep the commit pending so the next retry can finish it.
-                    record.status = MemoryCommitRecord.Status.PENDING;
-                    return false;
-                }
+                record.phaseUndoPersisted = true;
             }
 
             record.status = MemoryCommitRecord.Status.COMMITTED;

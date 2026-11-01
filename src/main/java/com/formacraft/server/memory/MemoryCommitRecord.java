@@ -58,6 +58,19 @@ public final class MemoryCommitRecord {
     public Integer undoTotalPositions;
     public boolean undoComplete;
 
+    // ---- Commit phase markers (retries skip phases that already finished) ----
+
+    /**
+     * Phase 1 finished: building Memory identity / summary is durably on disk.
+     * A retry must not redo semantic initialization when this is true.
+     */
+    public boolean phaseMemoryPersisted;
+    /**
+     * Phase 2 finished: undo metadata was written, or was not required.
+     * The overall commit is only {@link Status#COMMITTED} when both phases are done.
+     */
+    public boolean phaseUndoPersisted;
+
     // ---- Execution summary (distinguishes planned design from confirmed world result) ----
 
     /** Where the recorded content comes from. */
@@ -74,7 +87,10 @@ public final class MemoryCommitRecord {
     public int appliedPositions;
     /** Number of planned positions (may exceed {@link #appliedPositions}). */
     public int plannedPositions;
-    /** Stable digest of the confirmed world changes; empty when not executed. */
+    /**
+     * Full SHA-256 hex digest of the final confirmed world state per applied cell
+     * (see {@code BuildExecutionService.executionHash}); empty when not executed.
+     */
     public String executionHash;
     /** Build terminal status recorded when the build finished. */
     public String buildStatus;

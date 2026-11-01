@@ -2,6 +2,7 @@ package com.formacraft.server.memory;
 
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.model.build.BuildingSpec;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -77,5 +78,62 @@ class MemoryCommitIdempotencyTest {
     void commitWithoutDimensionIsRejected() {
         var manager = new TestMemoryManager();
         assertNull(manager.commitBuilding(UUID.randomUUID().toString(), structure(0), null, "tower", null));
+    }
+
+    @Test
+    void retryDoesNotOverwriteEditedNameOrGeneData() {
+        var manager = new TestMemoryManager();
+        var uuid = UUID.randomUUID().toString();
+
+        BuildingSpec original = new BuildingSpec();
+        original.setNotes("original-build");
+        var first = manager.commitBuilding(uuid, structure(0), original, "tower", OVERWORLD);
+        assertNotNull(first);
+
+        // Later edit replaces semantic fields before a deferred commit retries.
+        BuildingSpec edited = new BuildingSpec();
+        edited.setNotes("after-edit");
+        first.setName("renamed-tower");
+        first.setGeneData(edited);
+
+        BuildingSpec staleRetrySpec = new BuildingSpec();
+        staleRetrySpec.setNotes("original-build");
+        var retry = manager.commitBuilding(uuid, structure(0), staleRetrySpec, "tower", OVERWORLD);
+        assertNotNull(retry);
+        assertSame(first, retry);
+        assertEquals("renamed-tower", retry.getName());
+        assertNotNull(retry.getGeneData());
+        assertEquals("after-edit", retry.getGeneData().getNotes());
+    }
+
+    @Test
+    void retryBackfillsMissingNameAndGeneDataOnly() {
+        var manager = new TestMemoryManager();
+        var uuid = UUID.randomUUID().toString();
+
+        var first = manager.commitBuilding(uuid, structure(0), null, null, OVERWORLD);
+        assertNotNull(first);
+        first.setName(null);
+        first.setGeneData(null);
+
+        BuildingSpec backfill = new BuildingSpec();
+        backfill.setNotes("backfill");
+        var retry = manager.commitBuilding(uuid, structure(0), backfill, "tower", OVERWORLD);
+        assertNotNull(retry);
+        assertEquals("tower", retry.getName());
+        assertNotNull(retry.getGeneData());
+        assertEquals("backfill", retry.getGeneData().getNotes());
+    }
+
+    @Test
+    void saveCommitRecordPropagatesNullServerFailure() {
+        var manager = new TestMemoryManager(); // server == null
+        MemoryCommitRecord record = new MemoryCommitRecord();
+        record.memoryUuid = UUID.randomUUID().toString();
+        record.dimension = "minecraft:overworld";
+        record.name = "tower";
+        // Underlying MemoryCommitStore.save returns false when server is null —
+        // the manager must not report that as success.
+        assertFalse(manager.saveCommitRecord(record));
     }
 }

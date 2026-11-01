@@ -73,6 +73,10 @@ public class MemoryManager {
      * <p>
      * Idempotent: the same {@code memoryUuid} updates the existing record instead of
      * creating a second building. Used by the Memory commit retry path.
+     * <p>
+     * <b>First commit</b> initializes name / GeneData from the build snapshot.
+     * <b>Retry</b> never overwrites those semantic fields — later edits must win.
+     * A retry may only fill a missing name or GeneData if the first write left them empty.
      */
     public ProjectMemory commitBuilding(
             String memoryUuid,
@@ -91,8 +95,14 @@ public class MemoryManager {
             if (existing == null) {
                 memory.setUuid(memoryUuid);
             } else {
-                if (name != null && !name.isBlank()) memory.setName(name);
-                if (spec != null) memory.setGeneData(spec);
+                // Compensation retry: preserve edits. Only backfill gaps left by a partial first commit.
+                if ((memory.getName() == null || memory.getName().isBlank())
+                        && name != null && !name.isBlank()) {
+                    memory.setName(name);
+                }
+                if (memory.getGeneData() == null && spec != null) {
+                    memory.setGeneData(spec);
+                }
             }
             // The dimension is bound to the record identity — never inherit a foreign one.
             var bounds = memory.getBounds();
@@ -103,7 +113,8 @@ public class MemoryManager {
             semanticIndex.removeMemory(memoryUuid);
             spatialIndex.addMemory(memory);
             semanticIndex.addMemory(memory);
-            FormacraftMod.LOGGER.info("Committed building memory: {} ({})", name, memoryUuid);
+            FormacraftMod.LOGGER.info("Committed building memory: {} ({})",
+                    memory.getName() != null ? memory.getName() : name, memoryUuid);
             return memory;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to commit building memory {}", memoryUuid, e);
@@ -372,8 +383,9 @@ public class MemoryManager {
     public boolean saveCommitRecord(MemoryCommitRecord record) {
         if (record == null || record.memoryUuid == null) return false;
         try {
-            MemoryCommitStore.save(server, record);
-            return true;
+            // Propagate the store result — never report success when the durable write failed
+            // (including server == null, which MemoryCommitStore.save returns as false).
+            return MemoryCommitStore.save(server, record);
         } catch (Exception exception) {
             FormacraftMod.LOGGER.error("Failed to persist memory commit record {}: {}",
                     record.memoryUuid, exception.getMessage());
