@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
@@ -242,11 +243,8 @@ public class RoofGenerator implements ComponentGenerator {
             return n.doubleValue() > 0 && n.doubleValue() < 40.0;
         }
         // Explicit roof_height that is intentionally shallow and not stairs-forced by pitch.
-        if (com.formacraft.common.generation.component.util.RoofPitchGeometry.hasExplicitRiseIntent(params)
-                && !getParamBoolean(params, "prefer_stairs", "preferStairs", "stair_roof")) {
-            return true;
-        }
-        return false;
+        return com.formacraft.common.generation.component.util.RoofPitchGeometry.hasExplicitRiseIntent(params)
+                && !getParamBoolean(params, "prefer_stairs", "preferStairs", "stair_roof");
     }
 
     /** Place solid fill under a stair/slab surface cell (shallow slopes). */
@@ -442,14 +440,16 @@ public class RoofGenerator implements ComponentGenerator {
         String axis = getParamString(params, "ridge_axis", "ridgeAxis");
         if (axis != null) {
             String a = axis.trim().toLowerCase(java.util.Locale.ROOT);
-            if ("x".equals(a) || "east_west".equals(a) || "east-west".equals(a) || "ew".equals(a)) {
-                return false; // across = depth → N/S slopes
-            }
-            if ("z".equals(a) || "north_south".equals(a) || "north-south".equals(a) || "ns".equals(a)) {
-                return true; // across = width → E/W slopes
-            }
-            if ("long".equals(a) || "long_side".equals(a)) {
-                return width >= depth; // ridge along longer plan axis
+            switch (a) {
+                case "x", "east_west", "east-west", "ew" -> {
+                    return false; // across = depth → N/S slopes
+                }
+                case "z", "north_south", "north-south", "ns" -> {
+                    return true; // across = width → E/W slopes
+                }
+                case "long", "long_side" -> {
+                    return width >= depth; // ridge along longer plan axis
+                }
             }
         }
         return depth >= width;

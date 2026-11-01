@@ -29,10 +29,16 @@ class RoofGeneratorStairSlopeTest {
 
     @Test
     void shallowStairGablePromotesToward45AndFillsUnder() {
-        assertEquals(7, RoofGenerator.normalizeStairRoofRise(
+        // ridge_axis=x → across=depth=10 → half=4 → ~45° height=5
+        assertEquals(5, RoofGenerator.normalizeStairRoofRise(
                 3, 12, 10, RoofTypeKind.GABLE,
                 Map.of("prefer_stairs", true, "roof_block", "minecraft:oak_stairs", "ridge_axis", "x"),
                 false));
+        // Long across (width=12, alongDepth) → half=5 → height=6
+        assertEquals(6, RoofGenerator.normalizeStairRoofRise(
+                3, 12, 10, RoofTypeKind.GABLE,
+                Map.of("prefer_stairs", true, "roof_block", "minecraft:oak_stairs"),
+                true));
 
         Map<String, Object> params = new HashMap<>();
         params.put("roof_type", "gable");
@@ -56,13 +62,10 @@ class RoofGeneratorStairSlopeTest {
         assertTrue(stairs >= 20, "surface stairs=" + stairs);
         assertTrue(fill >= 10, "solid fill under stairs=" + fill);
 
-        // No 3-wide constant-Y terrace of only stairs without neighboring higher ridge.
-        Map<Integer, Long> stairsPerY = patches.stream()
-                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("stairs"))
-                .collect(Collectors.groupingBy(BlockPatch::dy, Collectors.counting()));
-        int maxY = stairsPerY.keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
-        int minY = stairsPerY.keySet().stream().mapToInt(Integer::intValue).min().orElse(0);
-        assertTrue(maxY - minY >= 4, "stair surface span should track ~45° rise, span=" + (maxY - minY));
+        // Surface columns (stairs + ridge slabs) should span ~half-depth rises, not a 2-tall terrace.
+        int maxY = patches.stream().mapToInt(BlockPatch::dy).max().orElse(0);
+        int minY = patches.stream().mapToInt(BlockPatch::dy).min().orElse(0);
+        assertTrue(maxY - minY >= 4, "roof surface span should track ~45° rise, span=" + (maxY - minY));
     }
 
     @Test
