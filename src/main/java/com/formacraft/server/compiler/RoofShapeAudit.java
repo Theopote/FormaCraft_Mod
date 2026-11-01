@@ -52,7 +52,8 @@ final class RoofShapeAudit {
         var finalBlocks=new HashMap<BlockPos,BlockPatch>();
         for(var patch:patches) if(patch!=null) finalBlocks.put(new BlockPos(patch.dx(),patch.dy(),patch.dz()),patch);
         var origin=new BlockPos(c.relativePosition().x(),c.relativePosition().y(),c.relativePosition().z()).add(offset);
-        boolean alongDepth=d>=w;
+        boolean alongDepth=com.formacraft.common.generation.component.impl.RoofGenerator
+                .resolveGableAlongDepth(c.params(), w, d);
         int across=alongDepth?w:d;
         int length=alongDepth?d:w;
         int overhang = com.formacraft.common.generation.component.util.ComponentParamParsers.intParam(c.params(),"overhang");

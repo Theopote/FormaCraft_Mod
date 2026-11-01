@@ -61,6 +61,8 @@ public class RoofGenerator implements ComponentGenerator {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: " + e.getMessage(), e);
         }
+        boolean alongDepthHint = resolveGableAlongDepth(params, width, depth);
+        height = normalizeStairRoofRise(height, width, depth, roofType, params, alongDepthHint);
 
         int overhang = ComponentParamParsers.intParam(params, ComponentParamParsers.keysFor("overhang"));
         if (roofType == RoofTypeKind.XUANSHAN && overhang <= 0) {
@@ -157,7 +159,10 @@ public class RoofGenerator implements ComponentGenerator {
         return out;
     }
 
-    /** Quantized steep slopes need vertical risers, otherwise roof rows float apart. */
+    /**
+     * Fill under stair surfaces with full blocks so shallow quantized slopes do not show grooves.
+     * Top cell stays as authored (usually stairs); risers use the solid family block.
+     */
     private static void sealSlopeRisers(List<BlockPatch> out) {
         var tops = new java.util.HashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
         for (var p : out) if (GeneratedSurfaceCapture.occupied(p)) {
@@ -173,10 +178,87 @@ public class RoofGenerator implements ComponentGenerator {
                 var lower = tops.get(neighbor);
                 if (lower != null) bottom = Math.min(bottom, lower.dy());
             }
+            String fill = slopeFillBlock(top.targetBlock());
             for (int y = bottom; y < top.dy(); y++)
-                additions.add(new BlockPatch(BlockPatch.PLACE, top.dx(), y, top.dz(), top.targetBlock()));
+                additions.add(new BlockPatch(BlockPatch.PLACE, top.dx(), y, top.dz(), fill));
         }
         out.addAll(additions);
+    }
+
+    static String slopeFillBlock(String surface) {
+        if (surface == null || surface.isBlank()) return "minecraft:oak_planks";
+        String full = com.formacraft.common.palette.component.MaterialBlockFamily.fullBlock(surface);
+        if (full != null) return full;
+        String base = surface.split("\\[", 2)[0].toLowerCase(java.util.Locale.ROOT);
+        if (base.endsWith("_stairs") || base.endsWith("_slab")) {
+            return base.replace("_stairs", "_planks").replace("_slab", "_planks");
+        }
+        return surface.contains(":") ? base : "minecraft:" + base;
+    }
+
+    /**
+     * Stair-only roofs look right near 45°. Shallower authored rises leave multi-cell flats
+     * (e.g. 3 stairs at one Y) and groove artifacts — bump toward half-span rise unless an
+     * explicit shallow pitch was requested.
+     */
+    static int normalizeStairRoofRise(int height, int width, int depth, RoofTypeKind roofType,
+                                      Map<String, Object> params, boolean alongDepth) {
+        int across = switch (roofType) {
+            case HIP, XIESHAN, PYRAMID, CONE, DOME -> Math.min(width, depth);
+            case FLAT, SAWTOOTH, SHED -> 0;
+            default -> alongDepth ? width : depth;
+        };
+        if (across <= 0) return Math.max(1, height);
+        int half = Math.max(1, (across - 1) / 2);
+        int rise = Math.max(1, height) - 1;
+        boolean stairs = wantsStairSurface(params);
+        if (hasExplicitShallowPitch(params, half) && !stairs) {
+            return Math.max(2, height);
+        }
+        // Stair roofs: promote near-45° so we do not get 3-wide flat stair terraces.
+        if (stairs && rise < half * 0.65) {
+            return Math.max(height, half + 1);
+        }
+        // Any pitched roof with almost no rise fails ridge audit and looks flat.
+        if (rise < Math.max(2, half / 3)) {
+            int bumped = stairs ? half + 1 : Math.max(4, half / 2 + 1);
+            return Math.max(height, Math.min(bumped, half + 1));
+        }
+        return Math.max(2, height);
+    }
+
+    static boolean wantsStairSurface(Map<String, Object> params) {
+        if (params == null) return false;
+        if (getParamBoolean(params, "prefer_stairs", "preferStairs", "stair_roof")) return true;
+        String roof = getParamString(params, "roof_block", "roof_material", "material");
+        return roof != null && roof.toLowerCase(java.util.Locale.ROOT).contains("stairs");
+    }
+
+    static boolean hasExplicitShallowPitch(Map<String, Object> params, int halfSpan) {
+        if (params == null) return false;
+        Object pitch = params.get("roof_pitch_degrees");
+        if (pitch == null) pitch = params.get("pitch_degrees");
+        if (pitch instanceof Number n) {
+            return n.doubleValue() > 0 && n.doubleValue() < 40.0;
+        }
+        // Explicit roof_height that is intentionally shallow and not stairs-forced by pitch.
+        if (com.formacraft.common.generation.component.util.RoofPitchGeometry.hasExplicitRiseIntent(params)
+                && !getParamBoolean(params, "prefer_stairs", "preferStairs", "stair_roof")) {
+            return true;
+        }
+        return false;
+    }
+
+    /** Place solid fill under a stair/slab surface cell (shallow slopes). */
+    private static void emitSlopeColumn(List<BlockPatch> out, int x, int baseY, int z, int rise,
+                                        String surfaceBlock, boolean fillUnder) {
+        if (fillUnder && rise > 0) {
+            String fill = slopeFillBlock(surfaceBlock);
+            for (int y = 0; y < rise; y++) {
+                out.add(new BlockPatch(BlockPatch.PLACE, x, baseY + y, z, fill));
+            }
+        }
+        out.add(new BlockPatch(BlockPatch.PLACE, x, baseY + rise, z, surfaceBlock));
     }
 
     /** Close the two body-end planes, leaving overhangs and the attic interior hollow. */
@@ -333,6 +415,8 @@ public class RoofGenerator implements ComponentGenerator {
         }
         int across = alongDepth ? width : depth;
         int maxSpan = Math.max(1, (across - 1) / 2);
+        boolean fillUnder = wantsStairSurface(semantic.source() != null ? semantic.source().params() : null)
+                || (height - 1) < maxSpan * 0.9;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
@@ -348,19 +432,13 @@ public class RoofGenerator implements ComponentGenerator {
                     // Minecraft stairs facing = higher half. Point toward the ridge (inward).
                     block = withStairsFacing(block, gableRidgeFacing(alongDepth, x, z, width, depth));
                 }
-                out.add(new BlockPatch(
-                        BlockPatch.PLACE,
-                        baseX + x,
-                        baseY + rise,
-                        baseZ + z,
-                        block
-                ));
+                emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block, fillUnder && part == SemanticPart.ROOF);
             }
         }
     }
 
     /** ridge_axis x ⇒ slopes face N/S (ridge along width); z ⇒ slopes face E/W. */
-    static boolean resolveGableAlongDepth(Map<String, Object> params, int width, int depth) {
+    public static boolean resolveGableAlongDepth(Map<String, Object> params, int width, int depth) {
         String axis = getParamString(params, "ridge_axis", "ridgeAxis");
         if (axis != null) {
             String a = axis.trim().toLowerCase(java.util.Locale.ROOT);
@@ -392,6 +470,8 @@ public class RoofGenerator implements ComponentGenerator {
             return;
         }
         int maxSpan = Math.max(1, (Math.min(width, depth) - 1) / 2);
+        boolean fillUnder = wantsStairSurface(semantic.source() != null ? semantic.source().params() : null)
+                || (height - 1) < maxSpan * 0.9;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
@@ -409,13 +489,7 @@ public class RoofGenerator implements ComponentGenerator {
                             ? cornerOuterShape(x, z, width, depth, facing) : null;
                     block = withStairsFacing(block, facing, shape);
                 }
-                out.add(new BlockPatch(
-                        BlockPatch.PLACE,
-                        baseX + x,
-                        baseY + rise,
-                        baseZ + z,
-                        block
-                ));
+                emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block, fillUnder && part == SemanticPart.ROOF);
             }
         }
     }
@@ -476,13 +550,9 @@ public class RoofGenerator implements ComponentGenerator {
                             ? cornerOuterShape(x, z, width, depth, facing) : null;
                     block = withStairsFacing(block, facing, shape);
                 }
-                out.add(new BlockPatch(
-                        BlockPatch.PLACE,
-                        baseX + x,
-                        baseY + rise,
-                        baseZ + z,
-                        block
-                ));
+                boolean fillUnder = wantsStairSurface(semantic.source() != null ? semantic.source().params() : null)
+                        || maxRise < spanAcross * 0.9;
+                emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block, fillUnder && part == SemanticPart.ROOF);
             }
         }
     }

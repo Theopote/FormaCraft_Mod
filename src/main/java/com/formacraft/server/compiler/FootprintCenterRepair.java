@@ -28,9 +28,11 @@ final class FootprintCenterRepair {
             }
         }
         if (main == null) return components;
-        var bounds = ComponentFootprintUtil.bounds(main);
-        int centerX = (bounds.minX() + bounds.maxX()) / 2;
-        int centerZ = (bounds.minZ() + bounds.maxZ()) / 2;
+        // Prefer min-corner + half size so center matches player cursor even when Bounds max is exclusive.
+        Vec3i origin = ComponentFootprintUtil.resolveMinCornerOrigin(main);
+        if (origin == null) origin = main.relativePosition();
+        int centerX = origin.x() + main.dimensions().width() / 2;
+        int centerZ = origin.z() + main.dimensions().depth() / 2;
         if (centerX == 0 && centerZ == 0) return components;
 
         List<Component> out = new ArrayList<>(components.size());

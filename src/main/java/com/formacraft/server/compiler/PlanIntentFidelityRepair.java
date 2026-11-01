@@ -195,6 +195,18 @@ final class PlanIntentFidelityRepair {
                     changed |= DesignProvenance.putIfAllowed(plan, params, "roof_block", stairs);
                 }
             }
+            // Drop shallow authored roof_height so normalizeStairRoofRise can lift to ~45°.
+            if (roof || mass) {
+                Object rh = params.get("roof_height");
+                if (rh == null) rh = params.get("roofHeight");
+                if (rh instanceof Number n && n.intValue() > 0 && n.intValue() <= 3
+                        && component.dimensions() != null
+                        && Math.min(component.dimensions().width(), component.dimensions().depth()) >= 8) {
+                    params.remove("roof_height");
+                    params.remove("roofHeight");
+                    changed = true;
+                }
+            }
         }
         if (mass && hints.floorBlock() != null
                 && isBlank(ComponentPlanTypes.getParamString(params, "floor_block"))) {
