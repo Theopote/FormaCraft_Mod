@@ -1,5 +1,6 @@
 package com.formacraft.client.interaction;
 
+import com.formacraft.client.tool.ToolRenderUtil;
 import com.formacraft.client.tool.ToolTextRenderUtil;
 import com.formacraft.client.tool.ToolWorldRenderContext;
 import net.minecraft.client.MinecraftClient;
@@ -10,9 +11,12 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * 锚点可视化：青色小立方体 + 悬浮文字。
+ * 锚点可视化：青色小立方体 + 指北短线 + 悬浮文字。
  */
 public final class AnchorRenderer {
+    /** 指北短线长度（方块单位），从中心指向 -Z（Minecraft 北向）。 */
+    private static final double NORTH_MARKER_LENGTH = 0.42;
+
     private AnchorRenderer() {}
 
     public static void render(ToolWorldRenderContext ctx) {
@@ -27,6 +31,17 @@ public final class AnchorRenderer {
         );
         Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
         VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.25f, 0.95f, 0.95f, 0.95f);
+
+        // 指北短线：从方块中心指向世界北方（-Z），类似指北针
+        double cx = a.getX() + 0.5;
+        double cy = a.getY() + 0.5;
+        double cz = a.getZ() + 0.5;
+        ToolRenderUtil.line(
+                ctx,
+                cx, cy, cz,
+                cx, cy, cz - NORTH_MARKER_LENGTH,
+                255, 70, 70, 240
+        );
 
         // 悬浮文字（仅在 immediate 可用时）
         // 注意：在 WorldRenderer.renderTargetBlockOutline 阶段，如果使用 Immediate 渲染文字，会切换 RenderLayer，
