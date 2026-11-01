@@ -8,13 +8,19 @@ import com.formacraft.server.generation.component.impl.StraightStairComponentGen
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * In thin towers / spires, width-3 stairs clog the shaft. Force width=1 when the host
  * interior clear span is small, and harden the shell so walls stay continuous.
+ * <p>
+ * Window suppression is skipped when the plan already authors an explicit
+ * {@code FACADE_WINDOWS} bound to that host — otherwise Confirm/compile drops the
+ * facade via {@link ExplicitDesignConflictRepair} and reports {@code E_DESIGN_INCOMPLETE}.
  */
 final class NarrowTowerStairRepair {
     private NarrowTowerStairRepair() {}
@@ -22,19 +28,29 @@ final class NarrowTowerStairRepair {
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         Map<String, Component> hosts = new HashMap<>();
+        Set<String> hostsWithExplicitFacade = new HashSet<>();
         for (Component c : plan.components()) {
-            if (c == null || c.params() == null || c.dimensions() == null) continue;
-            Object id = c.params().get("component_id");
-            if (id == null) continue;
+            if (c == null || c.params() == null) continue;
             String type = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
-            if (ComponentPlanTypes.isMassType(type) || "TOWER".equals(type) || type.startsWith("TOWER_")) {
-                hosts.put(String.valueOf(id), c);
+            if (c.dimensions() != null) {
+                Object id = c.params().get("component_id");
+                if (id != null && (ComponentPlanTypes.isMassType(type)
+                        || "TOWER".equals(type) || type.startsWith("TOWER_"))) {
+                    hosts.put(String.valueOf(id), c);
+                }
+            }
+            if ("FACADE_WINDOWS".equals(type) || "FACADE_OPENING".equals(type)
+                    || "WINDOW".equals(type) || "WINDOWS".equals(type)) {
+                Object hostId = c.params().get("host_id");
+                if (hostId != null) {
+                    hostsWithExplicitFacade.add(String.valueOf(hostId));
+                }
             }
         }
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
-            Component next = repairHostShell(c);
+            Component next = repairHostShell(c, hostsWithExplicitFacade);
             if (next != c) changed = true;
             if (StraightStairComponentGenerator.accepts(next)) {
                 Component stair = clampStairWidth(next, hosts);
@@ -48,7 +64,7 @@ final class NarrowTowerStairRepair {
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
     }
 
-    private static Component repairHostShell(Component host) {
+    private static Component repairHostShell(Component host, Set<String> hostsWithExplicitFacade) {
         if (host == null || host.params() == null || host.dimensions() == null) return host;
         String type = host.componentType() == null ? "" : host.componentType().toUpperCase(Locale.ROOT);
         // Only harden structural hosts. Thin FACADE_WINDOWS / ENTRANCE strips (depth=1)
@@ -56,8 +72,9 @@ final class NarrowTowerStairRepair {
         if (!(ComponentPlanTypes.isMassType(type) || "TOWER".equals(type) || type.startsWith("TOWER_"))) {
             return host;
         }
-        String id = host.params().get("component_id") == null ? ""
-                : String.valueOf(host.params().get("component_id")).toLowerCase(Locale.ROOT);
+        String idRaw = host.params().get("component_id") == null ? ""
+                : String.valueOf(host.params().get("component_id"));
+        String id = idRaw.toLowerCase(Locale.ROOT);
         boolean spireLike = "TOWER".equals(type) || type.startsWith("TOWER_")
                 || id.contains("spire") || id.contains("尖塔") || id.contains("belfry")
                 || id.contains("campanile") || looksSpireFeatures(host.features());
@@ -74,15 +91,18 @@ final class NarrowTowerStairRepair {
             params.put("wall_thickness", 1);
             changed = true;
         }
-        // Narrow shafts read incomplete when dense window punch removes the shell.
-        if (span <= 7 && !Boolean.TRUE.equals(params.get("suppress_windows"))) {
+        // Narrow shafts read incomplete when dense window punch removes the shell —
+        // but do not override an authored facade satellite for this host.
+        boolean keepAuthoredFacade = !idRaw.isBlank() && hostsWithExplicitFacade.contains(idRaw);
+        if (span <= 7 && !Boolean.TRUE.equals(params.get("suppress_windows")) && !keepAuthoredFacade) {
             params.put("suppress_windows", true);
             params.putIfAbsent("window_style", "none");
             changed = true;
         }
         if (!changed) return host;
         FormacraftMod.LOGGER.info(
-                "NarrowTowerStairRepair: harden spire shell id={} span={}", id, span);
+                "NarrowTowerStairRepair: harden spire shell id={} span={} keepFacade={}",
+                id, span, keepAuthoredFacade);
         return new Component(host.componentType(), host.slotId(), host.relativePosition(),
                 host.dimensions(), host.features(), params);
     }

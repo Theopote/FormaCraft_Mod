@@ -1,0 +1,17 @@
+{
+  "id": "medieval_tower",
+  "labelZh": "中世纪塔楼",
+  "labelEn": "Medieval Tower",
+  "prompt": "一座中世纪石砖塔楼，强调竖向空间，内部有连通楼梯。",
+  "focus": ["vertical", "stairs"],
+  "planFile": "plan.json",
+  "checks": {
+    "minSolidBlocks": 80,
+    "requireRoofLike": false,
+    "requireOpeningLike": true,
+    "requireStairLike": true,
+    "minDistinctBlockIds": 2,
+    "minHeightSpan": 12
+  },
+  "goldenPreviewDigest": null
+}

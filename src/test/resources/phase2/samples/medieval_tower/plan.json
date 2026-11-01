@@ -1,0 +1,70 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "phase2_sample": "medieval_tower"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "tower",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 9, "depth": 9, "height": 16 },
+      "features": [],
+      "params": {
+        "component_id": "tower",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "hollow": true,
+        "material": "stone_bricks",
+        "floor_count": 4,
+        "floor_height": 4,
+        "roof_type": "none",
+        "entrance_type": "none",
+        "facade_requirement": "REQUIRED",
+        "entrance_requirement": "OMITTED",
+        "roof_requirement": "OMITTED",
+        "crown_requirement": "OMITTED"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower",
+      "relative_position": { "x": 2, "y": 0, "z": 3 },
+      "dimensions": { "width": 5, "depth": 3, "height": 5 },
+      "features": ["stair:straight_single_run"],
+      "params": {
+        "component_id": "tower_stair",
+        "host_id": "tower",
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 4, "y": 4, "z": 0 },
+        "width": 1,
+        "stairs": "minecraft:cobblestone_stairs",
+        "floor": "minecraft:cobblestone",
+        "landing_length": 1
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "tower",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 9, "depth": 9, "height": 16 },
+      "features": [],
+      "params": {
+        "host_id": "tower",
+        "faces": ["NORTH", "SOUTH", "EAST", "WEST"],
+        "window_ratio": 0.12,
+        "window_aspect": "tall",
+        "window_width": 1,
+        "window_height": 2,
+        "sill_offset": 1,
+        "floor_count": 4,
+        "floor_height": 4,
+        "allow_patch_overwrite": true,
+        "reserve_entrance_bay": false
+      }
+    }
+  ]
+}

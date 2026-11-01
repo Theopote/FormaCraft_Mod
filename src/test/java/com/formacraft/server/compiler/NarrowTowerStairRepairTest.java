@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Thin facade strips must not be hardened like narrow tower shafts.
@@ -38,5 +40,60 @@ class NarrowTowerStairRepairTest {
         assertNull(out.params().get("window_style"));
         assertFalse(Boolean.TRUE.equals(out.params().get("suppress_windows")));
         assertFalse(Boolean.TRUE.equals(out.params().get("hollow")));
+    }
+
+    @Test
+    void keepsWindowsWhenExplicitFacadeBoundToNarrowTower() {
+        Component tower = new Component(
+                "MASS_MAIN",
+                "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 16),
+                List.of(),
+                Map.of("component_id", "tower", "hollow", true, "wall_thickness", 1)
+        );
+        Component facade = new Component(
+                "FACADE_WINDOWS",
+                "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 16),
+                List.of(),
+                Map.of("host_id", "tower", "window_ratio", 0.15, "faces", List.of("SOUTH"))
+        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(tower, facade))
+                .build();
+
+        LlmPlan repaired = NarrowTowerStairRepair.apply(plan);
+        Component mass = repaired.components().stream()
+                .filter(c -> "MASS_MAIN".equals(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertNull(mass.params().get("window_style"));
+        assertFalse(Boolean.TRUE.equals(mass.params().get("suppress_windows")));
+        assertTrue(Boolean.TRUE.equals(mass.params().get("hollow")));
+        assertEquals(1, ((Number) mass.params().get("wall_thickness")).intValue());
+    }
+
+    @Test
+    void stillSuppressesWindowsOnNarrowTowerWithoutAuthoredFacade() {
+        Component tower = new Component(
+                "MASS_MAIN",
+                "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 16),
+                List.of(),
+                Map.of("component_id", "lonely_tower", "hollow", true, "wall_thickness", 1)
+        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(tower))
+                .build();
+
+        LlmPlan repaired = NarrowTowerStairRepair.apply(plan);
+        Component mass = repaired.components().getFirst();
+        assertEquals("none", String.valueOf(mass.params().get("window_style")));
+        assertTrue(Boolean.TRUE.equals(mass.params().get("suppress_windows")));
     }
 }

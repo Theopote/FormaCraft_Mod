@@ -1,0 +1,19 @@
+{
+  "id": "apartment",
+  "labelZh": "多层公寓",
+  "labelEn": "Multi-story Apartment",
+  "prompt": "一座多层城市公寓，楼层清晰，开窗节奏重复。",
+  "focus": ["floors", "window_rhythm"],
+  "planFile": "plan.json",
+  "checks": {
+    "minSolidBlocks": 100,
+    "requireRoofLike": false,
+    "requireOpeningLike": true,
+    "requireStairLike": false,
+    "minDistinctBlockIds": 2,
+    "minHeightSpan": 12,
+    "minOpeningCells": 10,
+    "minFloorLayers": 4
+  },
+  "goldenPreviewDigest": null
+}

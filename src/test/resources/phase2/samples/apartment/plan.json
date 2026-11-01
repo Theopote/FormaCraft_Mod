@@ -1,0 +1,67 @@
+{
+  "mode": "build",
+  "style_profile": "MODERN",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "phase2_sample": "apartment"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "block",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 14, "depth": 10, "height": 16 },
+      "features": [],
+      "params": {
+        "component_id": "block",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "hollow": true,
+        "material": "light_gray_concrete",
+        "floor_count": 4,
+        "floor_height": 4,
+        "roof_type": "none",
+        "entrance_type": "none",
+        "facade_requirement": "REQUIRED",
+        "entrance_requirement": "OMITTED",
+        "roof_requirement": "REQUIRED",
+        "crown_requirement": "OMITTED"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "block",
+      "relative_position": { "x": 0, "y": 15, "z": 0 },
+      "dimensions": { "width": 14, "depth": 10, "height": 1 },
+      "features": [],
+      "params": {
+        "host_id": "block",
+        "roof_type": "flat",
+        "material": "smooth_stone_slab",
+        "overhang": 0,
+        "allow_patch_overwrite": true
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "block",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 14, "depth": 10, "height": 16 },
+      "features": [],
+      "params": {
+        "host_id": "block",
+        "faces": ["SOUTH"],
+        "window_ratio": 0.4,
+        "window_aspect": "square",
+        "window_width": 2,
+        "window_height": 2,
+        "sill_offset": 1,
+        "floor_count": 4,
+        "floor_height": 4,
+        "allow_patch_overwrite": true,
+        "reserve_entrance_bay": false
+      }
+    }
+  ]
+}
