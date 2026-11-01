@@ -284,6 +284,75 @@ class InGameAcceptanceRepairTest {
     }
 
     @Test
+    void emptyComponentsWithoutSlotSizeRecoversFromIntentFootprint() {
+        // R1/F3 orchestrator regression: components=[] and slot has no size / no target_width.
+        String json = """
+                {"mode":"build","anchor":{"x":0,"y":71,"z":0},"plan_status":"ok",
+                 "layout":{"skeleton_type":"COMPOUND","slots":[
+                   {"slot_id":"main","anchor":{"x":0,"y":0,"z":0},"facing":"NORTH"}]},
+                 "components":[],
+                 "style_attributes":{"palette_roles":{
+                   "wall":"minecraft:dark_oak_planks","roof_slope":"minecraft:oak_stairs"}},
+                 "proportion_hints":{"architecture_intent":{"scopes":[{"text":
+                   "盖一座约 12×10 的单层木构小厅，深色橡木墙，橡木楼梯坡屋顶（双坡/人字顶），屋脊沿东西向，南北两坡用楼梯方块，南侧正门一门两窗。普通建筑，不要地标。"}],
+                   "original_text":"盖一座约 12×10 的单层木构小厅"}}}
+                """;
+        LlmPlan plan;
+        try {
+            plan = com.formacraft.common.llm.parser.LlmPlanParser.parse(json);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+        assertNull(plan.layout().slots().getFirst().size());
+        var prepared = ComponentSatelliteInference.prepareComponents(
+                plan, Map.of("main", plan.layout().slots().getFirst()), false);
+        assertFalse(prepared.components().isEmpty(), "intent 12×10 must recover MASS_MAIN without slot.size");
+        Component mass = prepared.components().stream()
+                .filter(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertEquals(12, mass.dimensions().width());
+        assertEquals(10, mass.dimensions().depth());
+        Component roof = prepared.components().stream()
+                .filter(c -> "ROOF".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertTrue(String.valueOf(roof.params().get("roof_block")).contains("stairs")
+                        || Boolean.TRUE.equals(roof.params().get("prefer_stairs")),
+                "stair roof intent must land on roof params");
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(patches.isEmpty(), "R1-like empty plan must compile; gap="
+                + com.formacraft.server.assembly.AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void emptyComponentsTwoStoreySquareRecoversFromIntent() {
+        String json = """
+                {"mode":"build","anchor":{"x":0,"y":71,"z":0},
+                 "layout":{"slots":[{"slot_id":"main","anchor":{"x":0,"y":0,"z":0},"facing":"SOUTH"}]},
+                 "components":[],
+                 "distinguishing_features":["oak pilasters between window groups","dark oak gable roof"],
+                 "proportion_hints":{"architecture_intent":{"scopes":[{"text":
+                   "盖一座约 11×11 的两层方厅，橡木墙，四面都开窗，每面约2组窗，窗间保留立柱或实墙段，南向正门预留入口开间，深色橡木坡屋顶。不要玻璃盒子。"}]}}}
+                """;
+        LlmPlan plan;
+        try {
+            plan = com.formacraft.common.llm.parser.LlmPlanParser.parse(json);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+        var prepared = ComponentSatelliteInference.prepareComponents(
+                plan, Map.of("main", plan.layout().slots().getFirst()), false);
+        Component mass = prepared.components().stream()
+                .filter(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertEquals(11, mass.dimensions().width());
+        assertEquals(11, mass.dimensions().depth());
+        assertEquals(2, ((Number) mass.params().get("floor_count")).intValue());
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertFalse(patches.isEmpty(), "F3-like empty plan must compile; gap="
+                + com.formacraft.server.assembly.AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
     void slotPrimaryAnchorRepairZerosResidualOffset() {
         Slot slot = new Slot("studio_slot", new Vec3i(-8, 0, 0), GlobalConstraints.Facing.SOUTH,
                 null, null, null, new Vec3i(12, 8, 12));

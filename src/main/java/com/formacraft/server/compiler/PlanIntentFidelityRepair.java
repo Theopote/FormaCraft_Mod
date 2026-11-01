@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Lands architecture_intent / distinguishing_features / chinese_roof_contract onto
@@ -21,6 +23,10 @@ import java.util.Set;
  */
 final class PlanIntentFidelityRepair {
     private PlanIntentFidelityRepair() {}
+
+    /** Matches 「约 12×10」「11x11」「12*10」 style footprints in architecture_intent text. */
+    private static final Pattern FOOTPRINT_PATTERN = Pattern.compile(
+            "(\\d{1,2})\\s*[×xX*]\\s*(\\d{1,2})");
 
     record IntentHints(
             String roofType,
@@ -34,7 +40,9 @@ final class PlanIntentFidelityRepair {
             boolean doorFlankWindows,
             List<String> solidSides,
             List<String> windowSides,
-            List<String> featureSeeds
+            List<String> featureSeeds,
+            int footprintWidth,
+            int footprintDepth
     ) {}
 
     static IntentHints parse(LlmPlan plan) {
@@ -122,8 +130,27 @@ final class PlanIntentFidelityRepair {
         if (preferStairs) features.add("stair_roof");
         if (doorFlank) features.add("door_flank_windows");
 
+        int[] footprint = parseFootprint(corpus);
         return new IntentHints(roofType, doubleEave, preferStairs, wallBlock, roofBlock, floorBlock,
-                floorCount, ridgeAxis, doorFlank, solid, windows, features);
+                floorCount, ridgeAxis, doorFlank, solid, windows, features,
+                footprint[0], footprint[1]);
+    }
+
+    /**
+     * @return {@code [width, depth]} from the first plausible WxD token; zeros when absent.
+     */
+    static int[] parseFootprint(String corpus) {
+        if (corpus == null || corpus.isBlank()) return new int[]{0, 0};
+        Matcher m = FOOTPRINT_PATTERN.matcher(corpus);
+        while (m.find()) {
+            int a = Integer.parseInt(m.group(1));
+            int b = Integer.parseInt(m.group(2));
+            // Building footprints in prompts are typically 4–48; skip tiny ratios like 1x2 stairs.
+            if (a >= 4 && b >= 4 && a <= 48 && b <= 48) {
+                return new int[]{a, b};
+            }
+        }
+        return new int[]{0, 0};
     }
 
     static Component enrich(LlmPlan plan, Component component) {
@@ -404,7 +431,7 @@ final class PlanIntentFidelityRepair {
     private static String roofBlockFromStyle(LlmPlan plan) {
         if (plan == null || plan.styleAttributes() == null) return null;
         StyleAttributes a = plan.styleAttributes();
-        String fromPalette = a.resolvePaletteBlock("roof", "roof_stairs", "roof_trim");
+        String fromPalette = a.resolvePaletteBlock("roof", "roof_slope", "roof_stairs", "roof_trim", "roof_ridge");
         if (fromPalette != null) return stabilizeBlock(fromPalette);
         if (a.roofMaterial() != null && !a.roofMaterial().isBlank()) {
             return stabilizeBlock(a.roofMaterial());

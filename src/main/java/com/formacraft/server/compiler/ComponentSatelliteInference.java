@@ -1675,8 +1675,22 @@ final class ComponentSatelliteInference {
             hintW = ComponentParamParsers.intParam(hints, 0, "target_width", "targetWidth");
             hintD = ComponentParamParsers.intParam(hints, 0, "target_depth", "targetDepth");
             hintH = ComponentParamParsers.intParam(hints, 0, "target_body_height", "targetBodyHeight", "target_height");
+            // Nested / alternate keys some orchestrator builds use when top-level targets are absent.
+            if (hintW < 4 || hintD < 4) {
+                int[] fromHintFp = intPairFromMap(hints.get("max_footprint"), "x", "width", "w", "z", "depth", "d");
+                if (hintW < 4) hintW = fromHintFp[0];
+                if (hintD < 4) hintD = fromHintFp[1];
+            }
         }
         PlanIntentFidelityRepair.IntentHints intent = PlanIntentFidelityRepair.parse(plan);
+        // Empty components[] often ship without slot.size / target_width — recover WxD from prompt text.
+        if (hintW < 4 && intent.footprintWidth() >= 4) hintW = intent.footprintWidth();
+        if (hintD < 4 && intent.footprintDepth() >= 4) hintD = intent.footprintDepth();
+        if (hintW < 4 || hintD < 4) {
+            int[] fromConstraints = footprintFromGlobalConstraints(plan);
+            if (hintW < 4) hintW = fromConstraints[0];
+            if (hintD < 4) hintD = fromConstraints[1];
+        }
         for (Slot slot : slots) {
             if (slot == null) continue;
             Vec3i size = slot.size();
@@ -1717,7 +1731,51 @@ final class ComponentSatelliteInference {
                     params
             ));
         }
+        // No usable slots at all (or all skipped): still recover a single mass from prompt footprint.
+        if (out.isEmpty() && hintW >= 4 && hintD >= 4) {
+            int floors = Math.max(1, intent.floorCount());
+            int h = hintH >= 3 ? hintH : Math.max(4, floors * 4);
+            Map<String, Object> params = new HashMap<>();
+            params.put("component_id", "mass:recovered_main");
+            params.put("anchor_mode", "min_corner");
+            params.put("hollow", true);
+            params.put("wall_thickness", 1);
+            params.put("roof_requirement", "REQUIRED");
+            params.put("entrance_requirement", "REQUIRED");
+            params.put("facade_requirement", "REQUIRED");
+            if (intent.floorCount() > 0) {
+                params.put("floor_count", intent.floorCount());
+                params.put("floor_height", Math.max(3, h / Math.max(1, intent.floorCount())));
+            }
+            out.add(new Component(
+                    "MASS_MAIN",
+                    "recovered_main",
+                    new Vec3i(-(hintW / 2), 0, -(hintD / 2)),
+                    new Dimensions(hintW, hintD, h),
+                    List.of(),
+                    params
+            ));
+        }
         return out;
+    }
+
+    /** Best-effort WxD from global_constraints JSON leftovers mirrored into proportion_hints. */
+    private static int[] footprintFromGlobalConstraints(LlmPlan plan) {
+        if (plan == null || plan.proportionHints() == null) return new int[]{0, 0};
+        Object gc = plan.proportionHints().get("global_constraints");
+        if (!(gc instanceof Map<?, ?> map)) return new int[]{0, 0};
+        return intPairFromMap(map.get("max_footprint"), "x", "width", "w", "z", "depth", "d");
+    }
+
+    private static int[] intPairFromMap(Object raw, String w1, String w2, String w3, String d1, String d2, String d3) {
+        if (!(raw instanceof Map<?, ?> m)) return new int[]{0, 0};
+        Map<String, Object> typed = new HashMap<>();
+        for (var e : m.entrySet()) {
+            if (e.getKey() != null) typed.put(String.valueOf(e.getKey()), e.getValue());
+        }
+        int w = ComponentParamParsers.intParam(typed, 0, w1, w2, w3);
+        int d = ComponentParamParsers.intParam(typed, 0, d1, d2, d3);
+        return new int[]{w >= 4 ? w : 0, d >= 4 ? d : 0};
     }
 
 }
