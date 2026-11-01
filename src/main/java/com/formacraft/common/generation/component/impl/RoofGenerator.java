@@ -329,6 +329,9 @@ public class RoofGenerator implements ComponentGenerator {
                         semantic, edgeDistance / (double) maxSpan) * (height - 1));
                 SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
+                if (part == SemanticPart.ROOF) {
+                    block = withStairsFacing(block, gableOutwardFacing(alongDepth, x, z, width, depth));
+                }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         baseX + x,
@@ -365,6 +368,9 @@ public class RoofGenerator implements ComponentGenerator {
                         semantic, edgeDistance / (double) maxSpan) * (height - 1));
                 SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
+                if (part == SemanticPart.ROOF) {
+                    block = withStairsFacing(block, outwardFacingFromEdges(x, z, width, depth));
+                }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         baseX + x,
@@ -423,6 +429,9 @@ public class RoofGenerator implements ComponentGenerator {
                         ? SemanticPart.ROOF_SURFACE
                         : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
+                if (part == SemanticPart.ROOF) {
+                    block = withStairsFacing(block, outwardFacingFromEdges(x, z, width, depth));
+                }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         baseX + x,
@@ -444,6 +453,8 @@ public class RoofGenerator implements ComponentGenerator {
         var lower = com.formacraft.common.generation.component.util.RoofLayerFrame.of(baseX, baseZ, width, depth, overhang);
         var upper = com.formacraft.common.generation.component.util.RoofLayerFrame.inset(lower, upperInset, upperWidth, upperDepth);
         int upperBaseY = baseY + (height - upperHeight);
+        // Seat the mid cornice just under the upper tier so it reads as resting on the lower eave.
+        int midEaveY = Math.max(baseY, upperBaseY - 1);
 
         switch (roofType) {
             case XIESHAN -> {
@@ -475,7 +486,7 @@ public class RoofGenerator implements ComponentGenerator {
                         upper.originOffsetX(), upper.originOffsetZ());
             }
         }
-        emitMidEaveShelf(out, semantic, palette, upper, upperBaseY);
+        emitMidEaveShelf(out, semantic, palette, upper, midEaveY);
     }
 
     /**
@@ -500,16 +511,52 @@ public class RoofGenerator implements ComponentGenerator {
         int oz0 = iz0 - 1;
         int ox1 = ix1 + 1;
         int oz1 = iz1 + 1;
+        int outerW = ox1 - ox0 + 1;
+        int outerD = oz1 - oz0 + 1;
         for (int x = ox0; x <= ox1; x++) {
             for (int z = oz0; z <= oz1; z++) {
                 boolean outer = x == ox0 || x == ox1 || z == oz0 || z == oz1;
                 boolean onUpperRim = x >= ix0 && x <= ix1 && z >= iz0 && z <= iz1
                         && (x == ix0 || x == ix1 || z == iz0 || z == iz1);
                 if (!outer && !onUpperRim) continue;
-                String block = outer ? lip : slab;
+                String block = outer
+                        ? withStairsFacing(lip, outwardFacingFromEdges(x - ox0, z - oz0, outerW, outerD))
+                        : slab;
                 out.add(new BlockPatch(BlockPatch.PLACE, x, midY, z, block));
             }
         }
+    }
+
+    /** Stairs block id with horizontal facing; no-op for non-stairs or already-propertied ids. */
+    static String withStairsFacing(String blockId, String facing) {
+        if (blockId == null || facing == null || facing.isBlank()) return blockId;
+        String lower = blockId.toLowerCase(java.util.Locale.ROOT);
+        if (!lower.contains("stairs")) return blockId;
+        if (blockId.indexOf('[') >= 0) return blockId;
+        String base = blockId.contains(":") ? blockId.trim() : "minecraft:" + blockId.trim();
+        return base + "[facing=" + facing.trim().toLowerCase(java.util.Locale.ROOT) + "]";
+    }
+
+    /** Cardinal facing toward the nearest roof edge (outward downslope). */
+    static String outwardFacingFromEdges(int x, int z, int width, int depth) {
+        int dW = x;
+        int dE = Math.max(0, width - 1 - x);
+        int dN = z;
+        int dS = Math.max(0, depth - 1 - z);
+        int min = Math.min(Math.min(dW, dE), Math.min(dN, dS));
+        if (dN == min) return "north";
+        if (dS == min) return "south";
+        if (dW == min) return "west";
+        return "east";
+    }
+
+    static String gableOutwardFacing(boolean alongDepth, int x, int z, int width, int depth) {
+        if (alongDepth) {
+            int mid = Math.max(0, (width - 1) / 2);
+            return x <= mid ? "west" : "east";
+        }
+        int mid = Math.max(0, (depth - 1) / 2);
+        return z <= mid ? "north" : "south";
     }
 
     private void generatePyramidRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
