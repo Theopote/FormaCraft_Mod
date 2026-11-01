@@ -1,7 +1,6 @@
 package com.formacraft.server.network;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentIds;
@@ -18,7 +17,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -296,18 +294,27 @@ public final class FormaCraftServerNetworking {
                 return;
             }
 
-            int dx = payload.dx();
-            int dy = payload.dy();
-            int dz = payload.dz();
-            int max = 32;
-            dx = Math.max(-max, Math.min(max, dx));
-            dy = Math.max(-max, Math.min(max, dy));
-            dz = Math.max(-max, Math.min(max, dz));
+            int dx = com.formacraft.server.preview.PreviewStructureShifter.clampOffset(payload.dx());
+            int dy = com.formacraft.server.preview.PreviewStructureShifter.clampOffset(payload.dy());
+            int dz = com.formacraft.server.preview.PreviewStructureShifter.clampOffset(payload.dz());
             if (dx == 0 && dy == 0 && dz == 0) return;
 
-            com.formacraft.common.build.GeneratedStructure shifted = shiftStructure(structure, dx, dy, dz);
+            com.formacraft.common.build.GeneratedStructure shifted =
+                    com.formacraft.server.preview.PreviewStructureShifter.shift(structure, dx, dy, dz);
             PreviewStorage.updateStructure(player, shifted);
             PreviewStorage.setPreview(player, true);
+
+            // 平移后复检位置相关质量（支撑/高度/区块等），确认时不得沿用旧报告
+            String qualityNote = "";
+            if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld adjustWorld) {
+                var report = com.formacraft.server.preview.PreviewStructureShifter
+                        .recheckAtWorld(shifted, adjustWorld);
+                PreviewStorage.storeQualityReport(player, report);
+                if (report != null && (report.hasFatal() || report.hasError()
+                        || report.hasSeverity(com.formacraft.server.build.quality.BuildQualitySeverity.WARNING))) {
+                    qualityNote = " | 质量：" + report.summaryZh();
+                }
+            }
 
             List<OutlineBlock> outline =
                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(shifted.getBlocks());
@@ -321,38 +328,13 @@ public final class FormaCraftServerNetworking {
                 sendPreviewSkeleton(player, shifted.getOrigin(), extra);
             }
 
+            final String statusMsg = "预览已调整：dx=" + dx + " dy=" + dy + " dz=" + dz + qualityNote;
             try {
-                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                        "预览已调整：dx=" + dx + " dy=" + dy + " dz=" + dz));
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(statusMsg));
             } catch (Throwable t) {
                 FormacraftMod.LOGGER.warn("[FormaCraftServerNetworking] Failed to send preview-adjusted status to player {}", player.getName().getString(), t);
             }
         }));
-    }
-
-    private static com.formacraft.common.build.GeneratedStructure shiftStructure(
-            com.formacraft.common.build.GeneratedStructure structure,
-            int dx,
-            int dy,
-            int dz
-    ) {
-        if (structure == null) return null;
-        BlockPos origin = structure.getOrigin();
-        if (origin == null) return structure;
-        BlockPos newOrigin = origin.add(dx, dy, dz);
-        List<PlannedBlock> shifted = new ArrayList<>(structure.getBlocks().size());
-        for (PlannedBlock block : structure.getBlocks()) {
-            if (block == null || block.getPos() == null) continue;
-            BlockPos pos = block.getPos();
-            BlockPos newPos = pos.add(dx, dy, dz);
-            shifted.add(new PlannedBlock(newPos, block.getTargetState()));
-        }
-        return new com.formacraft.common.build.GeneratedStructure(
-                structure.getOwner(),
-                newOrigin,
-                structure.getDescription(),
-                shifted
-        );
     }
 
     private static void sendComponentSaveAck(

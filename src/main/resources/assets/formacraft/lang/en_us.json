@@ -112,5 +112,8 @@
   "formacraft.command.build.cannot_build_here": "Cannot build in this world.",
   "formacraft.command.preview.canceled": "Preview canceled.",
   "formacraft.command.confirm.quality_error": "%s. Use /forma_confirm force to apply anyway.",
-  "formacraft.command.confirm.forced": "[Forced apply] %s"
+  "formacraft.command.confirm.forced": "[Forced apply] %s",
+  "formacraft.command.confirm.queue_full": "Build queue is full for this world. Preview kept — try again later.",
+  "formacraft.command.confirm.stale_preview": "Preview is stale (dimension/structure mismatch). Regenerate before confirming.",
+  "formacraft.command.confirm.world_mismatch": "Preview dimension does not match the current world. Regenerate before confirming."
 }

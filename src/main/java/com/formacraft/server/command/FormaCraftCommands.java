@@ -586,58 +586,53 @@ public class FormaCraftCommands {
             return 0;
         }
 
-        if (!PreviewStorage.hasPreview(player)) {
-            source.sendError(Text.translatable("formacraft.command.preview.no_active"));
-            return 0;
-        }
-
-        if (!PreviewStorage.validatePreview(player)) {
-            source.sendError(Text.literal("预览已失效（维度/结构不一致）。请重新生成预览后再确认。"));
-            return 0;
-        }
-
-        BuildQualityReport quality = PreviewStorage.getQualityReport(player);
-        var gate = com.formacraft.server.build.quality.BuildQualityGate.decide(quality, force);
-        if (gate == com.formacraft.server.build.quality.BuildQualityGate.Decision.DENY_FATAL) {
-            source.sendError(Text.literal(quality != null ? quality.summaryZh() : "质量检查失败"));
-            return 0;
-        }
-        if (gate == com.formacraft.server.build.quality.BuildQualityGate.Decision.REQUIRE_FORCE) {
-            source.sendError(Text.translatable("formacraft.command.confirm.quality_error",
-                    quality != null ? quality.summaryZh() : ""));
-            return 0;
-        }
-        if (quality != null && quality.hasError() && force) {
-            source.sendFeedback(
-                    () -> Text.translatable("formacraft.command.confirm.forced", quality.summaryZh()),
-                    false
-            );
-        }
-
-        if (!(player.getEntityWorld() instanceof ServerWorld serverWorld)) {
-            source.sendError(Text.translatable("formacraft.command.build.cannot_build_here"));
-            return 0;
-        }
-
-        // 一次性消费：防止二次 /forma_confirm 重放
-        GeneratedStructure structure = PreviewStorage.consumeStructure(player);
-        if (structure == null) {
-            source.sendError(Text.translatable("formacraft.command.preview.no_structure_to_build"));
-            return 0;
-        }
-        String fbdSourcePlan = PreviewStorage.consumeSourcePlan(player);
-
-        FormaCraftServerNetworking.sendClearOutline(player);
-        PreviewStorage.clearQualityReport(player);
-
-        BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure, fbdSourcePlan);
-        com.formacraft.FormacraftMod.LOGGER.info(
-                "Preview confirmed: dimension={} origin={} blocks={} force={}",
-                serverWorld.getRegistryKey().getValue(), structure.getOrigin().toShortString(), structure.size(), force);
-        source.sendFeedback(
-                () -> Text.translatable("formacraft.command.build.started"),
-                false
-        );
-        return 1;
+        var result = com.formacraft.server.build.BuildConfirmService.confirm(player, force);
+        return switch (result.status()) {
+            case NO_PREVIEW -> {
+                source.sendError(Text.translatable("formacraft.command.preview.no_active"));
+                yield 0;
+            }
+            case STALE_PREVIEW -> {
+                source.sendError(Text.translatable("formacraft.command.confirm.stale_preview"));
+                yield 0;
+            }
+            case WORLD_MISMATCH -> {
+                source.sendError(Text.translatable("formacraft.command.confirm.world_mismatch"));
+                yield 0;
+            }
+            case CANNOT_BUILD -> {
+                source.sendError(Text.translatable("formacraft.command.build.cannot_build_here"));
+                yield 0;
+            }
+            case QUALITY_REJECTED -> {
+                BuildQualityReport quality = result.quality();
+                var gate = com.formacraft.server.build.quality.BuildQualityGate.decide(quality, force);
+                if (gate == com.formacraft.server.build.quality.BuildQualityGate.Decision.DENY_FATAL) {
+                    source.sendError(Text.literal(quality != null ? quality.summaryZh() : "质量检查失败"));
+                } else {
+                    source.sendError(Text.translatable("formacraft.command.confirm.quality_error",
+                            quality != null ? quality.summaryZh() : ""));
+                }
+                yield 0;
+            }
+            case QUEUE_FULL -> {
+                source.sendError(Text.translatable("formacraft.command.confirm.queue_full"));
+                yield 0;
+            }
+            case ACCEPTED -> {
+                if (result.forced() && result.quality() != null) {
+                    source.sendFeedback(
+                            () -> Text.translatable("formacraft.command.confirm.forced",
+                                    result.quality().summaryZh()),
+                            false
+                    );
+                }
+                source.sendFeedback(
+                        () -> Text.translatable("formacraft.command.build.started"),
+                        false
+                );
+                yield 1;
+            }
+        };
     }
 }

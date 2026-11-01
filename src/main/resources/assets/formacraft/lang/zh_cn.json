@@ -112,5 +112,8 @@
   "formacraft.command.build.cannot_build_here": "无法在当前世界中建造。",
   "formacraft.command.preview.canceled": "已取消预览。",
   "formacraft.command.confirm.quality_error": "%s。请使用 /forma_confirm force 强制应用。",
-  "formacraft.command.confirm.forced": "【强制应用】%s"
+  "formacraft.command.confirm.forced": "【强制应用】%s",
+  "formacraft.command.confirm.queue_full": "当前世界建造队列已满，预览已保留。请稍后再确认。",
+  "formacraft.command.confirm.stale_preview": "预览已失效（维度/结构不一致）。请重新生成预览后再确认。",
+  "formacraft.command.confirm.world_mismatch": "预览维度与当前世界不一致。请重新生成预览后再确认。"
 }
