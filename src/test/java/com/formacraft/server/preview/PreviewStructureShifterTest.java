@@ -2,7 +2,10 @@ package com.formacraft.server.preview;
 
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.Footprint;
 import com.formacraft.server.build.quality.BuildQualityReport;
+import com.formacraft.server.build.quality.BuildQualitySeverity;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -57,10 +60,33 @@ class PreviewStructureShifterTest {
                 "column",
                 List.of(new PlannedBlock(new BlockPos(0, 70, 0), Blocks.STONE.getDefaultState()))
         );
-        BuildQualityReport report = PreviewStructureShifter.recheckAtWorld(structure, null);
+        BuildQualityReport report = PreviewStructureShifter.recheckAtWorld(structure, null, null);
         assertNotNull(report);
         assertFalse(report.hasFatal());
         assertTrue(report.stats().totalBlocks >= 1);
+    }
+
+    @Test
+    void recheckWithBuildingSpecEmitsDimensionWarnings() {
+        BuildingSpec spec = new BuildingSpec();
+        spec.setFootprint(new Footprint(20, 20));
+        spec.setHeight(20);
+        var structure = new GeneratedStructure(
+                null,
+                new BlockPos(0, 70, 0),
+                "tiny",
+                List.of(new PlannedBlock(new BlockPos(0, 70, 0), Blocks.STONE.getDefaultState()))
+        );
+        BuildQualityReport withSpec = PreviewStructureShifter.recheckAtWorld(structure, spec, null);
+        BuildQualityReport without = PreviewStructureShifter.recheckAtWorld(structure, null, null);
+        assertTrue(
+                withSpec.issues().stream().anyMatch(i ->
+                        i.code() != null && i.code().startsWith("DIM_")
+                                && i.severity() == BuildQualitySeverity.WARNING),
+                "BuildingSpec must participate in recheck like prepare()");
+        assertTrue(
+                without.issues().stream().noneMatch(i -> i.code() != null && i.code().startsWith("DIM_")),
+                "null BuildingSpec skips dimension checks");
     }
 
     @Test

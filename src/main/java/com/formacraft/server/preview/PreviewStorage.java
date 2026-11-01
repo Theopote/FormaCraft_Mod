@@ -4,6 +4,7 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.build.quality.BuildQualityReport;
 import com.formacraft.server.dsl.FbdSourcePlan;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -31,6 +32,8 @@ public class PreviewStorage {
     private static final Map<UUID, Object> skeletonLayouts = new HashMap<>();
     private static final Map<UUID, BuildQualityReport> qualityReports = new HashMap<>();
     private static final Map<UUID, PreviewMeta> metas = new HashMap<>();
+    /** Normalized BuildingSpec used for the preview's quality checks (may be null for FBD). */
+    private static final Map<UUID, BuildingSpec> buildingSpecs = new HashMap<>();
     /** Sanitized FBD source plan JSON pending confirm (cleared with structure). */
     private static final Map<UUID, String> sourcePlans = new HashMap<>();
 
@@ -43,18 +46,36 @@ public class PreviewStorage {
 
     /**
      * 存储玩家的建筑结构（记录维度与 digest）。
+     * Clears any prior BuildingSpec — callers that have a spec must {@link #storeBuildingSpec} after.
      */
     public static void storeStructure(ServerPlayerEntity player, GeneratedStructure structure) {
         if (player != null && structure != null) {
-            lastStructures.put(player.getUuid(), structure);
-            hasPreview.put(player.getUuid(), false);
-            skeletonLayouts.remove(player.getUuid());
-            metas.put(player.getUuid(), buildMeta(player, structure));
+            UUID uuid = player.getUuid();
+            lastStructures.put(uuid, structure);
+            hasPreview.put(uuid, false);
+            skeletonLayouts.remove(uuid);
+            buildingSpecs.remove(uuid);
+            metas.put(uuid, buildMeta(player, structure));
             FormacraftMod.LOGGER.debug("Stored preview structure for player {}: {} blocks at {}",
                     player.getName().getString(),
                     structure.getBlocks() != null ? structure.getBlocks().size() : 0,
                     structure.getOrigin());
         }
+    }
+
+    /** Retain the BuildingSpec that participated in preview quality (null clears). */
+    public static void storeBuildingSpec(ServerPlayerEntity player, BuildingSpec spec) {
+        if (player == null) return;
+        if (spec == null) {
+            buildingSpecs.remove(player.getUuid());
+        } else {
+            buildingSpecs.put(player.getUuid(), spec);
+        }
+    }
+
+    public static BuildingSpec getBuildingSpec(ServerPlayerEntity player) {
+        if (player == null) return null;
+        return buildingSpecs.get(player.getUuid());
     }
 
     /** Store sanitize FBD source plan for confirm → Memory. Non-FBD plans clear any prior plan. */
@@ -152,6 +173,7 @@ public class PreviewStorage {
         hasPreview.put(uuid, false);
         skeletonLayouts.remove(uuid);
         metas.remove(uuid);
+        buildingSpecs.remove(uuid);
         // sourcePlans retained until explicit consumeSourcePlan so confirm can attach it to the build task.
         return structure;
     }
@@ -176,6 +198,7 @@ public class PreviewStorage {
             skeletonLayouts.remove(uuid);
             qualityReports.remove(uuid);
             metas.remove(uuid);
+            buildingSpecs.remove(uuid);
             sourcePlans.remove(uuid);
         }
     }

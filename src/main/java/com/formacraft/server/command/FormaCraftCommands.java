@@ -619,6 +619,10 @@ public class FormaCraftCommands {
                 source.sendError(Text.translatable("formacraft.command.confirm.queue_full"));
                 yield 0;
             }
+            case PREVIEW_IDENTITY_MISMATCH -> {
+                source.sendError(Text.translatable("formacraft.command.confirm.stale_preview"));
+                yield 0;
+            }
             case ACCEPTED -> {
                 if (result.forced() && result.quality() != null) {
                     source.sendFeedback(

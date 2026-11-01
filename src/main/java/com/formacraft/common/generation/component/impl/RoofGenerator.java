@@ -478,7 +478,11 @@ public class RoofGenerator implements ComponentGenerator {
         emitMidEaveShelf(out, semantic, palette, upper, upperBaseY);
     }
 
-    /** One-block slab cornice at the upper-tier attachment — reads as a second eave line. */
+    /**
+     * Mid-eave shelf at the upper-tier attachment: a two-cell-wide band that seats on the
+     * lower roof edge (inner slab course on the upper footprint rim + outer stairs lip),
+     * so it reads as a continuous cornice rather than a floating one-block ring.
+     */
     private void emitMidEaveShelf(
             List<BlockPatch> out,
             SemanticComponent semantic,
@@ -487,17 +491,24 @@ public class RoofGenerator implements ComponentGenerator {
             int midY
     ) {
         String slab = getBlockForPart(semantic, palette, SemanticPart.ROOF_SURFACE);
-        int x0 = upper.worldBaseX() - 1;
-        int z0 = upper.worldBaseZ() - 1;
-        int x1 = upper.worldBaseX() + upper.width();
-        int z1 = upper.worldBaseZ() + upper.depth();
-        for (int x = x0; x <= x1; x++) {
-            out.add(new BlockPatch(BlockPatch.PLACE, x, midY, z0, slab));
-            out.add(new BlockPatch(BlockPatch.PLACE, x, midY, z1, slab));
-        }
-        for (int z = z0 + 1; z <= z1 - 1; z++) {
-            out.add(new BlockPatch(BlockPatch.PLACE, x0, midY, z, slab));
-            out.add(new BlockPatch(BlockPatch.PLACE, x1, midY, z, slab));
+        String lip = getBlockForPart(semantic, palette, SemanticPart.ROOF);
+        int ix0 = upper.worldBaseX();
+        int iz0 = upper.worldBaseZ();
+        int ix1 = upper.worldBaseX() + Math.max(0, upper.width() - 1);
+        int iz1 = upper.worldBaseZ() + Math.max(0, upper.depth() - 1);
+        int ox0 = ix0 - 1;
+        int oz0 = iz0 - 1;
+        int ox1 = ix1 + 1;
+        int oz1 = iz1 + 1;
+        for (int x = ox0; x <= ox1; x++) {
+            for (int z = oz0; z <= oz1; z++) {
+                boolean outer = x == ox0 || x == ox1 || z == oz0 || z == oz1;
+                boolean onUpperRim = x >= ix0 && x <= ix1 && z >= iz0 && z <= iz1
+                        && (x == ix0 || x == ix1 || z == iz0 || z == iz1);
+                if (!outer && !onUpperRim) continue;
+                String block = outer ? lip : slab;
+                out.add(new BlockPatch(BlockPatch.PLACE, x, midY, z, block));
+            }
         }
     }
 

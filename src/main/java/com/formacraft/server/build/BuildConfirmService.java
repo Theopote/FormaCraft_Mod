@@ -9,12 +9,20 @@ import com.formacraft.server.preview.PreviewStorage;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Preview → Confirm → Apply 的统一入口。
  * <p>
  * 事务顺序：校验预览与质量 → 入队成功 → 再消费预览并清轮廓。
  * 入队失败时保留预览结构与 FBD 来源，避免“提示已开始建造却无任务且预览已丢”。
+ * <p>
+ * After enqueue, consume must return the same preview identity (digest + origin)
+ * that was submitted; otherwise confirm is not treated as successful.
  */
 public final class BuildConfirmService {
     private BuildConfirmService() {}
@@ -26,7 +34,9 @@ public final class BuildConfirmService {
         WORLD_MISMATCH,
         QUALITY_REJECTED,
         QUEUE_FULL,
-        CANNOT_BUILD
+        CANNOT_BUILD,
+        /** Enqueue succeeded but consumed preview did not match the bound identity. */
+        PREVIEW_IDENTITY_MISMATCH
     }
 
     public record Result(Status status, BuildQualityReport quality, GeneratedStructure structure, boolean forced) {
@@ -76,6 +86,29 @@ public final class BuildConfirmService {
         return Status.ACCEPTED;
     }
 
+    /**
+     * Verify that a consumed structure matches the identity bound at confirm time.
+     */
+    public static boolean matchesBoundIdentity(
+            GeneratedStructure consumed,
+            String expectedDigest,
+            BlockPos expectedOrigin
+    ) {
+        if (consumed == null) return false;
+        if (expectedDigest != null && !expectedDigest.isEmpty()) {
+            if (!Objects.equals(expectedDigest, PreviewStorage.digestStructure(consumed))) {
+                return false;
+            }
+        }
+        if (expectedOrigin != null) {
+            BlockPos origin = consumed.getOrigin();
+            if (origin == null || !expectedOrigin.equals(origin)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static Result confirm(ServerPlayerEntity player, boolean force) {
         return confirm(player, force, BuildExecutionService.getInstance()::enqueueBuild);
     }
@@ -113,6 +146,14 @@ public final class BuildConfirmService {
         }
         String fbdSourcePlan = PreviewStorage.peekSourcePlan(player);
 
+        final String boundDigest = meta != null ? meta.structureDigest() : PreviewStorage.digestStructure(structure);
+        final BlockPos boundOrigin = meta != null && meta.origin() != null
+                ? meta.origin().toImmutable()
+                : (structure.getOrigin() != null ? structure.getOrigin().toImmutable() : null);
+
+        AtomicBoolean identityOk = new AtomicBoolean(true);
+        AtomicReference<GeneratedStructure> consumedRef = new AtomicReference<>();
+
         boolean enqueued = enqueuer != null && enqueuer.enqueue(world, structure, fbdSourcePlan);
         Status status = commitIfEnqueued(
                 true,
@@ -123,7 +164,21 @@ public final class BuildConfirmService {
                 force,
                 enqueued,
                 () -> {
-                    PreviewStorage.consumeStructure(player);
+                    GeneratedStructure consumed = PreviewStorage.consumeStructure(player);
+                    if (!matchesBoundIdentity(consumed, boundDigest, boundOrigin)) {
+                        identityOk.set(false);
+                        FormacraftMod.LOGGER.error(
+                                "Confirm preview identity mismatch after enqueue: player={} expectedDigest={} expectedOrigin={} consumedNull={} consumedDigest={} consumedOrigin={}",
+                                player.getName().getString(),
+                                boundDigest,
+                                boundOrigin != null ? boundOrigin.toShortString() : "?",
+                                consumed == null,
+                                consumed != null ? PreviewStorage.digestStructure(consumed) : "n/a",
+                                consumed != null && consumed.getOrigin() != null
+                                        ? consumed.getOrigin().toShortString() : "n/a");
+                    } else {
+                        consumedRef.set(consumed);
+                    }
                     PreviewStorage.consumeSourcePlan(player);
                     PreviewStorage.clearQualityReport(player);
                     FormaCraftServerNetworking.sendClearOutline(player);
@@ -141,14 +196,18 @@ public final class BuildConfirmService {
         if (status != Status.ACCEPTED) {
             return new Result(status, quality, structure, false);
         }
+        if (!identityOk.get()) {
+            return new Result(Status.PREVIEW_IDENTITY_MISMATCH, quality, structure, false);
+        }
 
+        GeneratedStructure confirmed = consumedRef.get() != null ? consumedRef.get() : structure;
         boolean forced = force && quality != null && quality.hasError();
         FormacraftMod.LOGGER.info(
                 "Preview confirmed: dimension={} origin={} blocks={} force={}",
                 currentDim,
-                structure.getOrigin() != null ? structure.getOrigin().toShortString() : "?",
-                structure.size(),
+                confirmed.getOrigin() != null ? confirmed.getOrigin().toShortString() : "?",
+                confirmed.size(),
                 force);
-        return new Result(Status.ACCEPTED, quality, structure, forced);
+        return new Result(Status.ACCEPTED, quality, confirmed, forced);
     }
 }

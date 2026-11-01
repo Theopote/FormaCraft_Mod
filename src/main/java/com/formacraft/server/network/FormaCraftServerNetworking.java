@@ -297,7 +297,12 @@ public final class FormaCraftServerNetworking {
             net.minecraft.server.world.ServerWorld adjustWorld =
                     player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw ? sw : null;
             var outcome = com.formacraft.server.preview.PreviewStructureShifter.evaluateAdjust(
-                    structure, payload.dx(), payload.dy(), payload.dz(), adjustWorld);
+                    structure,
+                    payload.dx(),
+                    payload.dy(),
+                    payload.dz(),
+                    adjustWorld,
+                    PreviewStorage.getBuildingSpec(player));
             if (outcome.statusMessage() == null) {
                 return;
             }

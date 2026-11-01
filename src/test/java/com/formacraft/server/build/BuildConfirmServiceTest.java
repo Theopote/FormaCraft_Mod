@@ -1,15 +1,28 @@
 package com.formacraft.server.build;
 
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.build.quality.BuildQualityReport;
 import com.formacraft.server.build.quality.BuildQualitySeverity;
+import com.formacraft.server.preview.PreviewStorage;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class BuildConfirmServiceTest {
+
+    @BeforeAll
+    static void bootstrap() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
 
     @Test
     void queueFullDoesNotConsumePreview() {
@@ -95,6 +108,21 @@ class BuildConfirmServiceTest {
     @Test
     void maxActiveTasksPerWorldIsDocumentedBound() {
         assertEquals(32, BuildExecutionService.MAX_ACTIVE_TASKS_PER_WORLD);
+    }
+
+    @Test
+    void matchesBoundIdentityRequiresSameDigestAndOrigin() {
+        var structure = new GeneratedStructure(
+                null,
+                new BlockPos(3, 64, 5),
+                "hut",
+                List.of(new PlannedBlock(new BlockPos(3, 64, 5), Blocks.STONE.getDefaultState()))
+        );
+        String digest = PreviewStorage.digestStructure(structure);
+        assertTrue(BuildConfirmService.matchesBoundIdentity(structure, digest, new BlockPos(3, 64, 5)));
+        assertFalse(BuildConfirmService.matchesBoundIdentity(null, digest, new BlockPos(3, 64, 5)));
+        assertFalse(BuildConfirmService.matchesBoundIdentity(structure, "deadbeef", new BlockPos(3, 64, 5)));
+        assertFalse(BuildConfirmService.matchesBoundIdentity(structure, digest, new BlockPos(9, 64, 5)));
     }
 
     @Test

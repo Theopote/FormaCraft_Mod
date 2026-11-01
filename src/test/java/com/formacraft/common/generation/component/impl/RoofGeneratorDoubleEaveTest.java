@@ -47,11 +47,15 @@ class RoofGeneratorDoubleEaveTest {
         }
         assertTrue(ys.size() >= 3, "double eave should span multiple Y bands, ys=" + ys);
 
-        // Mid-eave shelf uses slab family at the upper attachment band.
+        // Mid-eave: inner rim slabs + outer lip (stairs family).
         long slabs = patches.stream()
                 .filter(p -> p.targetBlock() != null && p.targetBlock().contains("slab"))
                 .count();
+        long stairs = patches.stream()
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("stairs"))
+                .count();
         assertTrue(slabs >= 8, "mid-eave shelf should place slab cornice, slabs=" + slabs);
+        assertTrue(stairs >= 8, "mid-eave outer lip should use stairs, stairs=" + stairs);
     }
 
     @Test

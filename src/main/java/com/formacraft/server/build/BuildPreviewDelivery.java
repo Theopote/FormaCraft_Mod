@@ -63,6 +63,7 @@ public final class BuildPreviewDelivery {
 
         GeneratedStructure structure = pipeline.structure();
         PreviewStorage.storeStructure(player, structure);
+        PreviewStorage.storeBuildingSpec(player, spec);
 
         List<OutlineBlock> outline = OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
         FormaCraftServerNetworking.sendPreviewOutline(player, outline);
