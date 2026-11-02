@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Predicate;
 
 /** Bounded public-only fixture index; deliberately not an HTTP/wire-contract implementation. */
 public final class OfflineCommunityIndex {
@@ -19,17 +20,18 @@ public final class OfflineCommunityIndex {
                 throw new IllegalArgumentException("Invalid tags");
         }
     }
+    public record SourceClaim(String namespace, String componentId, String version, String author) {}
     public record Candidate(CommunityPackages.Descriptor descriptor, String sourceAssetKey,
                             String title, String typeKey, String license,
                             ComponentPackageIO.TrainingPermission trainingPermission,
-                            String actualFit) {}
+                            String actualFit, SourceClaim sourceClaim) {}
     public record Group(String configurationFingerprint, Candidate preferredCandidate, int matchingSourceCount) {}
-    public record Page(List<Group> items, String nextCursor) {
+    public record Page(List<Group> items, String nextCursor, String snapshotId, Instant expiresAt) {
         public Page { items = List.copyOf(items); }
     }
     private record Entry(CommunityPackages.Descriptor descriptor, byte[] bytes,
                          ComponentPackageIO.Verified inspected) {}
-    private record Cursor(Query query, int pageSize, String contextKey, List<List<String>> groups, int offset, Instant expires) {}
+    private record Cursor(Query query, int pageSize, String contextKey, List<List<String>> groups, int offset, Instant expires, String snapshotId) {}
     private final String authorityId;
     private final Clock clock;
     private final Map<String, Entry> entries = new TreeMap<>();
@@ -75,6 +77,11 @@ public final class OfflineCommunityIndex {
     }
 
     synchronized Page search(Query query, int pageSize, String token, String contextKey) throws IOException {
+        return search(query, pageSize, token, contextKey, groups -> true);
+    }
+
+    synchronized Page search(Query query, int pageSize, String token, String contextKey,
+                             Predicate<List<Group>> fits) throws IOException {
         Objects.requireNonNull(query);
         if (pageSize < 1 || pageSize > 20) throw new CommunityPackages.Failure("invalid_page_size");
         Instant now = clock.instant();
@@ -95,7 +102,7 @@ public final class OfflineCommunityIndex {
                 if (group == null) { group = new ArrayList<>(); groups.add(group); }
                 group.add(item.getKey());
             }
-            cursor = new Cursor(query, pageSize, contextKey, groups.stream().map(List::copyOf).toList(), 0, now.plusSeconds(300));
+            cursor = new Cursor(query, pageSize, contextKey, groups.stream().map(List::copyOf).toList(), 0, now.plusSeconds(300), UUID.randomUUID().toString());
         }
         List<Group> result = new ArrayList<>(); int offset = cursor.offset;
         while (offset < cursor.groups.size() && result.size() < pageSize) {
@@ -104,17 +111,23 @@ public final class OfflineCommunityIndex {
             Entry entry = entries.get(visible.getFirst()); var def = entry.inspected.component();
             var manifest = entry.inspected.manifest();
             var candidate = new Candidate(entry.descriptor, entry.inspected.assetKey(), def.name,
-                    ComponentTypes.effective(def.type, def.category).key(), manifest.license(), manifest.trainingPermission(), "unknown");
+                    ComponentTypes.effective(def.type, def.category).key(), manifest.license(), manifest.trainingPermission(), "unknown",
+                    new SourceClaim(manifest.namespace(), def.id, manifest.version(), manifest.author()));
             result.add(new Group(entry.descriptor.fingerprints().configuration(), candidate, visible.size()));
+            if (!fits.test(List.copyOf(result))) {
+                result.removeLast(); offset--;
+                if (result.isEmpty()) throw new CommunityPackages.Failure("summary_too_large");
+                break;
+            }
         }
         String next = null;
         if (offset < cursor.groups.size()) {
             cursors.values().removeIf(c -> !now.isBefore(c.expires));
             if (cursors.size() >= MAX_CURSORS) throw new CommunityPackages.Failure("budget_exceeded");
             next = UUID.randomUUID().toString();
-            cursors.put(next, new Cursor(query, pageSize, contextKey, cursor.groups, offset, cursor.expires));
+            cursors.put(next, new Cursor(query, pageSize, contextKey, cursor.groups, offset, cursor.expires, cursor.snapshotId));
         }
-        return new Page(result, next);
+        return new Page(result, next, cursor.snapshotId, cursor.expires);
     }
 
     private Entry requireEntry(String id) throws IOException {

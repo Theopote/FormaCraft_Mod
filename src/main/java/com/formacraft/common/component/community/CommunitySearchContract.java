@@ -125,13 +125,23 @@ public final class CommunitySearchContract {
 
     /** Internal bridge only: returns an internal page, never claims to serialize a v1 response. */
     public static OfflineCommunityIndex.Page search(OfflineCommunityIndex index, Request request) throws IOException {
+        return search(index, request, groups -> true);
+    }
+
+    static OfflineCommunityIndex.Page search(OfflineCommunityIndex index, Request request,
+            java.util.function.Predicate<List<OfflineCommunityIndex.Group>> fits) throws IOException {
+        requireOfflineCapabilities(request);
+        Query q = request.query;
+        return index.search(new OfflineCommunityIndex.Query(q.exactTypeKey, q.hardTags), request.pageSize, request.cursor, request.queryFingerprint(), fits);
+    }
+
+    static void requireOfflineCapabilities(Request request) throws IOException {
         Query q = request.query;
         if (q.role != null || q.targetSize != null || q.attachment != null || q.suitePreference != null || !q.sizePolicy.equals("fixed"))
             throw new CommunityPackages.Failure("unsupported_constraint");
         if (request.environment != null || q.keywords != null || !q.softTags.isEmpty()
                 || q.visualIntent != null && (!q.visualIntent.morphology.isEmpty() || !q.visualIntent.materialAppearance.isEmpty())
                 || !DEFAULT_FIELDS.containsAll(request.fields)) throw new CommunityPackages.Failure("unsupported_capability");
-        return index.search(new OfflineCommunityIndex.Query(q.exactTypeKey, q.hardTags), request.pageSize, request.cursor, request.queryFingerprint());
     }
 
     private static JsonObject canonicalQuery(Query q) {

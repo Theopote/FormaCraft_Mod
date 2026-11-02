@@ -1,6 +1,6 @@
 # 远端索引与下载契约草案 v1
 
-状态：设计提案，尚无运行端点。以下路径、字段、限制和错误码为拟议契约；不是当前游戏网络 payload 或 Python 后端的已有能力。示例位于 [community-examples](community-examples/README.md)。
+状态：设计提案，尚无部署端点。请求解析、离线索引与显式只读 HTTP 搜索客户端已实现，摘要响应仅支持 [offline-summary.v1 子集](COMPONENT_COMMUNITY_TRANSPORT.md)。以下完整字段和其他端点仍为拟议契约；不是当前游戏网络 payload 或 Python 后端的已有能力。示例位于 [community-examples](community-examples/README.md)，完整设计示例不冒充当前子集响应。
 
 ## 第一个可实现范围
 
@@ -82,6 +82,8 @@ HTTP 摘要最多 128 KiB，而现有游戏请求/响应各有边界；游戏侧
 | code | 客户端行为 |
 | --- | --- |
 | invalid_request / request_too_large | 拒绝损坏格式、类型混用、超限结构；修正请求后再发，不无限重试 |
+| invalid_response / response_too_large / unsupported_encoding | 拒绝错配、损坏或超限响应，不交给安装器或规划器 |
+| redirect_rejected / request_timeout / cancelled | 停止当前请求；不自动跟随新地址或恢复已取消任务 |
 | unsupported_contract / unsupported_capability | 停止该功能，保留本地能力，不猜测字段含义 |
 | unsupported_constraint | 显示不支持的硬条件；由用户/规划器明确改需求 |
 | cursor_expired / cursor_mismatch | 重新检索；不拼接成原快照 |
