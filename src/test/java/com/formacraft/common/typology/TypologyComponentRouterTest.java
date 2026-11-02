@@ -45,6 +45,20 @@ class TypologyComponentRouterTest {
     }
 
     @Test
+    void extractsTypologyFromTypologyAlias() {
+        Component c = new Component(
+                "STRUCTURE",
+                null,
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 21),
+                List.of("dense_eaves_pagoda"),
+                Map.of("typology", "dense_eaves_pagoda", "levels", 3)
+        );
+        assertEquals("dense_eaves_pagoda", TypologyComponentRouter.extractTypologyId(c));
+        assertTrue(TypologyComponentRouter.hasTypologyHint(c));
+    }
+
+    @Test
     void mapsLegacyLandmarkToTypology() {
         assertEquals("dense_eaves_pagoda", TypologyComponentRouter.typologyForLegacyLandmark("famen_pagoda"));
         assertEquals("tailiang_timber_hall", TypologyComponentRouter.typologyForLegacyLandmark("foguang_temple_hall"));

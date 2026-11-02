@@ -71,7 +71,8 @@ public final class TypologyComponentRouter {
 
         Map<String, Object> params = component.params();
         if (params != null) {
-            for (String key : List.of("typology_id", "structural_typology", "typologyId", "structuralTypologyId")) {
+            for (String key : List.of(
+                    "typology_id", "structural_typology", "typologyId", "structuralTypologyId", "typology")) {
                 Object v = params.get(key);
                 if (v != null) {
                     String s = String.valueOf(v).trim();

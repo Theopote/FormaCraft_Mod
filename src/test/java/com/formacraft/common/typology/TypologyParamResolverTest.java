@@ -41,6 +41,20 @@ class TypologyParamResolverTest {
     }
 
     @Test
+    void floorCountPromotesToLevels() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(7, 7, 21),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("floor_count", 3)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals(3, merged.get("levels"));
+    }
+
+    @Test
     void landmarkPresetIsSoftPriorPlanParamsWin() {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",

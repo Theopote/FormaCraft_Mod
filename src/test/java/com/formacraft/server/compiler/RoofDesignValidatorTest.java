@@ -54,6 +54,22 @@ class RoofDesignValidatorTest {
         assertTrue(RoofDesignValidator.check(plan, List.of(roof)).isEmpty());
     }
 
+    @Test
+    void acceptsIrimoyaAsXieshanAlias() {
+        Component roof = new Component(
+                "ROOF",
+                "r",
+                new Vec3i(0, 8, 0),
+                new Dimensions(12, 10, 2),
+                List.of(),
+                Map.of("roof_type", "irimoya"));
+        var plan = LlmPlanTestFixtures.builder().components(List.of(roof)).build();
+        assertTrue(RoofDesignValidator.check(plan, List.of(roof)).isEmpty());
+        assertEquals(
+                com.formacraft.common.generation.component.util.RoofTypeKind.XIESHAN,
+                com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit("irimoya").orElseThrow());
+    }
+
     private static String loadFixture(String fileName) throws Exception {
         String path = "/plans/fidelity/" + fileName;
         try (var in = RoofDesignValidatorTest.class.getResourceAsStream(path)) {

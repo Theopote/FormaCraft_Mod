@@ -92,8 +92,41 @@ class RequestIntentAuthorityTest(unittest.TestCase):
         intent = extract_request_intent("生成一座白色藏式佛塔，7x7")
         plan = scaffold_plan_for_intent(intent)
         self.assertIsNotNone(plan)
+        params = plan["components"][0]["params"]
+        self.assertEqual(params.get("typology_id"), "dense_eaves_pagoda")
+        self.assertEqual(params.get("typology"), "dense_eaves_pagoda")
         attach_request_intent(plan, intent["original_text"])
         validate_llm_plan_dict(plan)
+        assert_plan_semantics(plan, intent["original_text"])
+
+    def test_scaffold_three_storey_pagoda_keeps_levels(self):
+        intent = extract_request_intent("生成一座三层中式古塔，重檐，顶部有塔刹")
+        plan = scaffold_plan_for_intent(intent)
+        self.assertIsNotNone(plan)
+        params = plan["components"][0]["params"]
+        self.assertEqual(params.get("levels"), 3)
+        self.assertEqual(params.get("floor_count"), 3)
+
+    def test_scaffold_temple_is_single_hall_not_garden(self):
+        intent = extract_request_intent("生成一座传统道观")
+        plan = scaffold_plan_for_intent(intent)
+        self.assertIsNotNone(plan)
+        types = {c["component_type"] for c in plan["components"]}
+        self.assertIn("MASS_MAIN", types)
+        self.assertNotIn("COURTYARD", types)
+        self.assertNotIn("PATH", types)
+        attach_request_intent(plan, intent["original_text"])
+        assert_plan_semantics(plan, intent["original_text"])
+
+    def test_scaffold_gate_uses_gate_host(self):
+        intent = extract_request_intent("生成一座中式寺庙山门")
+        plan = scaffold_plan_for_intent(intent)
+        self.assertIsNotNone(plan)
+        types = {c["component_type"] for c in plan["components"]}
+        self.assertIn("GATE", types)
+        roof = next(c for c in plan["components"] if c["component_type"] == "ROOF")
+        self.assertEqual(roof["params"]["host_id"], "gate_main")
+        attach_request_intent(plan, intent["original_text"])
         assert_plan_semantics(plan, intent["original_text"])
 
     def test_explicit_xieshan_marked(self):

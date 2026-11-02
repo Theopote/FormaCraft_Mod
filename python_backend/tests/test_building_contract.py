@@ -242,6 +242,39 @@ class BuildingContractTest(unittest.TestCase):
         plan = {'components': [mass()], 'style_profile': 'European_Classical'}
         self.assertEqual(plan, enrich_llm_plan_architectural_detail(plan, user_text=self.text, profile=None))
 
+    def test_gate_can_host_roof(self):
+        gate = {
+            'component_type': 'GATE',
+            'relative_position': {'x': 0, 'y': 0, 'z': 0},
+            'dimensions': {'width': 14, 'depth': 5, 'height': 8},
+            'features': ['山门'],
+            'params': {'component_id': 'gate_main', 'passage_axis': 'z', 'roof_type': 'xieshan'},
+        }
+        roof = {
+            'component_type': 'ROOF',
+            'relative_position': {'x': 0, 'y': 8, 'z': 0},
+            'dimensions': {'width': 16, 'depth': 7, 'height': 3},
+            'params': {'component_id': 'gate_roof', 'host_id': 'gate_main', 'roof_type': 'xieshan'},
+        }
+        result = apply_building_contract({'components': [gate, roof]}, '生成山门', finalize=True)
+        codes = {d['code'] for d in result['proportion_hints']['building_contract']['diagnostics']}
+        self.assertNotIn('E_HOST_UNKNOWN', codes)
+        self.assertNotIn('capability_gap', result)
+        self.assertEqual('gate_main', result['components'][1]['params']['host_id'])
+        self.assertEqual('gate_main', result['components'][1]['params']['building_id'])
+
+    def test_entrance_door_width_clamped_to_opening_span(self):
+        entrance = {
+            'component_type': 'ENTRANCE',
+            'relative_position': {'x': 0, 'y': 0, 'z': 0},
+            'dimensions': {'width': 3, 'depth': 2, 'height': 4},
+            'params': {'component_id': 'balcony_door', 'host_id': 'house', 'door_width': 3, 'facing': 'SOUTH'},
+        }
+        result = apply_building_contract({'components': [mass(), entrance]}, '')
+        door = next(c for c in result['components'] if c['component_type'] == 'ENTRANCE')
+        self.assertEqual(2, door['params']['door_width'])
+        self.assertEqual(3, door['params']['door_width_clamped_from'])
+
 
 if __name__ == '__main__':
     unittest.main()

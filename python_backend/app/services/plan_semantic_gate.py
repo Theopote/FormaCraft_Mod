@@ -232,8 +232,9 @@ def evaluate_plan_semantics(
             )
     elif intent == "gate":
         types = set(_component_types(plan))
-        if empty or (types <= {"MASS_MAIN", "ROOF", "FOUNDATION", "ENTRANCE", "FACADE_WINDOWS"}
-                     and "STRUCTURE" not in types and "ASSEMBLY" not in types):
+        if "GATE" in types or "STRUCTURE" in types or "ASSEMBLY" in types:
+            pass
+        elif empty or types <= {"MASS_MAIN", "ROOF", "FOUNDATION", "ENTRANCE", "FACADE_WINDOWS"}:
             # Gate may be a wide shallow MASS — require at least non-default proportions or features.
             shallow_ok = False
             for c in comps or []:
@@ -241,7 +242,7 @@ def evaluate_plan_semantics(
                     continue
                 dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
                 try:
-                    w, d, h = int(dims.get("width") or 0), int(dims.get("depth") or 0), int(dims.get("height") or 0)
+                    w, d = int(dims.get("width") or 0), int(dims.get("depth") or 0)
                 except (TypeError, ValueError):
                     continue
                 if w >= d * 1.5 and w >= 10:
@@ -251,16 +252,29 @@ def evaluate_plan_semantics(
                 if "gate" in feats or "山门" in feats or "paifang" in feats:
                     shallow_ok = True
                     break
+                params = c.get("params") if isinstance(c.get("params"), dict) else {}
+                if params.get("passage_axis"):
+                    shallow_ok = True
+                    break
             if not shallow_ok:
                 errors.append(
                     "semantics: temple gate / paifang intent needs a gate-like wide mass "
-                    "or STRUCTURE/ASSEMBLY, not a generic house kit"
+                    "or STRUCTURE/ASSEMBLY/GATE, not a generic house kit"
                 )
-    elif intent in ("garden", "temple"):
+    elif intent == "temple":
         if empty:
-            errors.append(f"semantics: {intent} intent cannot have empty components[]")
-        elif _looks_like_default_house(plan) and intent == "garden":
-            # Gardens should not be a lone house; allow if PATH/COURTYARD/ASSEMBLY present.
+            errors.append("semantics: temple intent cannot have empty components[]")
+        elif _looks_like_default_house(plan) and not _has_temple_hall_morphology(plan):
+            types = set(_component_types(plan))
+            if not (types & {"PATH", "COURTYARD", "COURTYARD_SPACE", "ASSEMBLY", "GARDEN", "PAVING", "STRUCTURE", "GATE"}):
+                errors.append(
+                    "semantics: temple/daoist intent needs a hall with Chinese roof "
+                    "or site composition, not only a residential gable house kit"
+                )
+    elif intent == "garden":
+        if empty:
+            errors.append("semantics: garden intent cannot have empty components[]")
+        elif _looks_like_default_house(plan):
             types = set(_component_types(plan))
             if not (types & {"PATH", "COURTYARD", "COURTYARD_SPACE", "ASSEMBLY", "GARDEN", "PAVING", "STRUCTURE"}):
                 errors.append(
@@ -268,6 +282,32 @@ def evaluate_plan_semantics(
                     "(PATH/COURTYARD/ASSEMBLY/…), not only a residential house kit"
                 )
     return errors
+
+
+def _has_temple_hall_morphology(plan: Dict[str, Any]) -> bool:
+    comps = plan.get("components") if isinstance(plan, dict) else None
+    if not isinstance(comps, list):
+        return False
+    chinese_roofs = (
+        "xieshan", "wudian", "xuanshan", "yingshan", "hip", "irimoya",
+        "歇山", "庑殿", "入母屋",
+    )
+    for c in comps:
+        if not isinstance(c, dict):
+            continue
+        ctype = str(c.get("component_type") or "").upper()
+        if ctype in {"STRUCTURE", "ASSEMBLY", "GATE"}:
+            return True
+        feat_raw = " ".join(str(f) for f in (c.get("features") or []) if f)
+        feats = feat_raw.lower()
+        if any(tok in feats or tok in feat_raw
+               for tok in ("temple", "daoist", "shrine", "main_hall", "道观", "殿", "庙")):
+            return True
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        roof = str(params.get("roof_type") or params.get("roofType") or "").lower()
+        if any(tok in roof for tok in chinese_roofs):
+            return True
+    return False
 
 
 def assert_plan_semantics(plan: Dict[str, Any], user_text: str = "") -> Dict[str, Any]:

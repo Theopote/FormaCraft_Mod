@@ -60,7 +60,7 @@ public final class DenseEavesPagodaBuilder {
             ServerWorld world,
             BuildingSpec specHint
     ) {
-        int levels = p.intVal("levels", 7, 3, 15);
+        int levels = resolveLevels(p, 7, 3, 15);
         int height = p.intVal("height", "towerHeight", 41, 18, 120);
         int baseW = p.intVal("baseWidth", 17, 9, 51);
         if (baseW % 2 == 0) baseW += 1;
@@ -135,7 +135,8 @@ public final class DenseEavesPagodaBuilder {
             ServerWorld world,
             BuildingSpec specHint
     ) {
-        int levels = p.intVal("levels", 13, 7, 15);
+        // Explicit floor/eave counts may be 3–5; only the implicit default stays tall (13 / min 7).
+        int levels = resolveLevels(p, 13, 7, 15);
         int height = p.intVal("height", "towerHeight", 47, 28, 120);
         int baseW = p.intVal("baseWidth", 10, 7, 21);
         if (baseW % 2 == 0) baseW += 1;
@@ -245,6 +246,35 @@ public final class DenseEavesPagodaBuilder {
                 levels, height, baseW, facing.asString(), ref.isBlank() ? "-" : ref, overall
         );
         return new GeneratedStructure(null, origin, desc, blocks);
+    }
+
+    /**
+     * Resolve storey/eave count. When the plan sets levels/floor_count/eave_tiers explicitly,
+     * honor values as low as 3 instead of clamping them up to the typology default floor.
+     */
+    static int resolveLevels(TypologyParams p, int def, int implicitMin, int max) {
+        boolean explicit = containsAnyKey(p,
+                "levels", "floor_count", "floorCount", "floors",
+                "story_count", "storyCount", "eave_tiers", "eaveTiers");
+        int min = explicit ? 3 : implicitMin;
+        for (String key : List.of(
+                "levels", "floor_count", "floorCount", "floors",
+                "story_count", "storyCount", "eave_tiers", "eaveTiers")) {
+            if (p.raw().containsKey(key) && p.raw().get(key) != null) {
+                return p.intVal(key, def, min, max);
+            }
+        }
+        return p.intVal("levels", def, min, max);
+    }
+
+    private static boolean containsAnyKey(TypologyParams p, String... keys) {
+        if (p == null || p.raw() == null) return false;
+        for (String key : keys) {
+            if (p.raw().containsKey(key) && p.raw().get(key) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void carveDoor(List<PlannedBlock> blocks, BlockPos origin, Direction facing, int y0, int half) {

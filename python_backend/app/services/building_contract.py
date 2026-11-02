@@ -426,7 +426,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     # Towers and wings own their attached roofs/windows too. Keep requirement
     # targets separate: a main-building width must not be imposed on its towers.
     owners = [c for c in components if c.get('component_type') in
-              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY', 'TERRACE', 'COURTYARD', 'COURTYARD_SPACE')]
+              ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY',
+               'TERRACE', 'COURTYARD', 'COURTYARD_SPACE', 'GATE')]
     referenced_hosts = {c['params'].get('host_id') for c in components if c.get('component_type') in HOSTED}
     owners.extend(c for c in components if c.get('component_type') in ('PLAZA','PAVING','PATH','ROAD','FOUNDATION','STRUCTURE','MODULE')
                   and c['params']['component_id'] in referenced_hosts)
@@ -672,6 +673,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         requirement['status'] = 'mismatch' if invalid else 'planned'
         requirement['target_components'] = sorted(target_ids)
         requirement['mismatched_components'] = invalid
+    _clamp_entrance_door_widths(components)
     _repair_site_foundation_datum(out, components)
     from .resolved_geometry import resolve_buildings
     contract['resolved_buildings'] = resolve_buildings(out)
@@ -703,6 +705,45 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     from .chinese_material_contract import apply_chinese_material_contract
     apply_chinese_material_contract(out, text)
     return out
+
+
+def _clamp_entrance_door_widths(components: list[dict]) -> None:
+    """Pre-normalize oversized door_width so a thin balcony/service bay cannot abort the build."""
+    for comp in components:
+        if not isinstance(comp, dict) or comp.get('component_type') != 'ENTRANCE':
+            continue
+        params = comp.setdefault('params', {})
+        if not isinstance(params, dict):
+            continue
+        dims = comp.get('dimensions') if isinstance(comp.get('dimensions'), dict) else {}
+        try:
+            width = int(dims.get('width') or 0)
+            depth = int(dims.get('depth') or 0)
+        except (TypeError, ValueError):
+            continue
+        facing = str(params.get('facing') or params.get('entrance_facing') or '').upper()
+        if width == 1 and depth > 1:
+            span = depth
+        elif depth == 1 and width > 1:
+            span = width
+        elif facing in ('EAST', 'WEST'):
+            span = depth if depth > 0 else width
+        else:
+            span = width if width > 0 else depth
+        if span < 2:
+            continue
+        max_door = span - 1
+        for key in ('door_width', 'doorWidth'):
+            if key not in params or params[key] is None:
+                continue
+            try:
+                door_width = int(params[key])
+            except (TypeError, ValueError):
+                continue
+            if door_width > max_door:
+                params[key] = max_door
+                params['door_width_clamped_from'] = door_width
+                params['door_width_clamp_span'] = span
 
 
 def _repair_site_foundation_datum(plan: dict, components: list[dict]) -> None:

@@ -88,6 +88,16 @@ final class PlanSemanticValidator {
                         "components",
                         List.of("Emit a wide shallow gate mass or STRUCTURE/ASSEMBLY for temple gates.")));
             }
+        } else if (intent == IntentClass.TEMPLE) {
+            // Single hall / shrine is valid; do not force garden courtyard composition.
+            if (empty || (looksLikeDefaultHouse(components) && !hasTempleHallMorphology(components)
+                    && !hasGardenComposition(components))) {
+                return Optional.of(new CapabilityGap(
+                        "E_SEMANTIC_FIDELITY",
+                        "道观/寺庙意图需要殿堂体量（歇山/庑殿等）或院落组合，不能用普通住宅双坡屋顶替代。",
+                        "components",
+                        List.of("Emit a temple hall with Chinese roof typology, or a courtyard compound.")));
+            }
         } else if (intent == IntentClass.GARDEN) {
             if (empty || (looksLikeDefaultHouse(components) && !hasGardenComposition(components))) {
                 return Optional.of(new CapabilityGap(
@@ -143,7 +153,7 @@ final class PlanSemanticValidator {
         return plan.patch() != null && plan.patch().blocks() != null && !plan.patch().blocks().isEmpty();
     }
 
-    private enum IntentClass { GENERIC, TOWER_LIKE, GATE, GARDEN }
+    private enum IntentClass { GENERIC, TOWER_LIKE, GATE, TEMPLE, GARDEN }
 
     private static IntentClass detectIntent(LlmPlan plan, String originalRequestIntent) {
         Map<String, Object> ri = requestIntentMap(plan);
@@ -171,8 +181,8 @@ final class PlanSemanticValidator {
         if (containsAny(corpus, "园林", "庭院", "江南园林", "日式庭院", "garden", "courtyard compound")) {
             return IntentClass.GARDEN;
         }
-        if (containsAny(corpus, "道观", "寺庙", "庙宇", "daoist", "shrine compound")) {
-            return IntentClass.GARDEN;
+        if (containsAny(corpus, "道观", "寺庙", "庙宇", "daoist", "shrine compound", "temple")) {
+            return IntentClass.TEMPLE;
         }
         // Last resort: LLM-authored fields only (weak).
         String weak = weakPlanCorpus(plan).toLowerCase(Locale.ROOT);
@@ -186,6 +196,9 @@ final class PlanSemanticValidator {
         if (containsAny(weak, "园林", "庭院", "garden")) {
             return IntentClass.GARDEN;
         }
+        if (containsAny(weak, "道观", "寺庙", "庙宇", "daoist", "temple")) {
+            return IntentClass.TEMPLE;
+        }
         return IntentClass.GENERIC;
     }
 
@@ -195,7 +208,8 @@ final class PlanSemanticValidator {
         return switch (s) {
             case "tower_like", "tower", "pagoda", "stupa" -> IntentClass.TOWER_LIKE;
             case "gate", "gatehouse", "paifang" -> IntentClass.GATE;
-            case "garden", "temple", "courtyard" -> IntentClass.GARDEN;
+            case "temple", "daoist", "shrine" -> IntentClass.TEMPLE;
+            case "garden", "courtyard" -> IntentClass.GARDEN;
             default -> IntentClass.GENERIC;
         };
     }
@@ -321,8 +335,9 @@ final class PlanSemanticValidator {
 
     private static boolean hasPagodaCue(Component c) {
         if (c.params() != null) {
-            String typology = String.valueOf(c.params().getOrDefault("typology",
-                    c.params().getOrDefault("structural_typology", ""))).toLowerCase(Locale.ROOT);
+            String typology = String.valueOf(c.params().getOrDefault("typology_id",
+                    c.params().getOrDefault("typology",
+                            c.params().getOrDefault("structural_typology", "")))).toLowerCase(Locale.ROOT);
             if (typology.contains("pagoda") || typology.contains("stupa") || typology.contains("dense_eaves")) {
                 return true;
             }
@@ -355,6 +370,9 @@ final class PlanSemanticValidator {
         for (Component c : components) {
             if (c == null) continue;
             String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+            if ("GATE".equals(type)) {
+                return true;
+            }
             boolean gateCue = false;
             if (c.features() != null) {
                 for (String f : c.features()) {
@@ -383,6 +401,41 @@ final class PlanSemanticValidator {
                 int d = c.dimensions().depth();
                 // Wide-shallow gate mass with cue, not any wide house.
                 if (gateCue && w >= d * 1.5 && w >= 10) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Single shrine/hall with Chinese roof or temple cues — not a residential gable kit. */
+    private static boolean hasTempleHallMorphology(List<Component> components) {
+        for (Component c : components) {
+            if (c == null) continue;
+            String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+            if ("STRUCTURE".equals(type) || "ASSEMBLY".equals(type) || "GATE".equals(type)) {
+                return true;
+            }
+            if (c.features() != null) {
+                for (String f : c.features()) {
+                    if (f == null) continue;
+                    String lower = f.toLowerCase(Locale.ROOT);
+                    if (lower.contains("temple") || lower.contains("daoist") || lower.contains("shrine")
+                            || lower.contains("main_hall") || f.contains("道观") || f.contains("殿")
+                            || f.contains("庙")) {
+                        return true;
+                    }
+                }
+            }
+            if (c.params() != null) {
+                Object rt = c.params().get("roof_type");
+                if (rt == null) rt = c.params().get("roofType");
+                if (rt != null) {
+                    String roof = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+                    if (roof.contains("xieshan") || roof.contains("wudian") || roof.contains("xuanshan")
+                            || roof.contains("yingshan") || roof.contains("hip") || roof.contains("irimoya")
+                            || roof.contains("歇山") || roof.contains("庑殿") || roof.contains("入母屋")) {
+                        return true;
+                    }
+                }
             }
         }
         return false;

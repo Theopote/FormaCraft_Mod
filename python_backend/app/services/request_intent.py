@@ -151,7 +151,8 @@ def scaffold_plan_for_intent(
 
     if building_class == "tower_like":
         height = max(18, width * 3)
-        levels = 3 if ("三层" in str(intent.get("original_text") or "") or "3层" in str(intent.get("original_text") or "")) else 5
+        text = str(intent.get("original_text") or "")
+        levels = 3 if ("三层" in text or "3层" in text or "三檐" in text) else 5
         return {
             "mode": "build",
             "style_profile": "DEFAULT",
@@ -164,10 +165,12 @@ def scaffold_plan_for_intent(
                     "slot_id": "tower",
                     "relative_position": {"x": 0, "y": 0, "z": 0},
                     "dimensions": {"width": width, "depth": depth, "height": height},
-                    "features": ["dense_eaves_pagoda", "finial_spire", "塔刹"],
-                        "params": {
+                    "features": ["dense_eaves_pagoda", "finial_spire", "塔刹", "typology:dense_eaves_pagoda"],
+                    "params": {
+                        "typology_id": "dense_eaves_pagoda",
                         "typology": "dense_eaves_pagoda",
                         "levels": levels,
+                        "floor_count": levels,
                         "eave_tiers": levels,
                         "wall_block": wall,
                         "roof_block": roof,
@@ -185,7 +188,9 @@ def scaffold_plan_for_intent(
 
     if building_class == "gate":
         w = max(12, width if width >= depth else width * 2)
-        d = max(4, min(depth, w // 2))
+        d = max(4, min(depth if depth > 0 else w // 3, w // 2))
+        h = max(8, d * 2)
+        roof_type = intent.get("roof_type") or "xieshan"
         return {
             "mode": "build",
             "style_profile": "DEFAULT",
@@ -194,18 +199,32 @@ def scaffold_plan_for_intent(
             "style_attributes": style_attrs,
             "components": [
                 {
-                    "component_type": "STRUCTURE",
+                    "component_type": "GATE",
                     "slot_id": "gate",
                     "relative_position": {"x": 0, "y": 0, "z": 0},
-                    "dimensions": {"width": w, "depth": d, "height": max(8, d * 2)},
+                    "dimensions": {"width": w, "depth": d, "height": h},
                     "features": ["temple_gate", "山门", "paifang"],
                     "params": {
+                        "component_id": "gate_main",
                         "wall_block": wall,
                         "roof_block": roof,
-                        "roof_type": intent.get("roof_type") or "xieshan",
+                        "roof_type": roof_type,
                         "passage_axis": "z",
                     },
-                }
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "gate",
+                    "relative_position": {"x": 0, "y": h, "z": 0},
+                    "dimensions": {"width": w + 2, "depth": d + 2, "height": max(3, d)},
+                    "features": ["gate_roof"],
+                    "params": {
+                        "component_id": "gate_roof",
+                        "host_id": "gate_main",
+                        "roof_type": roof_type,
+                        "roof_block": roof,
+                    },
+                },
             ],
             "plan_meta": {
                 "request_intent": intent,
@@ -215,7 +234,56 @@ def scaffold_plan_for_intent(
             },
         }
 
-    if building_class in ("garden", "temple"):
+    if building_class == "temple":
+        # Single hall shrine — do not force garden courtyard composition.
+        hall_w = max(9, width if width >= 7 else 11)
+        hall_d = max(7, depth if depth >= 5 else max(7, hall_w - 2))
+        hall_h = 7
+        roof_type = intent.get("roof_type") or "xieshan"
+        return {
+            "mode": "build",
+            "style_profile": "DEFAULT",
+            "anchor": origin,
+            "distinguishing_features": markers or ["道观", "temple"],
+            "style_attributes": style_attrs,
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": hall_w, "depth": hall_d, "height": hall_h},
+                    "features": ["main_hall", "temple", "道观"],
+                    "params": {
+                        "component_id": "temple_hall",
+                        "wall_block": wall,
+                        "roof_block": roof,
+                        "roof_type": roof_type,
+                        **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "hall",
+                    "relative_position": {"x": -1, "y": hall_h, "z": -1},
+                    "dimensions": {"width": hall_w + 2, "depth": hall_d + 2, "height": 4},
+                    "features": ["temple_roof"],
+                    "params": {
+                        "component_id": "temple_roof",
+                        "host_id": "temple_hall",
+                        "roof_type": roof_type,
+                        "roof_block": roof,
+                    },
+                },
+            ],
+            "plan_meta": {
+                "request_intent": intent,
+                "building_class": "temple",
+                "scaffolded_from_request_intent": True,
+                "allow_compiler_satellites": False,
+            },
+        }
+
+    if building_class == "garden":
         site_w = max(16, width * 2)
         site_d = max(16, depth * 2)
         comps: List[Dict[str, Any]] = [

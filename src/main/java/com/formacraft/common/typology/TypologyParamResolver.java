@@ -92,12 +92,12 @@ public final class TypologyParamResolver {
     static void normalizeAliases(Map<String, Object> merged) {
         if (merged == null || merged.isEmpty()) return;
         promote(merged, "footprint", "footprint_shape", "footprintShape");
-        promote(merged, "levels", "story_count", "storyCount");
+        promote(merged, "levels", "floor_count", "floorCount", "story_count", "storyCount");
         promote(merged, "baseWidth", "base_width", "basewidth");
         promote(merged, "baseDepth", "base_depth");
         promote(merged, "baseRadius", "base_radius");
         promote(merged, "hallRadius", "hall_radius");
-        alias(merged, "levels", "floors");
+        alias(merged, "levels", "floors", "eave_tiers", "eaveTiers");
         alias(merged, "detailLevel", "detail_level");
         alias(merged, "bodyBlock", "body_block", "wall_block", "wallBlock");
         alias(merged, "eaveBlock", "eave_block");

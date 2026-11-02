@@ -20,6 +20,7 @@ public final class RoofTypeCatalog {
             "double_gable", "doublegable", "shuangpo", "双坡",
             "hip", "hipped", "chinese_hip", "wu_dian", "wudian", "wu-dian", "庑殿", "四坡",
             "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山",
+            "irimoya", "iri_moya", "iri-moya", "入母屋", "入母屋造",
             "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山",
             "pyramid", "pyramidal",
             "cone", "conical",
@@ -94,7 +95,9 @@ public final class RoofTypeCatalog {
                 return Optional.of("xuanshan");
             }
             if (lower.contains("xieshan") || lower.contains("xie_shan") || lower.contains("hip_and_gable") || lower.contains("hip_gable")
-                    || lower.contains("歇山")) {
+                    || lower.contains("歇山")
+                    || lower.contains("irimoya") || lower.contains("iri_moya") || lower.contains("iri-moya")
+                    || feature.contains("入母屋")) {
                 return Optional.of("xieshan");
             }
             if (lower.contains("wu_dian") || lower.contains("wudian") || lower.contains("庑殿") || lower.contains("四坡")) {
@@ -177,7 +180,8 @@ public final class RoofTypeCatalog {
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;
             case "hip", "hipped", "chinese_hip", "wu_dian", "wudian", "wu-dian", "庑殿", "四坡" -> RoofTypeKind.HIP;
-            case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山" -> RoofTypeKind.XIESHAN;
+            case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山",
+                 "irimoya", "iri_moya", "iri-moya", "入母屋", "入母屋造" -> RoofTypeKind.XIESHAN;
             case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofTypeKind.XUANSHAN;
             case "pyramid", "pyramidal" -> RoofTypeKind.PYRAMID;
             case "cone", "conical" -> RoofTypeKind.CONE;
