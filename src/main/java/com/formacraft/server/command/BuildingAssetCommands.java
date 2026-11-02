@@ -43,7 +43,7 @@ final class BuildingAssetCommands {
         try {
             var player = source.getPlayerOrThrow(); var world = (ServerWorld)player.getEntityWorld();
             var result = BuildingAssetLocks.restore(world.getServer().getSavePath(WorldSavePath.ROOT),player.getUuid(),id,world.getRegistryKey().getValue().toString());
-            source.sendFeedback(() -> Text.literal("已恢复/复用 "+result.aliases().size()+" 个构件引用；失败 "+result.failures().size()+" 项。新资产只写本人私人库，未修改世界"),false);
+            source.sendFeedback(() -> Text.literal("已恢复/复用 "+(result.useAliases().size()+result.selections().size())+" 个构件引用；其中 "+result.selections().size()+" 项保留指定社区来源；失败 "+result.failures().size()+" 项。新资产只写本人私人库，未修改世界"),false);
             com.formacraft.server.network.ComponentCatalogSync.send(player,com.formacraft.common.json.JsonUtil.toJson(
                     com.formacraft.common.component.ComponentStorage.loadCatalogWithSockets(world.getServer().getSavePath(WorldSavePath.ROOT),player.getUuid())));
             return result.complete() ? 1 : 0;

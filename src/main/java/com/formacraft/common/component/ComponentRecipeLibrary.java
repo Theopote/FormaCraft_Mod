@@ -4,6 +4,7 @@ import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.component.model.ComponentModelApi;
 import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.variant.SegmentScaler;
+import com.formacraft.common.component.community.CommunityDownloadCache;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
@@ -18,9 +19,9 @@ public final class ComponentRecipeLibrary {
     public static final String ENGINE = "formacraft.segment-recipe.v1";
     public record Spec(String name, int x, int y, int z) {}
     public record Recipe(String schema, String engine, String identity, String snapshot, String creator,
-                         Spec spec, String resultRef, String resultManifest) {}
+                         Spec spec, String resultRef, String resultManifest, String communityReceipt) {}
     public record Saved(String assetId, String name, ComponentPackageInstallations.ImportStatus status) {}
-    private record Loaded(Recipe recipe, ComponentPackageIO.Verified result, ComponentPackageIO.Verified source) {}
+    private record Loaded(Recipe recipe, ComponentPackageIO.Verified result, ComponentPackageIO.Verified source, CommunityDownloadCache.Cached receipt) {}
     public static boolean isRecipe(String id) { return id != null && id.matches("recipe_[0-9a-f]{48}"); }
 
     private static Path personal(UUID player, boolean create) throws IOException {
@@ -37,9 +38,10 @@ public final class ComponentRecipeLibrary {
         for (int size : new int[]{spec.x(),spec.y(),spec.z()})
             if (size < 1 || size > SegmentScaler.MAX_AXIS_SIZE) throw new IOException("配方目标尺寸超出范围");
     }
-    private static String identity(String snapshot, Spec spec) {
+    private static String identity(String snapshot, Spec spec, String receipt) {
         try {
             String input = ENGINE+"\n"+snapshot+"\n"+spec.x()+","+spec.y()+","+spec.z();
+            if (receipt != null) input += "\ncommunity:"+receipt;
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
     }
@@ -47,10 +49,23 @@ public final class ComponentRecipeLibrary {
         validate(spec);
         synchronized (ComponentStorage.class) {
             var visible = ComponentLibraryOperations.export(world,player,assetId,expectedRef,0,expectedRef);
-            var source = isRecipe(assetId) ? read(player,assetId).source() : visible;
+            var original = isRecipe(assetId) ? read(player,assetId) : null;
+            return saveSource(player,original == null ? visible : original.source(),spec,original == null ? null : original.receipt());
+        }
+    }
+    public static Saved saveSelected(Path world, UUID player, ComponentSourceBinding.Selection selected, Spec spec) throws IOException {
+        validate(spec);
+        synchronized (ComponentStorage.class) {
+            selected.validate(world,player);
+            return saveSource(player,selected.source(),spec,selected.receipt());
+        }
+    }
+    private static Saved saveSource(UUID player, ComponentPackageIO.Verified source, Spec spec, CommunityDownloadCache.Cached receipt) throws IOException {
+            if (receipt != null) ComponentSourceBinding.assertSource(receipt,source);
             var result = compile(source,spec);
             Path library = personal(player,true); String snapshot = ComponentAssetSnapshots.save(library,source);
-            String identity = identity(snapshot,spec), id = "recipe_"+identity.substring(0,48);
+            String receiptId = receipt == null ? null : receipt.receiptId();
+            String identity = identity(snapshot,spec,receiptId), id = "recipe_"+identity.substring(0,48);
             Path recipes = ComponentAssetSnapshots.child(library,"recipes",true);
             if (Files.exists(recipes.resolve(id),LinkOption.NOFOLLOW_LINKS)) {
                 var existing = read(player,id);
@@ -60,7 +75,8 @@ public final class ComponentRecipeLibrary {
             long count;
             try (var children = Files.list(recipes)) { count = children.filter(p -> isRecipe(p.getFileName().toString())).count(); }
             if (count >= 256) throw new IOException("私人配方已达 256 项，请整理后重试");
-            var recipe = new Recipe("formacraft.component.recipe.v1",ENGINE,identity,snapshot,player.toString(),spec,result.contentRef(),result.manifestSha256());
+            if (receipt != null) CommunityDownloadCache.pin(library.resolve("community_downloads"),receipt,ComponentPackageIO.currentEnvironment());
+            var recipe = new Recipe("formacraft.component.recipe.v1",ENGINE,identity,snapshot,player.toString(),spec,result.contentRef(),result.manifestSha256(),receiptId);
             Path staging = Files.createTempDirectory(recipes,".pending-");
             try {
                 result.writeTo(staging.resolve("result.fccomponent.json"));
@@ -68,7 +84,6 @@ public final class ComponentRecipeLibrary {
                 Files.move(staging,recipes.resolve(id),StandardCopyOption.ATOMIC_MOVE);
             } finally { cleanup(staging); }
             return new Saved(id,spec.name(),ComponentPackageInstallations.ImportStatus.NEW_ASSET);
-        }
     }
     private static ComponentPackageIO.Verified compile(ComponentPackageIO.Verified source, Spec spec) throws IOException {
         validate(spec); var base = source.component();
@@ -110,13 +125,18 @@ public final class ComponentRecipeLibrary {
         if (recipe == null || !"formacraft.component.recipe.v1".equals(recipe.schema()) || !ENGINE.equals(recipe.engine())
                 || !player.toString().equals(recipe.creator())) throw new IOException("Invalid recipe contract");
         validate(recipe.spec());
-        if (!identity(recipe.snapshot(),recipe.spec()).equals(recipe.identity()) || !id.equals("recipe_"+recipe.identity().substring(0,48)))
+        if (!identity(recipe.snapshot(),recipe.spec(),recipe.communityReceipt()).equals(recipe.identity()) || !id.equals("recipe_"+recipe.identity().substring(0,48)))
             throw new IOException("Recipe identity mismatch");
         var source = ComponentAssetSnapshots.read(library,recipe.snapshot());
+        CommunityDownloadCache.Cached receipt = null;
+        if (recipe.communityReceipt() != null) {
+            receipt = CommunityDownloadCache.read(library.resolve("community_downloads"),recipe.communityReceipt(),ComponentPackageIO.currentEnvironment());
+            ComponentSourceBinding.assertSource(receipt,source);
+        }
         var result = ComponentPackageIO.read(resultFile,ComponentPackageIO.currentEnvironment());
         if (!Objects.equals(result.component().name,recipe.spec().name()) || !result.contentRef().equals(recipe.resultRef()) || !result.manifestSha256().equals(recipe.resultManifest())
                 || !result.manifest().derivedFrom().contains(source.contentRef()+"|manifest:"+source.manifestSha256())) throw new IOException("Recipe result mismatch");
-        return new Loaded(recipe,result,source);
+        return new Loaded(recipe,result,source,receipt);
     }
     public static ComponentPackageIO.Verified result(UUID player, String id) throws IOException { return read(player,id).result(); }
     public static void replay(UUID player, String id) throws IOException {
@@ -126,7 +146,11 @@ public final class ComponentRecipeLibrary {
     }
     public static Saved restore(ComponentStorage.SaveContext context, String id) throws IOException {
         if (context == null || context.playerId() == null) throw new IOException("Missing recipe owner");
-        var source = read(context.playerId(),id).source();
+        var loaded = read(context.playerId(),id);
+        if (loaded.receipt() != null) {
+            throw new IOException("该配方需要保留社区来源绑定，当前普通恢复入口不支持");
+        }
+        var source = loaded.source();
         for (var entry : ComponentStorage.loadCatalog(context.worldDir(),context.playerId()).components) {
             if (entry.recipe || !source.contentRef().equals(entry.packageRef)) continue;
             var visible = ComponentLibraryOperations.export(context.worldDir(),context.playerId(),entry.id,entry.packageRef,0,entry.packageRef);
@@ -138,6 +162,14 @@ public final class ComponentRecipeLibrary {
         var restored = ComponentPackageInstallations.importVerified(source,privateContext);
         return new Saved(restored.assetId(),ComponentSourceView.bounded(source.component().name,128),restored.status());
     }
+    /** Explicit restoration API: callers retain this selection instead of treating the alias as a source. */
+    public static ComponentSourceBinding.Selection restoreSelected(ComponentStorage.SaveContext context, String id) throws IOException {
+        if (context == null || context.playerId() == null) throw new IOException("Missing recipe owner");
+        var loaded = read(context.playerId(),id);
+        if (loaded.receipt() == null) throw new IOException("配方没有社区来源收据");
+        return ComponentSourceBinding.install(loaded.receipt(),context);
+    }
+    static CommunityDownloadCache.Cached communitySource(UUID player, String id) throws IOException { return read(player,id).receipt(); }
     public static List<ComponentCatalog.Entry> entries(UUID player) {
         var entries = new ArrayList<ComponentCatalog.Entry>(); if (player == null) return entries;
         try {

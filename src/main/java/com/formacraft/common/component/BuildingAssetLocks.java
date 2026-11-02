@@ -1,6 +1,7 @@
 package com.formacraft.common.component;
 
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.component.community.CommunityDownloadCache;
 import com.formacraft.common.patch.BlockPatch;
 import com.google.gson.stream.JsonReader;
 import java.io.*;
@@ -18,14 +19,14 @@ public final class BuildingAssetLocks {
     public record Dependency(String contentRef, String manifestSha256) {}
     public record Manifest(String schema, String id, String owner, String dimension, long createdAt, String engine, String producerVersion, long seed,
                            int originX,int originY,int originZ,String planSha256,String patchesSha256,int patchCount,
-                           Map<String,Dependency> dependencies,Map<String,String> shapes,List<BuildingAssetCapture.Use> uses) {
-        public Manifest { dependencies = Map.copyOf(dependencies); shapes = Map.copyOf(shapes); uses = List.copyOf(uses); }
+                           Map<String,Dependency> dependencies,Map<String,String> shapes,List<BuildingAssetCapture.Use> uses,Map<String,String> communityReceipts) {
+        public Manifest { dependencies = Map.copyOf(dependencies); shapes = Map.copyOf(shapes); uses = List.copyOf(uses); communityReceipts = Map.copyOf(communityReceipts); }
     }
     public record Loaded(Manifest manifest,String inputPlan,List<BlockPatch> patches) {
         public Loaded { patches = List.copyOf(patches); }
     }
-    public record RestoreResult(Map<String,String> aliases,List<String> failures) {
-        public RestoreResult { aliases = Map.copyOf(aliases); failures = List.copyOf(failures); }
+    public record RestoreResult(Map<String,String> aliases,List<String> failures,Map<Integer,String> useAliases,Map<Integer,ComponentSourceBinding.Selection> selections) {
+        public RestoreResult { aliases = Map.copyOf(aliases); failures = List.copyOf(failures); useAliases = Map.copyOf(useAliases); selections = Map.copyOf(selections); }
         public boolean complete() { return failures.isEmpty(); }
     }
     public static boolean validId(String id) { return id != null && id.matches("lock_[0-9a-f]{32}"); }
@@ -67,6 +68,18 @@ public final class BuildingAssetLocks {
                 ComponentAssetSnapshots.save(root,entry.getValue());
                 dependencies.put(entry.getKey(),new Dependency(entry.getValue().contentRef(),entry.getValue().manifestSha256()));
             }
+            var receiptSources = new TreeMap<String,String>();
+            long rawBytes = 0; var rawObjects = new HashSet<String>();
+            for (var entry : data.receipts().entrySet()) {
+                var receipt = entry.getValue(); var source = receipt.download().verified(); String snapshot = ComponentAssetSnapshots.key(source);
+                if (!entry.getKey().equals(receipt.receiptId()) || !data.sources().containsKey(snapshot)) throw new IOException("建筑收据缺少原包依赖");
+                ComponentSourceBinding.assertSource(receipt,data.sources().get(snapshot));
+                String hash = receipt.details().descriptor().releaseRef().packageSha256();
+                if (rawObjects.add(hash)) rawBytes += receipt.details().descriptor().byteLength();
+                if (rawBytes > 32L*1024*1024) throw new IOException("建筑原始下载对象超限");
+                CommunityDownloadCache.pin(root.resolve("community_downloads"),receipt,ComponentPackageIO.currentEnvironment());
+                receiptSources.put(entry.getKey(),snapshot);
+            }
             String id = "lock_"+UUID.randomUUID().toString().replace("-",""); Path staging = Files.createTempDirectory(locks,".pending-");
             try {
                 Files.write(staging.resolve("input-plan.json"),plan,StandardOpenOption.CREATE_NEW);
@@ -75,7 +88,7 @@ public final class BuildingAssetLocks {
                      var writer = new OutputStreamWriter(output,StandardCharsets.UTF_8)) { JsonUtil.get().toJson(patches,writer); }
                 String producerVersion = ComponentPackageIO.currentEnvironment().installedMods().getOrDefault("formacraft","development");
                 var manifest = new Manifest("formacraft.building_asset_lock.v1",id,owner.toString(),dimension,System.currentTimeMillis(),ENGINE,producerVersion,seed,
-                        x,y,z,BuildingAssetCapture.digest(plan),fileHash(patchFile),patches.size(),dependencies,data.shapes(),data.uses());
+                        x,y,z,BuildingAssetCapture.digest(plan),fileHash(patchFile),patches.size(),dependencies,data.shapes(),data.uses(),receiptSources);
                 validateManifest(manifest,owner,id);
                 try (var output = new LimitedOutput(Files.newOutputStream(staging.resolve("manifest.json"),StandardOpenOption.CREATE_NEW),MAX_MANIFEST);
                      var writer = new OutputStreamWriter(output,StandardCharsets.UTF_8)) { JsonUtil.get().toJson(manifest,writer); }
@@ -95,7 +108,8 @@ public final class BuildingAssetLocks {
                 || m.dimension().length() > 256 || m.createdAt() <= 0 || !hash(m.planSha256()) || !hash(m.patchesSha256())
                 || m.producerVersion() == null || m.producerVersion().isBlank() || m.producerVersion().length() > 256
                 || m.patchCount() <= 0 || m.patchCount() > MAX_PATCHES || m.dependencies() == null || m.dependencies().isEmpty() || m.dependencies().size() > 256
-                || m.shapes() == null || m.shapes().isEmpty() || m.shapes().size() > 1024 || m.uses() == null || m.uses().isEmpty() || m.uses().size() > 65536)
+                || m.shapes() == null || m.shapes().isEmpty() || m.shapes().size() > 1024 || m.uses() == null || m.uses().isEmpty() || m.uses().size() > 65536
+                || m.communityReceipts() == null || m.communityReceipts().size() > 256)
             throw new IOException("建筑锁清单契约不一致");
         for (var dependency : m.dependencies().entrySet())
             if (!dependency.getKey().matches("[0-9a-f]{64}_[0-9a-f]{64}") || dependency.getValue() == null
@@ -109,12 +123,20 @@ public final class BuildingAssetLocks {
                 if (!com.formacraft.common.component.validate.ComponentValidator.validate(definition).ok()) throw new IOException("适配构件无效");
             } catch (RuntimeException invalid) { throw new IOException("适配构件无效",invalid); }
         }
+        for (var entry : m.communityReceipts().entrySet())
+            if (!entry.getKey().matches("receipt_[0-9a-f]{64}") || !m.dependencies().containsKey(entry.getValue())) throw new IOException("建筑收据身份无效");
+        var usedReceipts = new HashSet<String>();
         for (var use : m.uses()) {
             if (use == null || !ComponentIds.isSafeId(use.assetId()) || !m.dependencies().containsKey(use.snapshot()) || !m.shapes().containsKey(use.shape())
                     || !Set.of("NORTH","SOUTH","EAST","WEST").contains(use.fromFacing()) || !Set.of("NORTH","SOUTH","EAST","WEST").contains(use.facing())
                     || !Set.of("NONE","X","Z").contains(use.mirror()) || use.style() != null && use.style().length() > 256
                     || use.materialApplied() && !use.materialRequested()) throw new IOException("构件使用记录无效");
+            if (use.receiptId() != null) {
+                if (!use.snapshot().equals(m.communityReceipts().get(use.receiptId()))) throw new IOException("构件来源与收据不一致");
+                usedReceipts.add(use.receiptId());
+            }
         }
+        if (!usedReceipts.equals(m.communityReceipts().keySet())) throw new IOException("建筑收据没有对应使用记录");
     }
     private static Map<String,ComponentPackageIO.Verified> sources(Path root,Manifest manifest) throws IOException {
         var sources = new LinkedHashMap<String,ComponentPackageIO.Verified>();
@@ -127,10 +149,21 @@ public final class BuildingAssetLocks {
         }
         return sources;
     }
+    private static Map<String,CommunityDownloadCache.Cached> receipts(Path root, Manifest manifest, Map<String,ComponentPackageIO.Verified> sources) throws IOException {
+        var result = new LinkedHashMap<String,CommunityDownloadCache.Cached>(); long rawBytes = 0; var rawObjects = new HashSet<String>();
+        for (var entry : manifest.communityReceipts().entrySet()) {
+            var receipt = CommunityDownloadCache.read(root.resolve("community_downloads"),entry.getKey(),ComponentPackageIO.currentEnvironment());
+            ComponentSourceBinding.assertSource(receipt,sources.get(entry.getValue()));
+            if (rawObjects.add(receipt.details().descriptor().releaseRef().packageSha256())) rawBytes += receipt.details().descriptor().byteLength();
+            if (rawBytes > 32L*1024*1024) throw new IOException("建筑原始下载对象超限");
+            result.put(entry.getKey(),receipt);
+        }
+        return result;
+    }
     public static Loaded load(Path world,UUID owner,String id,String dimension) throws IOException {
         Path directory = directory(world,owner,id); var manifest = manifest(directory,owner,id);
         if (!Objects.equals(dimension,manifest.dimension())) throw new IOException("请在锁记录所属维度恢复预览");
-        sources(vault(world,owner,false),manifest);
+        Path root = vault(world,owner,false); var sources = sources(root,manifest); receipts(root,manifest,sources);
         String plan = text(file(directory,"input-plan.json"),MAX_PLAN);
         if (!BuildingAssetCapture.digest(plan).equals(manifest.planSha256())) throw new IOException("建筑方案指纹不一致");
         Path patchFile = file(directory,"patches.json.gz");
@@ -166,21 +199,40 @@ public final class BuildingAssetLocks {
     public static RestoreResult restore(Path world,UUID owner,String id,String dimension) throws IOException {
         var locked = load(world,owner,id,dimension); var manifest = locked.manifest(); var sources = sources(vault(world,owner,false),manifest);
         var aliases = new LinkedHashMap<String,String>(); var failures = new ArrayList<String>();
+        var useAliases = new LinkedHashMap<Integer,String>(); var selections = new LinkedHashMap<Integer,ComponentSourceBinding.Selection>();
+        var receipts = receipts(vault(world,owner,false),manifest,sources);
         var context = new ComponentStorage.SaveContext(world,owner,false,false);
-        for (var entry : sources.entrySet()) {
+        var ordered = new ArrayList<>(sources.entrySet());
+        ordered.sort(Comparator.<Map.Entry<String,ComponentPackageIO.Verified>>comparingInt(entry -> manifest.uses().stream()
+                .anyMatch(use -> use.snapshot().equals(entry.getKey()) && use.receiptId() == null) ? 0 : 1).thenComparing(Map.Entry::getKey));
+        for (var entry : ordered) {
             try {
                 var source = entry.getValue(); String actualId = null;
+                var bound = new HashMap<String,ComponentSourceBinding.Selection>();
+                for (int i = 0; i < manifest.uses().size(); i++) {
+                    var use = manifest.uses().get(i);
+                    if (!use.snapshot().equals(entry.getKey()) || use.receiptId() == null) continue;
+                    var selected = bound.get(use.receiptId());
+                    if (selected == null) { selected = ComponentSourceBinding.install(receipts.get(use.receiptId()),context); bound.put(use.receiptId(),selected); }
+                    selections.put(i,selected);
+                }
+                boolean ordinary = manifest.uses().stream().anyMatch(use -> use.snapshot().equals(entry.getKey()) && use.receiptId() == null);
+                if (!ordinary) continue;
                 for (var visible : ComponentStorage.loadCatalog(world,owner).components) {
                     if (visible.recipe || !source.contentRef().equals(visible.packageRef)) continue;
                     if (ComponentLibraryOperations.export(world,owner,visible.id,visible.packageRef,0,visible.packageRef).manifestSha256().equals(source.manifestSha256())) { actualId = visible.id; break; }
                 }
                 if (actualId == null) actualId = ComponentPackageInstallations.importVerified(source,context).assetId();
-                for (var use : manifest.uses()) if (use.snapshot().equals(entry.getKey())) aliases.put(use.assetId(),actualId);
+                for (int i = 0; i < manifest.uses().size(); i++) {
+                    var use = manifest.uses().get(i);
+                    if (use.snapshot().equals(entry.getKey()) && use.receiptId() == null) { aliases.put(use.assetId(),actualId); useAliases.put(i,actualId); }
+                }
             } catch (IOException | RuntimeException failed) {
                 failures.add(entry.getKey()); com.formacraft.FormacraftMod.LOGGER.warn("Building asset dependency restore failed key={}",entry.getKey(),failed);
             }
         }
-        return new RestoreResult(aliases,failures);
+        for (var use : manifest.uses()) if (use.receiptId() != null) aliases.remove(use.assetId());
+        return new RestoreResult(aliases,failures,useAliases,selections);
     }
     private static void validatePatch(BlockPatch patch) throws IOException {
         if (patch == null || !Set.of(BlockPatch.PLACE,BlockPatch.REPLACE,BlockPatch.REMOVE).contains(patch.action())

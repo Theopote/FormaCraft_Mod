@@ -17,6 +17,13 @@ public final class CommunityDownloadCache {
     private static final String SCHEMA = "formacraft.community.download-receipt.v1", RAW = "original.fccomponent.json", RECEIPT = "receipt.json";
     public record Cached(String receiptId, Instant verifiedAt, CommunityReleaseDetails details, CommunityPackages.Download download) {}
 
+    /** Independent evidence copy: deleting the original cache cannot invalidate the target vault. */
+    public static String pin(Path targetRoot, Cached cached, ComponentPackageIO.Environment environment) throws IOException {
+        if (cached == null || !receiptId(cached.details().descriptor()).equals(cached.receiptId())) throw new CommunityPackages.Failure("cache_corrupt");
+        return save(targetRoot, new CommunitySearchHttpClient.Fetched(cached.details(), cached.download()), environment,
+                Clock.fixed(cached.verifiedAt(), ZoneOffset.UTC));
+    }
+
     public static String receiptId(CommunityPackages.Descriptor descriptor) {
         var ref = descriptor.releaseRef();
         String identity = String.join("\n", SCHEMA, ref.authorityId(), ref.resourceId(), ref.releaseId(), ref.packageSha256(), ref.payloadSha256(), ref.manifestSha256(),
