@@ -21,6 +21,7 @@ public final class TypologyReferencePresets {
     static {
         PRESETS.put("famen_pagoda", Map.of(
                 "footprint", "octagon",
+                "floor_count", 13,
                 "levels", 13,
                 "height", 47,
                 "baseWidth", 10,
@@ -29,6 +30,7 @@ public final class TypologyReferencePresets {
         ));
         PRESETS.put("giant_wild_goose_pagoda", Map.of(
                 "footprint", "square",
+                "floor_count", 7,
                 "levels", 7,
                 "height", 41,
                 "baseWidth", 17,

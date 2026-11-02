@@ -2,6 +2,8 @@
 
 状态：设计提案，尚无部署端点。请求解析、离线索引与显式只读 HTTP 搜索客户端已实现，摘要响应仅支持 [offline-summary.v1 子集](COMPONENT_COMMUNITY_TRANSPORT.md)。以下完整字段和其他端点仍为拟议契约；不是当前游戏网络 payload 或 Python 后端的已有能力。示例位于 [community-examples](community-examples/README.md)，完整设计示例不冒充当前子集响应。
 
+发布详情客户端支持 offline-release.v1，完整包 GET 及持久收据也已有实现；具体字段与边界见 [下载文档](COMPONENT_COMMUNITY_DOWNLOADS.md)。尚无实际托管服务，完整领域版本/账户/发现修订模型仍是提案。
+
 ## 第一个可实现范围
 
 先实现只读能力说明、搜索、发布详情、相同配置的来源列表和按整包指纹下载。测试环境预置经过审核的包；首版没有登录发布、自动更新、训练数据下载、任意 URL 代理或远端脚本执行。单一 authorityId 映射到服务器配置的服务地址；来源消息不能提供任意主机来改变目标。

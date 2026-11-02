@@ -72,6 +72,24 @@ public final class OfflineCommunityIndex {
         return CommunityPackages.receive(new ByteArrayInputStream(entry.bytes), entry.descriptor, environment);
     }
 
+    public synchronized byte[] releaseDetails(CommunityPackages.ReleaseRef selected) throws IOException {
+        Entry entry = selectedEntry(selected);
+        return CommunityReleaseDetails.create(entry.descriptor, entry.inspected, !unavailable.contains(selected.releaseId())).toBytes();
+    }
+
+    public synchronized byte[] packageBytes(CommunityPackages.ReleaseRef selected) throws IOException {
+        Entry entry = selectedEntry(selected);
+        if (unavailable.contains(selected.releaseId())) throw new CommunityPackages.Failure("release_unavailable");
+        return entry.bytes.clone();
+    }
+
+    private Entry selectedEntry(CommunityPackages.ReleaseRef selected) throws IOException {
+        if (selected == null || !authorityId.equals(selected.authorityId())) throw new CommunityPackages.Failure("authority_mismatch");
+        Entry entry = requireEntry(selected.releaseId());
+        if (!entry.descriptor.releaseRef().equals(selected)) throw new CommunityPackages.Failure("object_changed");
+        return entry;
+    }
+
     public synchronized Page search(Query query, int pageSize, String token) throws IOException {
         return search(query, pageSize, token, "internal");
     }

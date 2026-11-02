@@ -91,6 +91,7 @@ class TypologyParamResolverTest {
         var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
         // Explicit plan/LLM attributes are not overwritten by the named landmark.
         assertEquals("square", merged.get("footprint"));
+        assertEquals(9, merged.get("floor_count"));
         assertEquals(9, merged.get("levels"));
         assertEquals(64, merged.get("height"));
         assertEquals(25, ((Number) merged.get("baseWidth")).intValue());

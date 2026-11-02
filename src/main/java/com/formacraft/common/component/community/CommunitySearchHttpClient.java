@@ -1,5 +1,6 @@
 package com.formacraft.common.component.community;
 
+import com.formacraft.common.component.ComponentPackageIO;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
@@ -15,12 +16,13 @@ import java.util.concurrent.atomic.*;
 public final class CommunitySearchHttpClient implements AutoCloseable {
     private final String authorityId;
     private final URI endpoint;
+    private final URI apiRoot;
     private final HttpClient http;
     public CommunitySearchHttpClient(String authorityId, URI base) {
         if (authorityId == null || !authorityId.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}")) throw new IllegalArgumentException("Invalid authority");
         Objects.requireNonNull(base);
         String prefix = getString(base);
-        this.authorityId = authorityId; this.endpoint = base.resolve(prefix + "v1/search");
+        this.authorityId = authorityId; this.apiRoot = base.resolve(prefix + "v1/"); this.endpoint = apiRoot.resolve("search");
         // No default CookieHandler, Authenticator, proxy credentials, or redirect destination.
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER)
                 .proxy(new ProxySelector() {
@@ -50,9 +52,7 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         }
     }
     public CommunitySearchResponse.Decoded search(byte[] requestBytes, Cancellation cancellation) throws IOException {
-        Objects.requireNonNull(cancellation);
-        if (!cancellation.used.compareAndSet(false, true)) throw new IllegalArgumentException("Cancellation token already used");
-        cancellation.check();
+        claim(cancellation);
         if (requestBytes == null || requestBytes.length > CommunitySearchContract.MAX_REQUEST_BYTES)
             throw new CommunityPackages.Failure(requestBytes == null ? "invalid_request" : "request_too_large");
         byte[] owned = requestBytes.clone(); var request = CommunitySearchContract.decode(owned);
@@ -60,12 +60,59 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         var outgoing = HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(30))
                 .header("Accept", "application/json").header("Content-Type", "application/json; charset=utf-8")
                 .header("Accept-Encoding", "identity").POST(HttpRequest.BodyPublishers.ofByteArray(owned)).build();
-        var future = http.sendAsync(outgoing, CommunitySearchHttpClient::subscriber); cancellation.future.set(future);
+        var response = exchange(outgoing, cancellation, CommunitySearchResponse.MAX_BYTES, -1, null);
+        if (response.statusCode() != 200) throw remoteFailure(response.body(), request.requestId());
+        var decoded = CommunitySearchResponse.decode(response.body(), request, authorityId); cancellation.check(); return decoded;
+    }
+
+    public CommunityReleaseDetails details(CommunityPackages.Descriptor selected, Cancellation cancellation) throws IOException {
+        claim(cancellation); requireAuthority(selected);
+        var details = fetchDetails(selected, cancellation); cancellation.check(); return details;
+    }
+
+    public record Fetched(CommunityReleaseDetails details, CommunityPackages.Download download) {}
+
+    public Fetched download(CommunityPackages.Descriptor selected, ComponentPackageIO.Environment environment, Cancellation cancellation) throws IOException {
+        claim(cancellation); requireAuthority(selected);
+        if (environment == null) throw new CommunityPackages.Failure("environment_required");
+        var details = fetchDetails(selected, cancellation);
+        if (!details.available()) throw new CommunityPackages.Failure("release_unavailable");
+        cancellation.check(); String requestId = UUID.randomUUID().toString(); var ref = selected.releaseRef();
+        var uri = apiRoot.resolve("package-blobs/" + ref.packageSha256() + "?releaseId=" + ref.releaseId());
+        var request = get(uri, requestId);
+        var response = exchange(request, cancellation, selected.byteLength(), selected.byteLength(), "\"" + ref.packageSha256() + "\"");
+        if (response.statusCode() != 200) throw remoteFailure(response.body(), requestId);
+        cancellation.check();
+        var download = CommunityPackages.receive(new ByteArrayInputStream(response.body()), selected, environment);
+        details.verify(download); cancellation.check(); return new Fetched(details, download);
+    }
+
+    private CommunityReleaseDetails fetchDetails(CommunityPackages.Descriptor selected, Cancellation cancellation) throws IOException {
+        String requestId = UUID.randomUUID().toString();
+        var request = get(apiRoot.resolve("releases/" + selected.releaseRef().releaseId()), requestId);
+        var response = exchange(request, cancellation, CommunityReleaseDetails.MAX_BYTES, -1, null);
+        if (response.statusCode() != 200) throw remoteFailure(response.body(), requestId);
+        var details = CommunityReleaseDetails.decode(response.body(), selected); cancellation.check(); return details;
+    }
+    private static HttpRequest get(URI uri, String requestId) {
+        return HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).header("Accept", "application/json")
+                .header("Accept-Encoding", "identity").header("X-Formacraft-Request-Id", requestId).GET().build();
+    }
+    private void requireAuthority(CommunityPackages.Descriptor selected) throws IOException {
+        if (selected == null || !authorityId.equals(selected.releaseRef().authorityId())) throw new CommunityPackages.Failure("authority_mismatch");
+    }
+    private static void claim(Cancellation cancellation) throws IOException {
+        Objects.requireNonNull(cancellation);
+        if (!cancellation.used.compareAndSet(false, true)) throw new IllegalArgumentException("Cancellation token already used");
+        cancellation.check();
+    }
+
+    private HttpResponse<byte[]> exchange(HttpRequest outgoing, Cancellation cancellation, int limit, int expectedLength, String etag) throws IOException {
+        cancellation.check();
+        var future = http.sendAsync(outgoing, info -> subscriber(info, limit, expectedLength, etag)); cancellation.future.set(future);
         try {
             cancellation.check(); var response = future.get(30, TimeUnit.SECONDS); cancellation.check();
-            byte[] bytes = response.body();
-            if (response.statusCode() != 200) throw remoteFailure(bytes, request.requestId());
-            var decoded = CommunitySearchResponse.decode(bytes, request, authorityId); cancellation.check(); return decoded;
+            return response;
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt(); throw new CommunityPackages.Failure("cancelled", interrupted);
         } catch (TimeoutException timeout) {
@@ -83,12 +130,13 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
             cancellation.future.compareAndSet(future, null); if (!future.isDone()) future.cancel(true);
         }
     }
-    private static LimitedBody subscriber(HttpResponse.ResponseInfo info) {
-        var body = new LimitedBody();
+    private static LimitedBody subscriber(HttpResponse.ResponseInfo info, int limit, int expectedLength, String etag) {
+        var body = new LimitedBody(info.statusCode() == 200 ? limit : CommunitySearchResponse.MAX_BYTES);
         int status = info.statusCode();
         if (status >= 300 && status < 400) body.fail("redirect_rejected");
         else if (status == 429) body.fail("rate_limited");
         else if (status >= 500) body.fail("service_unavailable");
+        else if (status >= 200 && status < 300 && status != 200) body.fail("invalid_response");
         else {
             String encoding = info.headers().firstValue("Content-Encoding").orElse("identity");
             String contentType = info.headers().firstValue("Content-Type").orElse("");
@@ -97,8 +145,11 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
             else {
                 try {
                     body.declared = info.headers().firstValueAsLong("Content-Length").orElse(-1);
-                    if (body.declared > CommunitySearchResponse.MAX_BYTES) body.fail("response_too_large");
+                    if (body.declared > body.limit) body.fail("response_too_large");
                     else if (body.declared < -1) body.fail("invalid_response");
+                    else if (status == 200 && expectedLength >= 0 && body.declared >= 0 && body.declared != expectedLength) body.fail("object_changed");
+                    if (status == 200) body.expectedLength = expectedLength;
+                    if (status == 200 && etag != null && !etag.equals(info.headers().firstValue("ETag").orElse(null))) body.fail("object_changed");
                 } catch (NumberFormatException invalid) { body.fail("invalid_response"); }
             }
         }
@@ -109,6 +160,9 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         Flow.Subscription subscription;
         long declared = -1;
+        final int limit;
+        int expectedLength = -1;
+        LimitedBody(int limit) { this.limit = limit; }
         public CompletionStage<byte[]> getBody() { return result; }
         public void onSubscribe(Flow.Subscription subscription) {
             this.subscription = subscription; if (result.isDone()) subscription.cancel(); else subscription.request(1);
@@ -116,14 +170,15 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         public void onNext(List<ByteBuffer> buffers) {
             for (var buffer : buffers) {
                 int count = buffer.remaining();
-                if (count > CommunitySearchResponse.MAX_BYTES - bytes.size()) { fail("response_too_large"); return; }
+                if (count > limit - bytes.size()) { fail("response_too_large"); return; }
                 byte[] part = new byte[count]; buffer.get(part); bytes.writeBytes(part);
             }
             subscription.request(1);
         }
         public void onError(Throwable failure) { result.completeExceptionally(failure); }
         public void onComplete() {
-            if (declared >= 0 && declared != bytes.size()) fail("invalid_response"); else result.complete(bytes.toByteArray());
+            if (expectedLength >= 0 && expectedLength != bytes.size()) fail("download_incomplete");
+            else if (declared >= 0 && declared != bytes.size()) fail("invalid_response"); else result.complete(bytes.toByteArray());
         }
         void fail(String code) { result.completeExceptionally(new CommunityPackages.Failure(code)); if (subscription != null) subscription.cancel(); }
     }

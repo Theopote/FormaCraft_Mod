@@ -93,9 +93,10 @@ public final class TypologyParamResolver {
         if (merged == null || merged.isEmpty()) return;
         promote(merged, "footprint", "footprint_shape", "footprintShape");
         // floor_count = shaft storeys; do NOT fold eave_tiers into floors (重檐 ≠ 更多层).
+        // promote from story_count etc. overwrites soft-prior levels via the sync below.
         promote(merged, "floor_count", "floorCount", "story_count", "storyCount");
         alias(merged, "floor_count", "floors", "levels");
-        if (merged.containsKey("floor_count") && !merged.containsKey("levels")) {
+        if (merged.containsKey("floor_count")) {
             merged.put("levels", merged.get("floor_count"));
         }
         promote(merged, "eaves_per_level", "eavesPerLevel");
