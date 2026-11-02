@@ -178,11 +178,16 @@ def emit_validation_gap(
 
 def _try_validate(normalized: Dict[str, Any], user_text: str = "") -> Optional[List[str]]:
     try:
+        from .generation_capability import apply_stage_b_capability_repair
+
+        _, cap_errors = apply_stage_b_capability_repair(normalized, user_text or "")
         validate_llm_plan_dict(normalized)
         from .plan_semantic_gate import assert_plan_semantics
 
         assert_plan_semantics(normalized, user_text or "")
-        return component_consistency_errors(normalized) or None
+        consistency = component_consistency_errors(normalized) or []
+        combined = list(cap_errors or []) + list(consistency)
+        return combined or None
     except LlmPlanValidationError as exc:
         return list(exc.errors)
 
@@ -234,8 +239,10 @@ def repair_llm_plan_validation(
     Never raises LlmPlanValidationError.
     """
     from .fbd_capabilities import has_fbd_program, requests_fbd
+    from .generation_capability import apply_stage_b_capability_repair
     preserve_fbd = has_fbd_program(plan) or requests_fbd(user_text)
     normalized = resolve_delegated_entrances(normalize_fn(plan, req), user_text)
+    normalized, _cap = apply_stage_b_capability_repair(normalized, user_text or "")
     preserve_design = bool(component_consistency_errors(normalized))
     errors = _try_validate(normalized, user_text)
     if preserve_fbd and not has_fbd_program(normalized) and normalized.get('plan_status') != 'capability_gap':

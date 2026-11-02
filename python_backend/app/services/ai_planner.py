@@ -1246,6 +1246,15 @@ def _normalize_llm_plan_output(
             plan["player_fidelity_notice_zh"] = str(fidelity_msg).strip()
 
     plan = apply_building_contract(plan, contract_text)
+    try:
+        from .generation_capability import apply_stage_b_capability_repair
+
+        user_text = (req.userMessage or "").strip() if req is not None else contract_text
+        plan, cap_errors = apply_stage_b_capability_repair(plan, user_text or "")
+        if cap_errors:
+            logger.info("Stage-B capability remaining issues: %s", cap_errors[:5])
+    except Exception as exc:
+        logger.warning("Stage-B capability repair skipped: %s", exc)
     if building_profile is not None:
         from .style_feature_compiler import apply_style_feature_defaults
         plan = apply_style_feature_defaults(plan, building_profile)

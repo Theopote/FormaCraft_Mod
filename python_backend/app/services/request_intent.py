@@ -11,6 +11,7 @@ _TOWER = (
 _GATE = ("山门", "牌坊", "paifang", "gatehouse", "寺庙山门")
 _GARDEN = ("江南园林", "日式庭院", "园林", "庭院", "garden", "courtyard compound")
 _TEMPLE = ("道观", "寺庙", "庙宇", "daoist temple", "shrine compound")
+_TEMPLE_COMPOUND = ("建筑群", "院落", "厢房", "配殿", "三进", "两进", "宫观群")
 _ROOF_EXPLICIT = (
     ("歇山", "xieshan"),
     ("庑殿", "wudian"),
@@ -77,11 +78,19 @@ def extract_request_intent(user_text: str) -> Dict[str, Any]:
             if m.lower() in lower or m in text:
                 markers.append(m)
 
+    composition = "single"
+    if building_class == "garden":
+        composition = "compound"
+    elif building_class == "temple" and any(m in text for m in _TEMPLE_COMPOUND):
+        composition = "compound"
+        markers.extend(m for m in _TEMPLE_COMPOUND if m in text)
+
     return {
         "schema": "formacraft.request_intent.v1",
         "source": "user_request",
         "original_text": text,
         "building_class": building_class,
+        "composition": composition,
         "markers": markers[:12],
         "roof_type": roof_type,
         "roof_explicit": roof_type is not None,
@@ -235,11 +244,66 @@ def scaffold_plan_for_intent(
         }
 
     if building_class == "temple":
+        composition = str(intent.get("composition") or "single")
+        roof_type = intent.get("roof_type") or "xieshan"
+        if composition == "compound":
+            # Explicit compound request — courtyard site, not forced for plain「道观」.
+            site_w = max(16, width * 2 if width else 20)
+            site_d = max(16, depth * 2 if depth else 20)
+            hall_w = max(7, site_w // 3)
+            hall_d = max(5, site_d // 4)
+            comps: List[Dict[str, Any]] = [
+                {
+                    "component_type": "COURTYARD",
+                    "slot_id": "yard",
+                    "relative_position": {"x": 2, "y": 0, "z": 2},
+                    "dimensions": {"width": site_w - 4, "depth": site_d - 4, "height": 1},
+                    "features": ["courtyard"],
+                    "params": {"component_id": "temple_yard"},
+                },
+                {
+                    "component_type": "PATH",
+                    "slot_id": "path",
+                    "relative_position": {"x": site_w // 2, "y": 0, "z": 0},
+                    "dimensions": {"width": 3, "depth": site_d, "height": 1},
+                    "features": ["axis_path"],
+                    "params": {"component_id": "temple_path"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": site_w // 4, "y": 0, "z": site_d // 3},
+                    "dimensions": {"width": hall_w, "depth": hall_d, "height": 7},
+                    "features": ["main_hall", "temple", "道观"],
+                    "params": {
+                        "component_id": "temple_hall",
+                        "wall_block": wall,
+                        "roof_block": roof,
+                        "roof_type": roof_type,
+                        **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
+                    },
+                },
+            ]
+            return {
+                "mode": "build",
+                "style_profile": "DEFAULT",
+                "anchor": origin,
+                "distinguishing_features": markers or ["道观", "temple", "compound"],
+                "style_attributes": style_attrs,
+                "components": comps,
+                "plan_meta": {
+                    "request_intent": intent,
+                    "building_class": "temple",
+                    "composition": "compound",
+                    "scaffolded_from_request_intent": True,
+                    "allow_compiler_satellites": False,
+                },
+            }
+
         # Single hall shrine — do not force garden courtyard composition.
         hall_w = max(9, width if width >= 7 else 11)
         hall_d = max(7, depth if depth >= 5 else max(7, hall_w - 2))
         hall_h = 7
-        roof_type = intent.get("roof_type") or "xieshan"
         return {
             "mode": "build",
             "style_profile": "DEFAULT",
@@ -278,6 +342,7 @@ def scaffold_plan_for_intent(
             "plan_meta": {
                 "request_intent": intent,
                 "building_class": "temple",
+                "composition": "single",
                 "scaffolded_from_request_intent": True,
                 "allow_compiler_satellites": False,
             },

@@ -89,4 +89,9 @@ public final class ComponentGeneratorRegistry {
         if (type == null) return false;
         return REGISTRY.containsKey(type.toUpperCase());
     }
+
+    /** Snapshot of registered component_type keys (uppercase). */
+    public static java.util.Set<String> registeredTypes() {
+        return java.util.Set.copyOf(REGISTRY.keySet());
+    }
 }

@@ -232,7 +232,7 @@ def evaluate_plan_semantics(
             )
     elif intent == "gate":
         types = set(_component_types(plan))
-        if "GATE" in types or "STRUCTURE" in types or "ASSEMBLY" in types:
+        if types & {"GATE", "GATE_STRUCTURE", "STRUCTURE", "ASSEMBLY"}:
             pass
         elif empty or types <= {"MASS_MAIN", "ROOF", "FOUNDATION", "ENTRANCE", "FACADE_WINDOWS"}:
             # Gate may be a wide shallow MASS — require at least non-default proportions or features.

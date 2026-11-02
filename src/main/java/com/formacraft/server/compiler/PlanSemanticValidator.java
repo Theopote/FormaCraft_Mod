@@ -370,7 +370,8 @@ final class PlanSemanticValidator {
         for (Component c : components) {
             if (c == null) continue;
             String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
-            if ("GATE".equals(type)) {
+            // Executable gate generators — not STRUCTURE-keyword-only.
+            if ("GATE".equals(type) || "GATE_STRUCTURE".equals(type)) {
                 return true;
             }
             boolean gateCue = false;
@@ -379,28 +380,36 @@ final class PlanSemanticValidator {
                     if (f == null) continue;
                     String lower = f.toLowerCase(Locale.ROOT);
                     if (lower.contains("gate") || f.contains("山门") || lower.contains("paifang")
-                            || lower.contains("temple_gate")) {
+                            || lower.contains("temple_gate") || lower.contains("gatehouse")) {
                         gateCue = true;
                         break;
                     }
                 }
             }
-            if (c.params() != null && c.params().get("passage_axis") != null) {
-                gateCue = true;
-            }
-            if ("STRUCTURE".equals(type) || "ASSEMBLY".equals(type)) {
-                if (gateCue) return true;
-                if (c.dimensions() != null) {
-                    int w = c.dimensions().width();
-                    int d = c.dimensions().depth();
-                    if (w >= d * 1.5 && w >= 10 && d <= w / 2 + 2) return true;
+            boolean throughPassage = false;
+            if (c.params() != null) {
+                if (c.params().get("passage_axis") != null) {
+                    gateCue = true;
+                    throughPassage = true;
+                }
+                Object dw = c.params().get("door_width");
+                if (dw == null) dw = c.params().get("doorWidth");
+                if (dw instanceof Number n && n.intValue() >= 2) {
+                    throughPassage = true;
                 }
             }
+            boolean wideShallow = false;
             if (c.dimensions() != null) {
                 int w = c.dimensions().width();
                 int d = c.dimensions().depth();
-                // Wide-shallow gate mass with cue, not any wide house.
-                if (gateCue && w >= d * 1.5 && w >= 10) return true;
+                wideShallow = w >= d * 1.5 && w >= 10 && d <= Math.max(4, w / 2 + 2);
+            }
+            if ("STRUCTURE".equals(type) || "ASSEMBLY".equals(type)) {
+                if (gateCue || wideShallow) return true;
+            }
+            // Mass / wing accepted when proportions + cue/passage prove gate morphology.
+            if (wideShallow && (gateCue || throughPassage)) {
+                return true;
             }
         }
         return false;
