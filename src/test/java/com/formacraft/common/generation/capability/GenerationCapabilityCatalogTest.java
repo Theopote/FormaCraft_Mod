@@ -46,11 +46,21 @@ class GenerationCapabilityCatalogTest {
         assertTrue(json.contains("irimoya"));
         assertTrue(json.contains("xieshan"));
         assertTrue(json.contains("dense_eaves_pagoda"));
+        assertTrue(json.contains("tibetan_stupa"));
 
         @SuppressWarnings("unchecked")
         List<String> hostable = (List<String>) GenerationCapabilityCatalog.build().get("hostable_component_types");
         assertTrue(hostable.contains("GATE"));
         assertTrue(hostable.contains("MASS_MAIN"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> classes = (Map<String, Object>) GenerationCapabilityCatalog.build().get("building_classes");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> tower = (Map<String, Object>) classes.get("tower_like");
+        @SuppressWarnings("unchecked")
+        List<String> preferred = (List<String>) tower.get("preferred_typologies");
+        assertTrue(preferred.contains("dense_eaves_pagoda"));
+        assertTrue(preferred.contains("tibetan_stupa"));
     }
 
     @Test

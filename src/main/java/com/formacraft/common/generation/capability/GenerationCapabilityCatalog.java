@@ -153,9 +153,7 @@ public final class GenerationCapabilityCatalog {
         List<String> supported = new ArrayList<>(new TreeSet<>(RoofTypeCatalog.SUPPORTED_TOKENS));
         roof.put("supported_tokens", supported);
         Map<String, String> aliases = new LinkedHashMap<>();
-        for (Map.Entry<String, String> e : ROOF_ALIASES.entrySet()) {
-            aliases.put(e.getKey(), e.getValue());
-        }
+        aliases.putAll(ROOF_ALIASES);
         roof.put("aliases", aliases);
         roof.put("fallback_policy", "map_alias_then_reject_unknown");
         return roof;

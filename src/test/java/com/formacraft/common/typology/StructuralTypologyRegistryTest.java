@@ -20,12 +20,24 @@ class StructuralTypologyRegistryTest {
     }
 
     @Test
-    void denseEavesPagodaHasOctagonDefaults() {
+    void denseEavesPagodaHasOctagonDefaultsWithoutPinnedLevels() {
         StructuralTypologyRegistry.TypologyDef def = StructuralTypologyRegistry.getById("dense_eaves_pagoda");
         assertNotNull(def);
         assertEquals("VERTICAL_STACK", def.skeletonType());
         assertEquals("octagon", def.defaultParams().get("footprint"));
-        Number levels = assertInstanceOf(Number.class, def.defaultParams().get("levels"));
-        assertEquals(13.0, levels.doubleValue());
+        // floor_count/levels stay out of defaults so implicit tall min is not floorsExplicit.
+        assertFalse(def.defaultParams().containsKey("levels"));
+        assertFalse(def.defaultParams().containsKey("floor_count"));
+        assertEquals(1, ((Number) def.defaultParams().get("eaves_per_level")).intValue());
+    }
+
+    @Test
+    void tibetanStupaIsRegisteredDistinctFromDenseEaves() {
+        StructuralTypologyRegistry.TypologyDef stupa = StructuralTypologyRegistry.getById("tibetan_stupa");
+        assertNotNull(stupa);
+        assertEquals("tibetan_stupa", stupa.interpreterId());
+        assertNotEquals(
+                StructuralTypologyRegistry.getById("dense_eaves_pagoda").interpreterId(),
+                stupa.interpreterId());
     }
 }

@@ -1,6 +1,7 @@
 package com.formacraft.server.generation.structure.router;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.archetype.ArchetypeRegistry;
 import com.formacraft.server.generation.structure.*;
 import com.formacraft.server.generation.structure.blueprint.BlueprintStructureGenerator;
 

@@ -51,7 +51,9 @@ public final class TibetanStupaBuilder {
 
         List<PlannedBlock> blocks = new ArrayList<>(baseW * baseW * height);
         int half = baseW / 2;
-        int y = 0;
+        var ref = new Object() {
+            int y = 0;
+        };
 
         // Stepped square base (基座) — 2–3 terraces.
         int baseTiers = Math.max(2, Math.min(3, half));
@@ -59,9 +61,9 @@ public final class TibetanStupaBuilder {
             int h = half - t;
             int tierH = 2;
             for (int dy = 0; dy < tierH; dy++) {
-                fillSquare(blocks, origin, y + dy, h, t == 0 ? trim : body);
+                fillSquare(blocks, origin, ref.y + dy, h, t == 0 ? trim : body);
             }
-            y += tierH;
+            ref.y += tierH;
         }
 
         // Anda / dome (覆钵) — stacked shrinking disks.
@@ -72,38 +74,38 @@ public final class TibetanStupaBuilder {
             // Bulb: widen mid, taper top.
             double scale = 0.55 + 0.45 * Math.sin(Math.PI * Math.min(1.0, t * 1.15));
             int r = Math.max(1, (int) Math.round(andaR * scale));
-            fillDisk(blocks, origin, y + dy, r, body);
+            fillDisk(blocks, origin, ref.y + dy, r, body);
         }
-        y += andaH;
+        ref.y += andaH;
 
         // Harmika (方座)
         int harmika = Math.max(1, andaR / 2);
         for (int dy = 0; dy < 2; dy++) {
-            fillSquare(blocks, origin, y + dy, harmika, trim);
+            fillSquare(blocks, origin, ref.y + dy, harmika, trim);
         }
-        y += 2;
+        ref.y += 2;
 
         // Chhatravali / 相轮 — centered rings on a mast.
         for (int i = 0; i < chhatraCount; i++) {
             int r = Math.max(1, harmika - i / 2);
-            ringSquare(blocks, origin, y, r, accent);
-            blocks.add(new PlannedBlock(origin.add(0, y, 0), trim));
-            y += 1;
-            blocks.add(new PlannedBlock(origin.add(0, y, 0), trim));
-            y += 1;
+            ringSquare(blocks, origin, ref.y, r, accent);
+            blocks.add(new PlannedBlock(origin.add(0, ref.y, 0), trim));
+            ref.y += 1;
+            blocks.add(new PlannedBlock(origin.add(0, ref.y, 0), trim));
+            ref.y += 1;
         }
 
         // Finial / 塔刹
-        blocks.add(new PlannedBlock(origin.add(0, y, 0), accent));
-        blocks.add(new PlannedBlock(origin.add(0, y + 1, 0), spire));
+        blocks.add(new PlannedBlock(origin.add(0, ref.y, 0), accent));
+        blocks.add(new PlannedBlock(origin.add(0, ref.y + 1, 0), spire));
 
         boolean hasBase = blocks.stream().anyMatch(b -> b.getPos().getY() == origin.getY());
         boolean hasAnda = blocks.stream().anyMatch(b ->
-                b.getPos().getY() > origin.getY() + 2 && b.getPos().getY() < origin.getY() + y);
+                b.getPos().getY() > origin.getY() + 2 && b.getPos().getY() < origin.getY() + ref.y);
         boolean finialCentered = blocks.stream().anyMatch(b ->
                 b.getPos().getX() == origin.getX()
                         && b.getPos().getZ() == origin.getZ()
-                        && b.getPos().getY() >= origin.getY() + y);
+                        && b.getPos().getY() >= origin.getY() + ref.y);
         if (!hasBase || !hasAnda || !finialCentered) {
             throw new com.formacraft.common.typology.TypologyGenerationException(
                     TYPOLOGY_ID,
