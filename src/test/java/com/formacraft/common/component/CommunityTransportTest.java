@@ -173,7 +173,7 @@ class CommunityTransportTest {
     }
 
     @Test void preCancelledRequestMakesNoConnectionAndUntrustedBasesAreRejected() throws Exception {
-        for (String base : List.of("http://example.com/", "https://user:secret@example.com/", "https://example.com/?url=x", "https://example.com/a/../b/", "https://example.com/%2e/"))
+        for (String base : List.of("http://example.com/", "https://user:secret@example.com/", "https://example.com/?url=x", "https://example.com/a/../b/", "https://example.com/%2e/", "https://example.com//other-host/"))
             assertThrows(IllegalArgumentException.class, () -> new CommunitySearchHttpClient("test", URI.create(base)));
         try (var client = new CommunitySearchHttpClient("test", URI.create("http://127.0.0.1:1/"))) {
             var cancellation = new CommunitySearchHttpClient.Cancellation(); cancellation.cancel();

@@ -1,5 +1,7 @@
 package com.formacraft.common.component.community;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
@@ -17,14 +19,7 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
     public CommunitySearchHttpClient(String authorityId, URI base) {
         if (authorityId == null || !authorityId.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}")) throw new IllegalArgumentException("Invalid authority");
         Objects.requireNonNull(base);
-        boolean loopback = Set.of("127.0.0.1", "[::1]", "::1").contains(base.getHost() == null ? "" : base.getHost());
-        String path = base.getPath();
-        if (base.isOpaque() || base.getHost() == null || base.getUserInfo() != null || base.getQuery() != null || base.getFragment() != null
-                || !("https".equals(base.getScheme()) || "http".equals(base.getScheme()) && loopback)
-                || base.getPort() == 0 || base.getPort() > 65535 || !base.normalize().equals(base)
-                || path == null || !path.matches("[/a-zA-Z0-9_-]*") || base.getRawPath().contains("%"))
-            throw new IllegalArgumentException("Invalid community base URI");
-        String prefix = path.endsWith("/") ? path : path + "/";
+        String prefix = getString(base);
         this.authorityId = authorityId; this.endpoint = base.resolve(prefix + "v1/search");
         // No default CookieHandler, Authenticator, proxy credentials, or redirect destination.
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER)
@@ -33,6 +28,19 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
                     public void connectFailed(URI uri, SocketAddress address, IOException failure) {}
                 }).build();
     }
+
+    private static @NotNull String getString(URI base) {
+        boolean loopback = Set.of("127.0.0.1", "[::1]", "::1").contains(base.getHost() == null ? "" : base.getHost());
+        String path = base.getPath();
+        if (base.isOpaque() || base.getHost() == null || base.getUserInfo() != null || base.getQuery() != null || base.getFragment() != null
+                || !("https".equals(base.getScheme()) || "http".equals(base.getScheme()) && loopback)
+                || base.getPort() == 0 || base.getPort() > 65535 || !base.normalize().equals(base)
+                || path == null || path.startsWith("//") || !path.matches("[/a-zA-Z0-9_-]*") || base.getRawPath().contains("%"))
+            throw new IllegalArgumentException("Invalid community base URI");
+        String prefix = path.endsWith("/") ? path : path + "/";
+        return prefix;
+    }
+
     public static final class Cancellation {
         private final AtomicBoolean cancelled = new AtomicBoolean(), used = new AtomicBoolean();
         private final AtomicReference<CompletableFuture<?>> future = new AtomicReference<>();
@@ -52,7 +60,7 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         var outgoing = HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(30))
                 .header("Accept", "application/json").header("Content-Type", "application/json; charset=utf-8")
                 .header("Accept-Encoding", "identity").POST(HttpRequest.BodyPublishers.ofByteArray(owned)).build();
-        var future = http.sendAsync(outgoing, info -> subscriber(info)); cancellation.future.set(future);
+        var future = http.sendAsync(outgoing, CommunitySearchHttpClient::subscriber); cancellation.future.set(future);
         try {
             cancellation.check(); var response = future.get(30, TimeUnit.SECONDS); cancellation.check();
             byte[] bytes = response.body();

@@ -71,7 +71,7 @@ public final class CommunitySearchContract {
         keys(q, "exactTypeKey", "role", "keywords", "softTags", "hardTags", "targetSize", "sizePolicy", "attachment",
                 "visualIntent", "suitePreference", "required", "failurePolicy");
         String type = optionalText(q.get("exactTypeKey"), 128);
-        if (type != null && !type.matches("(?:formacraft:[a-z0-9_]+|custom:[0-9a-f]{64})")) throw new CommunityPackages.Failure("invalid_request");
+        if (type != null && !type.matches("formacraft:[a-z0-9_]+|custom:[0-9a-f]{64}")) throw new CommunityPackages.Failure("invalid_request");
         Set<String> soft = strings(q.get("softTags"), 64, 128), hard = strings(q.get("hardTags"), 64, 128);
         Size size = null;
         if (!absent(q.get("targetSize"))) {
@@ -97,7 +97,7 @@ public final class CommunitySearchContract {
             JsonObject s = object(q.get("suitePreference")); keys(s, "key", "required");
             suite = new Suite(text(s.get("key"), 128), bool(s.get("required")));
         }
-        boolean required = q.has("required") ? bool(q.get("required")) : true;
+        boolean required = !q.has("required") || bool(q.get("required"));
         String expectedFailure = required ? "report_required_failure" : "report_optional_omission";
         String policy = q.has("failurePolicy") ? text(q.get("failurePolicy"), 64) : expectedFailure;
         if (!policy.equals(expectedFailure)) throw new CommunityPackages.Failure("unsupported_constraint");

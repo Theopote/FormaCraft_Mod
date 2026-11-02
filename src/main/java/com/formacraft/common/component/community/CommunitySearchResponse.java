@@ -130,7 +130,7 @@ public final class CommunitySearchResponse {
             if (candidate.has("type")) {
                 var type = object(candidate.get("type")); exact(type, "key", "evidence");
                 String key = text(type.get("key"), 128);
-                if (!key.matches("(?:formacraft:[a-z0-9_]+|custom:[0-9a-f]{64})")) throw new IOException("Type key");
+                if (!key.matches("formacraft:[a-z0-9_]+|custom:[0-9a-f]{64}")) throw new IOException("Type key");
                 if (request.query().exactTypeKey() != null && !request.query().exactTypeKey().equals(key)) throw new IOException("Type mismatch");
                 equal(type, "evidence", "declared");
             }
