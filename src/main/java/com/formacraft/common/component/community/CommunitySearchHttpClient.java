@@ -40,8 +40,7 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
                 || base.getPort() == 0 || base.getPort() > 65535 || !base.normalize().equals(base)
                 || path == null || path.startsWith("//") || !path.matches("[/a-zA-Z0-9_-]*") || base.getRawPath().contains("%"))
             throw new IllegalArgumentException("Invalid community base URI");
-        String prefix = path.endsWith("/") ? path : path + "/";
-        return prefix;
+        return path.endsWith("/") ? path : path + "/";
     }
 
     public static final class Cancellation {
