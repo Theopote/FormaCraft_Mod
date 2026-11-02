@@ -71,4 +71,4 @@
 
 未决项限于部署与产品策略：谁运营首个 authority、采用哪种账户体系、共享声明/许可选项如何呈现、对象保留期限与配额、是否允许私人/团队远端空间。当前设计按单 authority、公共只读、无自动发布推进；这些默认不要求用户现在提供账号或基础设施。
 
-详情与原始包完整传输及独立缓存已推进，见 [下载与持久收据](COMPONENT_COMMUNITY_DOWNLOADS.md)；[显式来源绑定及证据固定](COMPONENT_SELECTED_SOURCES.md) 使 A/B 本地复用后的所选 B 贯穿配方、发射、建筑锁与按 use 恢复。Range 续传、选择/恢复 UI、任务协调、完整远端检索及公网托管尚未实现；客户端 API 和测试服务不等于线上社区托管平台。
+详情与原始包完整传输及独立缓存已推进，见 [下载与持久收据](COMPONENT_COMMUNITY_DOWNLOADS.md)；[显式来源绑定及证据固定](COMPONENT_SELECTED_SOURCES.md) 使 A/B 本地复用后的所选 B 贯穿配方、发射、建筑锁与按 use 恢复。[Range 续传](COMPONENT_COMMUNITY_RESUME.md) 提供显式分块及暂存 API；选择/恢复 UI、任务协调、完整远端检索及公网托管尚未实现，客户端 API 和测试服务不等于线上社区托管平台。

@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.*;
 import java.net.http.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -87,10 +88,57 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         details.verify(download); cancellation.check(); return new Fetched(details, download);
     }
 
+    /** Explicit retry resumes only committed complete blocks; never returns unverified partial data. */
+    public Fetched downloadResumable(CommunityPackages.Descriptor selected, ComponentPackageIO.Environment environment,
+                                     Path stagingRoot, Cancellation cancellation) throws IOException {
+        claim(cancellation); requireAuthority(selected);
+        if (environment == null) throw new CommunityPackages.Failure("environment_required");
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(120);
+        try {
+            var details = fetchDetails(selected, cancellation, deadline);
+            if (!details.available()) throw new CommunityPackages.Failure("release_unavailable");
+            checkStage(cancellation, deadline);
+            try (var state = CommunityResumeStore.open(stagingRoot, selected); var bytes = new ByteArrayOutputStream()) {
+                checkStage(cancellation, deadline);
+                bytes.writeBytes(state.prefix());
+                while (state.position() < selected.byteLength()) {
+                    checkStage(cancellation, deadline); int start = state.position();
+                    int end = Math.min(selected.byteLength(), start + CommunityResumeStore.CHUNK_BYTES) - 1;
+                    var range = new Range(start, end, selected.byteLength()); var ref = selected.releaseRef();
+                    String requestId = UUID.randomUUID().toString(), etag = "\"" + ref.packageSha256() + "\"";
+                    var uri = apiRoot.resolve("package-blobs/" + ref.packageSha256() + "?releaseId=" + ref.releaseId());
+                    var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).header("Accept", "application/json")
+                            .header("Accept-Encoding", "identity").header("X-Formacraft-Request-Id", requestId)
+                            .header("Range", "bytes=" + start + "-" + end).header("If-Range", etag).GET().build();
+                    var response = exchange(request, cancellation, end - start + 1, end - start + 1, etag, range, deadline);
+                    if (response.statusCode() != 206) throw remoteFailure(response.body(), requestId);
+                    checkStage(cancellation, deadline); state.append(start, response.body()); bytes.writeBytes(response.body());
+                }
+                checkStage(cancellation, deadline);
+                var download = CommunityPackages.receive(new ByteArrayInputStream(bytes.toByteArray()), selected, environment);
+                details.verify(download); checkStage(cancellation, deadline); state.discard(); cancellation.check(); return new Fetched(details, download);
+            }
+        } catch (IOException failed) {
+            boolean retain = failed instanceof CommunityPackages.Failure failure && Set.of("cancelled", "request_timeout", "service_unavailable",
+                    "rate_limited", "environment_mismatch", "download_busy", "resume_capacity").contains(failure.code());
+            if (!retain) {
+                try { CommunityResumeStore.discard(stagingRoot, selected); } catch (IOException cleanup) { failed.addSuppressed(cleanup); }
+            }
+            throw failed;
+        }
+    }
+    private static void checkStage(Cancellation cancellation, long deadline) throws IOException {
+        cancellation.check();
+        if (System.nanoTime() >= deadline) throw new CommunityPackages.Failure("request_timeout");
+    }
+
     private CommunityReleaseDetails fetchDetails(CommunityPackages.Descriptor selected, Cancellation cancellation) throws IOException {
+        return fetchDetails(selected, cancellation, System.nanoTime() + TimeUnit.SECONDS.toNanos(30));
+    }
+    private CommunityReleaseDetails fetchDetails(CommunityPackages.Descriptor selected, Cancellation cancellation, long deadline) throws IOException {
         String requestId = UUID.randomUUID().toString();
         var request = get(apiRoot.resolve("releases/" + selected.releaseRef().releaseId()), requestId);
-        var response = exchange(request, cancellation, CommunityReleaseDetails.MAX_BYTES, -1, null);
+        var response = exchange(request, cancellation, CommunityReleaseDetails.MAX_BYTES, -1, null, null, deadline);
         if (response.statusCode() != 200) throw remoteFailure(response.body(), requestId);
         var details = CommunityReleaseDetails.decode(response.body(), selected); cancellation.check(); return details;
     }
@@ -108,10 +156,18 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
     }
 
     private HttpResponse<byte[]> exchange(HttpRequest outgoing, Cancellation cancellation, int limit, int expectedLength, String etag) throws IOException {
+        return exchange(outgoing, cancellation, limit, expectedLength, etag, null, System.nanoTime() + TimeUnit.SECONDS.toNanos(30));
+    }
+    private record Range(int start, int end, int total) {
+        String contentRange() { return "bytes " + start + "-" + end + "/" + total; }
+    }
+    private HttpResponse<byte[]> exchange(HttpRequest outgoing, Cancellation cancellation, int limit, int expectedLength, String etag, Range range, long deadline) throws IOException {
         cancellation.check();
-        var future = http.sendAsync(outgoing, info -> subscriber(info, limit, expectedLength, etag)); cancellation.future.set(future);
+        long remaining = Math.min(TimeUnit.SECONDS.toNanos(30), deadline - System.nanoTime());
+        if (remaining <= 0) throw new CommunityPackages.Failure("request_timeout");
+        var future = http.sendAsync(outgoing, info -> subscriber(info, limit, expectedLength, etag, range)); cancellation.future.set(future);
         try {
-            cancellation.check(); var response = future.get(30, TimeUnit.SECONDS); cancellation.check();
+            cancellation.check(); var response = future.get(remaining, TimeUnit.NANOSECONDS); cancellation.check();
             return response;
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt(); throw new CommunityPackages.Failure("cancelled", interrupted);
@@ -130,13 +186,16 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
             cancellation.future.compareAndSet(future, null); if (!future.isDone()) future.cancel(true);
         }
     }
-    private static LimitedBody subscriber(HttpResponse.ResponseInfo info, int limit, int expectedLength, String etag) {
-        var body = new LimitedBody(info.statusCode() == 200 ? limit : CommunitySearchResponse.MAX_BYTES);
+    private static LimitedBody subscriber(HttpResponse.ResponseInfo info, int limit, int expectedLength, String etag, Range range) {
+        int expectedStatus = range == null ? 200 : 206;
+        var body = new LimitedBody(info.statusCode() == expectedStatus ? limit : CommunitySearchResponse.MAX_BYTES);
         int status = info.statusCode();
         if (status >= 300 && status < 400) body.fail("redirect_rejected");
         else if (status == 429) body.fail("rate_limited");
         else if (status >= 500) body.fail("service_unavailable");
-        else if (status >= 200 && status < 300 && status != 200) body.fail("invalid_response");
+        else if (range != null && status == 200) body.fail("range_not_supported");
+        else if (range != null && status == 416) body.fail("invalid_range");
+        else if (status >= 200 && status < 300 && status != expectedStatus) body.fail("invalid_response");
         else {
             String encoding = info.headers().firstValue("Content-Encoding").orElse("identity");
             String contentType = info.headers().firstValue("Content-Type").orElse("");
@@ -147,9 +206,12 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
                     body.declared = info.headers().firstValueAsLong("Content-Length").orElse(-1);
                     if (body.declared > body.limit) body.fail("response_too_large");
                     else if (body.declared < -1) body.fail("invalid_response");
-                    else if (status == 200 && expectedLength >= 0 && body.declared >= 0 && body.declared != expectedLength) body.fail("object_changed");
-                    if (status == 200) body.expectedLength = expectedLength;
-                    if (status == 200 && etag != null && !etag.equals(info.headers().firstValue("ETag").orElse(null))) body.fail("object_changed");
+                    else if (status == expectedStatus && expectedLength >= 0 && body.declared >= 0 && body.declared != expectedLength) body.fail("object_changed");
+                    if (status == expectedStatus) body.expectedLength = expectedLength;
+                    if (status == expectedStatus && etag != null && !etag.equals(info.headers().firstValue("ETag").orElse(null))) body.fail("object_changed");
+                    if (status == expectedStatus && range != null && (info.headers().allValues("Content-Range").size() != 1
+                            || !range.contentRange().equals(info.headers().firstValue("Content-Range").orElse(null))
+                            || info.headers().allValues("ETag").size() != 1)) body.fail("invalid_range");
                 } catch (NumberFormatException invalid) { body.fail("invalid_response"); }
             }
         }

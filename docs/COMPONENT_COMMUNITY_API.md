@@ -4,6 +4,8 @@
 
 发布详情客户端支持 offline-release.v1，完整包 GET 及持久收据也已有实现；具体字段与边界见 [下载文档](COMPONENT_COMMUNITY_DOWNLOADS.md)。尚无实际托管服务，完整领域版本/账户/发现修订模型仍是提案。
 
+客户端另有 [Range 分块续传 API](COMPONENT_COMMUNITY_RESUME.md)，严格区分 200 完整下载与 206 区间数据；分块暂存不授予安装权限。
+
 ## 第一个可实现范围
 
 先实现只读能力说明、搜索、发布详情、相同配置的来源列表和按整包指纹下载。测试环境预置经过审核的包；首版没有登录发布、自动更新、训练数据下载、任意 URL 代理或远端脚本执行。单一 authorityId 映射到服务器配置的服务地址；来源消息不能提供任意主机来改变目标。
@@ -86,6 +88,8 @@ HTTP 摘要最多 128 KiB，而现有游戏请求/响应各有边界；游戏侧
 | invalid_request / request_too_large | 拒绝损坏格式、类型混用、超限结构；修正请求后再发，不无限重试 |
 | invalid_response / response_too_large / unsupported_encoding | 拒绝错配、损坏或超限响应，不交给安装器或规划器 |
 | redirect_rejected / request_timeout / cancelled | 停止当前请求；不自动跟随新地址或恢复已取消任务 |
+| range_not_supported / invalid_range / invalid_checkpoint | 停止续传，不把错位、损坏或完整响应拼接成区间数据 |
+| download_busy / resume_capacity | 停止并发写入或超配额操作，保留已有有效块，不无限重试 |
 | unsupported_contract / unsupported_capability | 停止该功能，保留本地能力，不猜测字段含义 |
 | unsupported_constraint | 显示不支持的硬条件；由用户/规划器明确改需求 |
 | cursor_expired / cursor_mismatch | 重新检索；不拼接成原快照 |

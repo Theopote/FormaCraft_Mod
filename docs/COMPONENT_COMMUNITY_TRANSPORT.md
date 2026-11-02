@@ -20,7 +20,7 @@ identity 请求增加 title，最多保留 256 个 Unicode 标量值，裁剪路
 
 请求先通过现有严格解析及当前 profile 的能力检查，再发送；响应强制 JSON、identity 编码，声明长度与实际读取长度均受 128 KiB 限制。独立 Java HttpClient 不使用全局 CookieHandler、Authenticator 或代理。连接预算 5 秒，整个异步响应体接收的等待预算 30 秒；有界 BodySubscriber 在超额时取消订阅，截止时间到达或用户取消时中止异步请求。无自动重试。一次取消令牌对应一次调用，收到响应后仍重检取消状态。外层调用为阻塞式，接入游戏时必须由工作线程执行，不应放进主线程；持有者须关闭客户端。
 
-搜索成功响应交给严格投影解析器。错误状态使用有界错误消息契约，只接受已定义错误码，不把任意远端 message 或底层路径当用户提示；429 统一 rate_limited，5xx 统一 service_unavailable，重定向单独拒绝。详情与完整下载复用传输边界，但使用各自身份/长度验证；断点续传、任务编排与收据到配方/建筑锁的绑定仍未接通。
+搜索成功响应交给严格投影解析器。错误状态使用有界错误消息契约，只接受已定义错误码，不把任意远端 message 或底层路径当用户提示；429 统一 rate_limited，5xx 统一 service_unavailable，重定向单独拒绝。详情与完整下载复用传输边界，但使用各自身份/长度验证；新增 [断点续传](COMPONENT_COMMUNITY_RESUME.md) 和 [来源绑定](COMPONENT_SELECTED_SOURCES.md) API 另有严格契约，游戏任务编排尚未接入。
 
 ## 验收
 
