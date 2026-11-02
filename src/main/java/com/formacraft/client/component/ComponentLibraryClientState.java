@@ -8,13 +8,14 @@ import java.util.function.LongSupplier;
 
 /** Pure correlated download/delete state, independent of dialogs and connections. */
 public final class ComponentLibraryClientState {
-    public enum Phase { IDLE, DELETING, DOWNLOADING, READY, DELETED, ERROR }
+    public enum Phase { IDLE, DELETING, DOWNLOADING, READY, DELETED, ERROR, SAVING, SAVED }
     private final LongSupplier clock;
     private UUID token; private String assetId, primaryRef, sourceRef;
     private int sourceIndex, length; private long touched;
     private ByteArrayOutputStream bytes;
     private Phase phase = Phase.IDLE;
     private String message = "";
+    private ComponentRecipeLibrary.Saved saved;
     public ComponentLibraryClientState(LongSupplier clock) { this.clock = clock; }
     public Request begin(String id, String primary, int index, String source, boolean delete) {
         if (busy()) throw new IllegalStateException("请先完成当前构件操作");
@@ -25,10 +26,24 @@ public final class ComponentLibraryClientState {
         if (!delete) bytes = new ByteArrayOutputStream();
         return request(delete ? Action.DELETE : Action.EXPORT, 0);
     }
+    public Request beginMutation(String id, String primary, Action action, String options) {
+        if (action != Action.SAVE_RECIPE && action != Action.REPLAY_RECIPE && action != Action.RESTORE_RECIPE) throw new IllegalArgumentException("Invalid recipe operation");
+        var request = begin(id,primary,0,primary,true); phase = Phase.SAVING;
+        return new Request(request.token(),action,id,primary,0,primary,0,options);
+    }
     public Request accept(Response response) {
         if (response == null || !Objects.equals(token,response.token()) || !busy()) return null;
         touched = clock.getAsLong();
         if (response.reply() == Reply.ERROR) { fail(response.message()); return null; }
+        if (phase == Phase.SAVING) {
+            try {
+                saved = com.formacraft.common.json.JsonUtil.fromJson(response.message(),ComponentRecipeLibrary.Saved.class);
+                if (response.reply() != Reply.SAVED || saved == null || !ComponentIds.isSafeId(saved.assetId()) || saved.name() == null || saved.status() == null)
+                    throw new IllegalArgumentException("Invalid recipe receipt");
+                phase = Phase.SAVED;
+            } catch (RuntimeException invalid) { fail("配方回执无效"); }
+            return null;
+        }
         if (phase == Phase.DELETING) {
             if (response.reply() == Reply.DELETED) phase = Phase.DELETED;
             else fail("删除回执无效");
@@ -50,12 +65,13 @@ public final class ComponentLibraryClientState {
     }
     public Request cancellation() { return token == null ? null : request(Action.CANCEL,0); }
     private Request request(Action action,int offset) { return new Request(token,action,assetId,primaryRef,sourceIndex,sourceRef,offset); }
-    public boolean busy() { return phase == Phase.DELETING || phase == Phase.DOWNLOADING; }
+    public boolean busy() { return phase == Phase.DELETING || phase == Phase.DOWNLOADING || phase == Phase.SAVING; }
+    public ComponentRecipeLibrary.Saved saved() { return phase == Phase.SAVED ? saved : null; }
     public Phase phase() { return phase; }
     public String assetId() { return assetId; }
     public String sourceRef() { return sourceRef; }
     public String message() { return message; }
     public byte[] bytes() { return phase == Phase.READY ? bytes.toByteArray() : null; }
     public void fail(String message) { this.message = message; phase = Phase.ERROR; bytes = null; }
-    public void clear() { token = null; assetId = primaryRef = sourceRef = null; length = 0; bytes = null; phase = Phase.IDLE; message = ""; }
+    public void clear() { token = null; assetId = primaryRef = sourceRef = null; length = 0; bytes = null; phase = Phase.IDLE; message = ""; saved = null; }
 }

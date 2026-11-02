@@ -117,6 +117,7 @@ public final class ComponentStorage {
                     putEntry(byId, e);
                 }
             }
+            for (var recipe : ComponentRecipeLibrary.entries(viewerPlayerId)) putEntry(byId,recipe);
         }
 
         ComponentCatalog out = new ComponentCatalog();
@@ -421,6 +422,10 @@ public final class ComponentStorage {
     public static ComponentDefinition loadComponent(Path worldDir, String id, UUID viewerPlayerId) {
         String loadId = ComponentIds.tryNormalizeLoadId(id);
         if (loadId == null) return null;
+        if (viewerPlayerId != null && ComponentRecipeLibrary.isRecipe(loadId)) {
+            try { return ComponentRecipeLibrary.result(viewerPlayerId,loadId).runtimeComponent(loadId); }
+            catch (java.io.IOException unavailable) { /* Continue to ordinary visible assets. */ }
+        }
 
         // 玩家目录优先（可见集）
         if (viewerPlayerId != null) {

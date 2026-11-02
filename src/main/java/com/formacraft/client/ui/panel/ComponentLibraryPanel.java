@@ -52,6 +52,9 @@ public final class ComponentLibraryPanel extends BasePanel {
     private ButtonWidget deleteButton, exportButton, cancelExportButton, refreshButton;
     private ButtonWidget sourceButton, prevSourceButton, nextSourceButton;
     private ButtonWidget importButton, confirmImportButton, cancelImportButton;
+    private ButtonWidget recipeViewButton, saveRecipeButton, replayRecipeButton, restoreRecipeButton;
+    private final ButtonWidget[] recipeSizeButtons = new ButtonWidget[6];
+    private final com.formacraft.client.component.ComponentRecipeDraft recipeDraft = new com.formacraft.client.component.ComponentRecipeDraft();
     private com.formacraft.client.component.ComponentImportClientState.Phase lastImportPhase = com.formacraft.client.component.ComponentImportClientState.Phase.IDLE;
 
 
@@ -101,6 +104,16 @@ public final class ComponentLibraryPanel extends BasePanel {
         }).dimensions(0,0,0,BUTTON_HEIGHT).build();
         confirmImportButton = ButtonWidget.builder(Text.literal("确认入库"), b -> com.formacraft.client.component.ClientComponentImport.confirm()).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
         cancelImportButton = ButtonWidget.builder(Text.literal("取消导入"), b -> com.formacraft.client.component.ClientComponentImport.cancel()).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
+        recipeViewButton = ButtonWidget.builder(Text.literal("查看收藏配方"), b -> {
+            var st = ComponentTool.INSTANCE.getState(); st.libraryRecipes = !st.libraryRecipes; st.libraryPage = 0; st.librarySelectedId = null; st.librarySelectedName = null; scrollY = 0;
+        }).dimensions(0,0,0,BUTTON_HEIGHT).build();
+        saveRecipeButton = ButtonWidget.builder(Text.literal("收藏尺寸配方"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.recipe(selectedEntry(),com.formacraft.common.network.ComponentLibraryNetworking.Action.SAVE_RECIPE,recipeDraft.spec())).dimensions(0,0,0,BUTTON_HEIGHT).build();
+        replayRecipeButton = ButtonWidget.builder(Text.literal("重放校验配方"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.recipe(selectedEntry(),com.formacraft.common.network.ComponentLibraryNetworking.Action.REPLAY_RECIPE,null)).dimensions(0,0,0,BUTTON_HEIGHT).build();
+        restoreRecipeButton = ButtonWidget.builder(Text.literal("从快照恢复原件"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.recipe(selectedEntry(),com.formacraft.common.network.ComponentLibraryNetworking.Action.RESTORE_RECIPE,null)).dimensions(0,0,0,BUTTON_HEIGHT).build();
+        for (int i = 0; i < 6; i++) {
+            final int axis = i / 2, delta = i % 2 == 0 ? -1 : 1;
+            recipeSizeButtons[i] = ButtonWidget.builder(Text.literal(delta < 0 ? "−" : "+"),b -> recipeDraft.adjust(axis,delta)).dimensions(0,0,0,BUTTON_HEIGHT).build();
+        }
 
         exportButton = ButtonWidget.builder(Text.literal("导出当前来源包…"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.start(selectedEntry(), false)).dimensions(0,0,0,BUTTON_HEIGHT).build();
         cancelExportButton = ButtonWidget.builder(Text.literal("取消下载"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.cancel()).dimensions(0,0,0,BUTTON_HEIGHT).build();
@@ -223,6 +236,8 @@ public final class ComponentLibraryPanel extends BasePanel {
         confirmImportButton.visible = cancelImportButton.visible = false;
         prevPageButton.visible = nextPageButton.visible = validateButton.visible = autoFixButton.visible = deleteButton.visible = false;
         exportButton.visible = cancelExportButton.visible = false;
+        saveRecipeButton.visible = replayRecipeButton.visible = restoreRecipeButton.visible = false;
+        for (var button : recipeSizeButtons) button.visible = false;
 
         drawContentBackground(ctx);
 
@@ -289,7 +304,9 @@ public final class ComponentLibraryPanel extends BasePanel {
 
         y += LABEL_OFFSET;
         renderSourceButton(ctx, importButton, x, y, half, !com.formacraft.client.component.ClientComponentImport.STATE.busy());
-        return renderSourceButton(ctx, refreshButton, x + half + 4, y, w - half - 4, client.getNetworkHandler() != null);
+        y = renderSourceButton(ctx, refreshButton, x + half + 4, y, w - half - 4, client.getNetworkHandler() != null);
+        recipeViewButton.setMessage(Text.literal(st.libraryRecipes ? "返回构件库" : "查看收藏配方"));
+        return renderSourceButton(ctx,recipeViewButton,x,y,w,true);
     }
 
     /** 可滚动区：分页、网格、选中/验证/修复等 */
@@ -305,6 +322,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         List<ComponentCatalog.Entry> filtered = new ArrayList<>();
         for (var e : cat.components) {
             if (e == null || e.id == null || e.id.isBlank()) continue;
+            if (e.recipe != st.libraryRecipes) continue;
             
             if (st.libraryFilterCategory != null && e.category != st.libraryFilterCategory) continue;
             if (q.isEmpty()) {
@@ -425,6 +443,7 @@ public final class ComponentLibraryPanel extends BasePanel {
                 if (entry.packageRef != null) {
                     boolean busy = com.formacraft.client.component.ClientComponentLibraryOperations.STATE.busy();
                     y = renderSourceButton(ctx, exportButton, x, y, w, !busy);
+                    y = drawRecipeEditor(ctx,x,w,y,entry,busy);
                     if (busy) {
                         y = drawWrappedText(ctx, Text.literal("正在处理构件操作…"), x, y, w, 0xFFAAAAAA);
                         if (com.formacraft.client.component.ClientComponentLibraryOperations.STATE.phase() == com.formacraft.client.component.ComponentLibraryClientState.Phase.DOWNLOADING)
@@ -578,6 +597,23 @@ public final class ComponentLibraryPanel extends BasePanel {
         FormaCraftClientNetworking.sendComponentSourceRequest(ComponentTool.INSTANCE.getState().librarySelectedId, index);
     }
 
+    private int drawRecipeEditor(DrawContext ctx,int x,int w,int y,ComponentCatalog.Entry entry,boolean busy) {
+        recipeDraft.bind(entry);
+        if (entry.recipe) {
+            y = renderSourceButton(ctx,replayRecipeButton,x,y,w,!busy);
+            return renderSourceButton(ctx,restoreRecipeButton,x,y,w,!busy);
+        }
+        y = drawWrappedText(ctx,Text.literal("目标尺寸（方块，X / Y / Z）"),x,y,w,0xFFAAAAAA);
+        for (int axis = 0; axis < 3; axis++) {
+            y = drawWrappedText(ctx,Text.literal(new String[]{"X","Y","Z"}[axis]+": "+recipeDraft.size(axis)),x,y,w,0xFFCCCCCC);
+            int half = (w-4)/2;
+            renderSourceButton(ctx,recipeSizeButtons[axis*2],x,y,half,!busy && recipeDraft.canAdjust(axis,-1));
+            renderSourceButton(ctx,recipeSizeButtons[axis*2+1],x+half+4,y,w-half-4,!busy && recipeDraft.canAdjust(axis,1)); y += LABEL_OFFSET;
+        }
+        y = drawWrappedText(ctx,Text.literal("收藏锁定原件快照，保留作者规则"),x,y,w,0xFF888888);
+        return renderSourceButton(ctx,saveRecipeButton,x,y,w,!busy);
+    }
+
     private int drawImportStatus(DrawContext ctx, int x, int w, int y) {
         var state = com.formacraft.client.component.ClientComponentImport.STATE;
         var phase = state.phase();
@@ -719,7 +755,10 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (clickButton(categoryButton, click)) return true;
         if (clickButton(importButton, click)) return true;
         if (clickButton(refreshButton, click)) return true;
+        if (clickButton(recipeViewButton, click)) return true;
         boolean inScroll = mouseY >= scrollAreaTop && mouseY < panelY + panelHeight - 1;
+        if (inScroll && (clickButton(saveRecipeButton,click) || clickButton(replayRecipeButton,click) || clickButton(restoreRecipeButton,click))) return true;
+        if (inScroll) for (var sizeButton : recipeSizeButtons) if (clickButton(sizeButton,click)) return true;
         if (inScroll && clickButton(exportButton, click)) return true;
         if (inScroll && clickButton(cancelExportButton, click)) return true;
         if (inScroll && clickButton(prevPageButton, click)) return true;

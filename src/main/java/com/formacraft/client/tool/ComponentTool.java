@@ -669,6 +669,7 @@ public final class ComponentTool implements FormacraftTool {
                     com.formacraft.client.ui.panel.PanelType.COMPONENT_LIBRARY;
             state.librarySelectedId = componentId;
             state.librarySelectedName = displayName;
+            state.libraryRecipes = false;
         });
     }
 

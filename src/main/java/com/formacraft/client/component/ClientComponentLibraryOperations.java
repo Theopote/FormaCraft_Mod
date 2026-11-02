@@ -34,10 +34,23 @@ public final class ClientComponentLibraryOperations {
                     HudToast.show("已删除构件");
                 }
                 case READY -> { if (loadingAsset) loadDownload(); else saveDownload(); }
+                case SAVED -> {
+                    var result = STATE.saved(); var tool = ComponentTool.INSTANCE.getState();
+                    tool.librarySelectedId = result.assetId(); tool.librarySelectedName = result.name(); tool.libraryPage = 0;
+                    tool.libraryRecipes = ComponentRecipeLibrary.isRecipe(result.assetId()); tool.librarySearch = "";
+                    HudToast.show("配方操作完成："+result.name());
+                }
                 case ERROR -> { sendCancel(); loadFailed(); HudToast.show(STATE.message(),true); }
                 default -> { }
             }
         }));
+    }
+    public static void recipe(ComponentCatalog.Entry entry, ComponentLibraryNetworking.Action action, ComponentRecipeLibrary.Spec spec) {
+        if (STATE.busy()) return;
+        if (entry == null || entry.packageRef == null || !ClientPlayNetworking.canSend(ComponentLibraryNetworking.Request.ID)) { HudToast.show("请选择已入库构件",true); return; }
+        ClientComponentThumbnails.pause(); loadingAsset = false;
+        try { send(STATE.beginMutation(entry.id,entry.packageRef,action,spec == null ? "" : com.formacraft.common.json.JsonUtil.toJson(spec))); }
+        catch (RuntimeException invalid) { STATE.fail("无法开始配方操作"); HudToast.show(STATE.message(),true); }
     }
     public static void start(ComponentCatalog.Entry entry, boolean delete) {
         if (STATE.busy()) return;
@@ -63,7 +76,7 @@ public final class ClientComponentLibraryOperations {
     private static void loadFailed() {
         if (loadingAsset) { loadingAsset = false; ComponentTool.INSTANCE.onComponentDefinitionFromServer(""); }
     }
-    public static void cancel() { if (STATE.phase() == ComponentLibraryClientState.Phase.DELETING) return; sendCancel(); loadFailed(); STATE.clear(); }
+    public static void cancel() { if (STATE.phase() == ComponentLibraryClientState.Phase.DELETING || STATE.phase() == ComponentLibraryClientState.Phase.SAVING) return; sendCancel(); loadFailed(); STATE.clear(); }
     private static void sendCancel() {
         var request = STATE.cancellation();
         try { if (request != null && ClientPlayNetworking.canSend(ComponentLibraryNetworking.Request.ID)) ClientPlayNetworking.send(request); }

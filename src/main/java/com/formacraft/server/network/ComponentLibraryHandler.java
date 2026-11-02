@@ -22,6 +22,21 @@ final class ComponentLibraryHandler {
             var world = context.server().getSavePath(WorldSavePath.ROOT);
             try {
                 switch (request.action()) {
+                    case SAVE_RECIPE, REPLAY_RECIPE, RESTORE_RECIPE -> {
+                        ComponentRecipeLibrary.Saved result;
+                        if (request.action() == ComponentLibraryNetworking.Action.SAVE_RECIPE) {
+                            var spec = JsonUtil.fromJson(request.options(),ComponentRecipeLibrary.Spec.class);
+                            result = ComponentRecipeLibrary.save(world,player.getUuid(),request.assetId(),request.primaryRef(),spec);
+                        } else {
+                            ComponentLibraryOperations.export(world,player.getUuid(),request.assetId(),request.primaryRef(),0,request.primaryRef());
+                            if (request.action() == ComponentLibraryNetworking.Action.REPLAY_RECIPE) {
+                                ComponentRecipeLibrary.replay(player.getUuid(),request.assetId());
+                                result = new ComponentRecipeLibrary.Saved(request.assetId(),ComponentRecipeLibrary.result(player.getUuid(),request.assetId()).component().name,ComponentPackageInstallations.ImportStatus.REUSED);
+                            } else result = ComponentRecipeLibrary.restore(ComponentStorage.SaveContext.forPlayer(world,player.getUuid(),context.server().isDedicated(),player.hasPermissionLevel(2)),request.assetId());
+                        }
+                        ServerPlayNetworking.send(player,new ComponentLibraryNetworking.Response(request.token(),ComponentLibraryNetworking.Reply.SAVED,0,0,null,JsonUtil.toJson(result)));
+                        ComponentCatalogSync.send(player,JsonUtil.toJson(ComponentStorage.loadCatalogWithSockets(world,player.getUuid())));
+                    }
                     case DELETE -> {
                         ComponentLibraryOperations.delete(ComponentStorage.SaveContext.forPlayer(world, player.getUuid(), context.server().isDedicated(), player.hasPermissionLevel(2)), request.assetId(), request.primaryRef());
                         ServerPlayNetworking.send(player,new ComponentLibraryNetworking.Response(request.token(),ComponentLibraryNetworking.Reply.DELETED,0,0,null,""));
@@ -40,7 +55,9 @@ final class ComponentLibraryHandler {
             } catch (Exception invalid) {
                 EXPORTS.cancel(player.getUuid(),request.token());
                 com.formacraft.FormacraftMod.LOGGER.warn("Component library operation failed player={} action={}",player.getUuid(),request.action(),invalid);
-                ServerPlayNetworking.send(player,new ComponentLibraryNetworking.Response(request.token(),ComponentLibraryNetworking.Reply.ERROR,0,0,null,"构件操作失败：资产可能已变化或权限不足，请刷新后重试"));
+                String message = invalid instanceof java.nio.file.FileSystemException ? "构件文件操作失败，请查看服务端日志" : invalid.getMessage();
+                if (message == null || message.length() > 512) message = "构件操作失败，请刷新或查看服务端日志";
+                ServerPlayNetworking.send(player,new ComponentLibraryNetworking.Response(request.token(),ComponentLibraryNetworking.Reply.ERROR,0,0,null,message));
             }
         }));
     }

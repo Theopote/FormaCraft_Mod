@@ -17,6 +17,12 @@ public final class ComponentSourceView {
             var entry = ComponentStorage.loadCatalog(world, viewer).components.stream()
                     .filter(e -> e != null && id.equals(e.id)).findFirst().orElse(null);
             if (entry == null || entry.packageRef == null) return unavailable(id, index);
+            if (entry.recipe) {
+                if (index != 0) return unavailable(id,index);
+                var source = ComponentRecipeLibrary.result(viewer,id); var manifest = source.manifest();
+                return new Page(id,0,1,true,bounded(source.component().name,256),manifest.namespace(),manifest.version(),manifest.author(),manifest.license(),
+                        manifest.trainingPermission(),source.contentRef(),null,source.manifestSha256());
+            }
             var roots = new ArrayList<Path>();
             if (viewer != null) roots.add(ComponentStorage.getPlayerComponentDir(viewer));
             roots.add(ComponentStorage.getGlobalComponentDir());

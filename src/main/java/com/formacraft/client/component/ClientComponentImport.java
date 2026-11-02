@@ -26,6 +26,7 @@ public final class ClientComponentImport {
             if (before != ComponentImportClientState.Phase.DONE && STATE.phase() == ComponentImportClientState.Phase.DONE) {
                 var result = STATE.installed(); var tool = com.formacraft.client.tool.ComponentTool.INSTANCE.getState();
                 tool.librarySelectedId = result.assetId(); tool.librarySelectedName = result.name(); tool.libraryPage = 0; tool.librarySearch = "";
+                tool.libraryRecipes = false;
                 ClientComponentSourceState.INSTANCE.clear();
                 String action = switch (result.status()) { case NEW_ASSET -> "已导入构件："; case NEW_CONFIGURATION -> "已导入新配置："; case SOURCE_ADDED -> "已复用构件并补充来源："; case REUSED -> "已复用已有构件："; };
                 if (captureSubmission) {

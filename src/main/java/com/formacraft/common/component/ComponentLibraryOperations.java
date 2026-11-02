@@ -28,6 +28,12 @@ public final class ComponentLibraryOperations {
     }
     public static ComponentPackageIO.Verified export(Path world, UUID player, String id, String expectedRef,
                                                     int sourceIndex, String sourceRef) throws IOException {
+        if (ComponentRecipeLibrary.isRecipe(id) && player != null) {
+            var result = ComponentRecipeLibrary.result(player,id);
+            if (sourceIndex != 0 || !result.contentRef().equals(expectedRef)
+                    || !Objects.equals(sourceRef,result.contentRef()) && !Objects.equals(sourceRef,result.contentRef()+"|manifest:"+result.manifestSha256())) throw unavailable();
+            return result;
+        }
         var found = locate(world, player, id, expectedRef);
         if (sourceIndex < 0 || sourceIndex >= 129) throw unavailable();
         var source = sourceIndex == 0 ? found.primary() : ComponentPackageInstallations.sources(found.root(), id)
@@ -38,6 +44,7 @@ public final class ComponentLibraryOperations {
     }
     public static void delete(ComponentStorage.SaveContext context, String id, String expectedRef) throws IOException {
         if (context == null || context.playerId() == null) throw unavailable();
+        if (ComponentRecipeLibrary.isRecipe(id)) { ComponentRecipeLibrary.delete(context.playerId(),id,expectedRef); return; }
         synchronized (ComponentStorage.class) {
             var found = locate(context.worldDir(), context.playerId(), id, expectedRef);
             if (!found.personal() && !context.allowOverwriteGlobal()) throw new IOException("没有删除共享构件的权限");
