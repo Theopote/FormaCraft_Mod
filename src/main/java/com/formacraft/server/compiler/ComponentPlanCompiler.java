@@ -113,6 +113,8 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
         // Relativized residual slot offsets (e.g. x=-8) still shift a centered footprint off the cursor.
         plan = SlotPrimaryAnchorRepair.apply(plan);
+        // Preserve authoritative user intent even if LLM dropped typology markers.
+        plan = RequestIntentInjector.ensure(plan, (String) null);
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = FootprintCombinationRepair.apply(plan);

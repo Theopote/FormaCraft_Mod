@@ -22,7 +22,7 @@ _TEMPLE_MARKERS = (
 )
 
 _TOWER_COMPONENT_HINTS = (
-    "STRUCTURE", "TOWER", "MODULE", "ASSEMBLY", "CROWN",
+    "STRUCTURE", "TOWER",
 )
 _TOWER_FEATURE_HINTS = (
     "pagoda", "stupa", "tower", "tier", "eave", "finial", "spire",
@@ -31,8 +31,41 @@ _TOWER_FEATURE_HINTS = (
 _HOUSE_ROOF_TYPES = frozenset({"gable", "xuanshan", "hip", ""})
 
 
+def _authoritative_building_class(user_text: str, plan: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Prefer plan_meta.request_intent (server-owned) over LLM-authored fields."""
+    if isinstance(plan, dict):
+        meta = plan.get("plan_meta")
+        if isinstance(meta, dict):
+            ri = meta.get("request_intent")
+            if isinstance(ri, dict):
+                cls = str(ri.get("building_class") or "").strip().lower()
+                if cls and cls != "generic":
+                    return cls
+            cls = str(meta.get("building_class") or "").strip().lower()
+            if cls and cls != "generic":
+                return cls
+            text = str(meta.get("request_intent_text") or "").strip()
+            if text:
+                user_text = text
+        hints = plan.get("proportion_hints")
+        if isinstance(hints, dict):
+            arch = hints.get("architecture_intent")
+            if isinstance(arch, dict) and str(arch.get("original_text") or "").strip():
+                user_text = str(arch.get("original_text"))
+    if user_text:
+        from .request_intent import extract_request_intent
+        cls = extract_request_intent(user_text).get("building_class")
+        if cls and cls != "generic":
+            return str(cls)
+    return None
+
+
 def detect_semantic_intent(user_text: str, plan: Optional[Dict[str, Any]] = None) -> str:
-    """Return a coarse semantic class for the request/plan corpus."""
+    """Return a coarse semantic class; authoritative user intent wins over LLM plan fields."""
+    auth = _authoritative_building_class(user_text, plan)
+    if auth:
+        return auth
+
     corpus_parts: List[str] = [user_text or ""]
     if isinstance(plan, dict):
         feats = plan.get("distinguishing_features")
@@ -77,41 +110,49 @@ def _component_types(plan: Dict[str, Any]) -> List[str]:
 
 
 def _has_tower_morphology(plan: Dict[str, Any]) -> bool:
+    """Require real tower geometry — CROWN/ASSEMBLY keywords alone are not enough."""
     types = _component_types(plan)
-    if any(t.startswith(h) or h in t for t in types for h in _TOWER_COMPONENT_HINTS):
-        return True
     comps = plan.get("components") or []
     if not isinstance(comps, list):
         return False
     mass_count = sum(1 for t in types if t.startswith("MASS") or t == "MAIN_MASS")
+    roof_count = sum(1 for t in types if t == "ROOF")
     for c in comps:
         if not isinstance(c, dict):
             continue
+        ctype = str(c.get("component_type") or "").upper()
         feats = c.get("features") or []
         params = c.get("params") if isinstance(c.get("params"), dict) else {}
-        blob = " ".join(str(f) for f in feats if f) + " " + " ".join(
-            f"{k}={v}" for k, v in params.items()
-        )
-        lower = blob.lower()
-        if any(h in lower or h in blob for h in _TOWER_FEATURE_HINTS):
-            return True
-        if params.get("tier_index") is not None or params.get("levels") or params.get("eave_tiers"):
-            return True
         typology = str(params.get("typology") or params.get("structural_typology") or "").lower()
-        if "pagoda" in typology or "stupa" in typology or "tower" in typology:
+        feat_blob = " ".join(str(f) for f in feats if f).lower()
+        has_pagoda_cue = (
+            "pagoda" in typology or "stupa" in typology
+            or any(h in feat_blob for h in ("pagoda", "stupa", "dense_eaves", "finial", "spire", "佛塔", "古塔", "塔刹"))
+        )
+        if ctype.startswith("STRUCTURE") or ctype.startswith("TOWER"):
+            if has_pagoda_cue or params.get("levels") or params.get("eave_tiers") or params.get("tier_index") is not None:
+                return True
+            dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
+            try:
+                w, d, h = int(dims.get("width") or 0), int(dims.get("depth") or 0), int(dims.get("height") or 0)
+            except (TypeError, ValueError):
+                w = d = h = 0
+            if h >= max(w, d) * 1.5 and h >= 12:
+                return True
+        if params.get("tier_index") is not None or (
+            isinstance(params.get("levels"), (int, float)) and int(params.get("levels")) >= 2
+        ) or (
+            isinstance(params.get("eave_tiers"), (int, float)) and int(params.get("eave_tiers")) >= 2
+        ):
             return True
-        dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
-        try:
-            w = int(dims.get("width") or 0)
-            d = int(dims.get("depth") or 0)
-            h = int(dims.get("height") or 0)
-        except (TypeError, ValueError):
-            w = d = h = 0
-        # Tall slender multi-storey body counts as tower-like mass.
-        if (c.get("component_type") or "").upper().startswith("MASS") and h >= max(w, d) * 1.5 and h >= 12:
-            return True
-    # Multiple stacked masses / roofs also count.
-    roof_count = sum(1 for t in types if t == "ROOF")
+        if ctype.startswith("MASS") and has_pagoda_cue:
+            dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
+            try:
+                w, d, h = int(dims.get("width") or 0), int(dims.get("depth") or 0), int(dims.get("height") or 0)
+            except (TypeError, ValueError):
+                continue
+            if h >= max(w, d) * 1.5 and h >= 12:
+                return True
     if mass_count >= 2 and roof_count >= 2:
         return True
     return False

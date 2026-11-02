@@ -6,6 +6,16 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComponentLibraryClientStateTest {
+    @Test void recipeMutationIsCorrelatedAndInvalidReceiptDoesNotSelectAnAsset() {
+        var state = new ComponentLibraryClientState(System::nanoTime);
+        var start = state.beginMutation("asset_a","ref",Action.SAVE_RECIPE,"{}");
+        assertTrue(state.busy()); assertNull(state.accept(new Response(UUID.randomUUID(),Reply.SAVED,0,0,null,"{}")));
+        state.accept(new Response(start.token(),Reply.SAVED,0,0,null,"{}")); assertEquals(ComponentLibraryClientState.Phase.ERROR,state.phase());
+        start = state.beginMutation("asset_a","ref",Action.SAVE_RECIPE,"{}");
+        var result = new com.formacraft.common.component.ComponentRecipeLibrary.Saved("recipe_"+"a".repeat(48),"Recipe",com.formacraft.common.component.ComponentPackageInstallations.ImportStatus.NEW_ASSET);
+        state.accept(new Response(start.token(),Reply.SAVED,0,0,null,com.formacraft.common.json.JsonUtil.toJson(result)));
+        assertEquals(ComponentLibraryClientState.Phase.SAVED,state.phase()); assertEquals(result,state.saved()); assertFalse(state.busy());
+    }
     @Test void contiguousDownloadIgnoresStaleRepliesAndReturnsIsolatedBytes() {
         var state = new ComponentLibraryClientState(System::nanoTime); var start = state.begin("asset_a","ref",0,"ref",false);
         assertNull(state.accept(new Response(UUID.randomUUID(),Reply.CHUNK,4,0,new byte[]{1,2},"")));

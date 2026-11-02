@@ -16,6 +16,7 @@ public class ComponentCatalog {
         public String id;
         /** Private favorite recipe; kept separate from ordinary assets in the UI. */
         public boolean recipe;
+        public String recipeSourceRef;
         public String name;
         public ComponentCategory category;
         public ComponentTypes.Ref type;

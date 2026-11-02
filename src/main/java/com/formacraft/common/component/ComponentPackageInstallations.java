@@ -23,6 +23,7 @@ public final class ComponentPackageInstallations {
                            ComponentStorage.SaveContext context, String localId, BeforePublish beforePublish) throws IOException {
         requireContext(context);
         String id = ComponentIds.validateComponentId(localId);
+        if (ComponentRecipeLibrary.isRecipe(id)) throw new IOException("Reserved private recipe identity");
         if (id.equals("catalog")) throw new IOException("Reserved component ID");
         var verified = ComponentPackageIO.read(source, environment);
         requirePortable(verified);

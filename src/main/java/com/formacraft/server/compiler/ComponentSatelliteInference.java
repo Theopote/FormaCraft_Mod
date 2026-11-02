@@ -899,15 +899,34 @@ final class ComponentSatelliteInference {
             params.put("roof_type", roofType);
         }
         if (roofType == null || roofType.isBlank()) {
+            String explicitRoof = PlanSemanticValidator.explicitRoofType(plan, null);
             roofType = resolveDefaultRoofType(plan, base);
             if (roofType != null) {
                 com.formacraft.common.generation.design.DesignProvenance.putIfAllowed(
                         plan, params, "roof_type", roofType);
                 roofType = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
-                if (roofType == null || roofType.isBlank()) {
-                    roofType = "gable";
-                    params.put("roof_type", roofType);
+            }
+            if (roofType == null || roofType.isBlank()) {
+                if (explicitRoof != null) {
+                    // Explicit roof intent must not silently become a residential gable.
+                    AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(
+                            "E_ROOF_INTENT_UNRESOLVED",
+                            "无法解析用户明确要求的屋顶类型（" + explicitRoof + "），已拒绝 gable 兜底。",
+                            "components[].params.roof_type",
+                            List.of("Emit an explicit roof_type matching the request.",
+                                    "Do not fall back to gable when roof is specified.")));
+                    return null;
                 }
+                if (PlanSemanticValidator.refusesResidentialAutofill(plan)) {
+                    AssemblyCompileDiagnostics.addSoftWarning(
+                            "SKIPPED_DEFAULT_GABLE",
+                            "Skipped default gable for non-residential intent",
+                            base.componentType(),
+                            ComponentPlanTypes.getParamString(base.params(), "component_id"));
+                    return null;
+                }
+                roofType = "gable";
+                params.put("roof_type", roofType);
             }
         }
         if (params.get("component_id") != null) params.putIfAbsent("host_id", params.get("component_id"));
@@ -1478,9 +1497,13 @@ final class ComponentSatelliteInference {
         if (fromHints != null) {
             return fromHints;
         }
+        String explicit = PlanSemanticValidator.explicitRoofType(plan, null);
+        if (explicit != null) {
+            return explicit;
+        }
         if (PlanSemanticValidator.refusesResidentialAutofill(plan)) {
-            // Prefer hip over inventing a western gable house for non-residential intents.
-            return "hip";
+            // Never invent a western gable for non-residential intents.
+            return null;
         }
         return "gable";
     }

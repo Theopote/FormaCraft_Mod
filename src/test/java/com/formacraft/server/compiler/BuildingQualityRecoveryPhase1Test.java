@@ -157,6 +157,61 @@ class BuildingQualityRecoveryPhase1Test {
     }
 
     @Test
+    void requestIntentSurvivesWhenLlmDropsPagodaMarkers() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(9, 7, 6), List.of(), Map.of());
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 6, 0),
+                new Dimensions(11, 9, 3), List.of(), Map.of("roof_type", "gable"));
+        // No distinguishing_features — LLM forgot 佛塔 entirely.
+        LlmPlan raw = LlmPlanTestFixtures.builder()
+                .components(List.of(mass, roof))
+                .build();
+        LlmPlan plan = RequestIntentInjector.ensure(raw, "生成一座白色藏式佛塔，主体尺寸7×7");
+        assertTrue(PlanSemanticValidator.refusesResidentialAutofill(plan));
+        Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_SEMANTIC_FIDELITY", gap.get().code());
+    }
+
+    @Test
+    void crownOnHouseIsNotTowerMorphology() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(9, 7, 6), List.of(), Map.of());
+        Component crown = new Component(
+                "CROWN", "main", new Vec3i(0, 6, 0),
+                new Dimensions(3, 3, 2), List.of("finial"), Map.of());
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 6, 0),
+                new Dimensions(11, 9, 3), List.of(), Map.of("roof_type", "gable"));
+        // Avoid 「重檐」 here so roof-intent conflict does not mask morphology failure.
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, crown, roof)).build(),
+                "生成一座三层中式古塔，顶部有塔刹");
+        Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_SEMANTIC_FIDELITY", gap.get().code());
+    }
+
+    @Test
+    void explicitRoofRejectedWhenGableSubstituted() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(11, 9, 7), List.of(), Map.of());
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 7, 0),
+                new Dimensions(13, 11, 3), List.of(), Map.of("roof_type", "gable"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                "生成歇山顶徽派民居，白墙黑瓦");
+        Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_ROOF_INTENT_CONFLICT", gap.get().code());
+    }
+
+    @Test
     void intentFidelityMetricsDoNotTreatBuildAloneAsSemanticSuccess() {
         IntentFidelityMetrics.recordParse(true, "req-1", "白色藏式佛塔", null);
         IntentFidelityMetrics.recordOutcome(

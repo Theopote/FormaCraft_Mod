@@ -77,7 +77,8 @@ public final class ComponentDefinitionCompiler {
             int dz = baseZ + off.getZ();
 
             String block;
-            if (semanticSkin && (def.variantRules == null || def.variantRules.material != null)) {
+            boolean materialAllowed = def.variantRules != null ? def.variantRules.material != null : !def.isCapturedOrigin();
+            if (semanticSkin && materialAllowed) {
                 com.formacraft.common.semantic.SemanticPart part = be.semantic != null
                         ? be.semantic
                         : guessSemanticPartFromString(be.block, be.dy, minDy);

@@ -251,6 +251,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     hints['architecture_intent'] = describe_architecture(text)
     hints['architecture_intent']['materials'] = [deepcopy(r) for r in requirements
                                                if r['property'] in ('wall_block', 'floor_block', 'roof_block')]
+    from .request_intent import attach_request_intent
+    attach_request_intent(out, text)
     components = [c for c in (out.get('components') or []) if isinstance(c, dict)]
     # A provider may emit all requested placement slots but only one module.
     slots_for_modules = (out.get('layout') or {}).get('slots') or []

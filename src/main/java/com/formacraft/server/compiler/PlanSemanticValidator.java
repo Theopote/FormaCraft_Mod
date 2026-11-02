@@ -6,16 +6,30 @@ import com.formacraft.common.llm.dto.LlmPlan;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * Reject authored plans that would become a residential house for tower/pagoda/
- * gate/garden intents, and refuse empty build components when no alternate geometry exists.
+ * gate/garden intents. Intent is taken from authoritative request_intent first —
+ * never only from LLM-authored distinguishing features.
  */
 final class PlanSemanticValidator {
     private PlanSemanticValidator() {}
 
     static Optional<CapabilityGap> check(LlmPlan plan) {
+        return check(plan, null, null);
+    }
+
+    /**
+     * @param originalRequestIntent authoritative user text (may be null if already on plan_meta)
+     * @param compiledGeometrySummary optional post-compile summary (reserved; unused for authored gate)
+     */
+    static Optional<CapabilityGap> check(
+            LlmPlan plan,
+            String originalRequestIntent,
+            String compiledGeometrySummary
+    ) {
         if (plan == null) {
             return Optional.empty();
         }
@@ -41,7 +55,18 @@ final class PlanSemanticValidator {
                             "Or return plan_status=capability_gap when geometry cannot be expressed.")));
         }
 
-        IntentClass intent = detectIntent(plan);
+        // Explicit roof must not be silently replaced by residential defaults —
+        // applies to all building classes, including ordinary houses.
+        String explicitRoof = explicitRoofType(plan, originalRequestIntent);
+        if (explicitRoof != null && roofConflictsWithExplicit(components, explicitRoof)) {
+            return Optional.of(new CapabilityGap(
+                    "E_ROOF_INTENT_CONFLICT",
+                    "计划屋顶与用户明确要求的屋顶类型冲突（要求=" + explicitRoof + "）。",
+                    "components[].params.roof_type",
+                    List.of("Preserve the requested roof type; do not substitute gable.")));
+        }
+
+        IntentClass intent = detectIntent(plan, originalRequestIntent);
         if (intent == IntentClass.GENERIC) {
             return Optional.empty();
         }
@@ -77,11 +102,38 @@ final class PlanSemanticValidator {
 
     /** True when empty-components recovery / residential satellite inference must be refused. */
     static boolean refusesResidentialAutofill(LlmPlan plan) {
+        return refusesResidentialAutofill(plan, null);
+    }
+
+    static boolean refusesResidentialAutofill(LlmPlan plan, String originalRequestIntent) {
         if (plan == null || plan.hasCapabilityGap()) {
             return false;
         }
-        IntentClass intent = detectIntent(plan);
+        IntentClass intent = detectIntent(plan, originalRequestIntent);
         return intent != IntentClass.GENERIC;
+    }
+
+    /** Explicit roof from request_intent / chinese contract / architecture text. */
+    static String explicitRoofType(LlmPlan plan, String originalRequestIntent) {
+        Map<String, Object> ri = requestIntentMap(plan);
+        if (ri != null) {
+            if (Boolean.TRUE.equals(ri.get("roof_explicit")) || ri.get("roof_type") != null) {
+                Object rt = ri.get("roof_type");
+                if (rt != null && !String.valueOf(rt).isBlank()) {
+                    return String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+                }
+            }
+        }
+        String corpus = authoritativeCorpus(plan, originalRequestIntent).toLowerCase(Locale.ROOT);
+        if (corpus.contains("歇山")) return "xieshan";
+        if (corpus.contains("庑殿")) return "wudian";
+        if (corpus.contains("攒尖")) return "pyramid";
+        if (corpus.contains("重檐")) return "double_eave_hip";
+        if (corpus.contains("悬山")) return "xuanshan";
+        if (corpus.contains("硬山")) return "yingshan";
+        if (corpus.contains("穹顶") || corpus.contains("dome")) return "dome";
+        if (corpus.contains("平顶") || corpus.contains("flat roof")) return "flat";
+        return null;
     }
 
     private static boolean hasAlternateGeometry(LlmPlan plan) {
@@ -93,8 +145,21 @@ final class PlanSemanticValidator {
 
     private enum IntentClass { GENERIC, TOWER_LIKE, GATE, GARDEN }
 
-    private static IntentClass detectIntent(LlmPlan plan) {
-        String corpus = intentCorpus(plan).toLowerCase(Locale.ROOT);
+    private static IntentClass detectIntent(LlmPlan plan, String originalRequestIntent) {
+        Map<String, Object> ri = requestIntentMap(plan);
+        if (ri != null) {
+            IntentClass fromMeta = classFromToken(String.valueOf(ri.getOrDefault("building_class", "")));
+            if (fromMeta != IntentClass.GENERIC) {
+                return fromMeta;
+            }
+        }
+        if (plan.planMeta() != null) {
+            IntentClass fromMeta = classFromToken(String.valueOf(plan.planMeta().getOrDefault("building_class", "")));
+            if (fromMeta != IntentClass.GENERIC) {
+                return fromMeta;
+            }
+        }
+        String corpus = authoritativeCorpus(plan, originalRequestIntent).toLowerCase(Locale.ROOT);
         if (containsAny(corpus,
                 "佛塔", "古塔", "宝塔", "藏式", "pagoda", "stupa", "dense_eaves_pagoda",
                 "tiered_eave", "finial_spire", "塔刹", "重檐")) {
@@ -107,13 +172,76 @@ final class PlanSemanticValidator {
             return IntentClass.GARDEN;
         }
         if (containsAny(corpus, "道观", "寺庙", "庙宇", "daoist", "shrine compound")) {
-            // Temple compounds still refuse empty→house recovery.
+            return IntentClass.GARDEN;
+        }
+        // Last resort: LLM-authored fields only (weak).
+        String weak = weakPlanCorpus(plan).toLowerCase(Locale.ROOT);
+        if (containsAny(weak,
+                "佛塔", "古塔", "pagoda", "stupa", "dense_eaves_pagoda", "塔刹", "重檐")) {
+            return IntentClass.TOWER_LIKE;
+        }
+        if (containsAny(weak, "山门", "牌坊", "paifang")) {
+            return IntentClass.GATE;
+        }
+        if (containsAny(weak, "园林", "庭院", "garden")) {
             return IntentClass.GARDEN;
         }
         return IntentClass.GENERIC;
     }
 
-    private static String intentCorpus(LlmPlan plan) {
+    private static IntentClass classFromToken(String raw) {
+        if (raw == null) return IntentClass.GENERIC;
+        String s = raw.trim().toLowerCase(Locale.ROOT);
+        return switch (s) {
+            case "tower_like", "tower", "pagoda", "stupa" -> IntentClass.TOWER_LIKE;
+            case "gate", "gatehouse", "paifang" -> IntentClass.GATE;
+            case "garden", "temple", "courtyard" -> IntentClass.GARDEN;
+            default -> IntentClass.GENERIC;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> requestIntentMap(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null) return null;
+        Object ri = plan.planMeta().get("request_intent");
+        if (ri instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return null;
+    }
+
+    /** User-owned text only: request_intent + architecture_intent.original_text. */
+    private static String authoritativeCorpus(LlmPlan plan, String originalRequestIntent) {
+        StringBuilder sb = new StringBuilder();
+        if (originalRequestIntent != null && !originalRequestIntent.isBlank()) {
+            sb.append(' ').append(originalRequestIntent);
+        }
+        Map<String, Object> ri = requestIntentMap(plan);
+        if (ri != null) {
+            Object text = ri.get("original_text");
+            if (text != null) sb.append(' ').append(text);
+            Object markers = ri.get("markers");
+            if (markers instanceof List<?> list) {
+                for (Object m : list) {
+                    if (m != null) sb.append(' ').append(m);
+                }
+            }
+        }
+        if (plan != null && plan.planMeta() != null) {
+            Object text = plan.planMeta().get("request_intent_text");
+            if (text != null) sb.append(' ').append(text);
+        }
+        if (plan != null && plan.proportionHints() != null) {
+            Object intent = plan.proportionHints().get("architecture_intent");
+            if (intent instanceof Map<?, ?> map) {
+                Object original = map.get("original_text");
+                if (original != null) sb.append(' ').append(original);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String weakPlanCorpus(LlmPlan plan) {
         StringBuilder sb = new StringBuilder();
         if (plan.styleProfile() != null) sb.append(' ').append(plan.styleProfile());
         if (plan.distinguishingFeatures() != null) {
@@ -154,6 +282,11 @@ final class PlanSemanticValidator {
         return false;
     }
 
+    /**
+     * Real tower geometry: STRUCTURE/TOWER with pagoda typology or tier params,
+     * stacked masses with multiple roofs, or tall slender mass with pagoda cues.
+     * A lone CROWN / ASSEMBLY / MODULE keyword is not enough.
+     */
     private static boolean hasTowerMorphology(List<Component> components) {
         int massCount = 0;
         int roofCount = 0;
@@ -162,60 +295,94 @@ final class PlanSemanticValidator {
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
             if (type.startsWith("MASS") || "MAIN_MASS".equals(type)) massCount++;
             if ("ROOF".equals(type)) roofCount++;
-            if (type.startsWith("STRUCTURE") || type.startsWith("TOWER")
-                    || "MODULE".equals(type) || "ASSEMBLY".equals(type) || "CROWN".equals(type)) {
-                return true;
-            }
-            if (c.params() != null) {
-                if (c.params().containsKey("tier_index") || c.params().containsKey("levels")
-                        || c.params().containsKey("eave_tiers")) {
-                    return true;
-                }
-                String typology = String.valueOf(c.params().getOrDefault("typology",
-                        c.params().getOrDefault("structural_typology", ""))).toLowerCase(Locale.ROOT);
-                if (typology.contains("pagoda") || typology.contains("stupa") || typology.contains("tower")) {
-                    return true;
+
+            boolean pagodaCue = hasPagodaCue(c);
+            boolean tiered = hasTierParams(c);
+
+            if (type.startsWith("STRUCTURE") || type.startsWith("TOWER")) {
+                if (pagodaCue || tiered) return true;
+                if (c.dimensions() != null) {
+                    int w = c.dimensions().width();
+                    int d = c.dimensions().depth();
+                    int h = c.dimensions().height();
+                    if (h >= Math.max(w, d) * 1.5 && h >= 12) return true;
                 }
             }
-            if (c.features() != null) {
-                for (String f : c.features()) {
-                    if (f == null) continue;
-                    String lower = f.toLowerCase(Locale.ROOT);
-                    if (lower.contains("pagoda") || lower.contains("stupa") || lower.contains("tower")
-                            || lower.contains("tier") || lower.contains("finial") || lower.contains("spire")
-                            || f.contains("佛塔") || f.contains("古塔") || f.contains("塔刹") || f.contains("重檐")) {
-                        return true;
-                    }
-                }
-            }
-            if ((type.startsWith("MASS") || "MAIN_MASS".equals(type)) && c.dimensions() != null) {
+            if (tiered) return true;
+            if ((type.startsWith("MASS") || "MAIN_MASS".equals(type)) && pagodaCue && c.dimensions() != null) {
                 int w = c.dimensions().width();
                 int d = c.dimensions().depth();
                 int h = c.dimensions().height();
-                if (h >= Math.max(w, d) * 1.5 && h >= 12) {
+                if (h >= Math.max(w, d) * 1.5 && h >= 12) return true;
+            }
+        }
+        return massCount >= 2 && roofCount >= 2;
+    }
+
+    private static boolean hasPagodaCue(Component c) {
+        if (c.params() != null) {
+            String typology = String.valueOf(c.params().getOrDefault("typology",
+                    c.params().getOrDefault("structural_typology", ""))).toLowerCase(Locale.ROOT);
+            if (typology.contains("pagoda") || typology.contains("stupa") || typology.contains("dense_eaves")) {
+                return true;
+            }
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("pagoda") || lower.contains("stupa") || lower.contains("dense_eaves")
+                        || lower.contains("finial") || lower.contains("spire")
+                        || f.contains("佛塔") || f.contains("古塔") || f.contains("塔刹") || f.contains("重檐")) {
                     return true;
                 }
             }
         }
-        return massCount >= 2 && roofCount >= 2;
+        return false;
+    }
+
+    private static boolean hasTierParams(Component c) {
+        if (c.params() == null) return false;
+        if (c.params().containsKey("tier_index")) return true;
+        Object levels = c.params().get("levels");
+        if (levels instanceof Number n && n.intValue() >= 2) return true;
+        Object eaves = c.params().get("eave_tiers");
+        if (eaves == null) eaves = c.params().get("eaveTiers");
+        return eaves instanceof Number n && n.intValue() >= 2;
     }
 
     private static boolean hasGateMorphology(List<Component> components) {
         for (Component c : components) {
             if (c == null) continue;
             String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
-            if ("STRUCTURE".equals(type) || "ASSEMBLY".equals(type)) return true;
-            if (c.dimensions() != null) {
-                int w = c.dimensions().width();
-                int d = c.dimensions().depth();
-                if (w >= d * 1.5 && w >= 10) return true;
-            }
+            boolean gateCue = false;
             if (c.features() != null) {
                 for (String f : c.features()) {
                     if (f == null) continue;
                     String lower = f.toLowerCase(Locale.ROOT);
-                    if (lower.contains("gate") || f.contains("山门") || lower.contains("paifang")) return true;
+                    if (lower.contains("gate") || f.contains("山门") || lower.contains("paifang")
+                            || lower.contains("temple_gate")) {
+                        gateCue = true;
+                        break;
+                    }
                 }
+            }
+            if (c.params() != null && c.params().get("passage_axis") != null) {
+                gateCue = true;
+            }
+            if ("STRUCTURE".equals(type) || "ASSEMBLY".equals(type)) {
+                if (gateCue) return true;
+                if (c.dimensions() != null) {
+                    int w = c.dimensions().width();
+                    int d = c.dimensions().depth();
+                    if (w >= d * 1.5 && w >= 10 && d <= w / 2 + 2) return true;
+                }
+            }
+            if (c.dimensions() != null) {
+                int w = c.dimensions().width();
+                int d = c.dimensions().depth();
+                // Wide-shallow gate mass with cue, not any wide house.
+                if (gateCue && w >= d * 1.5 && w >= 10) return true;
             }
         }
         return false;
@@ -226,7 +393,7 @@ final class PlanSemanticValidator {
             if (c == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
             if (type.contains("PATH") || type.contains("COURTYARD") || type.contains("GARDEN")
-                    || type.contains("PAVING") || "ASSEMBLY".equals(type) || type.startsWith("STRUCTURE")) {
+                    || type.contains("PAVING") || "ASSEMBLY".equals(type)) {
                 return true;
             }
         }
@@ -246,7 +413,28 @@ final class PlanSemanticValidator {
                     || "FOUNDATION".equals(type)) {
                 residentialSatellites = true;
             }
+            // CROWN bolted onto a house kit still counts as residential unless tower morphology passed.
+            if ("CROWN".equals(type) && mass <= 1) {
+                residentialSatellites = true;
+            }
         }
         return mass == 1 && (residentialSatellites || components.size() == 1);
+    }
+
+    private static boolean roofConflictsWithExplicit(List<Component> components, String explicit) {
+        if (explicit == null || explicit.isBlank()) return false;
+        String want = explicit.toLowerCase(Locale.ROOT);
+        for (Component c : components) {
+            if (c == null || c.params() == null) continue;
+            Object rt = c.params().get("roof_type");
+            if (rt == null) rt = c.params().get("roofType");
+            if (rt == null) continue;
+            String have = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+            if (have.isEmpty() || "none".equals(have)) continue;
+            if ("gable".equals(have) && !"gable".equals(want) && !want.contains("gable")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

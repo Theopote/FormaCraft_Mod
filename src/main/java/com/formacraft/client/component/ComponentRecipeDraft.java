@@ -7,10 +7,12 @@ import java.util.Objects;
 /** UI values are hints only; the server revalidates exact fit and author permissions. */
 public final class ComponentRecipeDraft {
     private ComponentCatalog.Entry entry;
+    private String boundId, boundRef;
     private final int[] sizes = new int[3];
     public void bind(ComponentCatalog.Entry selected) {
-        if (entry != null && selected != null && Objects.equals(entry.id,selected.id) && Objects.equals(entry.packageRef,selected.packageRef)) return;
+        if (entry != null && selected != null && Objects.equals(boundId,selected.id) && Objects.equals(boundRef,selected.packageRef)) return;
         entry = selected;
+        boundId = selected == null ? null : selected.id; boundRef = selected == null ? null : selected.packageRef;
         if (entry != null && entry.size != null) { sizes[0] = entry.size.w; sizes[1] = entry.size.h; sizes[2] = entry.size.d; }
     }
     public int size(int axis) { return sizes[axis]; }

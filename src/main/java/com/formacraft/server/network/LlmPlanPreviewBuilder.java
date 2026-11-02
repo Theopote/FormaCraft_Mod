@@ -287,6 +287,9 @@ public final class LlmPlanPreviewBuilder {
             return false;
         }
 
+        // Bind original user request into plan_meta before any compile/semantic gate.
+        llmPlan = com.formacraft.server.compiler.RequestIntentInjector.ensure(llmPlan, req);
+
         if (llmPlan.hasCapabilityGap()) {
             reportCapabilityGap(player, req, hbAlive, resolvePlanGap(llmPlan));
             return true;

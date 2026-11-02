@@ -6,6 +6,8 @@ import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.variant.SegmentScaler;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
+import java.nio.charset.CodingErrorAction;
 import java.nio.file.*;
 import java.security.*;
 import java.util.*;
@@ -44,7 +46,8 @@ public final class ComponentRecipeLibrary {
     public static Saved save(Path world, UUID player, String assetId, String expectedRef, Spec spec) throws IOException {
         validate(spec);
         synchronized (ComponentStorage.class) {
-            var source = ComponentLibraryOperations.export(world,player,assetId,expectedRef,0,expectedRef);
+            var visible = ComponentLibraryOperations.export(world,player,assetId,expectedRef,0,expectedRef);
+            var source = isRecipe(assetId) ? read(player,assetId).source() : visible;
             var result = compile(source,spec);
             Path library = personal(player,true); String snapshot = ComponentAssetSnapshots.save(library,source);
             String identity = identity(snapshot,spec), id = "recipe_"+identity.substring(0,48);
@@ -76,6 +79,14 @@ public final class ComponentRecipeLibrary {
         if (fitted == null) throw new IOException("目标尺寸不符合作者规则，无法收藏配方");
         var definition = JsonUtil.fromJson(JsonUtil.toJson(fitted),ComponentDefinition.class);
         definition.name = spec.name(); definition.archetypeRef = null;
+        // A favorite is this exact fit, not a new authoring template with a different repeat period.
+        if (definition.variantRules != null && definition.variantRules.scaling != null && definition.variantRules.scaling.axes != null) {
+            int[] sizes = {spec.x(),spec.y(),spec.z()}; String[] axes = {"X","Y","Z"};
+            for (int i = 0; i < 3; i++) {
+                var rule = definition.variantRules.scaling.axes.get(axes[i]);
+                if (rule != null) { rule.type = "FIXED"; rule.min = rule.max = sizes[i]; }
+            }
+        }
         var original = source.manifest(); var derived = new ArrayList<>(original.derivedFrom());
         String reference = source.contentRef()+"|manifest:"+source.manifestSha256();
         if (!derived.contains(reference)) derived.add(reference);
@@ -93,7 +104,7 @@ public final class ComponentRecipeLibrary {
         Recipe recipe;
         try (var input = Files.newInputStream(document)) {
             byte[] bytes = input.readNBytes(16385); if (bytes.length > 16384) throw new IOException("Oversized recipe document");
-            try { recipe = JsonUtil.fromJson(new String(bytes,StandardCharsets.UTF_8),Recipe.class); }
+            try { recipe = JsonUtil.fromJson(StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString(),Recipe.class); }
             catch (RuntimeException invalid) { throw new IOException("Invalid recipe document",invalid); }
         }
         if (recipe == null || !"formacraft.component.recipe.v1".equals(recipe.schema()) || !ENGINE.equals(recipe.engine())
@@ -103,7 +114,7 @@ public final class ComponentRecipeLibrary {
             throw new IOException("Recipe identity mismatch");
         var source = ComponentAssetSnapshots.read(library,recipe.snapshot());
         var result = ComponentPackageIO.read(resultFile,ComponentPackageIO.currentEnvironment());
-        if (!result.contentRef().equals(recipe.resultRef()) || !result.manifestSha256().equals(recipe.resultManifest())
+        if (!Objects.equals(result.component().name,recipe.spec().name()) || !result.contentRef().equals(recipe.resultRef()) || !result.manifestSha256().equals(recipe.resultManifest())
                 || !result.manifest().derivedFrom().contains(source.contentRef()+"|manifest:"+source.manifestSha256())) throw new IOException("Recipe result mismatch");
         return new Loaded(recipe,result,source);
     }
@@ -116,7 +127,15 @@ public final class ComponentRecipeLibrary {
     public static Saved restore(ComponentStorage.SaveContext context, String id) throws IOException {
         if (context == null || context.playerId() == null) throw new IOException("Missing recipe owner");
         var source = read(context.playerId(),id).source();
-        var restored = ComponentPackageInstallations.importVerified(source,context);
+        for (var entry : ComponentStorage.loadCatalog(context.worldDir(),context.playerId()).components) {
+            if (entry.recipe || !source.contentRef().equals(entry.packageRef)) continue;
+            var visible = ComponentLibraryOperations.export(context.worldDir(),context.playerId(),entry.id,entry.packageRef,0,entry.packageRef);
+            if (visible.manifestSha256().equals(source.manifestSha256()))
+                return new Saved(entry.id,ComponentSourceView.bounded(visible.component().name,128),ComponentPackageInstallations.ImportStatus.REUSED);
+        }
+        // A private backup restore never promotes previously private content merely because its owner became OP.
+        var privateContext = new ComponentStorage.SaveContext(context.worldDir(),context.playerId(),false,false);
+        var restored = ComponentPackageInstallations.importVerified(source,privateContext);
         return new Saved(restored.assetId(),ComponentSourceView.bounded(source.component().name,128),restored.status());
     }
     public static List<ComponentCatalog.Entry> entries(UUID player) {
@@ -134,6 +153,7 @@ public final class ComponentRecipeLibrary {
                         entry.sockets = definition.sockets; entry.placementSpec = definition.placementSpec;
                         entry.packageRef = loaded.result().contentRef(); entry.file = "recipes/"+id+"/result.fccomponent.json";
                         entry.recipe = true; entry.sourceCount = 1; entry.updatedAtMs = Files.getLastModifiedTime(path).toMillis();
+                        entry.recipeSourceRef = loaded.source().contentRef()+"|manifest:"+loaded.source().manifestSha256();
                         entries.add(entry);
                     } catch (IOException | RuntimeException invalid) { /* Invalid recipes are never candidates. */ }
                 }

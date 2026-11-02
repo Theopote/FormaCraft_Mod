@@ -300,6 +300,40 @@ def repair_llm_plan_validation(
                 logger.exception("LlmPlan repair round %d failed; stopping remote repair", attempt)
                 break
 
+    # Directed re-plan from authoritative request intent before emitting a hard gap.
+    semantic_fail = any(
+        ("semantics" in str(e).lower()) or ("tower/pagoda" in str(e).lower())
+        or ("empty components" in str(e).lower()) or ("components:" in str(e).lower())
+        for e in (errors or [])
+    )
+    if semantic_fail and not preserve_fbd:
+        try:
+            from .request_intent import attach_request_intent, extract_request_intent, scaffold_plan_for_intent
+
+            intent = extract_request_intent(user_text or "")
+            scaffold = scaffold_plan_for_intent(intent)
+            if scaffold is not None:
+                scaffold_norm = resolve_delegated_entrances(
+                    attach_request_intent(normalize_fn(scaffold, req), user_text or ""),
+                    user_text or "",
+                )
+                scaffold_errors = _try_validate(scaffold_norm, user_text)
+                if not scaffold_errors:
+                    logger.info(
+                        "LlmPlan recovered via request_intent scaffold class=%s",
+                        intent.get("building_class"),
+                    )
+                    _record_quality(
+                        scaffold_norm,
+                        user_text=user_text,
+                        parse_ok=True,
+                        fidelity_ok=True,
+                        reason="request_intent_scaffold",
+                    )
+                    return scaffold_norm
+        except Exception:
+            logger.exception("request_intent scaffold recovery failed")
+
     if building_profile is not None and not preserve_fbd and not preserve_design:
         fallback = build_minimal_plan_from_profile(building_profile, req, user_text)
         fallback_norm = normalize_fn(fallback, req)

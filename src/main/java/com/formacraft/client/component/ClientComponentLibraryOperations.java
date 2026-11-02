@@ -36,9 +36,20 @@ public final class ClientComponentLibraryOperations {
                 case READY -> { if (loadingAsset) loadDownload(); else saveDownload(); }
                 case SAVED -> {
                     var result = STATE.saved(); var tool = ComponentTool.INSTANCE.getState();
-                    tool.librarySelectedId = result.assetId(); tool.librarySelectedName = result.name(); tool.libraryPage = 0;
-                    tool.libraryRecipes = ComponentRecipeLibrary.isRecipe(result.assetId()); tool.librarySearch = "";
-                    HudToast.show("配方操作完成："+result.name());
+                    if (result != null) {
+                        tool.librarySelectedId = result.assetId();
+                    }
+                    if (result != null) {
+                        tool.librarySelectedName = result.name();
+                    }
+                    tool.libraryPage = 0;
+                    if (result != null) {
+                        tool.libraryRecipes = ComponentRecipeLibrary.isRecipe(result.assetId());
+                    }
+                    tool.librarySearch = "";
+                    if (result != null) {
+                        HudToast.show("配方操作完成："+result.name());
+                    }
                 }
                 case ERROR -> { sendCancel(); loadFailed(); HudToast.show(STATE.message(),true); }
                 default -> { }

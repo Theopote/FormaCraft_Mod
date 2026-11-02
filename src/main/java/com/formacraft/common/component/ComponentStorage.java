@@ -1,6 +1,7 @@
 package com.formacraft.common.component;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.component.autofix.AutoFixReport;
 import com.formacraft.common.json.JsonUtil;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -257,6 +258,7 @@ public final class ComponentStorage {
             throw new InvalidComponentException("Component is null");
         }
         String id = ComponentIds.validateComponentId(def.id);
+        if (ComponentRecipeLibrary.isRecipe(id)) throw new IllegalArgumentException("Private recipe identities cannot be overwritten by component saves");
         def.id = id;
 
         if (def.blocks != null && def.blocks.size() > ComponentIds.MAX_BLOCKS) {
@@ -298,7 +300,7 @@ public final class ComponentStorage {
         var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(toSave);
         if (!fixReport.empty()) {
             FormacraftMod.LOGGER.info("[ComponentStorage] 保存构件 {} 时应用了自动修复：", toSave.id);
-            logIssueSample(fixReport.fixes().stream().map(f -> f.toString()).toList(), 5);
+            logIssueSample(fixReport.fixes().stream().map(AutoFixReport.Fix::toString).toList(), 5);
         }
 
         var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(toSave);
@@ -471,7 +473,7 @@ public final class ComponentStorage {
         var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
         if (!fixReport.empty()) {
             FormacraftMod.LOGGER.info("[ComponentStorage] 加载构件 {} 时应用了自动修复：", id);
-            logIssueSample(fixReport.fixes().stream().map(f -> f.toString()).toList(), 5);
+            logIssueSample(fixReport.fixes().stream().map(AutoFixReport.Fix::toString).toList(), 5);
             if (shouldPersistGeometryFix(fixReport)) {
                 persistComponentSilently(worldDir, def);
             }

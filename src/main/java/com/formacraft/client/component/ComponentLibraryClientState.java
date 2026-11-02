@@ -38,7 +38,7 @@ public final class ComponentLibraryClientState {
         if (phase == Phase.SAVING) {
             try {
                 saved = com.formacraft.common.json.JsonUtil.fromJson(response.message(),ComponentRecipeLibrary.Saved.class);
-                if (response.reply() != Reply.SAVED || saved == null || !ComponentIds.isSafeId(saved.assetId()) || saved.name() == null || saved.status() == null)
+                if (response.reply() != Reply.SAVED || saved == null || !ComponentIds.isSafeId(saved.assetId()) || saved.name() == null || saved.name().length() > 256 || saved.status() == null)
                     throw new IllegalArgumentException("Invalid recipe receipt");
                 phase = Phase.SAVED;
             } catch (RuntimeException invalid) { fail("配方回执无效"); }

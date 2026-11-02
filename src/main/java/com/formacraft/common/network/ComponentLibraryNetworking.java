@@ -33,8 +33,8 @@ public final class ComponentLibraryNetworking {
         public static final PacketCodec<PacketByteBuf, Response> CODEC = PacketCodec.of((p,b) -> {
             if (p.data.length > ComponentExportSessions.CHUNK_BYTES) throw new IllegalArgumentException("Oversized export chunk");
             b.writeUuid(p.token); b.writeEnumConstant(p.reply); b.writeVarInt(p.length); b.writeVarInt(p.offset);
-            b.writeByteArray(p.data); b.writeString(p.message,512);
-        }, b -> new Response(b.readUuid(),b.readEnumConstant(Reply.class),b.readVarInt(),b.readVarInt(),b.readByteArray(ComponentExportSessions.CHUNK_BYTES),b.readString(512)));
+            b.writeByteArray(p.data); b.writeString(p.message,4096);
+        }, b -> new Response(b.readUuid(),b.readEnumConstant(Reply.class),b.readVarInt(),b.readVarInt(),b.readByteArray(ComponentExportSessions.CHUNK_BYTES),b.readString(4096)));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 }
