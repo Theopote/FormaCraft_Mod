@@ -58,6 +58,7 @@
   },
   "typologies": [
     "dense_eaves_pagoda",
+    "tibetan_stupa",
     "tailiang_timber_hall",
     "courtyard_compound",
     "suspension_bridge",
@@ -67,7 +68,7 @@
   "building_classes": {
     "tower_like": {
       "preferred_components": ["STRUCTURE"],
-      "preferred_typologies": ["dense_eaves_pagoda"],
+      "preferred_typologies": ["dense_eaves_pagoda", "tibetan_stupa"],
       "composition": "single"
     },
     "gate": {

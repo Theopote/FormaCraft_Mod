@@ -88,24 +88,29 @@ class RequestIntentAuthorityTest(unittest.TestCase):
         errors = evaluate_plan_semantics(plan, user)
         self.assertTrue(any("tower/pagoda" in e or "semantics" in e for e in errors), errors)
 
-    def test_scaffold_pagoda_passes_validation(self):
+    def test_scaffold_tibetan_stupa_not_dense_eaves(self):
         intent = extract_request_intent("生成一座白色藏式佛塔，7x7")
+        self.assertEqual(intent.get("tower_subtype"), "tibetan_stupa")
         plan = scaffold_plan_for_intent(intent)
         self.assertIsNotNone(plan)
         params = plan["components"][0]["params"]
-        self.assertEqual(params.get("typology_id"), "dense_eaves_pagoda")
-        self.assertEqual(params.get("typology"), "dense_eaves_pagoda")
+        self.assertEqual(params.get("typology_id"), "tibetan_stupa")
+        self.assertEqual(params.get("typology"), "tibetan_stupa")
+        self.assertNotEqual(params.get("typology_id"), "dense_eaves_pagoda")
         attach_request_intent(plan, intent["original_text"])
         validate_llm_plan_dict(plan)
         assert_plan_semantics(plan, intent["original_text"])
 
-    def test_scaffold_three_storey_pagoda_keeps_levels(self):
+    def test_scaffold_three_storey_pagoda_keeps_levels_and_chongyan(self):
         intent = extract_request_intent("生成一座三层中式古塔，重檐，顶部有塔刹")
+        self.assertEqual(intent.get("tower_subtype"), "dense_eaves_pagoda")
         plan = scaffold_plan_for_intent(intent)
         self.assertIsNotNone(plan)
         params = plan["components"][0]["params"]
         self.assertEqual(params.get("levels"), 3)
         self.assertEqual(params.get("floor_count"), 3)
+        self.assertEqual(params.get("eaves_per_level"), 2)
+        self.assertTrue(params.get("double_eaves"))
 
     def test_scaffold_temple_is_single_hall_not_garden(self):
         intent = extract_request_intent("生成一座传统道观")

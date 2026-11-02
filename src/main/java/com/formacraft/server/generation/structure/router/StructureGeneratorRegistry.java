@@ -36,6 +36,8 @@ public final class StructureGeneratorRegistry {
         register("great_wall", GreatWallGenerator::new);
         register("suspension_bridge", () -> new TypologyBackedStructureGenerator("suspension_bridge"));
         register("dense_eaves_pagoda", () -> new TypologyBackedStructureGenerator("dense_eaves_pagoda"));
+        // ADR: tibetan_stupa — Batch3 morphology; distinct from dense_eaves_pagoda (base/anda/chhatra).
+        register("tibetan_stupa", () -> new TypologyBackedStructureGenerator("tibetan_stupa"));
         register("tailiang_timber_hall", () -> new TypologyBackedStructureGenerator("tailiang_timber_hall"));
         register("radial_terrace_hall", () -> new TypologyBackedStructureGenerator("radial_terrace_hall"));
         register("stadium_bowl", () -> new TypologyBackedStructureGenerator("stadium_bowl"));

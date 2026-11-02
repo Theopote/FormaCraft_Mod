@@ -16,28 +16,42 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Split parse / build / intent_fidelity success. Block placement or HTTP 200 must never
- * be recorded as {@code intent_fidelity_success} by itself.
- * <p>
+ * Layered generation outcomes. Placement / HTTP 200 must never alone imply intent fidelity.
+ * <ul>
+ *   <li>{@code plan_valid} — schema/semantic parse accepted</li>
+ *   <li>{@code geometry_success} — non-empty compile geometry / patches</li>
+ *   <li>{@code world_apply_success} — blocks applied (or preview-ready apply path)</li>
+ *   <li>{@code intent_fidelity_pass} — morphology + semantic match; wrong floors fails even if placed</li>
+ * </ul>
  * Log prefix: {@code [IntentFidelityMetrics]}.
  */
 public final class IntentFidelityMetrics {
 
-    private static final AtomicLong parseSuccess = new AtomicLong();
-    private static final AtomicLong parseFail = new AtomicLong();
-    private static final AtomicLong buildSuccess = new AtomicLong();
-    private static final AtomicLong buildFail = new AtomicLong();
+    private static final AtomicLong planValidSuccess = new AtomicLong();
+    private static final AtomicLong planValidFail = new AtomicLong();
+    private static final AtomicLong geometrySuccess = new AtomicLong();
+    private static final AtomicLong geometryFail = new AtomicLong();
+    private static final AtomicLong worldApplySuccess = new AtomicLong();
+    private static final AtomicLong worldApplyFail = new AtomicLong();
     private static final AtomicLong intentFidelitySuccess = new AtomicLong();
     private static final AtomicLong intentFidelityFail = new AtomicLong();
     private static final AtomicLong autofillEvents = new AtomicLong();
 
+    // Legacy aliases kept for older callers/tests.
+    private static final AtomicLong parseSuccess = planValidSuccess;
+    private static final AtomicLong parseFail = planValidFail;
+    private static final AtomicLong buildSuccess = geometrySuccess;
+    private static final AtomicLong buildFail = geometryFail;
+
     private IntentFidelityMetrics() {}
 
     public static void resetForTests() {
-        parseSuccess.set(0);
-        parseFail.set(0);
-        buildSuccess.set(0);
-        buildFail.set(0);
+        planValidSuccess.set(0);
+        planValidFail.set(0);
+        geometrySuccess.set(0);
+        geometryFail.set(0);
+        worldApplySuccess.set(0);
+        worldApplyFail.set(0);
         intentFidelitySuccess.set(0);
         intentFidelityFail.set(0);
         autofillEvents.set(0);
@@ -45,15 +59,19 @@ public final class IntentFidelityMetrics {
 
     public static void recordParse(boolean ok, String requestId, String userText, String reason) {
         if (ok) {
-            parseSuccess.incrementAndGet();
+            planValidSuccess.incrementAndGet();
         } else {
-            parseFail.incrementAndGet();
+            planValidFail.incrementAndGet();
         }
         FormacraftMod.LOGGER.info(
-                "[IntentFidelityMetrics] event=parse ok={} requestId={} reason={} text=\"{}\" {}",
+                "[IntentFidelityMetrics] event=plan_valid ok={} requestId={} reason={} text=\"{}\" {}",
                 ok, nullToEmpty(requestId), nullToEmpty(reason), truncate(userText, 80), snapshot());
     }
 
+    /**
+     * Legacy 3-flag API: {@code buildOk} maps to both geometry and world_apply when the
+     * caller has not split them yet.
+     */
     public static void recordOutcome(
             boolean parseOk,
             boolean buildOk,
@@ -66,15 +84,38 @@ public final class IntentFidelityMetrics {
             String planSummary,
             String defaultsReason
     ) {
-        if (parseOk) {
-            parseSuccess.incrementAndGet();
+        recordLayeredOutcome(
+                parseOk, buildOk, buildOk, intentFidelityOk,
+                requestId, userText, intentClass, styleProfile, reason, planSummary, defaultsReason);
+    }
+
+    public static void recordLayeredOutcome(
+            boolean planValid,
+            boolean geometryOk,
+            boolean worldApplyOk,
+            boolean intentFidelityOk,
+            String requestId,
+            String userText,
+            String intentClass,
+            String styleProfile,
+            String reason,
+            String planSummary,
+            String defaultsReason
+    ) {
+        if (planValid) {
+            planValidSuccess.incrementAndGet();
         } else {
-            parseFail.incrementAndGet();
+            planValidFail.incrementAndGet();
         }
-        if (buildOk) {
-            buildSuccess.incrementAndGet();
+        if (geometryOk) {
+            geometrySuccess.incrementAndGet();
         } else {
-            buildFail.incrementAndGet();
+            geometryFail.incrementAndGet();
+        }
+        if (worldApplyOk) {
+            worldApplySuccess.incrementAndGet();
+        } else {
+            worldApplyFail.incrementAndGet();
         }
         if (intentFidelityOk) {
             intentFidelitySuccess.incrementAndGet();
@@ -82,11 +123,12 @@ public final class IntentFidelityMetrics {
             intentFidelityFail.incrementAndGet();
         }
         FormacraftMod.LOGGER.info(
-                "[IntentFidelityMetrics] event=outcome requestId={} parse={} build={} intent_fidelity={} "
-                        + "intent={} style={} reason={} defaults={} plan={} text=\"{}\" {}",
+                "[IntentFidelityMetrics] event=outcome requestId={} plan_valid={} geometry={} world_apply={} "
+                        + "intent_fidelity={} intent={} style={} reason={} defaults={} plan={} text=\"{}\" {}",
                 nullToEmpty(requestId),
-                parseOk,
-                buildOk,
+                planValid,
+                geometryOk,
+                worldApplyOk,
                 intentFidelityOk,
                 nullToEmpty(intentClass),
                 nullToEmpty(styleProfile),
@@ -114,8 +156,8 @@ public final class IntentFidelityMetrics {
     }
 
     /**
-     * After a compile+preview attempt: build_success tracks patches; intent_fidelity tracks
-     * absence of semantic/empty gaps and non-residential residential autofill soft-fails.
+     * After compile+preview: geometry tracks patches; intent_fidelity fails on morphology /
+     * semantic gaps even when geometry_success is true (e.g. wrong pagoda floor count).
      */
     public static void recordCompileAttempt(
             ServerPlayerEntity player,
@@ -130,13 +172,18 @@ public final class IntentFidelityMetrics {
                 com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy.userIntentText(req));
         String intent = detectIntentLabel(plan, userText);
         String style = plan == null || plan.styleProfile() == null ? "" : plan.styleProfile();
-        boolean semanticOk = gap == null || !isSemanticFailure(gap.code());
-        // Placement success alone is not fidelity success.
-        boolean fidelityOk = parseOk && buildOk && semanticOk && !hasResidentialAutofillWarning();
+        boolean morphologyFail = gap != null && isMorphologyFailure(gap.code());
+        boolean semanticOk = gap == null || (!isSemanticFailure(gap.code()) && !morphologyFail);
+        boolean geometryOk = buildOk;
+        // Preview path: world apply not yet done — leave world_apply equal to geometry only when
+        // there is no morphology failure; morphology gaps mean fidelity fails despite patches.
+        boolean worldApplyOk = buildOk && !morphologyFail;
+        boolean fidelityOk = parseOk && geometryOk && semanticOk && !hasResidentialAutofillWarning() && !morphologyFail;
         String reason = gap != null ? gap.code() : (fidelityOk ? "ok" : "fidelity_soft_fail");
-        recordOutcome(
+        recordLayeredOutcome(
                 parseOk,
-                buildOk,
+                geometryOk,
+                worldApplyOk,
                 fidelityOk,
                 requestId,
                 userText,
@@ -153,10 +200,12 @@ public final class IntentFidelityMetrics {
 
     public static Snapshot snapshot() {
         return new Snapshot(
-                parseSuccess.get(),
-                parseFail.get(),
-                buildSuccess.get(),
-                buildFail.get(),
+                planValidSuccess.get(),
+                planValidFail.get(),
+                geometrySuccess.get(),
+                geometryFail.get(),
+                worldApplySuccess.get(),
+                worldApplyFail.get(),
                 intentFidelitySuccess.get(),
                 intentFidelityFail.get(),
                 autofillEvents.get());
@@ -184,12 +233,22 @@ public final class IntentFidelityMetrics {
                 || c.startsWith("E_SEMANTIC");
     }
 
+    private static boolean isMorphologyFailure(String code) {
+        if (code == null) {
+            return false;
+        }
+        String c = code.trim().toUpperCase(Locale.ROOT);
+        return c.equals("E_PAGODA_MORPHOLOGY")
+                || c.equals("E_STUPA_MORPHOLOGY")
+                || c.contains("MORPHOLOGY")
+                || c.equals("TYPOLOGY_FAILED");
+    }
+
     private static boolean hasResidentialAutofillWarning() {
         for (AssemblyCompileDiagnostics.SoftWarning w : AssemblyCompileDiagnostics.softWarnings()) {
             if (w == null || w.code() == null) continue;
             String code = w.code().toUpperCase(Locale.ROOT);
             if (code.startsWith("SKIPPED_RESIDENTIAL") || code.equals("SKIPPED_DEFAULT_GABLE")) {
-                // Skipped autofill is good — not a fidelity failure.
                 continue;
             }
             if (code.contains("INFERRED") || code.contains("AUTOFILL")) {
@@ -277,20 +336,30 @@ public final class IntentFidelityMetrics {
     }
 
     public record Snapshot(
-            long parseSuccess,
-            long parseFail,
-            long buildSuccess,
-            long buildFail,
+            long planValidSuccess,
+            long planValidFail,
+            long geometrySuccess,
+            long geometryFail,
+            long worldApplySuccess,
+            long worldApplyFail,
             long intentFidelitySuccess,
             long intentFidelityFail,
             long autofillEvents
     ) {
+        /** Backward-compatible accessors used by Phase-1 tests. */
+        public long parseSuccess() { return planValidSuccess; }
+        public long parseFail() { return planValidFail; }
+        public long buildSuccess() { return geometrySuccess; }
+        public long buildFail() { return geometryFail; }
+
         @Override
         public String toString() {
             return String.format(
                     Locale.ROOT,
-                    "parse_ok=%d parse_fail=%d build_ok=%d build_fail=%d fidelity_ok=%d fidelity_fail=%d autofill=%d",
-                    parseSuccess, parseFail, buildSuccess, buildFail,
+                    "plan_valid_ok=%d plan_valid_fail=%d geometry_ok=%d geometry_fail=%d "
+                            + "world_apply_ok=%d world_apply_fail=%d fidelity_ok=%d fidelity_fail=%d autofill=%d",
+                    planValidSuccess, planValidFail, geometrySuccess, geometryFail,
+                    worldApplySuccess, worldApplyFail,
                     intentFidelitySuccess, intentFidelityFail, autofillEvents);
         }
     }

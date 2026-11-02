@@ -227,4 +227,19 @@ class BuildingQualityRecoveryPhase1Test {
         assertEquals(1, snap.intentFidelityFail());
         assertEquals(1, snap.autofillEvents());
     }
+
+    @Test
+    void wrongPagodaFloorsFailIntentFidelityDespiteGeometry() {
+        IntentFidelityMetrics.resetForTests();
+        IntentFidelityMetrics.recordLayeredOutcome(
+                true, true, true, false,
+                "req-m", "三层中式古塔重檐", "tower_like", "DEFAULT",
+                "E_PAGODA_MORPHOLOGY", "floors=7 expected=3", "");
+        var snap = IntentFidelityMetrics.snapshot();
+        assertEquals(1, snap.planValidSuccess());
+        assertEquals(1, snap.geometrySuccess());
+        assertEquals(1, snap.worldApplySuccess());
+        assertEquals(0, snap.intentFidelitySuccess());
+        assertEquals(1, snap.intentFidelityFail());
+    }
 }

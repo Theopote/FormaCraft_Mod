@@ -28,7 +28,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Parametric dense-eaves brick pagoda builder (typology: {@code dense_eaves_pagoda}).
+ * Parametric dense-eaves brick pagoda (typology: {@code dense_eaves_pagoda}).
+ * Shaft storeys ({@code floor_count}) are distinct from per-storey eaves ({@code eaves_per_level}).
+ * 三层重檐 → 3 body segments × 2 eaves + centered finial — never inflate floors to 7+.
  */
 public final class DenseEavesPagodaBuilder {
 
@@ -54,14 +56,21 @@ public final class DenseEavesPagodaBuilder {
         return generateOctagon(p, origin, world, specHint);
     }
 
+    /** @deprecated use {@link PagodaVerticalSemantics#resolve} */
+    @Deprecated
+    static int resolveLevels(TypologyParams p, int def, int implicitMin, int max) {
+        return PagodaVerticalSemantics.resolve(p, def, implicitMin, max).floorCount();
+    }
+
     private static GeneratedStructure generateSquare(
             TypologyParams p,
             BlockPos origin,
             ServerWorld world,
             BuildingSpec specHint
     ) {
-        int levels = resolveLevels(p, 7, 3, 15);
-        int height = p.intVal("height", "towerHeight", 41, 18, 120);
+        PagodaVerticalSemantics vertical = PagodaVerticalSemantics.resolve(p, 7, 3, 15);
+        int floors = vertical.floorCount();
+        int height = p.intVal("height", "towerHeight", Math.max(18, floors * 5), 18, 120);
         int baseW = p.intVal("baseWidth", 17, 9, 51);
         if (baseW % 2 == 0) baseW += 1;
 
@@ -108,7 +117,7 @@ public final class DenseEavesPagodaBuilder {
         }
 
         SkeletonParams skParams = new SkeletonParams()
-                .put("levels", levels)
+                .put("levels", floors)
                 .put("height", height)
                 .put("baseWidth", baseW)
                 .put("refined", refined)
@@ -118,13 +127,18 @@ public final class DenseEavesPagodaBuilder {
         List<PlannedBlock> blocks = new VerticalStackInterpreter(body, trim, eave, accent, true)
                 .interpret(plan, origin, world);
 
+        // Square path uses stack interpreter; still enforce explicit floor hard-check via semantics.
+        PagodaMorphologyAudit.check(
+                TYPOLOGY_ID, vertical, floors, vertical.eaveTiers(), true, true, vertical.floorsExplicit());
+
         double ratioScore = clamp01(1.0 - Math.abs((height / (double) baseW) - 3.0) * 0.12);
-        double signatureScore = clamp01(0.75 + Math.min(0.25, levels / 10.0));
+        double signatureScore = clamp01(0.75 + Math.min(0.25, floors / 10.0));
         double overall = clamp01(0.9 * 0.4 + ratioScore * 0.3 + signatureScore * 0.3);
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
-                "dense_eaves_pagoda/square (levels=%d, h=%d, base=%d, facing=%s, ref=%s, score=%.2f)",
-                levels, height, baseW, facing.asString(), ref.isBlank() ? "-" : ref, overall
+                "dense_eaves_pagoda/square (floors=%d, eaves_per_level=%d, eave_tiers=%d, h=%d, base=%d, facing=%s, ref=%s, score=%.2f)",
+                floors, vertical.eavesPerLevel(), vertical.eaveTiers(), height, baseW,
+                facing.asString(), ref.isBlank() ? "-" : ref, overall
         );
         return new GeneratedStructure(null, origin, desc, blocks);
     }
@@ -135,9 +149,11 @@ public final class DenseEavesPagodaBuilder {
             ServerWorld world,
             BuildingSpec specHint
     ) {
-        // Explicit floor/eave counts may be 3–5; only the implicit default stays tall (13 / min 7).
-        int levels = resolveLevels(p, 13, 7, 15);
-        int height = p.intVal("height", "towerHeight", 47, 28, 120);
+        PagodaVerticalSemantics vertical = PagodaVerticalSemantics.resolve(p, 13, 7, 15);
+        int floors = vertical.floorCount();
+        int eavesPerLevel = vertical.eavesPerLevel();
+        int height = p.intVal("height", "towerHeight",
+                Math.max(vertical.floorsExplicit() ? floors * 6 : 47, 28), 18, 120);
         int baseW = p.intVal("baseWidth", 10, 7, 21);
         if (baseW % 2 == 0) baseW += 1;
 
@@ -185,18 +201,20 @@ public final class DenseEavesPagodaBuilder {
 
         int minPer = refined ? 2 : 3;
         int maxPer = refined ? 4 : 3;
-        int per = Math.max(minPer, Math.min(maxPer, height / Math.max(1, levels)));
-        int extraTop = Math.max(0, height - per * levels);
+        int eaveGap = eavesPerLevel > 1 ? 1 : 0;
+        int budget = Math.max(floors * (minPer + eaveGap), height);
+        int per = Math.max(minPer, Math.min(maxPer, budget / Math.max(1, floors)));
+        int extraTop = Math.max(0, budget - per * floors);
 
-        List<PlannedBlock> blocks = new ArrayList<>(levels * 900);
+        List<PlannedBlock> blocks = new ArrayList<>(floors * eavesPerLevel * 900);
         int y = 0;
         int half = baseW / 2;
+        int startHalf = half;
+        int emittedEaves = 0;
 
-        for (int lv = 0; lv < levels; lv++) {
+        for (int lv = 0; lv < floors; lv++) {
             int levelH = per;
-            if (lv == levels - 1) levelH += extraTop;
-            int eaveY = y + levelH;
-
+            if (lv == floors - 1) levelH += extraTop;
             int inner = Math.max(0, half - (refined ? 2 : 3));
             boolean hollow = half >= 4;
 
@@ -218,63 +236,47 @@ public final class DenseEavesPagodaBuilder {
                 carveDoor(blocks, origin, facing, y + 1, half);
             } else {
                 ChineseTypologyDetailUtil.addPagodaTierNiche(
-                        blocks, origin, half, y, levelH, lv, levels, refined, trim, archStair);
+                        blocks, origin, half, y, levelH, lv, floors, refined, trim, archStair);
             }
 
-            ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1, eaveY, eave);
-            ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half, eaveY, trim);
-            if (refined) {
-                // Connect outer eaves to the trim ring (avoid a disconnected floating band).
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1, eaveY + 1, eave);
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 2, eaveY, eave);
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 2, eaveY + 1, eave);
+            int eaveY = y + levelH;
+            for (int e = 0; e < eavesPerLevel; e++) {
+                int ey = eaveY + e;
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey, eave);
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim);
+                if (refined) {
+                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey + 1, eave);
+                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 2 + e, ey, eave);
+                }
+                emittedEaves++;
             }
 
-            y += levelH + 1;
+            y += levelH + eavesPerLevel;
             half = Math.max(3, half - 1);
         }
 
+        int finialY = y + 1;
         ChineseTypologyDetailUtil.addStupaFinial(
-                blocks, origin, y + 1, accent, trim, Blocks.LIGHTNING_ROD.getDefaultState());
+                blocks, origin, finialY, accent, trim, Blocks.LIGHTNING_ROD.getDefaultState());
+        boolean finialCentered = blocks.stream().anyMatch(b ->
+                b.getPos().getX() == origin.getX()
+                        && b.getPos().getZ() == origin.getZ()
+                        && b.getPos().getY() >= origin.getY() + finialY);
+
+        boolean setback = half < startHalf;
+        PagodaMorphologyAudit.check(
+                TYPOLOGY_ID, vertical, floors, emittedEaves, setback, finialCentered, vertical.floorsExplicit());
 
         double slenderness = height / (double) baseW;
         double ratioScore = clamp01(1.0 - Math.abs(slenderness - 4.7) * 0.15);
-        double overall = clamp01(0.9 * 0.4 + ratioScore * 0.35 + clamp01(0.75 + levels / 20.0) * 0.25);
+        double overall = clamp01(0.9 * 0.4 + ratioScore * 0.35 + clamp01(0.75 + floors / 20.0) * 0.25);
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
-                "dense_eaves_pagoda (levels=%d, h=%d, base=%d, facing=%s, ref=%s, score=%.2f)",
-                levels, height, baseW, facing.asString(), ref.isBlank() ? "-" : ref, overall
+                "dense_eaves_pagoda (floors=%d, eaves_per_level=%d, eave_tiers=%d, h=%d, base=%d, facing=%s, ref=%s, score=%.2f)",
+                floors, eavesPerLevel, emittedEaves, height, baseW,
+                facing.asString(), ref.isBlank() ? "-" : ref, overall
         );
         return new GeneratedStructure(null, origin, desc, blocks);
-    }
-
-    /**
-     * Resolve storey/eave count. When the plan sets levels/floor_count/eave_tiers explicitly,
-     * honor values as low as 3 instead of clamping them up to the typology default floor.
-     */
-    static int resolveLevels(TypologyParams p, int def, int implicitMin, int max) {
-        boolean explicit = containsAnyKey(p,
-                "levels", "floor_count", "floorCount", "floors",
-                "story_count", "storyCount", "eave_tiers", "eaveTiers");
-        int min = explicit ? 3 : implicitMin;
-        for (String key : List.of(
-                "levels", "floor_count", "floorCount", "floors",
-                "story_count", "storyCount", "eave_tiers", "eaveTiers")) {
-            if (p.raw().containsKey(key) && p.raw().get(key) != null) {
-                return p.intVal(key, def, min, max);
-            }
-        }
-        return p.intVal("levels", def, min, max);
-    }
-
-    private static boolean containsAnyKey(TypologyParams p, String... keys) {
-        if (p == null || p.raw() == null) return false;
-        for (String key : keys) {
-            if (p.raw().containsKey(key) && p.raw().get(key) != null) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static void carveDoor(List<PlannedBlock> blocks, BlockPos origin, Direction facing, int y0, int half) {

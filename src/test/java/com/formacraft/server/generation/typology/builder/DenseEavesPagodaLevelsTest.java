@@ -22,6 +22,18 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
+    void threeStoreyChongyanNotInflatedToSevenPlus() {
+        TypologyParams p = new TypologyParams(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 2
+        ));
+        PagodaVerticalSemantics v = PagodaVerticalSemantics.resolve(p, 13, 7, 15);
+        assertEquals(3, v.floorCount());
+        assertEquals(6, v.eaveTiers());
+        assertEquals(3, DenseEavesPagodaBuilder.resolveLevels(p, 13, 7, 15));
+    }
+
+    @Test
     void implicitDefaultKeepsTallMin() {
         TypologyParams p = new TypologyParams(Map.of());
         assertEquals(13, DenseEavesPagodaBuilder.resolveLevels(p, 13, 7, 15));

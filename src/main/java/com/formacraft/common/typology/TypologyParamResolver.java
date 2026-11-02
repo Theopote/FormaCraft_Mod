@@ -92,12 +92,18 @@ public final class TypologyParamResolver {
     static void normalizeAliases(Map<String, Object> merged) {
         if (merged == null || merged.isEmpty()) return;
         promote(merged, "footprint", "footprint_shape", "footprintShape");
-        promote(merged, "levels", "floor_count", "floorCount", "story_count", "storyCount");
+        // floor_count = shaft storeys; do NOT fold eave_tiers into floors (重檐 ≠ 更多层).
+        promote(merged, "floor_count", "floorCount", "story_count", "storyCount");
+        alias(merged, "floor_count", "floors", "levels");
+        if (merged.containsKey("floor_count") && !merged.containsKey("levels")) {
+            merged.put("levels", merged.get("floor_count"));
+        }
+        promote(merged, "eaves_per_level", "eavesPerLevel");
+        alias(merged, "eave_tiers", "eaveTiers");
         promote(merged, "baseWidth", "base_width", "basewidth");
         promote(merged, "baseDepth", "base_depth");
         promote(merged, "baseRadius", "base_radius");
         promote(merged, "hallRadius", "hall_radius");
-        alias(merged, "levels", "floors", "eave_tiers", "eaveTiers");
         alias(merged, "detailLevel", "detail_level");
         alias(merged, "bodyBlock", "body_block", "wall_block", "wallBlock");
         alias(merged, "eaveBlock", "eave_block");

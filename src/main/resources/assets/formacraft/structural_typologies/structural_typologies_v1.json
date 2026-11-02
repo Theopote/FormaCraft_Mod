@@ -64,7 +64,12 @@
         "大教堂",
         "classical monument",
         "圆顶",
-        "onion dome"
+        "onion dome",
+        "藏式佛塔",
+        "藏式",
+        "白塔",
+        "tibetan stupa",
+        "tibetan pagoda"
       ],
       "interpreterId": "dense_eaves_pagoda",
       "routingPolicy": "typology_first",
@@ -140,7 +145,73 @@
         "famen_pagoda",
         "giant_wild_goose_pagoda"
       ],
-      "llmPlanGuidance": "Use structural_typology=dense_eaves_pagoda with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=dense_eaves_pagoda. Params: levels, height, baseWidth, footprint (octagon for Famen, square for Dayanta), setback_ratio≈0.06. Prefer STRUCTURE + typology:dense_eaves_pagoda; set reference_landmark=famen_pagoda (octagon) or reference_landmark=giant_wild_goose_pagoda (square, levels=7, baseWidth=17). FORBID western dome/CROWN and MODULE landmark routing."
+      "llmPlanGuidance": "Use structural_typology=dense_eaves_pagoda with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=dense_eaves_pagoda. Params: floor_count (shaft storeys), eaves_per_level (重檐=2), height, baseWidth, footprint. Prefer STRUCTURE + typology:dense_eaves_pagoda. Do NOT use for 藏式佛塔 (use tibetan_stupa)."
+    },
+    {
+      "id": "tibetan_stupa",
+      "displayName": {
+        "zh": "藏式佛塔",
+        "en": "Tibetan stupa"
+      },
+      "skeletonType": "VERTICAL_STACK",
+      "styleFamilies": [
+        "Tibetan",
+        "Himalayan"
+      ],
+      "matchKeywords": [
+        "藏式佛塔",
+        "藏式",
+        "白塔",
+        "覆钵",
+        "相轮",
+        "喇嘛塔",
+        "tibetan stupa",
+        "tibetan pagoda",
+        "chorten",
+        "chhatra"
+      ],
+      "negativeKeywords": [
+        "密檐塔",
+        "密檐砖塔",
+        "大雁塔",
+        "法门寺",
+        "楼阁式塔",
+        "dense eaves",
+        "chinese pagoda"
+      ],
+      "interpreterId": "tibetan_stupa",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "baseWidth": 9,
+        "height": 21,
+        "chhatra_count": 5,
+        "bodyBlock": "minecraft:white_concrete",
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "baseWidth": {
+          "min": 5,
+          "ideal": 9,
+          "max": 21,
+          "desc": "基座边长（奇数）"
+        },
+        "height": {
+          "min": 14,
+          "ideal": 21,
+          "max": 64,
+          "desc": "总高"
+        },
+        "chhatra_count": {
+          "min": 3,
+          "ideal": 5,
+          "max": 9,
+          "desc": "相轮层数"
+        }
+      },
+      "referenceLandmarks": [],
+      "proportionCardIds": [],
+      "cultureCardIds": [],
+      "llmPlanGuidance": "Use structural_typology=tibetan_stupa. Emit STRUCTURE with typology_id=tibetan_stupa. Geometry is base+anda+harmika+chhatravali — NEVER dense_eaves_pagoda storey loops."
     },
     {
       "id": "tailiang_timber_hall",

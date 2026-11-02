@@ -18,6 +18,7 @@ public final class TypologySystemInitializer {
         }
         List<TypologyInterpreter> builtIns = List.of(
                 new DenseEavesPagodaInterpreter(),
+                new TibetanStupaInterpreter(),
                 new TailiangTimberHallInterpreter(),
                 new RadialTerraceHallInterpreter(),
                 new StadiumBowlInterpreter(),

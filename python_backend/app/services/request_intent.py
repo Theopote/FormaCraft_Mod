@@ -85,12 +85,20 @@ def extract_request_intent(user_text: str) -> Dict[str, Any]:
         composition = "compound"
         markers.extend(m for m in _TEMPLE_COMPOUND if m in text)
 
+    tower_subtype = None
+    if building_class == "tower_like":
+        if any(tok in text or tok in lower for tok in ("藏式", "白塔", "覆钵", "相轮", "喇嘛塔", "tibetan", "chorten")):
+            tower_subtype = "tibetan_stupa"
+        else:
+            tower_subtype = "dense_eaves_pagoda"
+
     return {
         "schema": "formacraft.request_intent.v1",
         "source": "user_request",
         "original_text": text,
         "building_class": building_class,
         "composition": composition,
+        "tower_subtype": tower_subtype,
         "markers": markers[:12],
         "roof_type": roof_type,
         "roof_explicit": roof_type is not None,
@@ -161,7 +169,48 @@ def scaffold_plan_for_intent(
     if building_class == "tower_like":
         height = max(18, width * 3)
         text = str(intent.get("original_text") or "")
-        levels = 3 if ("三层" in text or "3层" in text or "三檐" in text) else 5
+        lower_text = text.lower()
+        tibetan = any(
+            tok in text or tok in lower_text
+            for tok in ("藏式", "白塔", "覆钵", "相轮", "喇嘛塔", "tibetan", "chorten")
+        )
+        if tibetan:
+            return {
+                "mode": "build",
+                "style_profile": "DEFAULT",
+                "anchor": origin,
+                "distinguishing_features": markers or ["藏式佛塔", "tibetan_stupa"],
+                "style_attributes": style_attrs,
+                "components": [
+                    {
+                        "component_type": "STRUCTURE",
+                        "slot_id": "tower",
+                        "relative_position": {"x": 0, "y": 0, "z": 0},
+                        "dimensions": {"width": width, "depth": depth, "height": height},
+                        "features": ["tibetan_stupa", "覆钵", "相轮", "塔刹", "typology:tibetan_stupa"],
+                        "params": {
+                            "typology_id": "tibetan_stupa",
+                            "typology": "tibetan_stupa",
+                            "baseWidth": max(7, width if width % 2 == 1 else width + 1),
+                            "height": height,
+                            "chhatra_count": 5,
+                            "wall_block": wall if wall else "minecraft:white_concrete",
+                            "bodyBlock": wall if wall else "minecraft:white_concrete",
+                            **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
+                        },
+                    }
+                ],
+                "plan_meta": {
+                    "request_intent": intent,
+                    "building_class": "tower_like",
+                    "tower_subtype": "tibetan_stupa",
+                    "scaffolded_from_request_intent": True,
+                    "allow_compiler_satellites": False,
+                },
+            }
+
+        floors = 3 if ("三层" in text or "3层" in text) else 5
+        eaves_per_level = 2 if ("重檐" in text or "双檐" in text) else 1
         return {
             "mode": "build",
             "style_profile": "DEFAULT",
@@ -174,13 +223,15 @@ def scaffold_plan_for_intent(
                     "slot_id": "tower",
                     "relative_position": {"x": 0, "y": 0, "z": 0},
                     "dimensions": {"width": width, "depth": depth, "height": height},
-                    "features": ["dense_eaves_pagoda", "finial_spire", "塔刹", "typology:dense_eaves_pagoda"],
+                    "features": ["dense_eaves_pagoda", "finial_spire", "塔刹", "typology:dense_eaves_pagoda"]
+                    + (["重檐"] if eaves_per_level > 1 else []),
                     "params": {
                         "typology_id": "dense_eaves_pagoda",
                         "typology": "dense_eaves_pagoda",
-                        "levels": levels,
-                        "floor_count": levels,
-                        "eave_tiers": levels,
+                        "floor_count": floors,
+                        "levels": floors,
+                        "eaves_per_level": eaves_per_level,
+                        "double_eaves": eaves_per_level > 1,
                         "wall_block": wall,
                         "roof_block": roof,
                         **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
@@ -190,6 +241,7 @@ def scaffold_plan_for_intent(
             "plan_meta": {
                 "request_intent": intent,
                 "building_class": "tower_like",
+                "tower_subtype": "dense_eaves_pagoda",
                 "scaffolded_from_request_intent": True,
                 "allow_compiler_satellites": False,
             },

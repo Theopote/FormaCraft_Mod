@@ -49,4 +49,17 @@ class TypologyInterpreterRegistryTest {
                 palace
         );
     }
+
+    @Test
+    void tibetanStupaInterpreterIsNativeAndDistinctFromDenseEaves() {
+        assertTrue(TypologyInterpreterRegistry.has("tibetan_stupa"));
+        TypologyInterpreter stupa = TypologyInterpreterRegistry.get("tibetan_stupa");
+        assertNotNull(stupa);
+        assertEquals("tibetan_stupa", stupa.typologyId());
+        assertInstanceOf(
+                com.formacraft.server.generation.typology.interpreter.TibetanStupaInterpreter.class,
+                stupa
+        );
+        assertNotSame(stupa, TypologyInterpreterRegistry.get("dense_eaves_pagoda"));
+    }
 }

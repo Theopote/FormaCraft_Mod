@@ -8,7 +8,7 @@ from ..models.llm_plan import LlmPlanValidationError
 
 # Morphologies that must not collapse into a single residential MASS + gable house.
 _TOWER_LIKE_MARKERS = (
-    "佛塔", "古塔", "宝塔", "藏式", "pagoda", "stupa", "dense_eaves_pagoda",
+    "佛塔", "古塔", "宝塔", "藏式", "pagoda", "stupa", "dense_eaves_pagoda", "tibetan_stupa",
     "tiered_eave", "finial_spire", "塔刹", "重檐",
 )
 _GATE_MARKERS = (
@@ -26,7 +26,7 @@ _TOWER_COMPONENT_HINTS = (
 )
 _TOWER_FEATURE_HINTS = (
     "pagoda", "stupa", "tower", "tier", "eave", "finial", "spire",
-    "dense_eaves", "佛塔", "古塔", "塔刹", "重檐",
+    "dense_eaves", "tibetan_stupa", "覆钵", "相轮", "佛塔", "古塔", "塔刹", "重檐",
 )
 _HOUSE_ROOF_TYPES = frozenset({"gable", "xuanshan", "hip", ""})
 

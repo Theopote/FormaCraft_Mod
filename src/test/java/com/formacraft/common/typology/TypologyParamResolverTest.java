@@ -52,6 +52,24 @@ class TypologyParamResolverTest {
         );
         var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
         assertEquals(3, merged.get("levels"));
+        assertEquals(3, merged.get("floor_count"));
+    }
+
+    @Test
+    void eaveTiersDoesNotAliasIntoFloorCount() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(7, 7, 21),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("floor_count", 3, "eave_tiers", 6, "eaves_per_level", 2)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals(3, merged.get("floor_count"));
+        assertEquals(3, merged.get("levels"));
+        assertEquals(6, merged.get("eave_tiers"));
+        assertEquals(2, merged.get("eaves_per_level"));
     }
 
     @Test

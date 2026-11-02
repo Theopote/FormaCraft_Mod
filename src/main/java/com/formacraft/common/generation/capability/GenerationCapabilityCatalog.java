@@ -175,7 +175,7 @@ public final class GenerationCapabilityCatalog {
         Map<String, Object> classes = new LinkedHashMap<>();
         classes.put("tower_like", Map.of(
                 "preferred_components", List.of("STRUCTURE"),
-                "preferred_typologies", List.of("dense_eaves_pagoda"),
+                "preferred_typologies", List.of("dense_eaves_pagoda", "tibetan_stupa"),
                 "composition", "single"));
         classes.put("gate", Map.of(
                 "preferred_components", List.of("GATE", "GATE_STRUCTURE", "STRUCTURE"),

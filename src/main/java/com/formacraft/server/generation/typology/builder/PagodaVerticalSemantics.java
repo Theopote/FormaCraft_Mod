@@ -1,0 +1,103 @@
+package com.formacraft.server.generation.typology.builder;
+
+import com.formacraft.common.typology.TypologyParams;
+
+import java.util.Locale;
+import java.util.Map;
+
+/**
+ * Separates shaft storeys from eave bands for Chinese dense-eaves / pavilion towers.
+ * <ul>
+ *   <li>{@code floor_count} — recognizable tower body segments (三层 → 3)</li>
+ *   <li>{@code eaves_per_level} — eave rings per storey (重檐 → 2)</li>
+ *   <li>{@code eave_tiers} — optional total eave rings; never silently becomes floor_count</li>
+ * </ul>
+ */
+public record PagodaVerticalSemantics(
+        int floorCount,
+        int eavesPerLevel,
+        int eaveTiers,
+        boolean floorsExplicit
+) {
+    public static PagodaVerticalSemantics resolve(TypologyParams p, int implicitFloors, int implicitMin, int maxFloors) {
+        if (p == null) {
+            int floors = clamp(implicitFloors, implicitMin, maxFloors);
+            return new PagodaVerticalSemantics(floors, 1, floors, false);
+        }
+        Map<String, Object> raw = p.raw();
+        boolean floorsExplicit = has(raw, "floor_count", "floorCount", "floors", "story_count", "storyCount", "levels");
+        int floorCount;
+        if (has(raw, "floor_count", "floorCount")) {
+            floorCount = readInt(p, "floor_count", "floorCount", implicitFloors);
+        } else if (has(raw, "floors")) {
+            floorCount = p.intVal("floors", implicitFloors, 1, maxFloors);
+        } else if (has(raw, "story_count", "storyCount")) {
+            floorCount = readInt(p, "story_count", "storyCount", implicitFloors);
+        } else if (has(raw, "levels")) {
+            // Legacy: levels meant storeys for this typology, not total eaves.
+            floorCount = p.intVal("levels", implicitFloors, 1, maxFloors);
+        } else if (has(raw, "eave_tiers", "eaveTiers") && !floorsExplicit) {
+            // Classic dense eaves: authored eave_tiers alone ≈ one eave per storey.
+            floorCount = readInt(p, "eave_tiers", "eaveTiers", implicitFloors);
+            floorsExplicit = true;
+        } else {
+            floorCount = implicitFloors;
+            floorsExplicit = false;
+        }
+        int minFloors = floorsExplicit ? 3 : implicitMin;
+        floorCount = clamp(floorCount, minFloors, maxFloors);
+
+        int eavesPerLevel = 1;
+        if (has(raw, "eaves_per_level", "eavesPerLevel")) {
+            eavesPerLevel = p.intVal("eaves_per_level", 1, 1, 3);
+        } else if (truthy(raw.get("double_eaves")) || truthy(raw.get("doubleEaves"))
+                || containsCue(raw, "重檐", "double_eave", "double-eave")) {
+            eavesPerLevel = 2;
+        } else if (floorsExplicit && has(raw, "eave_tiers", "eaveTiers")
+                && has(raw, "floor_count", "floorCount", "floors", "levels", "story_count", "storyCount")) {
+            int authoredEaves = readInt(p, "eave_tiers", "eaveTiers", floorCount);
+            eavesPerLevel = Math.max(1, Math.min(3, Math.round(authoredEaves / (float) Math.max(1, floorCount))));
+        }
+
+        int eaveTiers = floorCount * eavesPerLevel;
+        return new PagodaVerticalSemantics(floorCount, eavesPerLevel, eaveTiers, floorsExplicit);
+    }
+
+    private static int readInt(TypologyParams p, String primary, String alt, int def) {
+        if (p.raw().containsKey(primary) && p.raw().get(primary) != null) {
+            return p.intVal(primary, def, 1, 64);
+        }
+        return p.intVal(alt, def, 1, 64);
+    }
+
+    private static boolean has(Map<String, Object> raw, String... keys) {
+        if (raw == null) return false;
+        for (String key : keys) {
+            if (raw.containsKey(key) && raw.get(key) != null) return true;
+        }
+        return false;
+    }
+
+    private static boolean truthy(Object v) {
+        if (v instanceof Boolean b) return b;
+        if (v == null) return false;
+        String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+        return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "重檐".equals(s);
+    }
+
+    private static boolean containsCue(Map<String, Object> raw, String... cues) {
+        if (raw == null) return false;
+        for (Object v : raw.values()) {
+            if (v == null) continue;
+            String s = String.valueOf(v).toLowerCase(Locale.ROOT);
+            for (String cue : cues) {
+                if (cue != null && s.contains(cue.toLowerCase(Locale.ROOT))) return true;
+            }
+        }
+        return false;
+    }
+
+    private static int clamp(int v, int min, int max) {
+        return Math.max(min, Math.min(max, v));
+    }
+}

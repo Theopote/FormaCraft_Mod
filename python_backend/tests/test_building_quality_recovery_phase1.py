@@ -94,15 +94,36 @@ def _house_kit(features=None):
 
 def _pagoda_plan():
     return _anchor_plan(
-        distinguishing_features=["佛塔", "dense_eaves_pagoda", "塔刹"],
+        distinguishing_features=["佛塔", "tibetan_stupa", "塔刹"],
         components=[
             {
                 "component_type": "STRUCTURE",
                 "slot_id": "tower",
                 "relative_position": {"x": 0, "y": 0, "z": 0},
                 "dimensions": {"width": 7, "depth": 7, "height": 21},
-                "features": ["dense_eaves_pagoda", "finial_spire"],
-                "params": {"typology": "dense_eaves_pagoda", "levels": 3},
+                "features": ["tibetan_stupa", "覆钵", "相轮", "finial_spire"],
+                "params": {"typology": "tibetan_stupa", "typology_id": "tibetan_stupa", "baseWidth": 7},
+            }
+        ],
+    )
+
+
+def _dense_eaves_plan():
+    return _anchor_plan(
+        distinguishing_features=["古塔", "dense_eaves_pagoda", "塔刹", "重檐"],
+        components=[
+            {
+                "component_type": "STRUCTURE",
+                "slot_id": "tower",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 7, "depth": 7, "height": 21},
+                "features": ["dense_eaves_pagoda", "finial_spire", "重檐"],
+                "params": {
+                    "typology": "dense_eaves_pagoda",
+                    "floor_count": 3,
+                    "levels": 3,
+                    "eaves_per_level": 2,
+                },
             }
         ],
     )
@@ -191,10 +212,15 @@ class BuildingQualityRecoveryPhase1Test(unittest.TestCase):
         types = {c["component_type"] for c in plan["components"]}
         self.assertNotIn("FACADE_WINDOWS", types)
 
-    def test_valid_pagoda_morphology_passes(self):
+    def test_valid_tibetan_stupa_morphology_passes(self):
         plan = _pagoda_plan()
         validate_llm_plan_dict(plan)
         assert_plan_semantics(plan, "白色藏式佛塔")
+
+    def test_valid_dense_eaves_three_storey_chongyan_passes(self):
+        plan = _dense_eaves_plan()
+        validate_llm_plan_dict(plan)
+        assert_plan_semantics(plan, "生成一座三层中式古塔，重檐，顶部有塔刹")
 
     def test_palette_preset_string_moves_to_style_profile(self):
         plan = _pagoda_plan()
@@ -225,10 +251,31 @@ class BuildingQualityRecoveryPhase1Test(unittest.TestCase):
         )
         snap = GenerationQualityMetrics.snapshot()
         self.assertEqual(snap["parse_success"], 2)
+        self.assertEqual(snap["plan_valid_success"], 2)
         self.assertEqual(snap["build_success"], 0)
+        self.assertEqual(snap["geometry_success"], 0)
         self.assertEqual(snap["intent_fidelity_success"], 0)
         self.assertEqual(snap["intent_fidelity_fail"], 1)
         self.assertGreaterEqual(snap["autofill_events"], 1)
+
+    def test_geometry_ok_morphology_fail_fidelity(self):
+        record_plan_outcome(
+            parse_ok=True,
+            build_ok=True,
+            intent_fidelity_ok=False,
+            geometry_ok=True,
+            world_apply_ok=True,
+            request_id="r2",
+            user_text="三层中式古塔重檐",
+            intent_class="tower_like",
+            reason="E_PAGODA_MORPHOLOGY",
+            plan_summary="floors=7",
+        )
+        snap = GenerationQualityMetrics.snapshot()
+        self.assertEqual(snap["geometry_success"], 1)
+        self.assertEqual(snap["world_apply_success"], 1)
+        self.assertEqual(snap["intent_fidelity_fail"], 1)
+        self.assertEqual(snap["intent_fidelity_success"], 0)
 
 
 if __name__ == "__main__":
