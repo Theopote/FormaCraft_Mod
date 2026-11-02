@@ -1,0 +1,53 @@
+{
+  "contract": "formacraft.community.search.v1",
+  "requestId": "req_demo_01",
+  "needId": "facade.window.primary",
+  "query": {
+    "exactTypeKey": "formacraft:window",
+    "role": "window",
+    "softTags": [
+      "pointed_arch"
+    ],
+    "hardTags": [],
+    "targetSize": {
+      "frame": "component_xyz",
+      "unit": "block",
+      "x": 5,
+      "y": 7,
+      "z": 1
+    },
+    "sizePolicy": "fixed",
+    "attachment": "WALL_OPENING",
+    "visualIntent": {
+      "morphology": [
+        "pointed_arch"
+      ],
+      "materialAppearance": [
+        "light_stone"
+      ]
+    },
+    "suitePreference": {
+      "key": "atelier-lin/windows",
+      "required": false
+    },
+    "required": true,
+    "failurePolicy": "report_required_failure"
+  },
+  "environment": {
+    "minecraftVersion": "1.21.10",
+    "installedMods": {},
+    "completeness": "complete"
+  },
+  "fields": [
+    "identity",
+    "package",
+    "type",
+    "size",
+    "adaptation",
+    "installation",
+    "rights",
+    "evidence"
+  ],
+  "pageSize": 10,
+  "cursor": null
+}

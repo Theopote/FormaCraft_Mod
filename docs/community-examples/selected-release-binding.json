@@ -1,0 +1,53 @@
+{
+  "contract": "formacraft.community.selected-release-binding.v1",
+  "requestId": "req_demo_01",
+  "needId": "facade.window.primary",
+  "phase": "installed_and_source_bound",
+  "releaseRef": {
+    "authorityId": "community-main",
+    "resourceId": "res_00000000000000000000000000000001",
+    "releaseId": "rel_00000000000000000000000000000001",
+    "packageSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "payloadSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "manifestSha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "discoveryRevision": 7,
+  "sourceClaim": {
+    "namespace": "local-demo",
+    "componentId": "capture",
+    "version": "1",
+    "author": "Example author"
+  },
+  "sourceConfigurationFingerprint": "configuration-v1:sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "localReuse": {
+    "localAssetId": "asset_ffffffffffffffffffffffffffffffff",
+    "status": "SOURCE_ADDED",
+    "primarySourceIsSelected": false,
+    "sourceComparison": "exact_configuration"
+  },
+  "downloadReceipt": {
+    "id": "receipt_demo_01",
+    "packageSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "byteLength": 4096,
+    "integrityChecked": true,
+    "environmentChecked": true,
+    "originalBytesPinned": true
+  },
+  "selectedSourceSnapshotKey": "1111111111111111111111111111111111111111111111111111111111111111_2222222222222222222222222222222222222222222222222222222222222222",
+  "fittedResult": {
+    "status": "passed",
+    "targetSize": {
+      "frame": "component_xyz",
+      "unit": "block",
+      "x": 5,
+      "y": 7,
+      "z": 1
+    },
+    "configurationFingerprint": "configuration-v1:sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  },
+  "lockEvidence": {
+    "pinSelectedSource": true,
+    "replaceLocalPrimaryMetadata": false,
+    "pinReleaseReceipt": true
+  }
+}

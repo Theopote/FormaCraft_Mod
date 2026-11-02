@@ -1,0 +1,151 @@
+{
+  "contract": "formacraft.community.search-result.v1",
+  "requestId": "req_demo_01",
+  "needId": "facade.window.primary",
+  "queryFingerprint": "6666666666666666666666666666666666666666666666666666666666666666",
+  "indexSnapshot": {
+    "id": "idx_demo_01",
+    "expiresInSeconds": 300
+  },
+  "rankingPolicy": "discovery-policy.v1",
+  "items": [
+    {
+      "groupFingerprint": "configuration-v1:sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "matchingSourceCount": 1,
+      "preferredCandidate": {
+        "releaseRef": {
+          "authorityId": "community-main",
+          "resourceId": "res_00000000000000000000000000000001",
+          "releaseId": "rel_00000000000000000000000000000001",
+          "packageSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "payloadSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "manifestSha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        "discoveryRevision": 7,
+        "title": "尖拱窗",
+        "platformPublisher": {
+          "accountId": "acct_00000000000000000000000000000001",
+          "namespace": "atelier-lin",
+          "displayName": "Example atelier"
+        },
+        "sourceClaim": {
+          "namespace": "local-demo",
+          "componentId": "capture",
+          "version": "1",
+          "author": "Example author"
+        },
+        "package": {
+          "packageSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "byteLength": 4096,
+          "mediaType": "application/json",
+          "packageSchema": "formacraft.component.package.v1"
+        },
+        "fingerprints": {
+          "structure": "structure-v1:sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "configuration": "configuration-v1:sha256:4444444444444444444444444444444444444444444444444444444444444444"
+        },
+        "type": {
+          "key": "formacraft:window",
+          "labels": {
+            "zh-CN": "窗",
+            "en": "Window"
+          },
+          "evidence": "declared"
+        },
+        "originalSize": {
+          "frame": "component_xyz",
+          "unit": "block",
+          "x": 5,
+          "y": 5,
+          "z": 1
+        },
+        "adaptation": {
+          "evidence": "derived",
+          "axes": {
+            "X": {
+              "mode": "FIXED",
+              "min": 5,
+              "max": 5
+            },
+            "Y": {
+              "mode": "REPEAT",
+              "min": 3,
+              "max": 9,
+              "fixedStart": 1,
+              "fixedEnd": 1
+            },
+            "Z": {
+              "mode": "FIXED",
+              "min": 1,
+              "max": 1
+            }
+          },
+          "materialReplacement": "not_declared"
+        },
+        "installation": {
+          "attachment": "WALL_OPENING",
+          "evidence": "declared",
+          "opening": {
+            "status": "unknown"
+          },
+          "clearance": {
+            "status": "unknown"
+          }
+        },
+        "rights": {
+          "license": "LicenseRef-Example-Share-1",
+          "licenseStatus": "declared",
+          "trainingPermission": "UNSPECIFIED"
+        },
+        "requiredCapabilities": [
+          "component-package-v1",
+          "segmented-repeat-v1"
+        ],
+        "validation": {
+          "level": "data_validated",
+          "extractor": "formacraft-community-extractor.v1",
+          "runtimeTest": "unknown"
+        },
+        "compatibility": {
+          "status": "declared_match",
+          "minecraftVersion": "1.21.10",
+          "requiredMods": {}
+        },
+        "fit": {
+          "metadataFit": "possible",
+          "actualFit": "unknown",
+          "reasonCodes": [
+            "requested_y_in_declared_range",
+            "runtime_fit_required",
+            "clearance_unknown"
+          ]
+        },
+        "rankingEvidence": [
+          {
+            "dimension": "type",
+            "status": "exact_key",
+            "matched": [
+              "formacraft:window"
+            ]
+          },
+          {
+            "dimension": "morphology",
+            "status": "declared_tag",
+            "matched": [
+              "pointed_arch"
+            ]
+          },
+          {
+            "dimension": "geometry",
+            "status": "summary_only",
+            "matched": [
+              "author_range_y"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "nextCursor": null,
+  "truncatedFields": []
+}

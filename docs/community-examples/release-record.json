@@ -1,0 +1,66 @@
+{
+  "contract": "formacraft.community.release-detail.v1",
+  "immutableRelease": {
+    "releaseRef": {
+      "authorityId": "community-main",
+      "resourceId": "res_00000000000000000000000000000001",
+      "releaseId": "rel_00000000000000000000000000000001",
+      "packageSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "payloadSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "manifestSha256": "2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    "releaseVersion": "1.0.0",
+    "releaseSequence": 1,
+    "platformPublisher": {
+      "accountId": "acct_00000000000000000000000000000001",
+      "namespace": "atelier-lin",
+      "displayName": "Example atelier"
+    },
+    "sourceClaim": {
+      "namespace": "local-demo",
+      "componentId": "capture",
+      "version": "1",
+      "author": "Example author"
+    },
+    "package": {
+      "packageSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "byteLength": 4096,
+      "mediaType": "application/json",
+      "packageSchema": "formacraft.component.package.v1"
+    },
+    "fingerprints": {
+      "structure": "structure-v1:sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "configuration": "configuration-v1:sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    "rights": {
+      "license": "LicenseRef-Example-Share-1",
+      "licenseStatus": "declared",
+      "trainingPermission": "UNSPECIFIED"
+    },
+    "requiredMods": {},
+    "minecraftVersion": "1.21.10",
+    "derivations": []
+  },
+  "currentStatus": {
+    "revision": 4,
+    "discovery": "visible",
+    "delivery": "available",
+    "reason": null
+  },
+  "discoveryRevision": {
+    "revision": 7,
+    "title": "尖拱窗",
+    "localizedTitles": {
+      "zh-CN": "尖拱窗",
+      "en": "Pointed arch window"
+    },
+    "softTags": [
+      "pointed_arch",
+      "light_stone"
+    ],
+    "suiteHints": [
+      "suite:atelier-lin/windows"
+    ],
+    "evidence": "publisher_declared"
+  }
+}
