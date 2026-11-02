@@ -74,6 +74,17 @@ public final class ComponentTool implements FormacraftTool {
         return loadedComponent;
     }
 
+    public void onLibraryAssetDeleted(String id) {
+        if (java.util.Objects.equals(id, awaitingComponentId)) { awaitingComponentLoad = false; awaitingComponentId = null; }
+        if (loadedComponent != null && java.util.Objects.equals(id, loadedComponent.id)) {
+            loadedComponent = null; state.useLibrary = false; state.setComponentForValidation(null);
+            ComponentPreviewState.clear(); ComponentSocketPreviewState.clear();
+            hoverSnapshot.placement = null; hoverSnapshot.pos = null; hoverSnapshot.face = null;
+        }
+        if (java.util.Objects.equals(id,state.librarySelectedId)) { state.librarySelectedId = null; state.librarySelectedName = null; }
+        state.libraryPage = 0;
+    }
+
     @Override
     public String getId() {
         return "component";
@@ -321,6 +332,9 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public void requestLoadSelectedComponent() {
+        if (com.formacraft.client.component.ClientComponentLibraryOperations.STATE.busy()) {
+            HudToast.show("请先完成当前构件操作",true); return;
+        }
         if (state.librarySelectedId == null || state.librarySelectedId.isBlank()) {
             HudToast.show("请先选择一个构件（构件库）", true);
             return;
@@ -328,8 +342,13 @@ public final class ComponentTool implements FormacraftTool {
         awaitingComponentLoad = true;
         awaitingComponentId = state.librarySelectedId;
         loadedComponent = null;
+        ComponentPreviewState.clear(); ComponentSocketPreviewState.clear();
         HudToast.show("正在加载构件：「" + (state.librarySelectedName != null ? state.librarySelectedName : state.librarySelectedId) + "」…");
-        FormaCraftClientNetworking.sendComponentGetRequest(state.librarySelectedId);
+        var catalog = com.formacraft.client.component.ClientComponentCatalogState.getCatalog();
+        var entry = catalog == null || catalog.components == null ? null : catalog.components.stream()
+                .filter(e -> e != null && state.librarySelectedId.equals(e.id)).findFirst().orElse(null);
+        if (!com.formacraft.client.component.ClientComponentLibraryOperations.load(entry))
+            FormaCraftClientNetworking.sendComponentGetRequest(state.librarySelectedId);
     }
 
     public void onComponentDefinitionFromServer(String json) {
@@ -344,6 +363,9 @@ public final class ComponentTool implements FormacraftTool {
         }
         try {
             ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
+            if (def != null && !java.util.Objects.equals(id,def.id)) {
+                HudToast.show("加载构件失败：返回的构件身份不一致",true); return;
+            }
             if (def == null || def.blocks == null || def.blocks.isEmpty()) {
                 HudToast.show("加载构件失败：数据为空", true);
                 return;
@@ -701,6 +723,11 @@ public final class ComponentTool implements FormacraftTool {
 
     public void onCaptureDisconnected() {
         awaitingSaveAck = false; awaitingSaveName = null;
+        awaitingComponentLoad = false; awaitingComponentId = null; loadedComponent = null;
+        state.useLibrary = false; state.librarySelectedId = null; state.librarySelectedName = null;
+        state.setComponentForValidation(null);
+        ComponentPreviewState.clear(); ComponentSocketPreviewState.clear();
+        hoverSnapshot.placement = null; hoverSnapshot.pos = null; hoverSnapshot.face = null;
         state.completeCaptureSave(false); state.captureTypeChosen = false;
     }
 

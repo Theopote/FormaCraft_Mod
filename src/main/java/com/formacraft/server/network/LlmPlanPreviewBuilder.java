@@ -968,11 +968,20 @@ public final class LlmPlanPreviewBuilder {
             hbAlive.set(false);
 
             LlmPlanRoutingMetrics.recordSuccess(player, req, patches.size(), plannedBlocks.size());
+            IntentFidelityMetrics.recordCompileAttempt(
+                    player, req, llmPlan, true, true, null);
             return true;
         } catch (Exception e) {
             hbAlive.set(false);
             FormacraftMod.LOGGER.error("Failed to process LlmPlan", e);
             LlmPlanRoutingMetrics.recordError(player, req, "process:" + e.getClass().getSimpleName());
+            IntentFidelityMetrics.recordCompileAttempt(
+                    player, req, llmPlan, true, false,
+                    IntentFidelityMetrics.fromGap(new com.formacraft.common.llm.dto.CapabilityGap(
+                            "E_PROCESS_EXCEPTION",
+                            e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(),
+                            "process",
+                            List.of())));
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "Failed to process LlmPlan: " + e.getMessage()
             ));
@@ -1387,6 +1396,8 @@ public final class LlmPlanPreviewBuilder {
     ) {
         hbAlive.set(false);
         LlmPlanRoutingMetrics.recordError(player, req, gap.code() != null ? gap.code() : "capability_gap");
+        IntentFidelityMetrics.recordCompileAttempt(
+                player, req, null, true, false, IntentFidelityMetrics.fromGap(gap));
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                 CapabilityGapMessages.formatPlayerMessage(gap)
         ));

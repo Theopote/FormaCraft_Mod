@@ -36,11 +36,14 @@ public final class ComponentPackageIO {
     public static final class Verified {
         private final Manifest manifest;
         private final String payload, hash, assetKey;
-        private Verified(Envelope envelope, String id) {
+        private final boolean environmentVerified;
+        private Verified(Envelope envelope, String id, boolean environmentVerified) {
+            this.environmentVerified = environmentVerified;
             manifest = envelope.manifest(); payload = envelope.componentJson(); hash = envelope.sha256();
             assetKey = manifest.namespace() + "/" + id + "@" + manifest.version();
         }
         public Manifest manifest() { return manifest; }
+        boolean environmentVerified() { return environmentVerified; }
         public String sha256() { return hash; }
         public String assetKey() { return assetKey; }
         public String contentRef() { return assetKey + "#sha256:" + hash; }
@@ -57,10 +60,19 @@ public final class ComponentPackageIO {
             return hash(JsonUtil.toJson(fields));
         }
         public ComponentDefinition component() { return JsonUtil.fromJson(payload, ComponentDefinition.class); }
-        public void writeTo(Path path) throws IOException {
+        /** Runtime alias is local; export always keeps the original payload and publisher reference. */
+        public ComponentDefinition runtimeComponent(String localId) {
+            var definition = component(); definition.id = ComponentIds.validateComponentId(localId);
+            definition.archetypeRef = "pkg_" + hash.substring(0,48);
+            return definition;
+        }
+        public byte[] toBytes() throws IOException {
             byte[] bytes = JsonUtil.toJson(new Envelope(SCHEMA, manifest, payload, hash)).getBytes(StandardCharsets.UTF_8);
             if (bytes.length > MAX_PACKAGE_BYTES) throw new IOException("Package exceeds byte limit");
-            Files.write(path, bytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+            return bytes;
+        }
+        public void writeTo(Path path) throws IOException {
+            Files.write(path, toBytes(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
         }
     }
 
@@ -88,6 +100,16 @@ public final class ComponentPackageIO {
     }
 
     public static Verified readBytes(byte[] bytes, Environment environment) throws IOException {
+        return verifyEnvironment(parseBytes(bytes), environment);
+    }
+
+    /** Integrity-only inspection for forwarding/export; never authorizes installation in an environment. */
+    public static Verified inspectBytes(byte[] bytes) throws IOException {
+        var envelope = parseBytes(bytes);
+        return new Verified(envelope, validate(envelope).id, false);
+    }
+
+    private static Envelope parseBytes(byte[] bytes) throws IOException {
         require(bytes != null, "Missing package bytes");
         require(bytes.length <= MAX_PACKAGE_BYTES, "Package exceeds byte limit");
         Envelope envelope;
@@ -107,7 +129,7 @@ public final class ComponentPackageIO {
             envelope = JsonUtil.get().fromJson(root, Envelope.class);
         }
         catch (RuntimeException invalidJson) { throw new IOException("Invalid package JSON", invalidJson); }
-        return verifyEnvironment(envelope, environment);
+        return envelope;
     }
 
     /** Creates the same immutable validated snapshot as reading a package, without temporary files. */
@@ -126,7 +148,7 @@ public final class ComponentPackageIO {
             require(dependency.getValue().equals(environment.installedMods().get(dependency.getKey())),
                     "Missing or incompatible dependency: " + dependency.getKey());
         }
-        return new Verified(envelope, definition.id);
+        return new Verified(envelope, definition.id, true);
     }
 
     private static ComponentDefinition validate(Envelope envelope) throws IOException {

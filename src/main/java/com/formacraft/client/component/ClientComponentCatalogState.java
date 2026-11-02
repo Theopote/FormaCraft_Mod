@@ -17,6 +17,7 @@ public final class ClientComponentCatalogState {
     private static volatile String lastSummary = "(no player components registered)";
     private static volatile boolean syncPending = false;
     private static volatile boolean syncComplete = false;
+    private static boolean allowDiskFallback;
 
     public static ComponentCatalog getCatalog() {
         return CATALOG.get();
@@ -53,6 +54,7 @@ public final class ClientComponentCatalogState {
      * 当服务端 catalog 尚未到达时，从全局磁盘目录回填（best-effort）。
      */
     public static boolean hydrateFromDiskIfEmpty() {
+        if (!allowDiskFallback || syncComplete) return false;
         ComponentCatalog current = CATALOG.get();
         if (current != null && current.components != null && !current.components.isEmpty()) {
             return true;
@@ -69,39 +71,23 @@ public final class ClientComponentCatalogState {
         return false;
     }
 
+    public static void beginSession(boolean integrated) {
+        CATALOG.set(null); lastSummary = "(no player components registered)";
+        syncPending = syncComplete = false; allowDiskFallback = integrated;
+    }
+
+    public static void syncFailed() { syncPending = false; syncComplete = false; }
+
     public static void setFromJson(String json) {
-        syncPending = false;
-        syncComplete = true;
         try {
-            if (json == null || json.isBlank()) {
-                if (!hydrateFromDiskIfEmpty()) {
-                    CATALOG.set(null);
-                    lastSummary = "(no player components registered)";
-                }
-                return;
-            }
             ComponentCatalog cat = JsonUtil.fromJson(json, ComponentCatalog.class);
-            
-            // 清理已删除的构件（文件不存在的条目）
-            // 这可以防止服务端响应覆盖本地删除操作
-            if (cat != null && cat.components != null) {
-                java.nio.file.Path globalDir = com.formacraft.common.component.ComponentStorage.getGlobalComponentDir();
-                cat.components.removeIf(e -> {
-                    if (e == null || e.id == null || e.id.isBlank()) return true;
-                    java.nio.file.Path componentFile = globalDir.resolve(e.id + ".json");
-                    return !java.nio.file.Files.exists(componentFile);
-                });
-            }
-            
-            CATALOG.set(cat);
-            lastSummary = buildSummary(cat);
-        } catch (Throwable t) {
-            // best-effort：失败时尝试磁盘 fallback
-            if (!hydrateFromDiskIfEmpty()) {
-                CATALOG.set(null);
-                lastSummary = "(failed to load player components)";
-            }
-        }
+            if (cat == null || !"formacraft.component_catalog.v1".equals(cat.schema) || cat.components == null)
+                throw new IllegalArgumentException("Invalid component catalog");
+            cat.components.removeIf(e -> e == null || !com.formacraft.common.component.ComponentIds.isSafeId(e.id));
+            String summary = buildSummary(cat);
+            CATALOG.set(cat); lastSummary = summary;
+            syncPending = false; syncComplete = true;
+        } catch (RuntimeException invalid) { syncFailed(); }
     }
 
     /**
@@ -202,7 +188,7 @@ public final class ClientComponentCatalogState {
     }
 
     private static void appendSocketOrigin(StringBuilder sb, ComponentCatalog.Entry entry, String socketId) {
-        if (entry == null || socketId == null || socketId.isBlank()) {
+        if (!allowDiskFallback || entry == null || socketId == null || socketId.isBlank()) {
             return;
         }
         com.formacraft.common.component.ComponentDefinition def =

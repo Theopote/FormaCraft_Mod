@@ -455,11 +455,14 @@ public class FormaCraftNetworking {
     }
 
     /** S2C：下发构件目录（ComponentCatalog 的 JSON 字符串） */
-    public record ComponentCatalogPayload(String json) implements CustomPayload {
+    public record ComponentCatalogPayload(com.formacraft.common.component.ComponentCatalogTransfer.Chunk chunk) implements CustomPayload {
         public static final CustomPayload.Id<ComponentCatalogPayload> ID = new CustomPayload.Id<>(COMPONENT_CATALOG);
         public static final PacketCodec<PacketByteBuf, ComponentCatalogPayload> CODEC = PacketCodec.of(
-                (payload, buf) -> buf.writeString(payload.json == null ? "" : payload.json),
-                buf -> new ComponentCatalogPayload(buf.readString())
+                (payload, buf) -> {
+                    if (payload.chunk.data().length > com.formacraft.common.component.ComponentCatalogTransfer.CHUNK_BYTES) throw new IllegalArgumentException("Oversized catalog chunk");
+                    buf.writeLong(payload.chunk.revision()); buf.writeVarInt(payload.chunk.length()); buf.writeVarInt(payload.chunk.offset()); buf.writeByteArray(payload.chunk.data());
+                },
+                buf -> new ComponentCatalogPayload(new com.formacraft.common.component.ComponentCatalogTransfer.Chunk(buf.readLong(),buf.readVarInt(),buf.readVarInt(),buf.readByteArray(com.formacraft.common.component.ComponentCatalogTransfer.CHUNK_BYTES)))
         );
 
         @Override
@@ -561,6 +564,7 @@ public class FormaCraftNetworking {
         if (registeredC2SPayloadTypes) return;
         registeredC2SPayloadTypes = true;
         ComponentSourceNetworking.registerC2S();
+        ComponentLibraryNetworking.registerC2S();
         ComponentImportNetworking.registerC2S();
 
         PayloadTypeRegistry.playC2S().register(RequestBuildPayload.ID, RequestBuildPayload.CODEC);
@@ -582,6 +586,7 @@ public class FormaCraftNetworking {
         if (registeredS2CPayloadTypes) return;
         registeredS2CPayloadTypes = true;
         ComponentSourceNetworking.registerS2C();
+        ComponentLibraryNetworking.registerS2C();
         ComponentImportNetworking.registerS2C();
 
         PayloadTypeRegistry.playS2C().register(ResponseBuildSpecPayload.ID, ResponseBuildSpecPayload.CODEC);

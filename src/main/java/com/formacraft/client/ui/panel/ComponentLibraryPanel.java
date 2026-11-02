@@ -11,9 +11,7 @@ import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentCategory;
-import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.client.network.FormaCraftClientNetworking;
-import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
@@ -22,7 +20,6 @@ import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -52,14 +49,11 @@ public final class ComponentLibraryPanel extends BasePanel {
     private ButtonWidget autoFixButton;
     
     // 删除按钮（当选中构件时显示）
-    private ButtonWidget deleteButton;
+    private ButtonWidget deleteButton, exportButton, cancelExportButton, refreshButton;
     private ButtonWidget sourceButton, prevSourceButton, nextSourceButton;
     private ButtonWidget importButton, confirmImportButton, cancelImportButton;
     private com.formacraft.client.component.ComponentImportClientState.Phase lastImportPhase = com.formacraft.client.component.ComponentImportClientState.Phase.IDLE;
 
-    // 节流的构件文件存在性快照：避免每帧对每个 catalog 条目做磁盘 Files.exists 检查。
-    private long lastExistScanMs = 0L;
-    private java.util.Set<String> existingComponentIds = java.util.Collections.emptySet();
 
     // grid hitboxes
     private static final class GridItem {
@@ -101,9 +95,15 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (sortButton != null) return;
 
         importButton = ButtonWidget.builder(Text.literal("导入构件包…"), b -> { scrollY = 0; com.formacraft.client.component.ClientComponentImport.chooseFile(); }).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
+        refreshButton = ButtonWidget.builder(Text.literal("刷新构件库"), b -> {
+            FormaCraftClientNetworking.sendComponentCatalogRequest();
+            com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear(); scrollY = 0;
+        }).dimensions(0,0,0,BUTTON_HEIGHT).build();
         confirmImportButton = ButtonWidget.builder(Text.literal("确认入库"), b -> com.formacraft.client.component.ClientComponentImport.confirm()).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
         cancelImportButton = ButtonWidget.builder(Text.literal("取消导入"), b -> com.formacraft.client.component.ClientComponentImport.cancel()).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
 
+        exportButton = ButtonWidget.builder(Text.literal("导出当前来源包…"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.start(selectedEntry(), false)).dimensions(0,0,0,BUTTON_HEIGHT).build();
+        cancelExportButton = ButtonWidget.builder(Text.literal("取消下载"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.cancel()).dimensions(0,0,0,BUTTON_HEIGHT).build();
         sourceButton = ButtonWidget.builder(Text.literal("查看 / 刷新来源"), b -> requestSource(0)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
         prevSourceButton = ButtonWidget.builder(Text.literal("上一份来源"), b -> stepSource(-1)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
         nextSourceButton = ButtonWidget.builder(Text.literal("下一份来源"), b -> stepSource(1)).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
@@ -189,51 +189,15 @@ public final class ComponentLibraryPanel extends BasePanel {
         st.libraryPage = 0;
     }
 
+    private ComponentCatalog.Entry selectedEntry() {
+        var catalog = ClientComponentCatalogState.getCatalog();
+        var id = ComponentTool.INSTANCE.getState().librarySelectedId;
+        return catalog == null || catalog.components == null ? null : catalog.components.stream()
+                .filter(e -> e != null && java.util.Objects.equals(id,e.id)).findFirst().orElse(null);
+    }
+
     private void deleteSelectedComponent() {
-        var st = ComponentTool.INSTANCE.getState();
-        if (st.librarySelectedId == null || st.librarySelectedId.isBlank()) {
-            HudToast.show("请先选择一个构件", true);
-            return;
-        }
-        
-        String componentId = st.librarySelectedId;
-        String componentName = st.librarySelectedName != null ? st.librarySelectedName : componentId;
-        
-        // 删除构件（worldDir传null，因为全局目录不依赖worldDir）
-        boolean success = ComponentStorage.deleteComponent(null, componentId);
-        
-        if (success) {
-            // 清除缩略图缓存（确保UI立即更新）
-            ComponentThumbnailCache.clearCache(componentId);
-            
-            // 立即从客户端 catalog 中移除该条目（UI 立即更新，无需等待服务端响应）
-            ClientComponentCatalogState.removeComponent(componentId);
-            
-            // 清除选中状态
-            st.librarySelectedId = null;
-            st.librarySelectedName = null;
-            
-            // 如果当前加载的构件是被删除的构件，需要清除加载状态
-            // 注意：ComponentTool没有公共的clearLoadedComponent方法，但可以通过重新加载来清除
-            var loadedComponent = ComponentTool.INSTANCE.getLoadedComponent();
-            if (loadedComponent != null && componentId.equals(loadedComponent.id)) {
-                // 通过请求加载一个不存在的构件来清除当前加载的构件
-                // 或者直接通过反射/内部方法清除，但更安全的方式是让用户手动重新加载
-                // 这里先不处理，因为删除后用户通常不会继续使用已删除的构件
-            }
-            
-            // 请求服务端重新发送catalog（作为最终同步，确保服务端和客户端一致）
-            if (client.getNetworkHandler() != null) {
-                FormaCraftClientNetworking.sendComponentCatalogRequest();
-            }
-            
-            HudToast.show("已删除构件: " + componentName + "（包括缩略图）");
-            
-            // 重置到第一页
-            st.libraryPage = 0;
-        } else {
-            HudToast.show("删除构件失败: " + componentName, true);
-        }
+        com.formacraft.client.component.ClientComponentLibraryOperations.start(selectedEntry(), true);
     }
 
     @Override
@@ -257,6 +221,8 @@ public final class ComponentLibraryPanel extends BasePanel {
         searchBoundsValid = false;
         sourceButton.visible = prevSourceButton.visible = nextSourceButton.visible = false;
         confirmImportButton.visible = cancelImportButton.visible = false;
+        prevPageButton.visible = nextPageButton.visible = validateButton.visible = autoFixButton.visible = deleteButton.visible = false;
+        exportButton.visible = cancelExportButton.visible = false;
 
         drawContentBackground(ctx);
 
@@ -322,7 +288,8 @@ public final class ComponentLibraryPanel extends BasePanel {
                 (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
 
         y += LABEL_OFFSET;
-        return renderSourceButton(ctx, importButton, x, y, w, !com.formacraft.client.component.ClientComponentImport.STATE.busy());
+        renderSourceButton(ctx, importButton, x, y, half, !com.formacraft.client.component.ClientComponentImport.STATE.busy());
+        return renderSourceButton(ctx, refreshButton, x + half + 4, y, w - half - 4, client.getNetworkHandler() != null);
     }
 
     /** 可滚动区：分页、网格、选中/验证/修复等 */
@@ -336,18 +303,8 @@ public final class ComponentLibraryPanel extends BasePanel {
         // filter
         String q = (st.librarySearch == null) ? "" : st.librarySearch.trim().toLowerCase(Locale.ROOT);
         List<ComponentCatalog.Entry> filtered = new ArrayList<>();
-        Path globalDir = com.formacraft.common.component.ComponentStorage.getGlobalComponentDir();
-        // 每帧一次目录快照（节流 500ms），替代逐条目的磁盘 exists 检查。
-        refreshExistingIdsIfStale(globalDir);
         for (var e : cat.components) {
             if (e == null || e.id == null || e.id.isBlank()) continue;
-            
-            // 额外验证：确保构件文件确实存在（防止已删除的构件仍显示）
-            // 这可以处理 catalog 更新延迟的情况
-            if (e.packageRef == null && !existingComponentIds.contains(e.id)) {
-                // 文件不存在，跳过这个条目（可能已被删除但 catalog 还没更新）
-                continue;
-            }
             
             if (st.libraryFilterCategory != null && e.category != st.libraryFilterCategory) continue;
             if (q.isEmpty()) {
@@ -363,8 +320,8 @@ public final class ComponentLibraryPanel extends BasePanel {
 
         // sort
         Comparator<ComponentCatalog.Entry> cmp = getEntryComparator(st, q);
-        filtered.sort(cmp);
-        // 见 refreshExistingIdsIfStale：目录快照节流刷新，避免每帧磁盘 IO。
+        filtered.sort(cmp.thenComparing(e -> e.id));
+
 
         // paging
         int cols = Math.max(1, Math.min(4, w / 44));
@@ -465,14 +422,23 @@ public final class ComponentLibraryPanel extends BasePanel {
                         ctx, selectedImage, previewX + 2, y + 2, previewSize - 4, previewSize - 4);
                 y += previewSize + 3;
                 if (entry.size != null) y = drawWrappedText(ctx, Text.literal("尺寸: " + entry.size.w + " × " + entry.size.h + " × " + entry.size.d), x, y, w, 0xFFAAAAAA);
-                if (entry.packageRef != null) y = drawSourceDetails(ctx, x, w, y + 2, entry);
+                if (entry.packageRef != null) {
+                    boolean busy = com.formacraft.client.component.ClientComponentLibraryOperations.STATE.busy();
+                    y = renderSourceButton(ctx, exportButton, x, y, w, !busy);
+                    if (busy) {
+                        y = drawWrappedText(ctx, Text.literal("正在处理构件操作…"), x, y, w, 0xFFAAAAAA);
+                        if (com.formacraft.client.component.ClientComponentLibraryOperations.STATE.phase() == com.formacraft.client.component.ComponentLibraryClientState.Phase.DOWNLOADING)
+                            y = renderSourceButton(ctx, cancelExportButton, x, y, w, true);
+                    }
+                    y = drawSourceDetails(ctx, x, w, y + 2, entry);
+                }
                 y += 2;
                 break;
             }
             deleteButton.setPosition(x, y);
             deleteButton.setWidth(w);
             deleteButton.visible = true;
-            deleteButton.active = true;
+            deleteButton.active = !com.formacraft.client.component.ClientComponentLibraryOperations.STATE.busy();
             deleteButton.render(ctx, (int) (client.mouse.getX() / client.getWindow().getScaleFactor()),
                     (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
             y += LABEL_OFFSET;
@@ -588,53 +554,9 @@ public final class ComponentLibraryPanel extends BasePanel {
         return y;
     }
 
-    /**
-     * 刷新"磁盘上实际存在的构件 id"快照。节流 500ms，避免每帧对每个 catalog 条目做 Files.exists。
-     * 读取失败（目录缺失/瞬时异常）时保留上一次快照，宁可短暂多显示一条也不清空整列表。
-     */
-    private void refreshExistingIdsIfStale(Path globalDir) {
-        long now = System.currentTimeMillis();
-        if (now - lastExistScanMs < 500L && !existingComponentIds.isEmpty()) return;
-        lastExistScanMs = now;
-        if (globalDir == null) return;
-        java.util.Set<String> ids = new java.util.HashSet<>();
-        try (var stream = java.nio.file.Files.list(globalDir)) {
-            stream.forEach(p -> {
-                String fn = p.getFileName().toString();
-                if (fn.endsWith(".json")) {
-                    ids.add(fn.substring(0, fn.length() - ".json".length()));
-                }
-            });
-            existingComponentIds = ids;
-        } catch (java.io.IOException ignored) {
-            // 目录不存在或读取失败：保留上次快照。
-        }
-    }
-
     private static @NotNull Comparator<ComponentCatalog.Entry> getEntryComparator(ComponentToolState st, String q) {
-        String sort = st.librarySort != null ? st.librarySort : "RECENT";
-        return switch (sort.toUpperCase(Locale.ROOT)) {
-            case "NAME" -> Comparator.comparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            case "CATEGORY" -> Comparator
-                    .comparing((ComponentCatalog.Entry e) -> e.category != null ? e.category.name() : "ZZZ", String.CASE_INSENSITIVE_ORDER)
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            case "LOADED" -> Comparator
-                    .comparingLong((ComponentCatalog.Entry e) -> ComponentLibraryUsage.getLastLoadedMs(e.id))
-                    .reversed()
-                    .thenComparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
-                    .reversed()
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            case "TAG_MATCH" -> Comparator
-                    .comparingInt((ComponentCatalog.Entry e) -> matchScore(e, q))
-                    .reversed()
-                    .thenComparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
-                    .reversed()
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            default -> Comparator
-                    .comparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
-                    .reversed()
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-        };
+        return com.formacraft.client.component.ComponentLibraryOrdering.comparator(st.librarySort,
+                e -> matchScore(e,q), e -> ComponentLibraryUsage.getLastLoadedMs(e.id));
     }
 
     private static String sortLabel(String s) {
@@ -796,11 +718,15 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (clickButton(sortButton, click)) return true;
         if (clickButton(categoryButton, click)) return true;
         if (clickButton(importButton, click)) return true;
-        if (clickButton(prevPageButton, click)) return true;
-        if (clickButton(nextPageButton, click)) return true;
-        if (clickButton(validateButton, click)) return true;
-        if (clickButton(autoFixButton, click)) return true;
-        if (clickButton(deleteButton, click)) return true;
+        if (clickButton(refreshButton, click)) return true;
+        boolean inScroll = mouseY >= scrollAreaTop && mouseY < panelY + panelHeight - 1;
+        if (inScroll && clickButton(exportButton, click)) return true;
+        if (inScroll && clickButton(cancelExportButton, click)) return true;
+        if (inScroll && clickButton(prevPageButton, click)) return true;
+        if (inScroll && clickButton(nextPageButton, click)) return true;
+        if (inScroll && clickButton(validateButton, click)) return true;
+        if (inScroll && clickButton(autoFixButton, click)) return true;
+        if (inScroll && clickButton(deleteButton, click)) return true;
         if (mouseY >= scrollAreaTop && (clickButton(confirmImportButton, click) || clickButton(cancelImportButton, click))) return true;
         if (mouseY >= scrollAreaTop && (clickButton(sourceButton, click) || clickButton(prevSourceButton, click) || clickButton(nextSourceButton, click))) return true;
 
@@ -810,7 +736,7 @@ public final class ComponentLibraryPanel extends BasePanel {
             }
         }
 
-        if (gridValid) {
+        if (gridValid && inScroll) {
             for (GridItem it : grid) {
                 if (it != null && it.hit(mouseX, mouseY)) {
                     var st = ComponentTool.INSTANCE.getState();
@@ -859,7 +785,7 @@ public final class ComponentLibraryPanel extends BasePanel {
     @Override
     protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
         // 检查鼠标是否悬停在构件上
-        if (gridValid) {
+        if (gridValid && mouseY >= scrollAreaTop && mouseY < panelY + panelHeight - 1) {
             ComponentCatalog.Entry hoveredEntry = null;
             for (GridItem it : grid) {
                 if (it != null && it.hit(mouseX, mouseY)) {

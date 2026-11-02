@@ -3,6 +3,16 @@
 import unittest
 
 
+def _minimal_mass() -> dict:
+    return {
+        "component_type": "MASS_MAIN",
+        "relative_position": {"x": 0, "y": 0, "z": 0},
+        "dimensions": {"width": 8, "depth": 8, "height": 6},
+        "features": [],
+        "params": {},
+    }
+
+
 class TestGlobalSymmetryNormalize(unittest.TestCase):
     def _normalize(self, plan: dict, req=None, profile=None) -> dict:
         from app.services.ai_planner import _normalize_llm_plan_output
@@ -19,7 +29,7 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
             "mode": "build",
             "style_profile": "DEFAULT",
             "anchor": {"x": 0, "y": 64, "z": 0},
-            "components": [],
+            "components": [_minimal_mass()],
             "global_constraints": {"symmetry": "radial", "facing": "SOUTH"},
         }
         out = self._normalize(plan)
@@ -31,7 +41,7 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
             "mode": "build",
             "style_profile": "DEFAULT",
             "anchor": {"x": 0, "y": 64, "z": 0},
-            "components": [],
+            "components": [_minimal_mass()],
             "global_constraints": {"symmetry": "bilateral"},
         }
         out = self._normalize(plan)
@@ -44,7 +54,7 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
                 "mode": "build",
                 "style_profile": "DEFAULT",
                 "anchor": {"x": 0, "y": 64, "z": 0},
-                "components": [],
+                "components": [_minimal_mass()],
                 "global_constraints": {"symmetry": raw},
             }
             out = self._normalize(plan)
@@ -55,7 +65,7 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
             "mode": "build",
             "style_profile": "DEFAULT",
             "anchor": {"x": 0, "y": 64, "z": 0},
-            "components": [],
+            "components": [_minimal_mass()],
             "global_constraints": {"symmetry": "invalid_value"},
             "genome": {
                 "genomeVersion": "1.0",
@@ -100,7 +110,7 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
             "mode": "build",
             "style_profile": "DEFAULT",
             "anchor": {"x": 0, "y": 64, "z": 0},
-            "components": [],
+            "components": [_minimal_mass()],
             "genome": {
                 "genomeVersion": "1.0",
                 "symmetry": {"type": "bilateral", "order": "4", "mirror": "true|false"},
@@ -116,7 +126,7 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
             "mode": "build",
             "style_profile": "DEFAULT",
             "anchor": {"x": 0, "y": 64, "z": 0},
-            "components": [],
+            "components": [_minimal_mass()],
             "layout": {
                 "skeleton_type": "COMPOUND",
                 "path_based": False,

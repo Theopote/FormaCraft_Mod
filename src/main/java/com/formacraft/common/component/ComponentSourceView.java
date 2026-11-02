@@ -8,7 +8,7 @@ public final class ComponentSourceView {
     private ComponentSourceView() {}
     public record Page(String assetId, int index, int total, boolean primary, String name, String namespace,
                        String version, String author, String license, ComponentPackageIO.TrainingPermission trainingPermission,
-                       String contentRef, String error) {}
+                       String contentRef, String error, String manifestSha256) {}
 
     public static Page query(Path world, UUID viewer, String requestedId, int index) {
         String id = ComponentIds.tryNormalizeLoadId(requestedId);
@@ -31,13 +31,13 @@ public final class ComponentSourceView {
                 var source = sources.get(index); var manifest = source.manifest();
                 return new Page(id, index, sources.size(), index == 0, bounded(source.component().name, 256),
                         manifest.namespace(), manifest.version(), manifest.author(), manifest.license(),
-                        manifest.trainingPermission(), source.contentRef(), null);
+                        manifest.trainingPermission(), source.contentRef(), null, source.manifestSha256());
             }
         } catch (java.io.IOException | RuntimeException invalid) { /* No existence or filesystem details disclosed. */ }
         return unavailable(id, index);
     }
     private static Page unavailable(String id, int index) {
-        return new Page(bounded(id, 64), index, 0, false, null, null, null, null, null, null, null, "来源不可用，请刷新构件库后重试");
+        return new Page(bounded(id, 64), index, 0, false, null, null, null, null, null, null, null, "来源不可用，请刷新构件库后重试", null);
     }
     static String bounded(String text, int max) {
         if (text == null) return "";

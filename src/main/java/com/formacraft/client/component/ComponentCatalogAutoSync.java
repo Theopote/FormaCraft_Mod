@@ -33,6 +33,7 @@ public final class ComponentCatalogAutoSync {
         if (ClientComponentCatalogState.isSyncComplete()) {
             return;
         }
+        if (ClientComponentCatalogSync.active()) return;
 
         ClientComponentCatalogState.hydrateFromDiskIfEmpty();
         if (requestedThisCycle

@@ -38,7 +38,7 @@ final class ComponentImportHandler {
                     case CONFIRM -> {
                         var installed = SESSIONS.confirm(player.getUuid(), request.token(), save);
                         ServerPlayNetworking.send(player, new ComponentImportNetworking.Response(request.token(), ComponentImportNetworking.Reply.INSTALLED, JsonUtil.toJson(installed)));
-                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentCatalogPayload(JsonUtil.toJson(ComponentStorage.loadCatalogWithSockets(world, player.getUuid()))));
+                        ComponentCatalogSync.send(player, JsonUtil.toJson(ComponentStorage.loadCatalogWithSockets(world, player.getUuid())));
                     }
                 }
             } catch (Exception invalid) {

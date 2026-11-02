@@ -32,6 +32,8 @@ public final class FormaCraftServerNetworking {
         // 服务端也需要注册 S2C payload types（用于编码回包）。否则可能出现“服务端处理了但发不出包”，客户端只能超时。
         FormaCraftNetworking.registerPayloadTypesS2C();
         ComponentImportHandler.register();
+        ComponentLibraryHandler.register();
+        ComponentCatalogSync.register();
 
         ServerPlayNetworking.registerGlobalReceiver(com.formacraft.common.network.ComponentSourceNetworking.Request.ID,
                 (payload, context) -> context.server().execute(() -> {
@@ -231,7 +233,7 @@ public final class FormaCraftServerNetworking {
 
             ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir, player.getUuid());
             String catJson = JsonUtil.toJson(cat);
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentCatalogPayload(catJson));
+            ComponentCatalogSync.send(player, catJson);
         }));
 
         // Component Library: 请求 catalog（客户端 -> 服务端）
@@ -244,7 +246,7 @@ public final class FormaCraftServerNetworking {
             java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
             ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir, player.getUuid());
             String catJson = JsonUtil.toJson(cat);
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentCatalogPayload(catJson));
+            ComponentCatalogSync.send(player, catJson);
         }));
 
         // Multiplayer: client asks server to call orchestrator /models or /summarize with server secret.

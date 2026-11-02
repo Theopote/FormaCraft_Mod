@@ -58,16 +58,40 @@ class IntentClarificationTest(unittest.TestCase):
         assessment = assess_clarification_needs(req)
         self.assertFalse(assessment.needs_clarification)
 
-    def test_generic_cathedral_without_style_needs_clarification(self):
+    def test_explicit_cathedral_typology_skips_clarification(self):
+        """Named typology is enough; landmark identity is not required."""
         req = _build_req("生成一个大教堂")
         assessment = assess_clarification_needs(req)
+        self.assertFalse(assessment.needs_clarification)
+
+    def test_truly_generic_building_word_still_needs_clarification(self):
+        req = _build_req("生成一座建筑")
+        assessment = assess_clarification_needs(req)
         self.assertTrue(assessment.needs_clarification)
-        self.assertEqual(assessment.reason, "generic_typology")
+        self.assertIn(assessment.reason, ("vague_intent", "generic_typology", "low_confidence"))
 
     def test_gothic_style_church_skips_clarification(self):
         req = _build_req("帮我建一个哥特风格教堂，大概30格高")
         assessment = assess_clarification_needs(req)
         self.assertFalse(assessment.needs_clarification)
+
+    def test_phase1_explicit_typology_samples_skip_clarification(self):
+        samples = (
+            "生成一座白色藏式佛塔",
+            "生成一座道观",
+            "生成一座中式古塔",
+            "生成一座寺庙山门",
+            "生成一座江南园林",
+            "生成一座日式庭院",
+            "生成一座徽派民居，白墙黑瓦",
+        )
+        for text in samples:
+            with self.subTest(text=text):
+                assessment = assess_clarification_needs(_build_req(text))
+                self.assertFalse(
+                    assessment.needs_clarification,
+                    msg=f"{text!r} unexpectedly clarified: {assessment.reason}",
+                )
 
     def test_follow_up_after_clarification_skips_reask(self):
         history = [

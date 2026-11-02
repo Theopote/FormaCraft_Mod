@@ -153,6 +153,22 @@ class StyleAttributesModel(BaseModel):
     floor_material: Optional[str] = None
     decorative_elements: Optional[List[str]] = None
     custom_attributes: Optional[Dict[str, str]] = None
+    palette: Optional[Dict[str, str]] = None
+    materials: Optional[Dict[str, str]] = None
+    block_palette: Optional[Dict[str, str]] = None
+    primary_material: Optional[str] = None
+    roof_form: Optional[str] = None
+
+    @field_validator("palette", "materials", "block_palette", mode="before")
+    @classmethod
+    def reject_string_maps(cls, value: Any) -> Any:
+        """Preset IDs must live on style_profile; these fields are role→block maps only."""
+        if isinstance(value, str):
+            raise ValueError(
+                "must be an object mapping roles to block ids "
+                "(put palette preset ids on style_profile, not here)"
+            )
+        return value
 
 
 class CapabilityGapModel(BaseModel):
@@ -296,6 +312,23 @@ class LlmPlanModel(BaseModel):
         has_block_patch = bool(self.patch and self.patch.blocks)
         if not has_components and not has_block_patch:
             raise ValueError("mode=patch requires either components[] or patch.blocks[]")
+        return self
+
+    @model_validator(mode="after")
+    def validate_build_has_geometry(self) -> "LlmPlanModel":
+        if self.mode != "build":
+            return self
+        status = (self.plan_status or "").strip().lower()
+        if status in ("capability_gap", "error") or self.capability_gap is not None:
+            return self
+        has_components = bool(self.components)
+        has_program = bool(self.plan_program) or bool(self.plan_skeleton)
+        has_patch = bool(self.patch and self.patch.blocks)
+        if not has_components and not has_program and not has_patch:
+            raise ValueError(
+                "mode=build requires non-empty components[] "
+                "(or plan_program / plan_skeleton / capability_gap)"
+            )
         return self
 
 

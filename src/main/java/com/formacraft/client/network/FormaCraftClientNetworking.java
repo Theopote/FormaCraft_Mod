@@ -28,6 +28,8 @@ public final class FormaCraftClientNetworking {
         FormaCraftNetworking.registerPayloadTypesC2S();
         FormaCraftNetworking.registerPayloadTypesS2C();
         com.formacraft.client.component.ClientComponentImport.register();
+        com.formacraft.client.component.ClientComponentLibraryOperations.register();
+        com.formacraft.client.component.ClientComponentCatalogSync.register();
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
                 (handler, client) -> {
@@ -139,11 +141,6 @@ public final class FormaCraftClientNetworking {
         }));
 
         // Component Library: catalog 下发（服务端 -> 客户端）
-        ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ComponentCatalogPayload.ID, (payload, context) -> context.client().execute(() -> {
-            String json = payload.json();
-            com.formacraft.client.component.ClientComponentCatalogState.setFromJson(json);
-            com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear();
-        }));
 
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.OrchestratorProxyResponsePayload.ID,
                 (payload, context) -> context.client().execute(() -> OrchestratorProxyClient.onResponse(payload)));

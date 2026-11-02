@@ -20,6 +20,8 @@ final class DesignValidatorSuite {
 
     /** Run after plan normalization, before inference can repair or replace author intent. */
     static Optional<CapabilityGap> checkAuthored(LlmPlan plan) {
+        var semantic = PlanSemanticValidator.check(plan);
+        if (semantic.isPresent()) return semantic;
         List<Component> components = plan.components() == null ? List.of() : plan.components();
         var design = checkDesign(plan, components);
         if (design.isPresent()) return design;

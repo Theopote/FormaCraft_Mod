@@ -50,6 +50,16 @@ final class ComponentSatelliteInference {
             normalized.addAll(plan.components());
         }
         if (normalized.isEmpty()) {
+            // Empty components + non-residential intent must not become a default house.
+            if (PlanSemanticValidator.refusesResidentialAutofill(plan)) {
+                AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(
+                        "E_EMPTY_COMPONENTS",
+                        "空构件计划无法按住宅模板自动补全；请返回具有正确建筑形态的 components。",
+                        "components",
+                        List.of("Re-plan with typology-appropriate components.",
+                                "Do not rely on MASS_MAIN+gable recovery for pagoda/gate/garden intents.")));
+                return new PreparedComponents(List.of(), Set.of());
+            }
             // Orchestrator sometimes returns layout.slots with size but empty components[].
             List<Component> recovered = synthesizeMassFromSlots(plan, slotMap);
             if (recovered.isEmpty()) {
@@ -353,11 +363,12 @@ final class ComponentSatelliteInference {
                 return new PreparedComponents(List.of(), Set.of());
             }
             boolean allowCompilerInfer = plan.allowCompilerSatellites();
+            boolean refuseResidentialAutofill = PlanSemanticValidator.refusesResidentialAutofill(plan);
 
             if (useAssemblyFacade) {
                 assemblyFacadeSlots.add(ComponentPlanTypes.getParamString(c.params(), "component_id"));
                 c = markAssemblyFacade(c);
-            } else if (allowCompilerInfer) {
+            } else if (allowCompilerInfer && !refuseResidentialAutofill) {
                 if (!hasFacade && !windowsDisabled) {
                     Component facade = tagInferredSatellite(makeFacadeComponent(c, slotId));
                     facade = StyleIntentResolver.apply(plan, facade);
@@ -375,6 +386,22 @@ final class ComponentSatelliteInference {
                         hasEntrance = true;
                         doorDelegation = OpeningDelegation.full();
                     }
+                }
+            } else if (allowCompilerInfer && refuseResidentialAutofill) {
+                // Non-residential intents: never invent residential windows/doors.
+                if (!hasFacade && !windowsDisabled) {
+                    AssemblyCompileDiagnostics.addSoftWarning(
+                            "SKIPPED_RESIDENTIAL_FACADE",
+                            "Skipped FACADE_WINDOWS autofill for non-residential intent",
+                            c.componentType(),
+                            ComponentPlanTypes.getParamString(c.params(), "component_id"));
+                }
+                if (!hasEntrance && !entranceDisabled) {
+                    AssemblyCompileDiagnostics.addSoftWarning(
+                            "SKIPPED_RESIDENTIAL_ENTRANCE",
+                            "Skipped ENTRANCE autofill for non-residential intent",
+                            c.componentType(),
+                            ComponentPlanTypes.getParamString(c.params(), "component_id"));
                 }
             }
             if (windowsDisabled) windowDelegation = OpeningDelegation.full();
@@ -394,12 +421,21 @@ final class ComponentSatelliteInference {
             }
             if (allowCompilerInfer
                     && !hasRoof && !com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)) {
-                Component roof = tagInferredSatellite(makeRoofComponent(plan, c, slotId));
-                if (roof != null) {
-                    roof = StyleIntentResolver.apply(plan, roof);
-                    roof = RoofGrammarResolver.apply(plan, roof);
-                    inferred.add(roof);
-                    hasRoof = true;
+                if (refuseResidentialAutofill && !hasExplicitRoofTypeHint(plan, c)) {
+                    // Do not invent a default gable for tower/gate/garden intents.
+                    AssemblyCompileDiagnostics.addSoftWarning(
+                            "SKIPPED_DEFAULT_GABLE",
+                            "Skipped default gable roof autofill for non-residential intent",
+                            c.componentType(),
+                            ComponentPlanTypes.getParamString(c.params(), "component_id"));
+                } else {
+                    Component roof = tagInferredSatellite(makeRoofComponent(plan, c, slotId));
+                    if (roof != null) {
+                        roof = StyleIntentResolver.apply(plan, roof);
+                        roof = RoofGrammarResolver.apply(plan, roof);
+                        inferred.add(roof);
+                        hasRoof = true;
+                    }
                 }
             }
             if (hasRoof) {
@@ -1412,6 +1448,15 @@ final class ComponentSatelliteInference {
 
 
 
+    private static boolean hasExplicitRoofTypeHint(LlmPlan plan, Component base) {
+        if (roofTypeHintFromParams(base) != null) return true;
+        if (roofTypeHintFromFeatures(base) != null) return true;
+        PlanIntentFidelityRepair.IntentHints intent = PlanIntentFidelityRepair.parse(plan);
+        if (intent.roofType() != null) return true;
+        if (roofTypeHintFromStyleAttributes(plan) != null) return true;
+        return roofTypeHintFromProportionHints(plan) != null;
+    }
+
     private static String resolveDefaultRoofType(LlmPlan plan, Component base) {
         String fromParams = roofTypeHintFromParams(base);
         if (fromParams != null) {
@@ -1432,6 +1477,10 @@ final class ComponentSatelliteInference {
         String fromHints = roofTypeHintFromProportionHints(plan);
         if (fromHints != null) {
             return fromHints;
+        }
+        if (PlanSemanticValidator.refusesResidentialAutofill(plan)) {
+            // Prefer hip over inventing a western gable house for non-residential intents.
+            return "hip";
         }
         return "gable";
     }

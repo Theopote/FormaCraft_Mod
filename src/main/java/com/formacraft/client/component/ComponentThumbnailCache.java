@@ -53,6 +53,9 @@ public final class ComponentThumbnailCache {
             }
         }
         if (LOADING.size() >= 2) return null;
+        MinecraftClient client = MinecraftClient.getInstance();
+        boolean remote = client.getServer() == null && client.getNetworkHandler() != null;
+        if (remote && ClientComponentLibraryOperations.STATE.busy()) return null;
         int priorFails = (cached != null && cached.status == Status.FAILED) ? cached.failCount : 0;
         Cached request = new Cached(revision, epoch);
         request.status = Status.LOADING;
@@ -60,7 +63,7 @@ public final class ComponentThumbnailCache {
         CACHE.put(id, request);
         LOADING.add(request);
         while (CACHE.size() > 96) CACHE.remove(CACHE.keySet().iterator().next());
-        MinecraftClient client = MinecraftClient.getInstance();
+        if (remote) { if (!ClientComponentThumbnails.request(id)) remoteFailed(id); return null; }
         UUID player = client.player == null ? null : client.player.getUuid();
         CompletableFuture.supplyAsync(() -> {
             var definition = ComponentStorage.loadComponent(null, id, player);
@@ -108,6 +111,29 @@ public final class ComponentThumbnailCache {
     }
 
     public static void clearCache(String id) { CACHE.remove(id); }
+
+    /** A server-downloaded definition can render without a matching local asset file. */
+    public static void acceptDefinition(com.formacraft.common.component.ComponentDefinition definition) {
+        var catalog = ClientComponentCatalogState.getCatalog();
+        var entry = catalog == null || catalog.components == null ? null : catalog.components.stream()
+                .filter(e -> e != null && definition.id.equals(e.id)).findFirst().orElse(null);
+        if (entry == null) return;
+        var old = CACHE.get(definition.id); if (old != null) LOADING.remove(old);
+        var request = new Cached(entry.updatedAtMs == null ? 0 : entry.updatedAtMs,RESOURCE_EPOCH.get());
+        CACHE.put(definition.id,request);
+        LOADING.add(request);
+        while (CACHE.size() > 96) CACHE.remove(CACHE.keySet().iterator().next());
+        ComponentThumbnailGenerator.generateAsync(definition).whenComplete((image,error) -> MinecraftClient.getInstance().execute(() -> {
+            LOADING.remove(request);
+            if (CACHE.get(definition.id) != request) return;
+            request.image = image; request.status = image != null && error == null ? Status.READY : Status.FAILED;
+        }));
+    }
+
+    static void remoteFailed(String id) {
+        var request = CACHE.get(id); if (request == null) return;
+        LOADING.remove(request); request.status = Status.FAILED; request.failCount++;
+    }
 
     public static void clearAllCache() {
         CACHE.clear();

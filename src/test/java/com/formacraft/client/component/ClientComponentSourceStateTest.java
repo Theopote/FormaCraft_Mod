@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ClientComponentSourceStateTest {
     private String page(String id, int index) {
         return JsonUtil.toJson(new ComponentSourceView.Page(id, index, 2, index == 0, "Window", "alice", "1", "Alice", "Test",
-                ComponentPackageIO.TrainingPermission.DENIED, "test-ref", null));
+                ComponentPackageIO.TrainingPermission.DENIED, "test-ref", null, "manifest-hash"));
     }
     @Test void staleRepliesCannotReplaceCurrentSelectionOrSourcePage() {
         var state = new ClientComponentSourceState(() -> 0L);

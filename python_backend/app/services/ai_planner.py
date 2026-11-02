@@ -1034,7 +1034,8 @@ def _normalize_llm_plan_output(
         # Legacy enrichment changes geometry/authority and cannot inspect program bodies.
         from copy import deepcopy
         return deepcopy(raw)
-    plan = dict(raw)
+    from .plan_semantic_gate import coerce_style_attribute_maps
+    plan = coerce_style_attribute_maps(dict(raw))
     default_genome = BuildingGenome().model_dump()
     if req is not None:
         try:

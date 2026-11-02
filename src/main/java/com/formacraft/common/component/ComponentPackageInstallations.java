@@ -46,6 +46,7 @@ public final class ComponentPackageInstallations {
 
     static ImportResult importVerified(ComponentPackageIO.Verified incoming, ComponentStorage.SaveContext context) throws IOException {
         requireContext(context);
+        if (incoming == null || !incoming.environmentVerified()) throw new IOException("Installation requires environment verification");
         requirePortable(incoming);
         ComponentContentIdentity.Fingerprints fingerprints;
         try { fingerprints = ComponentContentIdentity.fingerprints(incoming.component()); }
@@ -202,9 +203,7 @@ public final class ComponentPackageInstallations {
         if (!ComponentIds.isSafeId(id) || !exists(root, id)) return null;
         try {
             var verified = inspect(root, id);
-            var definition = verified.component(); definition.id = id;
-            definition.archetypeRef = "pkg_" + verified.sha256().substring(0, 48);
-            return definition;
+            return verified.runtimeComponent(id);
         } catch (IOException invalid) {
             com.formacraft.FormacraftMod.LOGGER.warn("Imported component unavailable id={} reason={}", id, invalid.getMessage());
             return null;

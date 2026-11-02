@@ -17,8 +17,18 @@ Core rules:
 - All positions are relative to the provided anchor (0,0,0).
 - MASS_* defaults to footprint center unless params.anchor_mode="min_corner".
 - Facade/entrance/roof/paving use the minimum corner of the component box.
-- Use semantic components (MASS_MAIN, ROOF, ENTRANCE, FACADE_WINDOWS, ASSEMBLY, MODULE, …), NOT blocks.
-- Ordinary buildings: compose MASS_MAIN + FOUNDATION + ROOF + FACADE_WINDOWS + ENTRANCE.
+- Use semantic components (MASS_MAIN, ROOF, ENTRANCE, FACADE_WINDOWS, ASSEMBLY, MODULE, STRUCTURE, …), NOT blocks.
+- Building TYPE decides composition — never force every request into a house kit.
+  * Residences / shops: MASS_MAIN + FOUNDATION + ROOF + FACADE_WINDOWS + ENTRANCE is appropriate.
+  * Tibetan / Chinese pagoda or stupa: layered tapering masses (or STRUCTURE/typology:dense_eaves_pagoda),
+    multi-tier eaves / CROWN or finial; DO NOT emit a single house MASS with gable roof and regular windows.
+  * Temple gate / paifang / mountain gate: wide shallow gate mass (or STRUCTURE/ASSEMBLY), not a deep house.
+  * Daoist temple / monastery compounds: hall masses + courtyards/paths as needed.
+  * Gardens / courtyards: PATH/COURTYARD/ASSEMBLY composition; not only one residential house.
+- mode=build MUST include a non-empty components[] (or plan_program / ASSEMBLY with real geometry).
+  Never return components:[] for a successful build plan.
+- style_profile is a string preset id. style_attributes.palette/materials/block_palette MUST be objects
+  mapping roles→block ids — never put a palette preset string into those map fields.
 - ASSEMBLY is for free-form parametric geometry when MASS/ROOF enums cannot express the shape.
 - LANDMARK MODULE: only when the user names a known landmark; vary params/seed/facing.
 - Never emit identical plans for repeat requests; differentiate facade, entrances, and masses.
@@ -30,14 +40,16 @@ Core rules:
 _SCHEMA_HINT = """
 LlmPlan JSON shape (provider may also enforce response_format):
 - mode: "build" | "patch"
+- style_profile: string preset id (optional)
+- style_attributes: object with wall_material/roof_material/…; palette/materials must be role→block maps
 - anchor: {x,y,z} optional when request already has player pos
-- components[]: {componentType, slotId?, pos?, size?, features[], params{}}
+- components[]: REQUIRED non-empty for mode=build — {component_type, slot_id?, relative_position, dimensions, features[], params{}}
 - patch: {origin?, blocks:[{action,dx,dy,dz,targetBlock}]} for incremental edits
 - features may include strings:
   - component_request:<json>  (library component placement)
   - group_request:<json>      (component group expansion)
   - typology:<id> / landmark:<id> / module:<id> / skeleton:<id>
-Prefer MASS_*/ROOF/ENTRANCE/FACADE_* for ordinary buildings; use ASSEMBLY + presets for freeform.
+Choose component composition from building type; residential MASS+ROOF+WINDOWS only when the type is residential.
 """
 
 

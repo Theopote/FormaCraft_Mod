@@ -176,12 +176,42 @@ def emit_validation_gap(
     return out
 
 
-def _try_validate(normalized: Dict[str, Any]) -> Optional[List[str]]:
+def _try_validate(normalized: Dict[str, Any], user_text: str = "") -> Optional[List[str]]:
     try:
         validate_llm_plan_dict(normalized)
+        from .plan_semantic_gate import assert_plan_semantics
+
+        assert_plan_semantics(normalized, user_text or "")
         return component_consistency_errors(normalized) or None
     except LlmPlanValidationError as exc:
         return list(exc.errors)
+
+
+def _record_quality(
+    plan: Dict[str, Any],
+    *,
+    user_text: str,
+    parse_ok: bool,
+    fidelity_ok: bool,
+    reason: str = "",
+) -> None:
+    try:
+        from .generation_quality_metrics import record_plan_outcome, summarize_plan
+        from .plan_semantic_gate import detect_semantic_intent
+
+        record_plan_outcome(
+            parse_ok=parse_ok,
+            build_ok=parse_ok and fidelity_ok,  # Python stage has no placement yet
+            intent_fidelity_ok=fidelity_ok,
+            request_id="",
+            user_text=user_text or "",
+            intent_class=detect_semantic_intent(user_text or "", plan if isinstance(plan, dict) else None),
+            style_profile=str((plan or {}).get("style_profile") or ""),
+            reason=reason,
+            plan_summary=summarize_plan(plan if isinstance(plan, dict) else None),
+        )
+    except Exception:
+        logger.debug("generation quality metrics recording skipped", exc_info=True)
 
 
 def repair_llm_plan_validation(
@@ -207,10 +237,11 @@ def repair_llm_plan_validation(
     preserve_fbd = has_fbd_program(plan) or requests_fbd(user_text)
     normalized = resolve_delegated_entrances(normalize_fn(plan, req), user_text)
     preserve_design = bool(component_consistency_errors(normalized))
-    errors = _try_validate(normalized)
+    errors = _try_validate(normalized, user_text)
     if preserve_fbd and not has_fbd_program(normalized) and normalized.get('plan_status') != 'capability_gap':
         errors = ["FBD request requires ASSEMBLY.params.fbd_program; preserve procedural authority, do not substitute legacy geometry"]
     if not errors:
+        _record_quality(normalized, user_text=user_text, parse_ok=True, fidelity_ok=True, reason="ok")
         return normalized
 
     logger.warning("LlmPlan validation failed (%d issues), attempting recovery: %s", len(errors), errors[:3])
@@ -253,11 +284,14 @@ def repair_llm_plan_validation(
                     raise ValueError("LlmPlan repair response must be an object")
                 repaired_norm = resolve_delegated_entrances(normalize_fn(repaired, req), user_text)
                 preserve_design = preserve_design or bool(component_consistency_errors(repaired_norm))
-                repaired_errors = _try_validate(repaired_norm)
+                repaired_errors = _try_validate(repaired_norm, user_text)
                 if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':
                     repaired_errors = ["FBD repair must preserve procedural authority; do not replace the program with another building"]
                 if not repaired_errors:
                     logger.info("LlmPlan recovered via LLM validation repair")
+                    _record_quality(
+                        repaired_norm, user_text=user_text, parse_ok=True, fidelity_ok=True, reason="repaired"
+                    )
                     return repaired_norm
                 normalized, errors = repaired_norm, repaired_errors
             except (TypeError, ValueError):
@@ -269,9 +303,20 @@ def repair_llm_plan_validation(
     if building_profile is not None and not preserve_fbd and not preserve_design:
         fallback = build_minimal_plan_from_profile(building_profile, req, user_text)
         fallback_norm = normalize_fn(fallback, req)
-        fallback_errors = _try_validate(fallback_norm)
+        fallback_errors = _try_validate(fallback_norm, user_text)
         if not fallback_errors:
             logger.info("LlmPlan recovered via BuildingProfile compositional fallback")
+            _record_quality(
+                fallback_norm, user_text=user_text, parse_ok=True, fidelity_ok=True, reason="profile_fallback"
+            )
             return fallback_norm
 
-    return emit_validation_gap(normalized, errors, building_profile)
+    gap_plan = emit_validation_gap(normalized, errors, building_profile)
+    _record_quality(
+        gap_plan,
+        user_text=user_text,
+        parse_ok=False,
+        fidelity_ok=False,
+        reason=(errors[0] if errors else "capability_gap"),
+    )
+    return gap_plan

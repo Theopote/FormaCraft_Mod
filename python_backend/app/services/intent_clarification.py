@@ -31,10 +31,21 @@ _BROAD_TYPE_ONLY_RE = re.compile(
 )
 
 _STYLE_OR_SCALE_HINTS = (
-    "哥特", "现代", "中式", "古典", "巴洛克", "赛博", "工业", "童话",
-    "gothic", "modern", "baroque", "style", "风格",
+    "哥特", "现代", "中式", "藏式", "日式", "徽派", "古典", "巴洛克", "赛博", "工业", "童话",
+    "gothic", "modern", "baroque", "tibetan", "japanese", "hui", "style", "风格",
+    "白色", "黑色", "白墙", "黑瓦", "灰砖",
     "层", "楼高", "米高", "m ", "meter", "floor", "宽", "高", "深",
     "×", "x", "格", "block",
+)
+
+# Morphologically distinctive building types: enough to plan without landmark identity.
+_EXPLICIT_BUILDING_TYPE_HINTS = (
+    "佛塔", "古塔", "宝塔", "道观", "寺庙", "庙宇", "山门", "牌坊", "园林", "庭院",
+    "塔楼", "楼阁", "殿堂", "宫殿", "教堂", "大教堂", "城堡", "别墅", "博物馆",
+    "体育馆", "神庙", "神社", "亭", "榭", "廊", "塔",
+    "pagoda", "stupa", "temple", "shrine", "cathedral", "church", "castle",
+    "palace", "villa", "museum", "stadium", "tower", "garden", "courtyard",
+    "gatehouse", "torii",
 )
 
 _CLARIFICATION_AI_MARKERS = (
@@ -96,6 +107,13 @@ def is_follow_up_to_clarification(req: Any) -> bool:
 def _has_style_or_scale_hint(text: str) -> bool:
     lower = (text or "").lower()
     return any(h in lower or h in (text or "") for h in _STYLE_OR_SCALE_HINTS)
+
+
+def _has_explicit_building_type(text: str) -> bool:
+    """True when the user named a concrete building typology (not just '房子/建筑')."""
+    raw = text or ""
+    lower = raw.lower()
+    return any(h in lower or h in raw for h in _EXPLICIT_BUILDING_TYPE_HINTS)
 
 
 def _is_patch_or_edit_mode(req: Any) -> bool:
@@ -225,10 +243,12 @@ def assess_clarification_needs(req: Any) -> ClarificationAssessment:
             confidence=0.82,
         )
 
-    if (
-        not classification.is_specific_real_building
-        and not _has_style_or_scale_hint(classify_text)
-    ):
+    # Explicit typology (pagoda, temple gate, garden…) is enough to plan — do not
+    # treat "not a named landmark" as insufficient information.
+    if _has_explicit_building_type(classify_text) or _has_style_or_scale_hint(classify_text):
+        return ClarificationAssessment(needs_clarification=False)
+
+    if not classification.is_specific_real_building:
         hint = (classification.reasoning_hint or "").lower()
         if classification.confidence >= 0.55 or "generic" in hint or "broad" in hint:
             qs = _build_questions("generic_typology", user_text)

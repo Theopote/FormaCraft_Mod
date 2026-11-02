@@ -38,7 +38,10 @@ class DesignValidatorSuiteTest {
     }
 
     @Test void preparedPassChecksPreparedSnapshotRatherThanAuthoredComponents() {
-        var plan = LlmPlanTestFixtures.builder().components(List.of()).build();
+        // Authored may be a valid mass-only plan; prepared pass validates the inferred snapshot.
+        var mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0), new Dimensions(12, 10, 8),
+                List.of(), Map.of());
+        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
         assertTrue(DesignValidatorSuite.checkAuthored(plan).isEmpty());
         assertEquals("E_ROOF_TYPE_UNSUPPORTED",
                 DesignValidatorSuite.checkPrepared(plan, List.of(roof())).orElseThrow().code());
@@ -55,7 +58,10 @@ class DesignValidatorSuiteTest {
 
     @Test void materialChecksRetainStageSpecificPathsAndMessages() {
         var attributes = new StyleAttributes(null, "suite:missing_wall", null, null, null, null, null, null);
-        var authored = LlmPlanTestFixtures.builder().components(List.of()).styleAttributes(attributes).build();
+        var mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0), new Dimensions(12, 10, 8),
+                List.of(), Map.of());
+        // Non-empty components required so the empty-plan semantic gate does not mask material checks.
+        var authored = LlmPlanTestFixtures.builder().components(List.of(mass)).styleAttributes(attributes).build();
         var attributeGap = DesignValidatorSuite.checkAuthored(authored).orElseThrow();
         assertEquals("E_MATERIAL_INVALID", attributeGap.code());
         assertEquals("style_attributes", attributeGap.path());
