@@ -28,6 +28,7 @@ public final class ComponentRetriever {
 
     /** 当前检索可见的玩家（含私人命名空间）；服务端请求线程设置。 */
     private static final ThreadLocal<UUID> VIEWER_PLAYER = new ThreadLocal<>();
+    public static UUID viewerPlayer() { return VIEWER_PLAYER.get(); }
 
     public static void setViewerPlayer(UUID playerId) {
         if (playerId == null) {

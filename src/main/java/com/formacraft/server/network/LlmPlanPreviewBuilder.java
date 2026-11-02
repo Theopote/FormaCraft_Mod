@@ -326,6 +326,8 @@ public final class LlmPlanPreviewBuilder {
         String worldKey = com.formacraft.server.generation.typology.builder.PalacePreviewPlan.worldKeyOf(serverWorld);
         com.formacraft.server.preview.GenerationRequestContext.begin(
                 player.getUuid(), worldKey, origin);
+        java.util.UUID previousAssetViewer = com.formacraft.common.component.query.ComponentRetriever.viewerPlayer();
+        com.formacraft.common.component.query.ComponentRetriever.setViewerPlayer(player.getUuid());
         try {
             boolean patchRequest = req.getPromptMode() != null
                     && !"BUILD".equalsIgnoreCase(req.getPromptMode().trim());
@@ -405,6 +407,7 @@ public final class LlmPlanPreviewBuilder {
 
             // 检查应该使用哪种编译路径
             List<com.formacraft.common.patch.BlockPatch> patches;
+            var buildingAssets = com.formacraft.common.component.BuildingAssetCapture.Data.empty();
             var circulation = new ArrayList<com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight>();
 
             if (llmPlan.usesPlanProgramMode()) {
@@ -417,6 +420,7 @@ public final class LlmPlanPreviewBuilder {
                         var compilation = ComponentPlanCompiler.compileWithCirculation(
                                 llmPlan, planOrigin, serverWorld, terrainSampler, false);
                         patches = compilation.patches();
+                        buildingAssets = compilation.assetUses();
                         circulation.addAll(compilation.circulation());
                     } else {
                         reportCapabilityGap(player, req, hbAlive, new com.formacraft.common.llm.dto.CapabilityGap(
@@ -469,6 +473,7 @@ public final class LlmPlanPreviewBuilder {
                     com.formacraft.server.assembly.AssemblyCompileDiagnostics.replaceSoftWarnings(
                             compiled.softWarnings());
                     patches = compiled.compilation().patches();
+                    buildingAssets = compiled.compilation().assetUses();
                     circulation.addAll(compiled.compilation().circulation());
                 } else {
                     com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
@@ -476,6 +481,7 @@ public final class LlmPlanPreviewBuilder {
                     var compilation = ComponentPlanCompiler.compileWithCirculation(
                             llmPlan, planOrigin, serverWorld, terrainSampler, false);
                     patches = compilation.patches();
+                    buildingAssets = compilation.assetUses();
                     circulation.addAll(compilation.circulation());
                 }
             }
@@ -946,6 +952,7 @@ public final class LlmPlanPreviewBuilder {
             }
 
             com.formacraft.common.build.GeneratedStructure structure = pipeline.structure();
+            String assetLockId = BuildingAssetArchiveSupport.save(player,serverWorld,llmPlan,structure,buildingAssets);
             PreviewStorage.storeStructure(player, structure);
             if (com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llmPlan)) {
                 PreviewStorage.storeSourcePlan(player, llmPlan);
@@ -956,6 +963,8 @@ public final class LlmPlanPreviewBuilder {
             FormaCraftServerNetworking.sendPreviewOutline(player, outline);
 
             PreviewStorage.setPreview(player, true);
+            if (assetLockId != null) ServerPlayNetworking.send(player,new FormaCraftNetworking.ResponseBuildStatusPayload(
+                    "建筑构件版本已锁定："+assetLockId+"；可用 /forma_assets list 查看"));
 
             player.sendMessage(net.minecraft.text.Text.translatable(
                             "formacraft.preview.ready.building"),
@@ -990,6 +999,7 @@ public final class LlmPlanPreviewBuilder {
             ));
             return true;
         } finally {
+            com.formacraft.common.component.query.ComponentRetriever.setViewerPlayer(previousAssetViewer);
             com.formacraft.server.preview.GenerationRequestContext.clear();
         }
     }

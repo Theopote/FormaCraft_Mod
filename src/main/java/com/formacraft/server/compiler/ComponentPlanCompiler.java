@@ -46,7 +46,11 @@ import java.util.Set;
  * ComponentGenerator → List<BlockPatch> → Preview / Apply
  */
 public final class ComponentPlanCompiler {
-    public record Compilation(List<BlockPatch> patches, List<AssemblyCirculationConstraints.Flight> circulation) {
+    public record Compilation(List<BlockPatch> patches, List<AssemblyCirculationConstraints.Flight> circulation,
+                              com.formacraft.common.component.BuildingAssetCapture.Data assetUses) {
+        public Compilation(List<BlockPatch> patches,List<AssemblyCirculationConstraints.Flight> circulation) {
+            this(patches,circulation,com.formacraft.common.component.BuildingAssetCapture.Data.empty());
+        }
         public Compilation { patches = List.copyOf(patches); circulation = List.copyOf(circulation); }
     }
 
@@ -54,8 +58,12 @@ public final class ComponentPlanCompiler {
     public static Compilation compileWithCirculation(LlmPlan plan, BlockPos globalAnchor, ServerWorld world,
                                                       TerrainStrategySampler terrainSampler, boolean applyTerrainAdaptation) {
         var flights = new ArrayList<AssemblyCirculationConstraints.Flight>();
-        try (var capture = AssemblyCirculationConstraints.captureTo(flights::addAll)) {
-            return new Compilation(compile(plan, globalAnchor, world, terrainSampler, applyTerrainAdaptation), flights);
+        try (var capture = AssemblyCirculationConstraints.captureTo(flights::addAll);
+             var assets = world == null ? com.formacraft.common.component.BuildingAssetCapture.disabled()
+                     : com.formacraft.common.component.BuildingAssetCapture.open(world.getServer().getSavePath(net.minecraft.util.WorldSavePath.ROOT),
+                             com.formacraft.common.component.query.ComponentRetriever.viewerPlayer())) {
+            var patches = compile(plan, globalAnchor, world, terrainSampler, applyTerrainAdaptation);
+            return new Compilation(patches, flights, patches.isEmpty() ? com.formacraft.common.component.BuildingAssetCapture.Data.empty() : assets.data());
         }
     }
 

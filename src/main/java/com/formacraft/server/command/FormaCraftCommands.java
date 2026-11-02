@@ -50,6 +50,7 @@ public class FormaCraftCommands {
         }
 
         StyleVisualCases.register(dispatcher);
+        BuildingAssetCommands.register(dispatcher);
 
         // Undo 命令
         dispatcher.register(literal("formacraft_undo")

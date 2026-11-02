@@ -8,7 +8,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.*;
 
 /** Server-thread queue; a newer snapshot replaces an unfinished older one for the same player. */
-final class ComponentCatalogSync {
+public final class ComponentCatalogSync {
     private record Pending(long revision, byte[] bytes, int offset) {}
     private static final Map<UUID,Pending> QUEUE = new HashMap<>();
     private static long nextRevision;
@@ -34,7 +34,7 @@ final class ComponentCatalogSync {
             }
         });
     }
-    static void send(ServerPlayerEntity player, String json) {
+    public static void send(ServerPlayerEntity player, String json) {
         if (!ServerPlayNetworking.canSend(player,ComponentCatalogPayload.ID)) return;
         long revision = ++nextRevision;
         try {

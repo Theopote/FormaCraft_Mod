@@ -1,0 +1,74 @@
+package com.formacraft.common.component;
+
+import com.formacraft.common.component.transform.ComponentTransform;
+import com.formacraft.common.json.JsonUtil;
+import net.minecraft.util.math.Direction;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.security.*;
+import java.util.*;
+
+/** Compile-local asset use, returned explicitly with the compiled artifact. Never writes files. */
+public final class BuildingAssetCapture implements AutoCloseable {
+    public record Use(String assetId, String snapshot, String shape, int x, int y, int z,
+                      String fromFacing, String facing, String mirror,
+                      boolean materialRequested, boolean materialApplied, String style, long seed) {}
+    public record Data(Map<String,ComponentPackageIO.Verified> sources, Map<String,String> shapes, List<Use> uses) {
+        public Data { sources = Map.copyOf(sources); shapes = Map.copyOf(shapes); uses = List.copyOf(uses); }
+        public static Data empty() { return new Data(Map.of(),Map.of(),List.of()); }
+    }
+    private static final ThreadLocal<BuildingAssetCapture> ACTIVE = new ThreadLocal<>();
+    private final BuildingAssetCapture previous;
+    private final Path world;
+    private final UUID viewer;
+    private final Map<String,ComponentCatalog.Entry> visible = new HashMap<>();
+    private final Map<String,ComponentPackageIO.Verified> sources = new LinkedHashMap<>();
+    private final Map<String,ComponentPackageIO.Verified> loaded = new HashMap<>();
+    private final Map<String,String> shapes = new LinkedHashMap<>();
+    private final List<Use> uses = new ArrayList<>();
+    private long sourceBytes,shapeBytes;
+    private boolean closed;
+    private BuildingAssetCapture(Path world, UUID viewer, boolean enabled) {
+        this.world = world; this.viewer = viewer; previous = ACTIVE.get();
+        if (enabled) for (var entry : ComponentStorage.loadCatalog(world,viewer).components)
+            if (entry != null && entry.packageRef != null) visible.put(entry.id,entry);
+        ACTIVE.set(this);
+    }
+    public static BuildingAssetCapture open(Path world, UUID viewer) { return new BuildingAssetCapture(world,viewer,true); }
+    public static BuildingAssetCapture disabled() { return new BuildingAssetCapture(null,null,false); }
+    public Data data() { return new Data(sources,shapes,uses); }
+    public static void record(ComponentDefinition definition, Direction from, ComponentTransform transform,
+                              int x,int y,int z,boolean materialRequested,boolean materialApplied,String style,long seed) {
+        var capture = ACTIVE.get(); if (capture == null || definition == null) return;
+        var entry = capture.visible.get(definition.id); if (entry == null) return;
+        try {
+            var source = capture.loaded.get(definition.id);
+            if (source == null) {
+                source = ComponentLibraryOperations.export(capture.world,capture.viewer,definition.id,entry.packageRef,0,entry.packageRef);
+            }
+            String snapshot = ComponentAssetSnapshots.key(source), json = JsonUtil.toJson(definition), shape = digest(json);
+            long additionalSource = capture.sources.containsKey(snapshot) ? 0 : source.toBytes().length;
+            long additionalShape = capture.shapes.containsKey(shape) ? 0 : json.getBytes(StandardCharsets.UTF_8).length;
+            if (json.length() > ComponentIds.MAX_JSON_CHARS || capture.uses.size() >= 65536
+                    || capture.sources.size() >= 256 && !capture.sources.containsKey(snapshot)
+                    || capture.shapes.size() >= 1024 && !capture.shapes.containsKey(shape)
+                    || capture.sourceBytes+additionalSource > 32L*1024*1024 || capture.shapeBytes+additionalShape > 8L*1024*1024) throw new IOException("建筑构件锁超出容量限制");
+            capture.sourceBytes += additionalSource; capture.shapeBytes += additionalShape;
+            capture.loaded.put(definition.id,source);
+            capture.sources.put(snapshot,source); capture.shapes.put(shape,json);
+            capture.uses.add(new Use(definition.id,snapshot,shape,x,y,z,from.name(),transform.facing().name(),transform.mirror().name(),
+                    materialRequested,materialApplied,style,seed));
+        } catch (IOException invalid) { throw new IllegalStateException("无法锁定实际使用的构件版本",invalid); }
+    }
+    public static String digest(String text) { return digest(text.getBytes(StandardCharsets.UTF_8)); }
+    public static String digest(byte[] bytes) {
+        try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)); }
+        catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
+    @Override public void close() {
+        if (closed) return;
+        if (ACTIVE.get() != this) throw new IllegalStateException("Asset capture scopes must close in order");
+        closed = true; if (previous == null) ACTIVE.remove(); else ACTIVE.set(previous);
+    }
+}

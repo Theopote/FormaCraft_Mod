@@ -60,6 +60,7 @@ public final class ComponentDefinitionCompiler {
 
         List<BlockPatch> out = new ArrayList<>(def.blocks.size());
         int minDy = Integer.MAX_VALUE;
+        boolean materialAllowed = def.variantRules != null ? def.variantRules.material != null : !def.isCapturedOrigin();
         for (ComponentDefinition.BlockEntry be : def.blocks) {
             if (be == null) continue;
             minDy = Math.min(minDy, be.dy);
@@ -77,7 +78,6 @@ public final class ComponentDefinitionCompiler {
             int dz = baseZ + off.getZ();
 
             String block;
-            boolean materialAllowed = def.variantRules != null ? def.variantRules.material != null : !def.isCapturedOrigin();
             if (semanticSkin && materialAllowed) {
                 com.formacraft.common.semantic.SemanticPart part = be.semantic != null
                         ? be.semantic
@@ -104,6 +104,7 @@ public final class ComponentDefinitionCompiler {
             }
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }
+        if (!out.isEmpty()) BuildingAssetCapture.record(def,fromFacing,transform,baseX,baseY,baseZ,semanticSkin,semanticSkin && materialAllowed,semanticStyleId,seedBase);
         return out;
     }
 

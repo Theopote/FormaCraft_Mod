@@ -20,6 +20,9 @@ class FormaCraftCommandsRegistrationTest {
             assertNotNull(dispatcher.getRoot().getChild("forma_cancel"));
             assertNotNull(dispatcher.getRoot().getChild("formacraft_memory_commit"));
             assertNotNull(dispatcher.getRoot().getChild("formacraft_memory_commit").getChild("retry"));
+            assertNotNull(dispatcher.getRoot().getChild("forma_assets").getChild("list"));
+            assertNotNull(dispatcher.getRoot().getChild("forma_assets").getChild("preview").getChild("id"));
+            assertNotNull(dispatcher.getRoot().getChild("forma_assets").getChild("restore").getChild("id"));
         }
     }
 }
