@@ -15,7 +15,7 @@ public final class OfflineCommunityIndex {
             if (exactTypeKey != null && (exactTypeKey.isBlank() || exactTypeKey.length() > 128))
                 throw new IllegalArgumentException("Invalid type key");
             hardTags = hardTags == null ? Set.of() : Set.copyOf(hardTags);
-            if (hardTags.size() > 64 || hardTags.stream().anyMatch(t -> t.isBlank() || t.length() > 128))
+            if (hardTags.size() > 64 || hardTags.stream().anyMatch(t -> t.isBlank() || t.codePointCount(0, t.length()) > 128))
                 throw new IllegalArgumentException("Invalid tags");
         }
     }
@@ -29,7 +29,7 @@ public final class OfflineCommunityIndex {
     }
     private record Entry(CommunityPackages.Descriptor descriptor, byte[] bytes,
                          ComponentPackageIO.Verified inspected) {}
-    private record Cursor(Query query, int pageSize, List<List<String>> groups, int offset, Instant expires) {}
+    private record Cursor(Query query, int pageSize, String contextKey, List<List<String>> groups, int offset, Instant expires) {}
     private final String authorityId;
     private final Clock clock;
     private final Map<String, Entry> entries = new TreeMap<>();
@@ -71,6 +71,10 @@ public final class OfflineCommunityIndex {
     }
 
     public synchronized Page search(Query query, int pageSize, String token) throws IOException {
+        return search(query, pageSize, token, "internal");
+    }
+
+    synchronized Page search(Query query, int pageSize, String token, String contextKey) throws IOException {
         Objects.requireNonNull(query);
         if (pageSize < 1 || pageSize > 20) throw new CommunityPackages.Failure("invalid_page_size");
         Instant now = clock.instant();
@@ -80,7 +84,7 @@ public final class OfflineCommunityIndex {
             if (cursor == null || !now.isBefore(cursor.expires)) {
                 cursors.remove(token); throw new CommunityPackages.Failure("cursor_expired");
             }
-            if (!query.equals(cursor.query) || pageSize != cursor.pageSize)
+            if (!query.equals(cursor.query) || pageSize != cursor.pageSize || !contextKey.equals(cursor.contextKey))
                 throw new CommunityPackages.Failure("cursor_mismatch");
         } else {
             List<List<String>> groups = new ArrayList<>();
@@ -91,7 +95,7 @@ public final class OfflineCommunityIndex {
                 if (group == null) { group = new ArrayList<>(); groups.add(group); }
                 group.add(item.getKey());
             }
-            cursor = new Cursor(query, pageSize, groups.stream().map(List::copyOf).toList(), 0, now.plusSeconds(300));
+            cursor = new Cursor(query, pageSize, contextKey, groups.stream().map(List::copyOf).toList(), 0, now.plusSeconds(300));
         }
         List<Group> result = new ArrayList<>(); int offset = cursor.offset;
         while (offset < cursor.groups.size() && result.size() < pageSize) {
@@ -108,7 +112,7 @@ public final class OfflineCommunityIndex {
             cursors.values().removeIf(c -> !now.isBefore(c.expires));
             if (cursors.size() >= MAX_CURSORS) throw new CommunityPackages.Failure("budget_exceeded");
             next = UUID.randomUUID().toString();
-            cursors.put(next, new Cursor(query, pageSize, cursor.groups, offset, cursor.expires));
+            cursors.put(next, new Cursor(query, pageSize, contextKey, cursor.groups, offset, cursor.expires));
         }
         return new Page(result, next);
     }

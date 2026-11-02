@@ -1,6 +1,6 @@
 # 社区离线原型
 
-状态：Java 内部只读原型，不是 HTTP 服务，也不是完整 v1 JSON 接口解析器。实现位于 `common.component.community`；不注册游戏命令、消息或自动启动任务，不写入构件库或世界。
+状态：Java 内部只读原型，包含 v1 搜索请求解析器，不是 HTTP 服务或完整 v1 响应实现。实现位于 `common.component.community`；不注册游戏命令、消息或自动启动任务，不写入构件库或世界。
 
 ## 已实现
 
@@ -20,20 +20,26 @@
 2. 调用 `search(Query, pageSize, cursor)` 浏览，或按完整 `ReleaseRef` 下载。
 3. `Download.verified()` 可作为后续安装事务的输入，但当前原型不调用该事务，也不建立 SelectedReleaseBinding。
 
-内部 Query 仅包含 exactTypeKey 和 hardTags，没有接收任意 JSON、忽略未知字段的路径。完整远端请求的 role、尺寸、净空、环境摘要、软标签、套系、字段投影和排序证据仍需实现适配；不能直接把设计示例反序列化成此 Query 后称为完整契约支持。索引搜索不判断兼容性；目标环境检查发生在下载校验阶段。
-
-## 测试和后续工作
+索引内部 Query 仅包含 exactTypeKey 和 hardTags；外层搜索请求解析器保留完整已定义条件，桥接前检查能力。role、尺寸、净空、环境摘要、软标签、套系、字段投影和排序证据的执行仍需后续实现；不能把请求解析成功称为全部检索能力已支持。索引搜索不判断兼容性；目标环境检查发生在下载校验阶段。
 
 ## JSON 请求适配范围
 
-下一步增加 `CommunitySearchContract`：搜索请求 UTF-8 上限 32 KiB，JSON 嵌套最多 16 层、最多 4096 个值；重复属性、未知属性、损坏编码、尾随内容与类型混用均拒绝。请求根字段 contract/requestId/needId/query 必需，pageSize 默认 10；fields 缺省为 identity/package/type/rights/evidence，cursor/environment 可省略或为 null。环境存在时 minecraftVersion/installedMods/completeness 必需，completeness 为 complete 或 partial。
+`CommunitySearchContract`：搜索请求 UTF-8 上限 32 KiB，JSON 嵌套最多 16 层、最多 4096 个值；重复属性、未知属性、损坏编码、孤立代理字符、注释、BOM、尾随内容与类型混用均拒绝。请求根字段 contract/requestId/needId/query 必需，pageSize 默认 10；fields 缺省为 identity/package/type/rights/evidence，cursor/environment 可省略或为 null。环境存在时 minecraftVersion/installedMods/completeness 必需，completeness 为 complete 或 partial。
+
+installedMods 只列依赖模组，不重复 minecraft 键；Minecraft 版本使用 minecraftVersion。模组键为 1–64 个小写 ASCII 字母/数字/下划线/连字符，首字符为字母，版本为最长 128 个 Unicode 标量值的非空文本，最多 128 项。
 
 query 的所有检索条件均可省略；targetSize 存在时 frame/unit/x/y/z 必需，坐标为正整数或 null。sizePolicy 默认 fixed；required 默认 true，failurePolicy 默认与之对应的 report_required_failure 或 report_optional_omission，不能组合出相互矛盾的值。visualIntent、suitePreference 存在时严格校验其字段，不接受任意规则或脚本。标签集合不接受重复项，总数最多 64；排序规范化只用于查询身份，不改写作者数据。
 
 完整请求解析成功不代表 mock 已支持所有条件。离线桥接仅执行类型、硬标签及其现有摘要字段；非空环境、尺寸、角色、软偏好、套系等返回 unsupported_constraint/unsupported_capability，不静默降级。fields 绑定分页上下文，但桥接结果仍是 Java 内部 Page，不是 v1 JSON 响应。完整响应投影、HTTP 和上下文预算留待下一阶段。
 
+Query 身份按确定顺序编码标签、环境模组和字段集合，包含契约与当前排序策略，忽略 requestId/needId/cursor/pageSize；pageSize 由游标另行校验。缺省值与显式默认值相同，字段重排和集合重排不改变身份。桥接游标与原内部 API 游标也不混用。
+
+## 测试和后续工作
+
 `CommunityOfflineTest` 覆盖真实包分组、不同来源许可、原字节保留、独立 hash 校验、下载上限、目标环境、不可变发布、跨 authority 拒绝、分页快照及到期、撤回检查和查询变更拒绝。已加入 `scripts/verify-component-assets.ps1` 的默认回归范围。
 
 2026-11-03 隔离回归构建成功，269 项测试通过，失败/错误/跳过均为 0，其中新增离线社区测试 9 项；文档链接检查通过。尚未进行真实远端或游戏内验收。
 
-后续依次完成严格有界 JSON 契约适配、HTTP 只读传输和取消/断点续传，再完成 DownloadReceipt 持久缓存及所选来源在本地去重、配方和建筑锁中的绑定。当前验证仅证明原型下载保留所选来源，尚未证明安装后或建筑锁仍保留该来源。此门槛通过前，不开放远端 AI 自动安装/生成。
+同日完成搜索请求适配后，隔离回归共 278 项通过，失败/错误/跳过均为 0，新增 `CommunitySearchContractTest` 9 项，覆盖文档示例、严格格式、结构预算、条件保留、规范身份和分页上下文。
+
+后续完成 JSON 响应投影和检索能力适配、HTTP 只读传输和取消/断点续传，再完成 DownloadReceipt 持久缓存及所选来源在本地去重、配方和建筑锁中的绑定。当前验证仅证明原型下载保留所选来源，尚未证明安装后或建筑锁仍保留该来源。此门槛通过前，不开放远端 AI 自动安装/生成。

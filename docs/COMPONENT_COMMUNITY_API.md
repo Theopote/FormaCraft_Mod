@@ -23,7 +23,7 @@
 
 ## 搜索输入
 
-每个请求包含 contract、requestId、needId、query、environment、fields、pageSize 和 cursor。query 表达 exactTypeKey、role、softTags、hardTags、targetSize、attachment、visualIntent、suitePreference 和失败策略；字段不是直接透传给当前 ComponentQuery 的 JSON。
+每个请求包含 contract、requestId、needId、query、environment、fields、pageSize 和 cursor。query 表达 exactTypeKey、role、keywords、softTags、hardTags、targetSize、attachment、visualIntent、suitePreference 和失败策略；字段不是直接透传给当前 ComponentQuery 的 JSON。搜索请求解析与默认值已实现，详见 [离线原型](COMPONENT_COMMUNITY_OFFLINE.md)；可解析条件与当前模拟索引可执行条件分别检查。
 
 targetSize 带 frame=component_xyz 和 unit=block，x/y/z 为正整数或 null；null 表示未指定，不能把 0 当未指定。sizePolicy 区分 fixed 与 negotiable，后者的调整建议须由建筑规划器接受。开洞与净空独立表达；首版未支持的约束返回 unsupported_constraint，不静默忽略。
 
@@ -81,6 +81,7 @@ HTTP 摘要最多 128 KiB，而现有游戏请求/响应各有边界；游戏侧
 
 | code | 客户端行为 |
 | --- | --- |
+| invalid_request / request_too_large | 拒绝损坏格式、类型混用、超限结构；修正请求后再发，不无限重试 |
 | unsupported_contract / unsupported_capability | 停止该功能，保留本地能力，不猜测字段含义 |
 | unsupported_constraint | 显示不支持的硬条件；由用户/规划器明确改需求 |
 | cursor_expired / cursor_mismatch | 重新检索；不拼接成原快照 |
