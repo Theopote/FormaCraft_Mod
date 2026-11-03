@@ -25,6 +25,7 @@ public final class CommunityTaskClientState {
     private View view;
     private CommunityInstallDocument.Preview preview;
     private CommunityInstallDocument.Installed installed;
+    private CommunityInstallDocument.Installed favorite;
     private String selectedRelease="";
     public CommunityTaskClientState(LongSupplier clock) { this.clock = Objects.requireNonNull(clock); }
     public Phase phase() { return phase; }
@@ -36,19 +37,20 @@ public final class CommunityTaskClientState {
     public CommunitySearchResponse.Decoded result() { return result; }
     public CommunityInstallDocument.Preview preview() { return preview; }
     public CommunityInstallDocument.Installed installed() { return installed; }
+    public CommunityInstallDocument.Installed recipe() { return favorite; }
     public void open() { clear(); phase = Phase.OPENING; issue(Operation.OPEN,null,"",0,0,null,false); }
     public void search(byte[] bytes) throws IOException {
         if (session == null || phase == Phase.OPENING || phase == Phase.CLOSING) throw new IOException("Community session is not open");
         if (bytes == null || bytes.length == 0 || bytes.length > CommunityTaskNetworking.MAX_REQUEST) throw new IOException("Search size limit");
         byte[] owned = bytes.clone(); var parsed = CommunitySearchContract.decode(owned);
-        query = parsed; upload = owned; uploadOffset = 0; uploadId = UUID.randomUUID(); task = catalog = null; preview=null; installed=null; selectedRelease="";
+        query = parsed; upload = owned; uploadOffset = 0; uploadId = UUID.randomUUID(); task = catalog = null; preview=null; installed=null; favorite=null; selectedRelease="";
         result = null; resultBytes = null; receipt = error = ""; kind = "SEARCH"; phase = Phase.UPLOADING;
         issue(Operation.SEARCH_BEGIN,uploadId,"",0,upload.length,null,false);
     }
     public void download(String releaseId,boolean resumable) throws IOException {
         if (phase != Phase.READY || result == null || catalog == null || result.candidates().stream().noneMatch(candidate -> candidate.releaseRef().releaseId().equals(releaseId)))
             throw new IOException("Candidate is not selected from the current page");
-        receipt = error = ""; task = null; kind = "DOWNLOAD"; phase = Phase.WAITING; preview=null; installed=null; selectedRelease=releaseId;
+        receipt = error = ""; task = null; kind = "DOWNLOAD"; phase = Phase.WAITING; preview=null; installed=null; favorite=null; selectedRelease=releaseId;
         issue(Operation.DOWNLOAD,catalog,releaseId,0,0,null,resumable);
     }
     public void previewInstall() throws IOException {
@@ -61,10 +63,16 @@ public final class CommunityTaskClientState {
         UUID approval=task; task=null; preview=null; kind="INSTALL"; phase=Phase.WAITING; error="";
         issue(Operation.INSTALL_CONFIRM,approval,"",0,0,null,false);
     }
+    public void saveRecipe(com.formacraft.common.component.ComponentRecipeLibrary.Spec spec) throws IOException {
+        if(phase!=Phase.READY || !Set.of("INSTALL","RECIPE").contains(kind) || installed==null || task==null || receipt.isEmpty()) throw new IOException("No current installed source");
+        byte[] options=CommunityRecipeOptions.encode(spec); UUID source=task;
+        task=null; favorite=null; kind="RECIPE"; phase=Phase.WAITING; error="";
+        issue(Operation.SAVE_RECIPE,source,"",0,0,options,false);
+    }
     public void cancel() { close(""); }
     private void close(String reason) {
         if (session == null) { clear(); if (!reason.isEmpty()) fail(reason); return; }
-        error = reason; upload = null; resultBytes = null; result = null; receipt = ""; preview=null; installed=null; phase = Phase.CLOSING;
+        error = reason; upload = null; resultBytes = null; result = null; receipt = ""; preview=null; installed=null; favorite=null; phase = Phase.CLOSING;
         issue(Operation.CLOSE,null,"",0,0,null,false);
     }
     public Request nextRequest() {
@@ -105,7 +113,7 @@ public final class CommunityTaskClientState {
                     if (uploadOffset == upload.length) issue(Operation.SEARCH_SUBMIT,uploadId,"",0,0,null,false);
                     else issue(Operation.SEARCH_CHUNK,uploadId,"",uploadOffset,0,Arrays.copyOfRange(upload,uploadOffset,Math.min(upload.length,uploadOffset+CommunityTaskNetworking.CHUNK_BYTES)),false);
                 }
-                case SEARCH_SUBMIT, DOWNLOAD, INSTALL_PREVIEW, INSTALL_CONFIRM, POLL, CANCEL -> acceptStatus(request,response);
+                case SEARCH_SUBMIT, DOWNLOAD, INSTALL_PREVIEW, INSTALL_CONFIRM, SAVE_RECIPE, POLL, CANCEL -> acceptStatus(request,response);
                 case RESULT_CHUNK -> {
                     byte[] chunk = response.data();
                     if (response.reply() != Reply.CHUNK || response.view() != null || !Objects.equals(task,response.subjectId()) || response.length() != resultLength
@@ -122,6 +130,8 @@ public final class CommunityTaskClientState {
                             preview=document;
                         } else if(kind.equals("INSTALL")) {
                             var document=CommunityInstallDocument.decodeInstalled(bytes); if(!receipt.equals(document.receiptId())) throw invalid(); installed=document;
+                        } else if(kind.equals("RECIPE")) {
+                            var document=CommunityInstallDocument.decodeRecipe(bytes); if(!receipt.equals(document.receiptId())) throw invalid(); favorite=document;
                         } else throw invalid();
                         phase = Phase.READY;
                     }
@@ -140,7 +150,13 @@ public final class CommunityTaskClientState {
                 || !next.kind().equals(kind) || !next.authorityId().equals(authority) || response.offset() != 0 || response.data().length != 0) throw invalid();
         if ((request.operation() == Operation.POLL || request.operation() == Operation.CANCEL) && !Objects.equals(task,next.taskId())) throw invalid();
         task = next.taskId(); view = next; upload = null;
-        if (next.status().equals("FAILED") || next.status().equals("CANCELLED")) { if (next.code().isEmpty()) throw invalid(); fail(next.code()); return; }
+        if (next.status().equals("FAILED") || next.status().equals("CANCELLED")) {
+            if (next.code().isEmpty() || !emptyBody(response)) throw invalid();
+            if(next.status().equals("FAILED") && kind.equals("RECIPE") && next.code().equals("recipe_failed") && installed!=null && !receipt.isEmpty()) {
+                error=next.code(); favorite=null; phase=Phase.READY; return;
+            }
+            fail(next.code()); return;
+        }
         if (!next.code().isEmpty()) throw invalid();
         if (next.status().equals("SUCCEEDED")) {
             if (kind.equals("DOWNLOAD")) {
@@ -163,12 +179,12 @@ public final class CommunityTaskClientState {
     }
     public void fail(String code) {
         error = code == null || !code.matches("[a-z][a-z0-9_]{0,63}") ? "invalid_response" : code; phase = Phase.ERROR;
-        pending = null; upload = null; resultBytes = null; result = null; catalog = null; receipt = ""; preview=null; installed=null; selectedRelease="";
+        pending = null; upload = null; resultBytes = null; result = null; catalog = null; receipt = ""; preview=null; installed=null; favorite=null; selectedRelease="";
     }
     public void clear() {
         phase = Phase.CLOSED; session = task = catalog = uploadId = null; authority = error = receipt = kind = sha = "";
         pending = null; sent = false; sentAt = nextPoll = 0; upload = null; uploadOffset = resultLength = 0;
-        resultBytes = null; query = null; result = null; view = null; preview=null; installed=null; selectedRelease="";
+        resultBytes = null; query = null; result = null; view = null; preview=null; installed=null; favorite=null; selectedRelease="";
     }
     private static IOException invalid() { return new IOException("Invalid community response"); }
 }

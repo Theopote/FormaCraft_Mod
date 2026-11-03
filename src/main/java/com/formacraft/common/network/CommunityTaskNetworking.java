@@ -11,7 +11,7 @@ import net.minecraft.util.Identifier;
 public final class CommunityTaskNetworking {
     private CommunityTaskNetworking() {}
     public static final int CHUNK_BYTES = 8 * 1024, MAX_REQUEST = 32 * 1024, MAX_RESULT = 128 * 1024;
-    public enum Operation { OPEN, SEARCH_BEGIN, SEARCH_CHUNK, SEARCH_SUBMIT, DOWNLOAD, POLL, RESULT_CHUNK, CANCEL, CLOSE, INSTALL_PREVIEW, INSTALL_CONFIRM }
+    public enum Operation { OPEN, SEARCH_BEGIN, SEARCH_CHUNK, SEARCH_SUBMIT, DOWNLOAD, POLL, RESULT_CHUNK, CANCEL, CLOSE, INSTALL_PREVIEW, INSTALL_CONFIRM, SAVE_RECIPE }
     public enum Reply { OPENED, ACK, STATUS, CHUNK, CLOSED, ERROR }
     private static boolean c2s, s2c;
     public static synchronized void registerC2S() { if (!c2s) { PayloadTypeRegistry.playC2S().register(Request.ID,Request.CODEC); c2s = true; } }
@@ -19,11 +19,11 @@ public final class CommunityTaskNetworking {
     public record View(UUID taskId,String kind,String status,String code,String receiptId,UUID catalogTaskId,
                        long deadline,long catalogExpiresAt,String authorityId) {
         public View {
-            if (!Set.of("","SEARCH","DOWNLOAD","PREVIEW","INSTALL").contains(kind) || !Set.of("IDLE","QUEUED","RUNNING","CACHING","SUCCEEDED","FAILED","CANCELLED").contains(status)
+            if (!Set.of("","SEARCH","DOWNLOAD","PREVIEW","INSTALL","RECIPE").contains(kind) || !Set.of("IDLE","QUEUED","RUNNING","CACHING","SUCCEEDED","FAILED","CANCELLED").contains(status)
                     || !safeCode(code) || receiptId == null || !receiptId.isEmpty() && !receiptId.matches("receipt_[0-9a-f]{64}")
                     || authorityId == null || !authorityId.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}") || deadline < 0 || catalogExpiresAt < 0
                     || (status.equals("IDLE") ? taskId != null || !kind.isEmpty() : taskId == null || kind.isEmpty())
-                    || !receiptId.isEmpty() && !(status.equals("SUCCEEDED") && Set.of("DOWNLOAD","PREVIEW","INSTALL").contains(kind)))
+                    || !receiptId.isEmpty() && !(status.equals("SUCCEEDED") && Set.of("DOWNLOAD","PREVIEW","INSTALL","RECIPE").contains(kind)))
                 throw new IllegalArgumentException("Invalid community task view");
         }
     }

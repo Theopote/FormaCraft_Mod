@@ -27,6 +27,11 @@ public final class CommunityInstallDocument {
         json.addProperty("status",selected.status().name()); json.addProperty("receiptId",selected.receipt().receiptId());
         String result=json.toString(); decodeInstalled(result.getBytes(StandardCharsets.UTF_8)); return result;
     }
+    public static String recipe(ComponentRecipeLibrary.Saved saved,String receiptId) throws IOException {
+        var json=root("RECIPE"); json.addProperty("assetId",saved.assetId()); json.addProperty("name",saved.name());
+        json.addProperty("status",saved.status().name()); json.addProperty("receiptId",receiptId);
+        String result=json.toString(); decodeRecipe(result.getBytes(StandardCharsets.UTF_8)); return result;
+    }
     private static JsonObject root(String kind) { var root=new JsonObject(); root.addProperty("schema",SCHEMA); root.addProperty("kind",kind); return root; }
     private static String name(String value) {
         if(value==null || value.isBlank()) return "未命名构件";
@@ -51,9 +56,13 @@ public final class CommunityInstallDocument {
                 integer(r.get("depth"),1,Integer.MAX_VALUE),integer(r.get("blocks"),0,Integer.MAX_VALUE),text(r.get("author"),256),text(r.get("license"),2048),training,authority,release,receipt(r));
     }
     public static Installed decodeInstalled(byte[] bytes) throws IOException {
-        var r=decode(bytes,"INSTALLED","schema","kind","assetId","name","status","receiptId");
+        return decodeSaved(bytes,"INSTALLED");
+    }
+    public static Installed decodeRecipe(byte[] bytes) throws IOException { return decodeSaved(bytes,"RECIPE"); }
+    private static Installed decodeSaved(byte[] bytes,String kind) throws IOException {
+        var r=decode(bytes,kind,"schema","kind","assetId","name","status","receiptId");
         String asset=text(r.get("assetId"),128), status=text(r.get("status"),64);
-        if(!ComponentIds.isSafeId(asset)) throw new IOException("Invalid asset");
+        if(!ComponentIds.isSafeId(asset) || kind.equals("RECIPE") && !ComponentRecipeLibrary.isRecipe(asset)) throw new IOException("Invalid asset");
         try { ComponentPackageInstallations.ImportStatus.valueOf(status); } catch(IllegalArgumentException invalid) { throw new IOException("Invalid import status"); }
         return new Installed(asset,text(r.get("name"),256),status,receipt(r));
     }

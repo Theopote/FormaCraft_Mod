@@ -4,6 +4,7 @@ import com.formacraft.common.component.ComponentPackageIO;
 import com.formacraft.common.component.ComponentSourceBinding;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.component.ComponentPackageInstallations;
+import com.formacraft.common.component.ComponentRecipeLibrary;
 import com.formacraft.common.component.community.*;
 import java.io.*;
 import java.net.URI;
@@ -17,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /** Server-owned bounded jobs. Installation requires an explicit current preview; no world edits. */
 public final class CommunityTaskCoordinator implements AutoCloseable {
     public static final int MAX_SESSIONS = 32, WORKERS = 2, QUEUE_SIZE = 8, STARTS_PER_MINUTE = 30;
-    public enum Kind { SEARCH, DOWNLOAD, PREVIEW, INSTALL }
+    public enum Kind { SEARCH, DOWNLOAD, PREVIEW, INSTALL, RECIPE }
     public enum Status { IDLE, QUEUED, RUNNING, CACHING, SUCCEEDED, FAILED, CANCELLED }
     public enum Transfer { FULL, RESUMABLE }
     public record Snapshot(UUID sessionId, UUID taskId, Kind kind, Status status, String code, String receiptId,
@@ -59,6 +60,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         String inputReceipt, document;
         String installedAsset;
         ComponentPackageInstallations.ImportStatus installedStatus;
+        ComponentRecipeLibrary.Spec recipe;
         Job(Session session, Instant now, byte[] request, CommunitySearchContract.Request parsed, CommunityPackages.Descriptor selected, Transfer transfer) {
             this.owner = session.owner; this.session = session.id; this.created = now;
             this.kind = request == null ? Kind.DOWNLOAD : Kind.SEARCH; this.request = request; this.parsed = parsed;
@@ -164,12 +166,25 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
             admit(session); return start(session,new Job(session,clock.instant(),Kind.INSTALL,previous.selected,previous.inputReceipt));
         }
     }
+    public UUID recipe(UUID owner,UUID sessionId,UUID sourceTask,ComponentRecipeLibrary.Spec spec) throws IOException {
+        // Apply exactly the same bounded parameter contract to trusted and game callers.
+        var checked=CommunityRecipeOptions.decode(CommunityRecipeOptions.encode(spec));
+        synchronized(lock) {
+            var session=session(owner,sessionId); var previous=session.job;
+            if(previous==null || !previous.id.equals(sourceTask) || !(previous.status==Status.SUCCEEDED || previous.kind==Kind.RECIPE && previous.status==Status.FAILED && "recipe_failed".equals(previous.code))
+                    || previous.kind!=Kind.INSTALL && previous.kind!=Kind.RECIPE || previous.installedAsset==null)
+                throw new CommunityPackages.Failure("stale_install");
+            admit(session); var job=new Job(session,clock.instant(),Kind.RECIPE,previous.selected,previous.inputReceipt);
+            job.installedAsset=previous.installedAsset; job.installedStatus=previous.installedStatus; job.recipe=checked;
+            return start(session,job);
+        }
+    }
     /** Revalidate the explicit source off the game thread; the session retains only bounded identity metadata. */
     public ComponentSourceBinding.Selection selection(UUID owner, UUID sessionId, UUID installTask) throws IOException {
         Job job;
         synchronized(lock) {
             var session=session(owner,sessionId); job=session.job;
-            if(job==null || !job.id.equals(installTask) || job.kind!=Kind.INSTALL || job.status!=Status.SUCCEEDED || job.installedAsset==null)
+            if(job==null || !job.id.equals(installTask) || job.kind!=Kind.INSTALL && job.kind!=Kind.RECIPE || job.status!=Status.SUCCEEDED || job.installedAsset==null)
                 throw new CommunityPackages.Failure("stale_install");
         }
         var selected=ComponentSourceBinding.resolveInstalled(paths(owner).downloads,job.inputReceipt,job.installedAsset,job.installedStatus,new ComponentStorage.SaveContext(world,owner,false,false));
@@ -233,12 +248,18 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
                     if(!component.isCapturedOrigin() && component.variantRules==null) throw new CommunityPackages.Failure("invalid_package");
                     String document=CommunityInstallDocument.preview(cached);
                     synchronized(lock) { current(job); job.document=document; job.receiptId=job.inputReceipt; job.status=Status.SUCCEEDED; }
-                } else {
+                } else if(job.kind==Kind.INSTALL) {
                     // Last revocable check. The accepted private import may finish after disconnect/cancel.
                     synchronized(lock) { current(job); job.status=Status.CACHING; }
                     var selected=ComponentSourceBinding.install(paths.downloads,job.inputReceipt,new ComponentStorage.SaveContext(world,job.owner,false,false));
                     String document=CommunityInstallDocument.installed(selected);
                     synchronized(lock) { current(job); job.installedAsset=selected.assetId(); job.installedStatus=selected.status(); job.document=document; job.receiptId=job.inputReceipt; job.status=Status.SUCCEEDED; }
+                } else {
+                    var selected=ComponentSourceBinding.resolveInstalled(paths.downloads,job.inputReceipt,job.installedAsset,job.installedStatus,new ComponentStorage.SaveContext(world,job.owner,false,false));
+                    synchronized(lock) { current(job); job.status=Status.CACHING; }
+                    var saved=ComponentRecipeLibrary.saveSelected(world,job.owner,selected,job.recipe);
+                    String document=CommunityInstallDocument.recipe(saved,job.inputReceipt);
+                    synchronized(lock) { current(job); job.document=document; job.receiptId=job.inputReceipt; job.status=Status.SUCCEEDED; }
                 }
             }
         } catch (Exception failed) {
@@ -246,7 +267,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
                 if (!isCurrent(job)) return;
                 job.status = Status.FAILED;
                 job.code = failed instanceof CommunityPackages.Failure failure && failure.code() != null && failure.code().matches("[a-z][a-z0-9_]{0,63}")
-                        ? failure.code() : failed instanceof IOException ? "storage_failure" : "internal_error";
+                        ? failure.code() : failed instanceof IOException ? job.kind==Kind.RECIPE ? "recipe_failed" : "storage_failure" : "internal_error";
             }
             if (!(failed instanceof CommunityPackages.Failure))
                 com.formacraft.FormacraftMod.LOGGER.warn("Community task failed owner={} task={} kind={}",job.owner,job.id,job.kind,failed);

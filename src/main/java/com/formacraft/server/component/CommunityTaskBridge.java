@@ -84,6 +84,13 @@ public final class CommunityTaskBridge implements AutoCloseable {
                     snapshot=tasks.snapshot(actor,slot.session); if(!task.equals(snapshot.taskId())) throw failure("stale_task");
                     return status(request,slot,Reply.STATUS,snapshot);
                 }
+                case SAVE_RECIPE -> {
+                    var spec=com.formacraft.common.component.community.CommunityRecipeOptions.decode(request.data());
+                    UUID task=tasks.recipe(actor,slot.session,request.subjectId(),spec);
+                    slot.upload=null; slot.result=null;
+                    snapshot=tasks.snapshot(actor,slot.session); if(!task.equals(snapshot.taskId())) throw failure("stale_task");
+                    return status(request,slot,Reply.STATUS,snapshot);
+                }
                 case POLL -> {
                     if (!request.subjectId().equals(snapshot.taskId())) throw failure("stale_task");
                     return status(request,slot,Reply.STATUS,snapshot);
@@ -126,7 +133,7 @@ public final class CommunityTaskBridge implements AutoCloseable {
         return slot.result;
     }
     private static void validate(Request r) throws IOException {
-        if (r.operation() != Operation.SEARCH_CHUNK && r.data().length != 0 || r.operation() != Operation.SEARCH_BEGIN && r.length() != 0
+        if (r.operation() != Operation.SEARCH_CHUNK && r.operation()!=Operation.SAVE_RECIPE && r.data().length != 0 || r.operation() != Operation.SEARCH_BEGIN && r.length() != 0
                 || r.operation() != Operation.SEARCH_CHUNK && r.operation() != Operation.RESULT_CHUNK && r.offset() != 0
                 || r.operation() != Operation.DOWNLOAD && (!r.releaseId().isEmpty() || r.resumable())) throw failure("invalid_request");
         if (r.operation() == Operation.OPEN) { if (r.sessionId() != null || r.subjectId() != null) throw failure("invalid_request"); }

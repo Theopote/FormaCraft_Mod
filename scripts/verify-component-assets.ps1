@@ -3,7 +3,7 @@ param(
     [switch]$Offline,
     [string[]]$Tests = @(
         '*CommunityServiceConfigTest', '*CommunityBrowserModelTest', '*CommunityTaskNetworkingTest', '*CommunityGameProtocolTest', '*CommunityTaskCoordinatorTest', '*CommunityResumeTest', '*ComponentSourceBindingTest', '*CommunityDownloadsTest', '*CommunityTransportTest', '*CommunitySearchContractTest', '*CommunityOfflineTest', '*BuildingAssetLocksTest', '*BuildingAssetArchiveSupportTest', '*FormaCraftCommandsRegistrationTest', '*OffThreadPlanCompileGuardTest',
-        '*ComponentRecipeLibraryTest', '*ComponentRecipeDraftTest',
+        '*CommunityRecipeOptionsTest', '*ComponentRecipeLibraryTest', '*ComponentRecipeDraftTest',
         '*ComponentCatalogTransferTest', '*ClientComponentCatalogStateTest',
         '*ComponentLibraryOperationsTest', '*ComponentLibraryClientStateTest', '*ComponentLibraryNetworkingTest', '*ComponentLibraryOrderingTest',
         '*ComponentTypesTest', '*ComponentCaptureTypesTest', '*ComponentTypeQueryTest', '*ComponentTypePersistenceTest',

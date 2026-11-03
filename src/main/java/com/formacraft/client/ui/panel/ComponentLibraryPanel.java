@@ -6,7 +6,6 @@ import com.formacraft.client.component.ComponentThumbnailCache;
 import com.formacraft.client.component.ComponentLibraryUsage;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.ComponentToolState;
-import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCatalog;

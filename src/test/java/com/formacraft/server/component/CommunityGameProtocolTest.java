@@ -281,4 +281,83 @@ class CommunityGameProtocolTest {
             client.cancel(); assertNull(client.preview()); assertThrows(IOException.class,client::confirmInstall);
         }
     }
+    private static CommunityTaskClientState installed(CommunityTaskBridge bridge,UUID owner,Time time) throws Exception {
+        var client=downloaded(bridge,owner,time); client.previewInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+        client.confirmInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY); return client;
+    }
+    @Test void communityRecipeKeepsChosenRightsAfterLocalReuseAndSurvivesOriginalCacheDeletion() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+        ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var source=backend.index.download(backend.candidates.get("rel_0").releaseRef(),ENV).verified();
+            var a=ComponentPackageIO.create(source.component(),new ComponentPackageIO.Manifest("alice","1","Alice","A terms",ComponentPackageIO.TrainingPermission.ALLOWED,"1.21.10",Map.of(),Map.of(),List.of()),ENV);
+            var imported=ComponentPackageInstallations.importPackage(Files.write(temp.resolve("a.json"),a.toBytes()),ENV,new ComponentStorage.SaveContext(temp.resolve("world"),owner,false,false));
+            var client=installed(bridge,owner,time); assertEquals(imported.assetId(),client.installed().assetId()); String receipt=client.receiptId();
+            client.saveRecipe(new ComponentRecipeLibrary.Spec("Chosen B",1,1,1)); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            assertNotNull(client.recipe()); String recipe=client.recipe().assetId(); assertTrue(ComponentRecipeLibrary.isRecipe(recipe));
+            var result=ComponentRecipeLibrary.result(owner,recipe); assertEquals("Author",result.manifest().author()); assertEquals(ComponentPackageIO.TrainingPermission.DENIED,result.manifest().trainingPermission());
+            assertEquals(receipt,client.recipe().receiptId()); assertEquals("Author",coordinator.selection(owner,client.sessionId(),client.taskId()).source().manifest().author());
+            client.saveRecipe(new ComponentRecipeLibrary.Spec("Different display name",1,1,1)); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            assertEquals(recipe,client.recipe().assetId()); assertEquals("REUSED",client.recipe().status()); assertEquals("Chosen B",client.recipe().name());
+            client.cancel(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.CLOSED);
+            Path downloads=temp.resolve("world/formacraft/community/players").resolve(owner.toString()).resolve("downloads");
+            Files.delete(downloads.resolve("objects").resolve(backend.candidates.get("rel_0").releaseRef().packageSha256()).resolve("original.fccomponent.json"));
+            Files.delete(downloads.resolve("receipts").resolve(receipt).resolve("receipt.json"));
+            ComponentRecipeLibrary.replay(owner,recipe);
+            var restored=ComponentRecipeLibrary.restoreSelected(new ComponentStorage.SaveContext(temp.resolve("world"),owner,false,false),recipe);
+            assertEquals("Author",restored.source().manifest().author()); assertEquals(receipt,restored.receipt().receiptId());
+            assertEquals("Alice",ComponentPackageInstallations.inspect(ComponentStorage.getPlayerComponentDir(owner),imported.assetId()).manifest().author());
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void recipeRequestCannotUseAnotherPlayerOldTaskOrMalformedOptions() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=installed(bridge,owner,time); UUID source=client.taskId(); var spec=new ComponentRecipeLibrary.Spec("Source",1,1,1);
+            assertThrows(IOException.class,()->coordinator.recipe(UUID.randomUUID(),client.sessionId(),source,spec));
+            assertThrows(IOException.class,()->client.saveRecipe(new ComponentRecipeLibrary.Spec("bad",0,1,1)));
+            assertEquals(source,client.taskId()); assertEquals(CommunityTaskClientState.Phase.READY,client.phase());
+            var oversized=request(Operation.SAVE_RECIPE,client.sessionId(),source,0,0,new byte[CommunityRecipeOptions.MAX_BYTES+1]);
+            assertEquals(Reply.ERROR,bridge.handle(owner,oversized).reply()); assertEquals(source,coordinator.snapshot(owner,client.sessionId()).taskId());
+            client.saveRecipe(spec); var request=client.nextRequest(); assertNotNull(request); client.accept(bridge.handle(owner,request));
+            assertThrows(IOException.class,()->coordinator.recipe(owner,client.sessionId(),source,spec));
+            pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY); UUID favorite=client.taskId();
+            client.search(search()); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            assertNull(client.recipe()); assertNull(client.installed()); assertThrows(IOException.class,()->coordinator.recipe(owner,client.sessionId(),favorite,spec));
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void recipeDoesNotRelaxFixedAuthorDimensions() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var bridge=new CommunityTaskBridge(tasks(time,backend),time)) {
+            var client=installed(bridge,owner,time); client.saveRecipe(new ComponentRecipeLibrary.Spec("Invalid stretch",1,2,1));
+            pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY); assertEquals("recipe_failed",client.error()); assertNotNull(client.installed());
+            assertTrue(ComponentRecipeLibrary.entries(owner).isEmpty());
+            client.saveRecipe(new ComponentRecipeLibrary.Spec("Valid original size",1,1,1)); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            assertNotNull(client.recipe()); assertEquals("",client.error());
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void queuedRecipeCancellationDoesNotPublishAFavorite() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        var holding=new java.util.concurrent.atomic.AtomicBoolean(); var started=new java.util.concurrent.CountDownLatch(2); var release=new java.util.concurrent.CountDownLatch(1);
+        CommunityTaskCoordinator.Backend blocking=new CommunityTaskCoordinator.Backend() {
+            public CommunitySearchResponse.Decoded search(byte[] bytes,CommunitySearchHttpClient.Cancellation cancellation) throws IOException {
+                if(holding.get()) { started.countDown(); try { release.await(); } catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new IOException(interrupted); } }
+                return backend.search(bytes,cancellation);
+            }
+            public CommunitySearchHttpClient.Fetched download(CommunityPackages.Descriptor d,ComponentPackageIO.Environment e,Path p,CommunityTaskCoordinator.Transfer t,CommunitySearchHttpClient.Cancellation c) throws IOException { return backend.download(d,e,p,t,c); }
+            public void shutdownNow() { release.countDown(); }
+        };
+        try(var coordinator=new CommunityTaskCoordinator(Files.createDirectories(temp.resolve("world")),"test",ENV,time,blocking); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=installed(bridge,owner,time); holding.set(true);
+            for(int i=0;i<2;i++) { UUID other=UUID.randomUUID(); coordinator.search(other,coordinator.connect(other),search()); }
+            assertTrue(started.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            UUID recipe=coordinator.recipe(owner,client.sessionId(),client.taskId(),new ComponentRecipeLibrary.Spec("Cancelled",1,1,1));
+            assertEquals(CommunityTaskCoordinator.Status.QUEUED,coordinator.snapshot(owner,client.sessionId()).status());
+            coordinator.cancel(owner,client.sessionId(),recipe); release.countDown();
+            assertEquals(CommunityTaskCoordinator.Status.CANCELLED,coordinator.snapshot(owner,client.sessionId()).status()); assertTrue(ComponentRecipeLibrary.entries(owner).isEmpty());
+        } finally { release.countDown(); ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
 }

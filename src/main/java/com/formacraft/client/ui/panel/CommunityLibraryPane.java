@@ -17,6 +17,9 @@ final class CommunityLibraryPane {
     private final MinecraftClient client = MinecraftClient.getInstance();
     private final CommunityBrowserModel model = new CommunityBrowserModel();
     private final HudTextInput custom = new HudTextInput(), tags = new HudTextInput();
+    private final HudTextInput recipeName=new HudTextInput();
+    private final HudTextInput[] recipeSizes={new HudTextInput(),new HudTextInput(),new HudTextInput()};
+    private String recipeReceipt;
     private final List<ButtonWidget> buttons = new ArrayList<>();
     private final List<InputBounds> inputs = new ArrayList<>();
     private int typeIndex, top, bottom;
@@ -26,15 +29,16 @@ final class CommunityLibraryPane {
     private boolean hasNext;
     private record InputBounds(HudTextInput input,int x,int y,int w) {}
     private interface Action { void run() throws IOException; }
-    CommunityLibraryPane() { custom.setMaxLength(64); tags.setMaxLength(1024); }
+    CommunityLibraryPane() { custom.setMaxLength(64); tags.setMaxLength(1024); recipeName.setMaxLength(64); for(var size:recipeSizes) size.setMaxLength(6); }
     void leave() {
         ClientCommunityTasks.cancel(); blur(); buttons.clear(); inputs.clear(); model.clear();
-        selected=null; renderedPage=null; rows=List.of(); hasNext=false; localError="";
+        selected=null; renderedPage=null; rows=List.of(); hasNext=false; localError=""; recipeReceipt=null;
     }
-    void blur() { custom.setFocused(false); tags.setFocused(false); }
-    boolean focused() { return custom.isFocused() || tags.isFocused(); }
-    void key(int key,int modifiers) { custom.keyPressed(key,modifiers); tags.keyPressed(key,modifiers); }
-    void character(char chr) { custom.charTyped(chr); tags.charTyped(chr); }
+    private List<HudTextInput> fields() { return List.of(custom,tags,recipeName,recipeSizes[0],recipeSizes[1],recipeSizes[2]); }
+    void blur() { fields().forEach(f -> f.setFocused(false)); }
+    boolean focused() { return fields().stream().anyMatch(HudTextInput::isFocused); }
+    void key(int key,int modifiers) { fields().forEach(f -> f.keyPressed(key,modifiers)); }
+    void character(char chr) { fields().forEach(f -> f.charTyped(chr)); }
     private boolean busy() {
         return switch (ClientCommunityTasks.STATE.phase()) {
             case OPENING, UPLOADING, WAITING, FETCHING, CLOSING -> true;
@@ -47,11 +51,12 @@ final class CommunityLibraryPane {
     }
     private void act(Action action) {
         blur(); localError="";
-        try { action.run(); } catch (IOException | IllegalArgumentException invalid) { localError="操作未完成，请检查筛选条件或重新连接"; }
+        try { action.run(); } catch (IOException | IllegalArgumentException invalid) { localError="操作未完成，请检查筛选条件、名称或尺寸"; }
     }
     int draw(DrawContext ctx,int x,int w,int y,int clipTop,int clipBottom) {
         top=clipTop; bottom=clipBottom; buttons.clear(); inputs.clear();
         var state=ClientCommunityTasks.STATE;
+        if(state.installed()==null) { recipeName.setFocused(false); for(var size:recipeSizes) size.setFocused(false); }
         if (renderedPage!=state.result()) {
             selected=null; renderedPage=state.result();
             rows=CommunityBrowserModel.rows(state.result()); hasNext=CommunityBrowserModel.hasNext(state.result());
@@ -106,12 +111,28 @@ final class CommunityLibraryPane {
             y=line(ctx,"训练授权声明："+switch(p.trainingPermission()) { case "ALLOWED" -> "允许"; case "DENIED" -> "禁止"; default -> "未声明"; },x,y,w);
             y=line(ctx,"仅写本人私人库，相同内容会复用并保留来源；游戏运行适配尚未验证",x,y,w);
             y=line(ctx,"确认后若入库已开始，取消或断线不保证回滚",x,y,w);
-            y=button(ctx,"确认入私人库",x,y,w,usable(),ClientCommunityTasks::confirmInstall);
+            y=button(ctx,"确认入私人库",x,y,w,usable(),() -> {
+                ClientCommunityTasks.confirmInstall(); recipeReceipt=p.receiptId();
+                recipeName.setText(CommunityBrowserModel.display(p.name(),32)+" 配方");
+                int[] sizes={p.width(),p.height(),p.depth()}; for(int i=0;i<3;i++) recipeSizes[i].setText(Integer.toString(sizes[i]));
+            });
         }
         if(state.installed()!=null) {
             y=line(ctx,"已入私人库："+CommunityBrowserModel.display(state.installed().name(),256),x,y,w);
             y=line(ctx,"本地标识："+state.installed().assetId(),x,y,w);
             y=line(ctx,"来源收据已保留，未自动加载或放置",x,y,w);
+            if(Objects.equals(recipeReceipt,state.receiptId())) {
+                y=line(ctx,"收藏所选来源的尺寸配方",x,y,w);
+                y=line(ctx,"配方名称",x,y,w); y=input(ctx,recipeName,x,y,w);
+                for(int i=0;i<3;i++) { y=line(ctx,new String[]{"X 宽度","Y 高度","Z 深度"}[i],x,y,w); y=input(ctx,recipeSizes[i],x,y,w); }
+                y=line(ctx,"目标尺寸须符合作者规则；写入开始后取消不保证回滚",x,y,w);
+                y=button(ctx,"收藏当前尺寸配方",x,y,w,usable(),() -> ClientCommunityTasks.saveRecipe(new com.formacraft.common.component.ComponentRecipeLibrary.Spec(
+                        recipeName.getText(),Integer.parseInt(recipeSizes[0].getText()),Integer.parseInt(recipeSizes[1].getText()),Integer.parseInt(recipeSizes[2].getText()))));
+            }
+            if(state.recipe()!=null) {
+                y=line(ctx,"配方已收藏："+CommunityBrowserModel.display(state.recipe().name(),64),x,y,w);
+                y=line(ctx,"返回本地库的收藏配方视图可重放或恢复原件",x,y,w);
+            }
             y=button(ctx,"刷新本地构件库",x,y,w,true,() -> com.formacraft.client.network.FormaCraftClientNetworking.sendComponentCatalogRequest());
         }
         return line(ctx,"缓存下载不会自动入库或放置",x,y+4,w);
@@ -146,11 +167,11 @@ final class CommunityLibraryPane {
         var state=ClientCommunityTasks.STATE;
         return switch(state.phase()) {
             case CLOSED -> "未连接"; case OPENING -> "正在连接"; case IDLE -> "已连接";
-            case UPLOADING -> "正在提交搜索"; case FETCHING -> "正在接收搜索结果";
+            case UPLOADING -> "正在提交搜索"; case FETCHING -> "正在接收结果";
             case WAITING -> state.view()==null ? "正在执行任务" : switch(state.view().kind()) {
-                case "PREVIEW" -> "正在校验入库信息"; case "INSTALL" -> "正在入私人库"; case "DOWNLOAD" -> "正在下载并校验"; default -> "正在执行任务";
+                case "PREVIEW" -> "正在校验入库信息"; case "INSTALL" -> "正在入私人库"; case "RECIPE" -> "正在校验并收藏配方"; case "DOWNLOAD" -> "正在下载并校验"; default -> "正在执行任务";
             };
-            case READY -> "操作完成"; case ERROR -> "操作失败"; case CLOSING -> "正在关闭会话";
+            case READY -> state.error().equals("recipe_failed") ? "配方未保存，可修改后重试" : "操作完成"; case ERROR -> "操作失败"; case CLOSING -> "正在关闭会话";
         };
     }
     private static String error(String code) {
@@ -161,6 +182,8 @@ final class CommunityLibraryPane {
             case "timeout", "request_timeout" -> "请求超时，请重新连接";
             case "connection_lost" -> "连接中断";
             case "preview_expired", "stale_preview", "stale_download" -> "入库确认已失效，请重新下载并查看信息";
+            case "stale_install" -> "所选来源任务已失效，请重新入库后操作";
+            case "recipe_failed" -> "配方未保存，请检查尺寸与作者规则，或查看服务器日志";
             case "unsupported_capability", "unsupported_constraint" -> "服务暂不支持此筛选条件";
             default -> "社区操作失败，可重新连接后重试";
         };
