@@ -137,6 +137,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         }
     }
     public Metrics metrics() { synchronized (lock) { return new Metrics(sessions.size(),workers.getActiveCount(),workers.getQueue().size()); } }
+    public String authorityId() { return authority; }
     public void cancel(UUID owner, UUID sessionId, UUID taskId) throws IOException {
         synchronized (lock) {
             var session = session(owner,sessionId);

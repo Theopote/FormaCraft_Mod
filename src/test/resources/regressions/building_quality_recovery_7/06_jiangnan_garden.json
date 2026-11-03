@@ -74,7 +74,10 @@
       "params": {
         "wall_block": "minecraft:white_concrete",
         "roof_block": "minecraft:dark_oak_stairs",
-        "roof_type": "xieshan"
+        "roof_type": "xieshan",
+        "window_style": "none",
+        "window_ratio": 0,
+        "entrance_type": "none"
       }
     }
   ],
@@ -104,9 +107,8 @@
     "acceptance_prompt": "生成一座江南园林",
     "fixture_id": "06_jiangnan_garden",
     "design_requirements": {
-      "facade_windows": "OMITTED",
+      "facade": "OMITTED",
       "entrance": "OMITTED",
-      "windows": "OMITTED",
       "roof": "OMITTED"
     }
   },

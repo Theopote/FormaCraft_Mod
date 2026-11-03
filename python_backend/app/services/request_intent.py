@@ -109,6 +109,26 @@ def extract_request_intent(user_text: str) -> Dict[str, Any]:
     }
 
 
+def _scaffold_plan_meta(
+    intent: Dict[str, Any],
+    *,
+    building_class: str,
+    design_requirements: Optional[Dict[str, str]] = None,
+    **extra: Any,
+) -> Dict[str, Any]:
+    """Strict scaffolds omit residential satellites unless the class needs them."""
+    meta: Dict[str, Any] = {
+        "request_intent": intent,
+        "building_class": building_class,
+        "scaffolded_from_request_intent": True,
+        "allow_compiler_satellites": False,
+    }
+    if design_requirements:
+        meta["design_requirements"] = dict(design_requirements)
+    meta.update(extra)
+    return meta
+
+
 def attach_request_intent(plan: Dict[str, Any], user_text: str) -> Dict[str, Any]:
     """Write/overwrite plan_meta.request_intent from user text (authoritative)."""
     if not isinstance(plan, dict):
@@ -200,13 +220,12 @@ def scaffold_plan_for_intent(
                         },
                     }
                 ],
-                "plan_meta": {
-                    "request_intent": intent,
-                    "building_class": "tower_like",
-                    "tower_subtype": "tibetan_stupa",
-                    "scaffolded_from_request_intent": True,
-                    "allow_compiler_satellites": False,
-                },
+                "plan_meta": _scaffold_plan_meta(
+                    intent,
+                    building_class="tower_like",
+                    design_requirements={"facade": "OMITTED", "entrance": "OMITTED", "roof": "OMITTED"},
+                    tower_subtype="tibetan_stupa",
+                ),
             }
 
         floors = 3 if ("三层" in text or "3层" in text) else 5
@@ -238,13 +257,12 @@ def scaffold_plan_for_intent(
                     },
                 }
             ],
-            "plan_meta": {
-                "request_intent": intent,
-                "building_class": "tower_like",
-                "tower_subtype": "dense_eaves_pagoda",
-                "scaffolded_from_request_intent": True,
-                "allow_compiler_satellites": False,
-            },
+            "plan_meta": _scaffold_plan_meta(
+                intent,
+                building_class="tower_like",
+                design_requirements={"facade": "OMITTED", "entrance": "OMITTED", "roof": "OMITTED"},
+                tower_subtype="dense_eaves_pagoda",
+            ),
         }
 
     if building_class == "gate":
@@ -287,12 +305,11 @@ def scaffold_plan_for_intent(
                     },
                 },
             ],
-            "plan_meta": {
-                "request_intent": intent,
-                "building_class": "gate",
-                "scaffolded_from_request_intent": True,
-                "allow_compiler_satellites": False,
-            },
+            "plan_meta": _scaffold_plan_meta(
+                intent,
+                building_class="gate",
+                design_requirements={"facade": "OMITTED", "entrance": "OMITTED"},
+            ),
         }
 
     if building_class == "temple":
@@ -343,13 +360,12 @@ def scaffold_plan_for_intent(
                 "distinguishing_features": markers or ["道观", "temple", "compound"],
                 "style_attributes": style_attrs,
                 "components": comps,
-                "plan_meta": {
-                    "request_intent": intent,
-                    "building_class": "temple",
-                    "composition": "compound",
-                    "scaffolded_from_request_intent": True,
-                    "allow_compiler_satellites": False,
-                },
+                "plan_meta": _scaffold_plan_meta(
+                    intent,
+                    building_class="temple",
+                    design_requirements={"facade": "OMITTED", "entrance": "OMITTED"},
+                    composition="compound",
+                ),
             }
 
         # Single hall shrine — do not force garden courtyard composition.
@@ -391,13 +407,12 @@ def scaffold_plan_for_intent(
                     },
                 },
             ],
-            "plan_meta": {
-                "request_intent": intent,
-                "building_class": "temple",
-                "composition": "single",
-                "scaffolded_from_request_intent": True,
-                "allow_compiler_satellites": False,
-            },
+            "plan_meta": _scaffold_plan_meta(
+                intent,
+                building_class="temple",
+                design_requirements={"facade": "OMITTED", "entrance": "OMITTED"},
+                composition="single",
+            ),
         }
 
     if building_class == "garden":
@@ -441,12 +456,11 @@ def scaffold_plan_for_intent(
             "distinguishing_features": markers or [building_class],
             "style_attributes": style_attrs,
             "components": comps,
-            "plan_meta": {
-                "request_intent": intent,
-                "building_class": building_class,
-                "scaffolded_from_request_intent": True,
-                "allow_compiler_satellites": False,
-            },
+            "plan_meta": _scaffold_plan_meta(
+                intent,
+                building_class=building_class,
+                design_requirements={"facade": "OMITTED", "entrance": "OMITTED", "roof": "OMITTED"},
+            ),
         }
 
     return None

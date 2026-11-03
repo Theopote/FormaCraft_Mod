@@ -29,6 +29,7 @@ public final class FormaCraftClientNetworking {
         FormaCraftNetworking.registerPayloadTypesS2C();
         com.formacraft.client.component.ClientComponentImport.register();
         com.formacraft.client.component.ClientComponentLibraryOperations.register();
+        com.formacraft.client.component.ClientCommunityTasks.register();
         com.formacraft.client.component.ClientComponentCatalogSync.register();
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(

@@ -245,13 +245,21 @@ class CommunityTaskCoordinatorTest {
 
     @Test void failuresAreSanitizedAndShutdownDoesNotWaitForAnUncooperativeBackend() throws Exception {
         var clock = new MutableClock(); var backend = new Backend(clock,1); UUID owner = UUID.randomUUID();
-        var tasks = new CommunityTaskCoordinator(world(),"test",ENV,clock,backend);
-        try {
-            UUID session = tasks.connect(owner); backend.failSearch = true; tasks.search(owner,session,request("error"));
-            var error = finished(tasks,owner,session); assertEquals("storage_failure",error.code()); assertFalse(error.toString().contains("private/path"));
-            backend.failSearch = false; tasks.search(owner,session,request("block_shutdown")); assertTrue(backend.started.await(5,TimeUnit.SECONDS));
-            assertTimeoutPreemptively(Duration.ofSeconds(1),tasks::close); assertEquals(1,backend.shutdowns.get());
-            failure("community_closed",() -> tasks.snapshot(owner,session));
-        } finally { backend.release.countDown(); tasks.close(); }
+        try (var tasks = new CommunityTaskCoordinator(world(), "test", ENV, clock, backend)) {
+            UUID session = tasks.connect(owner);
+            backend.failSearch = true;
+            tasks.search(owner, session, request("error"));
+            var error = finished(tasks, owner, session);
+            assertEquals("storage_failure", error.code());
+            assertFalse(error.toString().contains("private/path"));
+            backend.failSearch = false;
+            tasks.search(owner, session, request("block_shutdown"));
+            assertTrue(backend.started.await(5, TimeUnit.SECONDS));
+            assertTimeoutPreemptively(Duration.ofSeconds(1), tasks::close);
+            assertEquals(1, backend.shutdowns.get());
+            failure("community_closed", () -> tasks.snapshot(owner, session));
+        } finally {
+            backend.release.countDown();
+        }
     }
 }

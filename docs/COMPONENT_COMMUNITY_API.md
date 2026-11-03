@@ -6,7 +6,7 @@
 
 客户端另有 [Range 分块续传 API](COMPONENT_COMMUNITY_RESUME.md)，严格区分 200 完整下载与 206 区间数据；分块暂存不授予安装权限。
 
-[玩家任务协调](COMPONENT_COMMUNITY_TASKS.md) 已接入服务端显式配置与生命周期清理，但没有注册社区 C2S/S2C 消息或 UI，也没有开放自动安装。
+[玩家任务协调](COMPONENT_COMMUNITY_TASKS.md) 已接入服务端显式配置与生命周期清理，[社区 C2S/S2C 消息](COMPONENT_COMMUNITY_GAME_PROTOCOL.md) 与客户端状态机也已注册。尚无社区 UI 或配置界面，没有开放自动安装。
 
 ## 第一个可实现范围
 

@@ -39,7 +39,9 @@
         "wall_block": "minecraft:white_concrete",
         "roof_block": "minecraft:black_terracotta",
         "roof_type": "xieshan",
-        "door_width": 3
+        "door_width": 3,
+        "window_style": "none",
+        "window_ratio": 0
       }
     },
     {
@@ -110,8 +112,7 @@
     "acceptance_prompt": "生成一栋徽派民居，白墙黑瓦",
     "fixture_id": "05_huizhou_house",
     "design_requirements": {
-      "facade_windows": "OMITTED",
-      "windows": "OMITTED"
+      "facade": "OMITTED"
     }
   },
   "proportion_hints": {

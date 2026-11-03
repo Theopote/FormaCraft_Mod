@@ -78,7 +78,10 @@
         "wall_block": "minecraft:white_concrete",
         "roof_block": "minecraft:dark_oak_stairs",
         "roof_type": "irimoya",
-        "component_id": "garden_hall"
+        "component_id": "garden_hall",
+        "window_style": "none",
+        "window_ratio": 0,
+        "entrance_type": "none"
       }
     },
     {
@@ -131,9 +134,8 @@
     "acceptance_prompt": "生成一座日式庭院",
     "fixture_id": "07_japanese_garden",
     "design_requirements": {
-      "facade_windows": "OMITTED",
-      "entrance": "OMITTED",
-      "windows": "OMITTED"
+      "facade": "OMITTED",
+      "entrance": "OMITTED"
     }
   },
   "proportion_hints": {

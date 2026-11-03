@@ -564,6 +564,7 @@ public class FormaCraftNetworking {
         if (registeredC2SPayloadTypes) return;
         registeredC2SPayloadTypes = true;
         ComponentSourceNetworking.registerC2S();
+        CommunityTaskNetworking.registerC2S();
         ComponentLibraryNetworking.registerC2S();
         ComponentImportNetworking.registerC2S();
 
@@ -586,6 +587,7 @@ public class FormaCraftNetworking {
         if (registeredS2CPayloadTypes) return;
         registeredS2CPayloadTypes = true;
         ComponentSourceNetworking.registerS2C();
+        CommunityTaskNetworking.registerS2C();
         ComponentLibraryNetworking.registerS2C();
         ComponentImportNetworking.registerS2C();
 
