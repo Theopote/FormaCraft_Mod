@@ -191,6 +191,15 @@ class ComponentSourceBindingTest {
         Files.writeString(path,root.toString()); assertThrows(IOException.class,() -> BuildingAssetLocks.load(world,alice,id,"minecraft:overworld"));
     }
 
+    @Test void manualPlacementCompilesChosenSourceWithoutUsingTheDeduplicatedPrimary() throws Exception {
+        var compiled=SelectedComponentPlacement.compile(world,alice,selected,asset,Direction.EAST,Mirror.X,false,null,42);
+        assertEquals(receiptId,compiled.receiptId()); assertEquals(b.contentRef(),compiled.contentRef()); assertEquals(b.manifestSha256(),compiled.manifestSha256());
+        assertEquals(5,compiled.patches().size()); assertThrows(UnsupportedOperationException.class,()->compiled.patches().clear());
+        assertThrows(IOException.class,()->SelectedComponentPlacement.compile(world,alice,selected,"different",Direction.SOUTH,Mirror.NONE,false,null,1));
+        assertThrows(IOException.class,()->SelectedComponentPlacement.compile(world,bob,selected,asset,Direction.SOUTH,Mirror.NONE,false,null,1));
+        assertThrows(IOException.class,()->SelectedComponentPlacement.compile(world,alice,selected,asset,Direction.UP,Mirror.NONE,false,null,1));
+        assertEquals("alice",ComponentPackageInstallations.inspect(ComponentStorage.getPlayerComponentDir(alice),asset).manifest().author());
+    }
     @Test void scopesAreNestedExceptionSafeAndSelectionsDoNotBecomeDefaultSources() throws Exception {
         var prepared = selected.prepare(world,alice,height(7));
         try (var capture = BuildingAssetCapture.open(world,alice)) {

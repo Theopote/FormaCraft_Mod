@@ -31,7 +31,7 @@ final class CommunityLibraryPane {
     private interface Action { void run() throws IOException; }
     CommunityLibraryPane() { custom.setMaxLength(64); tags.setMaxLength(1024); recipeName.setMaxLength(64); for(var size:recipeSizes) size.setMaxLength(6); }
     void leave() {
-        ClientCommunityTasks.cancel(); blur(); buttons.clear(); inputs.clear(); model.clear();
+        if(!ClientCommunityPlacement.active()) ClientCommunityTasks.cancel(); blur(); buttons.clear(); inputs.clear(); model.clear();
         selected=null; renderedPage=null; rows=List.of(); hasNext=false; localError=""; recipeReceipt=null;
     }
     private List<HudTextInput> fields() { return List.of(custom,tags,recipeName,recipeSizes[0],recipeSizes[1],recipeSizes[2]); }
@@ -121,6 +121,10 @@ final class CommunityLibraryPane {
             y=line(ctx,"已入私人库："+CommunityBrowserModel.display(state.installed().name(),256),x,y,w);
             y=line(ctx,"本地标识："+state.installed().assetId(),x,y,w);
             y=line(ctx,"来源收据已保留，未自动加载或放置",x,y,w);
+            y=button(ctx,"加载所选来源用于预览",x,y,w,usable(),() -> {
+                ClientCommunityPlacement.activate(); localError="正在加载同内容构件；请切换构件工具，放置前仍须确认预览";
+            });
+            y=line(ctx,"加载前请先刷新本地构件库；普通加载会清除来源绑定",x,y,w);
             if(Objects.equals(recipeReceipt,state.receiptId())) {
                 y=line(ctx,"收藏所选来源的尺寸配方",x,y,w);
                 y=line(ctx,"配方名称",x,y,w); y=input(ctx,recipeName,x,y,w);

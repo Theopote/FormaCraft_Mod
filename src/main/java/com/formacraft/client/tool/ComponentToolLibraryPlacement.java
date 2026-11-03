@@ -121,15 +121,16 @@ final class ComponentToolLibraryPlacement {
         Direction placeFacing = resolvePlacementFacing(loadedComponent, state, pc, client);
         Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
 
-        requestServerPatchPreview(state, anchor, loadedComponent.id, placeFacing, m, true);
-        HudToast.show(pr.status == PlacementResult.Status.WARN ? ("已放置构件（警告：" + pr.reason + "）") : "已放置构件");
+        if(!requestServerPatchPreview(state, anchor, loadedComponent.id, placeFacing, m, true)) return new PlaceResult(true,false);
+        if(com.formacraft.client.component.ClientCommunityPlacement.active()) HudToast.show("正在准备所选来源预览，请确认后应用");
+        else HudToast.show(pr.status == PlacementResult.Status.WARN ? ("已放置构件（警告：" + pr.reason + "）") : "已放置构件");
 
         state.useLibrary = false;
         ComponentPreviewState.clear();
         return new PlaceResult(true, true);
     }
 
-    static void requestServerPatchPreview(
+    static boolean requestServerPatchPreview(
             ComponentToolState state,
             BlockPos anchor,
             String componentId,
@@ -137,7 +138,10 @@ final class ComponentToolLibraryPlacement {
             Mirror mirror,
             boolean autoConfirm
     ) {
-        if (anchor == null) return;
+        if (anchor == null) return false;
+        final com.formacraft.common.network.CommunitySelectionRef source;
+        try { source=com.formacraft.client.component.ClientCommunityPlacement.reference(componentId); }
+        catch(IllegalStateException stale) { HudToast.show("所选来源已失效，请重新选择；普通加载可明确解除绑定",true); return false; }
         boolean restrict = PromptModeState.restrictToSelection();
         BlockPos selMin = null;
         BlockPos selMax = null;
@@ -156,10 +160,12 @@ final class ComponentToolLibraryPlacement {
                 selMin,
                 selMax,
                 List.of(),
-                autoConfirm
+                autoConfirm && source==null,
+                source
         ));
         FormaCraftClientNetworking.sendProtectedZoneSync(ProtectedZoneTool.INSTANCE.getZones());
         FormaCraftClientNetworking.sendOutlineSync(BuildContextResolver.currentOutlineShape());
+        return true;
     }
 
     static Direction resolvePlacementFacing(

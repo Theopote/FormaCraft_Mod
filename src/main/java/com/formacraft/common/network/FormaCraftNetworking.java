@@ -343,8 +343,13 @@ public class FormaCraftNetworking {
             BlockPos selectionMin,
             BlockPos selectionMax,
             List<ProtectedZone> protectedZones,
-            boolean autoConfirm
+            boolean autoConfirm,
+            CommunitySelectionRef communitySource
     ) implements CustomPayload {
+        public RequestPatchPreviewPayload(BlockPos origin,String componentId,String facing,String mirror,boolean semanticSkin,String semanticStyleId,
+                                          boolean restrictToSelection,BlockPos selectionMin,BlockPos selectionMax,List<ProtectedZone> protectedZones,boolean autoConfirm) {
+            this(origin,componentId,facing,mirror,semanticSkin,semanticStyleId,restrictToSelection,selectionMin,selectionMax,protectedZones,autoConfirm,null);
+        }
         public static final CustomPayload.Id<RequestPatchPreviewPayload> ID = new CustomPayload.Id<>(PATCH_PREVIEW_REQUEST);
         public static final PacketCodec<PacketByteBuf, RequestPatchPreviewPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> {
@@ -361,6 +366,8 @@ public class FormaCraftNetworking {
                     if (payload.selectionMax() != null) buf.writeBlockPos(payload.selectionMax());
                     BlockPatchPacket.writeProtectedZones(buf, payload.protectedZones());
                     buf.writeBoolean(payload.autoConfirm());
+                    buf.writeBoolean(payload.communitySource()!=null);
+                    if(payload.communitySource()!=null) { buf.writeUuid(payload.communitySource().sessionId()); buf.writeUuid(payload.communitySource().taskId()); }
                 },
                 buf -> {
                     BlockPos origin = buf.readBlockPos();
@@ -374,13 +381,14 @@ public class FormaCraftNetworking {
                     BlockPos selectionMax = buf.readBoolean() ? buf.readBlockPos() : null;
                     List<ProtectedZone> zones = BlockPatchPacket.readProtectedZones(buf);
                     boolean autoConfirm = buf.readBoolean();
+                    CommunitySelectionRef source=buf.readBoolean() ? new CommunitySelectionRef(buf.readUuid(),buf.readUuid()) : null;
                     if (componentId != null && componentId.isEmpty()) componentId = null;
                     if (facing != null && facing.isEmpty()) facing = null;
                     if (mirror != null && mirror.isEmpty()) mirror = null;
                     if (semanticStyleId != null && semanticStyleId.isEmpty()) semanticStyleId = null;
                     return new RequestPatchPreviewPayload(
                             origin, componentId, facing, mirror, semanticSkin, semanticStyleId,
-                            restrictToSelection, selectionMin, selectionMax, zones, autoConfirm
+                            restrictToSelection, selectionMin, selectionMax, zones, autoConfirm,source
                     );
                 }
         );

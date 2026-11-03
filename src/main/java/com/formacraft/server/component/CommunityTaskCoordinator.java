@@ -43,6 +43,8 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         UUID catalogTask;
         String searchJson;
         Map<String,CommunityPackages.Descriptor> candidates = Map.of();
+        UUID selectedRequest;
+        Instant selectedDeadline=Instant.MIN;
         Session(UUID owner, Instant now) { this.owner = owner; activeAt = windowAt = now; }
     }
     private static final class Job {
@@ -82,6 +84,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
     private final Backend backend;
     private final Persistence persistence;
     private final ThreadPoolExecutor workers;
+    private final Set<CompletableFuture<?>> selectedReads=new HashSet<>();
     private boolean closed;
 
     public CommunityTaskCoordinator(Path world, String authority, URI base, ComponentPackageIO.Environment environment, Clock clock) {
@@ -184,12 +187,54 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         Job job;
         synchronized(lock) {
             var session=session(owner,sessionId); job=session.job;
-            if(job==null || !job.id.equals(installTask) || job.kind!=Kind.INSTALL && job.kind!=Kind.RECIPE || job.status!=Status.SUCCEEDED || job.installedAsset==null)
+            if(job==null || !job.id.equals(installTask) || !selectedSource(job))
                 throw new CommunityPackages.Failure("stale_install");
         }
         var selected=ComponentSourceBinding.resolveInstalled(paths(owner).downloads,job.inputReceipt,job.installedAsset,job.installedStatus,new ComponentStorage.SaveContext(world,owner,false,false));
         synchronized(lock) { if(session(owner,sessionId).job!=job) throw new CommunityPackages.Failure("stale_install"); }
         return selected;
+    }
+    @FunctionalInterface public interface SelectedWork<T> { T apply(ComponentSourceBinding.Selection selection) throws IOException; }
+    public record SelectedRequest<T>(UUID id,CompletableFuture<T> result) {}
+    private static boolean selectedSource(Job job) {
+        return job!=null && (job.kind==Kind.INSTALL || job.kind==Kind.RECIPE) && job.installedAsset!=null
+                && (job.status==Status.SUCCEEDED || job.kind==Kind.RECIPE && job.status==Status.FAILED && "recipe_failed".equals(job.code));
+    }
+    /** Bounded background read/compile, independent from the source task's successful identity. */
+    public <T> SelectedRequest<T> useSelection(UUID owner,UUID sessionId,UUID taskId,SelectedWork<T> work) throws IOException {
+        Objects.requireNonNull(work); UUID marker=UUID.randomUUID(); var result=new CompletableFuture<T>();
+        synchronized(lock) {
+            var session=session(owner,sessionId);
+            if(!selectedSource(session.job) || !session.job.id.equals(taskId)) throw new CommunityPackages.Failure("stale_install");
+            admit(session); session.selectedRequest=marker; session.selectedDeadline=clock.instant().plusSeconds(45); selectedReads.add(result);
+            try { workers.execute(() -> {
+                try {
+                    if(!selectedRequestCurrent(owner,sessionId,taskId,marker)) throw new CommunityPackages.Failure("cancelled");
+                    var value=work.apply(selection(owner,sessionId,taskId));
+                    if(!selectedRequestCurrent(owner,sessionId,taskId,marker)) throw new CommunityPackages.Failure("cancelled");
+                    result.complete(value);
+                } catch(Exception invalid) { result.completeExceptionally(invalid); }
+                finally { synchronized(lock) { selectedReads.remove(result); } }
+            }); } catch(RejectedExecutionException full) {
+                selectedReads.remove(result); session.selectedRequest=null; throw new CommunityPackages.Failure("budget_exceeded");
+            }
+            result.orTimeout(45,TimeUnit.SECONDS).whenComplete((value,error) -> { synchronized(lock) { selectedReads.remove(result); } });
+        }
+        return new SelectedRequest<>(marker,result);
+    }
+    public boolean selectedRequestCurrent(UUID owner,UUID sessionId,UUID taskId,UUID marker) {
+        synchronized(lock) {
+            try { var session=session(owner,sessionId); return selectedSource(session.job) && session.job.id.equals(taskId)
+                    && marker!=null && marker.equals(session.selectedRequest) && clock.instant().isBefore(session.selectedDeadline); }
+            catch(IOException stale) { return false; }
+        }
+    }
+    public void invalidateSelectedRequests(UUID owner) { synchronized(lock) { var session=sessions.get(owner); if(session!=null) session.selectedRequest=null; } }
+    public boolean selectedRequestLatest(UUID owner,UUID sessionId,UUID taskId,UUID marker) {
+        synchronized(lock) {
+            try { var session=session(owner,sessionId); return selectedSource(session.job) && session.job.id.equals(taskId) && marker!=null && marker.equals(session.selectedRequest); }
+            catch(IOException stale) { return false; }
+        }
     }
     public Metrics metrics() { synchronized (lock) { return new Metrics(sessions.size(),workers.getActiveCount(),workers.getQueue().size()); } }
     public String authorityId() { return authority; }
@@ -205,6 +250,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
     }
     public void expire() { synchronized (lock) { if (!closed) expireLocked(); } }
     private UUID start(Session session, Job job) {
+        session.selectedRequest=null;
         cancel(session.job,Status.CANCELLED,"cancelled"); session.job = job;
         job.future = new FutureTask<>(() -> { run(job); return null; }) {
             @Override protected void done() { workers.remove(this); }
@@ -326,10 +372,13 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         return child;
     }
     @Override public void close() {
+        List<CompletableFuture<?>> pending;
         synchronized (lock) {
             if (closed) return; closed = true;
             for (var session : sessions.values()) cancel(session.job,Status.CANCELLED,"cancelled"); sessions.clear();
+            pending=List.copyOf(selectedReads); selectedReads.clear();
         }
+        for(var result:pending) result.completeExceptionally(new CommunityPackages.Failure("cancelled"));
         workers.shutdownNow(); backend.shutdownNow();
     }
 }

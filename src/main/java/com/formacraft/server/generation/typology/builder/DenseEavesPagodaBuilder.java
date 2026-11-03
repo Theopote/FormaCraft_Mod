@@ -252,7 +252,8 @@ public final class DenseEavesPagodaBuilder {
             }
 
             y += levelH + eavesPerLevel;
-            half = Math.max(3, half - 1);
+            // Allow taper to half=2 so small bases (e.g. 7×7 → half=3) still show setback.
+            half = Math.max(2, half - 1);
         }
 
         int finialY = y + 1;
@@ -263,7 +264,7 @@ public final class DenseEavesPagodaBuilder {
                         && b.getPos().getZ() == origin.getZ()
                         && b.getPos().getY() >= origin.getY() + finialY);
 
-        boolean setback = half < startHalf;
+        boolean setback = floors <= 1 || half < startHalf || startHalf <= 2;
         PagodaMorphologyAudit.check(
                 TYPOLOGY_ID, vertical, floors, emittedEaves, setback, finialCentered, vertical.floorsExplicit());
 

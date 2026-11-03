@@ -114,17 +114,55 @@ final class ComponentEmitPass {
                                 || "skeleton_empty".equals(diagCode)
                                 || "assembly_empty".equals(diagCode);
                         boolean capturedLibraryMiss = "captured_library_miss".equals(diagCode);
+                        boolean typologyFailure = routed.pipelineStep()
+                                        == com.formacraft.server.generation.component.adaptor.ComponentPipelineStepId.TYPOLOGY
+                                || routed.pipelineStep()
+                                        == com.formacraft.server.generation.component.adaptor.ComponentPipelineStepId.STRUCTURE_ADAPTOR
+                                || (diagCode != null && (diagCode.startsWith("E_PAGODA")
+                                        || diagCode.startsWith("E_STUPA")
+                                        || diagCode.contains("MORPHOLOGY")
+                                        || "TYPOLOGY_FAILED".equals(diagCode)));
                         boolean nativeFailure = "required_component_empty".equals(diagCode)
-                                || routed.pipelineStep() == com.formacraft.server.generation.component.adaptor.ComponentPipelineStepId.COMPONENT_REGISTRY;
+                                || "generator_exception".equals(diagCode)
+                                || routed.pipelineStep()
+                                        == com.formacraft.server.generation.component.adaptor.ComponentPipelineStepId.COMPONENT_REGISTRY;
                         boolean roofTypeUnsupported = "generator_exception".equals(diagCode)
                                 && detail != null && detail.contains("roof_type_unsupported");
-                        String gapCode = envelopeConflict
-                                ? "E_COMPONENT_REQUEST_CONFLICT"
-                                : authorityConflict
-                                ? "E_GENERATION_AUTHORITY_CONFLICT"
-                                : roofTypeUnsupported
-                                ? "E_ROOF_TYPE_UNSUPPORTED"
-                                : nativeFailure ? "E_COMPONENT_GENERATION_FAILED" : "E_COMPONENT_LIBRARY_FAILED";
+                        boolean explicitLibraryAuthority = routed.authority()
+                                == com.formacraft.common.generation.routing.GenerationAuthority.CAPTURED_LIBRARY;
+                        // Library is optional: miss/hard-fail without CAPTURED_LIBRARY must not abort the build.
+                        if (capturedLibraryMiss && !explicitLibraryAuthority) {
+                            AssemblyCompileDiagnostics.addSoftWarning(
+                                    "LIBRARY_OPTIONAL_SKIP",
+                                    "可选构件库未命中，已回退原生生成：type=" + c.componentType()
+                                            + " id=" + ComponentPlanTypes.paramIdentity(c)
+                                            + " detail=" + detail,
+                                    c.componentType(),
+                                    ComponentPlanTypes.paramIdentity(c));
+                            patches = List.of();
+                            break;
+                        }
+                        String extractedConstraint = geometryConstraintCode(detail);
+                        String gapCode;
+                        if (envelopeConflict) {
+                            gapCode = "E_COMPONENT_REQUEST_CONFLICT";
+                        } else if (authorityConflict) {
+                            gapCode = "E_GENERATION_AUTHORITY_CONFLICT";
+                        } else if (roofTypeUnsupported) {
+                            gapCode = "E_ROOF_TYPE_UNSUPPORTED";
+                        } else if (typologyFailure) {
+                            gapCode = (diagCode != null && diagCode.startsWith("E_")) ? diagCode : "E_TYPOLOGY_FAILED";
+                        } else if (nativeFailure) {
+                            gapCode = extractedConstraint != null && !"E_COMPONENT_GENERATION_FAILED".equals(extractedConstraint)
+                                    ? extractedConstraint
+                                    : "E_COMPONENT_GENERATION_FAILED";
+                        } else if (explicitLibraryAuthority || capturedLibraryMiss) {
+                            gapCode = "E_COMPONENT_LIBRARY_FAILED";
+                        } else {
+                            gapCode = extractedConstraint != null
+                                    ? extractedConstraint
+                                    : "E_COMPONENT_GENERATION_FAILED";
+                        }
                         String gapMessage = envelopeConflict
                                 ? "显式 component_request 与包络保护冲突：type=" + c.componentType()
                                     + " id=" + ComponentPlanTypes.paramIdentity(c)
@@ -133,11 +171,17 @@ final class ComponentEmitPass {
                                 ? "生成权威冲突：type=" + c.componentType()
                                     + " id=" + ComponentPlanTypes.paramIdentity(c)
                                     + " detail=" + detail
+                                : typologyFailure
+                                ? "结构类型学生成失败：type=" + c.componentType()
+                                    + " id=" + ComponentPlanTypes.paramIdentity(c)
+                                    + " detail=" + detail
                                 : capturedLibraryMiss
                                 ? "捕获构件未产生几何：type=" + c.componentType()
                                     + " id=" + ComponentPlanTypes.paramIdentity(c)
                                     + " detail=" + detail
-                                : (nativeFailure ? "原生建筑组件生成失败：type=" : "捕获/库构件硬失败：type=") + c.componentType()
+                                : (nativeFailure || !"E_COMPONENT_LIBRARY_FAILED".equals(gapCode)
+                                        ? "原生建筑组件生成失败：type="
+                                        : "捕获/库构件硬失败：type=") + c.componentType()
                                     + " id=" + ComponentPlanTypes.paramIdentity(c)
                                     + " status=" + routed.status()
                                     + " detail=" + detail;
@@ -151,8 +195,11 @@ final class ComponentEmitPass {
                                         : authorityConflict
                                         ? List.of("Align generation_authority with component hints and payload",
                                                 "Do not silently fall back to another executor")
-                                        : nativeFailure ? List.of("检查原生门窗尺寸、材质与宿主墙面", "不需要添加构件库资产")
-                                        : List.of("修复构件 ID、适配规则或清洞约束", "禁止回退为无关默认几何")));
+                                        : typologyFailure
+                                        ? List.of("检查 typology 参数（层数/收分/檐道）", "构件库不是必需依赖")
+                                        : nativeFailure || !"E_COMPONENT_LIBRARY_FAILED".equals(gapCode)
+                                        ? List.of("检查原生门窗尺寸、材质与宿主墙面", "不需要添加构件库资产")
+                                        : List.of("修复构件 ID、适配规则或清洞约束", "无匹配库构件时应回退原生生成")));
                         return patchOccupancy;
                     }
                     if (routed != null && routed.degraded()) {

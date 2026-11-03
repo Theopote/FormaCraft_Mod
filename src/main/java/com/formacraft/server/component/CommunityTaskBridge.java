@@ -146,6 +146,12 @@ public final class CommunityTaskBridge implements AutoCloseable {
         return new Response(request.token(),Reply.ERROR,request.sessionId(),request.subjectId(),null,0,0,"",null,code);
     }
     public synchronized void disconnect(UUID owner) { slots.remove(owner); tasks.disconnect(owner); }
+    public synchronized void touch(UUID owner,UUID session) throws IOException {
+        expire();
+        var slot=slots.get(owner);
+        if(slot==null || !Objects.equals(slot.session,session)) throw failure("session_expired");
+        tasks.snapshot(owner,session); slot.touched=clock.instant();
+    }
     public synchronized void expire() {
         tasks.expire(); Instant now = clock.instant(); var iterator = slots.entrySet().iterator();
         while (iterator.hasNext()) {

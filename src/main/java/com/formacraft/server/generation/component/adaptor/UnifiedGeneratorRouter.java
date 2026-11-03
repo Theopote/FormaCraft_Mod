@@ -255,7 +255,11 @@ public final class UnifiedGeneratorRouter {
                 return new ComponentGeneratorAttempt(List.of(), RoutedGenerationResult.failure(
                         ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
                         "generator_exception",
-                        e.getMessage() == null ? componentType : e.getMessage()));
+                        e.getMessage() == null ? componentType : e.getMessage(),
+                        null,
+                        "COMPONENT_REGISTRY")
+                        .withAttribution(ComponentExecutorId.COMPONENT_PIPELINE,
+                                ComponentPipelineStepId.COMPONENT_REGISTRY));
             }
             FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: component generator failed for {}, skipping",
                     componentType, e);

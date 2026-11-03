@@ -338,6 +338,67 @@ class CommunityGameProtocolTest {
             assertNotNull(client.recipe()); assertEquals("",client.error());
         } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
     }
+    @Test void manualClientBindingNeverFallsBackAfterCommunityTaskChanges() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=installed(bridge,owner,time); String asset=client.installed().assetId(); var binding=new com.formacraft.client.component.CommunityPlacementSelection();
+            binding.bind(client); assertEquals(client.sessionId(),binding.reference(client,asset).sessionId()); assertNull(binding.reference(client,"other"));
+            time.advance(100_000); bridge.touch(owner,client.sessionId()); time.advance(30_000); bridge.expire(); assertNotNull(coordinator.snapshot(owner,client.sessionId()));
+            assertThrows(IOException.class,()->bridge.touch(owner,UUID.randomUUID()));
+            client.saveRecipe(new ComponentRecipeLibrary.Spec("Same source",1,1,1)); assertThrows(IllegalStateException.class,()->binding.reference(client,asset));
+            pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY); assertThrows(IllegalStateException.class,()->binding.reference(client,asset));
+            binding.bind(client); assertTrue(binding.active(client)); client.cancel(); assertThrows(IllegalStateException.class,()->binding.reference(client,asset));
+            binding.clear(); assertNull(binding.reference(client,asset));
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    private static void await(java.util.concurrent.CountDownLatch latch) throws IOException {
+        try { if(!latch.await(5,java.util.concurrent.TimeUnit.SECONDS)) throw new IOException("Test latch timed out"); }
+        catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new IOException(interrupted); }
+    }
+    @Test void selectedPreparationPublishesOnlyTheLatestRequestAndChecksOwner() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID(); var entered=new java.util.concurrent.CountDownLatch(1); var release=new java.util.concurrent.CountDownLatch(1);
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=installed(bridge,owner,time); UUID session=client.sessionId(), source=client.taskId();
+            assertThrows(IOException.class,()->coordinator.useSelection(UUID.randomUUID(),session,source,s -> "bad"));
+            var first=coordinator.useSelection(owner,session,source,s -> { entered.countDown(); await(release); return s.source().manifest().author(); }); await(entered);
+            var second=coordinator.useSelection(owner,session,source,s -> s.source().manifest().author());
+            assertEquals("Author",second.result().get(5,java.util.concurrent.TimeUnit.SECONDS)); assertTrue(coordinator.selectedRequestCurrent(owner,session,source,second.id()));
+            assertFalse(coordinator.selectedRequestCurrent(owner,session,source,first.id())); release.countDown();
+            assertThrows(java.util.concurrent.ExecutionException.class,()->first.result().get(5,java.util.concurrent.TimeUnit.SECONDS));
+            coordinator.invalidateSelectedRequests(owner); assertFalse(coordinator.selectedRequestCurrent(owner,session,source,second.id()));
+            var third=coordinator.useSelection(owner,session,source,s -> s.receipt().receiptId()); third.result().get(5,java.util.concurrent.TimeUnit.SECONDS);
+            coordinator.search(owner,session,search()); assertFalse(coordinator.selectedRequestCurrent(owner,session,source,third.id()));
+            assertThrows(IOException.class,()->coordinator.useSelection(owner,session,source,s -> "stale"));
+        } finally { release.countDown(); ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void selectedPreparationDeadlineAndCloseNeverPermitLatePublication() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID(); var release=new java.util.concurrent.CountDownLatch(1); var entered=new java.util.concurrent.CountDownLatch(1);
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=installed(bridge,owner,time); UUID session=client.sessionId(), source=client.taskId();
+            var request=coordinator.useSelection(owner,session,source,s -> { entered.countDown(); await(release); return "late"; }); await(entered); time.advance(45_001);
+            assertTrue(coordinator.selectedRequestLatest(owner,session,source,request.id())); assertFalse(coordinator.selectedRequestCurrent(owner,session,source,request.id()));
+            release.countDown(); assertThrows(java.util.concurrent.ExecutionException.class,()->request.result().get(5,java.util.concurrent.TimeUnit.SECONDS));
+            var hold=new java.util.concurrent.CountDownLatch(1); var running=new java.util.concurrent.CountDownLatch(1);
+            var pending=coordinator.useSelection(owner,session,source,s -> { running.countDown(); await(hold); return "closed"; }); await(running);
+            coordinator.close(); assertThrows(java.util.concurrent.ExecutionException.class,()->pending.result().get(5,java.util.concurrent.TimeUnit.SECONDS));
+            assertFalse(coordinator.selectedRequestCurrent(owner,session,source,pending.id())); hold.countDown();
+        } finally { release.countDown(); ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void selectedPreparationSharesTheExistingBoundedWorkerQueue() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID(); var release=new java.util.concurrent.CountDownLatch(1);
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=installed(bridge,owner,time); UUID session=client.sessionId(), source=client.taskId();
+            var requests=new ArrayList<CommunityTaskCoordinator.SelectedRequest<String>>();
+            for(int i=0;i<2;i++) { var entered=new java.util.concurrent.CountDownLatch(1); requests.add(coordinator.useSelection(owner,session,source,s -> { entered.countDown(); await(release); return "blocked"; })); await(entered); }
+            for(int i=0;i<CommunityTaskCoordinator.QUEUE_SIZE;i++) requests.add(coordinator.useSelection(owner,session,source,s -> "queued"));
+            assertEquals("budget_exceeded",assertThrows(CommunityPackages.Failure.class,()->coordinator.useSelection(owner,session,source,s -> "overflow")).code());
+            coordinator.close(); for(var request:requests) assertTrue(request.result().isCompletedExceptionally());
+        } finally { release.countDown(); ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
     @Test void queuedRecipeCancellationDoesNotPublishAFavorite() throws Exception {
         com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
         var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();

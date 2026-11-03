@@ -93,8 +93,14 @@ public class EntranceGenerator implements ComponentGenerator {
             }
             doorWidth = Math.max(1, requestedDoorWidth);
             if (hasArch && doorWidth < 2) {
-                throw new IllegalArgumentException(
-                        "E_ENTRANCE_DOOR_WIDTH: arched entrance requires door_width>=2, got=" + doorWidth);
+                // Soft-clamp: keep the entrance rather than aborting the whole building.
+                int clamped = Math.min(Math.max(2, doorWidth), Math.max(1, openingSpan - 1));
+                if (clamped < 2) {
+                    hasArch = false;
+                    doorWidth = Math.max(1, Math.min(doorWidth, openingSpan - 1));
+                } else {
+                    doorWidth = clamped;
+                }
             }
         } else {
             if (openingSpan < 2) {

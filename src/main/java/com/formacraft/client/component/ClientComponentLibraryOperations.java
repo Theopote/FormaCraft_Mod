@@ -85,7 +85,7 @@ public final class ClientComponentLibraryOperations {
         return true;
     }
     private static void loadFailed() {
-        if (loadingAsset) { loadingAsset = false; ComponentTool.INSTANCE.onComponentDefinitionFromServer(""); }
+        if (loadingAsset) { ClientCommunityPlacement.clear(); loadingAsset = false; ComponentTool.INSTANCE.onComponentDefinitionFromServer(""); }
     }
     public static void cancel() { if (STATE.phase() == ComponentLibraryClientState.Phase.DELETING || STATE.phase() == ComponentLibraryClientState.Phase.SAVING) return; sendCancel(); loadFailed(); STATE.clear(); }
     private static void sendCancel() {
@@ -99,6 +99,7 @@ public final class ClientComponentLibraryOperations {
     }
     private static void loadDownload() {
         try {
+            ClientCommunityPlacement.reference(STATE.assetId());
             var verified = ComponentPackageIO.inspectBytes(STATE.bytes());
             if (!STATE.sourceRef().equals(verified.contentRef())) throw new java.io.IOException("构件内容引用不一致");
             var definition = verified.runtimeComponent(STATE.assetId());

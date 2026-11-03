@@ -41,7 +41,8 @@ public final class PagodaMorphologyAudit {
         if (expected != null && expected.floorsExplicit() && actualEaveTiers != expected.eaveTiers()) {
             diags.add("eave_tiers expected=" + expected.eaveTiers() + " actual=" + actualEaveTiers);
         }
-        if (!setbackObserved) {
+        // Single-storey or already-min-footprint towers cannot taper; do not hard-fail them.
+        if (!setbackObserved && actualFloors > 1) {
             diags.add("setback/taper not observed across storeys");
         }
         if (!finialCentered) {

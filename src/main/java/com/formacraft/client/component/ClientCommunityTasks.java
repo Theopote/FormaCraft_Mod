@@ -12,8 +12,8 @@ public final class ClientCommunityTasks {
     private static boolean registered;
     public static void register() {
         if (registered) return; registered = true;
-        ClientPlayConnectionEvents.JOIN.register((handler,sender,client) -> STATE.clear());
-        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> STATE.clear());
+        ClientPlayConnectionEvents.JOIN.register((handler,sender,client) -> { STATE.clear(); ClientCommunityPlacement.clear(); });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> { STATE.clear(); ClientCommunityPlacement.clear(); });
         ClientPlayNetworking.registerGlobalReceiver(CommunityTaskNetworking.Response.ID,(response,context) -> context.client().execute(() -> STATE.accept(response)));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             var request = STATE.nextRequest(); if (request == null) return;

@@ -94,9 +94,10 @@ public final class FormaCraftServerNetworking {
             com.formacraft.server.state.PlayerProtectedZoneStorage.set(player, payload.zones());
         }));
 
-        ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.RequestPatchPreviewPayload.ID, (payload, context) -> context.server().execute(() -> {
+        ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.RequestPatchPreviewPayload.ID, (payload, context) -> CommunityPlacementHandler.dispatch(payload,context,() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
+            CommunityPlacementHandler.invalidate(context.server(),player.getUuid());
             if (!(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw)) return;
 
             BlockPos origin = payload.origin();

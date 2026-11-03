@@ -339,6 +339,7 @@ public final class ComponentTool implements FormacraftTool {
             HudToast.show("请先选择一个构件（构件库）", true);
             return;
         }
+        com.formacraft.client.component.ClientCommunityPlacement.clear();
         awaitingComponentLoad = true;
         awaitingComponentId = state.librarySelectedId;
         loadedComponent = null;
