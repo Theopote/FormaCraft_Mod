@@ -108,8 +108,8 @@ class Live2252RegressionTest {
                             "231048", "E_PATCH_CONFLICT",
                             "231158", "E_PATCH_CONFLICT",
                             "231336", "E_PATCH_CONFLICT",
-                            "231921", "E_STAIR_COMPONENT_INVALID",
-                            "232025", "E_OPENING_MATERIAL_MISMATCH");
+                            "231921", "E_STAIR_COMPONENT_INVALID");
+                    // 232025: opening material mismatch is soft — must compile.
                     if (!rejected.containsKey(name)) {
                         assertNull(gap, name); assertFalse(blocks.isEmpty(), name);
                     } else {

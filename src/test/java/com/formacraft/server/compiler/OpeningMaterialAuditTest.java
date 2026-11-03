@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OpeningMaterialAuditTest {
     @Test
-    void windowMaterialChangedProducesGap() {
+    void windowMaterialChangedIsSoftOnly() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
         expectations.put(new BlockPos(1, 2, 3),
                 new OpeningMaterialAudit.Expectation("win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass"));
@@ -22,33 +22,29 @@ class OpeningMaterialAuditTest {
         ));
         assertEquals("mismatch", result.status());
         assertEquals(1, result.mismatchCells());
-        var gap = OpeningMaterialAudit.toCapabilityGap(result);
-        assertTrue(gap.isPresent());
-        assertEquals("E_OPENING_MATERIAL_MISMATCH", gap.get().code());
+        assertTrue(OpeningMaterialAudit.toCapabilityGap(result).isEmpty());
     }
 
     @Test
-    void doorOpeningBlockedProducesGap() {
+    void doorOpeningBlockedIsSoftOnly() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
         expectations.put(new BlockPos(0, 1, 0),
                 new OpeningMaterialAudit.Expectation("door1", GeneratedSurfaceCapture.Role.DOOR_OPENING, null));
         var result = OpeningMaterialAudit.inspect(expectations, List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:cobblestone")
         ));
-        assertTrue(OpeningMaterialAudit.toCapabilityGap(result).isPresent());
+        assertTrue(OpeningMaterialAudit.toCapabilityGap(result).isEmpty());
         assertEquals("door_opening_blocked", result.firstIssue().reason());
     }
 
     @Test
-    void unresolvedExpectationProducesGap() {
+    void unresolvedExpectationIsSoftOnly() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
         expectations.put(new BlockPos(5, 5, 5),
                 new OpeningMaterialAudit.Expectation("win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass"));
         var result = OpeningMaterialAudit.inspect(expectations, List.of());
         assertEquals(1, result.unresolvedCells());
-        var gap = OpeningMaterialAudit.toCapabilityGap(result);
-        assertTrue(gap.isPresent());
-        assertEquals("E_OPENING_UNRESOLVED", gap.get().code());
+        assertTrue(OpeningMaterialAudit.toCapabilityGap(result).isEmpty());
     }
 
     @Test

@@ -122,11 +122,8 @@ public final class GenerationRouteContract {
                     : Optional.of(new GenerationDiagnostic(
                             "generation_authority_conflict",
                             "generation_authority=ASSEMBLY but assembly payload is not routable"));
-            case CAPTURED_LIBRARY -> ComponentRouteHints.hasExplicitLibraryRequest(semantic.source())
-                    ? Optional.empty()
-                    : Optional.of(new GenerationDiagnostic(
-                            "captured_library_miss",
-                            "generation_authority=CAPTURED_LIBRARY but no group_request/component_request feature"));
+            // Library is optional: missing request is not a hard conflict — router demotes to COMPONENTS.
+            case CAPTURED_LIBRARY -> Optional.empty();
             default -> Optional.empty();
         };
     }

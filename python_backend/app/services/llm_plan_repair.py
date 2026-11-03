@@ -308,9 +308,13 @@ def repair_llm_plan_validation(
                 break
 
     # Directed re-plan from authoritative request intent before emitting a hard gap.
+    # Include schema/field failures (facing/anchor) that sanitize could not repair.
     semantic_fail = any(
         ("semantics" in str(e).lower()) or ("tower/pagoda" in str(e).lower())
         or ("empty components" in str(e).lower()) or ("components:" in str(e).lower())
+        or ("facing" in str(e).lower()) or ("anchor" in str(e).lower())
+        or ("validation error" in str(e).lower()) or ("field required" in str(e).lower())
+        or ("missing field" in str(e).lower())
         for e in (errors or [])
     )
     if semantic_fail and not preserve_fbd:

@@ -37,7 +37,7 @@ class GenerationAuthorityRoutingTest {
     }
 
     @Test
-    void capturedLibraryWithoutRequestFailsValidation() {
+    void capturedLibraryWithoutRequestAllowsValidation() {
         Component c = new Component(
                 "MASS_MAIN",
                 "body",
@@ -52,8 +52,7 @@ class GenerationAuthorityRoutingTest {
                 ComponentRouteResolver.resolve(semantic, null),
                 semantic,
                 null);
-        assertTrue(conflict.isPresent());
-        assertEquals("captured_library_miss", conflict.get().code());
+        assertTrue(conflict.isEmpty());
     }
 
     @Test

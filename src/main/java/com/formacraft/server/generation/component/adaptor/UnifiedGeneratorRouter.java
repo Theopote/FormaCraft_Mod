@@ -226,7 +226,16 @@ public final class UnifiedGeneratorRouter {
 
         ComponentPipelinePlan pipelinePlan = hint.pipelinePlan();
         if (authority == com.formacraft.common.generation.routing.GenerationAuthority.CAPTURED_LIBRARY) {
-            pipelinePlan = GenerationRouteContract.capturedLibraryPlan(c);
+            if (!ComponentRouteHints.hasExplicitLibraryRequest(c)) {
+                // Authority tagged library but no request — demote so native/typology still run.
+                FormacraftMod.LOGGER.info(
+                        "UnifiedGeneratorRouter: CAPTURED_LIBRARY without request — demote to COMPONENTS type={}",
+                        componentType);
+                authority = com.formacraft.common.generation.routing.GenerationAuthority.COMPONENTS;
+                pipelinePlan = hint.pipelinePlan();
+            } else {
+                pipelinePlan = GenerationRouteContract.capturedLibraryPlan(c);
+            }
         }
         return ComponentGenerationPipeline.execute(
                 pipelinePlan, semantic, world, c, componentType, authority);

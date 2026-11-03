@@ -65,7 +65,7 @@ class AuthorityRoutingContractTest {
     }
 
     @Test
-    void capturedLibraryMissFailsRouting() throws Exception {
+    void capturedLibraryMissDemotesToComponents() throws Exception {
         LlmPlan plan = loadFixture("captured_library_miss.json");
         Component mass = plan.components().getFirst();
 
@@ -75,8 +75,9 @@ class AuthorityRoutingContractTest {
         SemanticComponent semantic = new SemanticComponent("MASS_MAIN", null, mass);
         RoutedGenerationResult result = UnifiedGeneratorRouter.generateResult(semantic, null);
 
-        assertTrue(result.isHardFail());
-        assertTrue(result.diagnostics().stream()
+        // Library is optional: missing request demotes to COMPONENTS instead of hard-fail.
+        assertFalse(result.isHardFail());
+        assertFalse(result.diagnostics().stream()
                 .anyMatch(d -> "captured_library_miss".equals(d.code())));
     }
 

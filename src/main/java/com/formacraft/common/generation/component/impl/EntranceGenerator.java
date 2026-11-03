@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
@@ -84,20 +85,20 @@ public class EntranceGenerator implements ComponentGenerator {
             throw new IllegalArgumentException(
                     "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
         }
+        int maxDoor = Math.max(1, openingSpan - 1);
         if (explicitDoorWidth) {
-            // Explicit door_width must leave ≥1 jamb cell; oversize is a contract error.
-            if (requestedDoorWidth > openingSpan - 1) {
-                throw new IllegalArgumentException(
-                        "E_ENTRANCE_DOOR_WIDTH: door_width=" + requestedDoorWidth
-                                + " exceeds openingSpan-1=" + (openingSpan - 1));
+            // Soft-clamp oversize: keep the entrance rather than aborting the whole building.
+            if (requestedDoorWidth > maxDoor) {
+                FormacraftMod.LOGGER.warn(
+                        "EntranceGenerator: soft-clamp door_width={} → {} (openingSpan={})",
+                        requestedDoorWidth, maxDoor, openingSpan);
             }
-            doorWidth = Math.max(1, requestedDoorWidth);
+            doorWidth = Math.max(1, Math.min(requestedDoorWidth, maxDoor));
             if (hasArch && doorWidth < 2) {
-                // Soft-clamp: keep the entrance rather than aborting the whole building.
-                int clamped = Math.min(Math.max(2, doorWidth), Math.max(1, openingSpan - 1));
+                int clamped = Math.min(Math.max(2, doorWidth), maxDoor);
                 if (clamped < 2) {
                     hasArch = false;
-                    doorWidth = Math.max(1, Math.min(doorWidth, openingSpan - 1));
+                    doorWidth = Math.max(1, Math.min(doorWidth, maxDoor));
                 } else {
                     doorWidth = clamped;
                 }
@@ -106,11 +107,20 @@ public class EntranceGenerator implements ComponentGenerator {
             // Default: center the door; pick 1/2/3 so the bay is symmetric on the facade span.
             int auto = symmetricDoorWidth(openingSpan);
             if (hasArch) auto = Math.max(3, auto % 2 == 0 ? auto + 1 : auto);
-            if (auto > openingSpan - 1) {
-                throw new IllegalArgumentException(
-                        "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
+            if (auto > maxDoor) {
+                if (hasArch && maxDoor >= 2) {
+                    hasArch = maxDoor >= 3;
+                    doorWidth = maxDoor;
+                } else if (hasArch) {
+                    hasArch = false;
+                    doorWidth = Math.max(1, maxDoor);
+                } else {
+                    throw new IllegalArgumentException(
+                            "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
+                }
+            } else {
+                doorWidth = Math.max(1, Math.min(auto, maxDoor));
             }
-            doorWidth = Math.max(1, Math.min(auto, openingSpan - 1));
         }
         doorHeight = Math.max(2, Math.min(doorHeight, height));
         int canopyDepth = ComponentParamParsers.intParam(params, 0, "canopy_depth", "canopyDepth");

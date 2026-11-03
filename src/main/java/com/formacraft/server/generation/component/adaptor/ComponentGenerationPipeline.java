@@ -257,44 +257,57 @@ final class ComponentGenerationPipeline {
             String componentType
     ) {
         if (!ComponentRouteHints.hasExplicitLibraryRequest(c)) {
-            // Soft: CAPTURED_LIBRARY without a request should not block — fall through to empty skip.
+            // Soft: demote to COMPONENTS so registry/typology still run.
             FormacraftMod.LOGGER.info(
-                    "ComponentGenerationPipeline: CAPTURED_LIBRARY without request — soft skip type={}",
+                    "ComponentGenerationPipeline: CAPTURED_LIBRARY without request — demote type={}",
                     componentType);
-            return RoutedGenerationResult.success(
-                    List.of(),
-                    ComponentExecutorId.COMPONENT_PIPELINE,
-                    ComponentPipelineStepId.LIBRARY_EXPANDER,
-                    GenerationAuthority.CAPTURED_LIBRARY,
-                    "library_optional_empty");
+            return execute(
+                    ComponentPipelineRouteResolver.resolve(semantic, world),
+                    semantic,
+                    world,
+                    c,
+                    componentType,
+                    GenerationAuthority.COMPONENTS);
         }
         boolean hasGroupRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "group_request:");
         boolean hasComponentRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "component_request:");
         UnifiedGeneratorRouter.ExpanderStage expander = UnifiedGeneratorRouter.applyExpandersResult(
                 semantic, world, List.of(), hasGroupRequest, hasComponentRequest);
-        if (expander.hardFail() != null) {
-            // Still soft: library is additive; emit empty success so the rest of the plan can compile.
+        if (expander.hardFail() != null || !expander.libraryCommitted()
+                || expander.patches() == null || expander.patches().isEmpty()) {
+            // Library is additive: miss/fail falls through to native COMPONENTS pipeline.
             FormacraftMod.LOGGER.warn(
-                    "ComponentGenerationPipeline: library hard-fail softened to empty type={}",
+                    "ComponentGenerationPipeline: library miss/fail — native fallback type={}",
                     componentType);
-            return RoutedGenerationResult.success(
-                    List.of(),
-                    ComponentExecutorId.COMPONENT_PIPELINE,
-                    ComponentPipelineStepId.LIBRARY_EXPANDER,
-                    GenerationAuthority.CAPTURED_LIBRARY,
-                    "library_optional_soft_fail");
+            List<GenerationDiagnostic> soft = new ArrayList<>();
+            if (expander.hardFail() != null) {
+                soft.addAll(expander.hardFail().diagnostics());
+            }
+            soft.addAll(expander.diagnostics());
+            RoutedGenerationResult nativeResult = execute(
+                    ComponentPipelineRouteResolver.resolve(semantic, world),
+                    semantic,
+                    world,
+                    c,
+                    componentType,
+                    GenerationAuthority.COMPONENTS);
+            if (!soft.isEmpty() && nativeResult != null) {
+                List<GenerationDiagnostic> merged = new ArrayList<>(soft);
+                merged.addAll(nativeResult.diagnostics());
+                return new RoutedGenerationResult(
+                        nativeResult.status(),
+                        nativeResult.patches(),
+                        merged,
+                        nativeResult.executor(),
+                        nativeResult.pipelineStep(),
+                        nativeResult.authority(),
+                        nativeResult.routeReason() == null
+                                ? "library_optional_native_fallback"
+                                : nativeResult.routeReason());
+            }
+            return nativeResult;
         }
-        List<BlockPatch> base = expander.libraryCommitted() ? expander.patches() : List.of();
-        if (base.isEmpty()) {
-            FormacraftMod.LOGGER.info(
-                    "ComponentGenerationPipeline: library miss softened type={}", componentType);
-            return RoutedGenerationResult.success(
-                    List.of(),
-                    ComponentExecutorId.COMPONENT_PIPELINE,
-                    ComponentPipelineStepId.LIBRARY_EXPANDER,
-                    GenerationAuthority.CAPTURED_LIBRARY,
-                    "library_optional_miss");
-        }
+        List<BlockPatch> base = expander.patches();
         TypologyRoutingMetrics.recordExecutorHit(
                 ComponentExecutorId.COMPONENT_PIPELINE.name(),
                 ComponentPipelineStepId.LIBRARY_EXPANDER.name(),
