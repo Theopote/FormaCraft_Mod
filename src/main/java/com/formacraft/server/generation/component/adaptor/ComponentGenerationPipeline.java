@@ -10,7 +10,9 @@ import com.formacraft.common.generation.routing.GenerationFallbackPolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.network.metrics.TypologyRoutingMetrics;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.typology.TypologyGenerationException;
 import net.minecraft.server.world.ServerWorld;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,10 +53,12 @@ final class ComponentGenerationPipeline {
             boolean hasComponentRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "component_request:");
             expander = UnifiedGeneratorRouter.applyExpandersResult(semantic, world, List.of(), hasGroupRequest, hasComponentRequest);
             if (expander.hardFail() != null) {
-                FormacraftMod.LOGGER.error(
-                        "ComponentGenerationPipeline: library hard-fail status={}",
+                // Library is optional — soft-skip and continue with registry/typology.
+                FormacraftMod.LOGGER.warn(
+                        "ComponentGenerationPipeline: library hard-fail soft-skipped status={}",
                         expander.hardFail().status());
-                return expander.hardFail();
+                routeDiagnostics.addAll(expander.hardFail().diagnostics());
+                expander = new UnifiedGeneratorRouter.ExpanderStage(List.of(), null, expander.diagnostics(), false);
             }
             routeDiagnostics.addAll(expander.diagnostics());
             if (expander.libraryCommitted()) {
@@ -132,14 +136,7 @@ final class ComponentGenerationPipeline {
                 }
             } catch (com.formacraft.common.typology.TypologyGenerationException e) {
                 String routeReason = authority + ":" + ComponentPipelineStepId.TYPOLOGY.name();
-                List<com.formacraft.common.component.GenerationDiagnostic> failDiags =
-                        new java.util.ArrayList<>(routeDiagnostics);
-                failDiags.add(new com.formacraft.common.component.GenerationDiagnostic(
-                        e.code(), e.getMessage() == null ? e.code() : e.getMessage()));
-                for (String d : e.diagnostics()) {
-                    failDiags.add(new com.formacraft.common.component.GenerationDiagnostic(
-                            "TYPOLOGY_DIAG", d));
-                }
+                List<GenerationDiagnostic> failDiags = getGenerationDiagnostics(e, routeDiagnostics);
                 FormacraftMod.LOGGER.warn(
                         "ComponentGenerationPipeline: typology hard-fail type={} code={}",
                         componentType, e.code());
@@ -238,6 +235,18 @@ final class ComponentGenerationPipeline {
                         authority,
                         "skip"),
                 routeDiagnostics);
+    }
+
+    private static @NotNull List<GenerationDiagnostic> getGenerationDiagnostics(TypologyGenerationException e, List<GenerationDiagnostic> routeDiagnostics) {
+        List<GenerationDiagnostic> failDiags =
+                new ArrayList<>(routeDiagnostics);
+        failDiags.add(new GenerationDiagnostic(
+                e.code(), e.getMessage() == null ? e.code() : e.getMessage()));
+        for (String d : e.diagnostics()) {
+            failDiags.add(new GenerationDiagnostic(
+                    "TYPOLOGY_DIAG", d));
+        }
+        return failDiags;
     }
 
     private static RoutedGenerationResult executeCapturedLibrary(

@@ -129,6 +129,8 @@ public final class ComponentPlanCompiler {
         plan = CourtyardRatioRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        // Pavilion height clamps can reintroduce floor_count×floor_height overflow.
+        plan = FloorLayoutOverflowRepair.apply(plan);
         // Pavilion may reintroduce plan_type=octagon after the first pass — reconcile again.
         plan = FootprintCombinationRepair.apply(plan);
         plan = CastleTowerEnrichmentRepair.apply(plan);
@@ -328,6 +330,7 @@ public final class ComponentPlanCompiler {
         if (!openingExpectations.isEmpty()) {
             var openingAudit = OpeningMaterialAudit.inspect(openingExpectations, result);
             FormacraftMod.LOGGER.info("[OpeningMaterialAudit] stage=postprocess result={}", openingAudit);
+            OpeningMaterialAudit.emitSoftWarnings(openingAudit);
             var openingGap = OpeningMaterialAudit.toCapabilityGap(openingAudit);
             if (openingGap.isPresent()) {
                 AssemblyCompileDiagnostics.set(openingGap.get());

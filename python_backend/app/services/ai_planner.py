@@ -1197,6 +1197,17 @@ def _normalize_llm_plan_output(
             gc["symmetry"] = sym
         elif "symmetry" in gc:
             gc.pop("symmetry", None)
+        if gc.get("facing") is not None:
+            facing = str(gc["facing"]).strip().upper()
+            facing = {
+                "N": "NORTH", "S": "SOUTH", "E": "EAST", "W": "WEST",
+                "北": "NORTH", "南": "SOUTH", "东": "EAST", "西": "WEST",
+                "NONE": "SOUTH", "ANY": "SOUTH", "DEFAULT": "SOUTH",
+            }.get(facing, facing)
+            if facing in ("NORTH", "SOUTH", "EAST", "WEST"):
+                gc["facing"] = facing
+            else:
+                gc.pop("facing", None)
         plan["global_constraints"] = gc
 
     if building_profile is not None:

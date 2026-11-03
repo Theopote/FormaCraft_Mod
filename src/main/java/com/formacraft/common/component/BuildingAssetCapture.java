@@ -38,7 +38,7 @@ public final class BuildingAssetCapture implements AutoCloseable {
     private final List<Use> uses = new ArrayList<>();
     private final Map<String,CommunityDownloadCache.Cached> receipts = new LinkedHashMap<>();
     private final Set<String> rawObjects = new HashSet<>();
-    private long sourceBytes,shapeBytes,rawBytes;
+    private long sourceBytes,shapeBytes,rawBytes,receiptBytes;
     private boolean closed;
     private BuildingAssetCapture(Path world, UUID viewer, boolean enabled) {
         this.world = world; this.viewer = viewer; this.enabled = enabled; previous = ACTIVE.get();
@@ -64,15 +64,17 @@ public final class BuildingAssetCapture implements AutoCloseable {
             if (receipt != null) ComponentSourceBinding.assertSource(receipt,source);
             String rawHash = receipt == null ? null : receipt.details().descriptor().releaseRef().packageSha256();
             long additionalRaw = receipt == null || capture.rawObjects.contains(rawHash) ? 0 : receipt.details().descriptor().byteLength();
+            long additionalReceipt = receipt == null || capture.receipts.containsKey(receipt.receiptId()) ? 0 : receipt.details().descriptor().byteLength();
             long additionalSource = capture.sources.containsKey(snapshot) ? 0 : source.toBytes().length;
             long additionalShape = capture.shapes.containsKey(shape) ? 0 : json.getBytes(StandardCharsets.UTF_8).length;
             if (json.length() > ComponentIds.MAX_JSON_CHARS || capture.uses.size() >= 65536
                     || capture.sources.size() >= 256 && !capture.sources.containsKey(snapshot)
                     || capture.shapes.size() >= 1024 && !capture.shapes.containsKey(shape)
                     || capture.sourceBytes+additionalSource > 32L*1024*1024 || capture.shapeBytes+additionalShape > 8L*1024*1024
-                    || capture.rawBytes+additionalRaw > 32L*1024*1024 || receipt != null && capture.receipts.size() >= 256 && !capture.receipts.containsKey(receipt.receiptId()))
+                    || capture.rawBytes+additionalRaw > 32L*1024*1024 || capture.receiptBytes+additionalReceipt > CommunityDownloadCache.MAX_OBJECT_BYTES
+                    || receipt != null && capture.receipts.size() >= 256 && !capture.receipts.containsKey(receipt.receiptId()))
                 throw new IOException("建筑构件锁超出容量限制");
-            capture.sourceBytes += additionalSource; capture.shapeBytes += additionalShape;
+            capture.sourceBytes += additionalSource; capture.shapeBytes += additionalShape; capture.receiptBytes += additionalReceipt;
             if (receipt == null) capture.loaded.put(definition.id,source);
             if (receipt != null) { capture.receipts.put(receipt.receiptId(),receipt); capture.rawObjects.add(rawHash); capture.rawBytes += additionalRaw; }
             capture.sources.put(snapshot,source); capture.shapes.put(shape,json);

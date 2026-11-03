@@ -110,8 +110,11 @@ public final class ComponentRecipeLibrary {
         return ComponentPackageIO.create(definition,manifest,ComponentPackageIO.currentEnvironment());
     }
     private static Loaded read(UUID player, String id) throws IOException {
+        return readAt(personal(player,false),player,id);
+    }
+    private static Loaded readAt(Path library,UUID player,String id) throws IOException {
         if (!isRecipe(id)) throw new IOException("Invalid recipe identity");
-        Path library = personal(player,false), root = ComponentAssetSnapshots.child(library,"recipes",false);
+        Path root = ComponentAssetSnapshots.child(library,"recipes",false);
         Path directory = ComponentAssetSnapshots.child(root,id,false);
         Path document = directory.resolve("recipe.json"), resultFile = directory.resolve("result.fccomponent.json");
         for (Path file : List.of(document,resultFile))
@@ -139,6 +142,8 @@ public final class ComponentRecipeLibrary {
         return new Loaded(recipe,result,source,receipt);
     }
     public static ComponentPackageIO.Verified result(UUID player, String id) throws IOException { return read(player,id).result(); }
+    static Path backupVault(UUID player,boolean create) throws IOException { return personal(player,create); }
+    static Recipe backupRead(Path root,UUID owner,String id) throws IOException { return readAt(root,owner,id).recipe(); }
     public static void replay(UUID player, String id) throws IOException {
         var loaded = read(player,id); var generated = compile(loaded.source(),loaded.recipe().spec());
         if (!generated.contentRef().equals(loaded.result().contentRef()) || !generated.manifestSha256().equals(loaded.result().manifestSha256()))

@@ -1,6 +1,7 @@
 package com.formacraft.client.ui.panel;
 
 import com.formacraft.client.component.*;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentTypes;
 import net.minecraft.client.MinecraftClient;
@@ -144,7 +145,7 @@ final class CommunityLibraryPane {
                 y=line(ctx,"配方已收藏："+CommunityBrowserModel.display(state.recipe().name(),64),x,y,w);
                 y=line(ctx,"返回本地库的收藏配方视图可重放或恢复原件",x,y,w);
             }
-            y=button(ctx,"刷新本地构件库",x,y,w,true,() -> com.formacraft.client.network.FormaCraftClientNetworking.sendComponentCatalogRequest());
+            y=button(ctx,"刷新本地构件库",x,y,w,true, FormaCraftClientNetworking::sendComponentCatalogRequest);
         }
         return line(ctx,"缓存下载不会自动入库或放置",x,y+4,w);
     }

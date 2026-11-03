@@ -4,6 +4,7 @@ import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.*;
@@ -65,37 +66,35 @@ final class OpeningMaterialAudit {
     }
 
     /**
-     * Convert audit result to a capability gap when openings fail contract.
-     * mismatch → E_OPENING_MATERIAL_MISMATCH; unresolved expectations → E_OPENING_UNRESOLVED.
-     * Empty expectations / no windows+doors with zero unresolved is not a gap (nothing to gate).
+     * Opening material audit is advisory for whole-building generation.
+     * Mismatches become soft warnings in the compiler; do not hard-fail the build.
      */
     static Optional<CapabilityGap> toCapabilityGap(Result result) {
-        if (result == null || result.isMatched()) return Optional.empty();
+        return Optional.empty();
+    }
+
+    static void emitSoftWarnings(Result result) {
+        if (result == null || result.isMatched()) return;
         if (result.mismatchCells() > 0) {
             Issue issue = result.firstIssue();
             String detail = issue == null ? "n/a"
                     : issue.reason() + " at " + issue.position().toShortString()
                     + " expected=" + issue.expected() + " actual=" + issue.actual()
                     + " component=" + issue.componentId();
-            return Optional.of(new CapabilityGap(
+            AssemblyCompileDiagnostics.addSoftWarning(
                     "E_OPENING_MATERIAL_MISMATCH",
-                    "门窗契约失败：mismatchCells=" + result.mismatchCells() + "; " + detail,
-                    "components[]",
-                    List.of("保持显式玻璃/窗材不被后处理覆盖", "勿用实心方块填堵门洞")
-            ));
-        }
-        if (result.unresolvedCells() > 0) {
-            return Optional.of(new CapabilityGap(
+                    "门窗材质偏差（不阻断生成）：mismatchCells=" + result.mismatchCells() + "; " + detail,
+                    "FACADE_WINDOWS",
+                    issue == null ? "" : issue.componentId());
+        } else if (result.unresolvedCells() > 0) {
+            AssemblyCompileDiagnostics.addSoftWarning(
                     "E_OPENING_UNRESOLVED",
-                    "门窗契约未解析：unresolvedCells=" + result.unresolvedCells()
+                    "门窗契约未完全解析（不阻断生成）：unresolved=" + result.unresolvedCells()
                             + " windows=" + result.checkedWindows()
                             + " doors=" + result.checkedDoorCells(),
-                    "components[]",
-                    List.of("确保开口单元在最终 Patch 中有对应坐标", "检查后处理是否删除了开口 Patch")
-            ));
+                    "FACADE_WINDOWS",
+                    "");
         }
-        // status not_assessed with zero expectations checked — no hard fail
-        return Optional.empty();
     }
 
     private static String explicitWindowMaterial(Component c) {

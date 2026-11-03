@@ -135,19 +135,36 @@ public final class CommunityTaskClientState {
                     else {
                         byte[] bytes = resultBytes.toByteArray(); resultBytes = null;
                         if (!CommunityPackages.sha256(bytes).equals(sha)) throw invalid();
-                        if(kind.equals("SEARCH")) { result = CommunitySearchResponse.decode(bytes,query,authority); catalog = task; }
-                        else if(kind.equals("PREVIEW")) {
-                            var document=CommunityInstallDocument.decodePreview(bytes);
-                            if(!receipt.equals(document.receiptId()) || !authority.equals(document.authority()) || !selectedRelease.equals(document.releaseId())) throw invalid();
-                            preview=document;
-                        } else if(kind.equals("INSTALL")) {
-                            var document=CommunityInstallDocument.decodeInstalled(bytes); if(!receipt.equals(document.receiptId())) throw invalid(); installed=document;
-                        } else if(kind.equals("RECIPE")) {
-                            var document=CommunityInstallDocument.decodeRecipe(bytes); if(!receipt.equals(document.receiptId())) throw invalid(); favorite=document;
-                        } else if(kind.equals("RESTORE")) {
-                            var document=CommunityInstallDocument.decodeRestored(bytes); if(!receipt.equals(document.installed().receiptId())) throw invalid();
-                            installed=document.installed(); restoredSource=document.source(); selectedRelease=restoredSource.releaseId();
-                        } else throw invalid();
+                        switch (kind) {
+                            case "SEARCH" -> {
+                                result = CommunitySearchResponse.decode(bytes, query, authority);
+                                catalog = task;
+                            }
+                            case "PREVIEW" -> {
+                                var document = CommunityInstallDocument.decodePreview(bytes);
+                                if (!receipt.equals(document.receiptId()) || !authority.equals(document.authority()) || !selectedRelease.equals(document.releaseId()))
+                                    throw invalid();
+                                preview = document;
+                            }
+                            case "INSTALL" -> {
+                                var document = CommunityInstallDocument.decodeInstalled(bytes);
+                                if (!receipt.equals(document.receiptId())) throw invalid();
+                                installed = document;
+                            }
+                            case "RECIPE" -> {
+                                var document = CommunityInstallDocument.decodeRecipe(bytes);
+                                if (!receipt.equals(document.receiptId())) throw invalid();
+                                favorite = document;
+                            }
+                            case "RESTORE" -> {
+                                var document = CommunityInstallDocument.decodeRestored(bytes);
+                                if (!receipt.equals(document.installed().receiptId())) throw invalid();
+                                installed = document.installed();
+                                restoredSource = document.source();
+                                selectedRelease = restoredSource.releaseId();
+                            }
+                            default -> throw invalid();
+                        }
                         phase = Phase.READY;
                     }
                 }

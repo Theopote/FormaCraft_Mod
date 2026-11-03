@@ -69,14 +69,15 @@ public final class BuildingAssetLocks {
                 dependencies.put(entry.getKey(),new Dependency(entry.getValue().contentRef(),entry.getValue().manifestSha256()));
             }
             var receiptSources = new TreeMap<String,String>();
-            long rawBytes = 0; var rawObjects = new HashSet<String>();
+            long rawBytes = 0, receiptBytes = 0; var rawObjects = new HashSet<String>();
             for (var entry : data.receipts().entrySet()) {
                 var receipt = entry.getValue(); var source = receipt.download().verified(); String snapshot = ComponentAssetSnapshots.key(source);
                 if (!entry.getKey().equals(receipt.receiptId()) || !data.sources().containsKey(snapshot)) throw new IOException("建筑收据缺少原包依赖");
                 ComponentSourceBinding.assertSource(receipt,data.sources().get(snapshot));
                 String hash = receipt.details().descriptor().releaseRef().packageSha256();
+                receiptBytes += receipt.details().descriptor().byteLength();
                 if (rawObjects.add(hash)) rawBytes += receipt.details().descriptor().byteLength();
-                if (rawBytes > 32L*1024*1024) throw new IOException("建筑原始下载对象超限");
+                if (rawBytes > 32L*1024*1024 || receiptBytes > CommunityDownloadCache.MAX_OBJECT_BYTES) throw new IOException("建筑原始下载对象或收据总量超限");
                 CommunityDownloadCache.pin(root.resolve("community_downloads"),receipt,ComponentPackageIO.currentEnvironment());
                 receiptSources.put(entry.getKey(),snapshot);
             }
@@ -150,12 +151,13 @@ public final class BuildingAssetLocks {
         return sources;
     }
     private static Map<String,CommunityDownloadCache.Cached> receipts(Path root, Manifest manifest, Map<String,ComponentPackageIO.Verified> sources) throws IOException {
-        var result = new LinkedHashMap<String,CommunityDownloadCache.Cached>(); long rawBytes = 0; var rawObjects = new HashSet<String>();
+        var result = new LinkedHashMap<String,CommunityDownloadCache.Cached>(); long rawBytes = 0, receiptBytes = 0; var rawObjects = new HashSet<String>();
         for (var entry : manifest.communityReceipts().entrySet()) {
             var receipt = CommunityDownloadCache.read(root.resolve("community_downloads"),entry.getKey(),ComponentPackageIO.currentEnvironment());
             ComponentSourceBinding.assertSource(receipt,sources.get(entry.getValue()));
+            receiptBytes += receipt.details().descriptor().byteLength();
             if (rawObjects.add(receipt.details().descriptor().releaseRef().packageSha256())) rawBytes += receipt.details().descriptor().byteLength();
-            if (rawBytes > 32L*1024*1024) throw new IOException("建筑原始下载对象超限");
+            if (rawBytes > 32L*1024*1024 || receiptBytes > CommunityDownloadCache.MAX_OBJECT_BYTES) throw new IOException("建筑原始下载对象或收据总量超限");
             result.put(entry.getKey(),receipt);
         }
         return result;
@@ -163,7 +165,16 @@ public final class BuildingAssetLocks {
     public static Loaded load(Path world,UUID owner,String id,String dimension) throws IOException {
         Path directory = directory(world,owner,id); var manifest = manifest(directory,owner,id);
         if (!Objects.equals(dimension,manifest.dimension())) throw new IOException("请在锁记录所属维度恢复预览");
-        Path root = vault(world,owner,false); var sources = sources(root,manifest); receipts(root,manifest,sources);
+        return loadValidated(vault(world,owner,false),directory,manifest);
+    }
+    static Path backupVault(Path world,UUID owner,boolean create) throws IOException { return vault(world,owner,create); }
+    static Loaded backupRead(Path root,UUID owner,String id) throws IOException {
+        if(!validId(id)) throw new IOException("建筑锁 ID 无效");
+        Path directory=ComponentAssetSnapshots.child(ComponentAssetSnapshots.child(root,"locks",false),id,false);
+        return loadValidated(root,directory,manifest(directory,owner,id));
+    }
+    private static Loaded loadValidated(Path root,Path directory,Manifest manifest) throws IOException {
+        var sources = sources(root,manifest); receipts(root,manifest,sources);
         String plan = text(file(directory,"input-plan.json"),MAX_PLAN);
         if (!BuildingAssetCapture.digest(plan).equals(manifest.planSha256())) throw new IOException("建筑方案指纹不一致");
         Path patchFile = file(directory,"patches.json.gz");
