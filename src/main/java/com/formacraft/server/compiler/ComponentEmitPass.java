@@ -130,18 +130,6 @@ final class ComponentEmitPass {
                                 && detail != null && detail.contains("roof_type_unsupported");
                         boolean explicitLibraryAuthority = routed.authority()
                                 == com.formacraft.common.generation.routing.GenerationAuthority.CAPTURED_LIBRARY;
-                        // Library is optional: miss/hard-fail without CAPTURED_LIBRARY must not abort the build.
-                        if (capturedLibraryMiss && !explicitLibraryAuthority) {
-                            AssemblyCompileDiagnostics.addSoftWarning(
-                                    "LIBRARY_OPTIONAL_SKIP",
-                                    "可选构件库未命中，已回退原生生成：type=" + c.componentType()
-                                            + " id=" + ComponentPlanTypes.paramIdentity(c)
-                                            + " detail=" + detail,
-                                    c.componentType(),
-                                    ComponentPlanTypes.paramIdentity(c));
-                            patches = List.of();
-                            break;
-                        }
                         String extractedConstraint = geometryConstraintCode(detail);
                         String gapCode;
                         if (envelopeConflict) {

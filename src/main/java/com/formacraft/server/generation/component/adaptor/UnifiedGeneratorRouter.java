@@ -334,28 +334,22 @@ public final class UnifiedGeneratorRouter {
                         return new ExpanderStage(merged, null, outcome.diagnostics(),
                                 outcome.degraded(), true);
                     }
-                    if (outcome.isHardFail()) {
-                        return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
-                                outcome.diagnostics(), false);
-                    }
-                    if (outcome.status() == ComponentGenerationOutcome.Status.NO_CANDIDATE) {
-                        FormacraftMod.LOGGER.debug(
-                                "UnifiedGeneratorRouter: group NO_CANDIDATE — allowing generator/typology fallback");
+                    if (outcome.status() == ComponentGenerationOutcome.Status.NO_CANDIDATE
+                            || outcome.isHardFail()) {
+                        FormacraftMod.LOGGER.info(
+                                "UnifiedGeneratorRouter: group library optional skip status={}",
+                                outcome.status());
                         return new ExpanderStage(base, null, outcome.diagnostics(), false);
                     }
-                    return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
-                            outcome.diagnostics(), false);
+                    return new ExpanderStage(base, null, outcome.diagnostics(), false);
                 }
             } catch (Throwable t) {
-                if (isRequiredComponentType(type)) {
-                    FormacraftMod.LOGGER.error("UnifiedGeneratorRouter: PlayerComponentGroupExpander failed (required)", t);
-                    return new ExpanderStage(List.of(), RoutedGenerationResult.failure(
-                            ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
-                            "group_expander_exception",
-                            t.getMessage() == null ? "group_expander_exception" : t.getMessage()),
-                            List.of(), false);
-                }
-                FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: PlayerComponentGroupExpander failed, skipping", t);
+                FormacraftMod.LOGGER.warn(
+                        "UnifiedGeneratorRouter: PlayerComponentGroupExpander failed, soft-skipping", t);
+                return new ExpanderStage(base, null, List.of(
+                        new GenerationDiagnostic("group_expander_exception",
+                                t.getMessage() == null ? "group_expander_exception" : t.getMessage())),
+                        false);
             }
         }
 
@@ -368,32 +362,26 @@ public final class UnifiedGeneratorRouter {
                         return new ExpanderStage(outcome.patches(), null, outcome.diagnostics(),
                                 outcome.degraded(), true);
                     }
-                    if (outcome.isHardFail()) {
-                        return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
-                                outcome.diagnostics(), false);
-                    }
-                    // NO_CANDIDATE without explicit id: allow base/typology fallback
-                    if (outcome.status() == ComponentGenerationOutcome.Status.NO_CANDIDATE) {
-                        FormacraftMod.LOGGER.debug(
-                                "UnifiedGeneratorRouter: NO_CANDIDATE — allowing generator/typology fallback");
+                    if (outcome.status() == ComponentGenerationOutcome.Status.NO_CANDIDATE
+                            || outcome.isHardFail()) {
+                        // Component library is optional: miss/invalid assets must not abort native generation.
+                        FormacraftMod.LOGGER.info(
+                                "UnifiedGeneratorRouter: library optional skip status={} — using native/typology fallback",
+                                outcome.status());
                         return new ExpanderStage(base, null, outcome.diagnostics(), false);
                     }
-                    FormacraftMod.LOGGER.error(
-                            "UnifiedGeneratorRouter: component_request failed status={} diagnostics={}",
-                            outcome.status(), outcome.diagnostics());
-                    return new ExpanderStage(List.of(), RoutedGenerationResult.from(outcome),
-                            outcome.diagnostics(), false);
+                    FormacraftMod.LOGGER.warn(
+                            "UnifiedGeneratorRouter: component_request non-commit status={} — soft skip",
+                            outcome.status());
+                    return new ExpanderStage(base, null, outcome.diagnostics(), false);
                 }
             } catch (Throwable t) {
-                if (isRequiredComponentType(semantic.source().componentType())) {
-                    FormacraftMod.LOGGER.error("UnifiedGeneratorRouter: PlayerComponentExpander failed (required)", t);
-                    return new ExpanderStage(List.of(), RoutedGenerationResult.failure(
-                            ComponentGenerationOutcome.Status.GEOMETRY_INVALID,
-                            "expander_exception",
-                            t.getMessage() == null ? "expander_exception" : t.getMessage()),
-                            List.of(), false);
-                }
-                FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: PlayerComponentExpander failed, skipping", t);
+                FormacraftMod.LOGGER.warn(
+                        "UnifiedGeneratorRouter: PlayerComponentExpander failed, soft-skipping library", t);
+                return new ExpanderStage(base, null, List.of(
+                        new GenerationDiagnostic("library_expander_exception",
+                                t.getMessage() == null ? "library_expander_exception" : t.getMessage())),
+                        false);
             }
         }
 

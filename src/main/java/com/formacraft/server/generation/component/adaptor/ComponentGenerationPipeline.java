@@ -248,24 +248,43 @@ final class ComponentGenerationPipeline {
             String componentType
     ) {
         if (!ComponentRouteHints.hasExplicitLibraryRequest(c)) {
-            return RoutedGenerationResult.failure(
-                    ComponentGenerationOutcome.Status.LOAD_FAILED,
-                    "captured_library_miss",
-                    "generation_authority=CAPTURED_LIBRARY but no library request");
+            // Soft: CAPTURED_LIBRARY without a request should not block — fall through to empty skip.
+            FormacraftMod.LOGGER.info(
+                    "ComponentGenerationPipeline: CAPTURED_LIBRARY without request — soft skip type={}",
+                    componentType);
+            return RoutedGenerationResult.success(
+                    List.of(),
+                    ComponentExecutorId.COMPONENT_PIPELINE,
+                    ComponentPipelineStepId.LIBRARY_EXPANDER,
+                    GenerationAuthority.CAPTURED_LIBRARY,
+                    "library_optional_empty");
         }
         boolean hasGroupRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "group_request:");
         boolean hasComponentRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "component_request:");
         UnifiedGeneratorRouter.ExpanderStage expander = UnifiedGeneratorRouter.applyExpandersResult(
                 semantic, world, List.of(), hasGroupRequest, hasComponentRequest);
         if (expander.hardFail() != null) {
-            return expander.hardFail();
+            // Still soft: library is additive; emit empty success so the rest of the plan can compile.
+            FormacraftMod.LOGGER.warn(
+                    "ComponentGenerationPipeline: library hard-fail softened to empty type={}",
+                    componentType);
+            return RoutedGenerationResult.success(
+                    List.of(),
+                    ComponentExecutorId.COMPONENT_PIPELINE,
+                    ComponentPipelineStepId.LIBRARY_EXPANDER,
+                    GenerationAuthority.CAPTURED_LIBRARY,
+                    "library_optional_soft_fail");
         }
         List<BlockPatch> base = expander.libraryCommitted() ? expander.patches() : List.of();
         if (base.isEmpty()) {
-            return RoutedGenerationResult.failure(
-                    ComponentGenerationOutcome.Status.LOAD_FAILED,
-                    "captured_library_miss",
-                    "captured component did not commit geometry");
+            FormacraftMod.LOGGER.info(
+                    "ComponentGenerationPipeline: library miss softened type={}", componentType);
+            return RoutedGenerationResult.success(
+                    List.of(),
+                    ComponentExecutorId.COMPONENT_PIPELINE,
+                    ComponentPipelineStepId.LIBRARY_EXPANDER,
+                    GenerationAuthority.CAPTURED_LIBRARY,
+                    "library_optional_miss");
         }
         TypologyRoutingMetrics.recordExecutorHit(
                 ComponentExecutorId.COMPONENT_PIPELINE.name(),

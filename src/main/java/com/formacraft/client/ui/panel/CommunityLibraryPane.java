@@ -112,14 +112,21 @@ final class CommunityLibraryPane {
             y=line(ctx,"仅写本人私人库，相同内容会复用并保留来源；游戏运行适配尚未验证",x,y,w);
             y=line(ctx,"确认后若入库已开始，取消或断线不保证回滚",x,y,w);
             y=button(ctx,"确认入私人库",x,y,w,usable(),() -> {
-                ClientCommunityTasks.confirmInstall(); recipeReceipt=p.receiptId();
-                recipeName.setText(CommunityBrowserModel.display(p.name(),32)+" 配方");
-                int[] sizes={p.width(),p.height(),p.depth()}; for(int i=0;i<3;i++) recipeSizes[i].setText(Integer.toString(sizes[i]));
+                ClientCommunityTasks.confirmInstall(); prepareRecipeFields(p);
             });
         }
         if(state.installed()!=null) {
-            y=line(ctx,"已入私人库："+CommunityBrowserModel.display(state.installed().name(),256),x,y,w);
+            y=line(ctx,(state.restoredSource()==null ? "已入私人库：" : "已恢复至私人库：")+CommunityBrowserModel.display(state.installed().name(),256),x,y,w);
             y=line(ctx,"本地标识："+state.installed().assetId(),x,y,w);
+            if(state.restoredSource()!=null) {
+                var restored=state.restoredSource(); if(!Objects.equals(recipeReceipt,restored.receiptId())) prepareRecipeFields(restored);
+                y=line(ctx,"本次恢复来自本人收藏，未请求远端",x,y,w);
+                y=line(ctx,"历史来源："+restored.authority()+" / "+restored.releaseId(),x,y,w);
+                y=line(ctx,"作者声明："+CommunityBrowserModel.display(restored.author(),256),x,y,w);
+                y=line(ctx,"许可声明："+CommunityBrowserModel.display(restored.license(),2048),x,y,w);
+                y=line(ctx,"训练授权声明："+switch(restored.trainingPermission()) { case "ALLOWED" -> "允许"; case "DENIED" -> "禁止"; default -> "未声明"; },x,y,w);
+                y=line(ctx,"恢复的是原件；收藏的适配结果仍保留在本地配方中",x,y,w);
+            }
             y=line(ctx,"来源收据已保留，未自动加载或放置",x,y,w);
             y=button(ctx,"加载所选来源用于预览",x,y,w,usable(),() -> {
                 ClientCommunityPlacement.activate(); localError="正在加载同内容构件；请切换构件工具，放置前仍须确认预览";
@@ -143,6 +150,10 @@ final class CommunityLibraryPane {
     }
     private int input(DrawContext ctx,HudTextInput input,int x,int y,int w) {
         input.render(ctx,x,y,w,14); inputs.add(new InputBounds(input,x,y,w)); return y+18;
+    }
+    private void prepareRecipeFields(com.formacraft.common.component.community.CommunityInstallDocument.Preview p) {
+        recipeReceipt=p.receiptId(); recipeName.setText(CommunityBrowserModel.display(p.name(),32)+" 配方");
+        int[] sizes={p.width(),p.height(),p.depth()}; for(int i=0;i<3;i++) recipeSizes[i].setText(Integer.toString(sizes[i]));
     }
     private int button(DrawContext ctx,String label,int x,int y,int w,boolean enabled,Action action) {
         String shown=client.textRenderer.trimToWidth(label,Math.max(1,w-8));
@@ -173,7 +184,7 @@ final class CommunityLibraryPane {
             case CLOSED -> "未连接"; case OPENING -> "正在连接"; case IDLE -> "已连接";
             case UPLOADING -> "正在提交搜索"; case FETCHING -> "正在接收结果";
             case WAITING -> state.view()==null ? "正在执行任务" : switch(state.view().kind()) {
-                case "PREVIEW" -> "正在校验入库信息"; case "INSTALL" -> "正在入私人库"; case "RECIPE" -> "正在校验并收藏配方"; case "DOWNLOAD" -> "正在下载并校验"; default -> "正在执行任务";
+                case "PREVIEW" -> "正在校验入库信息"; case "INSTALL" -> "正在入私人库"; case "RESTORE" -> "正在恢复所选来源"; case "RECIPE" -> "正在校验并收藏配方"; case "DOWNLOAD" -> "正在下载并校验"; default -> "正在执行任务";
             };
             case READY -> state.error().equals("recipe_failed") ? "配方未保存，可修改后重试" : "操作完成"; case ERROR -> "操作失败"; case CLOSING -> "正在关闭会话";
         };
@@ -188,6 +199,8 @@ final class CommunityLibraryPane {
             case "preview_expired", "stale_preview", "stale_download" -> "入库确认已失效，请重新下载并查看信息";
             case "stale_install" -> "所选来源任务已失效，请重新入库后操作";
             case "recipe_failed" -> "配方未保存，请检查尺寸与作者规则，或查看服务器日志";
+            case "restore_failed", "invalid_recipe" -> "原件恢复失败，请检查本人收藏或服务器日志";
+            case "environment_mismatch" -> "当前环境不满足来源包要求";
             case "unsupported_capability", "unsupported_constraint" -> "服务暂不支持此筛选条件";
             default -> "社区操作失败，可重新连接后重试";
         };

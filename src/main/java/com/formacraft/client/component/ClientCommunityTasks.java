@@ -28,4 +28,5 @@ public final class ClientCommunityTasks {
     public static void previewInstall() throws IOException { STATE.previewInstall(); }
     public static void confirmInstall() throws IOException { STATE.confirmInstall(); }
     public static void saveRecipe(com.formacraft.common.component.ComponentRecipeLibrary.Spec spec) throws IOException { STATE.saveRecipe(spec); }
+    public static void restoreRecipe(String id) throws IOException { STATE.restoreRecipe(id); }
 }

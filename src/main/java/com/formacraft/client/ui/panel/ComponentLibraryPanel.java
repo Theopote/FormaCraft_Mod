@@ -117,7 +117,15 @@ public final class ComponentLibraryPanel extends BasePanel {
         }).dimensions(0,0,0,BUTTON_HEIGHT).build();
         saveRecipeButton = ButtonWidget.builder(Text.literal("收藏尺寸配方"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.recipe(selectedEntry(),com.formacraft.common.network.ComponentLibraryNetworking.Action.SAVE_RECIPE,recipeDraft.spec())).dimensions(0,0,0,BUTTON_HEIGHT).build();
         replayRecipeButton = ButtonWidget.builder(Text.literal("重放校验配方"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.recipe(selectedEntry(),com.formacraft.common.network.ComponentLibraryNetworking.Action.REPLAY_RECIPE,null)).dimensions(0,0,0,BUTTON_HEIGHT).build();
-        restoreRecipeButton = ButtonWidget.builder(Text.literal("恢复 / 复用原件"), b -> com.formacraft.client.component.ClientComponentLibraryOperations.recipe(selectedEntry(),com.formacraft.common.network.ComponentLibraryNetworking.Action.RESTORE_RECIPE,null)).dimensions(0,0,0,BUTTON_HEIGHT).build();
+        restoreRecipeButton = ButtonWidget.builder(Text.literal("恢复 / 复用原件"), b -> {
+            var entry=selectedEntry();
+            if(entry!=null && entry.communityRecipe) {
+                try {
+                    com.formacraft.client.component.ClientCommunityTasks.restoreRecipe(entry.id);
+                    communityMode=true; scrollY=maxScrollY=0; searchInput.setFocused(false);
+                } catch(java.io.IOException invalid) { com.formacraft.client.ui.toast.HudToast.show("社区配方身份无效，请刷新目录",true); }
+            } else com.formacraft.client.component.ClientComponentLibraryOperations.recipe(entry,com.formacraft.common.network.ComponentLibraryNetworking.Action.RESTORE_RECIPE,null);
+        }).dimensions(0,0,0,BUTTON_HEIGHT).build();
         for (int i = 0; i < 6; i++) {
             final int axis = i / 2, delta = i % 2 == 0 ? -1 : 1;
             recipeSizeButtons[i] = ButtonWidget.builder(Text.literal(delta < 0 ? "−" : "+"),b -> recipeDraft.adjust(axis,delta)).dimensions(0,0,0,BUTTON_HEIGHT).build();
@@ -622,6 +630,7 @@ public final class ComponentLibraryPanel extends BasePanel {
     private int drawRecipeEditor(DrawContext ctx,int x,int w,int y,ComponentCatalog.Entry entry,boolean busy) {
         recipeDraft.bind(entry);
         if (entry.recipe) {
+            restoreRecipeButton.setMessage(Text.literal(entry.communityRecipe ? "恢复社区原件并选择来源" : "恢复 / 复用原件"));
             if (entry.recipeSourceRef != null) y = drawWrappedText(ctx,Text.literal("原件版本: "+entry.recipeSourceRef.split("#sha256:",2)[0]),x,y,w,0xFFAAAAAA);
             y = drawWrappedText(ctx,Text.literal("结果尺寸已锁定；原件快照可离线恢复"),x,y,w,0xFF888888);
             y = drawWrappedText(ctx,Text.literal("新恢复的原件仅写入私人库"),x,y,w,0xFF888888);

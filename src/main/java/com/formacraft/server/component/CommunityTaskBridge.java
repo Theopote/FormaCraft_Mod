@@ -36,14 +36,14 @@ public final class CommunityTaskBridge implements AutoCloseable {
             Objects.requireNonNull(actor); validate(request); expire();
             var slot = slots.get(actor);
             if (slot == null) {
-                if (request.operation() != Operation.OPEN) throw failure("session_expired");
+                if (request.operation() != Operation.OPEN && request.operation()!=Operation.OPEN_RESTORE) throw failure("session_expired");
                 if (slots.size() >= MAX_CONNECTIONS) throw failure("budget_exceeded");
                 slot = new Slot(clock.instant()); slots.put(actor,slot);
             }
             if (!clock.instant().isBefore(slot.window.plusSeconds(1))) { slot.window = clock.instant(); slot.messages = 0; }
             if (slot.messages >= MESSAGES_PER_SECOND) throw failure("rate_limited");
             slot.messages++; slot.touched = clock.instant();
-            if (request.operation() == Operation.OPEN) {
+            if (request.operation() == Operation.OPEN || request.operation()==Operation.OPEN_RESTORE) {
                 slot.session = tasks.connect(actor); slot.upload = null; slot.result = null;
                 return status(request,slot,Reply.OPENED,tasks.snapshot(actor,slot.session));
             }
@@ -91,6 +91,11 @@ public final class CommunityTaskBridge implements AutoCloseable {
                     snapshot=tasks.snapshot(actor,slot.session); if(!task.equals(snapshot.taskId())) throw failure("stale_task");
                     return status(request,slot,Reply.STATUS,snapshot);
                 }
+                case RESTORE_RECIPE -> {
+                    UUID task=tasks.restore(actor,slot.session,request.releaseId()); slot.upload=null; slot.result=null;
+                    snapshot=tasks.snapshot(actor,slot.session); if(!task.equals(snapshot.taskId())) throw failure("stale_task");
+                    return status(request,slot,Reply.STATUS,snapshot);
+                }
                 case POLL -> {
                     if (!request.subjectId().equals(snapshot.taskId())) throw failure("stale_task");
                     return status(request,slot,Reply.STATUS,snapshot);
@@ -135,11 +140,13 @@ public final class CommunityTaskBridge implements AutoCloseable {
     private static void validate(Request r) throws IOException {
         if (r.operation() != Operation.SEARCH_CHUNK && r.operation()!=Operation.SAVE_RECIPE && r.data().length != 0 || r.operation() != Operation.SEARCH_BEGIN && r.length() != 0
                 || r.operation() != Operation.SEARCH_CHUNK && r.operation() != Operation.RESULT_CHUNK && r.offset() != 0
-                || r.operation() != Operation.DOWNLOAD && (!r.releaseId().isEmpty() || r.resumable())) throw failure("invalid_request");
-        if (r.operation() == Operation.OPEN) { if (r.sessionId() != null || r.subjectId() != null) throw failure("invalid_request"); }
-        else if (r.sessionId() == null || r.operation() != Operation.CLOSE && r.subjectId() == null || r.operation() == Operation.CLOSE && r.subjectId() != null)
+                || r.operation()!=Operation.DOWNLOAD && r.resumable()
+                || r.operation()!=Operation.DOWNLOAD && r.operation()!=Operation.RESTORE_RECIPE && !r.releaseId().isEmpty()) throw failure("invalid_request");
+        if (r.operation() == Operation.OPEN || r.operation()==Operation.OPEN_RESTORE) { if (r.sessionId() != null || r.subjectId() != null) throw failure("invalid_request"); }
+        else if (r.sessionId() == null || r.operation() != Operation.CLOSE && r.operation()!=Operation.RESTORE_RECIPE && r.subjectId() == null || (r.operation() == Operation.CLOSE || r.operation()==Operation.RESTORE_RECIPE) && r.subjectId() != null)
             throw failure("invalid_request");
         if (r.operation() == Operation.DOWNLOAD && r.releaseId().isEmpty()) throw failure("invalid_selection");
+        if (r.operation()==Operation.RESTORE_RECIPE && !com.formacraft.common.component.ComponentRecipeLibrary.isRecipe(r.releaseId())) throw failure("invalid_recipe");
     }
     public static Response error(Request request,String code) {
         if (code == null || !code.matches("[a-z][a-z0-9_]{0,63}")) code = "invalid_request";

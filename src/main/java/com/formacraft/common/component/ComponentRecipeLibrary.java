@@ -170,6 +170,13 @@ public final class ComponentRecipeLibrary {
         return ComponentSourceBinding.install(loaded.receipt(),context);
     }
     static CommunityDownloadCache.Cached communitySource(UUID player, String id) throws IOException { return read(player,id).receipt(); }
+    /** Read-only preflight for explicit offline restore; the recipe ID resolves inside the real owner's vault. */
+    public static CommunityDownloadCache.Cached selectedReceipt(UUID player,String id) throws IOException {
+        if(player==null) throw new IOException("Missing recipe owner");
+        var loaded=read(player,id);
+        if(loaded.receipt()==null) throw new IOException("Recipe has no community source");
+        return loaded.receipt();
+    }
     public static List<ComponentCatalog.Entry> entries(UUID player) {
         var entries = new ArrayList<ComponentCatalog.Entry>(); if (player == null) return entries;
         try {
@@ -185,6 +192,7 @@ public final class ComponentRecipeLibrary {
                         entry.sockets = definition.sockets; entry.placementSpec = definition.placementSpec;
                         entry.packageRef = loaded.result().contentRef(); entry.file = "recipes/"+id+"/result.fccomponent.json";
                         entry.recipe = true; entry.sourceCount = 1; entry.updatedAtMs = Files.getLastModifiedTime(path).toMillis();
+                        entry.communityRecipe = loaded.recipe().communityReceipt()!=null;
                         entry.recipeSourceRef = loaded.source().contentRef()+"|manifest:"+loaded.source().manifestSha256();
                         entries.add(entry);
                     } catch (IOException | RuntimeException invalid) { /* Invalid recipes are never candidates. */ }

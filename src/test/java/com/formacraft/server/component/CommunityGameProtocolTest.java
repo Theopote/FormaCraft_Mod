@@ -399,6 +399,106 @@ class CommunityGameProtocolTest {
             coordinator.close(); for(var request:requests) assertTrue(request.result().isCompletedExceptionally());
         } finally { release.countDown(); ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
     }
+    private record Favorite(String recipe,String receipt,UUID oldSession,UUID oldTask,String asset) {}
+    private Favorite favorite(Time time,Backend backend,UUID owner) throws Exception {
+        try(var bridge=new CommunityTaskBridge(tasks(time,backend),time)) {
+            var client=installed(bridge,owner,time); client.saveRecipe(new ComponentRecipeLibrary.Spec("Offline source",1,1,1));
+            pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            return new Favorite(client.recipe().assetId(),client.receiptId(),client.sessionId(),client.taskId(),client.installed().assetId());
+        }
+    }
+    private void removeOriginalDownload(Backend backend,UUID owner,Favorite favorite) throws IOException {
+        Path root=temp.resolve("world/formacraft/community/players").resolve(owner.toString()).resolve("downloads");
+        Files.delete(root.resolve("objects").resolve(backend.candidates.get("rel_0").releaseRef().packageSha256()).resolve("original.fccomponent.json"));
+        Files.delete(root.resolve("receipts").resolve(favorite.receipt()).resolve("receipt.json"));
+    }
+    @Test void newOfflineSessionRestoresPinnedSourceAndPreparesManualPlacementWithoutOriginalDownload() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try {
+            var favorite=favorite(time,backend,owner); removeOriginalDownload(backend,owner,favorite); int networkCalls=backend.calls;
+            assertTrue(ComponentRecipeLibrary.entries(owner).stream().filter(e -> e.id.equals(favorite.recipe())).findFirst().orElseThrow().communityRecipe);
+            var original=ComponentStorage.loadCatalog(temp.resolve("world"),owner).components.stream().filter(e -> e.id.equals(favorite.asset())).findFirst().orElseThrow();
+            ComponentLibraryOperations.delete(new ComponentStorage.SaveContext(temp.resolve("world"),owner,false,false),original.id,original.packageRef);
+            assertTrue(ComponentStorage.loadCatalog(temp.resolve("world"),owner).components.stream().noneMatch(e -> e.id.equals(favorite.asset())));
+            Path next=Files.createDirectories(temp.resolve("next-world"));
+            try(var coordinator=CommunityTaskCoordinator.local(next,ENV,time); var bridge=new CommunityTaskBridge(coordinator,time)) {
+                var client=new CommunityTaskClientState(time.nanos::get); client.restoreRecipe(favorite.recipe()); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+                assertEquals("local",client.view().authorityId()); assertEquals("test",client.restoredSource().authority()); assertEquals("rel_0",client.restoredSource().releaseId());
+                assertEquals("DENIED",client.restoredSource().trainingPermission()); assertEquals(favorite.receipt(),client.receiptId()); assertTrue(ComponentIds.isSafeId(client.installed().assetId()));
+                assertNotEquals(favorite.oldSession(),client.sessionId()); assertThrows(IOException.class,()->coordinator.selection(owner,favorite.oldSession(),favorite.oldTask()));
+                var binding=new com.formacraft.client.component.CommunityPlacementSelection(); binding.bind(client); assertTrue(binding.active(client));
+                var prepared=coordinator.useSelection(owner,client.sessionId(),client.taskId(),selected -> SelectedComponentPlacement.compile(next,owner,selected,
+                        client.installed().assetId(),net.minecraft.util.math.Direction.EAST,com.formacraft.common.component.transform.Mirror.NONE,false,null,7));
+                assertEquals(favorite.receipt(),prepared.result().get(5,java.util.concurrent.TimeUnit.SECONDS).receiptId());
+                client.saveRecipe(new ComponentRecipeLibrary.Spec("Offline reused",1,1,1)); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+                assertEquals(favorite.recipe(),client.recipe().assetId()); assertEquals("REUSED",client.recipe().status()); assertEquals(networkCalls,backend.calls);
+                UUID other=UUID.randomUUID(), session=coordinator.connect(other); coordinator.search(other,session,search());
+                for(int i=0;i<200 && coordinator.snapshot(other,session).status()!=CommunityTaskCoordinator.Status.FAILED;i++) Thread.sleep(5);
+                assertEquals("community_disabled",coordinator.snapshot(other,session).code());
+            }
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void offlineRestoreRejectsOtherOwnersAndPlainRecipesWithoutCreatingTheirCache() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID(), stranger=UUID.randomUUID();
+        try {
+            var favorite=favorite(time,backend,owner); Path next=Files.createDirectories(temp.resolve("next-world"));
+            var entry=ComponentStorage.loadCatalog(temp.resolve("world"),owner).components.stream().filter(e -> e.id.equals(favorite.asset())).findFirst().orElseThrow();
+            var plain=ComponentRecipeLibrary.save(temp.resolve("world"),owner,entry.id,entry.packageRef,new ComponentRecipeLibrary.Spec("Plain",1,1,1));
+            assertFalse(ComponentRecipeLibrary.entries(owner).stream().filter(e -> e.id.equals(plain.assetId())).findFirst().orElseThrow().communityRecipe);
+            try(var bridge=new CommunityTaskBridge(CommunityTaskCoordinator.local(next,ENV,time),time)) {
+                var client=new CommunityTaskClientState(time.nanos::get); client.restoreRecipe(favorite.recipe()); pump(client,bridge,stranger,time,CommunityTaskClientState.Phase.ERROR);
+                assertEquals("restore_failed",client.error()); assertNull(client.installed()); assertFalse(Files.exists(next.resolve("formacraft/community/players").resolve(stranger.toString())));
+                client.restoreRecipe(plain.assetId()); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.ERROR); assertEquals("restore_failed",client.error());
+                assertThrows(IOException.class,()->client.restoreRecipe("../someone"));
+            }
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void brokenPinnedReceiptCannotRestoreOrCreateANewSelection() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try {
+            var favorite=favorite(time,backend,owner);
+            Path raw=ComponentStorage.getPlayerComponentDir(owner).resolve("community_downloads/objects").resolve(backend.candidates.get("rel_0").releaseRef().packageSha256()).resolve("original.fccomponent.json");
+            Files.writeString(raw,"broken archive"); Path next=Files.createDirectories(temp.resolve("next-world"));
+            try(var bridge=new CommunityTaskBridge(CommunityTaskCoordinator.local(next,ENV,time),time)) {
+                var client=new CommunityTaskClientState(time.nanos::get); client.restoreRecipe(favorite.recipe()); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.ERROR);
+                assertEquals("cache_corrupt",client.error()); assertNull(client.installed()); assertNull(client.restoredSource());
+                assertFalse(Files.exists(next.resolve("formacraft/community/players").resolve(owner.toString())));
+            }
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void restoreDocumentsAndLateOpenResponsesCannotSubstituteAnotherReceipt() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try {
+            var favorite=favorite(time,backend,owner); Path next=Files.createDirectories(temp.resolve("next-world"));
+            try(var coordinator=CommunityTaskCoordinator.local(next,ENV,time); var bridge=new CommunityTaskBridge(coordinator,time)) {
+                var client=new CommunityTaskClientState(time.nanos::get); client.restoreRecipe(favorite.recipe()); var open=client.nextRequest(); var late=bridge.handle(owner,open);
+                client.restoreRecipe(favorite.recipe()); assertFalse(client.accept(late)); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+                var json=JsonParser.parseString(coordinator.snapshot(owner,client.sessionId()).document()).getAsJsonObject();
+                json.getAsJsonObject("source").addProperty("receiptId","receipt_"+"1".repeat(64));
+                assertThrows(IOException.class,()->CommunityInstallDocument.decodeRestored(json.toString().getBytes(StandardCharsets.UTF_8)));
+                var binding=new com.formacraft.client.component.CommunityPlacementSelection(); binding.bind(client); client.cancel(); assertThrows(IllegalStateException.class,()->binding.reference(client,favorite.asset()));
+            }
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void cancellingQueuedOfflineRestoreCannotPublishAPrivateCache() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID(), other=UUID.randomUUID(); var release=new java.util.concurrent.CountDownLatch(1);
+        try {
+            var favorite=favorite(time,backend,owner); var otherFavorite=favorite(time,backend,other); Path next=Files.createDirectories(temp.resolve("next-world"));
+            try(var coordinator=CommunityTaskCoordinator.local(next,ENV,time); var bridge=new CommunityTaskBridge(coordinator,time)) {
+                var client=new CommunityTaskClientState(time.nanos::get); client.restoreRecipe(favorite.recipe()); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+                for(int i=0;i<2;i++) { var entered=new java.util.concurrent.CountDownLatch(1); coordinator.useSelection(owner,client.sessionId(),client.taskId(),selected -> { entered.countDown(); await(release); return "hold"; }); await(entered); }
+                UUID session=coordinator.connect(other), restore=coordinator.restore(other,session,otherFavorite.recipe());
+                assertEquals(CommunityTaskCoordinator.Status.QUEUED,coordinator.snapshot(other,session).status()); coordinator.cancel(other,session,restore); release.countDown();
+                assertEquals(CommunityTaskCoordinator.Status.CANCELLED,coordinator.snapshot(other,session).status());
+                assertFalse(Files.exists(next.resolve("formacraft/community/players").resolve(other.toString())));
+            }
+        } finally { release.countDown(); ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
     @Test void queuedRecipeCancellationDoesNotPublishAFavorite() throws Exception {
         com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
         var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();

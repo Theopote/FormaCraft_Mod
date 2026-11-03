@@ -473,10 +473,9 @@ public final class ComponentTool implements FormacraftTool {
         }
         state.socketContext = v[(idx + 1) % v.length];
         switch (state.socketContext) {
-            case WALL -> { state.socketW = 2; state.socketH = 3; state.socketD = 1; }
+            case WALL, ROOF -> { state.socketW = 2; state.socketH = 3; state.socketD = 1; }
             case EDGE -> { state.socketW = 4; state.socketH = 1; state.socketD = 1; }
             case CORNER -> { state.socketW = 1; state.socketH = 3; state.socketD = 1; }
-            case ROOF -> { state.socketW = 2; state.socketH = 3; state.socketD = 1; }
             case GROUND -> { state.socketW = 3; state.socketH = 1; state.socketD = 3; }
             case INTERIOR -> { state.socketW = 1; state.socketH = 1; state.socketD = 1; }
         }

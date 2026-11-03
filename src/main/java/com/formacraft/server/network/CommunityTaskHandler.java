@@ -19,7 +19,7 @@ final class CommunityTaskHandler {
                         // An old connection's queued OPEN must not recreate a session after reconnect.
                         if (context.server().getPlayerManager().getPlayer(owner) != player || !ServerPlayNetworking.canSend(player,CommunityTaskNetworking.Response.ID)) return;
                         CommunityTaskNetworking.Response response;
-                        try { response = CommunityTaskService.bridge(context.server()).handle(owner,request); }
+                        try { response = CommunityTaskService.bridgeForRequest(context.server(),request.operation()).handle(owner,request); }
                         catch (Exception failure) { response = CommunityTaskBridge.error(request,failure instanceof CommunityPackages.Failure known ? known.code() : "community_unavailable"); }
                         ServerPlayNetworking.send(player,response);
                     }

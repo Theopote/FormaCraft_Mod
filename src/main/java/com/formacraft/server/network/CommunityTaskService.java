@@ -19,7 +19,7 @@ import java.util.*;
 /** Default dormant; startup and administrator reload read trusted per-world configuration. */
 public final class CommunityTaskService {
     private CommunityTaskService() {}
-    private record Service(CommunityTaskCoordinator tasks,CommunityTaskBridge bridge) {}
+    private record Service(CommunityTaskCoordinator tasks,CommunityTaskBridge bridge,boolean localOnly) {}
     private static final Map<MinecraftServer,Service> SERVICES = new IdentityHashMap<>();
     private static final Map<MinecraftServer,CommunityMessageGate> GATES = new IdentityHashMap<>();
     private static boolean registered;
@@ -42,7 +42,7 @@ public final class CommunityTaskService {
         if (!server.isOnThread()) throw new IllegalStateException("Community configuration requires server thread");
         var next = new CommunityTaskCoordinator(server.getSavePath(WorldSavePath.ROOT),authority,base,ComponentPackageIO.currentEnvironment(),Clock.systemUTC());
         Service previous;
-        synchronized (CommunityTaskService.class) { previous = SERVICES.put(server,new Service(next,new CommunityTaskBridge(next,Clock.systemUTC()))); }
+        synchronized (CommunityTaskService.class) { previous = SERVICES.put(server,new Service(next,new CommunityTaskBridge(next,Clock.systemUTC()),false)); }
         if (previous != null) previous.bridge.close();
     }
     public static CommunityTaskCoordinator get(MinecraftServer server) throws IOException {
@@ -50,6 +50,18 @@ public final class CommunityTaskService {
     }
     public static CommunityTaskBridge bridge(MinecraftServer server) throws IOException {
         var service = find(server); if (service == null) throw new CommunityPackages.Failure("community_disabled"); return service.bridge;
+    }
+    static CommunityTaskBridge bridgeForRequest(MinecraftServer server,com.formacraft.common.network.CommunityTaskNetworking.Operation operation) throws IOException {
+        var service=find(server);
+        if(operation==com.formacraft.common.network.CommunityTaskNetworking.Operation.OPEN_RESTORE && service==null) {
+            if(!server.isOnThread()) throw new IllegalStateException("Local source session requires server thread");
+            var tasks=CommunityTaskCoordinator.local(server.getSavePath(WorldSavePath.ROOT),ComponentPackageIO.currentEnvironment(),Clock.systemUTC());
+            service=new Service(tasks,new CommunityTaskBridge(tasks,Clock.systemUTC()),true);
+            synchronized(CommunityTaskService.class) { SERVICES.put(server,service); }
+        }
+        if(service==null || operation==com.formacraft.common.network.CommunityTaskNetworking.Operation.OPEN && service.localOnly)
+            throw new CommunityPackages.Failure("community_disabled");
+        return service.bridge;
     }
     /** Administrator/startup entry. Invalid replacement always leaves the service disabled. */
     public static void reload(MinecraftServer server) throws IOException {
@@ -61,7 +73,7 @@ public final class CommunityTaskService {
         } catch (IOException | RuntimeException invalid) { disable(server); throw new IOException("community_config_invalid"); }
     }
     public static String authority(MinecraftServer server) {
-        var service = find(server); return service == null ? null : service.tasks.authorityId();
+        var service = find(server); return service == null || service.localOnly ? null : service.tasks.authorityId();
     }
     static synchronized CommunityMessageGate.Permit admit(MinecraftServer server,UUID owner) {
         return GATES.computeIfAbsent(server,ignored -> new CommunityMessageGate(System::nanoTime)).acquire(owner);

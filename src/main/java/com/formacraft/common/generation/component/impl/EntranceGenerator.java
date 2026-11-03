@@ -80,12 +80,12 @@ public class EntranceGenerator implements ComponentGenerator {
         }
 
         int doorWidth;
+        if (openingSpan < 2) {
+            throw new IllegalArgumentException(
+                    "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
+        }
         if (explicitDoorWidth) {
             // Explicit door_width must leave ≥1 jamb cell; oversize is a contract error.
-            if (openingSpan < 2) {
-                throw new IllegalArgumentException(
-                        "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
-            }
             if (requestedDoorWidth > openingSpan - 1) {
                 throw new IllegalArgumentException(
                         "E_ENTRANCE_DOOR_WIDTH: door_width=" + requestedDoorWidth
@@ -103,10 +103,6 @@ public class EntranceGenerator implements ComponentGenerator {
                 }
             }
         } else {
-            if (openingSpan < 2) {
-                throw new IllegalArgumentException(
-                        "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
-            }
             // Default: center the door; pick 1/2/3 so the bay is symmetric on the facade span.
             int auto = symmetricDoorWidth(openingSpan);
             if (hasArch) auto = Math.max(3, auto % 2 == 0 ? auto + 1 : auto);

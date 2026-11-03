@@ -14,6 +14,19 @@ public final class CommunityInstallDocument {
     public record Preview(String name,int width,int height,int depth,int blocks,String author,String license,
                           String trainingPermission,String authority,String releaseId,String receiptId) {}
     public record Installed(String assetId,String name,String status,String receiptId) {}
+    public record Restored(Installed installed,Preview source) {}
+    public static String restored(ComponentSourceBinding.Selection selected) throws IOException {
+        var json=root("RESTORED"); json.addProperty("receiptId",selected.receipt().receiptId());
+        json.add("installed",JsonParser.parseString(installed(selected))); json.add("source",JsonParser.parseString(preview(selected.receipt())));
+        String result=json.toString(); decodeRestored(result.getBytes(StandardCharsets.UTF_8)); return result;
+    }
+    public static Restored decodeRestored(byte[] bytes) throws IOException {
+        var root=decode(bytes,"RESTORED","schema","kind","receiptId","installed","source");
+        var installed=decodeInstalled(object(root.get("installed")).toString().getBytes(StandardCharsets.UTF_8));
+        var source=decodePreview(object(root.get("source")).toString().getBytes(StandardCharsets.UTF_8));
+        if(!receipt(root).equals(installed.receiptId()) || !receipt(root).equals(source.receiptId())) throw new IOException("Restore receipt mismatch");
+        return new Restored(installed,source);
+    }
     public static String preview(CommunityDownloadCache.Cached cached) throws IOException {
         var d=cached.download().verified().component(); var m=cached.details().manifest(); var ref=cached.details().descriptor().releaseRef();
         var json=root("PREVIEW"); json.addProperty("name",name(d.name));

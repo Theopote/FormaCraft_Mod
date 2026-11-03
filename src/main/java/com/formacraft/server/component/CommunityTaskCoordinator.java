@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /** Server-owned bounded jobs. Installation requires an explicit current preview; no world edits. */
 public final class CommunityTaskCoordinator implements AutoCloseable {
     public static final int MAX_SESSIONS = 32, WORKERS = 2, QUEUE_SIZE = 8, STARTS_PER_MINUTE = 30;
-    public enum Kind { SEARCH, DOWNLOAD, PREVIEW, INSTALL, RECIPE }
+    public enum Kind { SEARCH, DOWNLOAD, PREVIEW, INSTALL, RECIPE, RESTORE }
     public enum Status { IDLE, QUEUED, RUNNING, CACHING, SUCCEEDED, FAILED, CANCELLED }
     public enum Transfer { FULL, RESUMABLE }
     public record Snapshot(UUID sessionId, UUID taskId, Kind kind, Status status, String code, String receiptId,
@@ -54,7 +54,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         final CommunitySearchHttpClient.Cancellation cancellation = new CommunitySearchHttpClient.Cancellation();
         final byte[] request;
         final CommunitySearchContract.Request parsed;
-        final CommunityPackages.Descriptor selected;
+        CommunityPackages.Descriptor selected;
         final Transfer transfer;
         FutureTask<Void> future;
         Status status = Status.QUEUED;
@@ -63,6 +63,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         String installedAsset;
         ComponentPackageInstallations.ImportStatus installedStatus;
         ComponentRecipeLibrary.Spec recipe;
+        String restoreRecipe;
         Job(Session session, Instant now, byte[] request, CommunitySearchContract.Request parsed, CommunityPackages.Descriptor selected, Transfer transfer) {
             this.owner = session.owner; this.session = session.id; this.created = now;
             this.kind = request == null ? Kind.DOWNLOAD : Kind.SEARCH; this.request = request; this.parsed = parsed;
@@ -115,6 +116,14 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
             }
             public void shutdownNow() { client.shutdownNow(); }
         };
+    }
+    /** Offline-only source restoration: deliberately creates no HTTP client. */
+    public static CommunityTaskCoordinator local(Path world,ComponentPackageIO.Environment environment,Clock clock) {
+        return new CommunityTaskCoordinator(world,"local",environment,clock,new Backend() {
+            public CommunitySearchResponse.Decoded search(byte[] request,CommunitySearchHttpClient.Cancellation cancellation) throws IOException { throw new CommunityPackages.Failure("community_disabled"); }
+            public CommunitySearchHttpClient.Fetched download(CommunityPackages.Descriptor selected,ComponentPackageIO.Environment env,Path staging,Transfer transfer,CommunitySearchHttpClient.Cancellation cancellation) throws IOException { throw new CommunityPackages.Failure("community_disabled"); }
+            public void shutdownNow() {}
+        });
     }
     public UUID connect(UUID owner) throws IOException {
         Objects.requireNonNull(owner);
@@ -175,11 +184,19 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         synchronized(lock) {
             var session=session(owner,sessionId); var previous=session.job;
             if(previous==null || !previous.id.equals(sourceTask) || !(previous.status==Status.SUCCEEDED || previous.kind==Kind.RECIPE && previous.status==Status.FAILED && "recipe_failed".equals(previous.code))
-                    || previous.kind!=Kind.INSTALL && previous.kind!=Kind.RECIPE || previous.installedAsset==null)
+                    || previous.kind!=Kind.INSTALL && previous.kind!=Kind.RECIPE && previous.kind!=Kind.RESTORE || previous.installedAsset==null)
                 throw new CommunityPackages.Failure("stale_install");
             admit(session); var job=new Job(session,clock.instant(),Kind.RECIPE,previous.selected,previous.inputReceipt);
             job.installedAsset=previous.installedAsset; job.installedStatus=previous.installedStatus; job.recipe=checked;
             return start(session,job);
+        }
+    }
+    public UUID restore(UUID owner,UUID sessionId,String recipeId) throws IOException {
+        if(!ComponentRecipeLibrary.isRecipe(recipeId)) throw new CommunityPackages.Failure("invalid_recipe");
+        synchronized(lock) {
+            var session=session(owner,sessionId); admit(session);
+            session.catalogTask=null; session.searchJson=null; session.candidates=Map.of(); session.catalogExpires=Instant.MIN;
+            var job=new Job(session,clock.instant(),Kind.RESTORE,null,null); job.restoreRecipe=recipeId; return start(session,job);
         }
     }
     /** Revalidate the explicit source off the game thread; the session retains only bounded identity metadata. */
@@ -197,7 +214,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
     @FunctionalInterface public interface SelectedWork<T> { T apply(ComponentSourceBinding.Selection selection) throws IOException; }
     public record SelectedRequest<T>(UUID id,CompletableFuture<T> result) {}
     private static boolean selectedSource(Job job) {
-        return job!=null && (job.kind==Kind.INSTALL || job.kind==Kind.RECIPE) && job.installedAsset!=null
+        return job!=null && (job.kind==Kind.INSTALL || job.kind==Kind.RECIPE || job.kind==Kind.RESTORE) && job.installedAsset!=null
                 && (job.status==Status.SUCCEEDED || job.kind==Kind.RECIPE && job.status==Status.FAILED && "recipe_failed".equals(job.code));
     }
     /** Bounded background read/compile, independent from the source task's successful identity. */
@@ -285,6 +302,19 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
                 });
                 if (!CommunityDownloadCache.receiptId(job.selected).equals(receipt)) throw new CommunityPackages.Failure("cache_corrupt");
                 synchronized (lock) { current(job); job.receiptId = receipt; job.status = Status.SUCCEEDED; }
+            } else if(job.kind==Kind.RESTORE) {
+                var cached=ComponentRecipeLibrary.selectedReceipt(job.owner,job.restoreRecipe); var paths=paths(job.owner);
+                synchronized(lock) { current(job); }
+                String receipt=persistence.save(paths.downloads,new CommunitySearchHttpClient.Fetched(cached.details(),cached.download()),environment,
+                        Clock.fixed(cached.verifiedAt(),ZoneOffset.UTC),commit -> { synchronized(lock) { current(job); } commit.run(); });
+                if(!receipt.equals(cached.receiptId())) throw new CommunityPackages.Failure("cache_corrupt");
+                synchronized(lock) { current(job); job.status=Status.CACHING; }
+                var restored=ComponentSourceBinding.install(paths.downloads,receipt,new ComponentStorage.SaveContext(world,job.owner,false,false));
+                String document=CommunityInstallDocument.restored(restored);
+                synchronized(lock) {
+                    current(job); job.selected=cached.details().descriptor(); job.inputReceipt=receipt; job.receiptId=receipt;
+                    job.installedAsset=restored.assetId(); job.installedStatus=restored.status(); job.document=document; job.status=Status.SUCCEEDED;
+                }
             } else {
                 var paths=paths(job.owner);
                 var cached=CommunityDownloadCache.read(paths.downloads,job.inputReceipt,environment);
@@ -313,7 +343,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
                 if (!isCurrent(job)) return;
                 job.status = Status.FAILED;
                 job.code = failed instanceof CommunityPackages.Failure failure && failure.code() != null && failure.code().matches("[a-z][a-z0-9_]{0,63}")
-                        ? failure.code() : failed instanceof IOException ? job.kind==Kind.RECIPE ? "recipe_failed" : "storage_failure" : "internal_error";
+                        ? failure.code() : failed instanceof IOException ? job.kind==Kind.RECIPE ? "recipe_failed" : job.kind==Kind.RESTORE ? "restore_failed" : "storage_failure" : "internal_error";
             }
             if (!(failed instanceof CommunityPackages.Failure))
                 com.formacraft.FormacraftMod.LOGGER.warn("Community task failed owner={} task={} kind={}",job.owner,job.id,job.kind,failed);
