@@ -14,12 +14,24 @@ public class GeneratedStructure {
     private final BlockPos origin;         // 参考点
     private final String description;      // 用于日志/调试
     private final List<PlannedBlock> blocks;
+    private final String assetLockId;
 
     public GeneratedStructure(UUID owner, BlockPos origin, String description, List<PlannedBlock> blocks) {
+        this(owner, origin, description, blocks, null);
+    }
+
+    private GeneratedStructure(UUID owner, BlockPos origin, String description, List<PlannedBlock> blocks, String assetLockId) {
         this.owner = owner;
         this.origin = origin;
         this.description = description;
         this.blocks = List.copyOf(blocks);
+        this.assetLockId = assetLockId;
+    }
+
+    public String getAssetLockId() { return assetLockId; }
+
+    public GeneratedStructure withAssetLock(String id) {
+        return new GeneratedStructure(owner, origin, description, blocks, id);
     }
 
     public UUID getOwner() {

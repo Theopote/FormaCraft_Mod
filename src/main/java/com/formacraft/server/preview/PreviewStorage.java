@@ -219,7 +219,8 @@ public class PreviewStorage {
                 ? List.of()
                 : List.copyOf(source.getBlocks());
         BlockPos origin = source.getOrigin() == null ? null : source.getOrigin().toImmutable();
-        return new GeneratedStructure(source.getOwner(), origin, source.getDescription(), blocks);
+        return new GeneratedStructure(source.getOwner(), origin, source.getDescription(), blocks)
+                .withAssetLock(source.getAssetLockId());
     }
 
     private static long nextGeneration(UUID uuid) {

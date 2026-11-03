@@ -19,6 +19,26 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class MemoryCommitIdempotencyTest {
 
+    @Test
+    void assetLockSurvivesPendingCommitSerializationAndBecomesHistoricalAfterEdit() {
+        String id = "lock_" + "b".repeat(32);
+        var structure = new GeneratedStructure(UUID.randomUUID(), BlockPos.ORIGIN, "tower", List.of())
+                .withAssetLock(id);
+        var record = MemoryCommitRecord.create("building", UUID.randomUUID(), "minecraft:overworld",
+                "tower", structure, null, null);
+        var json = com.formacraft.common.json.JsonUtil.toJson(record);
+        var recovered = com.formacraft.common.json.JsonUtil.fromJson(json, MemoryCommitRecord.class);
+        var memory = new ProjectMemory();
+        var keys = recovered.assetLockId;
+        assertEquals(id, keys);
+        com.formacraft.server.edit.BuildingMemoryKeys.storeInitialAssetLock(memory, keys);
+        assertEquals(id, com.formacraft.server.edit.BuildingMemoryKeys.currentAssetLock(memory));
+        com.formacraft.server.edit.BuildingMemoryKeys.bumpRevision(memory);
+        com.formacraft.server.edit.BuildingMemoryKeys.setRevision(memory, 0);
+        assertNull(com.formacraft.server.edit.BuildingMemoryKeys.currentAssetLock(memory));
+        assertEquals(id, memory.getMetadata().get("assetLock.initialId"));
+    }
+
     private static final Identifier OVERWORLD = Identifier.of("minecraft:overworld");
     private static final Identifier NETHER = Identifier.of("minecraft:the_nether");
 

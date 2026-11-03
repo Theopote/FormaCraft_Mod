@@ -953,7 +953,7 @@ public final class LlmPlanPreviewBuilder {
 
             com.formacraft.common.build.GeneratedStructure structure = pipeline.structure();
             String assetLockId = BuildingAssetArchiveSupport.save(player,serverWorld,llmPlan,structure,buildingAssets);
-            PreviewStorage.storeStructure(player, structure);
+            PreviewStorage.storeStructure(player, structure.withAssetLock(assetLockId));
             if (com.formacraft.server.dsl.FbdRepairLoop.hasProgram(llmPlan)) {
                 PreviewStorage.storeSourcePlan(player, llmPlan);
             }

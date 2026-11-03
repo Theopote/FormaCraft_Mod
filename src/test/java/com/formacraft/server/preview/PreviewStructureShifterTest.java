@@ -43,8 +43,10 @@ class PreviewStructureShifterTest {
                         new PlannedBlock(new BlockPos(11, 65, 20), Blocks.OAK_PLANKS.getDefaultState())
                 )
         );
-        var shifted = PreviewStructureShifter.shift(structure, 3, -2, 4);
+        String lockId = "lock_" + "a".repeat(32);
+        var shifted = PreviewStructureShifter.shift(structure.withAssetLock(lockId), 3, -2, 4);
         assertNotNull(shifted);
+        assertEquals(lockId, shifted.getAssetLockId());
         assertEquals(new BlockPos(13, 62, 24), shifted.getOrigin());
         assertEquals(2, shifted.getBlocks().size());
         assertEquals(new BlockPos(13, 62, 24), shifted.getBlocks().get(0).getPos());

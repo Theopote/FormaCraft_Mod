@@ -796,6 +796,9 @@ public class BuildExecutionService {
                             record.executionHash,
                             record.buildStatus);
                 }
+                if (record.sourceKind == MemoryCommitRecord.SourceKind.EXECUTED) {
+                    BuildingMemoryKeys.storeInitialAssetLock(memory, record.assetLockId);
+                }
                 var update = memoryManager.updateMemoryStrict(memory);
                 if (!update.ok()) {
                     record.lastError = update.message();

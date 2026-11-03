@@ -182,7 +182,25 @@ public final class BuildingMemoryKeys {
 
     public static void setRevision(ProjectMemory memory, long revision) {
         if (memory == null) return;
-        ensureMetadata(memory).put(REVISION, Math.max(0L, revision));
+        long next = Math.max(0L, revision);
+        Map<String, Object> metadata = ensureMetadata(memory);
+        if (next != revisionOf(memory) && metadata.containsKey("assetLock.initialId")) {
+            metadata.put("assetLock.superseded", true);
+        }
+        metadata.put(REVISION, next);
+    }
+
+    public static void storeInitialAssetLock(ProjectMemory memory, String id) {
+        if (com.formacraft.common.component.BuildingAssetLocks.validId(id)) {
+            ensureMetadata(memory).putIfAbsent("assetLock.initialId", id);
+        }
+    }
+
+    public static String currentAssetLock(ProjectMemory memory) {
+        if (memory == null || revisionOf(memory) != 0 || memory.getMetadata() == null
+                || Boolean.TRUE.equals(memory.getMetadata().get("assetLock.superseded"))) return null;
+        Object value = memory.getMetadata().get("assetLock.initialId");
+        return value instanceof String id && com.formacraft.common.component.BuildingAssetLocks.validId(id) ? id : null;
     }
 
     /** Persist the execution summary of a building commit onto its Memory record. */

@@ -48,6 +48,7 @@ public final class MemoryCommitRecord {
     public List<String> states = new ArrayList<>();
     public String specJson;
     public String fbdSourcePlanJson;
+    public String assetLockId;
     public Status status = Status.PENDING;
     public int attempts;
     /** Epoch millis of the next allowed retry. */
@@ -122,6 +123,7 @@ public final class MemoryCommitRecord {
         record.specJson = spec == null ? null : JsonUtil.toJson(spec);
         record.fbdSourcePlanJson = fbdSourcePlanJson;
         if (structure != null) {
+            record.assetLockId = structure.getAssetLockId();
             record.description = structure.getDescription();
             record.originX = structure.getOrigin().getX();
             record.originY = structure.getOrigin().getY();

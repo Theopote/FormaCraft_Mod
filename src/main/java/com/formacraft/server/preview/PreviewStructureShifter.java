@@ -53,7 +53,7 @@ public final class PreviewStructureShifter {
                     newOrigin,
                     structure.getDescription(),
                     source == null ? List.of() : source
-            );
+            ).withAssetLock(structure.getAssetLockId());
         }
         List<PlannedBlock> shifted = new ArrayList<>(source.size());
         for (PlannedBlock block : source) {
@@ -65,7 +65,7 @@ public final class PreviewStructureShifter {
                 newOrigin,
                 structure.getDescription(),
                 shifted
-        );
+        ).withAssetLock(structure.getAssetLockId());
     }
 
     /**
