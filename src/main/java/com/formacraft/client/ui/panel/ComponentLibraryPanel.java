@@ -38,6 +38,9 @@ public final class ComponentLibraryPanel extends BasePanel {
     private static final int BUTTON_HEIGHT = 16;
 
     private final HudTextInput searchInput = new HudTextInput();
+    private final CommunityLibraryPane communityPane = new CommunityLibraryPane();
+    private boolean communityMode;
+    private ButtonWidget communityToggle;
 
     private ButtonWidget sortButton;
     private ButtonWidget categoryButton;
@@ -96,6 +99,12 @@ public final class ComponentLibraryPanel extends BasePanel {
 
     private void ensureWidgets() {
         if (sortButton != null) return;
+
+        communityToggle = ButtonWidget.builder(Text.literal("浏览社区构件"), b -> {
+            communityMode = !communityMode; scrollY = maxScrollY = 0;
+            searchInput.setFocused(false);
+            if (!communityMode) communityPane.leave();
+        }).dimensions(0,0,0,BUTTON_HEIGHT).build();
 
         importButton = ButtonWidget.builder(Text.literal("导入构件包…"), b -> { scrollY = 0; com.formacraft.client.component.ClientComponentImport.chooseFile(); }).dimensions(0, 0, 0, BUTTON_HEIGHT).build();
         refreshButton = ButtonWidget.builder(Text.literal("刷新构件库"), b -> {
@@ -240,6 +249,20 @@ public final class ComponentLibraryPanel extends BasePanel {
         for (var button : recipeSizeButtons) button.visible = false;
 
         drawContentBackground(ctx);
+
+        communityToggle.setMessage(Text.literal(communityMode ? "返回本地构件库" : "浏览社区构件"));
+        y = renderSourceButton(ctx,communityToggle,x,y,w,true);
+        if (communityMode) {
+            scrollAreaTop = y;
+            int bottom = panelY + panelHeight - 1;
+            ctx.enableScissor(contentScissorLeft(),scrollAreaTop,contentScissorRight(),bottom);
+            try {
+                int end = communityPane.draw(ctx,x,w,y-scrollY,scrollAreaTop,bottom);
+                maxScrollY = Math.max(0,end+scrollY-y-Math.max(1,bottom-y));
+                scrollY = Math.min(scrollY,maxScrollY);
+            } finally { ctx.disableScissor(); }
+            return;
+        }
 
         var st = ComponentTool.INSTANCE.getState();
         int clipBottom = panelY + panelHeight - 1;
@@ -753,6 +776,9 @@ public final class ComponentLibraryPanel extends BasePanel {
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
+        if (clickButton(communityToggle,click)) return true;
+        if (communityMode) { communityPane.click(mouseX,mouseY,button); return true; }
+
         // allow buttons
         if (clickButton(sortButton, click)) return true;
         if (clickButton(categoryButton, click)) return true;
@@ -810,17 +836,20 @@ public final class ComponentLibraryPanel extends BasePanel {
     @Override
     public void keyPressed(int keyCode, int scanCode, int modifiers) {
         ensureWidgets();
+        if (communityMode) { communityPane.key(keyCode,modifiers); return; }
         searchInput.keyPressed(keyCode, modifiers);
     }
 
     @Override
     public void charTyped(char chr) {
         ensureWidgets();
+        if (communityMode) { communityPane.character(chr); return; }
         searchInput.charTyped(chr);
     }
 
     @Override
     public boolean wantsKeyboardInput() {
+        if (communityMode) return communityPane.focused();
         return searchInput.isFocused();
     }
 

@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.*;
 import java.io.IOException;
 
-/** No UI or automatic requests: future UI invokes these explicit client-thread actions. */
+/** Explicit client-thread actions used by the community browser; no automatic requests. */
 public final class ClientCommunityTasks {
     private ClientCommunityTasks() {}
     public static final CommunityTaskClientState STATE = new CommunityTaskClientState(System::nanoTime);

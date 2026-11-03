@@ -96,7 +96,9 @@ class CommunityGameProtocolTest {
             UUID task = submit(bridge,owner,session,full); assertNotNull(task);
             Response response = null;
             for (int i = 0; i < 100; i++) { response = bridge.handle(owner,request(Operation.POLL,session,task,0,0,null)); if (response.view() != null && response.view().status().equals("SUCCEEDED")) break; time.advance(50); Thread.sleep(5); }
-            assertNotNull(response); assertEquals("SUCCEEDED",response.view().status()); assertEquals(1,backend.calls);
+            assertNotNull(response);
+            assertNotNull(response.view());
+            assertEquals("SUCCEEDED",response.view().status()); assertEquals(1,backend.calls);
         }
     }
     @Test void foreignSessionAndOldCloseCannotAffectNewEpoch() throws Exception {
@@ -148,7 +150,9 @@ class CommunityGameProtocolTest {
             var client = new CommunityTaskClientState(time.nanos::get); client.open(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.IDLE); client.search(search());
             Response late = null;
             for (int i = 0; i < 10; i++) { var outgoing = client.nextRequest(); assertNotNull(outgoing); var response = bridge.handle(owner,outgoing); if (outgoing.operation() == Operation.SEARCH_SUBMIT) { late = response; break; } client.accept(response); }
-            assertNotNull(late); client.cancel(); var close = client.nextRequest(); assertEquals(Operation.CLOSE,close.operation());
+            assertNotNull(late); client.cancel(); var close = client.nextRequest();
+            assertNotNull(close);
+            assertEquals(Operation.CLOSE,close.operation());
             assertFalse(client.accept(late)); assertTrue(client.accept(bridge.handle(owner,close))); assertEquals(CommunityTaskClientState.Phase.CLOSED,client.phase());
         }
     }
