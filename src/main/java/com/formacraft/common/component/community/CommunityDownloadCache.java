@@ -16,6 +16,8 @@ public final class CommunityDownloadCache {
     public static final long MAX_OBJECT_BYTES = 64L * 1024 * 1024;
     private static final String SCHEMA = "formacraft.community.download-receipt.v1", RAW = "original.fccomponent.json", RECEIPT = "receipt.json";
     public record Cached(String receiptId, Instant verifiedAt, CommunityReleaseDetails details, CommunityPackages.Download download) {}
+    @FunctionalInterface public interface Commit { void run() throws IOException; }
+    @FunctionalInterface public interface CommitGate { void publish(Commit commit) throws IOException; }
 
     /** Independent evidence copy: deleting the original cache cannot invalidate the target vault. */
     public static String pin(Path targetRoot, Cached cached, ComponentPackageIO.Environment environment) throws IOException {
@@ -33,7 +35,12 @@ public final class CommunityDownloadCache {
 
     public static synchronized String save(Path cacheRoot, CommunitySearchHttpClient.Fetched fetched,
                                             ComponentPackageIO.Environment environment, Clock clock) throws IOException {
+        return save(cacheRoot,fetched,environment,clock,Commit::run);
+    }
+    public static synchronized String save(Path cacheRoot, CommunitySearchHttpClient.Fetched fetched,
+                                            ComponentPackageIO.Environment environment, Clock clock, CommitGate gate) throws IOException {
         Objects.requireNonNull(fetched); Objects.requireNonNull(clock);
+        Objects.requireNonNull(gate);
         var details = fetched.details(); var source = fetched.download();
         if (!details.available()) throw new CommunityPackages.Failure("release_unavailable");
         details.verify(source);
@@ -53,9 +60,9 @@ public final class CommunityDownloadCache {
         } else {
             long[] usage = usage(objects, RAW, MAX_OBJECTS, MAX_OBJECT_BYTES);
             if (usage[0] >= MAX_OBJECTS || bytes.length > MAX_OBJECT_BYTES - usage[1]) throw new CommunityPackages.Failure("cache_capacity");
-            atomicDirectory(objects, hash, RAW, bytes);
+            atomicDirectory(objects, hash, RAW, bytes, gate);
         }
-        atomicDirectory(receipts, id, RECEIPT, receiptBytes);
+        atomicDirectory(receipts, id, RECEIPT, receiptBytes, gate);
         return id;
     }
 
@@ -126,11 +133,11 @@ public final class CommunityDownloadCache {
         }
         return new long[]{count, bytes};
     }
-    private static void atomicDirectory(Path parent, String id, String fileName, byte[] bytes) throws IOException {
+    private static void atomicDirectory(Path parent, String id, String fileName, byte[] bytes, CommitGate gate) throws IOException {
         Path staging = Files.createTempDirectory(parent, ".pending-");
         try {
             Files.write(staging.resolve(fileName), bytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-            Files.move(staging, parent.resolve(id), StandardCopyOption.ATOMIC_MOVE);
+            gate.publish(() -> Files.move(staging, parent.resolve(id), StandardCopyOption.ATOMIC_MOVE));
         } finally {
             if (Files.exists(staging, LinkOption.NOFOLLOW_LINKS)) {
                 if (!Files.isDirectory(staging, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Cache staging redirects");

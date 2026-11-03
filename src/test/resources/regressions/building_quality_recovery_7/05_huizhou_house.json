@@ -1,0 +1,169 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "distinguishing_features": [
+    "徽派民居"
+  ],
+  "style_attributes": {
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:black_terracotta",
+    "palette": {
+      "wall": "minecraft:white_concrete",
+      "roof": "minecraft:black_terracotta"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 6
+      },
+      "features": [
+        "huizhou"
+      ],
+      "params": {
+        "component_id": "main",
+        "wall_block": "minecraft:white_concrete",
+        "roof_block": "minecraft:black_terracotta",
+        "roof_type": "xieshan",
+        "door_width": 3
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -1,
+        "y": 6,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_roof",
+        "host_id": "main",
+        "roof_type": "xieshan",
+        "roof_block": "minecraft:black_terracotta"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "main_door",
+        "host_id": "main",
+        "door_width": 3
+      }
+    }
+  ],
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "user_request",
+      "original_text": "生成一栋徽派民居，白墙黑瓦",
+      "building_class": "generic",
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "footprint": null,
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:white_concrete",
+        "roof": "minecraft:black_terracotta"
+      },
+      "refuse_residential_autofill": false
+    },
+    "building_class": "generic",
+    "scaffolded_from_request_intent": true,
+    "allow_compiler_satellites": false,
+    "request_intent_text": "生成一栋徽派民居，白墙黑瓦",
+    "acceptance_prompt": "生成一栋徽派民居，白墙黑瓦",
+    "fixture_id": "05_huizhou_house",
+    "design_requirements": {
+      "facade_windows": "OMITTED",
+      "windows": "OMITTED"
+    }
+  },
+  "proportion_hints": {
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Chinese_Vernacular_Huizhou",
+          "identity_id": "Chinese_Vernacular_Huizhou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Huizhou"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一栋徽派民居，白墙黑瓦",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "民居",
+              "start": 6,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Chinese_Vernacular_Huizhou",
+              "phrase": "徽派",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一栋徽派民居，白墙黑瓦",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ]
+    }
+  }
+}

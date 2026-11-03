@@ -2,6 +2,8 @@
 
 新增显式 downloadResumable API，现有完整下载 API 保持只接受 200。续传没有后台重试、游戏入口或自动安装，不访问未配置 authority。
 
+显式 [玩家任务协调器](COMPONENT_COMMUNITY_TASKS.md) 可在有界工作池调用该 API，并把暂存路径绑定到世界/玩家；当前尚无客户端游戏入口或自动重试。
+
 ## 协议
 
 每次调用先重取所选发布详情并完整核对 Descriptor/可交付状态。每块请求固定路径和 releaseId，发送 Range=`bytes=start-end` 与 If-Range=强整包 ETag。单块 256 KiB，最后一块允许较短；成功响应必须 206、JSON、identity 编码、相同强 ETag，以及完全对应 start/end/总长度的唯一 Content-Range。声明长度与实际正文长度都须等于该块长度。

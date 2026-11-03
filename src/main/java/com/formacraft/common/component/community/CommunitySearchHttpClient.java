@@ -258,4 +258,6 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         return new CommunityPackages.Failure("service_rejected");
     }
     @Override public void close() { http.close(); }
+    /** Non-waiting lifecycle shutdown; game server threads must not await network termination. */
+    public void shutdownNow() { http.shutdownNow(); }
 }

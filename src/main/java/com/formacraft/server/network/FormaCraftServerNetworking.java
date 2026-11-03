@@ -34,6 +34,7 @@ public final class FormaCraftServerNetworking {
         ComponentImportHandler.register();
         ComponentLibraryHandler.register();
         ComponentCatalogSync.register();
+        CommunityTaskService.register();
 
         ServerPlayNetworking.registerGlobalReceiver(com.formacraft.common.network.ComponentSourceNetworking.Request.ID,
                 (payload, context) -> context.server().execute(() -> {

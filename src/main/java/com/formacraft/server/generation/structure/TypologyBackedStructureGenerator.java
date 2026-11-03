@@ -9,6 +9,7 @@ import com.formacraft.server.generation.typology.builder.RadialTerraceHallBuilde
 import com.formacraft.server.generation.typology.builder.StadiumBowlBuilder;
 import com.formacraft.server.generation.typology.builder.SuspensionBridgeBuilder;
 import com.formacraft.server.generation.typology.builder.TailiangTimberHallBuilder;
+import com.formacraft.server.generation.typology.builder.TibetanStupaBuilder;
 import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -38,6 +39,8 @@ public final class TypologyBackedStructureGenerator implements StructureGenerato
         return switch (typologyId.trim().toLowerCase()) {
             case DenseEavesPagodaBuilder.TYPOLOGY_ID ->
                     DenseEavesPagodaBuilder.fromBuildingSpec(spec, origin, world);
+            case TibetanStupaBuilder.TYPOLOGY_ID ->
+                    TibetanStupaBuilder.fromBuildingSpec(spec, origin, world);
             case TailiangTimberHallBuilder.TYPOLOGY_ID ->
                     TailiangTimberHallBuilder.fromBuildingSpec(spec, origin, world);
             case RadialTerraceHallBuilder.TYPOLOGY_ID ->

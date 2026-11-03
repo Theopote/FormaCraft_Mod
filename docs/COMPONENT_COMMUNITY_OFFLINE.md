@@ -44,4 +44,4 @@ Query 身份按确定顺序编码标签、环境模组和字段集合，包含�
 
 同日完成搜索请求适配后，隔离回归共 278 项通过，失败/错误/跳过均为 0，新增 `CommunitySearchContractTest` 9 项，覆盖文档示例、严格格式、结构预算、条件保留、规范身份和分页上下文。
 
-显式安装、去重、配方和建筑锁的来源/收据 API 已接通，见 [来源绑定](COMPONENT_SELECTED_SOURCES.md)；新增 [Range 续传](COMPONENT_COMMUNITY_RESUME.md) 保持暂存与正式缓存隔离。后续完成真实服务的能力说明、完整检索能力、选择/安装 UI 和任务协调；远端 AI 自动安装/生成仍未开放。
+显式安装、去重、配方和建筑锁的来源/收据 API 已接通，见 [来源绑定](COMPONENT_SELECTED_SOURCES.md)；新增 [Range 续传](COMPONENT_COMMUNITY_RESUME.md) 保持暂存与正式缓存隔离，[玩家任务协调](COMPONENT_COMMUNITY_TASKS.md) 管理有界后台任务及取消。后续完成真实服务的能力说明、完整检索能力、选择/安装 UI、游戏消息和 AI 多需求编排；远端 AI 自动安装/生成仍未开放。

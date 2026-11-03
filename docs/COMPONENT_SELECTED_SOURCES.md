@@ -22,7 +22,7 @@ Selection.prepare 从 B 原包创建本地运行别名并按 B 的作者规则�
 
 RestoreResult.useAliases 对应普通 use 索引，selections 对应显式社区 use 索引；aliases 不包含涉及社区绑定的旧 ID，调用者不能用它覆盖全部同 ID 使用。普通依赖先恢复，再安装社区来源，避免本来以 A 为主的普通使用被恢复顺序改变。命令只恢复资源并统计，不提供后续生成任务的绑定选择 UI。
 
-固定证据是独立副本：当前没有自动 GC，删除下载缓存不会破坏既有配方/建筑锁；删除配方/锁也不立即删除共用原始对象。将来回收必须按引用可达性设计。该阶段只证明显式 API 调用链；[Range 续传](COMPONENT_COMMUNITY_RESUME.md) 已有独立实现，远端 UI、任务预算和完整安装交互仍待后续实现。
+固定证据是独立副本：当前没有自动 GC，删除下载缓存不会破坏既有配方/建筑锁；删除配方/锁也不立即删除共用原始对象。将来回收必须按引用可达性设计。该阶段只证明显式 API 调用链；[Range 续传](COMPONENT_COMMUNITY_RESUME.md) 与 [通用玩家任务协调](COMPONENT_COMMUNITY_TASKS.md) 已有实现，远端 UI、AI 多需求预算和完整安装交互仍待后续实现。
 
 ## 验证
 
