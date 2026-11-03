@@ -173,4 +173,112 @@ class CommunityGameProtocolTest {
         assertNull(gate.acquire(owner)); clock.addAndGet(1_000_000_000L); var fresh = gate.acquire(owner); assertNotNull(fresh); fresh.close();
         gate.close(); assertNull(gate.acquire(UUID.randomUUID()));
     }
+    private static CommunityTaskClientState downloaded(CommunityTaskBridge bridge,UUID owner,Time time) throws Exception {
+        var client=new CommunityTaskClientState(time.nanos::get); client.open(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.IDLE);
+        client.search(search()); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+        client.download("rel_0",false); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY); return client;
+    }
+    @Test void explicitPreviewThenConfirmationInstallsPrivatelyAndRetainsSelectedSource() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+        ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=downloaded(bridge,owner,time); String receipt=client.receiptId();
+            client.previewInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            assertNotNull(client.preview()); assertEquals("rel_0",client.preview().releaseId()); assertEquals("DENIED",client.preview().trainingPermission());
+            assertFalse(Files.exists(temp.resolve("library")),"Preview must not install");
+            UUID approval=client.taskId(); client.confirmInstall(); assertThrows(IOException.class,client::confirmInstall);
+            pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            assertNotNull(client.installed()); assertEquals(receipt,client.installed().receiptId());
+            var selection=coordinator.selection(owner,client.sessionId(),client.taskId()); assertEquals(receipt,selection.receipt().receiptId());
+            assertEquals("Author",selection.source().manifest().author());
+            assertEquals(client.installed().assetId(),selection.assetId());
+            assertTrue(Files.isDirectory(ComponentStorage.getPlayerComponentDir(owner).resolve("packages").resolve(selection.assetId())));
+            assertFalse(Files.exists(temp.resolve("library/packages"))); assertNull(client.preview());
+            assertThrows(IOException.class,()->coordinator.install(owner,client.sessionId(),approval));
+            assertThrows(IOException.class,()->coordinator.selection(UUID.randomUUID(),client.sessionId(),client.taskId()));
+            Path raw=temp.resolve("world/formacraft/community/players").resolve(owner.toString()).resolve("downloads/objects")
+                    .resolve(backend.candidates.get("rel_0").releaseRef().packageSha256()).resolve("original.fccomponent.json");
+            Files.writeString(raw,"changed after install");
+            assertEquals("cache_corrupt",assertThrows(CommunityPackages.Failure.class,()->coordinator.selection(owner,client.sessionId(),client.taskId())).code());
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void confirmationRequiresCurrentUnexpiredPlayerPreview() throws Exception {
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=downloaded(bridge,owner,time);
+            assertThrows(IOException.class,()->coordinator.install(owner,client.sessionId(),client.taskId()));
+            client.previewInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY); UUID approval=client.taskId();
+            assertThrows(IOException.class,()->coordinator.install(UUID.randomUUID(),client.sessionId(),approval));
+            time.advance(120_001);
+            assertEquals("preview_expired",assertThrows(CommunityPackages.Failure.class,()->coordinator.install(owner,client.sessionId(),approval)).code());
+            UUID newer=coordinator.connect(owner);
+            assertThrows(IOException.class,()->coordinator.install(owner,client.sessionId(),approval));
+            assertThrows(IOException.class,()->coordinator.install(owner,newer,approval));
+        }
+    }
+    @Test void installationReusesExistingContentButKeepsTheDownloadedLicenseSelection() throws Exception {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+        ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var source=backend.index.download(backend.candidates.get("rel_0").releaseRef(),ENV).verified();
+            var differentRights=new ComponentPackageIO.Manifest("alice","1","Alice","A terms",ComponentPackageIO.TrainingPermission.ALLOWED,"1.21.10",Map.of(),Map.of(),List.of());
+            var a=ComponentPackageIO.create(source.component(),differentRights,ENV); Path path=Files.write(temp.resolve("a.json"),a.toBytes());
+            var existing=ComponentPackageInstallations.importPackage(path,ENV,new ComponentStorage.SaveContext(temp.resolve("world"),owner,false,false));
+            var client=downloaded(bridge,owner,time); client.previewInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            client.confirmInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            assertEquals(existing.assetId(),client.installed().assetId()); assertEquals("SOURCE_ADDED",client.installed().status());
+            var selected=coordinator.selection(owner,client.sessionId(),client.taskId());
+            assertEquals(ComponentPackageIO.TrainingPermission.DENIED,selected.source().manifest().trainingPermission());
+            assertEquals("Author",selected.source().manifest().author());
+            assertEquals("Alice",ComponentPackageInstallations.inspect(ComponentStorage.getPlayerComponentDir(owner),existing.assetId()).manifest().author());
+        } finally { ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void cancellingQueuedConfirmationPreventsAnyPrivateLibraryWrite() throws Exception {
+        ComponentStorage.setGlobalComponentDirOverrideForTest(temp.resolve("library"));
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        var holding=new java.util.concurrent.atomic.AtomicBoolean(); var started=new java.util.concurrent.CountDownLatch(2); var release=new java.util.concurrent.CountDownLatch(1);
+        CommunityTaskCoordinator.Backend blocking=new CommunityTaskCoordinator.Backend() {
+            public CommunitySearchResponse.Decoded search(byte[] bytes,CommunitySearchHttpClient.Cancellation cancellation) throws IOException {
+                if(holding.get()) { started.countDown(); try { release.await(); } catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new IOException(interrupted); } }
+                return backend.search(bytes,cancellation);
+            }
+            public CommunitySearchHttpClient.Fetched download(CommunityPackages.Descriptor d,ComponentPackageIO.Environment e,Path p,CommunityTaskCoordinator.Transfer t,CommunitySearchHttpClient.Cancellation c) throws IOException { return backend.download(d,e,p,t,c); }
+            public void shutdownNow() { release.countDown(); }
+        };
+        try(var coordinator=new CommunityTaskCoordinator(Files.createDirectories(temp.resolve("world")),"test",ENV,time,blocking); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=downloaded(bridge,owner,time); client.previewInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            UUID approval=client.taskId(); holding.set(true);
+            for(int i=0;i<2;i++) { UUID other=UUID.randomUUID(); coordinator.search(other,coordinator.connect(other),search()); }
+            assertTrue(started.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            UUID install=coordinator.install(owner,client.sessionId(),approval); assertEquals(CommunityTaskCoordinator.Status.QUEUED,coordinator.snapshot(owner,client.sessionId()).status());
+            coordinator.cancel(owner,client.sessionId(),install); release.countDown();
+            assertEquals(CommunityTaskCoordinator.Status.CANCELLED,coordinator.snapshot(owner,client.sessionId()).status());
+            assertFalse(Files.exists(temp.resolve("library")));
+        } finally { release.countDown(); ComponentStorage.setGlobalComponentDirOverrideForTest(null); }
+    }
+    @Test void previewRechecksPrivateRawObjectInsteadOfTrustingDownloadStatus() throws Exception {
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var bridge=new CommunityTaskBridge(tasks(time,backend),time)) {
+            var client=downloaded(bridge,owner,time);
+            Path raw=temp.resolve("world/formacraft/community/players").resolve(owner.toString()).resolve("downloads/objects")
+                    .resolve(backend.candidates.get("rel_0").releaseRef().packageSha256()).resolve("original.fccomponent.json");
+            Files.writeString(raw,"corrupt"); client.previewInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.ERROR);
+            assertEquals("cache_corrupt",client.error()); assertNull(client.preview()); assertThrows(IOException.class,client::confirmInstall);
+        }
+    }
+    @Test void installPreviewDocumentsRejectUnknownFieldsAndForgedRights() throws Exception {
+        var time=new Time(); var backend=new Backend(time); UUID owner=UUID.randomUUID();
+        try(var coordinator=tasks(time,backend); var bridge=new CommunityTaskBridge(coordinator,time)) {
+            var client=downloaded(bridge,owner,time); client.previewInstall(); pump(client,bridge,owner,time,CommunityTaskClientState.Phase.READY);
+            String json=coordinator.snapshot(owner,client.sessionId()).document();
+            var unknown=JsonParser.parseString(json).getAsJsonObject(); unknown.addProperty("path","secret");
+            assertThrows(IOException.class,()->CommunityInstallDocument.decodePreview(unknown.toString().getBytes(StandardCharsets.UTF_8)));
+            var rights=JsonParser.parseString(json).getAsJsonObject(); rights.addProperty("trainingPermission","VERIFIED");
+            assertThrows(IOException.class,()->CommunityInstallDocument.decodePreview(rights.toString().getBytes(StandardCharsets.UTF_8)));
+            assertThrows(IOException.class,()->CommunityInstallDocument.decodePreview(new byte[CommunityInstallDocument.MAX_BYTES+1]));
+            client.cancel(); assertNull(client.preview()); assertThrows(IOException.class,client::confirmInstall);
+        }
+    }
 }

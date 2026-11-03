@@ -25,4 +25,6 @@ public final class ClientCommunityTasks {
     public static void search(byte[] request) throws IOException { STATE.search(request); }
     public static void download(String releaseId,boolean resumable) throws IOException { STATE.download(releaseId,resumable); }
     public static void cancel() { STATE.cancel(); }
+    public static void previewInstall() throws IOException { STATE.previewInstall(); }
+    public static void confirmInstall() throws IOException { STATE.confirmInstall(); }
 }

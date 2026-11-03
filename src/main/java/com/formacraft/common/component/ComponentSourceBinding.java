@@ -49,6 +49,14 @@ public final class ComponentSourceBinding {
         var receipt = CommunityDownloadCache.read(cacheRoot, receiptId, ComponentPackageIO.currentEnvironment());
         return install(receipt, context);
     }
+    /** Read-only reconstruction: do not retain large source packages in idle task/session state. */
+    public static Selection resolveInstalled(Path cacheRoot,String receiptId,String assetId,ComponentPackageInstallations.ImportStatus status,
+                                            ComponentStorage.SaveContext context) throws IOException {
+        if(context==null || context.playerId()==null || status==null || !ComponentIds.isSafeId(assetId)) throw new IOException("所选来源上下文无效");
+        var receipt=CommunityDownloadCache.read(cacheRoot,receiptId,ComponentPackageIO.currentEnvironment());
+        var selected=new Selection(context.worldDir(),context.playerId(),assetId,status,receipt);
+        selected.validate(context.worldDir(),context.playerId()); return selected;
+    }
     static Selection install(CommunityDownloadCache.Cached receipt, ComponentStorage.SaveContext context) throws IOException {
         if (context == null || context.playerId() == null) throw new IOException("显式来源需要私人玩家上下文");
         if (!CommunityDownloadCache.receiptId(receipt.details().descriptor()).equals(receipt.receiptId())) throw new IOException("所选收据身份不一致");

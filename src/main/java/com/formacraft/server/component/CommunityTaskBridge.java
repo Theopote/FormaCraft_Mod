@@ -78,6 +78,12 @@ public final class CommunityTaskBridge implements AutoCloseable {
                     snapshot = tasks.snapshot(actor,slot.session); if (!task.equals(snapshot.taskId())) throw failure("stale_task");
                     return status(request,slot,Reply.STATUS,snapshot);
                 }
+                case INSTALL_PREVIEW, INSTALL_CONFIRM -> {
+                    slot.upload=null; slot.result=null;
+                    UUID task=request.operation()==Operation.INSTALL_PREVIEW ? tasks.preview(actor,slot.session,request.subjectId()) : tasks.install(actor,slot.session,request.subjectId());
+                    snapshot=tasks.snapshot(actor,slot.session); if(!task.equals(snapshot.taskId())) throw failure("stale_task");
+                    return status(request,slot,Reply.STATUS,snapshot);
+                }
                 case POLL -> {
                     if (!request.subjectId().equals(snapshot.taskId())) throw failure("stale_task");
                     return status(request,slot,Reply.STATUS,snapshot);
@@ -113,9 +119,10 @@ public final class CommunityTaskBridge implements AutoCloseable {
         return new Response(request.token(),reply,slot.session,snapshot.taskId(),view,0,result == null ? 0 : result.bytes.length,result == null ? "" : result.sha,null,"");
     }
     private Result result(Slot slot,CommunityTaskCoordinator.Snapshot snapshot) throws IOException {
-        if (snapshot.kind() != CommunityTaskCoordinator.Kind.SEARCH || snapshot.status() != CommunityTaskCoordinator.Status.SUCCEEDED) { slot.result = null; return null; }
-        if (!clock.instant().isBefore(snapshot.catalogExpiresAt())) { slot.result = null; throw failure("selection_expired"); }
-        if (slot.result == null || !slot.result.task.equals(snapshot.taskId())) slot.result = new Result(snapshot.taskId(),snapshot.searchJson());
+        if (snapshot.kind() == CommunityTaskCoordinator.Kind.DOWNLOAD || snapshot.kind()==null || snapshot.status() != CommunityTaskCoordinator.Status.SUCCEEDED) { slot.result = null; return null; }
+        if (snapshot.kind()==CommunityTaskCoordinator.Kind.SEARCH && !clock.instant().isBefore(snapshot.catalogExpiresAt())) { slot.result = null; throw failure("selection_expired"); }
+        if (snapshot.kind()==CommunityTaskCoordinator.Kind.PREVIEW && !clock.instant().isBefore(snapshot.deadline())) { slot.result=null; throw failure("preview_expired"); }
+        if (slot.result == null || !slot.result.task.equals(snapshot.taskId())) slot.result = new Result(snapshot.taskId(),snapshot.kind()==CommunityTaskCoordinator.Kind.SEARCH ? snapshot.searchJson() : snapshot.document());
         return slot.result;
     }
     private static void validate(Request r) throws IOException {

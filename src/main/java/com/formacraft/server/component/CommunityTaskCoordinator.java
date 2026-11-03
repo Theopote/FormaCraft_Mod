@@ -1,6 +1,9 @@
 package com.formacraft.server.component;
 
 import com.formacraft.common.component.ComponentPackageIO;
+import com.formacraft.common.component.ComponentSourceBinding;
+import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.common.component.ComponentPackageInstallations;
 import com.formacraft.common.component.community.*;
 import java.io.*;
 import java.net.URI;
@@ -11,14 +14,14 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** Server-owned read-only jobs. No entities, main-thread callbacks, installation, or world edits. */
+/** Server-owned bounded jobs. Installation requires an explicit current preview; no world edits. */
 public final class CommunityTaskCoordinator implements AutoCloseable {
     public static final int MAX_SESSIONS = 32, WORKERS = 2, QUEUE_SIZE = 8, STARTS_PER_MINUTE = 30;
-    public enum Kind { SEARCH, DOWNLOAD }
+    public enum Kind { SEARCH, DOWNLOAD, PREVIEW, INSTALL }
     public enum Status { IDLE, QUEUED, RUNNING, CACHING, SUCCEEDED, FAILED, CANCELLED }
     public enum Transfer { FULL, RESUMABLE }
     public record Snapshot(UUID sessionId, UUID taskId, Kind kind, Status status, String code, String receiptId,
-                           UUID catalogTaskId, String searchJson, Instant deadline, Instant catalogExpiresAt) {}
+                           UUID catalogTaskId, String searchJson, Instant deadline, Instant catalogExpiresAt, String document) {}
     public record Metrics(int sessions, int activeWorkers, int queuedTasks) {}
     public interface Backend {
         CommunitySearchResponse.Decoded search(byte[] request, CommunitySearchHttpClient.Cancellation cancellation) throws IOException;
@@ -53,10 +56,18 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         FutureTask<Void> future;
         Status status = Status.QUEUED;
         String code, receiptId;
+        String inputReceipt, document;
+        String installedAsset;
+        ComponentPackageInstallations.ImportStatus installedStatus;
         Job(Session session, Instant now, byte[] request, CommunitySearchContract.Request parsed, CommunityPackages.Descriptor selected, Transfer transfer) {
             this.owner = session.owner; this.session = session.id; this.created = now;
             this.kind = request == null ? Kind.DOWNLOAD : Kind.SEARCH; this.request = request; this.parsed = parsed;
             this.selected = selected; this.transfer = transfer; deadline = now.plusSeconds(kind == Kind.SEARCH ? 45 : 150);
+        }
+        Job(Session session, Instant now, Kind kind, CommunityPackages.Descriptor selected, String receipt) {
+            this.owner=session.owner; this.session=session.id; this.created=now; this.kind=kind;
+            this.selected=selected; this.inputReceipt=receipt; request=null; parsed=null; transfer=null;
+            deadline=now.plusSeconds(kind==Kind.PREVIEW ? 120 : 150);
         }
     }
     private record PrivatePaths(Path downloads, Path staging) {}
@@ -133,8 +144,37 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
         synchronized (lock) {
             var session = session(owner,sessionId); expireJob(session.job); var job = session.job;
             return new Snapshot(session.id,job == null ? null : job.id,job == null ? null : job.kind,job == null ? Status.IDLE : job.status,
-                    job == null ? null : job.code,job == null ? null : job.receiptId,session.catalogTask,session.searchJson,job == null ? null : job.deadline,session.catalogExpires);
+                    job == null ? null : job.code,job == null ? null : job.receiptId,session.catalogTask,session.searchJson,job == null ? null : job.deadline,session.catalogExpires,job == null ? null : job.document);
         }
+    }
+    public UUID preview(UUID owner, UUID sessionId, UUID downloadTask) throws IOException {
+        synchronized(lock) {
+            var session=session(owner,sessionId); var previous=session.job;
+            if(previous==null || previous.kind!=Kind.DOWNLOAD || previous.status!=Status.SUCCEEDED || !previous.id.equals(downloadTask) || previous.receiptId==null)
+                throw new CommunityPackages.Failure("stale_download");
+            admit(session); return start(session,new Job(session,clock.instant(),Kind.PREVIEW,previous.selected,previous.receiptId));
+        }
+    }
+    public UUID install(UUID owner, UUID sessionId, UUID previewTask) throws IOException {
+        synchronized(lock) {
+            var session=session(owner,sessionId); var previous=session.job;
+            if(previous==null || previous.kind!=Kind.PREVIEW || previous.status!=Status.SUCCEEDED || !previous.id.equals(previewTask) || previous.document==null)
+                throw new CommunityPackages.Failure("stale_preview");
+            if(!clock.instant().isBefore(previous.deadline)) throw new CommunityPackages.Failure("preview_expired");
+            admit(session); return start(session,new Job(session,clock.instant(),Kind.INSTALL,previous.selected,previous.inputReceipt));
+        }
+    }
+    /** Revalidate the explicit source off the game thread; the session retains only bounded identity metadata. */
+    public ComponentSourceBinding.Selection selection(UUID owner, UUID sessionId, UUID installTask) throws IOException {
+        Job job;
+        synchronized(lock) {
+            var session=session(owner,sessionId); job=session.job;
+            if(job==null || !job.id.equals(installTask) || job.kind!=Kind.INSTALL || job.status!=Status.SUCCEEDED || job.installedAsset==null)
+                throw new CommunityPackages.Failure("stale_install");
+        }
+        var selected=ComponentSourceBinding.resolveInstalled(paths(owner).downloads,job.inputReceipt,job.installedAsset,job.installedStatus,new ComponentStorage.SaveContext(world,owner,false,false));
+        synchronized(lock) { if(session(owner,sessionId).job!=job) throw new CommunityPackages.Failure("stale_install"); }
+        return selected;
     }
     public Metrics metrics() { synchronized (lock) { return new Metrics(sessions.size(),workers.getActiveCount(),workers.getQueue().size()); } }
     public String authorityId() { return authority; }
@@ -172,7 +212,7 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
                     var session = current(job); session.catalogTask = job.id; session.searchJson = new String(json,StandardCharsets.UTF_8);
                     session.candidates = Map.copyOf(candidates); session.catalogExpires = job.created.plusSeconds(ttl); job.status = Status.SUCCEEDED;
                 }
-            } else {
+            } else if (job.kind == Kind.DOWNLOAD) {
                 var paths = paths(job.owner); synchronized (lock) { current(job); }
                 var fetched = backend.download(job.selected,environment,paths.staging,job.transfer,job.cancellation);
                 if (!fetched.download().descriptor().equals(job.selected)) throw new CommunityPackages.Failure("object_changed");
@@ -184,6 +224,22 @@ public final class CommunityTaskCoordinator implements AutoCloseable {
                 });
                 if (!CommunityDownloadCache.receiptId(job.selected).equals(receipt)) throw new CommunityPackages.Failure("cache_corrupt");
                 synchronized (lock) { current(job); job.receiptId = receipt; job.status = Status.SUCCEEDED; }
+            } else {
+                var paths=paths(job.owner);
+                var cached=CommunityDownloadCache.read(paths.downloads,job.inputReceipt,environment);
+                if(!cached.details().descriptor().equals(job.selected)) throw new CommunityPackages.Failure("object_changed");
+                if(job.kind==Kind.PREVIEW) {
+                    var component=cached.download().verified().component();
+                    if(!component.isCapturedOrigin() && component.variantRules==null) throw new CommunityPackages.Failure("invalid_package");
+                    String document=CommunityInstallDocument.preview(cached);
+                    synchronized(lock) { current(job); job.document=document; job.receiptId=job.inputReceipt; job.status=Status.SUCCEEDED; }
+                } else {
+                    // Last revocable check. The accepted private import may finish after disconnect/cancel.
+                    synchronized(lock) { current(job); job.status=Status.CACHING; }
+                    var selected=ComponentSourceBinding.install(paths.downloads,job.inputReceipt,new ComponentStorage.SaveContext(world,job.owner,false,false));
+                    String document=CommunityInstallDocument.installed(selected);
+                    synchronized(lock) { current(job); job.installedAsset=selected.assetId(); job.installedStatus=selected.status(); job.document=document; job.receiptId=job.inputReceipt; job.status=Status.SUCCEEDED; }
+                }
             }
         } catch (Exception failed) {
             synchronized (lock) {

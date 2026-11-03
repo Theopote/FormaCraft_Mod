@@ -92,7 +92,28 @@ final class CommunityLibraryPane {
             y=button(ctx,"下载至私人缓存",x,y,w,usable(),() -> ClientCommunityTasks.download(row.releaseId(),false));
             y=button(ctx,"续传至私人缓存",x,y,w,usable(),() -> ClientCommunityTasks.download(row.releaseId(),true));
         }
-        if (!state.receiptId().isEmpty()) y=line(ctx,"下载已校验并缓存；尚未入库",x,y,w);
+        if (!state.receiptId().isEmpty() && state.installed()==null) {
+            y=line(ctx,"下载已校验并缓存；尚未入库",x,y,w);
+            y=button(ctx,"查看入库信息",x,y,w,usable() && state.view()!=null && "DOWNLOAD".equals(state.view().kind()),ClientCommunityTasks::previewInstall);
+        }
+        if(state.preview()!=null) {
+            var p=state.preview();
+            y=line(ctx,"待入库："+CommunityBrowserModel.display(p.name(),256),x,y,w);
+            y=line(ctx,"发布："+p.authority()+" / "+p.releaseId(),x,y,w);
+            y=line(ctx,"尺寸 X/Y/Z："+p.width()+" / "+p.height()+" / "+p.depth()+"；方块 "+p.blocks(),x,y,w);
+            y=line(ctx,"作者声明："+CommunityBrowserModel.display(p.author(),256),x,y,w);
+            y=line(ctx,"许可声明："+CommunityBrowserModel.display(p.license(),2048),x,y,w);
+            y=line(ctx,"训练授权声明："+switch(p.trainingPermission()) { case "ALLOWED" -> "允许"; case "DENIED" -> "禁止"; default -> "未声明"; },x,y,w);
+            y=line(ctx,"仅写本人私人库，相同内容会复用并保留来源；游戏运行适配尚未验证",x,y,w);
+            y=line(ctx,"确认后若入库已开始，取消或断线不保证回滚",x,y,w);
+            y=button(ctx,"确认入私人库",x,y,w,usable(),ClientCommunityTasks::confirmInstall);
+        }
+        if(state.installed()!=null) {
+            y=line(ctx,"已入私人库："+CommunityBrowserModel.display(state.installed().name(),256),x,y,w);
+            y=line(ctx,"本地标识："+state.installed().assetId(),x,y,w);
+            y=line(ctx,"来源收据已保留，未自动加载或放置",x,y,w);
+            y=button(ctx,"刷新本地构件库",x,y,w,true,() -> com.formacraft.client.network.FormaCraftClientNetworking.sendComponentCatalogRequest());
+        }
         return line(ctx,"缓存下载不会自动入库或放置",x,y+4,w);
     }
     private int input(DrawContext ctx,HudTextInput input,int x,int y,int w) {
@@ -126,7 +147,9 @@ final class CommunityLibraryPane {
         return switch(state.phase()) {
             case CLOSED -> "未连接"; case OPENING -> "正在连接"; case IDLE -> "已连接";
             case UPLOADING -> "正在提交搜索"; case FETCHING -> "正在接收搜索结果";
-            case WAITING -> state.view()!=null && "DOWNLOAD".equals(state.view().kind()) ? "正在下载并校验" : "正在执行任务";
+            case WAITING -> state.view()==null ? "正在执行任务" : switch(state.view().kind()) {
+                case "PREVIEW" -> "正在校验入库信息"; case "INSTALL" -> "正在入私人库"; case "DOWNLOAD" -> "正在下载并校验"; default -> "正在执行任务";
+            };
             case READY -> "操作完成"; case ERROR -> "操作失败"; case CLOSING -> "正在关闭会话";
         };
     }
@@ -137,6 +160,7 @@ final class CommunityLibraryPane {
             case "cursor_expired", "catalog_expired", "stale_catalog" -> "搜索结果已过期，请重新搜索";
             case "timeout", "request_timeout" -> "请求超时，请重新连接";
             case "connection_lost" -> "连接中断";
+            case "preview_expired", "stale_preview", "stale_download" -> "入库确认已失效，请重新下载并查看信息";
             case "unsupported_capability", "unsupported_constraint" -> "服务暂不支持此筛选条件";
             default -> "社区操作失败，可重新连接后重试";
         };
