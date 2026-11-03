@@ -43,6 +43,9 @@ public final class CommunitySearchHttpClient implements AutoCloseable {
         return path.endsWith("/") ? path : path + "/";
     }
 
+    /** Shares the transport policy with trusted configuration without creating a client or sending requests. */
+    public static void validateBase(URI base) { getString(Objects.requireNonNull(base)); }
+
     public static final class Cancellation {
         private final AtomicBoolean cancelled = new AtomicBoolean(), used = new AtomicBoolean();
         private final AtomicReference<CompletableFuture<?>> future = new AtomicReference<>();

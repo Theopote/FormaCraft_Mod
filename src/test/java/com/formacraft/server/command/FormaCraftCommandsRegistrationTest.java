@@ -23,6 +23,8 @@ class FormaCraftCommandsRegistrationTest {
             assertNotNull(dispatcher.getRoot().getChild("forma_assets").getChild("list"));
             assertNotNull(dispatcher.getRoot().getChild("forma_assets").getChild("preview").getChild("id"));
             assertNotNull(dispatcher.getRoot().getChild("forma_assets").getChild("restore").getChild("id"));
+            for (String command : java.util.List.of("status","reload","disable"))
+                assertNotNull(dispatcher.getRoot().getChild("forma_community").getChild(command));
         }
     }
 }

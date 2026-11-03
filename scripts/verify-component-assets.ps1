@@ -2,7 +2,7 @@ param(
     [string]$GradleExecutable,
     [switch]$Offline,
     [string[]]$Tests = @(
-        '*CommunityBrowserModelTest', '*CommunityTaskNetworkingTest', '*CommunityGameProtocolTest', '*CommunityTaskCoordinatorTest', '*CommunityResumeTest', '*ComponentSourceBindingTest', '*CommunityDownloadsTest', '*CommunityTransportTest', '*CommunitySearchContractTest', '*CommunityOfflineTest', '*BuildingAssetLocksTest', '*BuildingAssetArchiveSupportTest', '*FormaCraftCommandsRegistrationTest', '*OffThreadPlanCompileGuardTest',
+        '*CommunityServiceConfigTest', '*CommunityBrowserModelTest', '*CommunityTaskNetworkingTest', '*CommunityGameProtocolTest', '*CommunityTaskCoordinatorTest', '*CommunityResumeTest', '*ComponentSourceBindingTest', '*CommunityDownloadsTest', '*CommunityTransportTest', '*CommunitySearchContractTest', '*CommunityOfflineTest', '*BuildingAssetLocksTest', '*BuildingAssetArchiveSupportTest', '*FormaCraftCommandsRegistrationTest', '*OffThreadPlanCompileGuardTest',
         '*ComponentRecipeLibraryTest', '*ComponentRecipeDraftTest',
         '*ComponentCatalogTransferTest', '*ClientComponentCatalogStateTest',
         '*ComponentLibraryOperationsTest', '*ComponentLibraryClientStateTest', '*ComponentLibraryNetworkingTest', '*ComponentLibraryOrderingTest',
