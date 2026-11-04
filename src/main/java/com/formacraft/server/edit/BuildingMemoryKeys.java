@@ -1,5 +1,6 @@
 package com.formacraft.server.edit;
 
+import com.formacraft.common.component.BuildingAssetLocks;
 import com.formacraft.server.memory.ProjectMemory;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -9,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /** Canonical metadata keys for building-aware incremental editing. */
 public final class BuildingMemoryKeys {
@@ -190,9 +192,29 @@ public final class BuildingMemoryKeys {
         metadata.put(REVISION, next);
     }
 
-    public static void storeInitialAssetLock(ProjectMemory memory, String id) {
-        if (com.formacraft.common.component.BuildingAssetLocks.validId(id)) {
-            ensureMetadata(memory).putIfAbsent("assetLock.initialId", id);
+    public record AssetLockBinding(String id, UUID owner, BlockPos buildOrigin) {}
+
+    public static void storeInitialAssetLock(ProjectMemory memory, String id, UUID owner, BlockPos buildOrigin) {
+        if (memory == null || !BuildingAssetLocks.validId(id) || owner == null || buildOrigin == null) return;
+        Map<String, Object> metadata = ensureMetadata(memory);
+        Object existingId = metadata.putIfAbsent("assetLock.initialId", id);
+        if (existingId != null && !id.equals(existingId)) return;
+        metadata.putIfAbsent("assetLock.frame", Map.of("owner", owner.toString(), "origin", cellKey(buildOrigin)));
+    }
+
+    public static AssetLockBinding initialAssetLockBinding(ProjectMemory memory) {
+        if (memory == null || memory.getMetadata() == null) return null;
+        Map<String, Object> metadata = memory.getMetadata();
+        if (!(metadata.get("assetLock.initialId") instanceof String id) || !BuildingAssetLocks.validId(id)
+                || !(metadata.get("assetLock.frame") instanceof Map<?, ?> frame)
+                || !(frame.get("owner") instanceof String owner)
+                || !(frame.get("origin") instanceof String origin)) return null;
+        BlockPos buildOrigin = parseCellKey(origin);
+        if (buildOrigin == null) return null;
+        try {
+            return new AssetLockBinding(id, UUID.fromString(owner), buildOrigin);
+        } catch (IllegalArgumentException ignored) {
+            return null;
         }
     }
 
@@ -200,7 +222,7 @@ public final class BuildingMemoryKeys {
         if (memory == null || revisionOf(memory) != 0 || memory.getMetadata() == null
                 || Boolean.TRUE.equals(memory.getMetadata().get("assetLock.superseded"))) return null;
         Object value = memory.getMetadata().get("assetLock.initialId");
-        return value instanceof String id && com.formacraft.common.component.BuildingAssetLocks.validId(id) ? id : null;
+        return value instanceof String id && BuildingAssetLocks.validId(id) ? id : null;
     }
 
     /** Persist the execution summary of a building commit onto its Memory record. */

@@ -14,6 +14,39 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BuildingAssetLocksTest {
+    @Test
+    void revisionArchiveIsSelfContainedAndRetryChecksContent() throws Exception {
+        var sample = sample();
+        var revision = new BuildingAssetLocks.Revision(save(sample), UUID.randomUUID(), UUID.randomUUID(), 1);
+        var assets = BuildingAssetCapture.Data.empty();
+        var cell = sample.patches().getFirst();
+        var writes = List.of(new BlockPatch(BlockPatch.REMOVE, cell.dx(), cell.dy(), cell.dz(), null));
+        String dimension = "minecraft:overworld";
+        String id = BuildingAssetLocks.saveRevision(world, alice, dimension, revision, 80, 70, -20, "{}", assets, writes);
+        assertEquals(id, BuildingAssetLocks.saveRevision(world, alice, dimension, revision, 80, 70, -20, "{}", assets, writes));
+        assertThrows(java.io.IOException.class, () ->
+                BuildingAssetLocks.saveRevision(world, alice, dimension, revision, 80, 70, -20, "{\"changed\":true}", assets, writes));
+        Files.move(directory(revision.parentId()), temporary.resolve("parent"));
+        var loaded = BuildingAssetLocks.load(world, alice, id, dimension);
+        assertEquals(revision, loaded.manifest().revision());
+        assertEquals(80, loaded.manifest().originX());
+        assertEquals(writes.getFirst(), loaded.patches().getFirst());
+        assertTrue(loaded.manifest().dependencies().isEmpty());
+    }
+
+    @Test
+    void mergesCommittedWritesWithoutResurrectingRemovedBlocks() throws Exception {
+        var untouched = new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone");
+        var old = new BlockPatch(BlockPatch.PLACE, -1, 0, 0, "minecraft:stone");
+        var replaced = new BlockPatch(BlockPatch.REPLACE, 1, 0, 0, "minecraft:glass");
+        var removed = new BlockPatch(BlockPatch.REMOVE, -1, 0, 0, null);
+        var result = BuildingAssetLocks.mergePatches(List.of(untouched, old), List.of(old, replaced, removed));
+
+        assertEquals(List.of(untouched, removed, new BlockPatch(BlockPatch.PLACE, 1, 0, 0, "minecraft:glass")), result);
+        assertThrows(java.io.IOException.class, () -> BuildingAssetLocks.mergePatches(
+                List.of(), List.of(new BlockPatch(null, 0, 0, 0, "minecraft:stone"))));
+    }
+
     @TempDir Path temporary;
     private Path world;
     private final UUID alice = UUID.randomUUID(), bob = UUID.randomUUID();

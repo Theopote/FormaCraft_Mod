@@ -17,9 +17,11 @@ public final class BuildingAssetLocks {
     public static final int MAX_PATCHES = 1_000_000, MAX_PATCH_BYTES = 128*1024*1024, MAX_MANIFEST = 16*1024*1024, MAX_PLAN = 2*1024*1024;
     public static final String ENGINE = "formacraft.building-assets.v1";
     public record Dependency(String contentRef, String manifestSha256) {}
+    public record Revision(String parentId, UUID buildingId, UUID transactionId, long number) {}
     public record Manifest(String schema, String id, String owner, String dimension, long createdAt, String engine, String producerVersion, long seed,
                            int originX,int originY,int originZ,String planSha256,String patchesSha256,int patchCount,
-                           Map<String,Dependency> dependencies,Map<String,String> shapes,List<BuildingAssetCapture.Use> uses,Map<String,String> communityReceipts) {
+                           Map<String,Dependency> dependencies,Map<String,String> shapes,List<BuildingAssetCapture.Use> uses,Map<String,String> communityReceipts,
+                           Revision revision) {
         public Manifest { dependencies = Map.copyOf(dependencies); shapes = Map.copyOf(shapes); uses = List.copyOf(uses); communityReceipts = Map.copyOf(communityReceipts); }
     }
     public record Loaded(Manifest manifest,String inputPlan,List<BlockPatch> patches) {
@@ -53,8 +55,61 @@ public final class BuildingAssetLocks {
     @FunctionalInterface interface BeforePublish { void run(Path staging) throws IOException; }
     static String save(Path world,UUID owner,String dimension,long seed,int x,int y,int z,String inputPlan,
                        BuildingAssetCapture.Data data,List<BlockPatch> patches,BeforePublish hook) throws IOException {
+        return save(world,owner,dimension,seed,x,y,z,inputPlan,data,patches,hook,
+                "lock_"+UUID.randomUUID().toString().replace("-",""),null);
+    }
+
+    public static String saveRevision(Path world, UUID owner, String dimension, Revision revision,
+                                      int x, int y, int z, String inputPlan,
+                                      BuildingAssetCapture.Data assets, List<BlockPatch> committed) throws IOException {
+        if (!validRevision(revision) || assets == null || committed == null || committed.isEmpty() || inputPlan == null) {
+            throw new IOException("建筑锁修订内容无效");
+        }
+        String id = revisionId(revision);
+        synchronized (ComponentStorage.class) {
+            var parent = load(world, owner, revision.parentId(), dimension);
+            var previous = parent.manifest().revision();
+            if (previous == null ? revision.number() != 1
+                    : !previous.buildingId().equals(revision.buildingId())
+                    || previous.number() != revision.number() - 1
+                    || parent.manifest().originX() != x || parent.manifest().originY() != y || parent.manifest().originZ() != z) {
+                throw new IOException("建筑锁父版本不一致");
+            }
+            var patches = mergePatches(parent.patches(), committed);
+            Loaded existing;
+            try {
+                directory(world, owner, id);
+            } catch (NoSuchFileException missing) {
+                return save(world, owner, dimension, parent.manifest().seed(), x, y, z, inputPlan,
+                        assets, patches, ignored -> {}, id, revision);
+            }
+            existing = load(world, owner, id, dimension);
+            var manifest = existing.manifest();
+            if (!revision.equals(manifest.revision()) || manifest.originX() != x || manifest.originY() != y || manifest.originZ() != z
+                    || !inputPlan.equals(existing.inputPlan()) || !patches.equals(existing.patches())
+                    || !assets.sources().keySet().equals(manifest.dependencies().keySet())
+                    || !assets.shapes().equals(manifest.shapes()) || !assets.uses().equals(manifest.uses())
+                    || !assets.receipts().keySet().equals(manifest.communityReceipts().keySet())) {
+                throw new IOException("建筑锁事务已归档为不同内容");
+            }
+            return id;
+        }
+    }
+
+    private static boolean validRevision(Revision revision) {
+        return revision != null && validId(revision.parentId()) && revision.buildingId() != null
+                && revision.transactionId() != null && revision.number() > 0;
+    }
+
+    private static String revisionId(Revision revision) {
+        String key = "formacraft.asset-revision:" + revision.buildingId() + ":" + revision.transactionId();
+        return "lock_" + BuildingAssetCapture.digest(key).substring(0, 32);
+    }
+
+    private static String save(Path world,UUID owner,String dimension,long seed,int x,int y,int z,String inputPlan,
+                       BuildingAssetCapture.Data data,List<BlockPatch> patches,BeforePublish hook,String id,Revision revision) throws IOException {
         if (owner == null || dimension == null || dimension.isBlank() || dimension.length() > 256 || inputPlan == null
-                || data == null || data.sources().isEmpty() || patches == null || patches.isEmpty() || patches.size() > MAX_PATCHES)
+                || data == null || revision == null && data.sources().isEmpty() || patches == null || patches.isEmpty() || patches.size() > MAX_PATCHES)
             throw new IOException("建筑锁内容为空或超出限制");
         byte[] plan = inputPlan.getBytes(StandardCharsets.UTF_8); if (plan.length > MAX_PLAN) throw new IOException("建筑方案过大");
         for (var patch : patches) validatePatch(patch);
@@ -81,7 +136,7 @@ public final class BuildingAssetLocks {
                 CommunityDownloadCache.pin(root.resolve("community_downloads"),receipt,ComponentPackageIO.currentEnvironment());
                 receiptSources.put(entry.getKey(),snapshot);
             }
-            String id = "lock_"+UUID.randomUUID().toString().replace("-",""); Path staging = Files.createTempDirectory(locks,".pending-");
+            Path staging = Files.createTempDirectory(locks,".pending-");
             try {
                 Files.write(staging.resolve("input-plan.json"),plan,StandardOpenOption.CREATE_NEW);
                 Path patchFile = staging.resolve("patches.json.gz");
@@ -89,7 +144,7 @@ public final class BuildingAssetLocks {
                      var writer = new OutputStreamWriter(output,StandardCharsets.UTF_8)) { JsonUtil.get().toJson(patches,writer); }
                 String producerVersion = ComponentPackageIO.currentEnvironment().installedMods().getOrDefault("formacraft","development");
                 var manifest = new Manifest("formacraft.building_asset_lock.v1",id,owner.toString(),dimension,System.currentTimeMillis(),ENGINE,producerVersion,seed,
-                        x,y,z,BuildingAssetCapture.digest(plan),fileHash(patchFile),patches.size(),dependencies,data.shapes(),data.uses(),receiptSources);
+                        x,y,z,BuildingAssetCapture.digest(plan),fileHash(patchFile),patches.size(),dependencies,data.shapes(),data.uses(),receiptSources,revision);
                 validateManifest(manifest,owner,id);
                 try (var output = new LimitedOutput(Files.newOutputStream(staging.resolve("manifest.json"),StandardOpenOption.CREATE_NEW),MAX_MANIFEST);
                      var writer = new OutputStreamWriter(output,StandardCharsets.UTF_8)) { JsonUtil.get().toJson(manifest,writer); }
@@ -108,8 +163,11 @@ public final class BuildingAssetLocks {
                 || !validId(id) || !id.equals(m.id()) || !owner.toString().equals(m.owner()) || m.dimension() == null || m.dimension().isBlank()
                 || m.dimension().length() > 256 || m.createdAt() <= 0 || !hash(m.planSha256()) || !hash(m.patchesSha256())
                 || m.producerVersion() == null || m.producerVersion().isBlank() || m.producerVersion().length() > 256
-                || m.patchCount() <= 0 || m.patchCount() > MAX_PATCHES || m.dependencies() == null || m.dependencies().isEmpty() || m.dependencies().size() > 256
-                || m.shapes() == null || m.shapes().isEmpty() || m.shapes().size() > 1024 || m.uses() == null || m.uses().isEmpty() || m.uses().size() > 65536
+                || m.patchCount() <= 0 || m.patchCount() > MAX_PATCHES || m.dependencies().size() > 256
+                || m.shapes().size() > 1024 || m.uses().size() > 65536
+                || (m.revision() == null
+                    ? m.dependencies().isEmpty() || m.shapes().isEmpty() || m.uses().isEmpty()
+                    : !validRevision(m.revision()) || !id.equals(revisionId(m.revision())) || id.equals(m.revision().parentId()))
                 || m.communityReceipts() == null || m.communityReceipts().size() > 256)
             throw new IOException("建筑锁清单契约不一致");
         for (var dependency : m.dependencies().entrySet())
@@ -245,8 +303,35 @@ public final class BuildingAssetLocks {
         for (var use : manifest.uses()) if (use.receiptId() != null) aliases.remove(use.assetId());
         return new RestoreResult(aliases,failures,useAliases,selections);
     }
+    /**
+     * Merge committed writes expressed relative to the actual build origin into the parent snapshot.
+     * The resulting snapshot can be replayed at a new origin.
+     */
+    static List<BlockPatch> mergePatches(List<BlockPatch> parent, List<BlockPatch> committed) throws IOException {
+        if (parent.size() > MAX_PATCHES || committed.size() > MAX_PATCHES) {
+            throw new IOException("建筑 Patch 数量超出限制");
+        }
+        record Cell(int x, int y, int z) {}
+        Map<Cell, BlockPatch> writes = new LinkedHashMap<>();
+        for (BlockPatch patch : parent) {
+            validatePatch(patch);
+            writes.put(new Cell(patch.dx(), patch.dy(), patch.dz()), patch);
+        }
+        for (BlockPatch patch : committed) {
+            validatePatch(patch);
+            Cell cell = new Cell(patch.dx(), patch.dy(), patch.dz());
+            boolean remove = BlockPatch.REMOVE.equals(patch.action());
+            writes.put(cell, new BlockPatch(remove ? BlockPatch.REMOVE : BlockPatch.PLACE,
+                    cell.x(), cell.y(), cell.z(), remove ? null : patch.targetBlock()));
+            if (writes.size() > MAX_PATCHES) {
+                throw new IOException("建筑 Patch 数量超出限制");
+            }
+        }
+        return List.copyOf(writes.values());
+    }
+
     private static void validatePatch(BlockPatch patch) throws IOException {
-        if (patch == null || !Set.of(BlockPatch.PLACE,BlockPatch.REPLACE,BlockPatch.REMOVE).contains(patch.action())
+        if (patch == null || patch.action() == null || !Set.of(BlockPatch.PLACE,BlockPatch.REPLACE,BlockPatch.REMOVE).contains(patch.action())
                 || Math.abs((long)patch.dx()) > 30_000_000 || Math.abs((long)patch.dy()) > 30_000_000 || Math.abs((long)patch.dz()) > 30_000_000
                 || !BlockPatch.REMOVE.equals(patch.action()) && (patch.targetBlock() == null || patch.targetBlock().isBlank() || patch.targetBlock().length() > 2048)) throw new IOException("建筑 Patch 内容超出限制");
     }

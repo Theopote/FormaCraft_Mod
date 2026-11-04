@@ -208,7 +208,7 @@ public final class PortableAssetBackup {
             return updated;
         } else {
             var m=(BuildingAssetLocks.Manifest)stage.artifact;
-            var updated=new BuildingAssetLocks.Manifest(m.schema(),m.id(),owner.toString(),m.dimension(),m.createdAt(),m.engine(),m.producerVersion(),m.seed(),m.originX(),m.originY(),m.originZ(),m.planSha256(),m.patchesSha256(),m.patchCount(),m.dependencies(),m.shapes(),m.uses(),m.communityReceipts());
+            var updated=new BuildingAssetLocks.Manifest(m.schema(),m.id(),owner.toString(),m.dimension(),m.createdAt(),m.engine(),m.producerVersion(),m.seed(),m.originX(),m.originY(),m.originZ(),m.planSha256(),m.patchesSha256(),m.patchCount(),m.dependencies(),m.shapes(),m.uses(),m.communityReceipts(),m.revision());
             Files.writeString(stage.root.resolve("locks/"+h.id+"/manifest.json"),JsonUtil.toJson(updated),StandardCharsets.UTF_8);
             return updated;
         }

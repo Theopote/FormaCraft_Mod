@@ -3,9 +3,12 @@ package com.formacraft.server.memory;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.server.edit.BuildingMemoryKeys;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -18,25 +21,37 @@ import static org.junit.jupiter.api.Assertions.*;
  * Memory commit must be idempotent and dimension-bound.
  */
 class MemoryCommitIdempotencyTest {
+    @BeforeAll
+    static void bootstrap() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
+
 
     @Test
     void assetLockSurvivesPendingCommitSerializationAndBecomesHistoricalAfterEdit() {
         String id = "lock_" + "b".repeat(32);
-        var structure = new GeneratedStructure(UUID.randomUUID(), BlockPos.ORIGIN, "tower", List.of())
+        var owner = UUID.randomUUID();
+        var origin = new BlockPos(50, 80, -30);
+        var structure = new GeneratedStructure(owner, origin, "tower", List.of())
                 .withAssetLock(id);
         var record = MemoryCommitRecord.create("building", UUID.randomUUID(), "minecraft:overworld",
                 "tower", structure, null, null);
         var json = com.formacraft.common.json.JsonUtil.toJson(record);
         var recovered = com.formacraft.common.json.JsonUtil.fromJson(json, MemoryCommitRecord.class);
         var memory = new ProjectMemory();
-        var keys = recovered.assetLockId;
-        assertEquals(id, keys);
-        com.formacraft.server.edit.BuildingMemoryKeys.storeInitialAssetLock(memory, keys);
-        assertEquals(id, com.formacraft.server.edit.BuildingMemoryKeys.currentAssetLock(memory));
-        com.formacraft.server.edit.BuildingMemoryKeys.bumpRevision(memory);
-        com.formacraft.server.edit.BuildingMemoryKeys.setRevision(memory, 0);
-        assertNull(com.formacraft.server.edit.BuildingMemoryKeys.currentAssetLock(memory));
-        assertEquals(id, memory.getMetadata().get("assetLock.initialId"));
+        var rebuilt = recovered.toStructure();
+        assertEquals(id, rebuilt.getAssetLockId());
+        BuildingMemoryKeys.storeInitialAssetLock(memory, rebuilt.getAssetLockId(),
+                rebuilt.getOwner(), rebuilt.getOrigin());
+        BuildingMemoryKeys.storeInitialAssetLock(memory, id, UUID.randomUUID(), BlockPos.ORIGIN);
+        assertEquals(id, BuildingMemoryKeys.currentAssetLock(memory));
+        BuildingMemoryKeys.bumpRevision(memory);
+        BuildingMemoryKeys.setRevision(memory, 0);
+        assertNull(BuildingMemoryKeys.currentAssetLock(memory));
+        var restoredMemory = com.formacraft.common.json.JsonUtil.fromJson(
+                com.formacraft.common.json.JsonUtil.toJson(memory), ProjectMemory.class);
+        assertEquals(new BuildingMemoryKeys.AssetLockBinding(id, owner, origin),
+                BuildingMemoryKeys.initialAssetLockBinding(restoredMemory));
     }
 
     private static final Identifier OVERWORLD = Identifier.of("minecraft:overworld");

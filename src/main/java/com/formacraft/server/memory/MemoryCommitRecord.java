@@ -152,7 +152,7 @@ public final class MemoryCommitRecord {
         }
         UUID owner = ownerUuid == null ? null : UUID.fromString(ownerUuid);
         return new GeneratedStructure(owner, new BlockPos(originX, originY, originZ),
-                description == null ? "building" : description, blocks);
+                description == null ? "building" : description, blocks).withAssetLock(assetLockId);
     }
 
     public BuildingSpec toSpec() {
