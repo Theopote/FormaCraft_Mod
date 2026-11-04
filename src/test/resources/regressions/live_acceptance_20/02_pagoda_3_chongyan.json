@@ -1,0 +1,117 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "distinguishing_features": [
+    "古塔",
+    "塔刹",
+    "重檐"
+  ],
+  "style_attributes": {
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:dark_oak_stairs",
+    "palette": {
+      "wall": "minecraft:white_concrete",
+      "roof": "minecraft:dark_oak_stairs"
+    }
+  },
+  "components": [
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 21
+      },
+      "features": [
+        "dense_eaves_pagoda",
+        "finial_spire",
+        "塔刹",
+        "typology:dense_eaves_pagoda",
+        "重檐"
+      ],
+      "params": {
+        "typology_id": "dense_eaves_pagoda",
+        "typology": "dense_eaves_pagoda",
+        "floor_count": 3,
+        "levels": 3,
+        "eaves_per_level": 2,
+        "double_eaves": true,
+        "wall_block": "minecraft:white_concrete",
+        "roof_block": "minecraft:dark_oak_stairs"
+      }
+    }
+  ],
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "user_request",
+      "original_text": "生成一座三层中式古塔，重檐，顶部有塔刹",
+      "building_class": "tower_like",
+      "composition": "single",
+      "tower_subtype": "dense_eaves_pagoda",
+      "markers": [
+        "古塔",
+        "塔刹",
+        "重檐"
+      ],
+      "roof_type": "double_eave_hip",
+      "roof_explicit": true,
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": true
+    },
+    "building_class": "tower_like",
+    "scaffolded_from_request_intent": true,
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED"
+    },
+    "tower_subtype": "dense_eaves_pagoda",
+    "request_intent_text": "生成一座三层中式古塔，重檐，顶部有塔刹",
+    "acceptance_prompt": "生成一座三层中式古塔，重檐，顶部有塔刹",
+    "fixture_id": "02_pagoda_3_chongyan"
+  },
+  "proportion_hints": {
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座三层中式古塔，重檐，顶部有塔刹",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座三层中式古塔，重檐，顶部有塔刹",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ]
+    }
+  }
+}
