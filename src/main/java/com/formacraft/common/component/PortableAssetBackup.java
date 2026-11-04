@@ -4,6 +4,8 @@ import com.formacraft.common.component.community.CommunityDownloadCache;
 import com.formacraft.common.json.JsonUtil;
 import com.google.gson.Strictness;
 import com.google.gson.stream.*;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.*;
@@ -240,7 +242,7 @@ public final class PortableAssetBackup {
     private static final class LimitedOutput extends FilterOutputStream {
         long left; LimitedOutput(OutputStream output,long maximum) { super(output); left=maximum; }
         public void write(int value) throws IOException { if(--left<0) throw invalid(); out.write(value); }
-        public void write(byte[] bytes,int off,int length) throws IOException { if(length>left) throw invalid(); left-=length; out.write(bytes,off,length); }
+        public void write(byte @NotNull [] bytes, int off, int length) throws IOException { if(length>left) throw invalid(); left-=length; out.write(bytes,off,length); }
     }
     private static void cleanup(Path root) throws IOException {
         if(!Files.exists(root,LinkOption.NOFOLLOW_LINKS)) return;

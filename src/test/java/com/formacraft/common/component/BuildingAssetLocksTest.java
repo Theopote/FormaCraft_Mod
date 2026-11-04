@@ -6,6 +6,16 @@ import com.formacraft.common.component.transform.*;
 import com.formacraft.common.component.variant.CaptureAdaptationSettings;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.server.edit.BuildingEditPendingRegistry;
+import com.formacraft.server.edit.BuildingEditService;
+import com.formacraft.server.edit.BuildingEditTransactionStore;
+import com.formacraft.server.edit.BuildingMemoryKeys;
+import com.formacraft.server.edit.BuildingPartIndex;
+import com.formacraft.server.memory.MemoryManager;
+import com.formacraft.server.memory.MemoryUpdateResult;
+import com.formacraft.server.memory.ProjectMemory;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
@@ -14,6 +24,53 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BuildingAssetLocksTest {
+    @Test
+    void roofRecoveryReusesArchiveAfterMemoryWriteFailure() throws Exception {
+        var sample = sample();
+        String parent = save(sample);
+        var dimension = Identifier.of("minecraft:overworld");
+        var origin = new BlockPos(70, 64, -20);
+        var roof = origin.add(2, 3, 4);
+        var memory = new ProjectMemory();
+        var bounds = new ProjectMemory.SpatialBounds(origin, origin.add(8, 12, 8), dimension);
+        bounds.addAnchor("origin", origin);
+        memory.setBounds(bounds);
+        BuildingEditService.attachRoofIndex(memory, BuildingPartIndex.ofRoofCells(
+                List.of(roof), Map.of(roof, "minecraft:stone")));
+        BuildingMemoryKeys.storeInitialAssetLock(memory, parent, alice, origin);
+        var fail = new java.util.concurrent.atomic.AtomicBoolean(true);
+        var manager = new MemoryManager(null) {
+            @Override public ProjectMemory getMemory(String id) { return memory; }
+            @Override public MemoryUpdateResult updateMemoryStrict(ProjectMemory ignored) {
+                return fail.get() ? MemoryUpdateResult.fail("injected") : MemoryUpdateResult.succeeded();
+            }
+        };
+        var building = UUID.fromString(memory.getUuid());
+        var target = Map.of(roof, "minecraft:glass");
+        BuildingEditTransactionStore.clearForTest();
+        try {
+            var service = new BuildingEditService(manager, world);
+            var begin = service.beginTransaction(BuildingEditPendingRegistry.Pending.roof(
+                    UUID.randomUUID(), alice, building, dimension, 0, Set.of(roof),
+                    Map.of(roof, "minecraft:stone"), target, System.currentTimeMillis() + 60_000));
+            assertTrue(begin.ok(), begin.message());
+            assertTrue(service.markWorldApplied(begin.transaction().transactionId()));
+            assertFalse(service.commitSuccessfulRoofEdit(building, dimension, 0, target));
+            assertEquals(parent, BuildingMemoryKeys.currentAssetLock(memory));
+            assertEquals(2, BuildingAssetLocks.list(world, alice, 0).size());
+            fail.set(false);
+            var repaired = service.repairMemorySyncWithLiveWorld(building, dimension, target);
+            assertTrue(repaired.ok(), repaired.message());
+            assertEquals(1, BuildingMemoryKeys.revisionOf(memory));
+            var child = BuildingAssetLocks.load(world, alice, BuildingMemoryKeys.currentAssetLock(memory), dimension.toString());
+            assertEquals(parent, child.manifest().revision().parentId());
+            assertTrue(child.patches().contains(new BlockPatch(BlockPatch.PLACE, 2, 3, 4, "minecraft:glass")));
+            assertEquals(2, BuildingAssetLocks.list(world, alice, 0).size());
+        } finally {
+            BuildingEditTransactionStore.clearForTest();
+        }
+    }
+
     @Test
     void revisionArchiveIsSelfContainedAndRetryChecksContent() throws Exception {
         var sample = sample();

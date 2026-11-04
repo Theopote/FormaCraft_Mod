@@ -371,7 +371,8 @@ public final class PatchPreviewService {
         // Round 59: durable PREPARED txn before ticket consume / world write.
         boolean buildingEdit = pending.requiresBuildingEditPending();
         com.formacraft.server.edit.BuildingEditService editService =
-                mm == null ? null : new com.formacraft.server.edit.BuildingEditService(mm);
+                mm == null ? null : new com.formacraft.server.edit.BuildingEditService(mm,
+                        sw.getServer().getSavePath(net.minecraft.util.WorldSavePath.ROOT));
         java.util.UUID txnId = null;
         if (buildingEdit) {
             if (editService == null || pendingEditPeek == null) {
@@ -496,7 +497,9 @@ public final class PatchPreviewService {
                     com.formacraft.server.edit.BuildingEditPendingRegistry.takeFbdSourcePlan(ticket.id());
                 }
             } else {
-                committed = editService.commitSuccessfulBuildingEdit(
+                boolean roofVerified = pendingEdit.operation() != com.formacraft.server.edit.BuildingEditOperation.REPLACE_ROOF_MATERIAL
+                        || com.formacraft.server.edit.BuildingEditService.transactionTargetsMatch(sw, txnId);
+                committed = roofVerified && editService.commitSuccessfulBuildingEdit(
                         pendingEdit.buildingId(),
                         pendingEdit.dimension(),
                         pendingEdit.baseRevision(),

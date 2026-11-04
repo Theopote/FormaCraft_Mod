@@ -1,6 +1,7 @@
 package com.formacraft.server.edit;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.component.BuildingAssetLocks;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.patch.BlockPatch;
@@ -13,6 +14,8 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -80,10 +83,16 @@ public final class BuildingEditService {
 
     private final MemoryManager memoryManager;
     private final BuildingTargetResolver targetResolver;
+    private final Path worldRoot;
 
     public BuildingEditService(MemoryManager memoryManager) {
+        this(memoryManager, null);
+    }
+
+    public BuildingEditService(MemoryManager memoryManager, Path worldRoot) {
         this.memoryManager = Objects.requireNonNull(memoryManager, "memoryManager");
         this.targetResolver = new BuildingTargetResolver(memoryManager);
+        this.worldRoot = worldRoot;
     }
 
     public BuildingTargetResolver targets() {
@@ -566,7 +575,7 @@ public final class BuildingEditService {
             return false;
         }
 
-        BuildingPartIndex previous = BuildingPartIndex.fromMemory(memory);
+        Map<String, Object> previousMetadata = new LinkedHashMap<>(memory.getMetadata());
         List<com.formacraft.common.build.PlannedBlock> solids = new java.util.ArrayList<>();
         if (targetStates != null) {
             for (var e : targetStates.entrySet()) {
@@ -602,8 +611,7 @@ public final class BuildingEditService {
         }
         MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
         if (!result.ok()) {
-            previous.persistTo(memory);
-            BuildingMemoryKeys.setRevision(memory, expectedBaseRevision);
+            memory.setMetadata(previousMetadata);
             return false;
         }
         return true;
@@ -637,7 +645,8 @@ public final class BuildingEditService {
         if (current != expectedBaseRevision) return false;
 
         BuildingPartIndex index = BuildingPartIndex.fromMemory(memory);
-        BuildingPartIndex previous = index;
+        Map<String, Object> previousMetadata = memory.getMetadata() == null
+                ? null : new LinkedHashMap<>(memory.getMetadata());
         Map<BlockPos, String> states = new LinkedHashMap<>(index.roof().recordedStates());
         if (newRoofStates != null) {
             for (var e : newRoofStates.entrySet()) {
@@ -646,18 +655,45 @@ public final class BuildingEditService {
                 }
             }
         }
+        String newLock = null;
+        String parentLock = BuildingMemoryKeys.currentAssetLock(memory);
+        var binding = BuildingMemoryKeys.initialAssetLockBinding(memory);
+        if (worldRoot != null && parentLock != null && binding != null) {
+            var txn = BuildingEditTransactionStore.findOpenByBuilding(buildingId);
+            if (txn == null || txn.status() == BuildingEditTransaction.Status.PREPARED
+                    || txn.baseRevision() != current || !dimension.equals(txn.dimension())
+                    || txn.operation().toEditOperation() != BuildingEditOperation.REPLACE_ROOF_MATERIAL
+                    || newRoofStates == null || !txn.targetWorldStates().keySet().equals(newRoofStates.keySet())
+                    || !statesEqual(txn.targetWorldStates(), newRoofStates)
+                    || !index.roof().cells().containsAll(newRoofStates.keySet())) return false;
+            BlockPos origin = binding.buildOrigin();
+            List<BlockPatch> writes = newRoofStates.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(entry -> {
+                        BlockPos relative = entry.getKey().subtract(origin);
+                        return new BlockPatch(BlockPatch.PLACE, relative.getX(), relative.getY(), relative.getZ(), entry.getValue());
+                    }).toList();
+            try {
+                var revision = new BuildingAssetLocks.Revision(parentLock, buildingId, txn.transactionId(), current + 1);
+                newLock = BuildingAssetLocks.saveMaterialRevision(worldRoot, binding.owner(), dimension.toString(),
+                        revision, origin.getX(), origin.getY(), origin.getZ(), writes);
+            } catch (IOException ex) {
+                FormacraftMod.LOGGER.warn("Could not archive roof edit {}", txn.transactionId(), ex);
+                return false;
+            }
+        }
         new BuildingPartIndex(
                 new BuildingPartIndex.RoofPart("roof", index.roof().cells(), states),
                 index.walls(),
                 index.windows()
         ).persistTo(memory);
         BuildingMemoryKeys.bumpRevision(memory);
+        if (newLock != null) BuildingMemoryKeys.storeRevisionAssetLock(memory, newLock);
         BuildingMemoryKeys.clearMemorySyncFailed(memory);
         MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
         if (!result.ok()) {
             // Disk unchanged; restore in-heap object so the same baseRevision can be retried.
-            previous.persistTo(memory);
-            BuildingMemoryKeys.setRevision(memory, expectedBaseRevision);
+            memory.setMetadata(previousMetadata);
             return false;
         }
         return true;
@@ -702,14 +738,13 @@ public final class BuildingEditService {
         }
         if (current != expectedBaseRevision) return false;
 
-        BuildingPartIndex previous = BuildingPartIndex.fromMemory(memory);
-        previous.withWindowTargets(operation, targetStates, targetPart).persistTo(memory);
+        Map<String, Object> previousMetadata = new LinkedHashMap<>(memory.getMetadata());
+        BuildingPartIndex.fromMemory(memory).withWindowTargets(operation, targetStates, targetPart).persistTo(memory);
         BuildingMemoryKeys.bumpRevision(memory);
         BuildingMemoryKeys.clearMemorySyncFailed(memory);
         MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
         if (!result.ok()) {
-            previous.persistTo(memory);
-            BuildingMemoryKeys.setRevision(memory, expectedBaseRevision);
+            memory.setMetadata(previousMetadata);
             return false;
         }
         return true;
@@ -807,6 +842,11 @@ public final class BuildingEditService {
      * Capture canonical BlockState strings for the cells named by a transaction
      * (expected ∪ target). Caller must supply a live {@link net.minecraft.server.world.ServerWorld}.
      */
+    public static boolean transactionTargetsMatch(net.minecraft.server.world.ServerWorld world, UUID transactionId) {
+        var txn = BuildingEditTransactionStore.get(transactionId);
+        return txn != null && statesEqual(captureLiveStates(world, txn), txn.targetWorldStates());
+    }
+
     public static Map<BlockPos, String> captureLiveStates(
             net.minecraft.server.world.ServerWorld world,
             BuildingEditTransaction txn

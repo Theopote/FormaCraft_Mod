@@ -4,6 +4,8 @@ import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.component.community.CommunityDownloadCache;
 import com.formacraft.common.patch.BlockPatch;
 import com.google.gson.stream.JsonReader;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.*;
 import java.nio.charset.*;
 import java.nio.file.*;
@@ -94,6 +96,18 @@ public final class BuildingAssetLocks {
             }
             return id;
         }
+    }
+
+    /** Publish a block-only material edit, retaining the original installation provenance. */
+    public static String saveMaterialRevision(Path world, UUID owner, String dimension, Revision revision,
+                                              int x, int y, int z, List<BlockPatch> committed) throws IOException {
+        Path root = vault(world, owner, false);
+        var parent = load(world, owner, revision.parentId(), dimension);
+        var manifest = parent.manifest();
+        var packages = sources(root, manifest);
+        var assets = new BuildingAssetCapture.Data(packages, manifest.shapes(), manifest.uses(),
+                receipts(root, manifest, packages));
+        return saveRevision(world, owner, dimension, revision, x, y, z, parent.inputPlan(), assets, committed);
     }
 
     private static boolean validRevision(Revision revision) {
@@ -359,13 +373,13 @@ public final class BuildingAssetLocks {
         LimitedInput(InputStream input,long max) { super(input); this.max = max; }
         private void add(int size) throws IOException { if (size > 0 && (count += size) > max) throw new IOException("解压数据超出限制"); }
         @Override public int read() throws IOException { int value = in.read(); if (value >= 0) add(1); return value; }
-        @Override public int read(byte[] bytes,int offset,int length) throws IOException { int size = in.read(bytes,offset,length); add(size); return size; }
+        @Override public int read(byte @NotNull [] bytes, int offset, int length) throws IOException { int size = in.read(bytes,offset,length); add(size); return size; }
     }
     static final class LimitedOutput extends FilterOutputStream {
         private final long max; private long count;
         LimitedOutput(OutputStream output,long max) { super(output); this.max = max; }
         private void add(int size) throws IOException { if ((count += size) > max) throw new IOException("建筑锁数据超出限制"); }
         @Override public void write(int value) throws IOException { add(1); out.write(value); }
-        @Override public void write(byte[] bytes,int offset,int length) throws IOException { add(length); out.write(bytes,offset,length); }
+        @Override public void write(byte @NotNull [] bytes, int offset, int length) throws IOException { add(length); out.write(bytes,offset,length); }
     }
 }

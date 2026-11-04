@@ -126,7 +126,6 @@ public final class BuildingMemoryKeys {
         memory.getMetadata().remove(FBD_SOURCE_PLAN_PENDING);
     }
 
-    @SuppressWarnings("unchecked")
     public static Map<BlockPos, String> memorySyncPendingRoofStates(ProjectMemory memory) {
         if (memory == null || memory.getMetadata() == null) return Map.of();
         Object raw = memory.getMetadata().get(MEMORY_SYNC_ROOF_STATES);
@@ -188,6 +187,7 @@ public final class BuildingMemoryKeys {
         Map<String, Object> metadata = ensureMetadata(memory);
         if (next != revisionOf(memory) && metadata.containsKey("assetLock.initialId")) {
             metadata.put("assetLock.superseded", true);
+            metadata.remove("assetLock.currentId");
         }
         metadata.put(REVISION, next);
     }
@@ -219,10 +219,16 @@ public final class BuildingMemoryKeys {
     }
 
     public static String currentAssetLock(ProjectMemory memory) {
-        if (memory == null || revisionOf(memory) != 0 || memory.getMetadata() == null
-                || Boolean.TRUE.equals(memory.getMetadata().get("assetLock.superseded"))) return null;
-        Object value = memory.getMetadata().get("assetLock.initialId");
+        if (memory == null || memory.getMetadata() == null) return null;
+        Map<String, Object> metadata = memory.getMetadata();
+        Object value = revisionOf(memory) == 0
+                ? Boolean.TRUE.equals(metadata.get("assetLock.superseded")) ? null : metadata.get("assetLock.initialId")
+                : metadata.get("assetLock.currentId");
         return value instanceof String id && BuildingAssetLocks.validId(id) ? id : null;
+    }
+
+    static void storeRevisionAssetLock(ProjectMemory memory, String id) {
+        ensureMetadata(memory).put("assetLock.currentId", id);
     }
 
     /** Persist the execution summary of a building commit onto its Memory record. */
@@ -249,7 +255,6 @@ public final class BuildingMemoryKeys {
         return next;
     }
 
-    @SuppressWarnings("unchecked")
     public static List<int[]> roofCellsRaw(ProjectMemory memory) {
         if (memory == null || memory.getMetadata() == null) return List.of();
         Object raw = memory.getMetadata().get(ROOF_CELLS);
@@ -362,7 +367,6 @@ public final class BuildingMemoryKeys {
         return map;
     }
 
-    @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> identityListRaw(ProjectMemory memory, String key) {
         if (memory == null || memory.getMetadata() == null) return List.of();
         Object raw = memory.getMetadata().get(key);
@@ -390,7 +394,6 @@ public final class BuildingMemoryKeys {
         return Set.copyOf(out);
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<BlockPos, String> unpackStateMap(Object raw) {
         if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) return Map.of();
         Map<BlockPos, String> out = new LinkedHashMap<>();
@@ -442,7 +445,6 @@ public final class BuildingMemoryKeys {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public static Map<String, String> roofStatesRaw(ProjectMemory memory) {
         return statesRaw(memory, ROOF_STATES);
     }
@@ -463,7 +465,6 @@ public final class BuildingMemoryKeys {
         return statesRaw(memory, WALL_STATES);
     }
 
-    @SuppressWarnings("unchecked")
     private static List<int[]> cellsRaw(ProjectMemory memory, String key) {
         if (memory == null || memory.getMetadata() == null) return List.of();
         Object raw = memory.getMetadata().get(key);
@@ -476,7 +477,6 @@ public final class BuildingMemoryKeys {
         return List.copyOf(out);
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, String> statesRaw(ProjectMemory memory, String key) {
         if (memory == null || memory.getMetadata() == null) return Map.of();
         Object raw = memory.getMetadata().get(key);

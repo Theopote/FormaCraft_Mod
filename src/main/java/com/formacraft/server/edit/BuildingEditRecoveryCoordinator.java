@@ -50,7 +50,8 @@ public final class BuildingEditRecoveryCoordinator {
     public static BatchResult recoverOpenTransactions(MinecraftServer server, MemoryManager memoryManager) {
         Objects.requireNonNull(server, "server");
         Objects.requireNonNull(memoryManager, "memoryManager");
-        BuildingEditService service = new BuildingEditService(memoryManager);
+        BuildingEditService service = new BuildingEditService(memoryManager,
+                server.getSavePath(net.minecraft.util.WorldSavePath.ROOT));
         List<ItemResult> out = new ArrayList<>();
         for (BuildingEditTransaction txn : BuildingEditTransactionStore.listOpen()) {
             out.add(recoverOne(server, service, memoryManager, txn));
