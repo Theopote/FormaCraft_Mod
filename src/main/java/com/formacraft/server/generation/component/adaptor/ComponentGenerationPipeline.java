@@ -262,7 +262,7 @@ final class ComponentGenerationPipeline {
                     "ComponentGenerationPipeline: CAPTURED_LIBRARY without request — demote type={}",
                     componentType);
             return execute(
-                    ComponentPipelineRouteResolver.resolve(semantic, world),
+                    nativeFallbackPlan(semantic, world),
                     semantic,
                     world,
                     c,
@@ -285,7 +285,7 @@ final class ComponentGenerationPipeline {
             }
             soft.addAll(expander.diagnostics());
             RoutedGenerationResult nativeResult = execute(
-                    ComponentPipelineRouteResolver.resolve(semantic, world),
+                    nativeFallbackPlan(semantic, world),
                     semantic,
                     world,
                     c,
@@ -323,6 +323,23 @@ final class ComponentGenerationPipeline {
                 ComponentPipelineStepId.LIBRARY_EXPANDER,
                 GenerationAuthority.CAPTURED_LIBRARY,
                 ComponentPipelineStepId.LIBRARY_EXPANDER.name());
+    }
+
+    /** Registry/typology/structure plan that ignores optional library requests. */
+    private static ComponentPipelinePlan nativeFallbackPlan(SemanticComponent semantic, ServerWorld world) {
+        if (semantic == null || semantic.source() == null) {
+            return ComponentPipelinePlan.empty();
+        }
+        Component c = semantic.source();
+        List<ComponentPipelineStep> steps = new ArrayList<>();
+        steps.add(ComponentPipelineStep.of(
+                ComponentPipelineStepId.COMPONENT_REGISTRY,
+                ComponentRouteHints.hasRegisteredGenerator(c.componentType())));
+        boolean typologyEligible = world != null && ComponentRouteHints.hasTypologyHint(c);
+        steps.add(ComponentPipelineStep.of(ComponentPipelineStepId.TYPOLOGY, typologyEligible));
+        boolean structureEligible = world != null && ComponentRouteHints.structureFallbackEligible(semantic);
+        steps.add(ComponentPipelineStep.of(ComponentPipelineStepId.STRUCTURE_ADAPTOR, structureEligible));
+        return new ComponentPipelinePlan(false, false, List.copyOf(steps));
     }
 
     static GenerationAuthority resolveAuthority(Component c) {

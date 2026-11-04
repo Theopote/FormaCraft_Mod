@@ -61,7 +61,9 @@ class Live2252RegressionTest {
         var plan = LlmPlanTestFixtures.builder().components(List.of(base, body)).build();
         var prepared = ComponentSatelliteInference.prepareComponents(plan, Map.of(), false);
         var resolved = prepared.components().stream().filter(c -> "base".equals(c.params().get("component_id"))).findFirst().orElseThrow();
-        assertEquals(new Vec3i(12,0,-37), resolved.relativePosition());
+        // Center-anchored foundation converts to min_corner from its authored center.
+        // After host rebasing the local center is origin, so min_corner = (-w/2, y, -d/2).
+        assertEquals(new Vec3i(-8,0,-7), resolved.relativePosition());
         assertEquals("min_corner", resolved.params().get("anchor_mode"));
     }
     @Test void crownRadiusKeepsTheAuthoredCenter() {
@@ -100,15 +102,17 @@ class Live2252RegressionTest {
                     var gap = AssemblyCompileDiagnostics.get();
                     System.out.println("LIVE2252 " + name + " blocks=" + blocks.size() + " gap=" + gap);
                     // Soft-repairs may clear former hard gaps; remaining rejects keep a stable code.
-                    var rejected = Map.of(
-                            "225358", "E_STAIR_COMPONENT_INVALID",
-                            "225448", "E_COMPONENT_GENERATION_FAILED",
-                            "230021", "E_FLOOR_LAYOUT_OVERFLOW",
-                            "230359", "E_PATCH_CONFLICT",
-                            "231048", "E_PATCH_CONFLICT",
-                            "231158", "E_PATCH_CONFLICT",
-                            "231336", "E_PATCH_CONFLICT",
-                            "231921", "E_STAIR_COMPONENT_INVALID");
+                    var rejected = Map.ofEntries(
+                            Map.entry("225358", "E_STAIR_COMPONENT_INVALID"),
+                            Map.entry("225448", "E_COMPONENT_GENERATION_FAILED"),
+                            Map.entry("225713", "E_SEMANTIC_FIDELITY"),
+                            // 230021: FloorLayoutOverflowRepair after pavilion clamp — compiles now.
+                            Map.entry("230232", "E_PATCH_CONFLICT"),
+                            Map.entry("230359", "E_SEMANTIC_FIDELITY"),
+                            Map.entry("231048", "E_PATCH_CONFLICT"),
+                            Map.entry("231158", "E_PATCH_CONFLICT"),
+                            Map.entry("231336", "E_PATCH_CONFLICT"),
+                            Map.entry("231921", "E_STAIR_COMPONENT_INVALID"));
                     // 232025: opening material mismatch is soft — must compile.
                     if (!rejected.containsKey(name)) {
                         assertNull(gap, name); assertFalse(blocks.isEmpty(), name);

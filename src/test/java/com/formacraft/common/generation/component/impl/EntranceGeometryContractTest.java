@@ -56,10 +56,11 @@ class EntranceGeometryContractTest {
     void explicitDoorWidthTooWideSoftClamps() {
         var params = Map.<String, Object>of("door_width", 3, "door_height", 3);
         // openingSpan=3 → maxDoor=2; oversize soft-clamps instead of aborting.
+        // depth=2 carves both layers: 2-wide × 3-high × 2-deep = 12 removes.
         var patches = new EntranceGenerator().generate(entrance(3, 4, 2, params, List.of()));
         assertFalse(patches.isEmpty());
         long removes = patches.stream().filter(p -> BlockPatch.REMOVE.equals(p.action())).count();
-        assertEquals(6, removes, "clamped 2-wide door through height 3");
+        assertEquals(12, removes, "clamped 2-wide door through height 3 × depth 2");
     }
 
     @Test
