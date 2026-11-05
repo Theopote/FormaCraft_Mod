@@ -515,19 +515,94 @@ final class PlanSemanticValidator {
     }
 
     private static boolean roofConflictsWithExplicit(List<Component> components, String explicit) {
-        if (explicit == null || explicit.isBlank()) return false;
-        String want = explicit.toLowerCase(Locale.ROOT);
+        if (explicit == null || explicit.isBlank() || components == null) return false;
+        String want = explicit.trim().toLowerCase(Locale.ROOT);
+        boolean wantDoubleEave = want.contains("double_eave") || "double_eave_hip".equals(want);
+        boolean sawDoubleEave = false;
+        boolean sawConflictingRoof = false;
+        var wantKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(want);
+
         for (Component c : components) {
-            if (c == null || c.params() == null) continue;
-            Object rt = c.params().get("roof_type");
-            if (rt == null) rt = c.params().get("roofType");
-            if (rt == null) continue;
-            String have = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
-            if (have.isEmpty() || "none".equals(have)) continue;
-            if ("gable".equals(have) && !"gable".equals(want) && !want.contains("gable")) {
+            if (c == null) continue;
+            if (hasDoubleEaveSignal(c)) {
+                sawDoubleEave = true;
+            }
+            String have = componentRoofType(c);
+            if (have == null) continue;
+            if (wantDoubleEave) {
+                // Double-eave intent is about eave_configuration; a lone residential gable still conflicts.
+                if ("gable".equals(have) || "double_gable".equals(have) || "yingshan".equals(have)) {
+                    sawConflictingRoof = true;
+                }
+                continue;
+            }
+            var haveKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(have);
+            if (wantKind.isPresent() && haveKind.isPresent()) {
+                if (wantKind.get() != haveKind.get()) {
+                    return true;
+                }
+                continue;
+            }
+            // Fallback string match when either side is an uncatalogued token (e.g. double_eave_hip).
+            if (!roofTokenCompatible(want, have)) {
                 return true;
             }
         }
+        if (wantDoubleEave) {
+            return !sawDoubleEave && sawConflictingRoof;
+        }
+        return false;
+    }
+
+    private static String componentRoofType(Component c) {
+        if (c.params() != null) {
+            Object rt = c.params().get("roof_type");
+            if (rt == null) rt = c.params().get("roofType");
+            if (rt != null) {
+                String have = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+                if (!have.isEmpty() && !"none".equals(have)) return have;
+            }
+            Object eave = c.params().get("eave_configuration");
+            if (eave == null) eave = c.params().get("eaveConfiguration");
+            if (eave != null) {
+                String e = String.valueOf(eave).trim().toLowerCase(Locale.ROOT);
+                if (e.contains("double")) return "double_eave_hip";
+            }
+        }
+        return null;
+    }
+
+    private static boolean hasDoubleEaveSignal(Component c) {
+        if (c == null) return false;
+        if (c.params() != null) {
+            for (String key : List.of(
+                    "double_eave", "doubleEave", "double_eaves", "doubleEaves",
+                    "eave_configuration", "eaveConfiguration")) {
+                Object v = c.params().get(key);
+                if (v == null) continue;
+                String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+                if ("true".equals(s) || "1".equals(s) || "yes".equals(s) || s.contains("double")) {
+                    return true;
+                }
+            }
+            Object rt = c.params().get("roof_type");
+            if (rt == null) rt = c.params().get("roofType");
+            if (rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("double_eave")) {
+                return true;
+            }
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null && f.toLowerCase(Locale.ROOT).contains("double_eave")) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean roofTokenCompatible(String want, String have) {
+        if (want.equals(have)) return true;
+        if (want.contains(have) || have.contains(want)) return true;
+        // Common alias families already covered by RoofTypeKind when both parse.
         return false;
     }
 }

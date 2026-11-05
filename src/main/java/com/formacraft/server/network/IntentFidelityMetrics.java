@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <ul>
  *   <li>{@code plan_valid} — schema/semantic parse accepted</li>
  *   <li>{@code geometry_success} — non-empty compile geometry / patches</li>
- *   <li>{@code world_apply_success} — blocks applied (or preview-ready apply path)</li>
+ *   <li>{@code world_apply_success} — blocks applied via BuildTask (never from preview alone)</li>
  *   <li>{@code intent_fidelity_pass} — morphology + semantic match; wrong floors fails even if placed</li>
  * </ul>
  * Log prefix: {@code [IntentFidelityMetrics]}.
@@ -156,8 +156,9 @@ public final class IntentFidelityMetrics {
     }
 
     /**
-     * After compile+preview: geometry tracks patches; intent_fidelity fails on morphology /
-     * semantic gaps even when geometry_success is true (e.g. wrong pagoda floor count).
+     * After compile+preview: updates plan_valid / geometry / intent_fidelity only.
+     * {@code world_apply} is recorded later from {@link #recordWorldApply} when BuildTask finishes —
+     * never from preview success.
      */
     public static void recordCompileAttempt(
             ServerPlayerEntity player,
@@ -175,27 +176,55 @@ public final class IntentFidelityMetrics {
         boolean morphologyFail = gap != null && isMorphologyFailure(gap.code());
         boolean semanticOk = gap == null || (!isSemanticFailure(gap.code()) && !morphologyFail);
         boolean geometryOk = buildOk;
-        // Preview path: world apply not yet done — leave world_apply equal to geometry only when
-        // there is no morphology failure; morphology gaps mean fidelity fails despite patches.
-        boolean worldApplyOk = buildOk && !morphologyFail;
         boolean fidelityOk = parseOk && geometryOk && semanticOk && !hasResidentialAutofillWarning() && !morphologyFail;
         String reason = gap != null ? gap.code() : (fidelityOk ? "ok" : "fidelity_soft_fail");
-        recordLayeredOutcome(
+        if (parseOk) {
+            planValidSuccess.incrementAndGet();
+        } else {
+            planValidFail.incrementAndGet();
+        }
+        if (geometryOk) {
+            geometrySuccess.incrementAndGet();
+        } else {
+            geometryFail.incrementAndGet();
+        }
+        if (fidelityOk) {
+            intentFidelitySuccess.incrementAndGet();
+        } else {
+            intentFidelityFail.incrementAndGet();
+        }
+        FormacraftMod.LOGGER.info(
+                "[IntentFidelityMetrics] event=compile requestId={} plan_valid={} geometry={} world_apply=pending "
+                        + "intent_fidelity={} intent={} style={} reason={} plan={} text=\"{}\" {}",
+                nullToEmpty(requestId),
                 parseOk,
                 geometryOk,
-                worldApplyOk,
                 fidelityOk,
-                requestId,
-                userText,
-                intent,
-                style,
-                reason,
-                summarizePlan(plan),
-                "");
+                nullToEmpty(intent),
+                nullToEmpty(style),
+                nullToEmpty(reason),
+                nullToEmpty(summarizePlan(plan)),
+                truncate(userText, 80),
+                snapshot());
         List<String> autofills = collectAutofillCodes();
         if (!autofills.isEmpty()) {
             recordAutofill(requestId, autofills, detectRoofType(plan), Map.of());
         }
+    }
+
+    /**
+     * Real world mutation outcome from {@code BuildTask} / confirm apply path.
+     * Preview/compile must not call this.
+     */
+    public static void recordWorldApply(boolean ok, String requestId, String reason) {
+        if (ok) {
+            worldApplySuccess.incrementAndGet();
+        } else {
+            worldApplyFail.incrementAndGet();
+        }
+        FormacraftMod.LOGGER.info(
+                "[IntentFidelityMetrics] event=world_apply ok={} requestId={} reason={} {}",
+                ok, nullToEmpty(requestId), nullToEmpty(reason), snapshot());
     }
 
     public static Snapshot snapshot() {

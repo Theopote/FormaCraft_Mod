@@ -128,9 +128,9 @@ public final class DenseEavesPagodaBuilder {
         List<PlannedBlock> blocks = new VerticalStackInterpreter(body, trim, eave, accent, true)
                 .interpret(plan, origin, world);
 
-        // Square path uses stack interpreter; still enforce explicit floor hard-check via semantics.
-        PagodaMorphologyAudit.check(
-                TYPOLOGY_ID, vertical, floors, vertical.eaveTiers(), true, true, vertical.floorsExplicit());
+        // Measure final blocks — do not trust generator loop counters as morphology proof.
+        PagodaMorphologyAudit.checkFromBlocks(
+                TYPOLOGY_ID, vertical, blocks, origin, vertical.floorsExplicit());
 
         double ratioScore = clamp01(1.0 - Math.abs((height / (double) baseW) - 3.0) * 0.12);
         double signatureScore = clamp01(0.75 + Math.min(0.25, floors / 10.0));
@@ -225,7 +225,6 @@ public final class DenseEavesPagodaBuilder {
         List<PlannedBlock> blocks = new ArrayList<>(floors * eavesPerLevel * 900);
         int y = 0;
         int half = baseW / 2;
-        int startHalf = half;
         int emittedEaves = 0;
         int shaftAndEaveCap = Math.max(floors * minPer, height - finialHeight);
 
@@ -283,10 +282,6 @@ public final class DenseEavesPagodaBuilder {
         int finialY = Math.min(Math.max(y, 1), Math.max(1, height - finialHeight));
         ChineseTypologyDetailUtil.addStupaFinial(
                 blocks, origin, finialY, accent, trim, Blocks.LIGHTNING_ROD.getDefaultState());
-        boolean finialCentered = blocks.stream().anyMatch(b ->
-                b.getPos().getX() == origin.getX()
-                        && b.getPos().getZ() == origin.getZ()
-                        && b.getPos().getY() >= origin.getY() + finialY);
 
         int maxY = blocks.stream().mapToInt(b -> b.getPos().getY()).max().orElse(origin.getY());
         int span = maxY - origin.getY() + 1;
@@ -296,9 +291,9 @@ public final class DenseEavesPagodaBuilder {
                     span, height, floors, eavesPerLevel);
         }
 
-        boolean setback = floors <= 1 || half < startHalf || startHalf <= 2;
-        PagodaMorphologyAudit.check(
-                TYPOLOGY_ID, vertical, floors, emittedEaves, setback, finialCentered, vertical.floorsExplicit());
+        // Geometry audit from emitted blocks (setback/finial/eave Y-bands), not loop counters.
+        PagodaMorphologyAudit.checkFromBlocks(
+                TYPOLOGY_ID, vertical, blocks, origin, vertical.floorsExplicit());
 
         double slenderness = height / (double) baseW;
         double ratioScore = clamp01(1.0 - Math.abs(slenderness - 4.7) * 0.15);

@@ -242,4 +242,51 @@ class BuildingQualityRecoveryPhase1Test {
         assertEquals(0, snap.intentFidelitySuccess());
         assertEquals(1, snap.intentFidelityFail());
     }
+
+    @Test
+    void compileAttemptDoesNotCountWorldApply() {
+        IntentFidelityMetrics.resetForTests();
+        IntentFidelityMetrics.recordCompileAttempt(
+                null, null, null, true, true, null);
+        var snap = IntentFidelityMetrics.snapshot();
+        assertEquals(1, snap.planValidSuccess());
+        assertEquals(1, snap.geometrySuccess());
+        assertEquals(0, snap.worldApplySuccess());
+        assertEquals(0, snap.worldApplyFail());
+        IntentFidelityMetrics.recordWorldApply(true, "tx-1", "SUCCESS");
+        snap = IntentFidelityMetrics.snapshot();
+        assertEquals(1, snap.worldApplySuccess());
+    }
+
+    @Test
+    void explicitXieshanRejectedWhenHipSubstituted() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(11, 9, 7), List.of(), Map.of());
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 7, 0),
+                new Dimensions(13, 11, 3), List.of(), Map.of("roof_type", "hip"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                "生成歇山顶徽派民居，白墙黑瓦");
+        Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_ROOF_INTENT_CONFLICT", gap.get().code());
+    }
+
+    @Test
+    void doubleEaveRejectedWhenPlainGableWithoutDoubleSignal() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(11, 9, 7), List.of(), Map.of());
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 7, 0),
+                new Dimensions(13, 11, 3), List.of(), Map.of("roof_type", "gable"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                "生成重檐歇山殿堂");
+        Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_ROOF_INTENT_CONFLICT", gap.get().code());
+    }
 }

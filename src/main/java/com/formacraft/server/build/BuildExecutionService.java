@@ -878,6 +878,18 @@ public class BuildExecutionService {
         FormacraftMod.LOGGER.info("Build task completed: {} — {}",
                 structure.getDescription(), applyResult.summaryZh());
 
+        // world_apply metrics come only from real BuildTask outcomes — never from preview compile.
+        boolean worldApplyOk = task.status() == BuildTask.Status.COMPLETED
+                && task.mutationStatus() == com.formacraft.common.patch.BuildExecutionStatus.SUCCESS
+                && applyResult.isCompletePlacement();
+        String applyReason = task.mutationStatus() != null
+                ? task.mutationStatus().name()
+                : (task.status() == null ? "unknown" : task.status().name());
+        com.formacraft.server.network.IntentFidelityMetrics.recordWorldApply(
+                worldApplyOk,
+                task.transactionId() == null ? "" : task.transactionId().toString(),
+                applyReason);
+
         if (ownerUuid == null) {
             return;
         }

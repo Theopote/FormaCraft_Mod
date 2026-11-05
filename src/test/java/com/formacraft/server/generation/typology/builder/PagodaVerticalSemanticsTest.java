@@ -1,7 +1,11 @@
 package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.common.typology.TypologyGenerationException;
+import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyParams;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -9,6 +13,11 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PagodaVerticalSemanticsTest {
+
+    @BeforeAll
+    static void boot() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
 
     @Test
     void threeStoreyDoubleEavesKeepsThreeFloorsAndSixEaveTiers() {
@@ -76,5 +85,37 @@ class PagodaVerticalSemanticsTest {
         PagodaMorphologyAudit.Result r = PagodaMorphologyAudit.check(
                 "dense_eaves_pagoda", expected, 3, 6, true, true, true);
         assertTrue(r.passed());
+    }
+
+    @Test
+    void morphologyAuditFromBlocksObservesSetbackAndFinial() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(9, 9, 36),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                Map.of(
+                        "floor_count", 3,
+                        "eaves_per_level", 1,
+                        "height", 36,
+                        "baseWidth", 9,
+                        "footprint", "octagon",
+                        "detailLevel", "simple"
+                )
+        );
+        Map<String, Object> params = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        BlockPos origin = new BlockPos(0, 64, 0);
+        var structure = DenseEavesPagodaBuilder.generate(params, origin, null, null);
+        PagodaVerticalSemantics vertical = PagodaVerticalSemantics.resolve(
+                new TypologyParams(params), 13, 7, 15);
+        PagodaMorphologyAudit.GeometryObservation geo =
+                PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertTrue(geo.measuredEaveTiers() >= 2, "eave tiers=" + geo.measuredEaveTiers());
+        assertTrue(geo.setbackObserved(), "setback missing");
+        assertTrue(geo.finialCentered(), "finial off-axis");
+        PagodaMorphologyAudit.Result r = PagodaMorphologyAudit.checkFromBlocks(
+                "dense_eaves_pagoda", vertical, structure.getBlocks(), origin, true);
+        assertTrue(r.passed(), String.valueOf(r.diagnostics()));
     }
 }

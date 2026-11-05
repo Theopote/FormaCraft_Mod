@@ -13,35 +13,70 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OpeningMaterialAuditTest {
     @Test
-    void windowMaterialChangedIsSoftOnly() {
+    void authoredWindowMaterialMismatchIsHardGap() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
         expectations.put(new BlockPos(1, 2, 3),
-                new OpeningMaterialAudit.Expectation("win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass"));
+                new OpeningMaterialAudit.Expectation(
+                        "win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass", true));
         var result = OpeningMaterialAudit.inspect(expectations, List.of(
                 new BlockPatch(BlockPatch.PLACE, 1, 2, 3, "minecraft:stone")
         ));
         assertEquals("mismatch", result.status());
         assertEquals(1, result.mismatchCells());
-        assertTrue(OpeningMaterialAudit.toCapabilityGap(result).isEmpty());
+        assertEquals(1, result.hardFailCells());
+        var gap = OpeningMaterialAudit.toCapabilityGap(result);
+        assertTrue(gap.isPresent());
+        assertEquals("E_OPENING_MATERIAL_MISMATCH", gap.get().code());
     }
 
     @Test
-    void doorOpeningBlockedIsSoftOnly() {
+    void autofillDoorOpeningBlockedIsSoftOnly() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
         expectations.put(new BlockPos(0, 1, 0),
-                new OpeningMaterialAudit.Expectation("door1", GeneratedSurfaceCapture.Role.DOOR_OPENING, null));
+                new OpeningMaterialAudit.Expectation(
+                        "door1", GeneratedSurfaceCapture.Role.DOOR_OPENING, null, false));
         var result = OpeningMaterialAudit.inspect(expectations, List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:cobblestone")
         ));
         assertTrue(OpeningMaterialAudit.toCapabilityGap(result).isEmpty());
+        assertEquals(0, result.hardFailCells());
         assertEquals("door_opening_blocked", result.firstIssue().reason());
     }
 
     @Test
-    void unresolvedExpectationIsSoftOnly() {
+    void explicitDoorBlockedIsHardGap() {
+        Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
+        expectations.put(new BlockPos(0, 1, 0),
+                new OpeningMaterialAudit.Expectation(
+                        "door1", GeneratedSurfaceCapture.Role.DOOR_OPENING, null, true));
+        var result = OpeningMaterialAudit.inspect(expectations, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 1, 0, "minecraft:cobblestone")
+        ));
+        var gap = OpeningMaterialAudit.toCapabilityGap(result);
+        assertTrue(gap.isPresent());
+        assertEquals("E_OPENING_MATERIAL_MISMATCH", gap.get().code());
+    }
+
+    @Test
+    void authoredWindowUnresolvedIsHardGap() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
         expectations.put(new BlockPos(5, 5, 5),
-                new OpeningMaterialAudit.Expectation("win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass"));
+                new OpeningMaterialAudit.Expectation(
+                        "win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass", true));
+        var result = OpeningMaterialAudit.inspect(expectations, List.of());
+        assertEquals(1, result.unresolvedCells());
+        assertEquals(1, result.hardFailCells());
+        var gap = OpeningMaterialAudit.toCapabilityGap(result);
+        assertTrue(gap.isPresent());
+        assertEquals("E_OPENING_UNRESOLVED", gap.get().code());
+    }
+
+    @Test
+    void softUnresolvedDoorStaysAdvisory() {
+        Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
+        expectations.put(new BlockPos(5, 5, 5),
+                new OpeningMaterialAudit.Expectation(
+                        "door1", GeneratedSurfaceCapture.Role.DOOR_OPENING, null, false));
         var result = OpeningMaterialAudit.inspect(expectations, List.of());
         assertEquals(1, result.unresolvedCells());
         assertTrue(OpeningMaterialAudit.toCapabilityGap(result).isEmpty());
@@ -51,7 +86,8 @@ class OpeningMaterialAuditTest {
     void matchedWindowPasses() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();
         expectations.put(new BlockPos(1, 2, 3),
-                new OpeningMaterialAudit.Expectation("win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass"));
+                new OpeningMaterialAudit.Expectation(
+                        "win1", GeneratedSurfaceCapture.Role.WINDOW, "minecraft:glass", true));
         var result = OpeningMaterialAudit.inspect(expectations, List.of(
                 new BlockPatch(BlockPatch.PLACE, 1, 2, 3, "minecraft:glass")
         ));
