@@ -60,9 +60,9 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
                 }
             }
 
-            // door opening at ground level only
+            // door opening at ground level only — tunnel through wallThick into hollow
             if (li == 0) {
-                carveDoor(blocks, origin, plan.facing, lvl.y0 + 1, half * 2 + 1);
+                carveDoor(blocks, origin, plan.facing, lvl.y0 + 1, half * 2 + 1, wallThick);
             }
 
             // eaves at top of each level — trim sits on body top edge; outer eave attaches to trim
@@ -91,7 +91,9 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
         }
     }
 
-    private static void carveDoor(List<PlannedBlock> blocks, BlockPos origin, Direction facing, int y0, int w) {
+    private static void carveDoor(
+            List<PlannedBlock> blocks, BlockPos origin, Direction facing, int y0, int w, int wallThick
+    ) {
         int half = w / 2;
         int x = 0;
         int z = 0;
@@ -100,15 +102,21 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
         if (facing == Direction.EAST) x = half;
         if (facing == Direction.WEST) x = -half;
 
-        for (int dy = 0; dy < 3; dy++) {
-            blocks.add(new PlannedBlock(origin.add(x, y0 + dy, z), Blocks.AIR.getDefaultState()));
-            if (half >= 5) {
-                if (facing == Direction.SOUTH || facing == Direction.NORTH) {
-                    blocks.add(new PlannedBlock(origin.add(x + 1, y0 + dy, z), Blocks.AIR.getDefaultState()));
-                    blocks.add(new PlannedBlock(origin.add(x - 1, y0 + dy, z), Blocks.AIR.getDefaultState()));
-                } else {
-                    blocks.add(new PlannedBlock(origin.add(x, y0 + dy, z + 1), Blocks.AIR.getDefaultState()));
-                    blocks.add(new PlannedBlock(origin.add(x, y0 + dy, z - 1), Blocks.AIR.getDefaultState()));
+        Direction inward = facing.getOpposite();
+        int depth = Math.max(1, wallThick);
+        for (int d = 0; d <= depth; d++) {
+            int cx = x + inward.getOffsetX() * d;
+            int cz = z + inward.getOffsetZ() * d;
+            for (int dy = 0; dy < 3; dy++) {
+                blocks.add(new PlannedBlock(origin.add(cx, y0 + dy, cz), Blocks.AIR.getDefaultState()));
+                if (half >= 5 && d == 0) {
+                    if (facing == Direction.SOUTH || facing == Direction.NORTH) {
+                        blocks.add(new PlannedBlock(origin.add(cx + 1, y0 + dy, cz), Blocks.AIR.getDefaultState()));
+                        blocks.add(new PlannedBlock(origin.add(cx - 1, y0 + dy, cz), Blocks.AIR.getDefaultState()));
+                    } else {
+                        blocks.add(new PlannedBlock(origin.add(cx, y0 + dy, cz + 1), Blocks.AIR.getDefaultState()));
+                        blocks.add(new PlannedBlock(origin.add(cx, y0 + dy, cz - 1), Blocks.AIR.getDefaultState()));
+                    }
                 }
             }
         }

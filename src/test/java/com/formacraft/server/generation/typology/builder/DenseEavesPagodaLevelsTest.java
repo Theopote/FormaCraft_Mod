@@ -4,6 +4,7 @@ import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyParams;
+import com.formacraft.common.typology.detail.ChineseTypologyDetailUtil;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
@@ -81,6 +82,99 @@ class DenseEavesPagodaLevelsTest {
         int span = maxY - minY + 1;
         assertTrue(span <= 30, "span=" + span + " should fit planned height 28 (±2 for finial)");
         assertTrue(span >= 20, "span=" + span + " should use most of the planned height");
+    }
+
+    @Test
+    void tightHeightStillEmitsAllExplicitDoubleEaveTiers() {
+        // Group A: height=24 with floors=3 eaves_per_level=2 used to under-emit (expected=6 actual=4).
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(8, 8, 24),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                Map.of(
+                        "floor_count", 3,
+                        "eaves_per_level", 2,
+                        "height", 24,
+                        "baseWidth", 8,
+                        "footprint", "octagon",
+                        "detailLevel", "refined"
+                )
+        );
+        Map<String, Object> params = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = DenseEavesPagodaBuilder.generate(params, origin, null, null);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(3, geo.measuredFloors(), "floor_count");
+        assertEquals(6, geo.measuredEaveTiers(), "eave_tiers must not be trimmed under tight height");
+    }
+
+    @Test
+    void sevenStoreyDoubleEaveEmitsFourteenTiers() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(11, 11, 42),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                Map.of(
+                        "floor_count", 7,
+                        "eaves_per_level", 2,
+                        "height", 42,
+                        "baseWidth", 11,
+                        "footprint", "octagon",
+                        "detailLevel", "refined"
+                )
+        );
+        Map<String, Object> params = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = DenseEavesPagodaBuilder.generate(params, origin, null, null);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(7, geo.measuredFloors());
+        assertEquals(14, geo.measuredEaveTiers());
+    }
+
+    @Test
+    void refinedDoorTunnelsThroughWallThickness() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(11, 11, 36),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                Map.of(
+                        "floor_count", 3,
+                        "eaves_per_level", 1,
+                        "height", 36,
+                        "baseWidth", 11,
+                        "footprint", "octagon",
+                        "detailLevel", "refined",
+                        "facing", "SOUTH"
+                )
+        );
+        Map<String, Object> params = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = DenseEavesPagodaBuilder.generate(params, origin, null, null);
+        int half = 5;
+        BlockPos face = ChineseTypologyDetailUtil.octagonFaceCell(half, net.minecraft.util.math.Direction.SOUTH);
+        // Behind the door (one cell inward) must not remain solid — wallThick=2 for refined.
+        int behindZ = face.getZ() - 1;
+        boolean blocked = structure.getBlocks().stream().anyMatch(b ->
+                b.getPos().getX() == origin.getX() + face.getX()
+                        && b.getPos().getZ() == origin.getZ() + behindZ
+                        && b.getPos().getY() == origin.getY() + 2
+                        && b.getTargetState() != null
+                        && !b.getTargetState().isAir()
+                        && !(b.getTargetState().getBlock() instanceof net.minecraft.block.DoorBlock));
+        // Last-write wins in apply; presence of a later AIR at the same cell clears the solid.
+        boolean cleared = structure.getBlocks().stream().anyMatch(b ->
+                b.getPos().getX() == origin.getX() + face.getX()
+                        && b.getPos().getZ() == origin.getZ() + behindZ
+                        && b.getPos().getY() == origin.getY() + 2
+                        && b.getTargetState() != null
+                        && b.getTargetState().isAir());
+        assertTrue(cleared || !blocked, "door must tunnel through wall; behind cell still solid");
     }
 
     @Test

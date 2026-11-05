@@ -212,13 +212,14 @@ public final class DenseEavesPagodaBuilder {
         int maxPer = refined ? 5 : 4;
         boolean solidCore = p.boolVal("solid", false) || p.boolVal("solid_core", false);
         int eaveRows = floors * Math.max(1, eavesPerLevel);
+        // Explicit floor/eave intent must emit every tier — expand height rather than drop eaves.
+        if (vertical.floorsExplicit()) {
+            height = Math.max(height, bodyNeed + eaveRows + finialHeight);
+        }
         int reserved = eaveRows + finialHeight;
         int bodyBudget = Math.max(bodyNeed, height - reserved);
-        if (bodyBudget + reserved > height) {
-            bodyBudget = Math.max(bodyNeed, height - reserved);
-        }
-        if (bodyBudget < bodyNeed) {
-            // Prefer clear-height storeys; trim eave rows if the plan height is extremely tight.
+        if (!vertical.floorsExplicit() && bodyBudget < bodyNeed) {
+            // Implicit tall defaults only: prefer clear-height storeys; soft-trim eaves if extreme.
             eaveRows = Math.max(floors, height - finialHeight - bodyNeed);
             eavesPerLevel = Math.max(1, eaveRows / Math.max(1, floors));
             reserved = floors * eavesPerLevel + finialHeight;
@@ -242,7 +243,7 @@ public final class DenseEavesPagodaBuilder {
         int y = 0;
         int half = baseW / 2;
         int emittedEaves = 0;
-        int shaftAndEaveCap = Math.max(bodyNeed, height - finialHeight);
+        int shaftAndEaveCap = Math.max(bodyNeed + eaveRows, height - finialHeight);
 
         for (int lv = 0; lv < floors; lv++) {
             int levelH = per;
@@ -273,7 +274,7 @@ public final class DenseEavesPagodaBuilder {
             }
 
             if (lv == 0) {
-                carveDoor(blocks, origin, facing, y + 1, half);
+                carveDoor(blocks, origin, facing, y + 1, half, wallThick);
             } else {
                 ChineseTypologyDetailUtil.addPagodaTierNiche(
                         blocks, origin, half, y, levelH, lv, floors, refined, trim, archStair);
@@ -284,12 +285,13 @@ public final class DenseEavesPagodaBuilder {
             var eaveTrimSrc = PagodaMorphologyAudit.eaveTrimRole();
             for (int e = 0; e < eavesPerLevel; e++) {
                 int ey = eaveY + e;
-                if (ey >= shaftAndEaveCap) break;
+                // Never drop authored eave tiers once floors are explicit.
+                if (!vertical.floorsExplicit() && ey >= shaftAndEaveCap) break;
                 var eaveSrc = PagodaMorphologyAudit.eaveRole(lv, e);
                 // Intentional eave tier — material may be slab OR full block; role carries identity.
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey, eave, eaveSrc);
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim, eaveTrimSrc);
-                if (refined && ey + 1 < shaftAndEaveCap) {
+                if (refined && (vertical.floorsExplicit() || ey + 1 < shaftAndEaveCap)) {
                     ChineseTypologyDetailUtil.ringRegularOctagon(
                             blocks, origin, half + 1 + e, ey + 1, eave, eaveTrimSrc);
                     ChineseTypologyDetailUtil.ringRegularOctagon(
@@ -333,12 +335,24 @@ public final class DenseEavesPagodaBuilder {
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 
-    private static void carveDoor(List<PlannedBlock> blocks, BlockPos origin, Direction facing, int y0, int half) {
+    /**
+     * Carve a walkable entrance: clear the face cell and tunnel inward through the wall
+     * thickness so a second wall layer cannot block the hollow cavity behind the door.
+     */
+    private static void carveDoor(
+            List<PlannedBlock> blocks, BlockPos origin, Direction facing, int y0, int half, int wallThick
+    ) {
         BlockPos cell = ChineseTypologyDetailUtil.octagonFaceCell(half, facing);
         int x = cell.getX();
         int z = cell.getZ();
-        for (int dy = 0; dy < 3; dy++) {
-            blocks.add(new PlannedBlock(origin.add(x, y0 + dy, z), Blocks.AIR.getDefaultState()));
+        Direction inward = facing.getOpposite();
+        int depth = Math.max(1, wallThick);
+        for (int d = 0; d <= depth; d++) {
+            int cx = x + inward.getOffsetX() * d;
+            int cz = z + inward.getOffsetZ() * d;
+            for (int dy = 0; dy < 3; dy++) {
+                blocks.add(new PlannedBlock(origin.add(cx, y0 + dy, cz), Blocks.AIR.getDefaultState()));
+            }
         }
         blocks.add(new PlannedBlock(origin.add(x, y0, z), Blocks.OAK_DOOR.getDefaultState()));
     }

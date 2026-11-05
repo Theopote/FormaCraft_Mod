@@ -383,7 +383,9 @@ public final class LlmPlanPreviewBuilder {
             }
 
             // Phase 1 A2：增量请求不得静默整栋重建（屋顶原点、二次生成等）。
-            if (patchRequest) {
+            // Exception: orchestrator sometimes tags twin / multi-STRUCTURE typology plans as
+            // mode=patch (with token patch.blocks[]). Coerce those to the build path.
+            if (patchRequest && !isTypologyStructureBuildPlan(llmPlan)) {
                 hbAlive.set(false);
                 LlmPlanRoutingMetrics.recordError(player, req, "patch_expected_rebuild_rejected");
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
@@ -391,6 +393,10 @@ public final class LlmPlanPreviewBuilder {
                                 + "后端返回了整栋方案，已拒绝落地以免在屋顶/脚下重建。"
                                 + "请改用「只改局部：…」并确保后端输出 patch，或框选区域后重试。"));
                 return true;
+            }
+            if (patchRequest && isTypologyStructureBuildPlan(llmPlan)) {
+                FormacraftMod.LOGGER.info(
+                        "LlmPlanPreviewBuilder: coercing typology STRUCTURE plan under patch/modify prompt to build path");
             }
 
             // 获取 anchor（全局或第一个 slot）
@@ -1039,6 +1045,54 @@ public final class LlmPlanPreviewBuilder {
             }
         }
         return true;
+    }
+
+    /**
+     * Full typology STRUCTURE compositions (pagoda / stupa / twin towers) that were
+     * mis-tagged as mode=patch — safe to land via the normal build compile path.
+     */
+    static boolean isTypologyStructureBuildPlan(LlmPlan plan) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty()) {
+            return false;
+        }
+        if (isIncrementalComponentPatch(plan)) {
+            return false;
+        }
+        boolean anyStructure = false;
+        for (com.formacraft.common.llm.dto.Component c : plan.components()) {
+            if (c == null || c.componentType() == null) {
+                return false;
+            }
+            String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!"STRUCTURE".equals(type)) {
+                // Mixed MASS/ROOF rebuilds stay rejected under patch prompts.
+                if (REBUILD_COMPONENT_TYPES.contains(type) || type.startsWith("MASS_")) {
+                    return false;
+                }
+                continue;
+            }
+            anyStructure = true;
+            if (!hasTypologyCue(c)) {
+                return false;
+            }
+        }
+        return anyStructure;
+    }
+
+    private static boolean hasTypologyCue(com.formacraft.common.llm.dto.Component c) {
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null && f.toLowerCase(Locale.ROOT).startsWith("typology:")) {
+                    return true;
+                }
+            }
+        }
+        if (c.params() == null || c.params().isEmpty()) {
+            return false;
+        }
+        Object tid = c.params().get("typology_id");
+        if (tid == null) tid = c.params().get("typology");
+        return tid != null && !String.valueOf(tid).isBlank();
     }
 
     /**

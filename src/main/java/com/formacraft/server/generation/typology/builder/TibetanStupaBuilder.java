@@ -55,7 +55,7 @@ public final class TibetanStupaBuilder {
             int y = 0;
         };
 
-        // Stepped square base (基座) — 2–3 terraces.
+        // Stepped square base (基座) — 2–3 terraces; keep top terrace narrower than anda equator.
         int baseTiers = Math.max(2, Math.min(3, half));
         for (int t = 0; t < baseTiers; t++) {
             int h = half - t;
@@ -66,14 +66,15 @@ public final class TibetanStupaBuilder {
             ref.y += tierH;
         }
 
-        // Anda / dome (覆钵) — stacked shrinking disks.
-        int andaH = Math.max(4, height / 3);
-        int andaR = Math.max(2, half - 1);
+        // Anda / 覆钵 — bulbous dome; anda_scale (>1) widens and heightens the bowl.
+        double andaScale = Math.max(1.0, Math.min(1.6, doubleVal(p, "anda_scale", "andaScale", 1.35)));
+        int andaH = Math.max(6, (int) Math.round(height * 0.40 * Math.min(1.25, andaScale)));
+        int andaR = Math.max(3, (int) Math.round(half * Math.min(1.2, 0.95 * andaScale)));
         for (int dy = 0; dy < andaH; dy++) {
             double t = dy / (double) Math.max(1, andaH - 1);
-            // Bulb: widen mid, taper top.
-            double scale = 0.55 + 0.45 * Math.sin(Math.PI * Math.min(1.0, t * 1.15));
-            int r = Math.max(1, (int) Math.round(andaR * scale));
+            // Classic 覆钵: narrow neck on the base, full equator mid, taper into harmika.
+            double scale = 0.62 + 0.38 * Math.sin(Math.PI * Math.min(1.0, t * 1.08));
+            int r = Math.max(2, (int) Math.round(andaR * scale));
             fillDisk(blocks, origin, ref.y + dy, r, body);
         }
         ref.y += andaH;
@@ -150,6 +151,17 @@ public final class TibetanStupaBuilder {
         for (int z = -half + 1; z <= half - 1; z++) {
             blocks.add(new PlannedBlock(origin.add(-half, y, z), state));
             blocks.add(new PlannedBlock(origin.add(half, y, z), state));
+        }
+    }
+
+    private static double doubleVal(TypologyParams p, String key, String alt, double def) {
+        Object v = p.raw().containsKey(key) ? p.raw().get(key) : p.raw().get(alt);
+        if (v instanceof Number n) return n.doubleValue();
+        if (v == null) return def;
+        try {
+            return Double.parseDouble(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            return def;
         }
     }
 
