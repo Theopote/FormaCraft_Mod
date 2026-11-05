@@ -245,6 +245,23 @@ def build_llm_plan_json_schema(*, strict: bool = True) -> Dict[str, Any]:
                         "additionalProperties": {"type": "string"},
                         "description": "facade/entrance/roof/crown -> REQUIRED|OPTIONAL|OMITTED|UNSPECIFIED",
                     },
+                    "declared_intent": {
+                        "type": "object",
+                        "description": "LLM primary building-class judgement; keywords are only auxiliary hints",
+                        "properties": {
+                            "building_class": {
+                                "type": "string",
+                                "enum": ["generic", "tower_like", "gate", "garden", "temple"],
+                            },
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                            },
+                        },
+                        "required": ["building_class", "confidence"],
+                        "additionalProperties": True,
+                    },
                 },
             },
             "design_sources": {

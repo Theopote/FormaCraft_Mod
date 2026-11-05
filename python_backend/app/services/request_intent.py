@@ -1,55 +1,262 @@
-"""Authoritative request intent — derived only from original user text, never from LLM plan fields."""
+"""Request intent: keyword hints + LLM declared_intent merge (shared vocab).
+
+Keywords are auxiliary. Strong lexical hits (佛塔/山门/…) can override a weak LLM
+declaration; ambiguous tokens (重檐/庭院) never alone force a specialized class.
+Negation (不要/无/no) strips positive matches and forbids.
+"""
 
 from __future__ import annotations
 
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-_TOWER = (
-    "佛塔", "古塔", "宝塔", "藏式佛塔", "pagoda", "stupa", "dense_eaves_pagoda", "塔刹", "重檐",
-)
-_GATE = ("山门", "牌坊", "paifang", "gatehouse", "寺庙山门")
-_GARDEN = ("江南园林", "日式庭院", "园林", "庭院", "garden", "courtyard compound")
-_TEMPLE = ("道观", "寺庙", "庙宇", "daoist temple", "shrine compound")
-_TEMPLE_COMPOUND = ("建筑群", "院落", "厢房", "配殿", "三进", "两进", "宫观群")
-_ROOF_EXPLICIT = (
-    ("歇山", "xieshan"),
-    ("庑殿", "wudian"),
-    ("重檐", "double_eave_hip"),
-    ("攒尖", "pyramid"),
-    ("悬山", "xuanshan"),
-    ("硬山", "yingshan"),
-    ("穹顶", "dome"),
-    ("平顶", "flat"),
-    ("双坡", "gable"),
-    ("人字", "gable"),
-    ("hip roof", "hip"),
-    ("gable", "gable"),
-)
-_NO_WINDOWS = ("不要窗", "无窗", "禁窗", "不开窗", "no windows", "without windows")
-_NO_DOORS = ("不要门", "无门", "禁门", "no door", "without door")
+from .request_intent_vocab import load_request_intent_vocab
+
 _FOOTPRINT = re.compile(r"(\d{1,2})\s*[×xX*]\s*(\d{1,2})")
+_VALID_CLASSES = frozenset({"generic", "tower_like", "gate", "garden", "temple"})
 
 
-def extract_request_intent(user_text: str) -> Dict[str, Any]:
-    """Build a server-owned intent snapshot from the player request only."""
-    text = user_text or ""
+def _vocab() -> Dict[str, Any]:
+    return load_request_intent_vocab()
+
+
+def _negation_prefixes() -> Tuple[str, ...]:
+    raw = _vocab().get("negation_prefixes") or []
+    return tuple(str(p) for p in raw if p)
+
+
+def _is_negated_at(text: str, start: int) -> bool:
+    """True when a negation prefix sits immediately before the match."""
+    if start <= 0:
+        return False
+    window = text[max(0, start - 12) : start]
+    window_compact = re.sub(r"\s+", "", window)
+    lower_window = window.lower()
+    compact_lower = window_compact.lower()
+    for prefix in _negation_prefixes():
+        p = str(prefix)
+        if not p:
+            continue
+        if p.endswith(" ") or p.isascii():
+            if p.lower() in lower_window:
+                return True
+        else:
+            if p in window or p in window_compact or p.lower() in compact_lower:
+                return True
+    return False
+
+
+def _find_positive_hits(text: str, markers: List[str]) -> List[str]:
+    """Return markers that appear in text and are not negated."""
+    if not text or not markers:
+        return []
     lower = text.lower()
-    building_class = "generic"
-    if any(m.lower() in lower or m in text for m in _TOWER):
-        building_class = "tower_like"
-    elif any(m.lower() in lower or m in text for m in _GATE):
-        building_class = "gate"
-    elif any(m.lower() in lower or m in text for m in _GARDEN):
-        building_class = "garden"
-    elif any(m.lower() in lower or m in text for m in _TEMPLE):
-        building_class = "temple"
-
-    roof_type = None
-    for phrase, canonical in _ROOF_EXPLICIT:
-        if phrase.lower() in lower or phrase in text:
-            roof_type = canonical
+    hits: List[str] = []
+    # Longer markers first so 藏式佛塔 wins over 佛塔, 重檐歇山 over 重檐.
+    ordered = sorted({str(m) for m in markers if m}, key=lambda m: (-len(m), m))
+    occupied: List[Tuple[int, int]] = []
+    for marker in ordered:
+        needle = marker
+        needle_l = marker.lower()
+        search_from = 0
+        while True:
+            if needle.isascii() or needle == needle_l:
+                idx = lower.find(needle_l, search_from)
+                match_len = len(needle_l)
+            else:
+                idx = text.find(needle, search_from)
+                match_len = len(needle)
+                if idx < 0:
+                    idx = lower.find(needle_l, search_from)
+                    match_len = len(needle_l)
+            if idx < 0:
+                break
+            end = idx + match_len
+            if any(not (end <= a or idx >= b) for a, b in occupied):
+                search_from = end
+                continue
+            if _is_negated_at(text, idx):
+                search_from = end
+                continue
+            hits.append(marker)
+            occupied.append((idx, end))
             break
+    return hits
+
+
+def _contains_any_raw(text: str, phrases: List[str]) -> bool:
+    lower = text.lower()
+    for p in phrases:
+        if not p:
+            continue
+        if p.lower() in lower or p in text:
+            return True
+    return False
+
+
+def _score_building_class(text: str) -> Tuple[str, float, List[str]]:
+    """Return (building_class, confidence, markers) from keywords only."""
+    classes = _vocab().get("building_classes") or {}
+    best_class = "generic"
+    best_score = 0.0
+    best_markers: List[str] = []
+    conf_cfg = _vocab().get("confidence") or {}
+    strong_w = float(conf_cfg.get("strong_hit") or 0.9)
+    weak_w = float(conf_cfg.get("weak_hit") or 0.45)
+
+    # Priority order when scores tie: tower > gate > temple > garden
+    # (tower/gate are more specific; garden weak markers are noisy).
+    priority = ("tower_like", "gate", "temple", "garden")
+    for cls in priority:
+        spec = classes.get(cls) if isinstance(classes, dict) else None
+        if not isinstance(spec, dict):
+            continue
+        strong = list(spec.get("strong_markers") or [])
+        weak = list(spec.get("weak_markers") or [])
+        strong_hits = _find_positive_hits(text, strong)
+        weak_hits = _find_positive_hits(text, weak)
+        if weak_hits:
+            suppressors = list(spec.get("weak_suppressors") or [])
+            if suppressors and _contains_any_raw(text, suppressors):
+                weak_hits = []
+        if not strong_hits and not weak_hits:
+            continue
+        score = strong_w if strong_hits else weak_w
+        markers = strong_hits + weak_hits
+        if score > best_score:
+            best_score = score
+            best_class = cls
+            best_markers = markers
+    return best_class, best_score, best_markers[:12]
+
+
+def _extract_roof(text: str) -> Tuple[Optional[str], List[str]]:
+    """Return (roof_type or None, forbidden_roof_types). Honours negation."""
+    roofs = _vocab().get("roof_types") or []
+    lower = text.lower()
+    # Longer phrases first.
+    ordered = sorted(
+        [r for r in roofs if isinstance(r, dict) and r.get("phrase")],
+        key=lambda r: -len(str(r["phrase"])),
+    )
+    chosen: Optional[str] = None
+    forbidden: List[str] = []
+    occupied: List[Tuple[int, int]] = []
+    for entry in ordered:
+        phrase = str(entry["phrase"])
+        canonical = str(entry.get("canonical") or "").strip().lower()
+        if not canonical:
+            continue
+        phrase_l = phrase.lower()
+        search_from = 0
+        while True:
+            if phrase.isascii() or phrase == phrase_l:
+                idx = lower.find(phrase_l, search_from)
+                match_len = len(phrase_l)
+            else:
+                idx = text.find(phrase, search_from)
+                match_len = len(phrase)
+                if idx < 0:
+                    idx = lower.find(phrase_l, search_from)
+                    match_len = len(phrase_l)
+            if idx < 0:
+                break
+            end = idx + match_len
+            if any(not (end <= a or idx >= b) for a, b in occupied):
+                search_from = end
+                continue
+            occupied.append((idx, end))
+            if _is_negated_at(text, idx):
+                if canonical not in forbidden:
+                    forbidden.append(canonical)
+            elif chosen is None:
+                chosen = canonical
+            break
+    return chosen, forbidden
+
+
+def _extract_forbids(text: str) -> List[str]:
+    forbids_cfg = _vocab().get("forbids") or {}
+    false_friends = _vocab().get("forbid_false_friends") or {}
+    out: List[str] = []
+    lower = text.lower()
+    for key, phrases in forbids_cfg.items():
+        friends = [str(f) for f in (false_friends.get(key) or []) if f]
+        friend_spans: List[Tuple[int, int]] = []
+        for friend in friends:
+            fl = friend.lower()
+            start = 0
+            while True:
+                idx = lower.find(fl, start) if friend.isascii() else text.find(friend, start)
+                if idx < 0 and not friend.isascii():
+                    idx = lower.find(fl, start)
+                if idx < 0:
+                    break
+                friend_spans.append((idx, idx + len(friend if not friend.isascii() else fl)))
+                start = idx + 1
+
+        for phrase in phrases or []:
+            p = str(phrase)
+            if not p:
+                continue
+            pl = p.lower()
+            start = 0
+            matched = False
+            while True:
+                idx = lower.find(pl, start) if p.isascii() else text.find(p, start)
+                if idx < 0 and not p.isascii():
+                    idx = lower.find(pl, start)
+                if idx < 0:
+                    break
+                end = idx + len(p if (not p.isascii() and p in text[idx:idx + len(p) + 1]) else pl)
+                # Skip matches wholly inside a false-friend span (无门 ⊂ 无门槛).
+                if any(idx >= a and end <= b for a, b in friend_spans):
+                    start = end
+                    continue
+                matched = True
+                break
+            if matched:
+                out.append(str(key))
+                break
+    return out
+
+
+def _extract_materials(text: str) -> Dict[str, str]:
+    materials_cfg = _vocab().get("materials") or {}
+    out: Dict[str, str] = {}
+    for slot, entries in materials_cfg.items():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            phrases = [str(p) for p in (entry.get("phrases") or []) if p]
+            block = str(entry.get("block") or "").strip()
+            if not block or not phrases:
+                continue
+            if _find_positive_hits(text, phrases) or _contains_any_raw(text, phrases):
+                out.setdefault(str(slot), block)
+                break
+    return out
+
+
+def _tower_subtype(text: str, building_class: str) -> Optional[str]:
+    if building_class != "tower_like":
+        return None
+    subtypes = _vocab().get("tower_subtypes") or {}
+    tibetan = list(subtypes.get("tibetan_stupa") or [])
+    if _find_positive_hits(text, tibetan) or _contains_any_raw(text, tibetan):
+        return "tibetan_stupa"
+    return "dense_eaves_pagoda"
+
+
+def extract_keyword_intent(user_text: str) -> Dict[str, Any]:
+    """Keyword-only snapshot (auxiliary). Prefer resolve_request_intent when a plan exists."""
+    text = user_text or ""
+    building_class, confidence, markers = _score_building_class(text)
+    roof_type, roof_forbids = _extract_roof(text)
+    forbids = _extract_forbids(text)
+    materials = _extract_materials(text)
 
     width = depth = 0
     for match in _FOOTPRINT.finditer(text):
@@ -58,55 +265,120 @@ def extract_request_intent(user_text: str) -> Dict[str, Any]:
             width, depth = a, b
             break
 
-    forbids: List[str] = []
-    if any(p.lower() in lower or p in text for p in _NO_WINDOWS):
-        forbids.append("windows")
-    if any(p.lower() in lower or p in text for p in _NO_DOORS):
-        forbids.append("entrance")
-
-    materials: Dict[str, str] = {}
-    if "白墙" in text or "white wall" in lower or "white_concrete" in lower:
-        materials["wall"] = "minecraft:white_concrete"
-    if "黑瓦" in text or "black tile" in lower or "black_terracotta" in lower:
-        materials["roof"] = "minecraft:black_terracotta"
-    if "石砖" in text or "stone brick" in lower:
-        materials.setdefault("wall", "minecraft:stone_bricks")
-
-    markers: List[str] = []
-    for group in (_TOWER, _GATE, _GARDEN, _TEMPLE):
-        for m in group:
-            if m.lower() in lower or m in text:
-                markers.append(m)
-
     composition = "single"
+    compound_markers = list(_vocab().get("temple_compound_markers") or [])
     if building_class == "garden":
         composition = "compound"
-    elif building_class == "temple" and any(m in text for m in _TEMPLE_COMPOUND):
+    elif building_class == "temple" and _find_positive_hits(text, compound_markers):
         composition = "compound"
-        markers.extend(m for m in _TEMPLE_COMPOUND if m in text)
+        markers = markers + [m for m in compound_markers if m in text]
 
-    tower_subtype = None
-    if building_class == "tower_like":
-        if any(tok in text or tok in lower for tok in ("藏式", "白塔", "覆钵", "相轮", "喇嘛塔", "tibetan", "chorten")):
-            tower_subtype = "tibetan_stupa"
-        else:
-            tower_subtype = "dense_eaves_pagoda"
+    tower_subtype = _tower_subtype(text, building_class)
 
     return {
         "schema": "formacraft.request_intent.v1",
-        "source": "user_request",
+        "source": "keyword_hint",
         "original_text": text,
         "building_class": building_class,
+        "confidence": round(confidence, 3),
         "composition": composition,
         "tower_subtype": tower_subtype,
         "markers": markers[:12],
         "roof_type": roof_type,
         "roof_explicit": roof_type is not None,
+        "roof_forbids": roof_forbids,
         "footprint": {"width": width, "depth": depth} if width and depth else None,
         "forbids": forbids,
         "materials": materials,
-        "refuse_residential_autofill": building_class != "generic",
+        "refuse_residential_autofill": building_class != "generic" and confidence >= 0.75,
+        "scaffold_eligible": building_class != "generic" and confidence >= float(
+            (_vocab().get("confidence") or {}).get("scaffold_min") or 0.75
+        ),
     }
+
+
+def extract_request_intent(user_text: str) -> Dict[str, Any]:
+    """Backward-compatible alias: keyword intent without LLM merge."""
+    return extract_keyword_intent(user_text)
+
+
+def _llm_declared_intent(plan: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(plan, dict):
+        return None
+    meta = plan.get("plan_meta")
+    if not isinstance(meta, dict):
+        return None
+    for key in ("declared_intent", "llm_intent"):
+        raw = meta.get(key)
+        if isinstance(raw, dict):
+            cls = str(raw.get("building_class") or raw.get("class") or "").strip().lower()
+            if cls in _VALID_CLASSES:
+                try:
+                    conf = float(raw.get("confidence") if raw.get("confidence") is not None else 0.7)
+                except (TypeError, ValueError):
+                    conf = 0.7
+                return {"building_class": cls, "confidence": max(0.0, min(1.0, conf)), "source": "llm_declared"}
+    # Soft: building_class written by the LLM before we overwrite.
+    cls = str(meta.get("llm_building_class") or "").strip().lower()
+    if cls in _VALID_CLASSES and cls != "generic":
+        return {"building_class": cls, "confidence": 0.65, "source": "llm_building_class"}
+    return None
+
+
+def merge_request_intent(
+    keyword: Dict[str, Any],
+    llm: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Merge keyword hints with LLM declared intent. LLM is primary unless keywords are strong."""
+    conf_cfg = _vocab().get("confidence") or {}
+    kw_override = float(conf_cfg.get("keyword_override_min") or 0.8)
+    llm_min = float(conf_cfg.get("llm_preferred_min") or 0.55)
+
+    out = dict(keyword)
+    kw_class = str(keyword.get("building_class") or "generic")
+    kw_conf = float(keyword.get("confidence") or 0.0)
+
+    if llm and isinstance(llm, dict):
+        llm_class = str(llm.get("building_class") or "generic")
+        llm_conf = float(llm.get("confidence") or 0.0)
+        if kw_conf >= kw_override and kw_class != "generic":
+            out["building_class"] = kw_class
+            out["confidence"] = kw_conf
+            out["source"] = "keyword_override"
+            out["llm_declared"] = llm
+        elif llm_conf >= llm_min and llm_class in _VALID_CLASSES:
+            out["building_class"] = llm_class
+            out["confidence"] = max(llm_conf, kw_conf * 0.5)
+            out["source"] = "llm_declared"
+            out["keyword_hint_class"] = kw_class
+            out["keyword_hint_confidence"] = kw_conf
+            # Recompute tower subtype / composition for the final class.
+            text = str(keyword.get("original_text") or "")
+            out["tower_subtype"] = _tower_subtype(text, llm_class)
+            if llm_class == "garden":
+                out["composition"] = "compound"
+            elif llm_class != "temple":
+                out["composition"] = "single"
+        else:
+            out["source"] = "keyword_hint"
+            out["llm_declared"] = llm
+    else:
+        out["source"] = "keyword_hint"
+
+    final_class = str(out.get("building_class") or "generic")
+    final_conf = float(out.get("confidence") or 0.0)
+    scaffold_min = float(conf_cfg.get("scaffold_min") or 0.75)
+    out["refuse_residential_autofill"] = final_class != "generic" and final_conf >= scaffold_min
+    out["scaffold_eligible"] = final_class != "generic" and final_conf >= scaffold_min
+    out["schema"] = "formacraft.request_intent.v1"
+    return out
+
+
+def resolve_request_intent(user_text: str, plan: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Authoritative intent: merge keyword hints with LLM declared_intent when present."""
+    keyword = extract_keyword_intent(user_text or "")
+    llm = _llm_declared_intent(plan)
+    return merge_request_intent(keyword, llm)
 
 
 def _scaffold_plan_meta(
@@ -130,17 +402,16 @@ def _scaffold_plan_meta(
 
 
 def attach_request_intent(plan: Dict[str, Any], user_text: str) -> Dict[str, Any]:
-    """Write/overwrite plan_meta.request_intent from user text (authoritative)."""
+    """Write plan_meta.request_intent from keyword + LLM declared merge."""
     if not isinstance(plan, dict):
         return plan
-    intent = extract_request_intent(user_text or "")
+    intent = resolve_request_intent(user_text or "", plan)
     meta = plan.get("plan_meta")
     if not isinstance(meta, dict):
         meta = {}
     else:
         meta = dict(meta)
     meta["request_intent"] = intent
-    # Keep a short echo for Java validators that only scan strings.
     meta["request_intent_text"] = intent.get("original_text") or ""
     meta["building_class"] = intent.get("building_class")
     plan["plan_meta"] = meta
@@ -150,7 +421,6 @@ def attach_request_intent(plan: Dict[str, Any], user_text: str) -> Dict[str, Any
         hints = {}
     else:
         hints = dict(hints)
-    # Preserve architecture_intent if present; always ensure original_text exists.
     arch = hints.get("architecture_intent")
     if not isinstance(arch, dict):
         from .architecture_intent import describe_architecture
@@ -170,6 +440,12 @@ def scaffold_plan_for_intent(
     anchor: Optional[Dict[str, int]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Deterministic typology-aware scaffold when LLM plan fails semantic checks."""
+    if not intent.get("scaffold_eligible", True):
+        # Explicitly ineligible (low confidence) — refuse template replace.
+        conf = float(intent.get("confidence") or 0.0)
+        if conf < float((_vocab().get("confidence") or {}).get("scaffold_min") or 0.75):
+            return None
+
     building_class = str(intent.get("building_class") or "generic")
     fp = intent.get("footprint") if isinstance(intent.get("footprint"), dict) else {}
     width = int(fp.get("width") or 0) or 7
@@ -185,12 +461,19 @@ def scaffold_plan_for_intent(
     }
     forbids = list(intent.get("forbids") or [])
     markers = list(intent.get("markers") or [])
+    roof_forbids = list(intent.get("roof_forbids") or [])
+
+    def _roof_or_default(default: str) -> str:
+        rt = intent.get("roof_type") or default
+        if rt in roof_forbids:
+            return default if default not in roof_forbids else "hip"
+        return str(rt)
 
     if building_class == "tower_like":
         height = max(18, width * 3)
         text = str(intent.get("original_text") or "")
         lower_text = text.lower()
-        tibetan = any(
+        tibetan = (intent.get("tower_subtype") == "tibetan_stupa") or any(
             tok in text or tok in lower_text
             for tok in ("藏式", "白塔", "覆钵", "相轮", "喇嘛塔", "tibetan", "chorten")
         )
@@ -239,7 +522,13 @@ def scaffold_plan_for_intent(
                 floors = max(3, min(15, int(token)))
         elif "3层" in text:
             floors = 3
-        eaves_per_level = 2 if ("重檐" in text or "双檐" in text or "密檐" in text) else 1
+        # 重檐 as roof attribute on a real pagoda request — not a class trigger.
+        eaves_per_level = 2 if (
+            intent.get("roof_type") in ("double_eave_hip", "double_eave_xieshan")
+            or ("重檐" in text and "重檐" not in roof_forbids and "double_eave_hip" not in roof_forbids)
+            or "双檐" in text
+            or "密檐" in text
+        ) else 1
         return {
             "mode": "build",
             "style_profile": "DEFAULT",
@@ -279,7 +568,7 @@ def scaffold_plan_for_intent(
         w = max(12, width if width >= depth else width * 2)
         d = max(4, min(depth if depth > 0 else w // 3, w // 2))
         h = max(8, d * 2)
-        roof_type = intent.get("roof_type") or "xieshan"
+        roof_type = _roof_or_default("xieshan")
         return {
             "mode": "build",
             "style_profile": "DEFAULT",
@@ -324,9 +613,8 @@ def scaffold_plan_for_intent(
 
     if building_class == "temple":
         composition = str(intent.get("composition") or "single")
-        roof_type = intent.get("roof_type") or "xieshan"
+        roof_type = _roof_or_default("xieshan")
         if composition == "compound":
-            # Explicit compound request — courtyard site, not forced for plain「道观」.
             site_w = max(16, width * 2 if width else 20)
             site_d = max(16, depth * 2 if depth else 20)
             hall_w = max(7, site_w // 3)
@@ -378,7 +666,6 @@ def scaffold_plan_for_intent(
                 ),
             }
 
-        # Single hall shrine — do not force garden courtyard composition.
         hall_w = max(9, width if width >= 7 else 11)
         hall_d = max(7, depth if depth >= 5 else max(7, hall_w - 2))
         hall_h = 7
@@ -386,7 +673,7 @@ def scaffold_plan_for_intent(
             "mode": "build",
             "style_profile": "DEFAULT",
             "anchor": origin,
-            "distinguishing_features": markers or ["道观", "temple"],
+            "distinguishing_features": markers or ["道观", "temple", "大殿"],
             "style_attributes": style_attrs,
             "components": [
                 {
@@ -394,7 +681,7 @@ def scaffold_plan_for_intent(
                     "slot_id": "hall",
                     "relative_position": {"x": 0, "y": 0, "z": 0},
                     "dimensions": {"width": hall_w, "depth": hall_d, "height": hall_h},
-                    "features": ["main_hall", "temple", "道观"],
+                    "features": ["main_hall", "temple", "殿"],
                     "params": {
                         "component_id": "temple_hall",
                         "wall_block": wall,
@@ -428,7 +715,7 @@ def scaffold_plan_for_intent(
     if building_class == "garden":
         site_w = max(16, width * 2)
         site_d = max(16, depth * 2)
-        comps: List[Dict[str, Any]] = [
+        comps = [
             {
                 "component_type": "COURTYARD",
                 "slot_id": "yard",
@@ -454,7 +741,7 @@ def scaffold_plan_for_intent(
                 "params": {
                     "wall_block": wall,
                     "roof_block": roof,
-                    "roof_type": intent.get("roof_type") or "xieshan",
+                    "roof_type": _roof_or_default("xieshan"),
                     **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
                 },
             },

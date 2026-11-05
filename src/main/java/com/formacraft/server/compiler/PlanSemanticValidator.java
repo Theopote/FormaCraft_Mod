@@ -135,14 +135,26 @@ final class PlanSemanticValidator {
             }
         }
         String corpus = authoritativeCorpus(plan, originalRequestIntent).toLowerCase(Locale.ROOT);
+        // Honour negation via shared vocab extractor (不要重檐 must not force double_eave).
+        String rawCorpus = authoritativeCorpus(plan, originalRequestIntent);
+        if (rawCorpus != null && !rawCorpus.isBlank()) {
+            Map<String, Object> fromVocab = RequestIntentInjector.extract(rawCorpus);
+            Object rt = fromVocab.get("roof_type");
+            if (rt != null && !String.valueOf(rt).isBlank()) {
+                return String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+            }
+        }
         if (corpus.contains("歇山")) return "xieshan";
         if (corpus.contains("庑殿")) return "wudian";
         if (corpus.contains("攒尖")) return "pyramid";
-        if (corpus.contains("重檐")) return "double_eave_hip";
         if (corpus.contains("悬山")) return "xuanshan";
         if (corpus.contains("硬山")) return "yingshan";
         if (corpus.contains("穹顶") || corpus.contains("dome")) return "dome";
         if (corpus.contains("平顶") || corpus.contains("flat roof")) return "flat";
+        // Bare 重檐 only when not negated — extractor already returned null if negated.
+        if (corpus.contains("重檐") && !corpus.contains("不要重檐") && !corpus.contains("无重檐")) {
+            return "double_eave_hip";
+        }
         return null;
     }
 
@@ -159,7 +171,10 @@ final class PlanSemanticValidator {
         Map<String, Object> ri = requestIntentMap(plan);
         if (ri != null) {
             IntentClass fromMeta = classFromToken(String.valueOf(ri.getOrDefault("building_class", "")));
-            if (fromMeta != IntentClass.GENERIC) {
+            Object confObj = ri.get("confidence");
+            double conf = confObj instanceof Number n ? n.doubleValue() : 1.0;
+            // Low-confidence keyword guesses must not force specialized semantic gates.
+            if (fromMeta != IntentClass.GENERIC && conf >= 0.5) {
                 return fromMeta;
             }
         }
@@ -169,35 +184,31 @@ final class PlanSemanticValidator {
                 return fromMeta;
             }
         }
-        String corpus = authoritativeCorpus(plan, originalRequestIntent).toLowerCase(Locale.ROOT);
-        if (containsAny(corpus,
-                "佛塔", "古塔", "宝塔", "藏式", "pagoda", "stupa", "dense_eaves_pagoda",
-                "tiered_eave", "finial_spire", "塔刹", "重檐")) {
-            return IntentClass.TOWER_LIKE;
+        // Shared vocab path — never treat 重檐 / bare 庭院 as class triggers.
+        String corpusText = authoritativeCorpus(plan, originalRequestIntent);
+        if (corpusText != null && !corpusText.isBlank()) {
+            Map<String, Object> fromVocab = RequestIntentInjector.extract(corpusText);
+            IntentClass fromKw = classFromToken(String.valueOf(fromVocab.getOrDefault("building_class", "")));
+            Object confObj = fromVocab.get("confidence");
+            double conf = confObj instanceof Number n ? n.doubleValue() : 0.0;
+            if (fromKw != IntentClass.GENERIC && conf >= 0.5) {
+                return fromKw;
+            }
         }
-        if (containsAny(corpus, "山门", "牌坊", "paifang", "gatehouse", "temple gate", "寺庙山门")) {
-            return IntentClass.GATE;
-        }
-        if (containsAny(corpus, "园林", "庭院", "江南园林", "日式庭院", "garden", "courtyard compound")) {
-            return IntentClass.GARDEN;
-        }
-        if (containsAny(corpus, "道观", "寺庙", "庙宇", "daoist", "shrine compound", "temple")) {
-            return IntentClass.TEMPLE;
-        }
-        // Last resort: LLM-authored fields only (weak).
+        // Last resort: LLM-authored fields only (strong markers; no 重檐 / bare 庭院).
         String weak = weakPlanCorpus(plan).toLowerCase(Locale.ROOT);
         if (containsAny(weak,
-                "佛塔", "古塔", "pagoda", "stupa", "dense_eaves_pagoda", "塔刹", "重檐")) {
+                "佛塔", "古塔", "宝塔", "pagoda", "stupa", "dense_eaves_pagoda", "塔刹", "tibetan_stupa")) {
             return IntentClass.TOWER_LIKE;
         }
-        if (containsAny(weak, "山门", "牌坊", "paifang")) {
+        if (containsAny(weak, "山门", "牌坊", "paifang", "寺庙山门")) {
             return IntentClass.GATE;
         }
-        if (containsAny(weak, "园林", "庭院", "garden")) {
-            return IntentClass.GARDEN;
-        }
-        if (containsAny(weak, "道观", "寺庙", "庙宇", "daoist", "temple")) {
+        if (containsAny(weak, "道观", "寺庙", "庙宇", "大殿", "殿堂", "daoist", "temple")) {
             return IntentClass.TEMPLE;
+        }
+        if (containsAny(weak, "江南园林", "日式庭院", "园林", "garden", "courtyard compound")) {
+            return IntentClass.GARDEN;
         }
         return IntentClass.GENERIC;
     }

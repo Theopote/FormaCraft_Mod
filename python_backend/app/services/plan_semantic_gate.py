@@ -7,18 +7,19 @@ from typing import Any, Dict, List, Optional, Tuple
 from ..models.llm_plan import LlmPlanValidationError
 
 # Morphologies that must not collapse into a single residential MASS + gable house.
+# Keep markers aligned with request_intent_vocab_v1.json — never treat 重檐 as tower.
 _TOWER_LIKE_MARKERS = (
     "佛塔", "古塔", "宝塔", "藏式", "pagoda", "stupa", "dense_eaves_pagoda", "tibetan_stupa",
-    "tiered_eave", "finial_spire", "塔刹", "重檐",
+    "tiered_eave", "finial_spire", "塔刹",
 )
 _GATE_MARKERS = (
     "山门", "牌坊", "paifang", "gatehouse", "temple gate", "寺庙山门",
 )
 _GARDEN_MARKERS = (
-    "园林", "庭院", "garden", "courtyard compound", "江南园林", "日式庭院",
+    "江南园林", "日式庭院", "园林", "courtyard compound",
 )
 _TEMPLE_MARKERS = (
-    "道观", "寺庙", "庙宇", "temple", "daoist", "shrine compound",
+    "道观", "寺庙", "庙宇", "大殿", "殿堂", "temple", "daoist", "shrine compound",
 )
 
 _TOWER_COMPONENT_HINTS = (
@@ -26,20 +27,22 @@ _TOWER_COMPONENT_HINTS = (
 )
 _TOWER_FEATURE_HINTS = (
     "pagoda", "stupa", "tower", "tier", "eave", "finial", "spire",
-    "dense_eaves", "tibetan_stupa", "覆钵", "相轮", "佛塔", "古塔", "塔刹", "重檐",
+    "dense_eaves", "tibetan_stupa", "覆钵", "相轮", "佛塔", "古塔", "塔刹",
 )
 _HOUSE_ROOF_TYPES = frozenset({"gable", "xuanshan", "hip", ""})
 
 
 def _authoritative_building_class(user_text: str, plan: Optional[Dict[str, Any]]) -> Optional[str]:
-    """Prefer plan_meta.request_intent (server-owned) over LLM-authored fields."""
+    """Prefer merged request_intent (keyword + LLM declared) over raw plan feature strings."""
     if isinstance(plan, dict):
         meta = plan.get("plan_meta")
         if isinstance(meta, dict):
             ri = meta.get("request_intent")
             if isinstance(ri, dict):
                 cls = str(ri.get("building_class") or "").strip().lower()
-                if cls and cls != "generic":
+                conf = float(ri.get("confidence") or 0.0)
+                # Low-confidence keyword guesses must not force specialized gates.
+                if cls and cls != "generic" and conf >= 0.5:
                     return cls
             cls = str(meta.get("building_class") or "").strip().lower()
             if cls and cls != "generic":
@@ -52,20 +55,23 @@ def _authoritative_building_class(user_text: str, plan: Optional[Dict[str, Any]]
             arch = hints.get("architecture_intent")
             if isinstance(arch, dict) and str(arch.get("original_text") or "").strip():
                 user_text = str(arch.get("original_text"))
-    if user_text:
-        from .request_intent import extract_request_intent
-        cls = extract_request_intent(user_text).get("building_class")
-        if cls and cls != "generic":
-            return str(cls)
+    if user_text or plan:
+        from .request_intent import resolve_request_intent
+        intent = resolve_request_intent(user_text or "", plan)
+        cls = str(intent.get("building_class") or "").strip().lower()
+        conf = float(intent.get("confidence") or 0.0)
+        if cls and cls != "generic" and conf >= 0.5:
+            return cls
     return None
 
 
 def detect_semantic_intent(user_text: str, plan: Optional[Dict[str, Any]] = None) -> str:
-    """Return a coarse semantic class; authoritative user intent wins over LLM plan fields."""
+    """Return a coarse semantic class; merged request_intent wins over LLM feature strings."""
     auth = _authoritative_building_class(user_text, plan)
     if auth:
         return auth
 
+    # Last-resort lexical fallback — strong markers only (no 重檐 / bare 庭院).
     corpus_parts: List[str] = [user_text or ""]
     if isinstance(plan, dict):
         feats = plan.get("distinguishing_features")
@@ -89,10 +95,10 @@ def detect_semantic_intent(user_text: str, plan: Optional[Dict[str, Any]] = None
         return "tower_like"
     if _hit(_GATE_MARKERS):
         return "gate"
-    if _hit(_GARDEN_MARKERS):
-        return "garden"
     if _hit(_TEMPLE_MARKERS):
         return "temple"
+    if _hit(_GARDEN_MARKERS):
+        return "garden"
     return "generic"
 
 

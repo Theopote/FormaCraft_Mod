@@ -19,12 +19,17 @@ Core rules:
 - Facade/entrance/roof/paving use the minimum corner of the component box.
 - Use semantic components (MASS_MAIN, ROOF, ENTRANCE, FACADE_WINDOWS, ASSEMBLY, MODULE, STRUCTURE, …), NOT blocks.
 - Building TYPE decides composition — never force every request into a house kit.
-  * Residences / shops: MASS_MAIN + FOUNDATION + ROOF + FACADE_WINDOWS + ENTRANCE is appropriate.
-  * Tibetan / Chinese pagoda or stupa: layered tapering masses (or STRUCTURE/typology:dense_eaves_pagoda),
-    multi-tier eaves / CROWN or finial; DO NOT emit a single house MASS with gable roof and regular windows.
+  * Residences / shops / libraries / villas / castles with a courtyard mention: residential or civic mass kit;
+    a bare「庭院」does NOT make the building a garden.
+  * 大殿 / hall with 重檐/歇山: temple/hall mass + Chinese roof — 重檐 is a ROOF attribute, not a pagoda.
+  * Tibetan / Chinese pagoda or stupa (佛塔/古塔/宝塔/pagoda/stupa): layered tapering masses
+    (or STRUCTURE/typology:dense_eaves_pagoda / tibetan_stupa); DO NOT emit a single house MASS with gable.
   * Temple gate / paifang / mountain gate: wide shallow gate mass (or STRUCTURE/ASSEMBLY), not a deep house.
   * Daoist temple / monastery compounds: hall masses + courtyards/paths as needed.
-  * Gardens / courtyards: PATH/COURTYARD/ASSEMBLY composition; not only one residential house.
+  * Gardens / 江南园林 / 日式庭院: PATH/COURTYARD/ASSEMBLY composition; not only one residential house.
+- Always set plan_meta.declared_intent = {building_class, confidence} where building_class is one of
+  generic|tower_like|gate|garden|temple. Honour negations (不要/无/no): e.g. 不要重檐 must not select double eaves;
+  无门槛 is NOT「无门」.
 - mode=build MUST include a non-empty components[] (or plan_program / ASSEMBLY with real geometry).
   Never return components:[] for a successful build plan.
 - style_profile is a string preset id. style_attributes.palette/materials/block_palette MUST be objects
@@ -44,6 +49,7 @@ LlmPlan JSON shape (provider may also enforce response_format):
 - style_attributes: object with wall_material/roof_material/…; palette/materials must be role→block maps
 - anchor: {x,y,z} optional when request already has player pos
 - components[]: REQUIRED non-empty for mode=build — {component_type, slot_id?, relative_position, dimensions, features[], params{}}
+- plan_meta.declared_intent: {building_class: generic|tower_like|gate|garden|temple, confidence: 0..1}
 - patch: {origin?, blocks:[{action,dx,dy,dz,targetBlock}]} for incremental edits
 - features may include strings:
   - component_request:<json>  (library component placement)

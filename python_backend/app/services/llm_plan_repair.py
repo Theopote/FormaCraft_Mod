@@ -307,8 +307,9 @@ def repair_llm_plan_validation(
                 logger.exception("LlmPlan repair round %d failed; stopping remote repair", attempt)
                 break
 
-    # Directed re-plan from authoritative request intent before emitting a hard gap.
-    # Schema/field failures (facing/anchor) that sanitize could not repair also qualify.
+    # Directed re-plan from high-confidence request intent before emitting a hard gap.
+    # Only scaffold when keyword/LLM merge is confident — never replace a plausible LLM
+    # plan because of a weak lexical false positive (重檐→塔, 庭院→园林).
     def _is_schema_field_fail(err: object) -> bool:
         e = str(err).lower()
         if "missing field" in e or "field required" in e:
@@ -327,29 +328,53 @@ def repair_llm_plan_validation(
     )
     if semantic_fail and not preserve_fbd:
         try:
-            from .request_intent import attach_request_intent, extract_request_intent, scaffold_plan_for_intent
+            from .request_intent import (
+                attach_request_intent,
+                resolve_request_intent,
+                scaffold_plan_for_intent,
+            )
 
-            intent = extract_request_intent(user_text or "")
-            scaffold = scaffold_plan_for_intent(intent)
-            if scaffold is not None:
-                scaffold_norm = resolve_delegated_entrances(
-                    attach_request_intent(normalize_fn(scaffold, req), user_text or ""),
-                    user_text or "",
+            intent = resolve_request_intent(user_text or "", normalized)
+            if intent.get("scaffold_eligible"):
+                scaffold = scaffold_plan_for_intent(intent)
+                if scaffold is not None:
+                    reason_zh = "；".join(str(e) for e in (errors or [])[:2])
+                    cls = str(intent.get("building_class") or "")
+                    notice = (
+                        f"原计划未通过语义校验，已按「{cls}」确定性模板重建。"
+                        f"原因：{reason_zh}"
+                    )
+                    scaffold["player_fidelity_notice_zh"] = notice
+                    meta = scaffold.get("plan_meta") if isinstance(scaffold.get("plan_meta"), dict) else {}
+                    meta = dict(meta)
+                    meta["scaffold_reason"] = reason_zh
+                    meta["scaffolded_from_request_intent"] = True
+                    scaffold["plan_meta"] = meta
+                    scaffold_norm = resolve_delegated_entrances(
+                        attach_request_intent(normalize_fn(scaffold, req), user_text or ""),
+                        user_text or "",
+                    )
+                    scaffold_errors = _try_validate(scaffold_norm, user_text)
+                    if not scaffold_errors:
+                        logger.info(
+                            "LlmPlan recovered via request_intent scaffold class=%s conf=%s",
+                            intent.get("building_class"),
+                            intent.get("confidence"),
+                        )
+                        _record_quality(
+                            scaffold_norm,
+                            user_text=user_text,
+                            parse_ok=True,
+                            fidelity_ok=True,
+                            reason="request_intent_scaffold",
+                        )
+                        return scaffold_norm
+            else:
+                logger.info(
+                    "Skipping request_intent scaffold (class=%s conf=%s); keeping repair/gap path",
+                    intent.get("building_class"),
+                    intent.get("confidence"),
                 )
-                scaffold_errors = _try_validate(scaffold_norm, user_text)
-                if not scaffold_errors:
-                    logger.info(
-                        "LlmPlan recovered via request_intent scaffold class=%s",
-                        intent.get("building_class"),
-                    )
-                    _record_quality(
-                        scaffold_norm,
-                        user_text=user_text,
-                        parse_ok=True,
-                        fidelity_ok=True,
-                        reason="request_intent_scaffold",
-                    )
-                    return scaffold_norm
         except Exception:
             logger.exception("request_intent scaffold recovery failed")
 

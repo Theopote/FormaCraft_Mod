@@ -279,10 +279,11 @@ public final class IntentFidelityMetrics {
             }
         }
         String lower = corpus.toLowerCase(Locale.ROOT);
-        if (containsAny(lower, corpus, "佛塔", "古塔", "pagoda", "stupa", "藏式")) return "tower_like";
+        // Align with request_intent_vocab_v1: no 重檐→tower, no bare 庭院→garden.
+        if (containsAny(lower, corpus, "佛塔", "古塔", "宝塔", "pagoda", "stupa", "藏式", "塔刹")) return "tower_like";
         if (containsAny(lower, corpus, "山门", "牌坊", "paifang")) return "gate";
-        if (containsAny(lower, corpus, "园林", "庭院", "garden")) return "garden";
-        if (containsAny(lower, corpus, "道观", "寺庙")) return "temple";
+        if (containsAny(lower, corpus, "道观", "寺庙", "大殿", "殿堂")) return "temple";
+        if (containsAny(lower, corpus, "江南园林", "日式庭院", "园林", "garden")) return "garden";
         return "generic";
     }
 

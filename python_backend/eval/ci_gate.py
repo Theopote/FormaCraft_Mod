@@ -85,6 +85,8 @@ _UNITTEST_MODULES: Tuple[str, ...] = (
     "tests.test_golden_assembly_capability_gap",
     "tests.test_design_fidelity_contract",
     "tests.test_prompt_routing_authority",
+    "tests.test_intent_baseline_and_negation",
+    "tests.test_request_intent_authority",
 )
 
 

@@ -3,8 +3,11 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -13,11 +16,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Injects authoritative {@code plan_meta.request_intent} from the original user
- * request so semantic validators do not depend on LLM-retained features.
+ * Injects {@code plan_meta.request_intent} from the original user request using the
+ * shared vocab JSON. Keywords are auxiliary hints with confidence; LLM
+ * {@code declared_intent} (when present on plan_meta) is preferred unless keywords
+ * have a strong hit.
  */
 public final class RequestIntentInjector {
     private static final Pattern FOOTPRINT = Pattern.compile("(\\d{1,2})\\s*[×xX*]\\s*(\\d{1,2})");
+    private static final List<String> CLASS_PRIORITY = List.of("tower_like", "gate", "temple", "garden");
 
     private RequestIntentInjector() {}
 
@@ -35,7 +41,7 @@ public final class RequestIntentInjector {
         if (existing instanceof Map<?, ?> existingMap
                 && existingMap.get("original_text") != null
                 && !String.valueOf(existingMap.get("original_text")).isBlank()) {
-            // Keep Python-authored authoritative intent; only fill missing text echo.
+            // Keep Python-authored merged intent; only fill missing text echo.
             if (!meta.containsKey("request_intent_text")) {
                 meta.put("request_intent_text", String.valueOf(existingMap.get("original_text")));
             }
@@ -47,38 +53,42 @@ public final class RequestIntentInjector {
         if (text.isBlank()) {
             return plan;
         }
-        Map<String, Object> intent = extract(text);
+        Map<String, Object> keyword = extractKeyword(text);
+        Map<String, Object> intent = mergeWithLlmDeclared(keyword, meta);
         meta.put("request_intent", intent);
         meta.put("request_intent_text", text);
         meta.put("building_class", intent.get("building_class"));
         return withMeta(plan, meta);
     }
 
+    /** Keyword-only extract (tests / fallback). Prefer {@link #ensure} for full merge. */
     static Map<String, Object> extract(String text) {
+        return extractKeyword(text == null ? "" : text);
+    }
+
+    static Map<String, Object> extractKeyword(String text) {
         String lower = text.toLowerCase(Locale.ROOT);
-        String buildingClass = "generic";
-        List<String> markers = new ArrayList<>();
-        if (containsAny(lower, text, "佛塔", "古塔", "宝塔", "藏式", "pagoda", "stupa", "塔刹", "重檐")) {
-            buildingClass = "tower_like";
-        } else if (containsAny(lower, text, "山门", "牌坊", "paifang", "gatehouse", "寺庙山门")) {
-            buildingClass = "gate";
-        } else if (containsAny(lower, text, "江南园林", "日式庭院", "园林", "庭院", "garden")) {
-            buildingClass = "garden";
-        } else if (containsAny(lower, text, "道观", "寺庙", "庙宇", "daoist")) {
-            buildingClass = "temple";
+        ScoredClass scored = scoreClass(text, lower);
+        String buildingClass = scored.cls;
+        double confidence = scored.confidence;
+        List<String> markers = scored.markers;
+
+        RoofResult roof = extractRoof(text, lower);
+        List<String> forbids = extractForbids(text, lower);
+
+        Map<String, Object> materials = new HashMap<>();
+        JsonObject mats = RequestIntentVocab.root().getAsJsonObject("materials");
+        if (mats != null) {
+            putMaterial(materials, mats, "wall", text, lower);
+            putMaterial(materials, mats, "roof", text, lower);
+        } else {
+            if (text.contains("白墙") || lower.contains("white_concrete")) {
+                materials.put("wall", "minecraft:white_concrete");
+            }
+            if (text.contains("黑瓦") || lower.contains("black_terracotta")) {
+                materials.put("roof", "minecraft:black_terracotta");
+            }
         }
-        for (String m : List.of("佛塔", "古塔", "山门", "牌坊", "园林", "庭院", "道观", "pagoda", "paifang")) {
-            if (containsAny(lower, text, m)) markers.add(m);
-        }
-        String roofType = null;
-        if (text.contains("歇山")) roofType = "xieshan";
-        else if (text.contains("庑殿")) roofType = "wudian";
-        else if (text.contains("重檐")) roofType = "double_eave_hip";
-        else if (text.contains("攒尖")) roofType = "pyramid";
-        else if (text.contains("悬山")) roofType = "xuanshan";
-        else if (text.contains("硬山")) roofType = "yingshan";
-        else if (text.contains("平顶") || lower.contains("flat roof")) roofType = "flat";
-        else if (text.contains("双坡") || text.contains("人字") || lower.contains("gable")) roofType = "gable";
 
         int width = 0, depth = 0;
         Matcher m = FOOTPRINT.matcher(text);
@@ -91,41 +101,320 @@ public final class RequestIntentInjector {
                 break;
             }
         }
-        List<String> forbids = new ArrayList<>();
-        if (containsAny(lower, text, "不要窗", "无窗", "禁窗", "不开窗", "no windows")) forbids.add("windows");
-        if (containsAny(lower, text, "不要门", "无门", "禁门", "no door")) forbids.add("entrance");
 
-        Map<String, Object> materials = new HashMap<>();
-        if (text.contains("白墙") || lower.contains("white_concrete")) {
-            materials.put("wall", "minecraft:white_concrete");
-        }
-        if (text.contains("黑瓦") || lower.contains("black_terracotta")) {
-            materials.put("roof", "minecraft:black_terracotta");
+        String composition = "single";
+        if ("garden".equals(buildingClass)) {
+            composition = "compound";
+        } else if ("temple".equals(buildingClass)) {
+            List<String> compound = RequestIntentVocab.stringList(
+                    RequestIntentVocab.root().getAsJsonArray("temple_compound_markers"));
+            for (String c : compound) {
+                if (text.contains(c)) {
+                    composition = "compound";
+                    markers.add(c);
+                    break;
+                }
+            }
         }
 
+        String towerSubtype = null;
+        if ("tower_like".equals(buildingClass)) {
+            JsonObject subtypes = RequestIntentVocab.root().getAsJsonObject("tower_subtypes");
+            List<String> tibetan = subtypes == null ? List.of()
+                    : RequestIntentVocab.stringList(subtypes.getAsJsonArray("tibetan_stupa"));
+            boolean isTibetan = false;
+            for (String t : tibetan) {
+                if (containsIgnoreCase(text, lower, t)) {
+                    isTibetan = true;
+                    break;
+                }
+            }
+            towerSubtype = isTibetan ? "tibetan_stupa" : "dense_eaves_pagoda";
+        }
+
+        double scaffoldMin = RequestIntentVocab.conf("scaffold_min", 0.75);
         Map<String, Object> intent = new HashMap<>();
         intent.put("schema", "formacraft.request_intent.v1");
-        intent.put("source", "user_request");
+        intent.put("source", "keyword_hint");
         intent.put("original_text", text);
         intent.put("building_class", buildingClass);
+        intent.put("confidence", confidence);
+        intent.put("composition", composition);
+        intent.put("tower_subtype", towerSubtype);
         intent.put("markers", markers);
-        intent.put("roof_type", roofType);
-        intent.put("roof_explicit", roofType != null);
+        intent.put("roof_type", roof.roofType);
+        intent.put("roof_explicit", roof.roofType != null);
+        intent.put("roof_forbids", roof.forbids);
         if (width > 0 && depth > 0) {
             intent.put("footprint", Map.of("width", width, "depth", depth));
         }
         intent.put("forbids", forbids);
         intent.put("materials", materials);
-        intent.put("refuse_residential_autofill", !"generic".equals(buildingClass));
+        intent.put("refuse_residential_autofill",
+                !"generic".equals(buildingClass) && confidence >= scaffoldMin);
+        intent.put("scaffold_eligible",
+                !"generic".equals(buildingClass) && confidence >= scaffoldMin);
         return intent;
     }
 
-    private static boolean containsAny(String lower, String raw, String... needles) {
-        for (String n : needles) {
-            if (n == null || n.isEmpty()) continue;
-            if (lower.contains(n.toLowerCase(Locale.ROOT)) || raw.contains(n)) return true;
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mergeWithLlmDeclared(
+            Map<String, Object> keyword, Map<String, Object> meta) {
+        Map<String, Object> out = new HashMap<>(keyword);
+        Object declared = meta.get("declared_intent");
+        if (!(declared instanceof Map<?, ?>)) {
+            declared = meta.get("llm_intent");
+        }
+        if (!(declared instanceof Map<?, ?> llmMap)) {
+            return out;
+        }
+        String llmClass = String.valueOf(llmMap.getOrDefault("building_class",
+                llmMap.getOrDefault("class", "generic"))).trim().toLowerCase(Locale.ROOT);
+        double llmConf = 0.7;
+        try {
+            Object c = llmMap.get("confidence");
+            if (c instanceof Number n) llmConf = n.doubleValue();
+            else if (c != null) llmConf = Double.parseDouble(String.valueOf(c));
+        } catch (Exception ignored) {
+            llmConf = 0.7;
+        }
+        String kwClass = String.valueOf(keyword.getOrDefault("building_class", "generic"));
+        double kwConf = 0.0;
+        try {
+            Object c = keyword.get("confidence");
+            if (c instanceof Number n) kwConf = n.doubleValue();
+        } catch (Exception ignored) {
+            kwConf = 0.0;
+        }
+        double kwOverride = RequestIntentVocab.conf("keyword_override_min", 0.8);
+        double llmMin = RequestIntentVocab.conf("llm_preferred_min", 0.55);
+        if (kwConf >= kwOverride && !"generic".equals(kwClass)) {
+            out.put("source", "keyword_override");
+            out.put("llm_declared", declared);
+        } else if (llmConf >= llmMin && isValidClass(llmClass)) {
+            out.put("building_class", llmClass);
+            out.put("confidence", Math.max(llmConf, kwConf * 0.5));
+            out.put("source", "llm_declared");
+            out.put("keyword_hint_class", kwClass);
+            out.put("keyword_hint_confidence", kwConf);
+            double scaffoldMin = RequestIntentVocab.conf("scaffold_min", 0.75);
+            double finalConf = ((Number) out.get("confidence")).doubleValue();
+            out.put("refuse_residential_autofill",
+                    !"generic".equals(llmClass) && finalConf >= scaffoldMin);
+            out.put("scaffold_eligible",
+                    !"generic".equals(llmClass) && finalConf >= scaffoldMin);
+        } else {
+            out.put("llm_declared", declared);
+        }
+        return out;
+    }
+
+    private static boolean isValidClass(String cls) {
+        return "generic".equals(cls) || "tower_like".equals(cls) || "gate".equals(cls)
+                || "garden".equals(cls) || "temple".equals(cls);
+    }
+
+    private static ScoredClass scoreClass(String text, String lower) {
+        String best = "generic";
+        double bestScore = 0.0;
+        List<String> bestMarkers = new ArrayList<>();
+        double strongW = RequestIntentVocab.conf("strong_hit", 0.9);
+        double weakW = RequestIntentVocab.conf("weak_hit", 0.45);
+
+        for (String cls : CLASS_PRIORITY) {
+            JsonObject spec = RequestIntentVocab.buildingClass(cls);
+            if (spec == null) continue;
+            List<String> strong = RequestIntentVocab.stringList(spec.getAsJsonArray("strong_markers"));
+            List<String> weak = RequestIntentVocab.stringList(spec.getAsJsonArray("weak_markers"));
+            List<String> strongHits = positiveHits(text, lower, strong);
+            List<String> weakHits = positiveHits(text, lower, weak);
+            if (!weakHits.isEmpty()) {
+                List<String> suppressors = RequestIntentVocab.stringList(
+                        spec.getAsJsonArray("weak_suppressors"));
+                if (!suppressors.isEmpty() && containsAny(text, lower, suppressors)) {
+                    weakHits = List.of();
+                }
+            }
+            if (strongHits.isEmpty() && weakHits.isEmpty()) continue;
+            double score = !strongHits.isEmpty() ? strongW : weakW;
+            if (score > bestScore) {
+                bestScore = score;
+                best = cls;
+                bestMarkers = new ArrayList<>();
+                bestMarkers.addAll(strongHits);
+                bestMarkers.addAll(weakHits);
+            }
+        }
+        if (bestMarkers.size() > 12) {
+            bestMarkers = new ArrayList<>(bestMarkers.subList(0, 12));
+        }
+        return new ScoredClass(best, bestScore, bestMarkers);
+    }
+
+    private static RoofResult extractRoof(String text, String lower) {
+        List<Map<String, String>> roofs = RequestIntentVocab.roofTypes();
+        roofs.sort(Comparator.comparingInt((Map<String, String> r) -> -r.get("phrase").length()));
+        String chosen = null;
+        List<String> forbidden = new ArrayList<>();
+        List<int[]> occupied = new ArrayList<>();
+        for (Map<String, String> entry : roofs) {
+            String phrase = entry.get("phrase");
+            String canonical = entry.get("canonical").toLowerCase(Locale.ROOT);
+            int[] span = findPositiveSpan(text, lower, phrase, occupied);
+            if (span == null) continue;
+            occupied.add(span);
+            if (isNegatedAt(text, span[0])) {
+                if (!forbidden.contains(canonical)) forbidden.add(canonical);
+            } else if (chosen == null) {
+                chosen = canonical;
+            }
+        }
+        return new RoofResult(chosen, forbidden);
+    }
+
+    private static List<String> extractForbids(String text, String lower) {
+        List<String> out = new ArrayList<>();
+        JsonObject forbids = RequestIntentVocab.root().getAsJsonObject("forbids");
+        JsonObject falseFriends = RequestIntentVocab.root().getAsJsonObject("forbid_false_friends");
+        if (forbids == null) return out;
+        for (String key : forbids.keySet()) {
+            List<String> phrases = RequestIntentVocab.stringList(forbids.getAsJsonArray(key));
+            List<String> friends = falseFriends == null ? List.of()
+                    : RequestIntentVocab.stringList(falseFriends.getAsJsonArray(key));
+            List<int[]> friendSpans = new ArrayList<>();
+            for (String friend : friends) {
+                int start = 0;
+                String fl = friend.toLowerCase(Locale.ROOT);
+                while (true) {
+                    int idx = indexOf(text, lower, friend, fl, start);
+                    if (idx < 0) break;
+                    friendSpans.add(new int[]{idx, idx + friend.length()});
+                    start = idx + 1;
+                }
+            }
+            for (String phrase : phrases) {
+                String pl = phrase.toLowerCase(Locale.ROOT);
+                int start = 0;
+                boolean matched = false;
+                while (true) {
+                    int idx = indexOf(text, lower, phrase, pl, start);
+                    if (idx < 0) break;
+                    int end = idx + phrase.length();
+                    boolean insideFriend = false;
+                    for (int[] fs : friendSpans) {
+                        if (idx >= fs[0] && end <= fs[1]) {
+                            insideFriend = true;
+                            break;
+                        }
+                    }
+                    if (insideFriend) {
+                        start = end;
+                        continue;
+                    }
+                    matched = true;
+                    break;
+                }
+                if (matched) {
+                    out.add(key);
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    private static void putMaterial(
+            Map<String, Object> materials, JsonObject mats, String slot, String text, String lower) {
+        if (materials.containsKey(slot)) return;
+        JsonArray entries = mats.getAsJsonArray(slot);
+        if (entries == null) return;
+        for (var el : entries) {
+            if (!el.isJsonObject()) continue;
+            JsonObject o = el.getAsJsonObject();
+            List<String> phrases = RequestIntentVocab.stringList(o.getAsJsonArray("phrases"));
+            String block = o.has("block") ? o.get("block").getAsString() : null;
+            if (block == null || phrases.isEmpty()) continue;
+            if (containsAny(text, lower, phrases)) {
+                materials.put(slot, block);
+                return;
+            }
+        }
+    }
+
+    private static List<String> positiveHits(String text, String lower, List<String> markers) {
+        List<String> ordered = new ArrayList<>(markers);
+        ordered.sort(Comparator.comparingInt((String s) -> -s.length()));
+        List<String> hits = new ArrayList<>();
+        List<int[]> occupied = new ArrayList<>();
+        for (String marker : ordered) {
+            int[] span = findPositiveSpan(text, lower, marker, occupied);
+            if (span == null) continue;
+            if (isNegatedAt(text, span[0])) continue;
+            hits.add(marker);
+            occupied.add(span);
+        }
+        return hits;
+    }
+
+    private static int[] findPositiveSpan(
+            String text, String lower, String needle, List<int[]> occupied) {
+        String nl = needle.toLowerCase(Locale.ROOT);
+        int start = 0;
+        while (true) {
+            int idx = indexOf(text, lower, needle, nl, start);
+            if (idx < 0) return null;
+            int end = idx + needle.length();
+            boolean overlap = false;
+            for (int[] o : occupied) {
+                if (!(end <= o[0] || idx >= o[1])) {
+                    overlap = true;
+                    break;
+                }
+            }
+            if (overlap) {
+                start = end;
+                continue;
+            }
+            return new int[]{idx, end};
+        }
+    }
+
+    private static boolean isNegatedAt(String text, int start) {
+        if (start <= 0) return false;
+        String window = text.substring(Math.max(0, start - 12), start);
+        String compact = window.replaceAll("\\s+", "");
+        String lower = window.toLowerCase(Locale.ROOT);
+        String compactLower = compact.toLowerCase(Locale.ROOT);
+        for (String prefix : RequestIntentVocab.negationPrefixes()) {
+            if (prefix.isBlank()) continue;
+            if (prefix.endsWith(" ") || prefix.chars().allMatch(c -> c < 128)) {
+                if (lower.contains(prefix.toLowerCase(Locale.ROOT))) return true;
+            } else {
+                if (window.contains(prefix) || compact.contains(prefix)
+                        || compactLower.contains(prefix.toLowerCase(Locale.ROOT))) {
+                    return true;
+                }
+            }
         }
         return false;
+    }
+
+    private static boolean containsAny(String text, String lower, List<String> needles) {
+        for (String n : needles) {
+            if (containsIgnoreCase(text, lower, n)) return true;
+        }
+        return false;
+    }
+
+    private static boolean containsIgnoreCase(String text, String lower, String needle) {
+        if (needle == null || needle.isEmpty()) return false;
+        return lower.contains(needle.toLowerCase(Locale.ROOT)) || text.contains(needle);
+    }
+
+    private static int indexOf(String text, String lower, String needle, String needleLower, int from) {
+        int idx = lower.indexOf(needleLower, from);
+        if (idx >= 0) return idx;
+        return text.indexOf(needle, from);
     }
 
     private static LlmPlan withMeta(LlmPlan plan, Map<String, Object> meta) {
@@ -154,4 +443,7 @@ public final class RequestIntentInjector {
                 meta,
                 plan.designSources());
     }
+
+    private record ScoredClass(String cls, double confidence, List<String> markers) {}
+    private record RoofResult(String roofType, List<String> forbids) {}
 }
