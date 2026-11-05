@@ -144,6 +144,11 @@ final class PlanSemanticValidator {
                 return String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
             }
         }
+        // 重檐 before plain 庑殿/歇山 so 「重檐庑殿」keeps double-eave intent.
+        if (corpus.contains("重檐") && !corpus.contains("不要重檐") && !corpus.contains("无重檐")) {
+            if (corpus.contains("歇山")) return "double_eave_xieshan";
+            return "double_eave_hip";
+        }
         if (corpus.contains("歇山")) return "xieshan";
         if (corpus.contains("庑殿")) return "wudian";
         if (corpus.contains("攒尖")) return "pyramid";
@@ -151,10 +156,6 @@ final class PlanSemanticValidator {
         if (corpus.contains("硬山")) return "yingshan";
         if (corpus.contains("穹顶") || corpus.contains("dome")) return "dome";
         if (corpus.contains("平顶") || corpus.contains("flat roof")) return "flat";
-        // Bare 重檐 only when not negated — extractor already returned null if negated.
-        if (corpus.contains("重檐") && !corpus.contains("不要重檐") && !corpus.contains("无重檐")) {
-            return "double_eave_hip";
-        }
         return null;
     }
 
@@ -519,20 +520,26 @@ final class PlanSemanticValidator {
         String want = explicit.trim().toLowerCase(Locale.ROOT);
         boolean wantDoubleEave = want.contains("double_eave") || "double_eave_hip".equals(want);
         boolean sawDoubleEave = false;
-        boolean sawConflictingRoof = false;
+        boolean sawRoofWithoutDouble = false;
+        boolean multiBuilding = countCirculationMasses(components) > 1;
+        String primaryHost = primaryMassId(components);
         var wantKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(want);
 
         for (Component c : components) {
             if (c == null) continue;
+            // Multi-building compounds: only enforce the primary host roof against a single global intent.
+            if (multiBuilding && !isPrimaryRoofComponent(c, primaryHost)) {
+                continue;
+            }
             if (hasDoubleEaveSignal(c)) {
                 sawDoubleEave = true;
             }
             String have = componentRoofType(c);
             if (have == null) continue;
             if (wantDoubleEave) {
-                // Double-eave intent is about eave_configuration; a lone residential gable still conflicts.
-                if ("gable".equals(have) || "double_gable".equals(have) || "yingshan".equals(have)) {
-                    sawConflictingRoof = true;
+                // Any authored roof without a double-eave signal conflicts (hip/gable/xieshan/…).
+                if (!hasDoubleEaveSignal(c)) {
+                    sawRoofWithoutDouble = true;
                 }
                 continue;
             }
@@ -543,15 +550,50 @@ final class PlanSemanticValidator {
                 }
                 continue;
             }
-            // Fallback string match when either side is an uncatalogued token (e.g. double_eave_hip).
             if (!roofTokenCompatible(want, have)) {
                 return true;
             }
         }
         if (wantDoubleEave) {
-            return !sawDoubleEave && sawConflictingRoof;
+            return !sawDoubleEave && sawRoofWithoutDouble;
         }
         return false;
+    }
+
+    private static int countCirculationMasses(List<Component> components) {
+        int n = 0;
+        for (Component c : components) {
+            if (c == null || c.componentType() == null) continue;
+            String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (t.startsWith("MASS") || "STRUCTURE".equals(t) || "HALL".equals(t)) n++;
+        }
+        return n;
+    }
+
+    private static String primaryMassId(List<Component> components) {
+        for (Component c : components) {
+            if (c == null || c.params() == null) continue;
+            String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!(t.startsWith("MASS") || "STRUCTURE".equals(t) || "HALL".equals(t))) continue;
+            Object id = c.params().get("component_id");
+            if (id == null) id = c.params().get("componentId");
+            if (id != null && !String.valueOf(id).isBlank()) return String.valueOf(id).trim();
+            return t.toLowerCase(Locale.ROOT);
+        }
+        return null;
+    }
+
+    private static boolean isPrimaryRoofComponent(Component c, String primaryHost) {
+        if (c == null) return false;
+        String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        if (!t.contains("ROOF") && componentRoofType(c) == null) return false;
+        if (primaryHost == null || primaryHost.isBlank()) return true;
+        if (c.params() == null) return true;
+        Object host = c.params().get("host_id");
+        if (host == null) host = c.params().get("hostId");
+        if (host == null) host = c.params().get("building_id");
+        if (host == null) return true; // unbound roof → treat as primary intent target
+        return primaryHost.equals(String.valueOf(host).trim());
     }
 
     private static String componentRoofType(Component c) {

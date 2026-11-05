@@ -1,6 +1,9 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
+import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -12,6 +15,35 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OpeningMaterialAuditTest {
+
+    @Test
+    void styleDefaultFrameBlockIsNotUserExplicit() {
+        Component door = new Component(
+                "ENTRANCE", "main", new Vec3i(0, 0, 0),
+                new Dimensions(1, 3, 1), List.of(),
+                Map.of("frame_block", "minecraft:oak_log", "entrance_type", "doorway"));
+        assertFalse(OpeningMaterialAudit.isUserExplicitOpening(door));
+    }
+
+    @Test
+    void doorWidthAndConstraintSourceAreUserExplicit() {
+        Component byFlag = new Component(
+                "ENTRANCE", "main", new Vec3i(0, 0, 0),
+                new Dimensions(1, 3, 1), List.of(),
+                Map.of("door_explicit", true));
+        Component byWidth = new Component(
+                "ENTRANCE", "main", new Vec3i(0, 0, 0),
+                new Dimensions(1, 3, 1), List.of(),
+                Map.of("door_width", 3));
+        Component bySource = new Component(
+                "ENTRANCE", "main", new Vec3i(0, 0, 0),
+                new Dimensions(1, 3, 1), List.of(),
+                Map.of("constraint_source", "USER_EXPLICIT", "frame_block", "minecraft:oak_log"));
+        assertTrue(OpeningMaterialAudit.isUserExplicitOpening(byFlag));
+        assertTrue(OpeningMaterialAudit.isUserExplicitOpening(byWidth));
+        assertTrue(OpeningMaterialAudit.isUserExplicitOpening(bySource));
+    }
+
     @Test
     void authoredWindowMaterialMismatchIsHardGap() {
         Map<BlockPos, OpeningMaterialAudit.Expectation> expectations = new LinkedHashMap<>();

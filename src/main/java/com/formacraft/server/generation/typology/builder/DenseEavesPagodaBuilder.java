@@ -257,6 +257,7 @@ public final class DenseEavesPagodaBuilder {
             int inner = Math.max(0, half - wallThick);
             boolean hollow = !solidCore && inner >= 1;
 
+            var shaftSrc = PagodaMorphologyAudit.shaftRole(lv);
             for (int dy = 0; dy < levelH; dy++) {
                 int yy = y + dy;
                 for (int x = -half; x <= half; x++) {
@@ -266,7 +267,7 @@ public final class DenseEavesPagodaBuilder {
                         if (hollow && !edge && ChineseTypologyDetailUtil.inRegularOctagon(x, z, inner)) continue;
                         BlockState s = body;
                         if (edge && (dy % 4 == 0)) s = trim;
-                        blocks.add(new PlannedBlock(origin.add(x, yy, z), s));
+                        blocks.add(new PlannedBlock(origin.add(x, yy, z), s, shaftSrc));
                     }
                 }
             }
@@ -280,14 +281,19 @@ public final class DenseEavesPagodaBuilder {
 
             int eaveY = y + levelH;
             int placedThisLevel = 0;
+            var eaveTrimSrc = PagodaMorphologyAudit.eaveTrimRole();
             for (int e = 0; e < eavesPerLevel; e++) {
                 int ey = eaveY + e;
                 if (ey >= shaftAndEaveCap) break;
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey, eave);
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim);
+                var eaveSrc = PagodaMorphologyAudit.eaveRole(lv, e);
+                // Intentional eave tier — material may be slab OR full block; role carries identity.
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey, eave, eaveSrc);
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim, eaveTrimSrc);
                 if (refined && ey + 1 < shaftAndEaveCap) {
-                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey + 1, eave);
-                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 2 + e, ey, eave);
+                    ChineseTypologyDetailUtil.ringRegularOctagon(
+                            blocks, origin, half + 1 + e, ey + 1, eave, eaveTrimSrc);
+                    ChineseTypologyDetailUtil.ringRegularOctagon(
+                            blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
                 }
                 emittedEaves++;
                 placedThisLevel++;
@@ -300,7 +306,8 @@ public final class DenseEavesPagodaBuilder {
 
         int finialY = Math.min(Math.max(y, 1), Math.max(1, height - finialHeight));
         ChineseTypologyDetailUtil.addStupaFinial(
-                blocks, origin, finialY, accent, trim, Blocks.LIGHTNING_ROD.getDefaultState());
+                blocks, origin, finialY, accent, trim, Blocks.LIGHTNING_ROD.getDefaultState(),
+                PagodaMorphologyAudit.finialRole());
 
         int maxY = blocks.stream().mapToInt(b -> b.getPos().getY()).max().orElse(origin.getY());
         int span = maxY - origin.getY() + 1;

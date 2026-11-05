@@ -1,5 +1,6 @@
 package com.formacraft.common.typology.detail;
 
+import com.formacraft.common.build.GeometrySource;
 import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -46,10 +47,16 @@ public final class ChineseTypologyDetailUtil {
     }
 
     public static void ringRegularOctagon(List<PlannedBlock> blocks, BlockPos origin, int half, int y, BlockState state) {
+        ringRegularOctagon(blocks, origin, half, y, state, null);
+    }
+
+    public static void ringRegularOctagon(
+            List<PlannedBlock> blocks, BlockPos origin, int half, int y, BlockState state, GeometrySource source
+    ) {
         for (int x = -half; x <= half; x++) {
             for (int z = -half; z <= half; z++) {
                 if (inRegularOctagon(x, z, half) && !inRegularOctagon(x, z, half - 1)) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, z), state));
+                    blocks.add(new PlannedBlock(origin.add(x, y, z), state, source));
                 }
             }
         }
@@ -142,17 +149,27 @@ public final class ChineseTypologyDetailUtil {
             List<PlannedBlock> blocks, BlockPos origin, int baseY,
             BlockState accent, BlockState ring, BlockState spire
     ) {
-        blocks.add(new PlannedBlock(origin.add(0, baseY, 0), accent));
-        blocks.add(new PlannedBlock(origin.add(0, baseY + 1, 0), accent));
-        blocks.add(new PlannedBlock(origin.add(0, baseY + 2, 0), Blocks.IRON_CHAIN.getDefaultState()));
+        addStupaFinial(blocks, origin, baseY, accent, ring, spire, null);
+    }
+
+    public static void addStupaFinial(
+            List<PlannedBlock> blocks, BlockPos origin, int baseY,
+            BlockState accent, BlockState ring, BlockState spire, GeometrySource source
+    ) {
+        blocks.add(new PlannedBlock(origin.add(0, baseY, 0), accent, source));
+        blocks.add(new PlannedBlock(origin.add(0, baseY + 1, 0), accent, source));
+        blocks.add(new PlannedBlock(origin.add(0, baseY + 2, 0), Blocks.IRON_CHAIN.getDefaultState(), source));
         int y = baseY + 3;
         for (int tier = 0; tier < 3; tier++) {
             int rh = Math.max(1, 2 - tier / 2);
-            ringRegularOctagon(blocks, origin, rh, y, ring);
-            blocks.add(new PlannedBlock(origin.add(0, y + 1, 0), accent));
+            ringRegularOctagon(blocks, origin, rh, y, ring, source);
+            blocks.add(new PlannedBlock(origin.add(0, y + 1, 0), accent, source));
             y += 2;
         }
-        blocks.add(new PlannedBlock(origin.add(0, y, 0), spire != null ? spire : Blocks.LIGHTNING_ROD.getDefaultState()));
+        blocks.add(new PlannedBlock(
+                origin.add(0, y, 0),
+                spire != null ? spire : Blocks.LIGHTNING_ROD.getDefaultState(),
+                source));
     }
 
     public static void addPuzuoZoning(

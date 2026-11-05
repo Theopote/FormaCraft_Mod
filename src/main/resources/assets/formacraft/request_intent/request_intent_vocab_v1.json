@@ -35,10 +35,11 @@
     }
   },
   "roof_types": [
+    {"phrase": "重檐歇山", "canonical": "double_eave_xieshan"},
+    {"phrase": "重檐庑殿", "canonical": "double_eave_hip"},
+    {"phrase": "重檐", "canonical": "double_eave_hip"},
     {"phrase": "歇山", "canonical": "xieshan"},
     {"phrase": "庑殿", "canonical": "wudian"},
-    {"phrase": "重檐歇山", "canonical": "double_eave_xieshan"},
-    {"phrase": "重檐", "canonical": "double_eave_hip"},
     {"phrase": "攒尖", "canonical": "pyramid"},
     {"phrase": "悬山", "canonical": "xuanshan"},
     {"phrase": "硬山", "canonical": "yingshan"},

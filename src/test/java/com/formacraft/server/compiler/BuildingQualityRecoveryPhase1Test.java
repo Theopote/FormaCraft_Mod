@@ -289,4 +289,49 @@ class BuildingQualityRecoveryPhase1Test {
         assertTrue(gap.isPresent());
         assertEquals("E_ROOF_INTENT_CONFLICT", gap.get().code());
     }
+
+    @Test
+    void doubleEaveRejectedWhenPlainHipWithoutDoubleSignal() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(11, 9, 7), List.of(),
+                Map.of("component_id", "hall"));
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 7, 0),
+                new Dimensions(13, 11, 3), List.of(),
+                Map.of("roof_type", "hip", "host_id", "hall"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                "生成重檐庑殿顶大殿");
+        Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
+        assertTrue(gap.isPresent());
+        assertEquals("E_ROOF_INTENT_CONFLICT", gap.get().code());
+    }
+
+    @Test
+    void multiBuildingPavilionRoofDoesNotConflictPrimaryXieshan() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(15, 11, 9), List.of(),
+                Map.of("component_id", "hall"));
+        Component hallRoof = new Component(
+                "ROOF", "hall", new Vec3i(0, 9, 0),
+                new Dimensions(17, 13, 4), List.of(),
+                Map.of("roof_type", "xieshan", "host_id", "hall"));
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion", new Vec3i(20, 0, 0),
+                new Dimensions(7, 7, 6), List.of(),
+                Map.of("component_id", "pavilion"));
+        Component pavilionRoof = new Component(
+                "ROOF", "pavilion", new Vec3i(20, 6, 0),
+                new Dimensions(9, 9, 3), List.of(),
+                Map.of("roof_type", "pyramid", "host_id", "pavilion"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(hall, hallRoof, pavilion, pavilionRoof))
+                        .build(),
+                "生成歇山顶主殿，旁边一座攒尖亭");
+        Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
+        assertTrue(gap.isEmpty(), () -> gap.map(CapabilityGap::code).orElse("ok"));
+    }
 }

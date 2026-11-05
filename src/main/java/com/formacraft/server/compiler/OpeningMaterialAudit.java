@@ -25,10 +25,9 @@ final class OpeningMaterialAudit {
             String blockId,
             boolean hardConstraint
     ) {
-        /** Soft autofill expectation (door without authored material). */
+        /** Soft by default — use 4-arg ctor when constraint_source is USER_EXPLICIT. */
         Expectation(String componentId, GeneratedSurfaceCapture.Role role, String blockId) {
-            this(componentId, role, blockId,
-                    role == GeneratedSurfaceCapture.Role.WINDOW && blockId != null && !blockId.isBlank());
+            this(componentId, role, blockId, false);
         }
     }
 
@@ -54,13 +53,14 @@ final class OpeningMaterialAudit {
         String id = c.params() == null ? c.componentType()
                 : String.valueOf(c.params().getOrDefault("component_id", c.componentType()));
         String material = explicitWindowMaterial(c);
-        boolean hardDoor = hasExplicitDoorConstraint(c);
+        boolean userExplicit = isUserExplicitOpening(c);
         for (var cell : cells) {
             var pos = cell.position().add(offset);
             if (cell.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING) {
-                expectations.put(pos, new Expectation(id, cell.role(), material, hardDoor));
+                // Soft by default — LLM style frame_block must not hard-fail the whole build.
+                expectations.put(pos, new Expectation(id, cell.role(), material, userExplicit));
             } else if (cell.role() == GeneratedSurfaceCapture.Role.WINDOW && material != null) {
-                expectations.put(pos, new Expectation(id, cell.role(), material, true));
+                expectations.put(pos, new Expectation(id, cell.role(), material, userExplicit));
             } else {
                 expectations.remove(pos); // Later declared roles supersede earlier decisions.
             }
@@ -168,16 +168,30 @@ final class OpeningMaterialAudit {
         }
     }
 
-    private static boolean hasExplicitDoorConstraint(Component c) {
+    /**
+     * Hard only when constraint provenance is user-authored — not LLM style defaults.
+     * Accepts {@code constraint_source=USER_EXPLICIT} or explicit boolean flags / door_width.
+     */
+    static boolean isUserExplicitOpening(Component c) {
         if (c == null || c.params() == null) return false;
-        for (String key : List.of(
-                "door_block", "doorBlock", "frame_block", "frameBlock",
-                "entrance_type", "entranceType", "user_constraint", "userConstraint")) {
-            Object v = c.params().get(key);
-            if (v != null && !String.valueOf(v).isBlank()) return true;
+        Object src = c.params().get("constraint_source");
+        if (src == null) src = c.params().get("constraintSource");
+        if (src != null) {
+            String s = String.valueOf(src).trim().toUpperCase(Locale.ROOT);
+            if ("USER_EXPLICIT".equals(s) || "USER".equals(s) || "PLAYER".equals(s)) return true;
+            if ("LLM_INFERRED".equals(s) || "STYLE_DEFAULT".equals(s) || "AUTO_REPAIR".equals(s)) {
+                return false;
+            }
         }
-        return Boolean.TRUE.equals(c.params().get("door_explicit"))
-                || Boolean.TRUE.equals(c.params().get("opening_explicit"));
+        if (Boolean.TRUE.equals(c.params().get("door_explicit"))
+                || Boolean.TRUE.equals(c.params().get("window_explicit"))
+                || Boolean.TRUE.equals(c.params().get("opening_explicit"))) {
+            return true;
+        }
+        // Authored clear size from the player — treat as hard.
+        Object doorWidth = c.params().get("door_width");
+        if (doorWidth == null) doorWidth = c.params().get("doorWidth");
+        return doorWidth != null && !String.valueOf(doorWidth).isBlank();
     }
 
     private static String explicitWindowMaterial(Component c) {
