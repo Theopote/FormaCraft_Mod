@@ -28,9 +28,22 @@ public final class StructureSupportAnalysis {
         return planned.containsKey(pos) ? planned.get(pos) : terrain.apply(pos);
     }
 
-    /** Bottom columns of disconnected, ungrounded components; attached eaves are not pillars. */
+    /**
+     * Bottom columns of disconnected, ungrounded components near the structure's global base.
+     * Mid-height cantilever rings (pagoda eaves) are intentionally ignored — filling them would
+     * pour cobble columns through hollow interiors.
+     */
     public static List<BlockPos> unsupportedBases(List<PlannedBlock> blocks, Function<BlockPos, BlockState> terrain) {
         var states = finalStates(blocks);
+        int globalMinY = Integer.MAX_VALUE;
+        for (var pos : states.keySet()) {
+            BlockState s = states.get(pos);
+            if (carriesSupport(s)) globalMinY = Math.min(globalMinY, pos.getY());
+        }
+        if (globalMinY == Integer.MAX_VALUE) return List.of();
+        // Only stilts / true floating bases near the footprint — not mid-tower eaves.
+        final int baseBandTop = globalMinY + 3;
+
         var remaining = new HashSet<BlockPos>();
         states.forEach((pos, state) -> { if (carriesSupport(state)) remaining.add(pos); });
         var unsupported = new ArrayList<BlockPos>();
@@ -59,9 +72,11 @@ public final class StructureSupportAnalysis {
                     if (remaining.remove(neighbor)) queue.addLast(neighbor);
                 }
             }
-            if (!grounded) {
+            if (!grounded && minY <= baseBandTop) {
                 int band = minY + 2;
-                bottoms.values().stream().filter(p -> p.getY() <= band).forEach(unsupported::add);
+                bottoms.values().stream()
+                        .filter(p -> p.getY() <= band && p.getY() <= baseBandTop)
+                        .forEach(unsupported::add);
             }
         }
         unsupported.sort(Comparator.comparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));

@@ -27,11 +27,34 @@ class TypologyStructurePatchCoercionTest {
                 ),
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
         );
-        assertTrue(LlmPlanPreviewBuilder.isTypologyStructureBuildPlan(plan));
+        assertTrue(LlmPlanPreviewBuilder.isCoercibleFullBuildPlan(plan));
     }
 
     @Test
-    void massMainRebuildStillRejectedAsTypologyStructure() {
+    void twinMassMainCompoundIsCoercedFromPatchRejectPath() {
+        LlmPlan plan = new LlmPlan(
+                LlmPlan.Mode.patch,
+                "chinese_pagoda",
+                null,
+                null,
+                null,
+                List.of(
+                        new Component("FOUNDATION", "tower_a", new Vec3i(-9, -1, -9),
+                                new Dimensions(18, 18, 1), List.of(), Map.of()),
+                        new Component("MASS_MAIN", "tower_a", new Vec3i(0, 0, 0),
+                                new Dimensions(16, 16, 17), List.of("hollow:true"),
+                                Map.of("floor_count", 3, "hollow", true)),
+                        new Component("MASS_MAIN", "tower_b", new Vec3i(28, 0, 0),
+                                new Dimensions(16, 16, 17), List.of("hollow:true"),
+                                Map.of("floor_count", 3, "hollow", true))
+                ),
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+        );
+        assertTrue(LlmPlanPreviewBuilder.isCoercibleFullBuildPlan(plan));
+    }
+
+    @Test
+    void facadeOnlyPatchIsNotCoercedAsFullBuild() {
         LlmPlan plan = new LlmPlan(
                 LlmPlan.Mode.patch,
                 "generic",
@@ -39,16 +62,16 @@ class TypologyStructurePatchCoercionTest {
                 null,
                 null,
                 List.of(new Component(
-                        "MASS_MAIN",
+                        "FACADE_WINDOWS",
                         "main",
                         new Vec3i(0, 0, 0),
-                        new Dimensions(10, 10, 10),
+                        new Dimensions(10, 1, 4),
                         List.of(),
-                        Map.of()
+                        Map.of("allow_envelope_attach", true)
                 )),
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
         );
-        assertFalse(LlmPlanPreviewBuilder.isTypologyStructureBuildPlan(plan));
+        assertFalse(LlmPlanPreviewBuilder.isCoercibleFullBuildPlan(plan));
     }
 
     private static Component structure(String id, int x, String roof) {

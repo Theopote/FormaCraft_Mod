@@ -56,10 +56,21 @@ public final class ChineseTypologyDetailUtil {
         for (int x = -half; x <= half; x++) {
             for (int z = -half; z <= half; z++) {
                 if (inRegularOctagon(x, z, half) && !inRegularOctagon(x, z, half - 1)) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, z), state, source));
+                    // Stairs/directional blocks radiate outward from the tower axis.
+                    BlockState placed = withFacing(state, outwardFromCenter(x, z));
+                    blocks.add(new PlannedBlock(origin.add(x, y, z), placed, source));
                 }
             }
         }
+    }
+
+    /** Horizontal outward facing from tower center for radial eaves / rings. */
+    public static Direction outwardFromCenter(int x, int z) {
+        if (x == 0 && z == 0) return Direction.SOUTH;
+        if (Math.abs(x) >= Math.abs(z)) {
+            return x >= 0 ? Direction.EAST : Direction.WEST;
+        }
+        return z >= 0 ? Direction.SOUTH : Direction.NORTH;
     }
 
     public static BlockPos octagonFaceCell(int half, Direction face) {
@@ -288,8 +299,12 @@ public final class ChineseTypologyDetailUtil {
     }
 
     private static BlockState withFacing(BlockState state, Direction facing) {
-        if (state != null && state.contains(Properties.HORIZONTAL_FACING)) {
+        if (state == null || facing == null) return state;
+        if (state.contains(Properties.HORIZONTAL_FACING)) {
             return state.with(Properties.HORIZONTAL_FACING, facing);
+        }
+        if (state.contains(Properties.FACING) && facing.getAxis().isHorizontal()) {
+            return state.with(Properties.FACING, facing);
         }
         return state;
     }

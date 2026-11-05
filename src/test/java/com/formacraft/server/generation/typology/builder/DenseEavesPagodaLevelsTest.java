@@ -136,6 +136,49 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
+    void eaveStairsRadiateOutwardFromCenter() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(11, 11, 42),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                Map.of(
+                        "floor_count", 7,
+                        "eaves_per_level", 2,
+                        "height", 46,
+                        "baseWidth", 11,
+                        "footprint", "octagon",
+                        "detailLevel", "simple",
+                        "eaveBlock", "minecraft:blackstone_stairs"
+                )
+        );
+        Map<String, Object> params = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = DenseEavesPagodaBuilder.generate(params, origin, null, null);
+        int checked = 0;
+        for (PlannedBlock b : structure.getBlocks()) {
+            if (b.getTargetState() == null) continue;
+            if (!(b.getTargetState().getBlock() instanceof net.minecraft.block.StairsBlock)) continue;
+            String producer = b.getSource() != null ? b.getSource().producer() : "";
+            if (producer == null || !producer.startsWith(PagodaMorphologyAudit.ROLE_EAVE)) continue;
+            var facingProp = b.getTargetState().contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)
+                    ? net.minecraft.state.property.Properties.HORIZONTAL_FACING
+                    : (b.getTargetState().contains(net.minecraft.state.property.Properties.FACING)
+                            ? net.minecraft.state.property.Properties.FACING : null);
+            if (facingProp == null) continue;
+            int dx = b.getPos().getX() - origin.getX();
+            int dz = b.getPos().getZ() - origin.getZ();
+            if (dx == 0 && dz == 0) continue;
+            var expected = ChineseTypologyDetailUtil.outwardFromCenter(dx, dz);
+            var actual = b.getTargetState().get(facingProp);
+            assertEquals(expected, actual, "eave stair at relative (" + dx + "," + dz + ")");
+            checked++;
+        }
+        assertTrue(checked >= 20, "expected many oriented eave stairs, got " + checked);
+    }
+
+    @Test
     void refinedDoorTunnelsThroughWallThickness() {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",

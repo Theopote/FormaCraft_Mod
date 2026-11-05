@@ -195,11 +195,11 @@ public final class TerrainFit {
                     }
                 }
 
-                // Ensure surface vegetation doesn't block the platform at targetY.
+                // Complete deck at targetY — dirt/stone/grass must not remain as holes under the base.
                 BlockPos surface = new BlockPos(x, targetY, z);
                 if (BuildConstraintContext.allow(surface)) {
                     BlockState cur = world.getBlockState(surface);
-                    if (!cur.isAir() && isObstacle(cur)) {
+                    if (!cur.isAir() && cur.getFluidState().isEmpty()) {
                         out.add(new PlannedBlock(surface, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                         fillCount++;
                     }
@@ -210,7 +210,7 @@ public final class TerrainFit {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
-                    if (!cur.isAir() && isObstacle(cur)) {
+                    if (!cur.isAir() && (isObstacle(cur) || y <= targetY + Math.min(2, clear))) {
                         out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                         clearCount++;
                     }
@@ -267,10 +267,11 @@ public final class TerrainFit {
                 }
             }
 
+            // Pad surface must be a complete deck: replace dirt/stone/grass, not only plants.
             BlockPos surface = new BlockPos(x, targetY, z);
             if (BuildConstraintContext.allow(surface)) {
                 BlockState cur = terrain.apply(surface);
-                if (!cur.isAir() && isObstacle(cur)) {
+                if (!cur.isAir() && cur.getFluidState().isEmpty()) {
                     out.add(new PlannedBlock(surface, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                     fillCount++;
                 }
@@ -280,7 +281,8 @@ public final class TerrainFit {
                 BlockPos p = new BlockPos(x, y, z);
                 if (!BuildConstraintContext.allow(p)) continue;
                 BlockState cur = terrain.apply(p);
-                if (!cur.isAir() && isObstacle(cur)) {
+                if (!cur.isAir() && (isObstacle(cur) || y <= targetY + Math.min(2, clear))) {
+                    // Clear plants always; also shave low dirt mounds immediately above the deck.
                     out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                     clearCount++;
                 }
@@ -356,23 +358,23 @@ public final class TerrainFit {
                     }
                 }
 
-                // Ensure surface vegetation doesn't block the platform at targetY.
+                // Complete deck at targetY — dirt/stone/grass must not remain as holes under the base.
                 BlockPos surface = new BlockPos(x, targetY, z);
                 if (BuildConstraintContext.allow(surface)) {
                     BlockState cur = world.getBlockState(surface);
-                    if (!cur.isAir() && isObstacle(cur)) {
+                    if (!cur.isAir() && cur.getFluidState().isEmpty()) {
                         out.add(new PlannedBlock(surface, fillState, com.formacraft.common.build.GeometrySource.generated("terrain")));
                         fillCount++;
                     }
                 }
 
-                // Always clear vegetation right above targetY.
+                // Always clear vegetation right above targetY; also shave low dirt mounds.
                 int vegTop = targetY + Math.max(1, clear);
                 for (int y = targetY + 1; y <= vegTop; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
-                    if (!cur.isAir() && isObstacle(cur)) {
+                    if (!cur.isAir() && (isObstacle(cur) || y <= targetY + Math.min(2, clear))) {
                         out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                         clearCount++;
                     }

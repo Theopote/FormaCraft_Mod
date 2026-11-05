@@ -63,6 +63,28 @@ class StructureSupportAnalysisTest {
         assertTrue(StructureSupportAnalysis.unsupportedBases(repair.blocks(),terrain).isEmpty());
     }
 
+    @Test void midHeightEaveRingsDoNotTriggerCobbleInteriorFill() {
+        Function<BlockPos,BlockState> terrain = p -> p.getY() <= 0 ? Blocks.STONE.getDefaultState() : Blocks.AIR.getDefaultState();
+        var blocks = new ArrayList<PlannedBlock>();
+        // Grounded shaft shell
+        for (int y = 1; y <= 8; y++) {
+            blocks.add(stone(0, y, 0));
+            blocks.add(stone(2, y, 0));
+            blocks.add(stone(-2, y, 0));
+            blocks.add(stone(0, y, 2));
+            blocks.add(stone(0, y, -2));
+        }
+        // Disconnected outer eave ring high up (historical false FLOATING → cobble fill)
+        for (int x = -4; x <= 4; x++) {
+            blocks.add(stone(x, 10, 4));
+            blocks.add(stone(x, 10, -4));
+        }
+        assertTrue(StructureSupportAnalysis.unsupportedBases(blocks, terrain).isEmpty(),
+                "mid-height cantilevers must not be treated as floating bases");
+        var repair = BuildAutoRepair.applyToTerrain(terrain, -64, Blocks.COBBLESTONE.getDefaultState(), blocks, true);
+        assertEquals(0, repair.supportBlocksAdded());
+    }
+
     @Test void plannedAirWinsOverEarlierPlacementAndUnchangedWorldTerrain() {
         var source = floor(1);
         for (int x=0;x<4;x++) for (int z=0;z<4;z++) {

@@ -59,8 +59,9 @@ public final class BuildAutoRepair {
         Map<BlockPos, BlockState> finalState = StructureSupportAnalysis.finalStates(original);
         var unsupported = repairFloating ? StructureSupportAnalysis.unsupportedBases(original, terrain) : List.<BlockPos>of();
 
-        final int maxDepth = 48;
-        // Scale with unsupported count so landmark eaves/roofs are not left half-repaired.
+        // Short stilts under true floating bases only — never pour long cobble shafts
+        // through hollow towers to “catch” mid-height eaves.
+        final int maxDepth = 8;
         final int maxColumnsToFix = Math.min(4096, Math.max(256, unsupported.size()));
 
         int fixedColumns = 0;
@@ -89,6 +90,16 @@ public final class BuildAutoRepair {
                 // Too deep / void / ocean: skip v1 (we don't want to spam pillars to bedrock).
                 continue;
             }
+            // Skip when a planned solid already exists below in this column (cantilever / eave).
+            boolean plannedSolidBelow = false;
+            for (int y = yMin - 1; y >= supportY; y--) {
+                BlockState ps = finalState.get(new BlockPos(x, y, z));
+                if (ps != null && StructureSupportAnalysis.carriesSupport(ps)) {
+                    plannedSolidBelow = true;
+                    break;
+                }
+            }
+            if (plannedSolidBelow) continue;
 
             boolean anyPlaced = false;
             for (int y = supportY + 1; y <= yMin - 1; y++) {

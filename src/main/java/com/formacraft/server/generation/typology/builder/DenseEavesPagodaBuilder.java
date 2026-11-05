@@ -261,11 +261,14 @@ public final class DenseEavesPagodaBuilder {
             var shaftSrc = PagodaMorphologyAudit.shaftRole(lv);
             for (int dy = 0; dy < levelH; dy++) {
                 int yy = y + dy;
+                // Ground-floor plinth stays solid so the base meets terrain without dirt holes.
+                boolean floorPlate = lv == 0 && dy == 0;
                 for (int x = -half; x <= half; x++) {
                     for (int z = -half; z <= half; z++) {
                         if (!ChineseTypologyDetailUtil.inRegularOctagon(x, z, half)) continue;
                         boolean edge = ChineseTypologyDetailUtil.onRegularOctagonEdge(x, z, half);
-                        if (hollow && !edge && ChineseTypologyDetailUtil.inRegularOctagon(x, z, inner)) continue;
+                        if (hollow && !floorPlate && !edge
+                                && ChineseTypologyDetailUtil.inRegularOctagon(x, z, inner)) continue;
                         BlockState s = body;
                         if (edge && (dy % 4 == 0)) s = trim;
                         blocks.add(new PlannedBlock(origin.add(x, yy, z), s, shaftSrc));

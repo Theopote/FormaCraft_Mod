@@ -82,13 +82,25 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
 
     private static void ringSquare(List<PlannedBlock> blocks, BlockPos origin, int half, int y, BlockState s) {
         for (int x = -half; x <= half; x++) {
-            blocks.add(new PlannedBlock(origin.add(x, y, -half), s));
-            blocks.add(new PlannedBlock(origin.add(x, y, half), s));
+            blocks.add(new PlannedBlock(origin.add(x, y, -half), faceOut(s, x, -half)));
+            blocks.add(new PlannedBlock(origin.add(x, y, half), faceOut(s, x, half)));
         }
         for (int z = -half; z <= half; z++) {
-            blocks.add(new PlannedBlock(origin.add(-half, y, z), s));
-            blocks.add(new PlannedBlock(origin.add(half, y, z), s));
+            blocks.add(new PlannedBlock(origin.add(-half, y, z), faceOut(s, -half, z)));
+            blocks.add(new PlannedBlock(origin.add(half, y, z), faceOut(s, half, z)));
         }
+    }
+
+    private static BlockState faceOut(BlockState state, int x, int z) {
+        if (state == null) return state;
+        Direction out = com.formacraft.common.typology.detail.ChineseTypologyDetailUtil.outwardFromCenter(x, z);
+        if (state.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
+            return state.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, out);
+        }
+        if (state.contains(net.minecraft.state.property.Properties.FACING) && out.getAxis().isHorizontal()) {
+            return state.with(net.minecraft.state.property.Properties.FACING, out);
+        }
+        return state;
     }
 
     private static void carveDoor(
