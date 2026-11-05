@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import unittest
 
+from pathlib import Path
+
 from app.services.generation_capability import (
     apply_stage_b_capability_repair,
+    catalog_source_path,
     evaluate_capability,
     is_executable_roof_type,
     load_catalog,
@@ -17,9 +20,25 @@ from app.services.request_intent import extract_request_intent, scaffold_plan_fo
 
 class GenerationCapabilityBatch2Test(unittest.TestCase):
     def test_catalog_loads_shared_resource(self):
-        catalog = load_catalog(force=True)
+        catalog = load_catalog(force=True, allow_fallback=False)
         self.assertEqual(catalog["schema"], "formacraft.generation_capability.v1")
+        self.assertNotEqual(catalog.get("_fallback"), True)
+        source = catalog_source_path()
+        self.assertIsNotNone(source)
+        self.assertTrue(
+            source.replace("\\", "/").endswith(
+                "src/main/resources/assets/formacraft/generation_capability_catalog.json"
+            )
+            or source.replace("\\", "/").endswith(
+                "build/resources/main/assets/formacraft/generation_capability_catalog.json"
+            ),
+            f"expected Java shared catalog, got {source}",
+        )
+        self.assertTrue(Path(source).is_file())
         self.assertIn("GATE", catalog.get("hostable_component_types") or [])
+        # Shared JSON includes tokens the Python-only fallback historically omitted.
+        tokens = (catalog.get("roof") or {}).get("supported_tokens") or []
+        self.assertIn("mansard", tokens)
         self.assertEqual(normalize_roof_type("irimoya"), "xieshan")
         self.assertTrue(is_executable_roof_type("irimoya"))
 

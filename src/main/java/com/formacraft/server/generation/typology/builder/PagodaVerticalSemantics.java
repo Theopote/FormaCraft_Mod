@@ -47,16 +47,22 @@ public record PagodaVerticalSemantics(
         int minFloors = floorsExplicit ? 3 : implicitMin;
         floorCount = clamp(floorCount, minFloors, maxFloors);
 
+        boolean wantsDoubleEaves = truthy(raw.get("double_eaves")) || truthy(raw.get("doubleEaves"))
+                || containsCue(raw, "重檐", "double_eave", "double-eave");
         int eavesPerLevel = 1;
         if (has(raw, "eaves_per_level", "eavesPerLevel")) {
             eavesPerLevel = p.intVal("eaves_per_level", 1, 1, 3);
-        } else if (truthy(raw.get("double_eaves")) || truthy(raw.get("doubleEaves"))
-                || containsCue(raw, "重檐", "double_eave", "double-eave")) {
+        } else if (wantsDoubleEaves) {
             eavesPerLevel = 2;
         } else if (floorsExplicit && has(raw, "eave_tiers", "eaveTiers")
                 && has(raw, "floor_count", "floorCount", "floors", "levels", "story_count", "storyCount")) {
             int authoredEaves = readInt(p, "eave_tiers", "eaveTiers", floorCount);
             eavesPerLevel = Math.max(1, Math.min(3, Math.round(authoredEaves / (float) Math.max(1, floorCount))));
+        }
+        // Registry defaults often inject eaves_per_level=1; an explicit double_eaves /
+        // 重檐 request must still win (TypologyParamResolver also upgrades, belt-and-suspenders).
+        if (wantsDoubleEaves) {
+            eavesPerLevel = Math.max(eavesPerLevel, 2);
         }
 
         int eaveTiers = floorCount * eavesPerLevel;

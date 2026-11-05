@@ -36,6 +36,20 @@ class PagodaVerticalSemanticsTest {
     }
 
     @Test
+    void doubleEavesBeatsRegistryDefaultSingleEavePerLevel() {
+        // Typology registry defaults often inject eaves_per_level=1 alongside plan double_eaves.
+        TypologyParams p = new TypologyParams(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 1,
+                "double_eaves", true
+        ));
+        PagodaVerticalSemantics v = PagodaVerticalSemantics.resolve(p, 13, 7, 15);
+        assertEquals(3, v.floorCount());
+        assertEquals(2, v.eavesPerLevel());
+        assertEquals(6, v.eaveTiers());
+    }
+
+    @Test
     void eaveTiersAloneDoesNotBecomeSevenPlusDefault() {
         TypologyParams p = new TypologyParams(Map.of("eave_tiers", 6));
         PagodaVerticalSemantics v = PagodaVerticalSemantics.resolve(p, 13, 7, 15);

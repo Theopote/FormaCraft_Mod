@@ -56,18 +56,30 @@ _FALLBACK_HOSTED = {
 }
 
 
+_CATALOG_SOURCE: Optional[str] = None
+
+
 def _catalog_paths() -> List[Path]:
+    """Locate the shared Java resource catalog (authoritative), then optional Python copies."""
     here = Path(__file__).resolve()
-    root = here.parents[2]  # formacraft-1.21.10
+    # generation_capability.py → services → app → python_backend → repo root
+    py_root = here.parents[2]
+    repo_root = here.parents[3]
     return [
+        repo_root / "src" / "main" / "resources" / "assets" / "formacraft" / "generation_capability_catalog.json",
+        repo_root / "build" / "resources" / "main" / "assets" / "formacraft" / "generation_capability_catalog.json",
+        py_root / "data" / "generation_capability_catalog.json",
         here.parent.parent / "data" / "generation_capability_catalog.json",
-        root / "src" / "main" / "resources" / "assets" / "formacraft" / "generation_capability_catalog.json",
-        root / "build" / "resources" / "main" / "assets" / "formacraft" / "generation_capability_catalog.json",
     ]
 
 
-def load_catalog(*, force: bool = False) -> Dict[str, Any]:
-    global _CATALOG
+def catalog_source_path() -> Optional[str]:
+    """Path last used by load_catalog, or None when using in-process fallback."""
+    return _CATALOG_SOURCE
+
+
+def load_catalog(*, force: bool = False, allow_fallback: bool = True) -> Dict[str, Any]:
+    global _CATALOG, _CATALOG_SOURCE
     if _CATALOG is not None and not force:
         return _CATALOG
     for path in _catalog_paths():
@@ -77,10 +89,22 @@ def load_catalog(*, force: bool = False) -> Dict[str, Any]:
             data = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(data, dict) and data.get("schema") == _SCHEMA:
                 _CATALOG = data
-                logger.debug("Loaded generation capability catalog from %s", path)
+                _CATALOG_SOURCE = str(path)
+                logger.info("Loaded generation capability catalog from %s", path)
                 return _CATALOG
         except (OSError, json.JSONDecodeError):
             logger.warning("Failed reading capability catalog %s", path, exc_info=True)
+    if not allow_fallback:
+        raise FileNotFoundError(
+            "generation_capability_catalog.json not found under repo assets; "
+            f"searched: {[str(p) for p in _catalog_paths()]}"
+        )
+    logger.error(
+        "generation_capability_catalog.json missing — using in-process fallback "
+        "(Python/Java capability tables may diverge). searched=%s",
+        [str(p) for p in _catalog_paths()],
+    )
+    _CATALOG_SOURCE = None
     _CATALOG = {
         "schema": _SCHEMA,
         "version": 1,
@@ -89,6 +113,7 @@ def load_catalog(*, force: bool = False) -> Dict[str, Any]:
         "roof": {"aliases": dict(_FALLBACK_ALIASES), "supported_tokens": list(_FALLBACK_ALIASES.values()) + ["gable", "hip", "xieshan", "flat", "none"]},
         "typologies": ["dense_eaves_pagoda", "courtyard_compound", "tailiang_timber_hall"],
         "building_classes": {},
+        "_fallback": True,
     }
     return _CATALOG
 

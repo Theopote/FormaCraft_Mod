@@ -1,5 +1,6 @@
 package com.formacraft.server.generation.typology.builder;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.model.build.BuildingSpec;
@@ -199,22 +200,42 @@ public final class DenseEavesPagodaBuilder {
             }
         }
 
-        int minPer = refined ? 2 : 3;
+        // ``height`` is TOTAL vertical span (shaft + eave rings + finial), not shaft alone.
+        // addStupaFinial places blocks from baseY .. baseY+9 (10 cells inclusive).
+        int minPer = 2;
         int maxPer = refined ? 4 : 3;
-        int eaveGap = eavesPerLevel > 1 ? 1 : 0;
-        int budget = Math.max(floors * (minPer + eaveGap), height);
-        int per = Math.max(minPer, Math.min(maxPer, budget / Math.max(1, floors)));
-        int extraTop = Math.max(0, budget - per * floors);
+        final int finialHeight = 10;
+        int eaveRows = floors * Math.max(1, eavesPerLevel);
+        int reserved = eaveRows + finialHeight;
+        int bodyBudget = Math.max(floors * minPer, height - reserved);
+        if (bodyBudget + reserved > height) {
+            bodyBudget = Math.max(floors * minPer, height - reserved);
+        }
+        if (bodyBudget < floors * minPer) {
+            // Prefer recognizable storeys; trim eave rows if the plan height is extremely tight.
+            eaveRows = Math.max(floors, height - finialHeight - floors * minPer);
+            eavesPerLevel = Math.max(1, eaveRows / Math.max(1, floors));
+            reserved = floors * eavesPerLevel + finialHeight;
+            bodyBudget = Math.max(floors * minPer, height - reserved);
+        }
+        bodyBudget = Math.max(floors * minPer, Math.min(bodyBudget, Math.max(floors * minPer, height - reserved)));
+        int per = Math.max(minPer, Math.min(maxPer, bodyBudget / Math.max(1, floors)));
+        int extraTop = Math.max(0, bodyBudget - per * floors);
 
         List<PlannedBlock> blocks = new ArrayList<>(floors * eavesPerLevel * 900);
         int y = 0;
         int half = baseW / 2;
         int startHalf = half;
         int emittedEaves = 0;
+        int shaftAndEaveCap = Math.max(floors * minPer, height - finialHeight);
 
         for (int lv = 0; lv < floors; lv++) {
             int levelH = per;
             if (lv == floors - 1) levelH += extraTop;
+            int remainingLevels = floors - lv;
+            int remainingEaves = remainingLevels * eavesPerLevel;
+            int yCapForShaft = shaftAndEaveCap - remainingEaves;
+            levelH = Math.max(1, Math.min(levelH, Math.max(1, yCapForShaft - y)));
             int inner = Math.max(0, half - (refined ? 2 : 3));
             boolean hollow = half >= 4;
 
@@ -240,29 +261,40 @@ public final class DenseEavesPagodaBuilder {
             }
 
             int eaveY = y + levelH;
+            int placedThisLevel = 0;
             for (int e = 0; e < eavesPerLevel; e++) {
                 int ey = eaveY + e;
+                if (ey >= shaftAndEaveCap) break;
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey, eave);
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim);
-                if (refined) {
+                if (refined && ey + 1 < shaftAndEaveCap) {
                     ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey + 1, eave);
                     ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 2 + e, ey, eave);
                 }
                 emittedEaves++;
+                placedThisLevel++;
             }
 
-            y += levelH + eavesPerLevel;
+            y += levelH + placedThisLevel;
             // Allow taper to half=2 so small bases (e.g. 7×7 → half=3) still show setback.
             half = Math.max(2, half - 1);
         }
 
-        int finialY = y + 1;
+        int finialY = Math.min(Math.max(y, 1), Math.max(1, height - finialHeight));
         ChineseTypologyDetailUtil.addStupaFinial(
                 blocks, origin, finialY, accent, trim, Blocks.LIGHTNING_ROD.getDefaultState());
         boolean finialCentered = blocks.stream().anyMatch(b ->
                 b.getPos().getX() == origin.getX()
                         && b.getPos().getZ() == origin.getZ()
                         && b.getPos().getY() >= origin.getY() + finialY);
+
+        int maxY = blocks.stream().mapToInt(b -> b.getPos().getY()).max().orElse(origin.getY());
+        int span = maxY - origin.getY() + 1;
+        if (span > height + 1) {
+            FormacraftMod.LOGGER.warn(
+                    "DenseEavesPagodaBuilder: vertical span {} exceeds planned height {} (floors={}, eaves_per_level={})",
+                    span, height, floors, eavesPerLevel);
+        }
 
         boolean setback = floors <= 1 || half < startHalf || startHalf <= 2;
         PagodaMorphologyAudit.check(
@@ -273,8 +305,8 @@ public final class DenseEavesPagodaBuilder {
         double overall = clamp01(0.9 * 0.4 + ratioScore * 0.35 + clamp01(0.75 + floors / 20.0) * 0.25);
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
-                "dense_eaves_pagoda (floors=%d, eaves_per_level=%d, eave_tiers=%d, h=%d, base=%d, facing=%s, ref=%s, score=%.2f)",
-                floors, eavesPerLevel, emittedEaves, height, baseW,
+                "dense_eaves_pagoda (floors=%d, eaves_per_level=%d, eave_tiers=%d, h=%d, span=%d, base=%d, facing=%s, ref=%s, score=%.2f)",
+                floors, eavesPerLevel, emittedEaves, height, span, baseW,
                 facing.asString(), ref.isBlank() ? "-" : ref, overall
         );
         return new GeneratedStructure(null, origin, desc, blocks);

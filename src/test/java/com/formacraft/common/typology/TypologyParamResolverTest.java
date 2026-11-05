@@ -116,4 +116,37 @@ class TypologyParamResolverTest {
         assertEquals(7, merged.get("levels"));
         assertEquals(17, merged.get("baseWidth"));
     }
+
+    @Test
+    void wallBlockAndRoofBlockOverwriteTypologyDefaultMaterials() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(11, 11, 40),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of(
+                        "wall_block", "minecraft:deepslate_bricks",
+                        "roof_block", "minecraft:deepslate_tiles",
+                        "floor_count", 5
+                )
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals("minecraft:deepslate_bricks", merged.get("bodyBlock"));
+        assertEquals("minecraft:deepslate_tiles", merged.get("eaveBlock"));
+    }
+
+    @Test
+    void doubleEavesBeatsRegistryDefaultSingleEave() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(7, 7, 24),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("floor_count", 3, "double_eaves", true)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals(2, ((Number) merged.get("eaves_per_level")).intValue());
+    }
 }

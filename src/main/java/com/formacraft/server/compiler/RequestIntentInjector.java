@@ -384,7 +384,7 @@ public final class RequestIntentInjector {
     }
 
     private static final Pattern CJK_NEGATION_SUFFIX = Pattern.compile(
-            "(?:不要|别要|无需|不用|不采用|不使用|禁止|避免|无)(?:的|了|着|过)?$");
+            "(?:不要|别要|无需|不用|不采用|不使用|禁止|避免|无)[的了着过]?$");
     private static final Pattern ASCII_NEGATION_SUFFIX = Pattern.compile(
             "(?:(?:do\\s+)?not|don't|dont|no|without)\\s+$", Pattern.CASE_INSENSITIVE);
 

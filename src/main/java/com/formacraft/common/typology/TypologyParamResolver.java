@@ -106,11 +106,39 @@ public final class TypologyParamResolver {
         promote(merged, "baseRadius", "base_radius");
         promote(merged, "hallRadius", "hall_radius");
         alias(merged, "detailLevel", "detail_level");
-        alias(merged, "bodyBlock", "body_block", "wall_block", "wallBlock");
-        alias(merged, "eaveBlock", "eave_block");
+        // Plan/LLM wall_block and roof_block must overwrite typology registry defaults
+        // (alias() skips when bodyBlock/eaveBlock already exist from defaults).
+        promote(merged, "bodyBlock", "body_block", "wall_block", "wallBlock");
+        promote(merged, "eaveBlock", "eave_block", "roof_block", "roofBlock");
         alias(merged, "accentBlock", "accent_block");
         alias(merged, "trimBlock", "trim_block");
         alias(merged, "reference_landmark", "referenceLandmark", "referenceLandmarkId", "landmark");
+        // Explicit double_eaves / 重檐 must beat registry default eaves_per_level=1.
+        if (truthy(merged.get("double_eaves")) || truthy(merged.get("doubleEaves"))) {
+            Object epl = merged.get("eaves_per_level");
+            if (epl == null) epl = merged.get("eavesPerLevel");
+            int n = 1;
+            if (epl instanceof Number num) {
+                n = num.intValue();
+            } else if (epl != null) {
+                try {
+                    n = Integer.parseInt(String.valueOf(epl).trim());
+                } catch (NumberFormatException ignored) {
+                    n = 1;
+                }
+            }
+            if (n < 2) {
+                merged.put("eaves_per_level", 2);
+                merged.put("eavesPerLevel", 2);
+            }
+        }
+    }
+
+    private static boolean truthy(Object v) {
+        if (v instanceof Boolean b) return b;
+        if (v == null) return false;
+        String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
+        return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "重檐".equals(s);
     }
 
     private static void promote(Map<String, Object> merged, String canonical, String... alts) {
