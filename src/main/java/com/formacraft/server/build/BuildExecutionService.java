@@ -407,7 +407,7 @@ public class BuildExecutionService {
     static String stableMemoryUuid(UUID transactionId, UUID ownerUuid, String dimension) {
         String seed = transactionId != null
                 ? transactionId.toString()
-                : String.valueOf(ownerUuid) + "|" + dimension;
+                : ownerUuid + "|" + dimension;
         return UUID.nameUUIDFromBytes(
                 ("formacraft:build:" + seed).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
     }
@@ -768,11 +768,7 @@ public class BuildExecutionService {
                 } else {
                     // Retry of an unfinished commit: only fill gaps, never reset a newer revision.
                     long existingRevision = BuildingMemoryKeys.revisionOf(memory);
-                    if (existingRevision > 0L) {
-                        BuildingMemoryKeys.setRevision(memory, existingRevision);
-                    } else {
-                        BuildingMemoryKeys.setRevision(memory, 0L);
-                    }
+                    BuildingMemoryKeys.setRevision(memory, Math.max(existingRevision, 0L));
                     if (BuildingMemoryKeys.roofCellsRaw(memory).isEmpty()
                             && !roofIndex.roof().isEmpty()) {
                         roofIndex.persistTo(memory);

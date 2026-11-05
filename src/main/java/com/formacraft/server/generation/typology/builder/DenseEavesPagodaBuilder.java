@@ -57,12 +57,6 @@ public final class DenseEavesPagodaBuilder {
         return generateOctagon(p, origin, world, specHint);
     }
 
-    /** @deprecated use {@link PagodaVerticalSemantics#resolve} */
-    @Deprecated
-    static int resolveLevels(TypologyParams p, int def, int implicitMin, int max) {
-        return PagodaVerticalSemantics.resolve(p, def, implicitMin, max).floorCount();
-    }
-
     private static GeneratedStructure generateSquare(
             TypologyParams p,
             BlockPos origin,

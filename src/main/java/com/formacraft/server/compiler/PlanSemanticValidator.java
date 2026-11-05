@@ -601,8 +601,7 @@ final class PlanSemanticValidator {
 
     private static boolean roofTokenCompatible(String want, String have) {
         if (want.equals(have)) return true;
-        if (want.contains(have) || have.contains(want)) return true;
+        return want.contains(have) || have.contains(want);
         // Common alias families already covered by RoofTypeKind when both parse.
-        return false;
     }
 }
