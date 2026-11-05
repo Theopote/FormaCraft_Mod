@@ -109,52 +109,60 @@ def _component_types(plan: Dict[str, Any]) -> List[str]:
     return out
 
 
-def _has_tower_morphology(plan: Dict[str, Any]) -> bool:
-    """Require real tower geometry — CROWN/ASSEMBLY keywords alone are not enough."""
-    types = _component_types(plan)
+def _has_native_pagoda_typology(plan: Dict[str, Any]) -> bool:
+    """True only for STRUCTURE/TOWER bound to dense_eaves_pagoda / tibetan_stupa."""
     comps = plan.get("components") or []
     if not isinstance(comps, list):
         return False
-    mass_count = sum(1 for t in types if t.startswith("MASS") or t == "MAIN_MASS")
-    roof_count = sum(1 for t in types if t == "ROOF")
     for c in comps:
         if not isinstance(c, dict):
             continue
         ctype = str(c.get("component_type") or "").upper()
-        feats = c.get("features") or []
+        if not (ctype.startswith("STRUCTURE") or ctype.startswith("TOWER")):
+            continue
         params = c.get("params") if isinstance(c.get("params"), dict) else {}
-        typology = str(params.get("typology") or params.get("structural_typology") or "").lower()
-        feat_blob = " ".join(str(f) for f in feats if f).lower()
-        has_pagoda_cue = (
-            "pagoda" in typology or "stupa" in typology
-            or any(h in feat_blob for h in ("pagoda", "stupa", "dense_eaves", "finial", "spire", "佛塔", "古塔", "塔刹"))
-        )
-        if ctype.startswith("STRUCTURE") or ctype.startswith("TOWER"):
-            if has_pagoda_cue or params.get("levels") or params.get("eave_tiers") or params.get("tier_index") is not None:
-                return True
-            dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
-            try:
-                w, d, h = int(dims.get("width") or 0), int(dims.get("depth") or 0), int(dims.get("height") or 0)
-            except (TypeError, ValueError):
-                w = d = h = 0
-            if h >= max(w, d) * 1.5 and h >= 12:
-                return True
-        if params.get("tier_index") is not None or (
-            isinstance(params.get("levels"), (int, float)) and int(params.get("levels")) >= 2
-        ) or (
-            isinstance(params.get("eave_tiers"), (int, float)) and int(params.get("eave_tiers")) >= 2
+        typology = str(
+            params.get("typology_id")
+            or params.get("typology")
+            or params.get("structural_typology")
+            or ""
+        ).lower()
+        feat_blob = " ".join(str(f) for f in (c.get("features") or []) if f).lower()
+        if any(
+            tok in typology or tok in feat_blob
+            for tok in ("dense_eaves_pagoda", "tibetan_stupa", "typology:dense_eaves", "typology:tibetan")
         ):
             return True
-        if ctype.startswith("MASS") and has_pagoda_cue:
-            dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
-            try:
-                w, d, h = int(dims.get("width") or 0), int(dims.get("depth") or 0), int(dims.get("height") or 0)
-            except (TypeError, ValueError):
-                continue
-            if h >= max(w, d) * 1.5 and h >= 12:
-                return True
-    if mass_count >= 2 and roof_count >= 2:
+        if "pagoda" in typology or "stupa" in typology:
+            return True
+    return False
+
+
+def _has_tower_morphology(plan: Dict[str, Any]) -> bool:
+    """Pagoda/stupa must use native typology STRUCTURE — stacked residential MASS kits are not towers."""
+    types = set(_component_types(plan))
+    # Residential kit with windows/doors is never a pagoda, even if LLM tags features "pagoda".
+    if {"FACADE_WINDOWS", "ENTRANCE"} <= types and any(t.startswith("MASS") for t in types):
+        if not _has_native_pagoda_typology(plan):
+            return False
+    if _has_native_pagoda_typology(plan):
         return True
+    comps = plan.get("components") or []
+    if not isinstance(comps, list):
+        return False
+    for c in comps:
+        if not isinstance(c, dict):
+            continue
+        ctype = str(c.get("component_type") or "").upper()
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        if ctype.startswith("TOWER"):
+            return True
+        # Explicit taper tiers without a house kit.
+        if params.get("tier_index") is not None or (
+            isinstance(params.get("eave_tiers"), (int, float)) and int(params.get("eave_tiers")) >= 2
+        ):
+            if "FACADE_WINDOWS" not in types:
+                return True
     return False
 
 

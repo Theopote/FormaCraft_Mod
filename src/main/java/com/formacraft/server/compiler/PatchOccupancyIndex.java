@@ -56,9 +56,12 @@ public final class PatchOccupancyIndex {
 
     /** Preserve existing geometry when an optional attachment cannot join it. */
     public int trimIncompatibleAttachment(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
-        // Courtyard paving frequently overlaps host floors — trim conflicts instead of aborting.
-        if (writer == null || !Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "COURTYARD_SPACE",
-                "FOUNDATION", "BALCONY", "TERRACE", "STAIR_SYSTEM", "STAIRCASE", "STAIRS", "STAIR")
+        // Site peripherals / garden walls / gates that punch into a built shell must soft-skip,
+        // not abort the whole compound (日式庭院小品钻入建筑 / GATE over WALL).
+        if (writer == null || writer.componentType() == null) return 0;
+        if (!Set.of("DECOR_DETAIL", "PATH", "ROAD", "PAVING", "PLAZA", "COURTYARD", "COURTYARD_SPACE",
+                "FOUNDATION", "BALCONY", "TERRACE", "STAIR_SYSTEM", "STAIRCASE", "STAIRS", "STAIR",
+                "WALL", "GATE", "GATE_STRUCTURE", "FENCE", "HEDGE", "LANDSCAPE")
                 .contains(writer.componentType().toUpperCase(Locale.ROOT))) return 0;
         Map<BlockPos, PlaceRecord> simulation = new HashMap<>(places);
         Set<BlockPos> removed = new HashSet<>(removes);

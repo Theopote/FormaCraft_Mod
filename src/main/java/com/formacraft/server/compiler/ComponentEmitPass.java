@@ -362,6 +362,19 @@ final class ComponentEmitPass {
                                 "装饰已避让门窗及屋顶，跳过 " + (before - shiftedPatches.size()) + " 条操作",
                                 c.componentType(), ComponentPlanTypes.paramIdentity(c));
                     }
+                    // Garden walls / gates / landscape must not punch into building interiors or block doors.
+                    if (isSitePeripheral(normalizedType)) {
+                        int before = shiftedPatches.size();
+                        shiftedPatches.removeIf(p ->
+                                isInsideMassInterior(components, slotMap, new BlockPos(p.dx(), p.dy(), p.dz()), c)
+                                        || surfaceLedger.isProtectedFromEntrance(c, new BlockPos(p.dx(), p.dy(), p.dz())));
+                        if (before != shiftedPatches.size()) {
+                            AssemblyCompileDiagnostics.addSoftWarning("SITE_PERIPHERAL_CLIPPED",
+                                    "场地小品/围墙已避让建筑内部与入口，跳过 "
+                                            + (before - shiftedPatches.size()) + " 条操作",
+                                    c.componentType(), ComponentPlanTypes.paramIdentity(c));
+                        }
+                    }
                     if ((plan.layout() != null && "COMPOUND".equalsIgnoreCase(String.valueOf(plan.layout().skeletonType())))
                             || com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(c.params())) {
                         int shared = patchOccupancy.trimCompoundMassJoin(c, shiftedPatches);
@@ -530,6 +543,57 @@ final class ComponentEmitPass {
         if (c == null) return false;
         String type = ComponentPlanTypes.normalizeType(c.componentType());
         return "DECOR_DETAIL".equals(type) || type.startsWith("DECOR");
+    }
+
+    static boolean isSitePeripheral(String normalizedType) {
+        if (normalizedType == null) return false;
+        return "WALL".equals(normalizedType)
+                || "GATE".equals(normalizedType)
+                || "GATE_STRUCTURE".equals(normalizedType)
+                || "FENCE".equals(normalizedType)
+                || "HEDGE".equals(normalizedType)
+                || "LANDSCAPE".equals(normalizedType)
+                || "PATH".equals(normalizedType)
+                || "PAVING".equals(normalizedType)
+                || "COURTYARD".equals(normalizedType)
+                || "COURTYARD_SPACE".equals(normalizedType)
+                || "DECOR_DETAIL".equals(normalizedType)
+                || normalizedType.startsWith("DECOR");
+    }
+
+    /**
+     * True when {@code pos} is strictly inside a MASS/STRUCTURE shell (inset by 1),
+     * so garden walls / gates / ornaments do not fill the room or block the door bay.
+     */
+    static boolean isInsideMassInterior(
+            List<Component> components,
+            Map<String, Slot> slotMap,
+            BlockPos pos,
+            Component writer
+    ) {
+        if (components == null || pos == null) return false;
+        String writerId = writer == null ? null : ComponentPlanTypes.paramIdentity(writer);
+        for (Component mass : components) {
+            if (mass == null || mass == writer) continue;
+            String type = ComponentPlanTypes.normalizeType(mass.componentType());
+            if (!ComponentPlanTypes.isMassType(type)
+                    && !"STRUCTURE".equals(type)
+                    && !"TOWER".equals(type)
+                    && !type.startsWith("TOWER")) {
+                continue;
+            }
+            if (writerId != null && writerId.equals(ComponentPlanTypes.paramIdentity(mass))) continue;
+            Component framed = ComponentPlanCompiler.inSlotFrame(mass, mass.slotId(), slotMap);
+            var bounds = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(framed);
+            if (bounds == null) continue;
+            if (bounds.width() < 3 || bounds.depth() < 3) continue;
+            if (pos.getX() > bounds.minX() && pos.getX() < bounds.maxX() - 1
+                    && pos.getZ() > bounds.minZ() && pos.getZ() < bounds.maxZ() - 1
+                    && pos.getY() >= bounds.minY() && pos.getY() < bounds.maxY()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Openings / courtyards / cut-footprint masses may miss declared surfaces without aborting. */

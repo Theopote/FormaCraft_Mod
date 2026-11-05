@@ -406,10 +406,11 @@ public final class UnifiedGeneratorRouter {
         if (type == null) return false;
         String n = type.trim().toUpperCase(Locale.ROOT);
         if (n.startsWith("DECOR")) return false;
+        // FACADE_WINDOWS / WINDOW empty must not abort whole compounds (道观立面常降级为空).
         return switch (n) {
             case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
-                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "ENTRANCE",
-                 "CHIMNEY", "DOOR", "WINDOW", "COLUMN", "STAIR", "STAIRS", "STRUCTURE", "TOWER" -> true;
+                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "ENTRANCE",
+                 "CHIMNEY", "DOOR", "COLUMN", "STAIR", "STAIRS", "STRUCTURE", "TOWER" -> true;
             default -> false;
         };
     }

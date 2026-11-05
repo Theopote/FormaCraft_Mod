@@ -297,40 +297,60 @@ final class PlanSemanticValidator {
     }
 
     /**
-     * Real tower geometry: STRUCTURE/TOWER with pagoda typology or tier params,
-     * stacked masses with multiple roofs, or tall slender mass with pagoda cues.
-     * A lone CROWN / ASSEMBLY / MODULE keyword is not enough.
+     * Pagoda/stupa must bind STRUCTURE/TOWER to dense_eaves_pagoda / tibetan_stupa.
+     * Stacked residential MASS + windows/doors (even with "pagoda" features) is not a tower.
      */
     private static boolean hasTowerMorphology(List<Component> components) {
-        int massCount = 0;
-        int roofCount = 0;
+        boolean hasMass = false;
+        boolean hasWindows = false;
+        boolean hasEntrance = false;
+        boolean nativeTypology = false;
+        boolean towerType = false;
+        boolean taperWithoutHouseKit = false;
         for (Component c : components) {
             if (c == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
-            if (type.startsWith("MASS") || "MAIN_MASS".equals(type)) massCount++;
-            if ("ROOF".equals(type)) roofCount++;
-
-            boolean pagodaCue = hasPagodaCue(c);
-            boolean tiered = hasTierParams(c);
-
+            if (type.startsWith("MASS") || "MAIN_MASS".equals(type)) hasMass = true;
+            if ("FACADE_WINDOWS".equals(type)) hasWindows = true;
+            if ("ENTRANCE".equals(type)) hasEntrance = true;
+            if (type.startsWith("TOWER")) towerType = true;
             if (type.startsWith("STRUCTURE") || type.startsWith("TOWER")) {
-                if (pagodaCue || tiered) return true;
-                if (c.dimensions() != null) {
-                    int w = c.dimensions().width();
-                    int d = c.dimensions().depth();
-                    int h = c.dimensions().height();
-                    if (h >= Math.max(w, d) * 1.5 && h >= 12) return true;
+                // Require an actual pagoda/stupa typology bind — feature keywords alone are not enough.
+                if (hasNativePagodaTypology(c)) {
+                    nativeTypology = true;
                 }
             }
-            if (tiered) return true;
-            if ((type.startsWith("MASS") || "MAIN_MASS".equals(type)) && pagodaCue && c.dimensions() != null) {
-                int w = c.dimensions().width();
-                int d = c.dimensions().depth();
-                int h = c.dimensions().height();
-                if (h >= Math.max(w, d) * 1.5 && h >= 12) return true;
+            if (hasTierParams(c) && !"FACADE_WINDOWS".equals(type)) {
+                taperWithoutHouseKit = true;
             }
         }
-        return massCount >= 2 && roofCount >= 2;
+        if (hasMass && hasWindows && hasEntrance && !nativeTypology) {
+            return false;
+        }
+        return nativeTypology || towerType || (taperWithoutHouseKit && !hasWindows);
+    }
+
+    private static boolean hasNativePagodaTypology(Component c) {
+        if (c.params() == null) return false;
+        String typology = String.valueOf(c.params().getOrDefault("typology_id",
+                c.params().getOrDefault("typology",
+                        c.params().getOrDefault("structural_typology", "")))).toLowerCase(Locale.ROOT);
+        if (typology.contains("dense_eaves_pagoda") || typology.contains("tibetan_stupa")
+                || typology.contains("dense_eaves") || typology.contains("stupa")
+                || typology.contains("pagoda")) {
+            return true;
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("typology:dense_eaves") || lower.contains("typology:tibetan")
+                        || lower.contains("dense_eaves_pagoda") || lower.contains("tibetan_stupa")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean hasPagodaCue(Component c) {

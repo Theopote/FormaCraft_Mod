@@ -228,8 +228,18 @@ def scaffold_plan_for_intent(
                 ),
             }
 
-        floors = 3 if ("三层" in text or "3层" in text) else 5
-        eaves_per_level = 2 if ("重檐" in text or "双檐" in text) else 1
+        floors = 5
+        m_floors = re.search(r"([三四五六七八九两\d]{1,2})\s*层", text)
+        if m_floors:
+            token = m_floors.group(1)
+            cn = {"三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "两": 2}
+            if token in cn:
+                floors = cn[token]
+            elif token.isdigit():
+                floors = max(3, min(15, int(token)))
+        elif "3层" in text:
+            floors = 3
+        eaves_per_level = 2 if ("重檐" in text or "双檐" in text or "密檐" in text) else 1
         return {
             "mode": "build",
             "style_profile": "DEFAULT",

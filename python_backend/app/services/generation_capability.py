@@ -34,6 +34,13 @@ _FALLBACK_ALIASES = {
     "pyramidal": "pyramid",
     "conical": "cone",
     "domed": "dome",
+    # LLM sometimes emits per-storey eave rings as a fake roof_type.
+    "eave": "xieshan",
+    "eaves": "xieshan",
+    "dense_eave": "xieshan",
+    "dense_eaves": "xieshan",
+    "密檐": "xieshan",
+    "重檐": "xieshan",
 }
 
 _FALLBACK_HOSTABLE = {
