@@ -20,29 +20,30 @@ def _vocab() -> Dict[str, Any]:
     return load_request_intent_vocab()
 
 
-def _negation_prefixes() -> Tuple[str, ...]:
-    raw = _vocab().get("negation_prefixes") or []
-    return tuple(str(p) for p in raw if p)
-
-
 def _is_negated_at(text: str, start: int) -> bool:
-    """True when a negation prefix sits immediately before the match."""
+    """True when a negation prefix sits immediately before the match.
+
+    Only the suffix of the preceding window counts — otherwise
+    「无窗的中式古塔」would treat 古塔 as negated because 无 appears earlier.
+    """
     if start <= 0:
         return False
-    window = text[max(0, start - 12) : start]
-    window_compact = re.sub(r"\s+", "", window)
-    lower_window = window.lower()
-    compact_lower = window_compact.lower()
-    for prefix in _negation_prefixes():
-        p = str(prefix)
-        if not p:
-            continue
-        if p.endswith(" ") or p.isascii():
-            if p.lower() in lower_window:
-                return True
-        else:
-            if p in window or p in window_compact or p.lower() in compact_lower:
-                return True
+    window = text[max(0, start - 16) : start]
+    compact = re.sub(r"\s+", "", window)
+    lower = window.lower()
+    # Chinese / CJK: negation must be the immediate (optional particle) suffix.
+    if re.search(
+        r"(?:不要|别要|无需|不用|不采用|不使用|禁止|避免|无)(?:的|了|着|过)?$",
+        compact,
+    ):
+        return True
+    # ASCII: "no "/"without "/"not " must end the preceding window.
+    if re.search(
+        r"(?:(?:do\s+)?not|don't|dont|no|without)\s+$",
+        lower,
+        flags=re.IGNORECASE,
+    ):
+        return True
     return False
 
 

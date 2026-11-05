@@ -52,6 +52,26 @@
     {"id": "watchtower", "prompt": "建一座瞭望塔", "building_class": "generic"},
     {"id": "water_pavilion", "prompt": "建一座水边亭子", "building_class": "generic"},
     {"id": "modern_villa", "prompt": "建一座现代别墅", "building_class": "generic"},
-    {"id": "dense_eaves_explicit", "prompt": "生成一座密檐塔", "building_class": "tower_like"}
+    {"id": "dense_eaves_explicit", "prompt": "生成一座密檐塔", "building_class": "tower_like"},
+    {"id": "pagoda_finial_only", "prompt": "建一座带塔刹的宝塔", "building_class": "tower_like"},
+    {"id": "tibetan_chorten", "prompt": "build a white chorten stupa", "building_class": "tower_like", "tower_subtype": "tibetan_stupa"},
+    {"id": "wudian_hall", "prompt": "建一座庑殿顶大殿", "building_class": "temple", "roof_type": "wudian"},
+    {"id": "xieshan_hall_no_tower", "prompt": "重檐歇山正殿，不要宝塔", "building_class": "temple"},
+    {"id": "no_pagoda_house", "prompt": "建一座普通民居，不要佛塔", "building_class": "generic"},
+    {"id": "library_white_flat", "prompt": "建一座白墙图书馆，平顶", "building_class": "generic", "roof_type": "flat", "materials_wall": "minecraft:white_concrete"},
+    {"id": "villa_en", "prompt": "a modern villa with courtyard garden", "building_class": "generic"},
+    {"id": "castle_cn", "prompt": "建一座带庭院的中世纪城堡", "building_class": "generic"},
+    {"id": "cathedral_en", "prompt": "a gothic cathedral", "building_class": "generic"},
+    {"id": "lighthouse_en", "prompt": "build a coastal lighthouse", "building_class": "generic"},
+    {"id": "clocktower_en", "prompt": "a brick clock tower", "building_class": "generic"},
+    {"id": "pavilion_threshold", "prompt": "建一座无门槛的六角亭", "building_class": "generic", "forbids_excludes": "entrance"},
+    {"id": "pagoda_no_windows_en", "prompt": "a chinese pagoda without windows", "building_class": "tower_like", "forbids_contains": "windows"},
+    {"id": "temple_gate_cn", "prompt": "建一座寺庙山门牌坊", "building_class": "gate"},
+    {"id": "daoist_compound", "prompt": "建一座两进道观院落", "building_class": "temple", "composition": "compound"},
+    {"id": "jiangnan_garden_2", "prompt": "帮我做一个江南园林", "building_class": "garden"},
+    {"id": "stone_brick_pagoda", "prompt": "建一座石砖宝塔", "building_class": "tower_like", "materials_wall": "minecraft:stone_bricks"},
+    {"id": "hip_roof_house", "prompt": "建一座 hip roof 民居", "building_class": "generic", "roof_type": "hip"},
+    {"id": "dome_civic", "prompt": "建一座带穹顶的市政厅", "building_class": "generic", "roof_type": "dome"},
+    {"id": "no_flat_library", "prompt": "建一座图书馆，不要平顶", "building_class": "generic", "roof_forbids_contains": "flat"}
   ]
 }

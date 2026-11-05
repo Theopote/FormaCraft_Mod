@@ -168,8 +168,12 @@ public final class RequestIntentInjector {
         if (!(declared instanceof Map<?, ?> llmMap)) {
             return out;
         }
-        String llmClass = String.valueOf(llmMap.getOrDefault("building_class",
-                llmMap.getOrDefault("class", "generic"))).trim().toLowerCase(Locale.ROOT);
+        Object classRaw = llmMap.get("building_class");
+        if (classRaw == null) {
+            classRaw = llmMap.get("class");
+        }
+        String llmClass = String.valueOf(classRaw != null ? classRaw : "generic")
+                .trim().toLowerCase(Locale.ROOT);
         double llmConf = 0.7;
         try {
             Object c = llmMap.get("confidence");
@@ -379,24 +383,19 @@ public final class RequestIntentInjector {
         }
     }
 
+    private static final Pattern CJK_NEGATION_SUFFIX = Pattern.compile(
+            "(?:不要|别要|无需|不用|不采用|不使用|禁止|避免|无)(?:的|了|着|过)?$");
+    private static final Pattern ASCII_NEGATION_SUFFIX = Pattern.compile(
+            "(?:(?:do\\s+)?not|don't|dont|no|without)\\s+$", Pattern.CASE_INSENSITIVE);
+
     private static boolean isNegatedAt(String text, int start) {
+        // Only the immediate preceding suffix counts — otherwise
+        // 「无窗的中式古塔」would treat 古塔 as negated because 无 appears earlier.
         if (start <= 0) return false;
-        String window = text.substring(Math.max(0, start - 12), start);
+        String window = text.substring(Math.max(0, start - 16), start);
         String compact = window.replaceAll("\\s+", "");
-        String lower = window.toLowerCase(Locale.ROOT);
-        String compactLower = compact.toLowerCase(Locale.ROOT);
-        for (String prefix : RequestIntentVocab.negationPrefixes()) {
-            if (prefix.isBlank()) continue;
-            if (prefix.endsWith(" ") || prefix.chars().allMatch(c -> c < 128)) {
-                if (lower.contains(prefix.toLowerCase(Locale.ROOT))) return true;
-            } else {
-                if (window.contains(prefix) || compact.contains(prefix)
-                        || compactLower.contains(prefix.toLowerCase(Locale.ROOT))) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        if (CJK_NEGATION_SUFFIX.matcher(compact).find()) return true;
+        return ASCII_NEGATION_SUFFIX.matcher(window.toLowerCase(Locale.ROOT)).find();
     }
 
     private static boolean containsAny(String text, String lower, List<String> needles) {
