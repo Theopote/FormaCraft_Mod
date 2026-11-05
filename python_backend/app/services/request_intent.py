@@ -7,6 +7,7 @@ Negation (不要/无/no) strips positive matches and forbids.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -14,6 +15,39 @@ from .request_intent_vocab import load_request_intent_vocab
 
 _FOOTPRINT = re.compile(r"(\d{1,2})\s*[×xX*]\s*(\d{1,2})")
 _VALID_CLASSES = frozenset({"generic", "tower_like", "gate", "garden", "temple"})
+
+
+def design_seed_for_text(text: str) -> int:
+    """Stable non-zero seed so identical prompts stay stable but different prompts diverge."""
+    digest = hashlib.sha1((text or "").encode("utf-8")).hexdigest()
+    return (int(digest[:8], 16) % 2_147_483_647) or 1
+
+
+def style_materials_from_text(text: str) -> Dict[str, str]:
+    """Infer wall/roof blocks from style cues when the user did not name materials."""
+    t = text or ""
+    lower = t.lower()
+    if any(k in t or k in lower for k in ("现代", "modern", "玻璃", "glass", "concrete", "混凝土")):
+        return {
+            "wall": "minecraft:white_concrete",
+            "roof": "minecraft:light_gray_concrete",
+        }
+    if any(k in t or k in lower for k in ("印度", "india", "indian", "sandstone", "砂岩")):
+        return {
+            "wall": "minecraft:smooth_sandstone",
+            "roof": "minecraft:cut_sandstone",
+        }
+    if any(k in t or k in lower for k in ("藏式", "tibetan", "白塔")):
+        return {
+            "wall": "minecraft:white_concrete",
+            "roof": "minecraft:gold_block",
+        }
+    if any(k in t or k in lower for k in ("石砖", "stone brick", "brick", "砖")):
+        return {
+            "wall": "minecraft:stone_bricks",
+            "roof": "minecraft:dark_oak_stairs",
+        }
+    return {}
 
 
 def _vocab() -> Dict[str, Any]:
@@ -370,7 +404,13 @@ def merge_request_intent(
     final_conf = float(out.get("confidence") or 0.0)
     scaffold_min = float(conf_cfg.get("scaffold_min") or 0.75)
     out["refuse_residential_autofill"] = final_class != "generic" and final_conf >= scaffold_min
-    out["scaffold_eligible"] = final_class != "generic" and final_conf >= scaffold_min
+    # Hard template replace only when KEYWORDS strongly support the class.
+    # LLM-only tower guesses (e.g. 台北101 poisoned by chat history) must not scaffold.
+    out["scaffold_eligible"] = (
+        final_class != "generic"
+        and kw_class == final_class
+        and kw_conf >= scaffold_min
+    )
     out["schema"] = "formacraft.request_intent.v1"
     return out
 
@@ -439,22 +479,79 @@ def scaffold_plan_for_intent(
     intent: Dict[str, Any],
     *,
     anchor: Optional[Dict[str, int]] = None,
+    base_plan: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Deterministic typology-aware scaffold when LLM plan fails semantic checks."""
-    if not intent.get("scaffold_eligible", True):
-        # Explicitly ineligible (low confidence) — refuse template replace.
-        conf = float(intent.get("confidence") or 0.0)
-        if conf < float((_vocab().get("confidence") or {}).get("scaffold_min") or 0.75):
-            return None
+    """Deterministic typology-aware scaffold when LLM plan fails semantic checks.
+
+    ``anchor`` must be the player/world build origin — never silent world (0,64,0).
+    When ``base_plan`` is provided, preserve style_profile / materials / dimensions
+    from the LLM attempt so scaffolds are not identical clones.
+    """
+    # Default False: missing flag must not enable hard replace.
+    if intent.get("scaffold_eligible") is not True:
+        return None
 
     building_class = str(intent.get("building_class") or "generic")
+    if building_class == "generic":
+        return None
+
+    text = str(intent.get("original_text") or "")
     fp = intent.get("footprint") if isinstance(intent.get("footprint"), dict) else {}
     width = int(fp.get("width") or 0) or 7
     depth = int(fp.get("depth") or 0) or width
-    materials = intent.get("materials") if isinstance(intent.get("materials"), dict) else {}
-    wall = materials.get("wall") or "minecraft:white_concrete"
-    roof = materials.get("roof") or "minecraft:dark_oak_stairs"
-    origin = anchor or {"x": 0, "y": 64, "z": 0}
+    materials = dict(intent.get("materials") if isinstance(intent.get("materials"), dict) else {})
+    # Prefer explicit user materials, then LLM plan materials, then style cues.
+    if base_plan and isinstance(base_plan, dict):
+        sa = base_plan.get("style_attributes") if isinstance(base_plan.get("style_attributes"), dict) else {}
+        if sa.get("wall_material") and "wall" not in materials:
+            materials["wall"] = str(sa["wall_material"])
+        if sa.get("roof_material") and "roof" not in materials:
+            materials["roof"] = str(sa["roof_material"])
+        for comp in base_plan.get("components") or []:
+            if not isinstance(comp, dict):
+                continue
+            params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+            dims = comp.get("dimensions") if isinstance(comp.get("dimensions"), dict) else {}
+            if params.get("wall_block") and "wall" not in materials:
+                materials["wall"] = str(params["wall_block"])
+            if params.get("roof_block") and "roof" not in materials:
+                materials["roof"] = str(params["roof_block"])
+            try:
+                w = int(dims.get("width") or 0)
+                d = int(dims.get("depth") or 0)
+                if w >= 5 and d >= 5 and not (fp.get("width") if isinstance(fp, dict) else None):
+                    width, depth = w, d
+            except (TypeError, ValueError):
+                pass
+            # Preserve LLM floor_count / levels so scaffolds are not always 5-tier clones.
+            for key in ("floor_count", "floorCount", "levels"):
+                if key in params and "floor_count" not in materials:
+                    try:
+                        materials["_floor_count"] = max(3, min(15, int(params[key])))
+                    except (TypeError, ValueError):
+                        pass
+                    break
+    style_mats = style_materials_from_text(text)
+    wall = materials.get("wall") or style_mats.get("wall") or "minecraft:stone_bricks"
+    roof = materials.get("roof") or style_mats.get("roof") or "minecraft:dark_oak_stairs"
+    # Prefer explicit player/world anchor. If omitted, leave unset so normalize
+    # injects req.player.pos — never invent silent world (0,64,0).
+    origin: Optional[Dict[str, int]] = None
+    if isinstance(anchor, dict) and all(k in anchor for k in ("x", "y", "z")):
+        try:
+            origin = {
+                "x": int(anchor["x"]),
+                "y": int(anchor["y"]),
+                "z": int(anchor["z"]),
+            }
+        except (TypeError, ValueError):
+            origin = None
+    style_profile = "DEFAULT"
+    if base_plan and isinstance(base_plan, dict) and str(base_plan.get("style_profile") or "").strip():
+        style_profile = str(base_plan.get("style_profile")).strip()
+    elif any(k in text or k in text.lower() for k in ("现代", "modern")):
+        style_profile = "Modern_International"
+    seed = design_seed_for_text(text)
     style_attrs = {
         "wall_material": wall,
         "roof_material": roof,
@@ -470,19 +567,23 @@ def scaffold_plan_for_intent(
             return default if default not in roof_forbids else "hip"
         return str(rt)
 
+    def _with_anchor(plan: Dict[str, Any]) -> Dict[str, Any]:
+        if origin is not None:
+            plan["anchor"] = origin
+        return plan
+
     if building_class == "tower_like":
         height = max(18, width * 3)
-        text = str(intent.get("original_text") or "")
         lower_text = text.lower()
         tibetan = (intent.get("tower_subtype") == "tibetan_stupa") or any(
             tok in text or tok in lower_text
             for tok in ("藏式", "白塔", "覆钵", "相轮", "喇嘛塔", "tibetan", "chorten")
         )
         if tibetan:
-            return {
+            chhatra = 3 + (seed % 5)  # 3..7
+            return _with_anchor({
                 "mode": "build",
-                "style_profile": "DEFAULT",
-                "anchor": origin,
+                "style_profile": style_profile,
                 "distinguishing_features": markers or ["藏式佛塔", "tibetan_stupa"],
                 "style_attributes": style_attrs,
                 "components": [
@@ -497,7 +598,9 @@ def scaffold_plan_for_intent(
                             "typology": "tibetan_stupa",
                             "baseWidth": max(7, width if width % 2 == 1 else width + 1),
                             "height": height,
-                            "chhatra_count": 5,
+                            "chhatra_count": chhatra,
+                            "designSeed": seed,
+                            "design_seed": seed,
                             "wall_block": wall if wall else "minecraft:white_concrete",
                             "bodyBlock": wall if wall else "minecraft:white_concrete",
                             **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
@@ -510,7 +613,7 @@ def scaffold_plan_for_intent(
                     design_requirements={"facade": "OMITTED", "entrance": "OMITTED", "roof": "OMITTED"},
                     tower_subtype="tibetan_stupa",
                 ),
-            }
+            })
 
         floors = 5
         m_floors = re.search(r"([三四五六七八九两\d]{1,2})\s*层", text)
@@ -523,17 +626,21 @@ def scaffold_plan_for_intent(
                 floors = max(3, min(15, int(token)))
         elif "3层" in text:
             floors = 3
-        # 重檐 as roof attribute on a real pagoda request — not a class trigger.
+        elif materials.get("_floor_count"):
+            floors = int(materials["_floor_count"])
+        else:
+            floors = 3 + (seed % 5)  # 3..7 when unspecified — avoid always-5 clones
         eaves_per_level = 2 if (
             intent.get("roof_type") in ("double_eave_hip", "double_eave_xieshan")
             or ("重檐" in text and "重檐" not in roof_forbids and "double_eave_hip" not in roof_forbids)
             or "双檐" in text
             or "密檐" in text
         ) else 1
-        return {
+        footprint = "square" if (seed % 2 == 0) else "octagon"
+        height = max(18, floors * 5 + (seed % 4))
+        return _with_anchor({
             "mode": "build",
-            "style_profile": "DEFAULT",
-            "anchor": origin,
+            "style_profile": style_profile,
             "distinguishing_features": markers or ["pagoda", "dense_eaves_pagoda"],
             "style_attributes": style_attrs,
             "components": [
@@ -551,6 +658,9 @@ def scaffold_plan_for_intent(
                         "levels": floors,
                         "eaves_per_level": eaves_per_level,
                         "double_eaves": eaves_per_level > 1,
+                        "footprint": footprint,
+                        "designSeed": seed,
+                        "design_seed": seed,
                         "wall_block": wall,
                         "roof_block": roof,
                         **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
@@ -563,17 +673,16 @@ def scaffold_plan_for_intent(
                 design_requirements={"facade": "OMITTED", "entrance": "OMITTED", "roof": "OMITTED"},
                 tower_subtype="dense_eaves_pagoda",
             ),
-        }
+        })
 
     if building_class == "gate":
         w = max(12, width if width >= depth else width * 2)
         d = max(4, min(depth if depth > 0 else w // 3, w // 2))
         h = max(8, d * 2)
         roof_type = _roof_or_default("xieshan")
-        return {
+        return _with_anchor({
             "mode": "build",
-            "style_profile": "DEFAULT",
-            "anchor": origin,
+            "style_profile": style_profile,
             "distinguishing_features": markers or ["山门"],
             "style_attributes": style_attrs,
             "components": [
@@ -610,7 +719,7 @@ def scaffold_plan_for_intent(
                 building_class="gate",
                 design_requirements={"facade": "OMITTED", "entrance": "OMITTED"},
             ),
-        }
+        })
 
     if building_class == "temple":
         composition = str(intent.get("composition") or "single")
@@ -652,10 +761,9 @@ def scaffold_plan_for_intent(
                     },
                 },
             ]
-            return {
+            return _with_anchor({
                 "mode": "build",
-                "style_profile": "DEFAULT",
-                "anchor": origin,
+                "style_profile": style_profile,
                 "distinguishing_features": markers or ["道观", "temple", "compound"],
                 "style_attributes": style_attrs,
                 "components": comps,
@@ -665,15 +773,14 @@ def scaffold_plan_for_intent(
                     design_requirements={"facade": "OMITTED", "entrance": "OMITTED"},
                     composition="compound",
                 ),
-            }
+            })
 
         hall_w = max(9, width if width >= 7 else 11)
         hall_d = max(7, depth if depth >= 5 else max(7, hall_w - 2))
         hall_h = 7
-        return {
+        return _with_anchor({
             "mode": "build",
-            "style_profile": "DEFAULT",
-            "anchor": origin,
+            "style_profile": style_profile,
             "distinguishing_features": markers or ["道观", "temple", "大殿"],
             "style_attributes": style_attrs,
             "components": [
@@ -711,7 +818,7 @@ def scaffold_plan_for_intent(
                 design_requirements={"facade": "OMITTED", "entrance": "OMITTED"},
                 composition="single",
             ),
-        }
+        })
 
     if building_class == "garden":
         site_w = max(16, width * 2)
@@ -747,10 +854,9 @@ def scaffold_plan_for_intent(
                 },
             },
         ]
-        return {
+        return _with_anchor({
             "mode": "build",
-            "style_profile": "DEFAULT",
-            "anchor": origin,
+            "style_profile": style_profile,
             "distinguishing_features": markers or [building_class],
             "style_attributes": style_attrs,
             "components": comps,
@@ -759,6 +865,27 @@ def scaffold_plan_for_intent(
                 building_class=building_class,
                 design_requirements={"facade": "OMITTED", "entrance": "OMITTED", "roof": "OMITTED"},
             ),
-        }
+        })
 
     return None
+
+
+def morph_failed_plan_toward_intent(
+    plan: Dict[str, Any],
+    intent: Dict[str, Any],
+    *,
+    anchor: Optional[Dict[str, int]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Soft repair: keep LLM style/materials/dims, rewrite morphology to match intent.
+
+    Prefer this over hard scaffold so AI planning still influences the result.
+    """
+    if not isinstance(plan, dict):
+        return None
+    building_class = str(intent.get("building_class") or "generic")
+    if building_class != "tower_like":
+        return None
+    # Reuse scaffold with base_plan preservation — only when keywords allow.
+    if intent.get("scaffold_eligible") is not True:
+        return None
+    return scaffold_plan_for_intent(intent, anchor=anchor, base_plan=plan)

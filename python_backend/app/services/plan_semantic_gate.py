@@ -71,22 +71,12 @@ def detect_semantic_intent(user_text: str, plan: Optional[Dict[str, Any]] = None
     if auth:
         return auth
 
-    # Last-resort lexical fallback — strong markers only (no 重檐 / bare 庭院).
-    corpus_parts: List[str] = [user_text or ""]
-    if isinstance(plan, dict):
-        feats = plan.get("distinguishing_features")
-        if isinstance(feats, list):
-            corpus_parts.extend(str(f) for f in feats if f)
-        sa = plan.get("style_attributes")
-        if isinstance(sa, dict):
-            deco = sa.get("decorative_elements")
-            if isinstance(deco, list):
-                corpus_parts.extend(str(d) for d in deco if d)
-        sp = plan.get("style_profile")
-        if sp:
-            corpus_parts.append(str(sp))
-    corpus = " ".join(corpus_parts).lower()
-    raw = " ".join(corpus_parts)
+    # Last-resort lexical fallback on USER TEXT only (no 重檐 / bare 庭院).
+    # Do NOT scan plan distinguishing_features / style tags — a poisoned LLM plan
+    # (e.g. 台北101 tagged as pagoda from chat history) must not self-trigger
+    # tower/gate semantics and hard-scaffold replacement.
+    raw = user_text or ""
+    corpus = raw.lower()
 
     def _hit(markers: Tuple[str, ...]) -> bool:
         return any(m.lower() in corpus or m in raw for m in markers)

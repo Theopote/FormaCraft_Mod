@@ -28,6 +28,10 @@ class TestLlmPlanRepair(unittest.TestCase):
         req.selection = None
         req.brushSelection = None
         req.world = None
+        req.outline = None
+        req.player = Mock()
+        req.player.pos = Mock(x=1280, y=71, z=-220)
+        req.player.facing = "SOUTH"
 
         def normalize_fn(plan, build_req, **_kwargs):
             return _normalize_llm_plan_output(plan, build_req, building_profile=profile)
@@ -41,6 +45,7 @@ class TestLlmPlanRepair(unittest.TestCase):
         )
         self.assertNotEqual(out.get("plan_status"), "capability_gap")
         self.assertTrue(out.get("components"))
+        self.assertEqual(out.get("anchor"), {"x": 1280, "y": 71, "z": -220})
         types = [c["component_type"] for c in out["components"]]
         self.assertIn("MASS_MAIN", types)
 

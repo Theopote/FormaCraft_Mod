@@ -46,7 +46,9 @@ class BuildingQualityRecovery7ReplayTest(unittest.TestCase):
                 intent = extract_request_intent(prompt)
                 self.assertEqual(intent["building_class"], building_class)
                 self.assertEqual(intent["original_text"], prompt)
-                plan = scaffold_plan_for_intent(intent)
+                plan = scaffold_plan_for_intent(
+                    intent, anchor={"x": 8, "y": 64, "z": 8}
+                )
                 if plan is None:
                     # generic residential: load frozen fixture
                     plan = json.loads((_FIXTURE_DIR / f"{fixture_id}.json").read_text(encoding="utf-8"))

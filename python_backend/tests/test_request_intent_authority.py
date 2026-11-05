@@ -9,6 +9,7 @@ from app.services.plan_semantic_gate import assert_plan_semantics, detect_semant
 from app.services.request_intent import (
     attach_request_intent,
     extract_request_intent,
+    resolve_request_intent,
     scaffold_plan_for_intent,
 )
 
@@ -91,12 +92,15 @@ class RequestIntentAuthorityTest(unittest.TestCase):
     def test_scaffold_tibetan_stupa_not_dense_eaves(self):
         intent = extract_request_intent("生成一座白色藏式佛塔，7x7")
         self.assertEqual(intent.get("tower_subtype"), "tibetan_stupa")
-        plan = scaffold_plan_for_intent(intent)
+        player = {"x": 1200, "y": 72, "z": -340}
+        plan = scaffold_plan_for_intent(intent, anchor=player)
         self.assertIsNotNone(plan)
+        self.assertEqual(plan.get("anchor"), player)
         params = plan["components"][0]["params"]
         self.assertEqual(params.get("typology_id"), "tibetan_stupa")
         self.assertEqual(params.get("typology"), "tibetan_stupa")
         self.assertNotEqual(params.get("typology_id"), "dense_eaves_pagoda")
+        self.assertTrue(params.get("designSeed"))
         attach_request_intent(plan, intent["original_text"])
         validate_llm_plan_dict(plan)
         assert_plan_semantics(plan, intent["original_text"])
@@ -104,7 +108,7 @@ class RequestIntentAuthorityTest(unittest.TestCase):
     def test_scaffold_three_storey_pagoda_keeps_levels_and_chongyan(self):
         intent = extract_request_intent("生成一座三层中式古塔，重檐，顶部有塔刹")
         self.assertEqual(intent.get("tower_subtype"), "dense_eaves_pagoda")
-        plan = scaffold_plan_for_intent(intent)
+        plan = scaffold_plan_for_intent(intent, anchor={"x": 10, "y": 70, "z": 20})
         self.assertIsNotNone(plan)
         params = plan["components"][0]["params"]
         self.assertEqual(params.get("levels"), 3)
@@ -114,7 +118,7 @@ class RequestIntentAuthorityTest(unittest.TestCase):
 
     def test_scaffold_temple_is_single_hall_not_garden(self):
         intent = extract_request_intent("生成一座传统道观")
-        plan = scaffold_plan_for_intent(intent)
+        plan = scaffold_plan_for_intent(intent, anchor={"x": 10, "y": 70, "z": 20})
         self.assertIsNotNone(plan)
         types = {c["component_type"] for c in plan["components"]}
         self.assertIn("MASS_MAIN", types)
@@ -125,7 +129,7 @@ class RequestIntentAuthorityTest(unittest.TestCase):
 
     def test_scaffold_gate_uses_gate_host(self):
         intent = extract_request_intent("生成一座中式寺庙山门")
-        plan = scaffold_plan_for_intent(intent)
+        plan = scaffold_plan_for_intent(intent, anchor={"x": 10, "y": 70, "z": 20})
         self.assertIsNotNone(plan)
         types = {c["component_type"] for c in plan["components"]}
         self.assertIn("GATE", types)
@@ -133,6 +137,46 @@ class RequestIntentAuthorityTest(unittest.TestCase):
         self.assertEqual(roof["params"]["host_id"], "gate_main")
         attach_request_intent(plan, intent["original_text"])
         assert_plan_semantics(plan, intent["original_text"])
+
+    def test_scaffold_omits_world_spawn_when_anchor_missing(self):
+        intent = extract_request_intent("生成一座现代风格的佛塔")
+        plan = scaffold_plan_for_intent(intent)
+        self.assertIsNotNone(plan)
+        self.assertNotIn("anchor", plan)
+
+    def test_pagoda_scaffolds_diverge_by_prompt(self):
+        a = scaffold_plan_for_intent(
+            extract_request_intent("建造一座现代风格的佛塔"),
+            anchor={"x": 1, "y": 2, "z": 3},
+        )
+        b = scaffold_plan_for_intent(
+            extract_request_intent("建造一座印度风格的佛塔"),
+            anchor={"x": 1, "y": 2, "z": 3},
+        )
+        self.assertIsNotNone(a)
+        self.assertIsNotNone(b)
+        self.assertNotEqual(
+            a["components"][0]["params"].get("designSeed"),
+            b["components"][0]["params"].get("designSeed"),
+        )
+        self.assertNotEqual(
+            a["style_attributes"]["wall_material"],
+            b["style_attributes"]["wall_material"],
+        )
+
+    def test_taipei_101_not_scaffold_eligible(self):
+        intent = resolve_request_intent("建造台北101大厦")
+        self.assertEqual(intent.get("building_class"), "generic")
+        self.assertFalse(intent.get("scaffold_eligible"))
+        self.assertIsNone(scaffold_plan_for_intent(intent, anchor={"x": 1, "y": 2, "z": 3}))
+        # Poisoned LLM plan features must not force tower semantics.
+        poisoned = {
+            "mode": "build",
+            "distinguishing_features": ["pagoda", "dense_eaves_pagoda"],
+            "components": [{"component_type": "MASS_MAIN", "dimensions": {"width": 8, "depth": 8, "height": 40}, "params": {}}],
+        }
+        self.assertEqual(detect_semantic_intent("建造台北101大厦", poisoned), "generic")
+        self.assertEqual(evaluate_plan_semantics(poisoned, "建造台北101大厦"), [])
 
     def test_explicit_xieshan_marked(self):
         intent = extract_request_intent("生成歇山顶徽派民居，白墙黑瓦")

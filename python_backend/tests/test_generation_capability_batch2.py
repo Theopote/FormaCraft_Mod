@@ -93,7 +93,7 @@ class GenerationCapabilityBatch2Test(unittest.TestCase):
         single = extract_request_intent("生成一座传统道观")
         self.assertEqual(single["building_class"], "temple")
         self.assertEqual(single["composition"], "single")
-        single_plan = scaffold_plan_for_intent(single)
+        single_plan = scaffold_plan_for_intent(single, anchor={"x": 8, "y": 64, "z": 8})
         types = {c["component_type"] for c in single_plan["components"]}
         self.assertIn("MASS_MAIN", types)
         self.assertNotIn("COURTYARD", types)
@@ -101,7 +101,7 @@ class GenerationCapabilityBatch2Test(unittest.TestCase):
         compound = extract_request_intent("生成一座道观建筑群，带厢房院落")
         self.assertEqual(compound["building_class"], "temple")
         self.assertEqual(compound["composition"], "compound")
-        compound_plan = scaffold_plan_for_intent(compound)
+        compound_plan = scaffold_plan_for_intent(compound, anchor={"x": 8, "y": 64, "z": 8})
         ctypes = {c["component_type"] for c in compound_plan["components"]}
         self.assertTrue({"COURTYARD", "PATH", "MASS_MAIN"} <= ctypes)
 

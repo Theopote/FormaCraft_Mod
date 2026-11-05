@@ -1036,6 +1036,35 @@ def _normalize_llm_plan_output(
         return deepcopy(raw)
     from .plan_semantic_gate import coerce_style_attribute_maps
     plan = coerce_style_attribute_maps(dict(raw))
+    # Force player-relative world anchor. Scaffold/fallback used to emit (0,64,0),
+    # which places buildings at world spawn (unloaded / invisible to the player).
+    if req is not None and getattr(req, "player", None) is not None and getattr(req.player, "pos", None) is not None:
+        try:
+            player_anchor = {
+                "x": int(req.player.pos.x),
+                "y": int(req.player.pos.y),
+                "z": int(req.player.pos.z),
+            }
+            existing = plan.get("anchor") if isinstance(plan.get("anchor"), dict) else None
+            looks_world_spawn = (
+                existing is None
+                or (
+                    int(existing.get("x", 0)) == 0
+                    and int(existing.get("z", 0)) == 0
+                    and abs(int(existing.get("y", 64)) - 64) <= 8
+                )
+            )
+            # Always prefer player feet when plan still points at silent world spawn.
+            if looks_world_spawn and (
+                abs(player_anchor["x"]) > 0
+                or abs(player_anchor["z"]) > 0
+                or abs(player_anchor["y"] - 64) > 8
+            ):
+                plan["anchor"] = player_anchor
+            elif existing is None:
+                plan["anchor"] = player_anchor
+        except (TypeError, ValueError, AttributeError):
+            pass
     default_genome = BuildingGenome().model_dump()
     if req is not None:
         try:
@@ -1253,7 +1282,9 @@ def _normalize_llm_plan_output(
 
     if building_profile is not None:
         fidelity_msg = getattr(building_profile, "fidelity_message_zh", None)
-        if fidelity_msg and str(fidelity_msg).strip():
+        meta = plan.get("plan_meta") if isinstance(plan.get("plan_meta"), dict) else {}
+        preserve_notice = bool(meta.get("preserve_fidelity_notice") or meta.get("scaffolded_from_request_intent"))
+        if fidelity_msg and str(fidelity_msg).strip() and not preserve_notice:
             plan["player_fidelity_notice_zh"] = str(fidelity_msg).strip()
 
     plan = apply_building_contract(plan, contract_text)

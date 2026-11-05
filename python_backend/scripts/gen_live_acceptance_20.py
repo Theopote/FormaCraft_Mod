@@ -168,7 +168,8 @@ def _generic_house_plan(prompt: str, intent: dict) -> dict:
 
 def build_plan(fixture_id: str, prompt: str) -> dict:
     intent = extract_request_intent(prompt)
-    plan = scaffold_plan_for_intent(intent)
+    # Offline fixtures use a fixed relative origin (not silent player-spawn drift).
+    plan = scaffold_plan_for_intent(intent, anchor={"x": 8, "y": 64, "z": 8})
     if plan is None:
         plan = _generic_house_plan(prompt, intent)
     # Japanese gardens: keep an irimoya token for catalog alias coverage, then Stage-B maps it.

@@ -64,7 +64,9 @@ class LiveAcceptance20ReplayTest(unittest.TestCase):
                 if typology:
                     self.assertEqual(intent.get("tower_subtype"), typology)
 
-                plan = scaffold_plan_for_intent(intent)
+                plan = scaffold_plan_for_intent(
+                    intent, anchor={"x": 8, "y": 64, "z": 8}
+                )
                 if plan is None:
                     plan = json.loads((_FIXTURE_DIR / f"{fixture_id}.json").read_text(encoding="utf-8"))
                 attach_request_intent(plan, prompt)

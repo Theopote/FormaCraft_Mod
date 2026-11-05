@@ -51,6 +51,33 @@ def build_validation_capability_gap(
     }
 
 
+def _anchor_from_request(req: Optional[BuildRequest]) -> Optional[Dict[str, int]]:
+    """Player feet position — never silent world (0,64,0)."""
+    if req is None:
+        return None
+    player = getattr(req, "player", None)
+    if player is None and isinstance(req, dict):
+        player = req.get("player")
+    pos = None
+    if player is not None:
+        pos = getattr(player, "pos", None)
+        if pos is None and isinstance(player, dict):
+            pos = player.get("pos") or player.get("playerPos")
+    if pos is None:
+        # Some adapters put playerPos on the request root.
+        pos = getattr(req, "playerPos", None)
+        if pos is None and isinstance(req, dict):
+            pos = req.get("playerPos")
+    if pos is None:
+        return None
+    try:
+        if isinstance(pos, dict):
+            return {"x": int(pos["x"]), "y": int(pos["y"]), "z": int(pos["z"])}
+        return {"x": int(pos.x), "y": int(pos.y), "z": int(pos.z)}
+    except (TypeError, ValueError, AttributeError, KeyError):
+        return None
+
+
 def build_minimal_plan_from_profile(
     profile: BuildingProfile,
     req: Optional[BuildRequest],
@@ -65,15 +92,8 @@ def build_minimal_plan_from_profile(
     depth = max(8, min(depth, 128))
     height = max(6, min(height, 96))
 
-    anchor = {"x": 0, "y": 64, "z": 0}
-    if req is not None and getattr(req, "world", None) is not None:
-        origin = getattr(req.world, "origin", None)
-        if origin is not None:
-            anchor = {
-                "x": int(getattr(origin, "x", 0)),
-                "y": int(getattr(origin, "y", 64)),
-                "z": int(getattr(origin, "z", 0)),
-            }
+    # Never invent silent world spawn — leave unset so normalize injects player.pos.
+    anchor = _anchor_from_request(req)
 
     style_profile = profile.identity.style or "DEFAULT"
     skeleton = (profile.minecraft_strategy.skeleton_type or "COMPOUND").upper()
@@ -136,7 +156,6 @@ def build_minimal_plan_from_profile(
     plan: Dict[str, Any] = {
         "mode": "build",
         "style_profile": style_profile,
-        "anchor": anchor,
         "global_constraints": {
             "facing": "SOUTH",
             "symmetry": "NONE",
@@ -153,6 +172,8 @@ def build_minimal_plan_from_profile(
             "symmetry": {"type": "none", "order": None, "mirror": None},
         },
     }
+    if anchor is not None:
+        plan["anchor"] = anchor
     notes = profile.research_notes or user_text[:200]
     if notes:
         plan["_degraded_from_profile"] = notes[:400]
@@ -265,10 +286,15 @@ def repair_llm_plan_validation(
         for attempt in range(1, 3):
             try:
                 repair_user = (
-                    "Your previous LlmPlan JSON failed schema validation. Fix ONLY the reported issues.\n"
+                    "Your previous LlmPlan JSON failed validation. Fix the reported issues.\n"
                     "Errors:\n- "
                     + "\n- ".join(errors[:8])
-                    + "\n\nReturn a single corrected LlmPlan JSON object."
+                    + "\n\nIf the error mentions tower/pagoda morphology: emit ONE STRUCTURE component with "
+                    "params.typology_id=dense_eaves_pagoda (or tibetan_stupa for 藏式/覆钵), "
+                    "floor_count from the user text, and wall_block/roof_block matching the requested style. "
+                    "Do NOT emit a residential MASS_MAIN+gable house kit for 佛塔/古塔/宝塔.\n"
+                    "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
+                    "Return a single corrected LlmPlan JSON object."
                 )
                 repair_messages = list(messages)
                 repair_messages.append({"role": "assistant", "content": json.dumps(normalized, ensure_ascii=False)})
@@ -335,31 +361,50 @@ def repair_llm_plan_validation(
             )
 
             intent = resolve_request_intent(user_text or "", normalized)
-            if intent.get("scaffold_eligible"):
-                scaffold = scaffold_plan_for_intent(intent)
+            anchor = _anchor_from_request(req)
+            # Prefer soft morph that keeps LLM style/materials/dims over identical hard templates.
+            if intent.get("scaffold_eligible") is True and anchor is not None:
+                from .request_intent import morph_failed_plan_toward_intent
+
+                scaffold = morph_failed_plan_toward_intent(
+                    normalized, intent, anchor=anchor
+                ) or scaffold_plan_for_intent(
+                    intent, anchor=anchor, base_plan=normalized
+                )
                 if scaffold is not None:
                     reason_zh = "；".join(str(e) for e in (errors or [])[:2])
                     cls = str(intent.get("building_class") or "")
                     notice = (
-                        f"原计划未通过语义校验，已按「{cls}」确定性模板重建。"
-                        f"原因：{reason_zh}"
+                        f"原计划未通过语义校验，已按「{cls}」确定性模板重建"
+                        f"（保留风格/材质线索）。原因：{reason_zh}"
                     )
+                    # Keep scaffold notice; do not let later profile overwrite silently.
                     scaffold["player_fidelity_notice_zh"] = notice
                     meta = scaffold.get("plan_meta") if isinstance(scaffold.get("plan_meta"), dict) else {}
                     meta = dict(meta)
                     meta["scaffold_reason"] = reason_zh
                     meta["scaffolded_from_request_intent"] = True
+                    meta["preserve_fidelity_notice"] = True
                     scaffold["plan_meta"] = meta
+                    # Ensure anchor survives normalize.
+                    scaffold["anchor"] = dict(anchor)
                     scaffold_norm = resolve_delegated_entrances(
                         attach_request_intent(normalize_fn(scaffold, req), user_text or ""),
                         user_text or "",
                     )
+                    # Re-assert player anchor after normalize (must not drift to 0,64,0).
+                    scaffold_norm["anchor"] = dict(anchor)
+                    if isinstance(scaffold_norm.get("plan_meta"), dict):
+                        scaffold_norm["plan_meta"]["preserve_fidelity_notice"] = True
+                    if not scaffold_norm.get("player_fidelity_notice_zh"):
+                        scaffold_norm["player_fidelity_notice_zh"] = notice
                     scaffold_errors = _try_validate(scaffold_norm, user_text)
                     if not scaffold_errors:
                         logger.info(
-                            "LlmPlan recovered via request_intent scaffold class=%s conf=%s",
+                            "LlmPlan recovered via request_intent scaffold class=%s conf=%s anchor=%s",
                             intent.get("building_class"),
                             intent.get("confidence"),
+                            anchor,
                         )
                         _record_quality(
                             scaffold_norm,
@@ -371,9 +416,11 @@ def repair_llm_plan_validation(
                         return scaffold_norm
             else:
                 logger.info(
-                    "Skipping request_intent scaffold (class=%s conf=%s); keeping repair/gap path",
+                    "Skipping request_intent scaffold (class=%s conf=%s eligible=%s anchor=%s)",
                     intent.get("building_class"),
                     intent.get("confidence"),
+                    intent.get("scaffold_eligible"),
+                    anchor,
                 )
         except Exception:
             logger.exception("request_intent scaffold recovery failed")
