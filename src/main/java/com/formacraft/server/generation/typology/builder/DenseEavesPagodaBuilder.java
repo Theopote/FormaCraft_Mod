@@ -8,6 +8,7 @@ import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyParams;
 import com.formacraft.common.typology.detail.ChineseTypologyDetailUtil;
@@ -147,8 +148,19 @@ public final class DenseEavesPagodaBuilder {
         PagodaVerticalSemantics vertical = PagodaVerticalSemantics.resolve(p, 13, 7, 15);
         int floors = vertical.floorCount();
         int eavesPerLevel = vertical.eavesPerLevel();
+        // Budget shaft clear-height (≥3, ground taller) + eave rings + finial.
+        int minClear = InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
+        int groundClear = InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT;
+        int upperClear = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+        int bodyNeed = floors <= 1
+                ? minClear
+                : groundClear + Math.max(0, floors - 1) * upperClear;
+        int eaveNeed = floors * Math.max(1, eavesPerLevel);
+        final int finialHeight = 10;
+        int minTotalHeight = bodyNeed + eaveNeed + finialHeight;
         int height = p.intVal("height", "towerHeight",
-                Math.max(vertical.floorsExplicit() ? floors * 6 : 47, 28), 18, 120);
+                Math.max(vertical.floorsExplicit() ? minTotalHeight : Math.max(47, minTotalHeight), minTotalHeight),
+                Math.min(18, minTotalHeight), 120);
         int baseW = p.intVal("baseWidth", 10, 7, 21);
         if (baseW % 2 == 0) baseW += 1;
 
@@ -195,42 +207,55 @@ public final class DenseEavesPagodaBuilder {
         }
 
         // ``height`` is TOTAL vertical span (shaft + eave rings + finial), not shaft alone.
-        // addStupaFinial places blocks from baseY .. baseY+9 (10 cells inclusive).
-        int minPer = 2;
-        int maxPer = refined ? 4 : 3;
-        final int finialHeight = 10;
+        // Storey body height ≈ indoor clear height for hollow shafts.
+        int minPer = minClear;
+        int maxPer = refined ? 5 : 4;
+        boolean solidCore = p.boolVal("solid", false) || p.boolVal("solid_core", false);
         int eaveRows = floors * Math.max(1, eavesPerLevel);
         int reserved = eaveRows + finialHeight;
-        int bodyBudget = Math.max(floors * minPer, height - reserved);
+        int bodyBudget = Math.max(bodyNeed, height - reserved);
         if (bodyBudget + reserved > height) {
-            bodyBudget = Math.max(floors * minPer, height - reserved);
+            bodyBudget = Math.max(bodyNeed, height - reserved);
         }
-        if (bodyBudget < floors * minPer) {
-            // Prefer recognizable storeys; trim eave rows if the plan height is extremely tight.
-            eaveRows = Math.max(floors, height - finialHeight - floors * minPer);
+        if (bodyBudget < bodyNeed) {
+            // Prefer clear-height storeys; trim eave rows if the plan height is extremely tight.
+            eaveRows = Math.max(floors, height - finialHeight - bodyNeed);
             eavesPerLevel = Math.max(1, eaveRows / Math.max(1, floors));
             reserved = floors * eavesPerLevel + finialHeight;
-            bodyBudget = Math.max(floors * minPer, height - reserved);
+            bodyBudget = Math.max(bodyNeed, height - reserved);
         }
-        bodyBudget = Math.max(floors * minPer, Math.min(bodyBudget, Math.max(floors * minPer, height - reserved)));
+        bodyBudget = Math.max(bodyNeed, Math.min(bodyBudget, Math.max(bodyNeed, height - reserved)));
+        // Uniform upper-floor clear height; ground floor may claim +1 from leftover budget.
         int per = Math.max(minPer, Math.min(maxPer, bodyBudget / Math.max(1, floors)));
-        int extraTop = Math.max(0, bodyBudget - per * floors);
+        int leftover = Math.max(0, bodyBudget - per * floors);
+        int groundBonus = 0;
+        if (floors > 1 && per < groundClear) {
+            groundBonus = Math.min(leftover, groundClear - per);
+            leftover -= groundBonus;
+        } else if (floors > 1 && leftover > 0 && per + 1 <= maxPer) {
+            groundBonus = 1;
+            leftover -= 1;
+        }
+        int extraTop = leftover;
 
         List<PlannedBlock> blocks = new ArrayList<>(floors * eavesPerLevel * 900);
         int y = 0;
         int half = baseW / 2;
         int emittedEaves = 0;
-        int shaftAndEaveCap = Math.max(floors * minPer, height - finialHeight);
+        int shaftAndEaveCap = Math.max(bodyNeed, height - finialHeight);
 
         for (int lv = 0; lv < floors; lv++) {
             int levelH = per;
+            if (lv == 0) levelH += groundBonus;
             if (lv == floors - 1) levelH += extraTop;
             int remainingLevels = floors - lv;
             int remainingEaves = remainingLevels * eavesPerLevel;
             int yCapForShaft = shaftAndEaveCap - remainingEaves;
-            levelH = Math.max(1, Math.min(levelH, Math.max(1, yCapForShaft - y)));
-            int inner = Math.max(0, half - (refined ? 2 : 3));
-            boolean hollow = half >= 4;
+            levelH = Math.max(minPer, Math.min(levelH, Math.max(minPer, yCapForShaft - y)));
+            // Wall thickness 1–2; hollow whenever a ≥1-cell cavity remains (unless solid_core).
+            int wallThick = Math.max(1, Math.min(2, refined ? 2 : 1));
+            int inner = Math.max(0, half - wallThick);
+            boolean hollow = !solidCore && inner >= 1;
 
             for (int dy = 0; dy < levelH; dy++) {
                 int yy = y + dy;

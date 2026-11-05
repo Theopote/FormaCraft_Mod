@@ -8,7 +8,8 @@ import java.util.Map;
 
 /**
  * Shared storey spacing for mass shells, facade windows, and related openings.
- * Authority: explicit floor_height, else envelope/floor_count, else technical default 3.
+ * Authority: explicit floor_height, else envelope/floor_count (clamped to min clear height),
+ * else {@link InteriorSpaceDefaults#defaultStoreyHeight}.
  */
 public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer> floorYs, boolean fits) {
 
@@ -24,11 +25,12 @@ public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer>
 
         int floorHeight;
         if (explicitFh > 0) {
+            // Honour authored values even when below the default min clear height.
             floorHeight = explicitFh;
         } else if (floorCount > 0) {
-            floorHeight = Math.max(1, height / floorCount);
+            floorHeight = Math.max(InteriorSpaceDefaults.MIN_CLEAR_HEIGHT, height / floorCount);
         } else {
-            floorHeight = 3;
+            floorHeight = InteriorSpaceDefaults.defaultStoreyHeight(height);
         }
 
         List<Integer> levels = new ArrayList<>();

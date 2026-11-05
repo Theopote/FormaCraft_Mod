@@ -39,8 +39,10 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
             VerticalStackPlan.Level lvl = plan.levels.get(li);
             int half = lvl.half;
 
-            int inner = Math.max(1, half - (plan.refined ? 2 : 3));
-            boolean doHollow = hollow && half * 2 + 1 >= (plan.refined ? 11 : 13);
+            // Wall thickness 1–2; hollow when cavity ≥1 cell (width≥5 / half≥2).
+            int wallThick = Math.max(1, Math.min(2, plan.refined ? 2 : 1));
+            int inner = Math.max(0, half - wallThick);
+            boolean doHollow = hollow && inner >= 1;
 
             for (int dy = 0; dy < lvl.height; dy++) {
                 int y = lvl.y0 + dy;

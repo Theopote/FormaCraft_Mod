@@ -65,13 +65,7 @@ public final class ComponentFloorCorniceDecorator {
         if (fromPlan > 0) {
             return fromPlan;
         }
-        if (buildingHeight >= 12) {
-            return 4;
-        }
-        if (buildingHeight >= 8) {
-            return 4;
-        }
-        return 3;
+        return InteriorSpaceDefaults.defaultStoreyHeight(buildingHeight);
     }
 
     /** Global explicit height wins, then this mass's explicit height, then the size heuristic. */
@@ -82,7 +76,7 @@ public final class ComponentFloorCorniceDecorator {
                 && plan.proportionHints().get("building_contract") instanceof Map<?, ?>;
         if (contracted && local > 0) return local;
         if (global > 0) return global;
-        return local > 0 ? local : buildingHeight >= 8 ? 4 : 3;
+        return local > 0 ? local : InteriorSpaceDefaults.defaultStoreyHeight(buildingHeight);
     }
 
     /** 每层顶圈 Y（不含屋顶尖），例如 floorHeight=4,height=12 → {3,7,11} */

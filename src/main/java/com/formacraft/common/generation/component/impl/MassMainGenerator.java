@@ -216,15 +216,24 @@ public class MassMainGenerator implements ComponentGenerator {
         if (voidRatio != null) {
             hasInterior = voidRatio >= 0.08;
         }
-        if (getParamBoolean(params, "hollow")) hasInterior = true;
-        // Occupied storeys require rooms; low facade void ratio is not an instruction to fill rooms.
-        if (ComponentParamParsers.intParam(params, "floor_count", "floorCount") > 0
-                && !Boolean.FALSE.equals(params == null ? null : params.get("hollow"))) hasInterior = true;
-        // Explicit void_ratio must not be overridden by size heuristics (solid mass when ratio < 0.08).
-        if (!hasInterior && voidRatio == null && isBuilding && width >= 5 && depth >= 5 && height >= 4) {
-            // 对于足够大的建筑，默认应该有内部空间
+        boolean solidRequested = getParamBoolean(params, "solid", "solid_core", "solidCore");
+        boolean hollowExplicitFalse = params != null && Boolean.FALSE.equals(params.get("hollow"));
+        if (solidRequested || hollowExplicitFalse) {
+            hasInterior = false;
+        } else if (getParamBoolean(params, "hollow")) {
             hasInterior = true;
-            FormacraftMod.LOGGER.info("MassMainGenerator: enabling default interior space for building {}x{}x{} (program: {})", 
+        }
+        // Occupied storeys require rooms; low facade void ratio is not an instruction to fill rooms.
+        if (!solidRequested && !hollowExplicitFalse
+                && ComponentParamParsers.intParam(params, "floor_count", "floorCount") > 0) {
+            hasInterior = true;
+        }
+        // Explicit void_ratio must not be overridden by size heuristics (solid mass when ratio < 0.08).
+        if (!hasInterior && voidRatio == null && isBuilding
+                && com.formacraft.common.generation.component.util.InteriorSpaceDefaults.shouldHollowByDefault(
+                        solidRequested, hollowExplicitFalse, width, depth, height)) {
+            hasInterior = true;
+            FormacraftMod.LOGGER.info("MassMainGenerator: enabling default interior space for building {}x{}x{} (program: {})",
                     width, depth, height, semantic.slot().program());
         }
         
