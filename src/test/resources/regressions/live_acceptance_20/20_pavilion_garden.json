@@ -72,9 +72,81 @@
         "main_hall"
       ],
       "params": {
+        "component_id": "hall_main",
+        "building_id": "hall_main",
+        "building_role": "hall_main",
         "wall_block": "minecraft:white_concrete",
-        "roof_block": "minecraft:dark_oak_stairs",
-        "roof_type": "xieshan"
+        "roof_block": "minecraft:dark_oak_stairs"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "hall_roof",
+      "relative_position": {
+        "x": 3,
+        "y": 6,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "roof_type": "xieshan",
+        "host_id": "hall_main",
+        "roof_block": "minecraft:dark_oak_stairs"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "pavilion",
+      "relative_position": {
+        "x": 22,
+        "y": 0,
+        "z": 18
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 5
+      },
+      "features": [
+        "pavilion",
+        "亭"
+      ],
+      "params": {
+        "component_id": "pavilion_1",
+        "building_id": "pavilion_1",
+        "building_role": "pavilion",
+        "wall_block": "minecraft:oak_log",
+        "floor_block": "minecraft:oak_planks",
+        "open": true,
+        "wall_type": "none",
+        "roof_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "pavilion_roof",
+      "relative_position": {
+        "x": 21,
+        "y": 5,
+        "z": 17
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "roof_type": "pyramid",
+        "host_id": "pavilion_1",
+        "roof_block": "minecraft:dark_oak_stairs"
       }
     }
   ],

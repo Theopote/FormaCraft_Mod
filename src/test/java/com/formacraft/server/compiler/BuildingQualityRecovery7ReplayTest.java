@@ -2,18 +2,12 @@ package com.formacraft.server.compiler;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.generation.component.util.RoofTypeCatalog;
 import com.formacraft.common.generation.component.util.RoofTypeKind;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
-import com.formacraft.common.typology.TypologyParamResolver;
-import com.formacraft.common.typology.TypologyParams;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
-import com.formacraft.server.generation.typology.builder.DenseEavesPagodaBuilder;
-import com.formacraft.server.generation.typology.builder.PagodaVerticalSemantics;
-import com.formacraft.server.generation.typology.builder.TibetanStupaBuilder;
 import com.formacraft.server.init.TypologySystemInitializer;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.math.BlockPos;
@@ -103,32 +97,14 @@ class BuildingQualityRecovery7ReplayTest {
                 Component structure = comps.stream()
                         .filter(x -> "STRUCTURE".equals(x.componentType()))
                         .findFirst().orElseThrow();
-                Map<String, Object> merged = TypologyParamResolver.merge(
-                        TibetanStupaBuilder.TYPOLOGY_ID, structure);
-                assertEquals("tibetan_stupa", merged.get("typology_id"));
-                GeneratedStructure built = TibetanStupaBuilder.generate(
-                        merged, BlockPos.ORIGIN, null, null);
-                assertNotNull(built);
-                assertFalse(built.getBlocks().isEmpty());
-                assertTrue(built.getDescription().contains("tibetan_stupa"));
+                assertEquals("tibetan_stupa", structure.params().get("typology_id"));
+                AcceptanceReplayMorphology.assertTibetanStupa(structure, BlockPos.ORIGIN);
             }
             case "02_dense_eaves_pagoda" -> {
                 Component structure = comps.stream()
                         .filter(x -> "STRUCTURE".equals(x.componentType()))
                         .findFirst().orElseThrow();
-                Map<String, Object> merged = TypologyParamResolver.merge(
-                        DenseEavesPagodaBuilder.TYPOLOGY_ID, structure);
-                PagodaVerticalSemantics v = PagodaVerticalSemantics.resolve(
-                        new TypologyParams(merged), 13, 7, 15);
-                assertEquals(3, v.floorCount());
-                assertEquals(2, v.eavesPerLevel());
-                assertEquals(6, v.eaveTiers());
-                GeneratedStructure built = DenseEavesPagodaBuilder.generate(
-                        merged, BlockPos.ORIGIN, null, null);
-                assertNotNull(built);
-                assertFalse(built.getBlocks().isEmpty());
-                assertTrue(built.getDescription().contains("floors=3"));
-                assertTrue(built.getDescription().contains("eaves_per_level=2"));
+                AcceptanceReplayMorphology.assertDenseEavesPagoda(structure, new BlockPos(0, 64, 0));
             }
             case "04_temple_gate" -> {
                 assertTrue(comps.stream().anyMatch(x -> "GATE".equals(x.componentType())));

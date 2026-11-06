@@ -26,7 +26,7 @@ class OpeningMaterialAuditTest {
     }
 
     @Test
-    void doorWidthAndConstraintSourceAreUserExplicit() {
+    void doorWidthAloneIsNotUserExplicitButFlagsAndSourceAre() {
         Component byFlag = new Component(
                 "ENTRANCE", "main", new Vec3i(0, 0, 0),
                 new Dimensions(1, 3, 1), List.of(),
@@ -35,13 +35,38 @@ class OpeningMaterialAuditTest {
                 "ENTRANCE", "main", new Vec3i(0, 0, 0),
                 new Dimensions(1, 3, 1), List.of(),
                 Map.of("door_width", 3));
+        Component byInferredWidth = new Component(
+                "ENTRANCE", "main", new Vec3i(0, 0, 0),
+                new Dimensions(1, 3, 1), List.of(),
+                Map.of("door_width", 2, "constraint_source", "LLM_INFERRED"));
         Component bySource = new Component(
                 "ENTRANCE", "main", new Vec3i(0, 0, 0),
                 new Dimensions(1, 3, 1), List.of(),
                 Map.of("constraint_source", "USER_EXPLICIT", "frame_block", "minecraft:oak_log"));
         assertTrue(OpeningMaterialAudit.isUserExplicitOpening(byFlag));
-        assertTrue(OpeningMaterialAudit.isUserExplicitOpening(byWidth));
+        assertFalse(OpeningMaterialAudit.isUserExplicitOpening(byWidth),
+                "bare door_width must not become a hard constraint");
+        assertFalse(OpeningMaterialAudit.isUserExplicitOpening(byInferredWidth));
         assertTrue(OpeningMaterialAudit.isUserExplicitOpening(bySource));
+    }
+
+    @Test
+    void glassBlockAloneIsSoftUnlessProvenanceSaysUser() {
+        Component softGlass = new Component(
+                "FACADE_WINDOWS", "main", new Vec3i(0, 1, 0),
+                new Dimensions(2, 2, 1), List.of(),
+                Map.of("glass_block", "minecraft:black_stained_glass"));
+        Component hardGlass = new Component(
+                "FACADE_WINDOWS", "main", new Vec3i(0, 1, 0),
+                new Dimensions(2, 2, 1), List.of(),
+                Map.of(
+                        "glass_block", "minecraft:black_stained_glass",
+                        "constraint_source", "USER_EXPLICIT",
+                        "window_explicit", true));
+        assertFalse(OpeningMaterialAudit.isUserExplicitOpening(softGlass));
+        assertFalse(OpeningMaterialAudit.isUserExplicitWindowMaterial(softGlass));
+        assertTrue(OpeningMaterialAudit.isUserExplicitOpening(hardGlass));
+        assertTrue(OpeningMaterialAudit.isUserExplicitWindowMaterial(hardGlass));
     }
 
     @Test

@@ -53,14 +53,15 @@ final class OpeningMaterialAudit {
         String id = c.params() == null ? c.componentType()
                 : String.valueOf(c.params().getOrDefault("component_id", c.componentType()));
         String material = explicitWindowMaterial(c);
-        boolean userExplicit = isUserExplicitOpening(c);
+        boolean userExplicitOpening = isUserExplicitOpening(c);
+        boolean userExplicitGlass = isUserExplicitWindowMaterial(c);
         for (var cell : cells) {
             var pos = cell.position().add(offset);
             if (cell.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING) {
-                // Soft by default — LLM style frame_block must not hard-fail the whole build.
-                expectations.put(pos, new Expectation(id, cell.role(), material, userExplicit));
+                // Soft by default — LLM style frame_block / inferred door_width must not hard-fail.
+                expectations.put(pos, new Expectation(id, cell.role(), material, userExplicitOpening));
             } else if (cell.role() == GeneratedSurfaceCapture.Role.WINDOW && material != null) {
-                expectations.put(pos, new Expectation(id, cell.role(), material, userExplicit));
+                expectations.put(pos, new Expectation(id, cell.role(), material, userExplicitGlass));
             } else {
                 expectations.remove(pos); // Later declared roles supersede earlier decisions.
             }
@@ -170,7 +171,8 @@ final class OpeningMaterialAudit {
 
     /**
      * Hard only when constraint provenance is user-authored — not LLM style defaults.
-     * Accepts {@code constraint_source=USER_EXPLICIT} or explicit boolean flags / door_width.
+     * Bare {@code door_width} / {@code glass_block} presence is insufficient; prefer
+     * {@code constraint_source} stamped from request_intent by {@link OpeningConstraintProvenance}.
      */
     static boolean isUserExplicitOpening(Component c) {
         if (c == null || c.params() == null) return false;
@@ -183,15 +185,17 @@ final class OpeningMaterialAudit {
                 return false;
             }
         }
-        if (Boolean.TRUE.equals(c.params().get("door_explicit"))
+        return Boolean.TRUE.equals(c.params().get("door_explicit"))
                 || Boolean.TRUE.equals(c.params().get("window_explicit"))
-                || Boolean.TRUE.equals(c.params().get("opening_explicit"))) {
-            return true;
-        }
-        // Authored clear size from the player — treat as hard.
-        Object doorWidth = c.params().get("door_width");
-        if (doorWidth == null) doorWidth = c.params().get("doorWidth");
-        return doorWidth != null && !String.valueOf(doorWidth).isBlank();
+                || Boolean.TRUE.equals(c.params().get("opening_explicit"))
+                || Boolean.TRUE.equals(c.params().get("material_explicit"))
+                || Boolean.TRUE.equals(c.params().get("glass_explicit"));
+    }
+
+    /** Window glazing is hard when provenance says so — not merely because glass_block is filled. */
+    static boolean isUserExplicitWindowMaterial(Component c) {
+        if (!isUserExplicitOpening(c)) return false;
+        return explicitWindowMaterial(c) != null;
     }
 
     private static String explicitWindowMaterial(Component c) {

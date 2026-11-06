@@ -70,7 +70,16 @@
     ],
     "roof": [
       {"phrases": ["黑瓦", "black tile", "black_terracotta"], "block": "minecraft:black_terracotta"}
+    ],
+    "window": [
+      {"phrases": ["黑色染色玻璃", "黑色玻璃", "black stained glass", "black_stained_glass"], "block": "minecraft:black_stained_glass"},
+      {"phrases": ["白色染色玻璃", "white stained glass", "white_stained_glass"], "block": "minecraft:white_stained_glass"},
+      {"phrases": ["蓝色染色玻璃", "blue stained glass", "blue_stained_glass"], "block": "minecraft:blue_stained_glass"},
+      {"phrases": ["玻璃窗", "玻璃", "glass window", "glass_pane", "glass"], "block": "minecraft:glass"}
     ]
+  },
+  "opening_cues": {
+    "door_width_explicit": ["双开门", "两扇门", "三扇门", "宽门", "大门宽", "door width", "double door", "double doors"]
   },
   "confidence": {
     "strong_hit": 0.9,

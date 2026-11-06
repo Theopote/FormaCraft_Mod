@@ -59,9 +59,11 @@ final class PavilionOpenFrameRepair {
                 Object id = repaired.params().get("component_id");
                 if (id != null) {
                     bodyFloorY.put(String.valueOf(id), repaired.relativePosition().y());
+                    // Only open-frame / pavilion-named masses — never every MASS_MAIN because
+                    // the plan happens to contain a pavilion (hall+pavilion compounds).
                     if (OpenFramePolicy.isOpen(repaired.params())
                             || looksPavilion(repaired.features())
-                            || planWantsPavilion) {
+                            || looksPavilionToken(String.valueOf(id))) {
                         pavilionMassIds.add(String.valueOf(id));
                     }
                 }
@@ -78,15 +80,9 @@ final class PavilionOpenFrameRepair {
             }
         }
 
-        // Convert solid pads / missing foundations into thin oak stilts for pavilion hosts.
-        if (planWantsStilts || !pavilionMassIds.isEmpty()) {
+        // Convert solid pads / missing foundations into thin oak stilts for pavilion hosts only.
+        if (!pavilionMassIds.isEmpty()) {
             Set<String> hostsNeedingStilts = new HashSet<>(pavilionMassIds);
-            if (planWantsStilts) {
-                for (Component mass : massById.values()) {
-                    Object id = mass.params() == null ? null : mass.params().get("component_id");
-                    if (id != null) hostsNeedingStilts.add(String.valueOf(id));
-                }
-            }
             Set<String> hostsWithStilts = new HashSet<>();
             for (int i = 0; i < out.size(); i++) {
                 Component c = out.get(i);
@@ -149,10 +145,12 @@ final class PavilionOpenFrameRepair {
         String id = mass.params().get("component_id") == null ? ""
                 : String.valueOf(mass.params().get("component_id")).toLowerCase(Locale.ROOT);
         boolean pavilionNamed = id.contains("pavilion") || id.contains("gazebo") || id.contains("kiosk")
-                || id.contains("ting") || id.contains("shuixie") || looksPavilion(mass.features())
-                || planWantsPavilion;
-        boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")))
-                || planWantsPavilion;
+                || id.contains("ting") || id.contains("shuixie") || looksPavilion(mass.features());
+        // Plan-level「亭」must not rewrite every MASS_MAIN in a compound (hall + pavilion).
+        if (planWantsPavilion && !pavilionNamed && !isHallLikeMass(mass, id)) {
+            pavilionNamed = true;
+        }
+        boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")));
         boolean octagon = planWantsOctagon || looksOctagon(mass);
         if (!pavilionNamed && !onStilts && !octagon) return mass;
         if (!pavilionNamed && onStilts && mass.dimensions().height() <= 3 && !octagon
@@ -170,6 +168,9 @@ final class PavilionOpenFrameRepair {
         params.put("suppress_doors", true);
         params.put("open_sides", List.of("N", "E", "S", "W"));
         params.put("hollow", true);
+        // Host-bound ROOF components own the pitch; embedded mass roofs double-write eaves
+        // (dark_oak vs oak posts) and trip E_PATCH_CONFLICT inside a single MASS_MAIN.
+        params.put("roof_type", "none");
         changed = true;
         if (octagon) {
             for (String key : com.formacraft.common.generation.component.util.FootprintShapeCatalog.SHAPE_KEYS) {
@@ -401,7 +402,35 @@ final class PavilionOpenFrameRepair {
         return lower.contains("pavilion") || lower.contains("gazebo") || lower.contains("open bay")
                 || lower.contains("open-frame") || lower.contains("colonnade frame")
                 || lower.contains("凉亭") || lower.contains("水上亭") || lower.contains("亭子")
-                || lower.contains("水榭") || lower.contains("八角亭");
+                || lower.contains("水榭") || lower.contains("八角亭")
+                || "亭".equals(raw.trim());
+    }
+
+    /** Primary halls in garden compounds must keep enclosed walls / no forced stilts. */
+    private static boolean isHallLikeMass(Component mass, String idLower) {
+        if (idLower != null && (idLower.contains("hall") || idLower.contains("main")
+                || idLower.contains("殿") || idLower.contains("堂") || idLower.contains("house"))) {
+            return true;
+        }
+        if (mass.params() != null) {
+            Object role = mass.params().get("building_role");
+            if (role == null) role = mass.params().get("buildingRole");
+            if (role != null) {
+                String r = String.valueOf(role).toLowerCase(Locale.ROOT);
+                if (r.contains("hall") || r.equals("main") || r.contains("primary")) return true;
+            }
+        }
+        if (mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("main_hall") || lower.contains("hall") || lower.contains("殿")) {
+                    return true;
+                }
+            }
+        }
+        String slot = mass.slotId() == null ? "" : mass.slotId().toLowerCase(Locale.ROOT);
+        return slot.contains("hall") || slot.contains("main");
     }
 
     private static boolean looksStiltToken(String raw) {

@@ -58,7 +58,7 @@ final class PlanSemanticValidator {
         // Explicit roof must not be silently replaced by residential defaults —
         // applies to all building classes, including ordinary houses.
         String explicitRoof = explicitRoofType(plan, originalRequestIntent);
-        if (explicitRoof != null && roofConflictsWithExplicit(components, explicitRoof)) {
+        if (explicitRoof != null && roofConflictsWithExplicit(plan, components, explicitRoof)) {
             return Optional.of(new CapabilityGap(
                     "E_ROOF_INTENT_CONFLICT",
                     "计划屋顶与用户明确要求的屋顶类型冲突（要求=" + explicitRoof + "）。",
@@ -515,34 +515,33 @@ final class PlanSemanticValidator {
         return mass == 1 && (residentialSatellites || components.size() == 1);
     }
 
-    private static boolean roofConflictsWithExplicit(List<Component> components, String explicit) {
+    private static boolean roofConflictsWithExplicit(
+            LlmPlan plan, List<Component> components, String explicit
+    ) {
         if (explicit == null || explicit.isBlank() || components == null) return false;
         String want = explicit.trim().toLowerCase(Locale.ROOT);
         boolean wantDoubleEave = want.contains("double_eave") || "double_eave_hip".equals(want);
-        boolean sawDoubleEave = false;
-        boolean sawRoofWithoutDouble = false;
         boolean multiBuilding = countCirculationMasses(components) > 1;
-        String primaryHost = primaryMassId(components);
+        String primaryHost = BuildingHostResolver.primaryMassId(plan, components);
         var wantKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(want);
 
+        boolean sawPrimaryBoundRoof = false;
         for (Component c : components) {
             if (c == null) continue;
-            // Multi-building compounds: only enforce the primary host roof against a single global intent.
-            if (multiBuilding && !isPrimaryRoofComponent(c, primaryHost)) {
+            if (!isRoofDeclaringComponent(c)) continue;
+            if (multiBuilding && !isInScopeForPrimaryRoofIntent(c, primaryHost, true)) {
                 continue;
             }
-            if (hasDoubleEaveSignal(c)) {
-                sawDoubleEave = true;
-            }
-            String have = componentRoofType(c);
-            if (have == null) continue;
+            sawPrimaryBoundRoof = true;
             if (wantDoubleEave) {
-                // Any authored roof without a double-eave signal conflicts (hip/gable/xieshan/…).
+                // Per-host: a pavilion double-eave cannot prove the main hall roof.
                 if (!hasDoubleEaveSignal(c)) {
-                    sawRoofWithoutDouble = true;
+                    return true;
                 }
                 continue;
             }
+            String have = componentRoofType(c);
+            if (have == null) continue;
             var haveKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(have);
             if (wantKind.isPresent() && haveKind.isPresent()) {
                 if (wantKind.get() != haveKind.get()) {
@@ -554,8 +553,26 @@ final class PlanSemanticValidator {
                 return true;
             }
         }
-        if (wantDoubleEave) {
-            return !sawDoubleEave && sawRoofWithoutDouble;
+
+        // Compound plans with only unbound accessory roofs: fall back to unbound roofs once.
+        if (multiBuilding && !sawPrimaryBoundRoof) {
+            for (Component c : components) {
+                if (c == null || !isRoofDeclaringComponent(c)) continue;
+                if (BuildingHostResolver.roofHostId(c) != null) continue;
+                if (wantDoubleEave) {
+                    if (!hasDoubleEaveSignal(c)) return true;
+                    continue;
+                }
+                String have = componentRoofType(c);
+                if (have == null) continue;
+                var haveKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(have);
+                if (wantKind.isPresent() && haveKind.isPresent() && wantKind.get() != haveKind.get()) {
+                    return true;
+                }
+                if (wantKind.isEmpty() && !roofTokenCompatible(want, have)) {
+                    return true;
+                }
+            }
         }
         return false;
     }
@@ -563,37 +580,42 @@ final class PlanSemanticValidator {
     private static int countCirculationMasses(List<Component> components) {
         int n = 0;
         for (Component c : components) {
-            if (c == null || c.componentType() == null) continue;
-            String t = c.componentType().trim().toUpperCase(Locale.ROOT);
-            if (t.startsWith("MASS") || "STRUCTURE".equals(t) || "HALL".equals(t)) n++;
+            if (BuildingHostResolver.isHostMass(c)) n++;
         }
         return n;
     }
 
-    private static String primaryMassId(List<Component> components) {
-        for (Component c : components) {
-            if (c == null || c.params() == null) continue;
-            String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
-            if (!(t.startsWith("MASS") || "STRUCTURE".equals(t) || "HALL".equals(t))) continue;
-            Object id = c.params().get("component_id");
-            if (id == null) id = c.params().get("componentId");
-            if (id != null && !String.valueOf(id).isBlank()) return String.valueOf(id).trim();
-            return t.toLowerCase(Locale.ROOT);
-        }
-        return null;
+    /** @deprecated tests / callers should prefer {@link BuildingHostResolver#primaryMassId} */
+    static String primaryMassId(List<Component> components) {
+        return BuildingHostResolver.primaryMassId(null, components);
     }
 
-    private static boolean isPrimaryRoofComponent(Component c, String primaryHost) {
+    private static boolean isRoofDeclaringComponent(Component c) {
         if (c == null) return false;
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
-        if (!t.contains("ROOF") && componentRoofType(c) == null) return false;
+        return t.contains("ROOF") || componentRoofType(c) != null || hasDoubleEaveSignal(c);
+    }
+
+    /**
+     * Multi-building: only roofs/masses bound to the primary host are in scope.
+     * Unbound roofs are ignored when {@code requireBound} so an accessory cannot cross-prove.
+     */
+    private static boolean isInScopeForPrimaryRoofIntent(
+            Component c, String primaryHost, boolean requireBound
+    ) {
+        if (c == null) return false;
+        if (!isRoofDeclaringComponent(c)) return false;
         if (primaryHost == null || primaryHost.isBlank()) return true;
-        if (c.params() == null) return true;
-        Object host = c.params().get("host_id");
-        if (host == null) host = c.params().get("hostId");
-        if (host == null) host = c.params().get("building_id");
-        if (host == null) return true; // unbound roof → treat as primary intent target
-        return primaryHost.equals(String.valueOf(host).trim());
+        String host = BuildingHostResolver.roofHostId(c);
+        if (host == null) {
+            // Mass that is itself the primary may declare roof_type on the body.
+            String self = BuildingHostResolver.massId(c);
+            return primaryHost.equals(self);
+        }
+        if (requireBound) {
+            return primaryHost.equals(host);
+        }
+        return true;
     }
 
     private static String componentRoofType(Component c) {

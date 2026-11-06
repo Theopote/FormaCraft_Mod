@@ -2,14 +2,10 @@ package com.formacraft.server.compiler;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
-import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
-import com.formacraft.server.generation.typology.builder.DenseEavesPagodaBuilder;
-import com.formacraft.server.generation.typology.builder.TibetanStupaBuilder;
 import com.formacraft.server.init.TypologySystemInitializer;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.math.BlockPos;
@@ -108,24 +104,22 @@ class LiveAcceptance20ReplayTest {
     }
 
     private static void assertTowerMorphology(Case c, LlmPlan plan) {
+        List<Component> comps = plan.components() == null ? List.of() : plan.components();
+        if ("20_pavilion_garden".equals(c.fixtureId())) {
+            AcceptanceReplayMorphology.assertPavilionGardenHosts(comps);
+            return;
+        }
         if (!"tower_like".equals(c.buildingClass())) {
             return;
         }
-        List<Component> comps = plan.components() == null ? List.of() : plan.components();
         Component structure = comps.stream()
                 .filter(x -> "STRUCTURE".equals(x.componentType()))
                 .findFirst().orElseThrow();
         String typology = String.valueOf(structure.params().get("typology_id"));
         if ("tibetan_stupa".equals(typology)) {
-            Map<String, Object> merged = TypologyParamResolver.merge(TibetanStupaBuilder.TYPOLOGY_ID, structure);
-            GeneratedStructure built = TibetanStupaBuilder.generate(merged, BlockPos.ORIGIN, null, null);
-            assertNotNull(built);
-            assertFalse(built.getBlocks().isEmpty());
+            AcceptanceReplayMorphology.assertTibetanStupa(structure, BlockPos.ORIGIN);
         } else if ("dense_eaves_pagoda".equals(typology)) {
-            Map<String, Object> merged = TypologyParamResolver.merge(DenseEavesPagodaBuilder.TYPOLOGY_ID, structure);
-            GeneratedStructure built = DenseEavesPagodaBuilder.generate(merged, BlockPos.ORIGIN, null, null);
-            assertNotNull(built);
-            assertFalse(built.getBlocks().isEmpty());
+            AcceptanceReplayMorphology.assertDenseEavesPagoda(structure, new BlockPos(0, 64, 0));
         } else {
             fail("unexpected tower typology: " + typology);
         }

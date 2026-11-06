@@ -48,7 +48,7 @@ public final class RequestIntentInjector {
             if (!meta.containsKey("building_class") && existingMap.get("building_class") != null) {
                 meta.put("building_class", existingMap.get("building_class"));
             }
-            return withMeta(plan, meta);
+            return OpeningConstraintProvenance.stamp(withMeta(plan, meta));
         }
         if (text.isBlank()) {
             return plan;
@@ -58,7 +58,7 @@ public final class RequestIntentInjector {
         meta.put("request_intent", intent);
         meta.put("request_intent_text", text);
         meta.put("building_class", intent.get("building_class"));
-        return withMeta(plan, meta);
+        return OpeningConstraintProvenance.stamp(withMeta(plan, meta));
     }
 
     /** Keyword-only extract (tests / fallback). Prefer {@link #ensure} for full merge. */
@@ -81,6 +81,7 @@ public final class RequestIntentInjector {
         if (mats != null) {
             putMaterial(materials, mats, "wall", text, lower);
             putMaterial(materials, mats, "roof", text, lower);
+            putMaterial(materials, mats, "window", text, lower);
         } else {
             if (text.contains("白墙") || lower.contains("white_concrete")) {
                 materials.put("wall", "minecraft:white_concrete");
@@ -88,7 +89,22 @@ public final class RequestIntentInjector {
             if (text.contains("黑瓦") || lower.contains("black_terracotta")) {
                 materials.put("roof", "minecraft:black_terracotta");
             }
+            if (text.contains("黑色染色玻璃") || lower.contains("black_stained_glass")) {
+                materials.put("window", "minecraft:black_stained_glass");
+            }
         }
+
+        boolean doorWidthExplicit = false;
+        JsonObject openingCues = RequestIntentVocab.root().getAsJsonObject("opening_cues");
+        if (openingCues != null) {
+            List<String> doorCues = RequestIntentVocab.stringList(
+                    openingCues.getAsJsonArray("door_width_explicit"));
+            doorWidthExplicit = containsAny(text, lower, doorCues);
+        } else {
+            doorWidthExplicit = containsAny(text, lower, List.of(
+                    "双开门", "两扇门", "三扇门", "宽门", "double door", "double doors", "door width"));
+        }
+        boolean windowMaterialExplicit = materials.containsKey("window");
 
         int width = 0, depth = 0;
         Matcher m = FOOTPRINT.matcher(text);
@@ -150,6 +166,12 @@ public final class RequestIntentInjector {
         }
         intent.put("forbids", forbids);
         intent.put("materials", materials);
+        intent.put("door_width_explicit", doorWidthExplicit);
+        intent.put("window_material_explicit", windowMaterialExplicit);
+        intent.put("openings", Map.of(
+                "door_width_explicit", doorWidthExplicit,
+                "window_material_explicit", windowMaterialExplicit
+        ));
         intent.put("refuse_residential_autofill",
                 !"generic".equals(buildingClass) && confidence >= scaffoldMin);
         intent.put("scaffold_eligible",
