@@ -27,7 +27,8 @@ public final class GenerationCapabilityCatalog {
     public static final List<String> HOSTABLE_COMPONENT_TYPES = List.of(
             "MASS_MAIN", "TOWER", "MASS_WING", "SIDE_WING", "MASS_ANCILLARY", "MASS_SECONDARY",
             "TERRACE", "COURTYARD", "COURTYARD_SPACE", "GATE", "GATE_STRUCTURE",
-            "STRUCTURE", "MODULE", "FOUNDATION", "PLAZA", "PAVING", "PATH", "ROAD", "KEEP"
+            "STRUCTURE", "MODULE", "FOUNDATION", "PLAZA", "PAVING", "PATH", "ROAD", "KEEP",
+            "WALL"
     );
 
     /** Satellites that require a resolvable host_id. */

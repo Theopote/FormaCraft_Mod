@@ -4,6 +4,7 @@ import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -399,6 +400,18 @@ final class PlanSemanticValidator {
     }
 
     private static boolean hasGateMorphology(List<Component> components) {
+        // Count ENTRANCE satellites per host — deep 山门殿 often has 3 doorways without bays=.
+        Map<String, Integer> entrancesByHost = new HashMap<>();
+        for (Component c : components) {
+            if (c == null || c.componentType() == null || c.params() == null) continue;
+            if (!"ENTRANCE".equalsIgnoreCase(c.componentType().trim())) continue;
+            Object host = c.params().get("host_id");
+            if (host == null) host = c.params().get("hostId");
+            if (host == null) continue;
+            String key = String.valueOf(host);
+            entrancesByHost.merge(key, 1, Integer::sum);
+        }
+
         for (Component c : components) {
             if (c == null) continue;
             String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
@@ -407,6 +420,8 @@ final class PlanSemanticValidator {
                 return true;
             }
             boolean gateCue = false;
+            boolean throughPassage = false;
+            boolean multiBay = false;
             if (c.features() != null) {
                 for (String f : c.features()) {
                     if (f == null) continue;
@@ -414,17 +429,29 @@ final class PlanSemanticValidator {
                     if (lower.contains("gate") || f.contains("山门") || lower.contains("paifang")
                             || lower.contains("temple_gate") || lower.contains("gatehouse")) {
                         gateCue = true;
-                        break;
+                    }
+                    // Live LLM plans use three_doorways / central_bay without params.bays.
+                    if (lower.contains("three_door") || lower.contains("triple_door")
+                            || lower.contains("multi_bay") || lower.contains("三门")
+                            || lower.contains("三洞") || lower.startsWith("bay_division")
+                            || lower.contains("gate_bay")) {
+                        multiBay = true;
+                        throughPassage = true;
+                        gateCue = true;
+                    }
+                    if (lower.contains("doorway") || lower.contains("central_bay")
+                            || lower.contains("通廊") || lower.contains("穿堂")) {
+                        throughPassage = true;
                     }
                 }
             }
-            boolean throughPassage = false;
-            boolean multiBay = false;
+            String selfId = null;
             if (c.params() != null) {
                 Object id = c.params().get("component_id");
                 if (id == null) id = c.params().get("componentId");
                 if (id != null) {
-                    String idLower = String.valueOf(id).toLowerCase(Locale.ROOT);
+                    selfId = String.valueOf(id);
+                    String idLower = selfId.toLowerCase(Locale.ROOT);
                     if (idLower.contains("gate") || idLower.contains("shanmen")
                             || idLower.contains("paifang") || idLower.contains("山门")) {
                         gateCue = true;
@@ -451,6 +478,16 @@ final class PlanSemanticValidator {
                 Object bays = c.params().get("bays");
                 if (bays == null) bays = c.params().get("bay_count");
                 if (bays instanceof Number n && n.intValue() >= 3) {
+                    multiBay = true;
+                }
+            }
+            if (selfId != null) {
+                int hostedDoors = entrancesByHost.getOrDefault(selfId, 0);
+                if (hostedDoors >= 2) {
+                    throughPassage = true;
+                    gateCue = true;
+                }
+                if (hostedDoors >= 3) {
                     multiBay = true;
                 }
             }

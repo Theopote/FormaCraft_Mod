@@ -19,7 +19,8 @@ public final class HostIdRemapRepair {
     private static final Set<String> HOSTABLE = Set.of(
             "MASS_MAIN", "TOWER", "MASS_WING", "SIDE_WING", "MASS_ANCILLARY", "MASS_SECONDARY",
             "TERRACE", "COURTYARD", "COURTYARD_SPACE", "GATE", "GATE_STRUCTURE",
-            "STRUCTURE", "MODULE", "FOUNDATION", "PLAZA", "PAVING", "PATH", "ROAD", "KEEP");
+            "STRUCTURE", "MODULE", "FOUNDATION", "PLAZA", "PAVING", "PATH", "ROAD", "KEEP",
+            "WALL");
 
     private HostIdRemapRepair() {}
 
@@ -41,12 +42,14 @@ public final class HostIdRemapRepair {
                 continue;
             }
             String host = String.valueOf(c.params().get("host_id"));
-            if (byId.containsKey(host)) {
+            Component hostComp = byId.get(host);
+            // Known + hostable (incl. WALL for garden 漏窗) — leave alone.
+            if (hostComp != null && isHostable(hostComp)) {
                 out.add(c);
                 continue;
             }
             String remapped = pick(host, byId);
-            if (remapped == null) {
+            if (remapped == null || remapped.equals(host)) {
                 out.add(c);
                 continue;
             }
@@ -61,14 +64,14 @@ public final class HostIdRemapRepair {
             changed = true;
         }
         LlmPlan rewritten = changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
-        if (plan.hasCapabilityGap() && isUnknownHostGap(plan) && allHostsResolved(rewritten)) {
-            FormacraftMod.LOGGER.info("HostIdRemapRepair: clearing remapped unknown-host capability_gap");
+        if (plan.hasCapabilityGap() && isUnknownHostGap(plan) && allHostsHostable(rewritten)) {
+            FormacraftMod.LOGGER.info("HostIdRemapRepair: clearing remapped host capability_gap");
             return clearCapabilityGap(rewritten);
         }
         return rewritten;
     }
 
-    private static boolean allHostsResolved(LlmPlan plan) {
+    private static boolean allHostsHostable(LlmPlan plan) {
         if (plan.components() == null) return true;
         Map<String, Component> byId = new HashMap<>();
         for (Component c : plan.components()) {
@@ -80,7 +83,8 @@ public final class HostIdRemapRepair {
             if (c == null || c.params() == null) continue;
             Object host = c.params().get("host_id");
             if (host == null) continue;
-            if (!byId.containsKey(String.valueOf(host))) return false;
+            Component hostComp = byId.get(String.valueOf(host));
+            if (hostComp == null || !isHostable(hostComp)) return false;
         }
         return true;
     }
@@ -93,7 +97,8 @@ public final class HostIdRemapRepair {
             msg = plan.error();
         }
         String lower = msg.toLowerCase(Locale.ROOT);
-        return lower.contains("host_id") && (lower.contains("unknown") || lower.contains("not hostable"));
+        if (!(lower.contains("unknown") || lower.contains("not hostable"))) return false;
+        return lower.contains("host_id") || lower.contains("host '") || lower.contains("host \"");
     }
 
     private static LlmPlan clearCapabilityGap(LlmPlan plan) {

@@ -7,6 +7,8 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +24,11 @@ import static org.junit.jupiter.api.Assertions.*;
  * garden hall-vs-pavilion stilts/overlap, stale ThreadLocal gaps.
  */
 class TempleGardenAlignmentRepairTest {
+
+    @BeforeAll
+    static void boot() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
 
     @BeforeEach
     void clearDiagnostics() {
@@ -58,6 +65,75 @@ class TempleGardenAlignmentRepairTest {
                 .build();
         assertTrue(PlanSemanticValidator.check(plan).isEmpty(),
                 () -> PlanSemanticValidator.check(plan).map(CapabilityGap::message).orElse(""));
+    }
+
+    @Test
+    void deepGateWithThreeDoorwaysFeaturePassesWithoutBaysParam() {
+        // Live log regression: gate_body 18×22 with three_doorways / 3 ENTRANCE, no bays=.
+        Component body = new Component(
+                "MASS_MAIN", "gate", new Vec3i(0, 0, 0),
+                new Dimensions(18, 22, 12),
+                List.of("central_bay", "three_doorways", "pillars"),
+                Map.of("component_id", "gate_body"));
+        Component roof = new Component(
+                "ROOF", "gate", new Vec3i(-2, 12, -2),
+                new Dimensions(22, 26, 3), List.of("xieshan_roof"),
+                Map.of("component_id", "roof_main", "host_id", "gate_body", "roof_type", "xieshan"));
+        Component doorC = new Component(
+                "ENTRANCE", "gate", new Vec3i(7, 0, 0),
+                new Dimensions(4, 1, 6), List.of("double_door"),
+                Map.of("component_id", "entrance_central", "host_id", "gate_body"));
+        Component doorL = new Component(
+                "ENTRANCE", "gate", new Vec3i(2, 0, 0),
+                new Dimensions(3, 1, 5), List.of("single_door"),
+                Map.of("component_id", "entrance_left", "host_id", "gate_body"));
+        Component doorR = new Component(
+                "ENTRANCE", "gate", new Vec3i(13, 0, 0),
+                new Dimensions(3, 1, 5), List.of("single_door"),
+                Map.of("component_id", "entrance_right", "host_id", "gate_body"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(body, roof, doorC, doorL, doorR))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "building_class", "gate",
+                                "confidence", 0.9,
+                                "original_text", "生成一座中式寺庙山门")))
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty(),
+                () -> PlanSemanticValidator.check(plan).map(CapabilityGap::message).orElse(""));
+    }
+
+    @Test
+    void flowerWallHostIsHostableForLeakyWindows() {
+        Component wall = new Component(
+                "WALL", "garden", new Vec3i(0, 0, 0),
+                new Dimensions(6, 10, 3), List.of("leaky_window_openings"),
+                Map.of("component_id", "flower_wall"));
+        Component decor = new Component(
+                "DECOR_DETAIL", "garden", new Vec3i(0, 1, 0),
+                new Dimensions(6, 10, 1), List.of("leaky_window_grid"),
+                Map.of("component_id", "leaky_windows", "host_id", "flower_wall"));
+        Component hall = new Component(
+                "MASS_MAIN", "garden", new Vec3i(10, 0, 0),
+                new Dimensions(13, 10, 5), List.of("main_hall"),
+                Map.of("component_id", "hall_main"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("jiangnan_garden")
+                .components(List.of(wall, decor, hall))
+                .planStatus("capability_gap")
+                .error("capability: host 'flower_wall' type=WALL is not hostable")
+                .capabilityGap(new CapabilityGap(
+                        "E_LLMPLAN_VALIDATION",
+                        "capability: host 'flower_wall' type=WALL is not hostable",
+                        "plan",
+                        List.of()))
+                .build();
+        LlmPlan repaired = HostIdRemapRepair.apply(plan);
+        assertFalse(repaired.hasCapabilityGap());
+        Component fixed = repaired.components().stream()
+                .filter(c -> "leaky_windows".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("flower_wall", fixed.params().get("host_id"));
     }
 
     @Test

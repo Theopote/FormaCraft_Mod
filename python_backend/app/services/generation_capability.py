@@ -47,6 +47,7 @@ _FALLBACK_HOSTABLE = {
     "MASS_MAIN", "TOWER", "MASS_WING", "SIDE_WING", "MASS_ANCILLARY", "MASS_SECONDARY",
     "TERRACE", "COURTYARD", "COURTYARD_SPACE", "GATE", "GATE_STRUCTURE",
     "STRUCTURE", "MODULE", "FOUNDATION", "PLAZA", "PAVING", "PATH", "ROAD", "KEEP",
+    "WALL",
 }
 
 _FALLBACK_HOSTED = {
@@ -306,15 +307,23 @@ def apply_stage_b_capability_repair(
             continue
         ctype = str(c.get("component_type") or "").upper()
 
-        # Remap unknown host_id before evaluate_capability hard-fails (e.g. censer→courtyard).
+        # Remap unknown / non-hostable host_id before evaluate_capability hard-fails
+        # (e.g. censer→courtyard, or legacy WALL-only hosts when catalog lagged).
         if ctype in hosted:
             host = params.get("host_id")
-            if host and str(host) not in id_index:
-                remapped = _pick_host_remap(str(host))
-                if remapped:
-                    params["host_id_mapped_from"] = str(host)
-                    params["host_id"] = remapped
-                    repairs.append(f"host_id {host!r}→{remapped!r}")
+            if host:
+                host_key = str(host)
+                host_comp = id_index.get(host_key)
+                host_type = (
+                    str(host_comp.get("component_type") or "").upper() if host_comp else ""
+                )
+                needs_remap = host_comp is None or (host_type and host_type not in hostable)
+                if needs_remap:
+                    remapped = _pick_host_remap(host_key)
+                    if remapped and remapped != host_key:
+                        params["host_id_mapped_from"] = host_key
+                        params["host_id"] = remapped
+                        repairs.append(f"host_id {host_key!r}→{remapped!r}")
 
         # Typology alias → typology_id for STRUCTURE routing.
         if ctype in {"STRUCTURE", "MODULE"}:
