@@ -41,13 +41,29 @@ public record ResolvedComponentGeometry(
                 : new Vec3i(p.x() - Math.max(1, d.width()) / 2, p.y(), p.z() - Math.max(1, d.depth()) / 2);
         int height = explicitFloorHeight(body);
         int count = ComponentParamParsers.intParam(body.params(), 0, "floor_count", "floorCount");
+        int groundClear = ComponentParamParsers.intParam(body.params(), 0, "ground_clear_height", "groundClearHeight");
         List<Integer> levels = new ArrayList<>();
         if (height > 0 && count > 0) {
-            // Only materialize levels inside the actual envelope, with bounded work for invalid counts.
-            int fitting = Math.min(count, (Math.max(1, d.height()) - 1) / height + 1);
-            for (int floor = 0; floor < fitting; floor++) levels.add(origin.y() + floor * height);
+            // Keep absolute floor Ys in lockstep with ResolvedFloorLayout (taller ground band).
+            int envelope = Math.max(1, d.height());
+            int y = origin.y();
+            for (int floor = 0; floor < count; floor++) {
+                int band = (floor == 0 && groundClear > 0) ? groundClear : height;
+                if (floor > 0 && (y - origin.y()) >= envelope) {
+                    break;
+                }
+                levels.add(y);
+                y += Math.max(1, band);
+            }
         }
-        boolean fits = height <= 0 || count <= 0 || (long) height * count <= d.height();
+        boolean fits;
+        if (height <= 0 || count <= 0) {
+            fits = true;
+        } else if (groundClear > 0) {
+            fits = (long) groundClear + (long) Math.max(0, count - 1) * height <= d.height();
+        } else {
+            fits = (long) height * count <= d.height();
+        }
         return new ResolvedComponentGeometry(body, origin, d, height, List.copyOf(levels), fits);
     }
 

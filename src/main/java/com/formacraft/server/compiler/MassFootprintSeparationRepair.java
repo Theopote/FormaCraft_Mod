@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -15,9 +16,14 @@ import java.util.Map;
 /**
  * Nudge secondary / pavilion masses out of overlapping primary footprints so
  * compound gardens do not trip {@code E_PATCH_CONFLICT} at shared cells.
+ * <p>
+ * Uses resolved min-corner bounds (centre-anchored LLM masses), prefers named
+ * side hints ({@code north_side_hall} / {@code east_wing}), keeps Y flush with
+ * the anchor floor, and shifts host-bound satellites with the mass so roofs
+ * and foundations do not stay bitten into the main hall.
  */
 final class MassFootprintSeparationRepair {
-    private static final int GAP = 1;
+    private static final int GAP = 2;
 
     private MassFootprintSeparationRepair() {}
 
@@ -37,24 +43,85 @@ final class MassFootprintSeparationRepair {
                 if (!overlaps(a, b)) continue;
                 // Prefer moving the pavilion / smaller body away from the hall / larger body.
                 if (priority(a) >= priority(b)) continue;
+                var before = ComponentFootprintUtil.bounds(a);
                 Component nudged = nudgeAway(a, b);
-                if (nudged != a) {
-                    FormacraftMod.LOGGER.info(
-                            "MassFootprintSeparationRepair: move {} away from {} → {}",
-                            idOf(a), idOf(b), nudged.relativePosition());
-                    out.set(i, nudged);
-                    a = nudged;
-                    changed = true;
+                if (nudged == a) continue;
+                var after = ComponentFootprintUtil.bounds(nudged);
+                // Delta from resolved footprints — not raw relativePosition (centre anchors differ).
+                int dx;
+                int dy;
+                int dz;
+                if (before != null && after != null) {
+                    dx = after.minX() - before.minX();
+                    dy = after.minY() - before.minY();
+                    dz = after.minZ() - before.minZ();
+                } else {
+                    dx = nudged.relativePosition().x() - a.relativePosition().x();
+                    dy = nudged.relativePosition().y() - a.relativePosition().y();
+                    dz = nudged.relativePosition().z() - a.relativePosition().z();
                 }
+                FormacraftMod.LOGGER.info(
+                        "MassFootprintSeparationRepair: move {} away from {} → {} (Δ={},{},{})",
+                        idOf(a), idOf(b), nudged.relativePosition(), dx, dy, dz);
+                out.set(i, nudged);
+                // Keep roofs / foundations / entrances glued to the moved body.
+                shiftHostedSatellites(out, a, dx, dy, dz);
+                a = nudged;
+                changed = true;
             }
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
     }
 
+    private static void shiftHostedSatellites(List<Component> parts, Component host, int dx, int dy, int dz) {
+        if (dx == 0 && dy == 0 && dz == 0) return;
+        String hostId = idOf(host);
+        String slot = host.slotId();
+        for (int i = 0; i < parts.size(); i++) {
+            Component c = parts.get(i);
+            if (c == null || c == host || c.relativePosition() == null) continue;
+            if (isMovableMass(c) && priority(c) >= priority(host)) continue;
+            boolean hosted = hostId != null && !hostId.isBlank() && c.params() != null
+                    && (hostId.equals(String.valueOf(c.params().get("host_id")))
+                    || hostId.equals(String.valueOf(c.params().get("hostId")))
+                    || hostId.equals(String.valueOf(c.params().get("building_id"))));
+            boolean sameSlotSatellite = slot != null && slot.equals(c.slotId())
+                    && !isMovableMass(c);
+            // Side-hall foundations / roofs often share the side hall's component_id prefix
+            // without an explicit host_id — shift when ids share the mover stem.
+            boolean idFamily = sharesIdFamily(hostId, idOf(c));
+            if (!hosted && !sameSlotSatellite && !idFamily) continue;
+            if (isMovableMass(c) && !idFamily) continue;
+            Vec3i p = c.relativePosition();
+            parts.set(i, new Component(
+                    c.componentType(), c.slotId(),
+                    new Vec3i(p.x() + dx, p.y() + dy, p.z() + dz),
+                    c.dimensions(), c.features(), c.params()));
+        }
+    }
+
+    private static boolean sharesIdFamily(String hostId, String otherId) {
+        if (hostId == null || otherId == null) return false;
+        String a = hostId.toLowerCase(Locale.ROOT);
+        String b = otherId.toLowerCase(Locale.ROOT);
+        if (a.equals(b) || a.isBlank() || b.isBlank()) return false;
+        // north_side_hall ↔ north_side_hall_roof / north_side_foundation
+        return b.startsWith(a) || a.startsWith(b)
+                || (a.contains("side") && b.contains("side")
+                && ((a.contains("north") && b.contains("north"))
+                || (a.contains("south") && b.contains("south"))
+                || (a.contains("east") && b.contains("east"))
+                || (a.contains("west") && b.contains("west"))
+                || (a.contains("左") && b.contains("左"))
+                || (a.contains("右") && b.contains("右"))));
+    }
+
     private static boolean isMovableMass(Component c) {
         if (c == null || c.dimensions() == null || c.relativePosition() == null) return false;
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
-        if (!(t.startsWith("MASS") || "TOWER".equals(t) || "GATE".equals(t))) return false;
+        if (!(t.startsWith("MASS") || "TOWER".equals(t) || "GATE".equals(t) || "STRUCTURE".equals(t))) {
+            return false;
+        }
         if (c.params() != null) {
             // Bridge / hosted plates intentionally touch two hosts — never nudge them apart.
             if (c.params().containsKey("target_host_id") || c.params().containsKey("targetHostId")) {
@@ -80,25 +147,35 @@ final class MassFootprintSeparationRepair {
         String id = idOf(c).toLowerCase(Locale.ROOT);
         int score = volume(c);
         if (id.contains("pavilion") || id.contains("gazebo") || id.contains("ting")
-                || id.contains("shuixie") || id.contains("kiosk") || id.contains("water")) {
+                || id.contains("shuixie") || id.contains("kiosk") || id.contains("water")
+                || id.contains("side") || id.contains("wing") || id.contains("配殿")
+                || id.contains("厢")) {
             score -= 1_000_000;
         }
-        if (id.contains("hall") || id.contains("main") || id.contains("殿") || id.contains("堂")) {
+        if (id.contains("main") || id.contains("大雄") || id.contains("宝殿")
+                || (id.contains("hall") && !id.contains("side") && !id.contains("wing"))) {
             score += 1_000_000;
+        }
+        if (id.contains("殿") || id.contains("堂")) {
+            if (id.contains("配") || id.contains("侧") || id.contains("厢")) score -= 500_000;
+            else score += 500_000;
         }
         Object role = c.params() == null ? null : c.params().get("building_role");
         if (role == null && c.params() != null) role = c.params().get("buildingRole");
         if (role != null) {
             String r = String.valueOf(role).toLowerCase(Locale.ROOT);
-            if (r.contains("pavilion")) score -= 500_000;
+            if (r.contains("pavilion") || r.contains("side") || r.contains("wing")) score -= 500_000;
             if (r.contains("hall") || r.contains("main") || r.contains("primary")) score += 500_000;
         }
         if (c.features() != null) {
             for (String f : c.features()) {
                 if (f == null) continue;
                 String lower = f.toLowerCase(Locale.ROOT);
-                if (lower.contains("pavilion") || f.contains("亭") || lower.contains("水榭")) score -= 250_000;
-                if (lower.contains("hall") || f.contains("殿") || lower.contains("main_hall")) score += 250_000;
+                if (lower.contains("pavilion") || f.contains("亭") || lower.contains("水榭")
+                        || f.contains("配殿")) score -= 250_000;
+                if (lower.contains("main_hall") || f.contains("大雄") || lower.contains("宝殿")) {
+                    score += 250_000;
+                }
             }
         }
         return score;
@@ -117,18 +194,112 @@ final class MassFootprintSeparationRepair {
     }
 
     private static boolean overlaps(Component a, Component b) {
-        Vec3i ao = a.relativePosition();
-        Vec3i bo = b.relativePosition();
-        Dimensions ad = a.dimensions();
-        Dimensions bd = b.dimensions();
-        int aMaxX = ao.x() + ad.width() - 1;
-        int aMaxZ = ao.z() + ad.depth() - 1;
-        int bMaxX = bo.x() + bd.width() - 1;
-        int bMaxZ = bo.z() + bd.depth() - 1;
-        return ao.x() <= bMaxX && aMaxX >= bo.x() && ao.z() <= bMaxZ && aMaxZ >= bo.z();
+        var ab = ComponentFootprintUtil.bounds(a);
+        var bb = ComponentFootprintUtil.bounds(b);
+        if (ab == null || bb == null) {
+            // Fallback for unresolved geometry — treat relativePosition as min corner.
+            Vec3i ao = a.relativePosition();
+            Vec3i bo = b.relativePosition();
+            Dimensions ad = a.dimensions();
+            Dimensions bd = b.dimensions();
+            int aMaxX = ao.x() + ad.width() - 1;
+            int aMaxZ = ao.z() + ad.depth() - 1;
+            int bMaxX = bo.x() + bd.width() - 1;
+            int bMaxZ = bo.z() + bd.depth() - 1;
+            return ao.x() <= bMaxX && aMaxX >= bo.x() && ao.z() <= bMaxZ && aMaxZ >= bo.z();
+        }
+        // Bounds max is exclusive.
+        return ab.minX() < bb.maxX() && bb.minX() < ab.maxX()
+                && ab.minZ() < bb.maxZ() && bb.minZ() < ab.maxZ();
     }
 
     private static Component nudgeAway(Component mover, Component anchor) {
+        var mb = ComponentFootprintUtil.bounds(mover);
+        var ab = ComponentFootprintUtil.bounds(anchor);
+        Vec3i mo = mover.relativePosition();
+        if (mb == null || ab == null || mo == null || mover.dimensions() == null) {
+            return nudgeAwayRaw(mover, anchor);
+        }
+        Dimensions md = mover.dimensions();
+        int mMinX = mb.minX();
+        int mMinZ = mb.minZ();
+        int mMaxX = mb.maxX() - 1;
+        int mMaxZ = mb.maxZ() - 1;
+        int aMinX = ab.minX();
+        int aMinZ = ab.minZ();
+        int aMaxX = ab.maxX() - 1;
+        int aMaxZ = ab.maxZ() - 1;
+
+        int overlapX = Math.min(mMaxX, aMaxX) - Math.max(mMinX, aMinX) + 1;
+        int overlapZ = Math.min(mMaxZ, aMaxZ) - Math.max(mMinZ, aMinZ) + 1;
+        if (overlapX <= 0 || overlapZ <= 0) return mover;
+
+        int preferDx = 0;
+        int preferDz = 0;
+        String id = idOf(mover).toLowerCase(Locale.ROOT);
+        if (id.contains("north") || id.contains("北") || id.contains("后")) preferDz = -1;
+        else if (id.contains("south") || id.contains("南") || id.contains("前")) preferDz = 1;
+        if (id.contains("east") || id.contains("东") || id.contains("右")) preferDx = 1;
+        else if (id.contains("west") || id.contains("西") || id.contains("左")) preferDx = -1;
+        // 左右配殿 of a south-facing hall sit on east/west — prefer X when id says side/wing without N/S.
+        if (preferDx == 0 && preferDz == 0
+                && (id.contains("side") || id.contains("wing") || id.contains("配") || id.contains("厢"))) {
+            int centerM = (mMinX + mMaxX) / 2;
+            int centerA = (aMinX + aMaxX) / 2;
+            preferDx = centerM >= centerA ? 1 : -1;
+        }
+
+        int dx = 0;
+        int dz = 0;
+        if (preferDx != 0 && (preferDz == 0 || overlapX <= overlapZ + 2)) {
+            dx = preferDx > 0
+                    ? (aMaxX + GAP + 1) - mMinX
+                    : (aMinX - GAP - md.width()) - mMinX;
+        } else if (preferDz != 0) {
+            dz = preferDz > 0
+                    ? (aMaxZ + GAP + 1) - mMinZ
+                    : (aMinZ - GAP - md.depth()) - mMinZ;
+        } else if (overlapX <= overlapZ) {
+            int centerM = (mMinX + mMaxX) / 2;
+            int centerA = (aMinX + aMaxX) / 2;
+            dx = centerM >= centerA
+                    ? (aMaxX + GAP + 1) - mMinX
+                    : (aMinX - GAP - md.width()) - mMinX;
+        } else {
+            int centerM = (mMinZ + mMaxZ) / 2;
+            int centerA = (aMinZ + aMaxZ) / 2;
+            dz = centerM >= centerA
+                    ? (aMaxZ + GAP + 1) - mMinZ
+                    : (aMinZ - GAP - md.depth()) - mMinZ;
+        }
+        if (dx == 0 && dz == 0) return mover;
+
+        // Keep the side hall on the same floor datum as the main body (avoid sinking underground
+        // while the main sits on a 月台 / raised mass).
+        Vec3i anchorOrigin = ComponentFootprintUtil.resolveMinCornerOrigin(anchor);
+        int targetY = mo.y();
+        if (anchorOrigin != null) {
+            targetY = anchorOrigin.y();
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        if (mover.params() != null) params.putAll(mover.params());
+        params.put("anchor_mode", "min_corner");
+        params.put("footprint_separated", true);
+        // Emit min-corner position so later generators match the resolved bounds we just used.
+        int newMinX = mMinX + dx;
+        int newMinZ = mMinZ + dz;
+        return new Component(
+                mover.componentType(),
+                mover.slotId(),
+                new Vec3i(newMinX, targetY, newMinZ),
+                md,
+                mover.features(),
+                params);
+    }
+
+    /** Legacy path when bounds cannot be resolved. */
+    private static Component nudgeAwayRaw(Component mover, Component anchor) {
         Vec3i mo = mover.relativePosition();
         Vec3i ao = anchor.relativePosition();
         Dimensions md = mover.dimensions();
@@ -144,7 +315,6 @@ final class MassFootprintSeparationRepair {
 
         int dx = 0;
         int dz = 0;
-        // Push along the thinner penetration axis; prefer the side the mover already leans toward.
         if (overlapX <= overlapZ) {
             int centerM = mo.x() + md.width() / 2;
             int centerA = ao.x() + ad.width() / 2;
@@ -167,7 +337,7 @@ final class MassFootprintSeparationRepair {
         return new Component(
                 mover.componentType(),
                 mover.slotId(),
-                new Vec3i(mo.x() + dx, mo.y(), mo.z() + dz),
+                new Vec3i(mo.x() + dx, ao.y(), mo.z() + dz),
                 md,
                 mover.features(),
                 params);

@@ -21,6 +21,7 @@ public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer>
                     ProportionalFacadeCalculator.extractFloorHeightFromFeatures(component.features()));
         }
         int floorCount = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
+        int groundClear = ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight");
         int height = Math.max(1, envelopeHeight);
 
         int floorHeight;
@@ -35,12 +36,26 @@ public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer>
 
         List<Integer> levels = new ArrayList<>();
         if (floorCount > 0) {
-            int fitting = Math.min(floorCount, (height - 1) / floorHeight + 1);
-            for (int floor = 0; floor < fitting; floor++) {
-                levels.add(floor * floorHeight);
+            // Taller lobby (ground_clear_height) + equal upper bands — avoid a leftover "half floor".
+            int y = 0;
+            for (int floor = 0; floor < floorCount; floor++) {
+                int band = (floor == 0 && groundClear > 0) ? groundClear : floorHeight;
+                if (floor > 0 && y >= height) {
+                    break;
+                }
+                levels.add(y);
+                y += Math.max(1, band);
             }
         }
-        boolean fits = floorCount <= 0 || (long) floorHeight * floorCount <= height;
+        boolean fits;
+        if (floorCount <= 0) {
+            fits = true;
+        } else if (groundClear > 0) {
+            long need = (long) groundClear + (long) Math.max(0, floorCount - 1) * floorHeight;
+            fits = need <= height;
+        } else {
+            fits = (long) floorHeight * floorCount <= height;
+        }
         return new ResolvedFloorLayout(floorHeight, floorCount, List.copyOf(levels), fits);
     }
 

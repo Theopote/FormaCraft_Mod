@@ -724,6 +724,14 @@ final class ComponentSatelliteAligner {
         if (llmEntrance.params() != null) {
             params.putAll(llmEntrance.params());
         }
+        // Prefer explicit request / mass door width over an undersized LLM entrance leaf count.
+        int requestedDoor = PlanIntentFidelityRepair.requestedDoorWidth(plan);
+        if (requestedDoor <= 0) {
+            requestedDoor = ComponentParamParsers.intParam(mass.params(), 0, "door_width", "doorWidth");
+        }
+        if (requestedDoor > 0) {
+            params.put("door_width", requestedDoor);
+        }
 
         int floorHeight = ComponentParamParsers.intParam(mass.params(), "floor_height", "floorHeight");
         int authoredDoorHeight = ComponentParamParsers.intParam(params, 2, "door_height", "doorHeight");

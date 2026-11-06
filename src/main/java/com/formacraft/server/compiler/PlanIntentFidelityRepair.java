@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -166,7 +167,9 @@ final class PlanIntentFidelityRepair {
         boolean forceDoubleEave = hints.doubleEave()
                 || (corpus.contains("重檐") && !corpus.contains("不要重檐") && !corpus.contains("无重檐"));
         if (!forceDoubleEave && hints.roofType() == null && hints.floorCount() <= 0
-                && hints.footprintWidth() <= 0 && hints.wallBlock() == null) {
+                && hints.footprintWidth() <= 0 && hints.wallBlock() == null
+                && parseDoorWidthBlocks(corpus) <= 0
+                && !corpusContainsOffice(corpus)) {
             return plan;
         }
         IntentHints effective = forceDoubleEave && !hints.doubleEave()
@@ -210,6 +213,7 @@ final class PlanIntentFidelityRepair {
         List<String> features = new ArrayList<>();
         if (component.features() != null) features.addAll(component.features());
         boolean changed = false;
+        Dimensions dimsOverride = null;
 
         for (String seed : hints.featureSeeds()) {
             if (seed == null || seed.isBlank()) continue;
@@ -310,15 +314,48 @@ final class PlanIntentFidelityRepair {
             }
         }
 
-        if (entrance && !params.containsKey("door_width") && !params.containsKey("doorWidth")) {
-            int span = entranceSpan(component);
-            if (span > 0) {
-                int door = symmetricDoorWidth(span);
-                changed |= DesignProvenance.putIfAllowed(plan, params, "door_width", door);
+        int requestedDoor = parseDoorWidthBlocks(intentCorpus(plan));
+        if ((mass || entrance) && requestedDoor > 0
+                && ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth") != requestedDoor) {
+            params.put("door_width", requestedDoor);
+            changed = true;
+        }
+        if (entrance) {
+            int existing = ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth");
+            if (requestedDoor > 0 && existing != requestedDoor) {
+                params.put("door_width", requestedDoor);
+                changed = true;
+            } else if (existing <= 0 && !params.containsKey("door_width") && !params.containsKey("doorWidth")) {
+                int span = entranceSpan(component);
+                if (span > 0) {
+                    int door = requestedDoor > 0 ? requestedDoor : symmetricDoorWidth(span);
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "door_width", door);
+                }
+            }
+            // Explicit 正门宽三格 needs an opening box of at least door+1 so maxDoor can hold it.
+            int doorW = ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth");
+            if (doorW >= 3 && component.dimensions() != null) {
+                Dimensions ed = component.dimensions();
+                int need = doorW + 1;
+                boolean ew = ed.width() == 1 && ed.depth() > 1;
+                boolean ns = ed.depth() == 1 && ed.width() > 1;
+                if (ew && ed.depth() < need) {
+                    dimsOverride = new Dimensions(ed.width(), need, ed.height());
+                    changed = true;
+                } else if (ns && ed.width() < need) {
+                    dimsOverride = new Dimensions(need, ed.depth(), ed.height());
+                    changed = true;
+                } else if (!ew && !ns && Math.min(ed.width(), ed.depth()) >= 1
+                        && Math.max(ed.width(), ed.depth()) < need) {
+                    dimsOverride = ed.width() >= ed.depth()
+                            ? new Dimensions(need, ed.depth(), ed.height())
+                            : new Dimensions(ed.width(), need, ed.height());
+                    changed = true;
+                }
             }
         }
 
-        Dimensions dims = component.dimensions();
+        Dimensions dims = dimsOverride != null ? dimsOverride : component.dimensions();
         Vec3i position = component.relativePosition();
         if (mass && dims != null) {
             int floors = Math.max(
@@ -340,13 +377,53 @@ final class PlanIntentFidelityRepair {
                     nw = Math.max(nw, 14);
                     nd = Math.max(nd, 12);
                 }
-                if (nw != dims.width() || nd != dims.depth()) {
-                    if (position != null) {
+                int nh = dims.height();
+                if (officeLike || floors >= 3) {
+                    // Drop LLM-invented circles unless the prompt asked for a round plan —
+                    // circular offices push inferred stairs outside the curved wall.
+                    boolean wantsRound = corpus.contains("圆形") || corpus.contains("圆楼")
+                            || corpus.contains("圆柱") || corpus.contains("circle")
+                            || corpus.contains("circular") || corpus.contains("round plan");
+                    if (!wantsRound) {
+                        for (String key : List.of(
+                                "shape", "footprint_shape", "footprintShape", "plan_type", "planType")) {
+                            Object shape = params.get(key);
+                            if (shape != null) {
+                                String s = String.valueOf(shape).toLowerCase(Locale.ROOT);
+                                if (s.contains("circle") || s.contains("round") || s.contains("cylinder")
+                                        || s.contains("圆")) {
+                                    params.put(key, "rectangle");
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                    // Exact storey stack: taller lobby + equal upper floors — no leftover half band.
+                    int ground = Math.max(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT,
+                            ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
+                    if (corpus.contains("底层") && (corpus.contains("净高") || corpus.contains("明显高于"))) {
+                        ground = Math.max(ground, InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT + 1);
+                    }
+                    int upper = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+                    int f = Math.max(2, floors > 0 ? floors : 3);
+                    int needH = ground + Math.max(0, f - 1) * upper + 1; // +1 roof deck
+                    if (nh < needH || (nh > needH + 2 && floors > 0)) {
+                        nh = needH;
+                        changed = true;
+                    }
+                    // Force the exact stack even when the LLM authored a conflicting floor_height.
+                    params.put("floor_count", f);
+                    params.put("floor_height", upper);
+                    params.put("ground_clear_height", ground);
+                    changed = true;
+                }
+                if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
+                    if (position != null && (nw != dims.width() || nd != dims.depth())) {
                         int dx = (nw - dims.width()) / 2;
                         int dz = (nd - dims.depth()) / 2;
                         position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
                     }
-                    dims = new Dimensions(nw, nd, dims.height());
+                    dims = new Dimensions(nw, nd, nh);
                     changed = true;
                 }
             }
@@ -364,6 +441,62 @@ final class PlanIntentFidelityRepair {
 
     static int symmetricDoorWidth(int openingSpan) {
         return com.formacraft.common.generation.component.impl.EntranceGenerator.symmetricDoorWidth(openingSpan);
+    }
+
+    /** Leaf width requested in the plan corpus (「正门宽三格」); 0 when absent. */
+    static int requestedDoorWidth(LlmPlan plan) {
+        return parseDoorWidthBlocks(intentCorpus(plan));
+    }
+
+    /** Parse 「正门宽三格」「门宽3格」「door width 3」 → leaf width in blocks; 0 when absent. */
+    static int parseDoorWidthBlocks(String corpus) {
+        if (corpus == null || corpus.isBlank()) return 0;
+        String lower = corpus.toLowerCase(Locale.ROOT);
+        Matcher m = Pattern.compile(
+                "(?:正门|大门|门)\\s*宽\\s*([一二三四五六七八九十两\\d])\\s*格"
+                        + "|door\\s*width\\s*[:=]?\\s*(\\d)"
+                        + "|(\\d)\\s*-?\\s*block\\s*door").matcher(lower);
+        if (m.find()) {
+            for (int g = 1; g <= m.groupCount(); g++) {
+                if (m.group(g) != null) return chineseOrDigit(m.group(g));
+            }
+        }
+        if (lower.contains("宽三格") || lower.contains("三扇门")) return 3;
+        if (lower.contains("宽两格") || lower.contains("宽二格") || lower.contains("双开门") || lower.contains("两扇门")) {
+            return 2;
+        }
+        if (lower.contains("宽四格")) return 4;
+        if (lower.contains("宽五格")) return 5;
+        return 0;
+    }
+
+    private static int chineseOrDigit(String raw) {
+        if (raw == null || raw.isBlank()) return 0;
+        return switch (raw.trim()) {
+            case "1", "一" -> 1;
+            case "2", "二", "两" -> 2;
+            case "3", "三" -> 3;
+            case "4", "四" -> 4;
+            case "5", "五" -> 5;
+            case "6", "六" -> 6;
+            case "7", "七" -> 7;
+            case "8", "八" -> 8;
+            case "9", "九" -> 9;
+            default -> {
+                try {
+                    yield Integer.parseInt(raw.trim());
+                } catch (NumberFormatException e) {
+                    yield 0;
+                }
+            }
+        };
+    }
+
+    private static boolean corpusContainsOffice(String corpus) {
+        if (corpus == null || corpus.isBlank()) return false;
+        String lower = corpus.toLowerCase(Locale.ROOT);
+        return lower.contains("办公") || lower.contains("office") || lower.contains("curtain")
+                || lower.contains("幕墙") || lower.contains("玻璃幕");
     }
 
     static String intentCorpus(LlmPlan plan) {

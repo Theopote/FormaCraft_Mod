@@ -79,7 +79,11 @@
     ]
   },
   "opening_cues": {
-    "door_width_explicit": ["双开门", "两扇门", "三扇门", "宽门", "大门宽", "door width", "double door", "double doors"]
+    "door_width_explicit": [
+      "双开门", "两扇门", "三扇门", "宽门", "大门宽", "正门宽", "门宽",
+      "宽一格", "宽两格", "宽二格", "宽三格", "宽四格", "宽五格",
+      "door width", "double door", "double doors", "three-block door", "3-block door"
+    ]
   },
   "confidence": {
     "strong_hit": 0.9,

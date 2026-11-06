@@ -700,10 +700,15 @@ final class ComponentSatelliteInference {
 
         Map<String, Object> baseParams = base.params();
         int paramDoorW = ComponentParamParsers.intParam(baseParams, 0, "door_width", "doorWidth");
+        if (paramDoorW <= 0) {
+            // Mass may not yet carry door_width; honour 「正门宽三格」 from the request corpus.
+            paramDoorW = PlanIntentFidelityRepair.requestedDoorWidth(plan);
+        }
         int paramDoorH = ComponentParamParsers.intParam(baseParams, 0, "door_height", "doorHeight");
         int paramCanopy = ComponentParamParsers.intParam(baseParams, 0, "canopy_depth", "canopyDepth");
         if (paramDoorW > 0) {
-            entranceWidth = Math.max(2, Math.min(width - 1, paramDoorW + 1));
+            // door_width is the leaf count; box must be ≥ door+1 so EntranceGenerator maxDoor fits.
+            entranceWidth = Math.max(paramDoorW + 1, Math.min(width - 1, paramDoorW + 2));
         }
         if (paramDoorH > 0) {
             entranceHeight = Math.max(2, Math.min(height, paramDoorH + 1));
@@ -731,6 +736,10 @@ final class ComponentSatelliteInference {
         if (baySnap != null) {
             facadeBoxSpan = Math.max(3, Math.min(baySnap.axisSpan(), width - baySnap.axisStart()));
         }
+        // Explicit leaf width must not be soft-clamped by a short bay snap (span 3 → maxDoor 2).
+        if (paramDoorW > 0) {
+            facadeBoxSpan = Math.max(facadeBoxSpan, Math.min(Math.max(3, width - 1), paramDoorW + 1));
+        }
         int facadeAxisLength = facing == GlobalConstraints.Facing.EAST || facing == GlobalConstraints.Facing.WEST ? depth : width;
         int doorWidth = paramDoorW > 0
                 ? Math.max(1, Math.min(facadeBoxSpan - 1, paramDoorW))
@@ -743,6 +752,9 @@ final class ComponentSatelliteInference {
         int boxWidth;
         int boxDepth;
         int facadeAxisStart = baySnap != null ? baySnap.axisStart() : Math.max(0, (facadeAxisLength - facadeBoxSpan) / 2);
+        if (facadeAxisStart + facadeBoxSpan > facadeAxisLength) {
+            facadeAxisStart = Math.max(0, facadeAxisLength - facadeBoxSpan);
+        }
         switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
             case NORTH -> {
                 boxWidth = facadeBoxSpan;

@@ -417,4 +417,83 @@ class InGameAcceptanceRepairTest {
                 .findFirst().orElseThrow();
         assertEquals(2, ((Number) mass.params().getOrDefault("entrance_flank_windows", 0)).intValue());
     }
+
+    @Test
+    void parseDoorWidthBlocksHonorsZhengmenKuanSanGe() {
+        assertEquals(3, PlanIntentFidelityRepair.parseDoorWidthBlocks("生成一座两层小楼，正门宽三格，门右侧加一扇玻璃窗"));
+        assertEquals(2, PlanIntentFidelityRepair.parseDoorWidthBlocks("正门宽两格"));
+    }
+
+    @Test
+    void threeBlockDoorSurvivesEntranceFidelityAndEmit() {
+        Map<String, Object> hints = new HashMap<>();
+        hints.put("architecture_intent", Map.of(
+                "original_text", "生成一座两层小楼，墙体必须用白色混凝土，正门宽三格"));
+        Map<String, Object> massParams = new HashMap<>();
+        massParams.put("component_id", "house");
+        massParams.put("anchor_mode", "min_corner");
+        massParams.put("door_width", 2);
+        massParams.put("floor_count", 2);
+        Map<String, Object> doorParams = new HashMap<>();
+        doorParams.put("host_id", "house");
+        doorParams.put("facing", "SOUTH");
+        doorParams.put("door_width", 2);
+        doorParams.put("door_height", 3);
+        doorParams.put("anchor_mode", "min_corner");
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(), massParams);
+        Component entrance = new Component(
+                "ENTRANCE", "main", new Vec3i(4, 0, 0),
+                new Dimensions(3, 1, 4), List.of(), doorParams);
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(mass, entrance))
+                .proportionHints(hints)
+                .build();
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component door = repaired.components().stream()
+                .filter(c -> "ENTRANCE".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        assertEquals(3, ((Number) door.params().get("door_width")).intValue());
+        assertTrue(door.dimensions().width() >= 4,
+                "opening box must be ≥ door+1, got " + door.dimensions().width());
+        long removes = new com.formacraft.common.generation.component.impl.EntranceGenerator()
+                .generate(new SemanticComponent("ENTRANCE", null, door)).stream()
+                .filter(p -> BlockPatch.REMOVE.equals(p.action()))
+                .count();
+        // 3-wide × door_height 3 × depth 1 = 9 air cells when span holds door_width=3.
+        assertEquals(9, removes);
+    }
+
+    @Test
+    void officeDropsInventedCircleAndExactStoreyStack() {
+        Map<String, Object> hints = new HashMap<>();
+        hints.put("architecture_intent", Map.of(
+                "original_text", "生成一座三层玻璃幕墙办公楼"));
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "office");
+        params.put("anchor_mode", "min_corner");
+        params.put("shape", "circle");
+        params.put("floor_count", 3);
+        params.put("floor_height", 4);
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 14), List.of(), params);
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(
+                com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                        .mode(LlmPlan.Mode.build)
+                        .components(List.of(mass))
+                        .proportionHints(hints)
+                        .build());
+        Component out = repaired.components().getFirst();
+        assertEquals("rectangle", String.valueOf(out.params().get("shape")));
+        assertEquals(3, ((Number) out.params().get("floor_count")).intValue());
+        assertEquals(4, ((Number) out.params().get("ground_clear_height")).intValue());
+        int needH = 4 + 2 * 3 + 1;
+        assertEquals(needH, out.dimensions().height());
+        var layout = com.formacraft.common.generation.component.util.ResolvedFloorLayout
+                .from(out, out.dimensions().height());
+        assertEquals(List.of(0, 4, 7), layout.floorYs());
+    }
 }

@@ -130,7 +130,7 @@ public final class TailiangTimberHallBuilder {
         int platformH = p.intVal("platformHeight", 2, 1, 4);
         int bodyH = p.intVal("hallHeight", 7, 5, 12);
         boolean doubleEave = wantsDoubleEave(p);
-        boolean subEaves = doubleEave ? false : p.boolVal("includeSubEaves", true);
+        boolean subEaves = !doubleEave && p.boolVal("includeSubEaves", true);
         int subDepth = envelope.subDepth();
         if (doubleEave) {
             // True 重檐 uses an inset upper roof, not the dense outer colonnade.

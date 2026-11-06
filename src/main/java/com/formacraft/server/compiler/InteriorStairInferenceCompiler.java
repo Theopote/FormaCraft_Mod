@@ -13,6 +13,7 @@ import com.formacraft.server.generation.component.impl.StraightStairComponentGen
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -93,6 +94,17 @@ final class InteriorStairInferenceCompiler {
         int interiorRun = run - 2 * wall;
         int laneA = wall + width / 2;
         int laneB = span - wall - 1 - (width - 1) / 2;
+        // Circular / rounded plans: AABB edge lanes fall outside the curved wall and "pierce"
+        // the facade. Keep a centred single-lane run well inside the inscribed square.
+        boolean circular = isCircularPlan(host);
+        if (circular) {
+            width = 1;
+            int inset = Math.max(wall + 2, Math.min(span, run) / 4);
+            laneA = laneB = span / 2;
+            interiorRun = Math.max(0, run - 2 * inset);
+            // Rebuild low/high with a deeper inset below.
+            wall = inset;
+        }
         if (laneB - laneA < width || interiorRun < fh) {
             // Narrow tower: single-lane flights without switchback.
             width = Math.max(1, Math.min(width, Math.max(1, span - 2 * wall)));
@@ -176,6 +188,19 @@ final class InteriorStairInferenceCompiler {
             material = "minecraft:" + material;
         }
         return material;
+    }
+
+    private static boolean isCircularPlan(Component host) {
+        if (host == null || host.params() == null) return false;
+        for (String key : List.of("shape", "footprint_shape", "footprintShape", "plan_type", "planType")) {
+            Object v = host.params().get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).toLowerCase(Locale.ROOT);
+            if (s.contains("circle") || s.contains("round") || s.contains("cylinder") || s.contains("圆")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String resolveStairsMaterial(String floorBlock) {

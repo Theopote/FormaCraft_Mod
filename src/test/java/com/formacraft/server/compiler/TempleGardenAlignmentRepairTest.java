@@ -183,11 +183,13 @@ class TempleGardenAlignmentRepairTest {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, -8),
                 new Dimensions(16, 12, 8), List.of("main_hall"),
-                Map.of("component_id", "hall_main", "building_role", "hall_main"));
+                Map.of("component_id", "hall_main", "building_role", "hall_main",
+                        "anchor_mode", "min_corner"));
         Component pavilion = new Component(
                 "MASS_MAIN", "pavilion", new Vec3i(11, 0, 3),
                 new Dimensions(6, 6, 5), List.of("pavilion"),
-                Map.of("component_id", "pavilion_water", "building_role", "pavilion"));
+                Map.of("component_id", "pavilion_water", "building_role", "pavilion",
+                        "anchor_mode", "min_corner"));
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .components(List.of(hall, pavilion))
                 .build();
@@ -362,5 +364,52 @@ class TempleGardenAlignmentRepairTest {
         assertEquals(14, layers[4].depth);
         assertEquals(0, layers[4].xOffset);
         assertEquals(0, layers[4].zOffset);
+    }
+
+    @Test
+    void sideHallsSeparateOnOppositeSidesAndLiftSatellites() {
+        Component hall = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 2, 0),
+                new Dimensions(16, 12, 8), List.of(),
+                Map.of("component_id", "main_hall", "building_role", "hall_main",
+                        "anchor_mode", "min_corner"));
+        Component north = new Component(
+                "MASS_SECONDARY", "north", new Vec3i(4, -3, 2),
+                new Dimensions(8, 8, 6), List.of(),
+                Map.of("component_id", "north_side_hall", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        Component northRoof = new Component(
+                "ROOF", "north", new Vec3i(3, 3, 1),
+                new Dimensions(10, 10, 3), List.of(),
+                Map.of("component_id", "north_side_hall_roof", "host_id", "north_side_hall",
+                        "anchor_mode", "min_corner"));
+        Component south = new Component(
+                "MASS_SECONDARY", "south", new Vec3i(4, -3, 2),
+                new Dimensions(8, 8, 6), List.of(),
+                Map.of("component_id", "south_side_hall", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(hall, north, northRoof, south))
+                .build());
+        Component n = repaired.components().stream()
+                .filter(c -> "north_side_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component s = repaired.components().stream()
+                .filter(c -> "south_side_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component roof = repaired.components().stream()
+                .filter(c -> "north_side_hall_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(2, n.relativePosition().y(), "side hall Y must flush to main hall floor");
+        assertEquals(2, s.relativePosition().y());
+        assertTrue(n.relativePosition().z() < hall.relativePosition().z()
+                        || n.relativePosition().z() + n.dimensions().depth()
+                        <= hall.relativePosition().z(),
+                "north hall should leave the main footprint northward");
+        assertTrue(s.relativePosition().z() >= hall.relativePosition().z() + hall.dimensions().depth()
+                        || s.relativePosition().z() > n.relativePosition().z(),
+                "south hall must not collapse onto the same cell as north");
+        assertEquals(n.relativePosition().x() - 1, roof.relativePosition().x());
+        assertEquals(n.relativePosition().z() - 1, roof.relativePosition().z());
     }
 }

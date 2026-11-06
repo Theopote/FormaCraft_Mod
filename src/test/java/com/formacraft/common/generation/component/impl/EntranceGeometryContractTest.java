@@ -64,6 +64,14 @@ class EntranceGeometryContractTest {
     }
 
     @Test
+    void explicitThreeBlockDoorFitsWhenOpeningSpanIsFour() {
+        var params = Map.<String, Object>of("door_width", 3, "door_height", 3);
+        var patches = new EntranceGenerator().generate(entrance(4, 4, 1, params, List.of()));
+        long removes = patches.stream().filter(p -> BlockPatch.REMOVE.equals(p.action())).count();
+        assertEquals(9, removes, "3-wide × 3-high × depth 1");
+    }
+
+    @Test
     void explicitArchWidthOneSoftClampsOrDropsArch() {
         var params = Map.<String, Object>of("door_width", 1, "door_height", 3);
         var patches = new EntranceGenerator().generate(entrance(7, 4, 2, params, List.of("arch")));

@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResolvedFloorLayoutTest {
@@ -24,18 +23,29 @@ class ResolvedFloorLayoutTest {
     }
 
     @Test
-    void derivesFromFloorCountWithoutRaisingToThree() {
+    void derivesFromFloorCountHonorsMinClearHeight() {
         Component c = mass(Map.of("floor_count", 4));
+        // 8/4 → 2, but InteriorSpaceDefaults.MIN_CLEAR_HEIGHT clamps to 3.
         var layout = ResolvedFloorLayout.from(c, 8);
-        assertEquals(2, layout.bandHeight());
-        assertFalse(layout.bandHeight() >= 3 && layout.bandHeight() != 2);
+        assertEquals(InteriorSpaceDefaults.MIN_CLEAR_HEIGHT, layout.bandHeight());
     }
 
     @Test
-    void technicalDefaultIsThreeWhenUnset() {
+    void technicalDefaultUsesTallStoreyWhenEnvelopeIsTall() {
         Component c = mass(Map.of());
         var layout = ResolvedFloorLayout.from(c, 10);
-        assertEquals(3, layout.bandHeight());
+        assertEquals(InteriorSpaceDefaults.defaultStoreyHeight(10), layout.bandHeight());
+    }
+
+    @Test
+    void tallerGroundClearAvoidsLeftoverHalfStorey() {
+        Component c = mass(Map.of(
+                "floor_count", 3,
+                "floor_height", 3,
+                "ground_clear_height", 4));
+        var layout = ResolvedFloorLayout.from(c, 11);
+        assertEquals(List.of(0, 4, 7), layout.floorYs());
+        assertTrue(layout.fits());
     }
 
     private static Component mass(Map<String, Object> params) {
