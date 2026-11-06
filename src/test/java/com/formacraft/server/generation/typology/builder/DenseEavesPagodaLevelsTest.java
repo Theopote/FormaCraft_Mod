@@ -125,11 +125,48 @@ class DenseEavesPagodaLevelsTest {
                 .orElse(origin.getY());
         int aboveGround = maxY - origin.getY() + 1;
         assertEquals(26, aboveGround, "full finial must consume the reserved 10-block tip; span=" + aboveGround);
-        long finialBlocks = structure.getBlocks().stream()
-                .filter(b -> b.getPos().getY() >= origin.getY() + 16)
-                .filter(b -> b.getPos().getX() == origin.getX() && b.getPos().getZ() == origin.getZ())
-                .count();
-        assertTrue(finialBlocks >= 4, "axis finial stack should be present; count=" + finialBlocks);
+        assertFinialConnectedToTopRoof(structure, origin, 26);
+    }
+
+    @Test
+    void nineStoreyDoubleEaveWithoutAuthoredHeightDoesNotFailOnRegistryDefault() {
+        // Registry soft height=47 < abs min for 9×重檐; typology default must stay soft.
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 9,
+                "eaves_per_level", 2,
+                "baseWidth", 9,
+                "footprint", "octagon",
+                "detailLevel", "simple"
+        ), origin);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(9, geo.measuredFloors());
+        assertEquals(18, geo.measuredEaveTiers());
+        assertTrue(geo.finialCentered());
+        assertTrue(geo.span() >= 49, "should auto-expand past registry 47; span=" + geo.span());
+    }
+
+    private static void assertFinialConnectedToTopRoof(
+            GeneratedStructure structure, BlockPos origin, int plannedHeight
+    ) {
+        int finialH = plannedHeight >= PagodaVerticalLayout.requiredMinHeight(
+                new PagodaVerticalSemantics(3, 2, 6, true))
+                ? PagodaVerticalLayout.FINIAL_HEIGHT_FULL
+                : PagodaVerticalLayout.FINIAL_HEIGHT_COMPACT;
+        int finialBaseWorldY = origin.getY() + plannedHeight - finialH;
+        boolean seatSolid = structure.getBlocks().stream().anyMatch(b ->
+                b.getPos().getX() == origin.getX()
+                        && b.getPos().getZ() == origin.getZ()
+                        && b.getPos().getY() == finialBaseWorldY
+                        && !b.getTargetState().isAir());
+        assertTrue(seatSolid, "finial base at local Y=" + (plannedHeight - finialH) + " must be solid");
+        // No empty axis gap between last roof deck (finialBase-1) and finial base.
+        boolean deckOrEave = structure.getBlocks().stream().anyMatch(b ->
+                b.getPos().getY() == finialBaseWorldY - 1
+                        && Math.abs(b.getPos().getX() - origin.getX()) <= 3
+                        && Math.abs(b.getPos().getZ() - origin.getZ()) <= 3
+                        && !b.getTargetState().isAir());
+        assertTrue(deckOrEave, "top roof/eave must meet finial seat — no floating tip");
     }
 
     @Test

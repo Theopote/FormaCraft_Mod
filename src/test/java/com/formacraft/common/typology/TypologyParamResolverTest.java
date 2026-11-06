@@ -25,6 +25,38 @@ class TypologyParamResolverTest {
     }
 
     @Test
+    void registryDefaultHeightIsNotPlanAuthored() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(10, 10, 47),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("floor_count", 9, "eaves_per_level", 2)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertTrue(merged.containsKey("height"), "registry should still supply soft height");
+        assertFalse(TypologyParamResolver.isPlanAuthored(merged, "height", "towerHeight"),
+                "typology default height must not be treated as USER/PLAN hard constraint");
+        assertTrue(TypologyParamResolver.isPlanAuthored(merged, "floor_count", "levels"));
+    }
+
+    @Test
+    void planAuthoredHeightIsHard() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(10, 10, 28),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("floor_count", 3, "height", 28)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertTrue(TypologyParamResolver.isPlanAuthored(merged, "height", "towerHeight"));
+        assertEquals(28, ((Number) merged.get("height")).intValue());
+    }
+
+    @Test
     void snakeCaseFootprintShapeBeatsRegistryDefault() {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",

@@ -717,6 +717,7 @@ final class PlanSemanticValidator {
     }
 
     /** @deprecated tests / callers should prefer {@link BuildingHostResolver#primaryMassId} */
+    @Deprecated
     static String primaryMassId(List<Component> components) {
         return BuildingHostResolver.primaryMassId(null, components);
     }

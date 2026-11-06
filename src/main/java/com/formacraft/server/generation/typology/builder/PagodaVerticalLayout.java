@@ -119,12 +119,17 @@ public final class PagodaVerticalLayout {
         boolean compressed = height < req;
         int finialH = compressed ? FINIAL_HEIGHT_COMPACT : FINIAL_HEIGHT_FULL;
         int eaveRows = eaveNeed(floors, epl);
-        int bodyBudget = Math.max(bodyNeedAbsolute(floors), height - eaveRows - finialH);
+        // Flush eaves share each storey ceiling (advance = h-1+epl, not h+epl). Compensate so
+        // body+eaves fill exactly to height-finialH and the finial sits on the top roof deck.
+        int bodyBudget = Math.max(
+                bodyNeedAbsolute(floors),
+                height - eaveRows - finialH + floors);
         // Prefer comfortable clear heights when budget allows.
         int minClear = InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
         int groundClear = InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT;
         int upperClear = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
-        int maxPer = 5;
+        // Allow taller storeys when leftover is large (tall soft-default envelopes).
+        int maxPer = Math.max(5, (bodyBudget + floors - 1) / floors + 2);
 
         int[] levelH = new int[floors];
         if (compressed || bodyBudget < bodyNeedComfortable(floors)) {
@@ -178,10 +183,13 @@ public final class PagodaVerticalLayout {
             half = Math.max(2, half - 1);
         }
 
-        // Anchor 宝刹 to the top of the planned envelope so above-ground tip ≈ plannedHeight.
-        // Body/eave flush stacking may finish early; leftover budget belongs to the finial seat,
-        // not to a silently truncated compact tip. (y is retained for storey/eave placement only.)
-        int finialBaseY = Math.max(0, height - finialH);
+        // Finial starts on the top roof deck (last eave top + 1 == y). Never float above eaves.
+        int finialBaseY = y;
+        int targetFinialBase = Math.max(0, height - finialH);
+        if (finialBaseY != targetFinialBase) {
+            // Safety: if distribution drifted, prefer connection over floating tip.
+            finialBaseY = Math.min(finialBaseY, targetFinialBase);
+        }
 
         return new Result(
                 vertical,

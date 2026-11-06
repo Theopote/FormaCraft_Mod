@@ -73,7 +73,8 @@ public final class DenseEavesPagodaBuilder {
         int floors = vertical.floorCount();
         int eavesPerLevel = vertical.eavesPerLevel();
 
-        boolean heightExplicit = hasParam(p, "height", "towerHeight");
+        // Registry default height (e.g. 47) is soft — only plan-authored height is hard.
+        boolean heightExplicit = TypologyParamResolver.isPlanAuthored(p.raw(), "height", "towerHeight");
         int req = PagodaVerticalLayout.requiredMinHeight(vertical);
         int softDefault = footprint == Footprint.SQUARE
                 ? Math.max(18, floors * 5)

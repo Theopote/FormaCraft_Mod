@@ -100,6 +100,95 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void userThreeStoreyOverridesWrongLlmTwoStoreySingleEave() {
+        Component mass = new Component(
+                "STRUCTURE", "tower", new Vec3i(0, 0, 0),
+                new Dimensions(9, 9, 20), List.of("typology:dense_eaves_pagoda"),
+                Map.of(
+                        "component_id", "pagoda_main",
+                        "floor_count", 2,
+                        "eaves_per_level", 1,
+                        "footprint", "octagon"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(mass))
+                        .proportionHints(Map.of("architecture_intent", "两层建筑 单檐"))
+                        .build(),
+                "生成一座三层中式古塔，重檐");
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component out = repaired.components().getFirst();
+        assertEquals(3, ((Number) out.params().get("floor_count")).intValue());
+        assertTrue(Boolean.TRUE.equals(out.params().get("double_eave"))
+                        || Integer.valueOf(2).equals(out.params().get("eave_tiers"))
+                        || Integer.valueOf(2).equals(out.params().get("eaves_per_level")),
+                "user 重檐 must correct LLM single-eave; params=" + out.params());
+    }
+
+    @Test
+    void unboundAccessoryRoofDoesNotReceivePrimaryDoubleEave() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(15, 11, 9), List.of(),
+                Map.of("component_id", "hall_main", "building_role", "hall_main"));
+        Component hallRoof = new Component(
+                "ROOF", "hall", new Vec3i(0, 9, 0),
+                new Dimensions(17, 13, 4), List.of(),
+                Map.of("roof_type", "hip", "host_id", "hall_main"));
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion", new Vec3i(20, 0, 0),
+                new Dimensions(7, 7, 6), List.of(),
+                Map.of("component_id", "pavilion_1", "building_role", "pavilion"));
+        Component unboundRoof = new Component(
+                "ROOF", "pavilion", new Vec3i(20, 6, 0),
+                new Dimensions(9, 9, 3), List.of(),
+                Map.of("roof_type", "pyramid")); // no host_id
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(hall, hallRoof, pavilion, unboundRoof))
+                        .build(),
+                "生成一座重檐庑殿顶主殿，旁边有一座单檐攒尖亭");
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outUnbound = repaired.components().stream()
+                .filter(c -> "ROOF".equalsIgnoreCase(c.componentType()))
+                .filter(c -> c.params() == null || c.params().get("host_id") == null)
+                .findFirst()
+                .orElseThrow();
+        assertFalse(Boolean.TRUE.equals(outUnbound.params().get("double_eave")),
+                "unbound accessory roof must not inherit primary double_eave");
+    }
+
+    @Test
+    void mainDoorWidthThreeDoesNotWidenSideEntrance() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(11, 9, 6), List.of(),
+                Map.of("component_id", "house_main"));
+        Component mainDoor = new Component(
+                "ENTRANCE", "main_entrance", new Vec3i(4, 0, 9),
+                new Dimensions(3, 1, 3), List.of(),
+                Map.of("entrance_role", "main", "host_id", "house_main", "door_width", 1));
+        Component sideDoor = new Component(
+                "ENTRANCE", "side_entrance", new Vec3i(11, 0, 4),
+                new Dimensions(1, 2, 3), List.of(),
+                Map.of("entrance_role", "side", "host_id", "house_main", "door_width", 1));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(mass, mainDoor, sideDoor))
+                        .build(),
+                "生成一栋徽派民居，正门宽三格，侧门保持普通单门");
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outMain = repaired.components().stream()
+                .filter(c -> "main_entrance".equals(c.slotId()))
+                .findFirst().orElseThrow();
+        Component outSide = repaired.components().stream()
+                .filter(c -> "side_entrance".equals(c.slotId()))
+                .findFirst().orElseThrow();
+        assertEquals(3, ((Number) outMain.params().get("door_width")).intValue());
+        assertEquals(1, ((Number) outSide.params().get("door_width")).intValue(),
+                "side entrance must keep single-leaf width");
+    }
+
+    @Test
     void lockedShallowRoofHeightIsNotDropped() {
         Map<String, Object> params = new HashMap<>();
         params.put("roof_height", 2);

@@ -39,6 +39,8 @@ final class PlanIntentFidelityRepair {
             String roofBlock,
             String floorBlock,
             int floorCount,
+            /** True when {@link #floorCount} came from player request_intent, not LLM corpus mix. */
+            boolean floorCountUserExplicit,
             String ridgeAxis,
             boolean doorFlankWindows,
             List<String> solidSides,
@@ -51,6 +53,7 @@ final class PlanIntentFidelityRepair {
     static IntentHints parse(LlmPlan plan) {
         String corpus = intentCorpus(plan);
         String lower = corpus.toLowerCase(Locale.ROOT);
+        String userText = requestIntentOriginalText(plan);
 
         // Vocab extractor owns negation (不要做成歇山) — prefer it over naive contains().
         String roofType = null;
@@ -111,17 +114,10 @@ final class PlanIntentFidelityRepair {
         }
         String floorBlock = floorBlockFromStyle(plan);
 
-        int floorCount = 0;
-        if (lower.contains("两层") || lower.contains("二层") || lower.contains("2层")
-                || lower.contains("two-stor") || lower.contains("two stor") || lower.contains("2-stor")) {
-            floorCount = 2;
-        } else if (lower.contains("三层") || lower.contains("3层") || lower.contains("three-stor")) {
-            floorCount = 3;
-        } else if (lower.contains("四层") || lower.contains("4层")) {
-            floorCount = 4;
-        } else if (lower.contains("单层") || lower.contains("single-stor") || lower.contains("single stor")) {
-            floorCount = 1;
-        }
+        // Player original text wins over LLM-mixed corpus (e.g. 「三层」+「两层」).
+        int userFloorCount = parseFloorCount(userText);
+        boolean floorCountUserExplicit = userFloorCount > 0;
+        int floorCount = floorCountUserExplicit ? userFloorCount : parseFloorCount(lower);
 
         String ridgeAxis = null;
         if (lower.contains("屋脊沿东西")
@@ -159,8 +155,36 @@ final class PlanIntentFidelityRepair {
 
         int[] footprint = parseFootprint(corpus);
         return new IntentHints(roofType, doubleEave, preferStairs, wallBlock, roofBlock, floorBlock,
-                floorCount, ridgeAxis, doorFlank, solid, windows, features,
+                floorCount, floorCountUserExplicit, ridgeAxis, doorFlank, solid, windows, features,
                 footprint[0], footprint[1]);
+    }
+
+    static int parseFloorCount(String text) {
+        if (text == null || text.isBlank()) return 0;
+        String lower = text.toLowerCase(Locale.ROOT);
+        // Prefer higher explicit counts when both appear (「三层」 beats a later 「两层」 gloss).
+        if (lower.contains("九层") || lower.contains("9层") || lower.contains("nine-stor")) return 9;
+        if (lower.contains("七层") || lower.contains("7层") || lower.contains("seven-stor")) return 7;
+        if (lower.contains("五层") || lower.contains("5层") || lower.contains("five-stor")) return 5;
+        if (lower.contains("四层") || lower.contains("4层") || lower.contains("four-stor")) return 4;
+        if (lower.contains("三层") || lower.contains("3层") || lower.contains("three-stor")) return 3;
+        if (lower.contains("两层") || lower.contains("二层") || lower.contains("2层")
+                || lower.contains("two-stor") || lower.contains("two stor") || lower.contains("2-stor")) {
+            return 2;
+        }
+        if (lower.contains("单层") || lower.contains("single-stor") || lower.contains("single stor")) return 1;
+        return 0;
+    }
+
+    static String requestIntentOriginalText(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null) return "";
+        Object ri = plan.planMeta().get("request_intent");
+        if (ri instanceof Map<?, ?> map) {
+            Object text = map.get("original_text");
+            if (text != null && !String.valueOf(text).isBlank()) return String.valueOf(text);
+        }
+        Object rit = plan.planMeta().get("request_intent_text");
+        return rit == null ? "" : String.valueOf(rit);
     }
 
     /**
@@ -199,15 +223,21 @@ final class PlanIntentFidelityRepair {
         IntentHints effective = forceDoubleEave && !hints.doubleEave()
                 ? new IntentHints(
                         hints.roofType(), true, hints.preferStairs(), hints.wallBlock(), hints.roofBlock(),
-                        hints.floorBlock(), hints.floorCount(), hints.ridgeAxis(), hints.doorFlankWindows(),
+                        hints.floorBlock(), hints.floorCount(), hints.floorCountUserExplicit(),
+                        hints.ridgeAxis(), hints.doorFlankWindows(),
                         hints.solidSides(), hints.windowSides(), hints.featureSeeds(),
                         hints.footprintWidth(), hints.footprintDepth())
                 : hints;
         String primaryHost = BuildingHostResolver.primaryMassId(plan, plan.components());
+        int hostMassCount = 0;
+        for (Component c : plan.components()) {
+            if (BuildingHostResolver.isHostMass(c)) hostMassCount++;
+        }
+        boolean multiBuilding = hostMassCount > 1;
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
-            Component enriched = enrich(plan, c, effective, primaryHost);
+            Component enriched = enrich(plan, c, effective, primaryHost, multiBuilding);
             if (enriched != c) {
                 changed = true;
             }
@@ -221,17 +251,29 @@ final class PlanIntentFidelityRepair {
         String primary = plan == null || plan.components() == null
                 ? null
                 : BuildingHostResolver.primaryMassId(plan, plan.components());
-        return enrich(plan, component, parse(plan), primary);
+        boolean multi = plan != null && plan.components() != null
+                && plan.components().stream().filter(BuildingHostResolver::isHostMass).count() > 1;
+        return enrich(plan, component, parse(plan), primary, multi);
     }
 
     static Component enrich(LlmPlan plan, Component component, IntentHints hints) {
         String primary = plan == null || plan.components() == null
                 ? null
                 : BuildingHostResolver.primaryMassId(plan, plan.components());
-        return enrich(plan, component, hints, primary);
+        boolean multi = plan != null && plan.components() != null
+                && plan.components().stream().filter(BuildingHostResolver::isHostMass).count() > 1;
+        return enrich(plan, component, hints, primary, multi);
     }
 
     static Component enrich(LlmPlan plan, Component component, IntentHints hints, String primaryHost) {
+        boolean multi = plan != null && plan.components() != null
+                && plan.components().stream().filter(BuildingHostResolver::isHostMass).count() > 1;
+        return enrich(plan, component, hints, primaryHost, multi);
+    }
+
+    static Component enrich(
+            LlmPlan plan, Component component, IntentHints hints, String primaryHost, boolean multiBuilding
+    ) {
         if (component == null || hints == null) return component;
         String type = ComponentPlanTypes.normalizeType(component.componentType());
         boolean mass = ComponentPlanTypes.isMassType(type);
@@ -254,7 +296,7 @@ final class PlanIntentFidelityRepair {
             if (seed == null || seed.isBlank()) continue;
             // Never broadcast double_eave onto accessory masses/roofs via feature seeds.
             if (seed.toLowerCase(Locale.ROOT).contains("double_eave")
-                    && !isInPrimaryRoofScope(component, mass, roof, structure, primaryHost)) {
+                    && !isInPrimaryRoofScope(component, mass, roof, structure, primaryHost, multiBuilding)) {
                 continue;
             }
             if (features.stream().noneMatch(f -> f != null && f.equalsIgnoreCase(seed))) {
@@ -264,7 +306,8 @@ final class PlanIntentFidelityRepair {
         }
 
         // Explicit user roof intent overrides LLM substitutions (gable/hip for 歇山 etc.).
-        boolean inPrimaryRoofScope = isInPrimaryRoofScope(component, mass, roof, structure, primaryHost);
+        boolean inPrimaryRoofScope = isInPrimaryRoofScope(
+                component, mass, roof, structure, primaryHost, multiBuilding);
         if ((mass || roof || structure) && hints.roofType() != null && inPrimaryRoofScope) {
             String current = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
             String want = hints.roofType();
@@ -286,6 +329,11 @@ final class PlanIntentFidelityRepair {
             }
             if (!params.containsKey("eave_tiers") && !params.containsKey("eaveTiers")) {
                 params.put("eave_tiers", 2);
+                changed = true;
+            }
+            int epl = ComponentParamParsers.intParam(params, 0, "eaves_per_level", "eavesPerLevel");
+            if (epl > 0 && epl < 2) {
+                params.put("eaves_per_level", 2);
                 changed = true;
             }
             if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("double_eave"))) {
@@ -326,14 +374,21 @@ final class PlanIntentFidelityRepair {
                 && isBlank(ComponentPlanTypes.getParamString(params, "floor_block"))) {
             changed |= DesignProvenance.putIfAllowed(plan, params, "floor_block", hints.floorBlock());
         }
-        if (mass && hints.floorCount() > 0
-                && ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount") <= 0) {
-            changed |= DesignProvenance.putIfAllowed(plan, params, "floor_count", hints.floorCount());
-            if (ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight") <= 0) {
-                int bodyH = component.dimensions() != null ? component.dimensions().height() : 0;
-                int fh = hints.floorCount() <= 1 ? Math.max(3, bodyH)
-                        : Math.max(3, bodyH > 0 ? bodyH / hints.floorCount() : 4);
-                changed |= DesignProvenance.putIfAllowed(plan, params, "floor_height", fh);
+        if ((mass || structure) && hints.floorCount() > 0) {
+            int existingFloors = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
+            boolean shouldWrite = existingFloors <= 0
+                    || (hints.floorCountUserExplicit() && existingFloors != hints.floorCount());
+            if (shouldWrite) {
+                // USER_EXPLICIT floor count overwrites wrong LLM values.
+                params.put("floor_count", hints.floorCount());
+                params.put("levels", hints.floorCount());
+                changed = true;
+                if (ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight") <= 0) {
+                    int bodyH = component.dimensions() != null ? component.dimensions().height() : 0;
+                    int fh = hints.floorCount() <= 1 ? Math.max(3, bodyH)
+                            : Math.max(3, bodyH > 0 ? bodyH / hints.floorCount() : 4);
+                    params.put("floor_height", fh);
+                }
             }
         }
         if ((mass || roof) && hints.ridgeAxis() != null
@@ -365,27 +420,35 @@ final class PlanIntentFidelityRepair {
             }
         }
 
-        int requestedDoor = parseDoorWidthBlocks(intentCorpus(plan));
-        if ((mass || entrance) && requestedDoor > 0
+        // 「正门宽三格」 binds to the primary/main entrance only — never side doors.
+        int requestedDoor = parseDoorWidthBlocks(requestIntentOriginalText(plan));
+        if (requestedDoor <= 0) {
+            requestedDoor = parseDoorWidthBlocks(intentCorpus(plan));
+        }
+        boolean mainEntranceTarget = isPrimaryEntrance(component, entrance, mass, primaryHost);
+        if (mainEntranceTarget && (mass || entrance) && requestedDoor > 0
                 && ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth") != requestedDoor) {
             params.put("door_width", requestedDoor);
             changed = true;
         }
         if (entrance) {
             int existing = ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth");
-            if (requestedDoor > 0 && existing != requestedDoor) {
+            if (mainEntranceTarget && requestedDoor > 0 && existing != requestedDoor) {
                 params.put("door_width", requestedDoor);
                 changed = true;
             } else if (existing <= 0 && !params.containsKey("door_width") && !params.containsKey("doorWidth")) {
                 int span = entranceSpan(component);
                 if (span > 0) {
-                    int door = requestedDoor > 0 ? requestedDoor : symmetricDoorWidth(span);
+                    // Soft default only; explicit 正门 width stays on mainEntranceTarget above.
+                    int door = mainEntranceTarget && requestedDoor > 0
+                            ? requestedDoor
+                            : symmetricDoorWidth(span);
                     changed |= DesignProvenance.putIfAllowed(plan, params, "door_width", door);
                 }
             }
             // Explicit 正门宽三格 needs an opening box of at least door+1 so maxDoor can hold it.
             int doorW = ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth");
-            if (doorW >= 3 && component.dimensions() != null) {
+            if (mainEntranceTarget && doorW >= 3 && component.dimensions() != null) {
                 Dimensions ed = component.dimensions();
                 int need = doorW + 1;
                 boolean ew = ed.width() == 1 && ed.depth() > 1;
@@ -952,7 +1015,8 @@ final class PlanIntentFidelityRepair {
             boolean mass,
             boolean roof,
             boolean structure,
-            String primaryHost
+            String primaryHost,
+            boolean multiBuilding
     ) {
         if (primaryHost == null || primaryHost.isBlank()) return true;
         if (mass || structure) {
@@ -962,12 +1026,61 @@ final class PlanIntentFidelityRepair {
         if (roof) {
             String host = BuildingHostResolver.roofHostId(component);
             if (host == null || host.isBlank()) {
-                // Unbound roofs: only stamp when this is the sole roofing component context.
-                return true;
+                // Multi-building: unbound accessory roofs must NOT inherit primary 重檐.
+                return !multiBuilding;
             }
             return primaryHost.equals(host);
         }
         return false;
+    }
+
+    /** 「正门」 / main entrance — side_entrance and accessory doors stay out of scope. */
+    private static boolean isPrimaryEntrance(
+            Component component, boolean entrance, boolean mass, String primaryHost
+    ) {
+        if (mass) {
+            if (primaryHost == null || primaryHost.isBlank()) return true;
+            return primaryHost.equals(BuildingHostResolver.massId(component));
+        }
+        if (!entrance || component == null) return false;
+        String slot = component.slotId() == null ? "" : component.slotId().toLowerCase(Locale.ROOT);
+        if (slot.contains("side") || slot.contains("back") || slot.contains("balcony")
+                || slot.contains("侧") || slot.contains("后门") || slot.contains("旁门")) {
+            return false;
+        }
+        if (component.params() != null) {
+            Object role = component.params().get("entrance_role");
+            if (role == null) role = component.params().get("entranceRole");
+            if (role == null) role = component.params().get("door_role");
+            if (role != null) {
+                String r = String.valueOf(role).toLowerCase(Locale.ROOT);
+                if (r.contains("side") || r.contains("secondary") || r.contains("back")
+                        || r.contains("balcony") || r.contains("侧") || r.contains("旁")) {
+                    return false;
+                }
+                if (r.contains("main") || r.contains("primary") || r.contains("正门") || r.contains("front")) {
+                    return true;
+                }
+            }
+            Object id = component.params().get("component_id");
+            if (id == null) id = component.params().get("entrance_id");
+            if (id != null) {
+                String s = String.valueOf(id).toLowerCase(Locale.ROOT);
+                if (s.contains("side") || s.contains("secondary") || s.contains("back")
+                        || s.contains("balcony") || s.contains("侧")) {
+                    return false;
+                }
+            }
+            String host = BuildingHostResolver.roofHostId(component);
+            if (host != null && primaryHost != null && !primaryHost.equals(host)) {
+                return false;
+            }
+        }
+        if (slot.contains("main") || slot.contains("front") || slot.contains("正门") || slot.isBlank()) {
+            return true;
+        }
+        // Ambiguous entrance in a multi-entrance plan: only stamp when clearly main-ish.
+        return slot.contains("entrance") && !slot.contains("side");
     }
 
     private static int applyOfficeStoreyStack(

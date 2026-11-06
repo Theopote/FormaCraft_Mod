@@ -45,6 +45,24 @@ class PagodaVerticalLayoutTest {
         assertFalse(layout.compressed());
         assertEquals(PagodaVerticalLayout.FINIAL_HEIGHT_FULL, layout.finialHeight());
         assertEquals(layout.plannedHeight() - PagodaVerticalLayout.FINIAL_HEIGHT_FULL, layout.finialBaseY());
+        // Last eave must meet the finial seat — no floating tip.
+        int lastEaveY = layout.eaves().get(layout.eaves().size() - 1).y();
+        assertEquals(layout.finialBaseY() - 1, lastEaveY);
+    }
+
+    @Test
+    void softDefaultHeightExpandsWhenFloorsNeedMoreThanRegistryFortySeven() {
+        // Nine-storey double-eave abs min = 9*3 + 18 + 4 = 49 > registry soft 47.
+        PagodaVerticalSemantics v = new PagodaVerticalSemantics(9, 2, 18, true);
+        int abs = PagodaVerticalLayout.absoluteMinHeight(v);
+        assertTrue(abs >= 49, "abs=" + abs);
+        PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
+                "dense_eaves_pagoda", v, 47, false, 47, 4);
+        assertTrue(layout.plannedHeight() >= abs);
+        assertEquals(9, layout.storeys().size());
+        assertEquals(18, layout.eaves().size());
+        int lastEaveY = layout.eaves().get(layout.eaves().size() - 1).y();
+        assertEquals(layout.finialBaseY() - 1, lastEaveY);
     }
 
     @Test

@@ -55,7 +55,9 @@ final class OpeningConstraintProvenance {
 
         boolean hasDoorWidth = params.get("door_width") != null || params.get("doorWidth") != null;
         if (hasDoorWidth && (type.contains("ENTRANCE") || type.contains("DOOR") || type.isEmpty())) {
-            if (doorWidthUser) {
+            // 「正门宽三格」 is primary-entrance only — side doors stay soft / inferred.
+            boolean sideDoor = looksLikeSideEntrance(c);
+            if (doorWidthUser && !sideDoor) {
                 params.put("constraint_source", "USER_EXPLICIT");
                 params.put("door_explicit", true);
             } else {
@@ -84,6 +86,25 @@ final class OpeningConstraintProvenance {
         Object src = params.get("constraint_source");
         if (src == null) src = params.get("constraintSource");
         return src != null && !String.valueOf(src).isBlank();
+    }
+
+    private static boolean looksLikeSideEntrance(Component c) {
+        String slot = c.slotId() == null ? "" : c.slotId().toLowerCase(Locale.ROOT);
+        if (slot.contains("side") || slot.contains("back") || slot.contains("balcony")
+                || slot.contains("侧") || slot.contains("后门") || slot.contains("旁门")) {
+            return true;
+        }
+        if (c.params() == null) return false;
+        for (String key : List.of("entrance_role", "entranceRole", "door_role", "component_id", "entrance_id")) {
+            Object v = c.params().get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).toLowerCase(Locale.ROOT);
+            if (s.contains("side") || s.contains("secondary") || s.contains("back")
+                    || s.contains("balcony") || s.contains("侧") || s.contains("旁")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")
