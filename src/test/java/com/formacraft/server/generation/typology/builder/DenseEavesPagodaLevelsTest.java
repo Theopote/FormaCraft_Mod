@@ -10,9 +10,13 @@ import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.formacraft.common.typology.TypologyGenerationException;
+
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DenseEavesPagodaLevelsTest {
@@ -86,28 +90,118 @@ class DenseEavesPagodaLevelsTest {
 
     @Test
     void tightHeightStillEmitsAllExplicitDoubleEaveTiers() {
-        // Group A: height=24 with floors=3 eaves_per_level=2 used to under-emit (expected=6 actual=4).
+        // Batch A #1: height=24 must resolve size feasibility up-front (compress), not drop eaves mid-build.
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 2,
+                "height", 24,
+                "baseWidth", 8,
+                "footprint", "octagon",
+                "detailLevel", "refined"
+        ), origin);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(3, geo.measuredFloors(), "floor_count");
+        assertEquals(6, geo.measuredEaveTiers(), "eave_tiers must not be trimmed under tight height");
+        assertTrue(geo.finialCentered(), "compact finial still centered");
+        assertTrue(geo.span() <= 26, "authored height=24 must not silently expand past envelope; span=" + geo.span());
+    }
+
+    @Test
+    void octagonThreeStoreyDoubleEaveAtTwentyEightHasFullMorphology() {
+        // Batch A #2
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 2,
+                "height", 28,
+                "baseWidth", 7,
+                "footprint", "octagon",
+                "detailLevel", "simple"
+        ), origin);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(3, geo.measuredFloors());
+        assertEquals(6, geo.measuredEaveTiers());
+        assertTrue(geo.finialCentered());
+        assertTrue(geo.rolesPresent());
+        PagodaVerticalSemantics vertical = new PagodaVerticalSemantics(3, 2, 6, true);
+        PagodaMorphologyAudit.Result audit = PagodaMorphologyAudit.checkFromBlocks(
+                "dense_eaves_pagoda", vertical, structure.getBlocks(), origin, true);
+        assertTrue(audit.passed(), String.valueOf(audit.diagnostics()));
+    }
+
+    @Test
+    void squareThreeStoreySingleEaveKeepsFormalFinial() {
+        // Batch A #3: old 2-block tip failed heuristic finial audit; shared finial must pass.
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 1,
+                "height", 28,
+                "baseWidth", 11,
+                "footprint", "square",
+                "detailLevel", "simple"
+        ), origin);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(3, geo.measuredFloors());
+        assertEquals(3, geo.measuredEaveTiers());
+        assertTrue(geo.finialCentered(), "square must not fail for missing finial");
+        assertTrue(geo.rolesPresent());
+        PagodaVerticalSemantics vertical = new PagodaVerticalSemantics(3, 1, 3, true);
+        PagodaMorphologyAudit.Result audit = PagodaMorphologyAudit.checkFromBlocks(
+                "dense_eaves_pagoda", vertical, structure.getBlocks(), origin, true);
+        assertTrue(audit.passed(), String.valueOf(audit.diagnostics()));
+    }
+
+    @Test
+    void squareThreeStoreyDoubleEaveEmitsSixRoleTaggedEaves() {
+        // Batch A #4: square path must honor eaves_per_level=2 (not legacy single ring).
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 2,
+                "height", 28,
+                "baseWidth", 11,
+                "footprint", "square",
+                "detailLevel", "simple"
+        ), origin);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(3, geo.measuredFloors());
+        assertEquals(6, geo.measuredEaveTiers(), "square double eaves must emit 6 role-tagged tiers");
+        assertTrue(geo.finialCentered());
+        PagodaVerticalSemantics vertical = new PagodaVerticalSemantics(3, 2, 6, true);
+        PagodaMorphologyAudit.Result audit = PagodaMorphologyAudit.checkFromBlocks(
+                "dense_eaves_pagoda", vertical, structure.getBlocks(), origin, true);
+        assertTrue(audit.passed(), String.valueOf(audit.diagnostics()));
+    }
+
+    @Test
+    void explicitHeightTooSmallReturnsSizeConflictNotMorphology() {
+        TypologyGenerationException ex = assertThrows(
+                TypologyGenerationException.class,
+                () -> generate(Map.of(
+                        "floor_count", 3,
+                        "eaves_per_level", 2,
+                        "height", 18,
+                        "baseWidth", 8,
+                        "footprint", "octagon",
+                        "detailLevel", "simple"
+                ), new BlockPos(0, 64, 0)));
+        assertEquals("E_PAGODA_SIZE", ex.code());
+        assertTrue(ex.getMessage().contains("minimum feasible height"), ex.getMessage());
+    }
+
+    private static GeneratedStructure generate(Map<String, ?> params, BlockPos origin) {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",
                 null,
                 new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
-                new com.formacraft.common.llm.dto.Dimensions(8, 8, 24),
+                new com.formacraft.common.llm.dto.Dimensions(9, 9, 40),
                 java.util.List.of("typology:dense_eaves_pagoda"),
-                Map.of(
-                        "floor_count", 3,
-                        "eaves_per_level", 2,
-                        "height", 24,
-                        "baseWidth", 8,
-                        "footprint", "octagon",
-                        "detailLevel", "refined"
-                )
+                new HashMap<>(params)
         );
-        Map<String, Object> params = TypologyParamResolver.merge("dense_eaves_pagoda", component);
-        BlockPos origin = new BlockPos(0, 64, 0);
-        GeneratedStructure structure = DenseEavesPagodaBuilder.generate(params, origin, null, null);
-        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
-        assertEquals(3, geo.measuredFloors(), "floor_count");
-        assertEquals(6, geo.measuredEaveTiers(), "eave_tiers must not be trimmed under tight height");
+        Map<String, Object> merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        return DenseEavesPagodaBuilder.generate(merged, origin, null, null);
     }
 
     @Test

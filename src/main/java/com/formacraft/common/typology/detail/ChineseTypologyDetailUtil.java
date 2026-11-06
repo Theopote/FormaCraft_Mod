@@ -64,6 +64,21 @@ public final class ChineseTypologyDetailUtil {
         }
     }
 
+    /** Axis-aligned square ring at half-width (inclusive edge). */
+    public static void ringSquare(
+            List<PlannedBlock> blocks, BlockPos origin, int half, int y, BlockState state, GeometrySource source
+    ) {
+        if (half < 0) return;
+        for (int x = -half; x <= half; x++) {
+            blocks.add(new PlannedBlock(origin.add(x, y, -half), withFacing(state, Direction.NORTH), source));
+            blocks.add(new PlannedBlock(origin.add(x, y, half), withFacing(state, Direction.SOUTH), source));
+        }
+        for (int z = -half + 1; z <= half - 1; z++) {
+            blocks.add(new PlannedBlock(origin.add(-half, y, z), withFacing(state, Direction.WEST), source));
+            blocks.add(new PlannedBlock(origin.add(half, y, z), withFacing(state, Direction.EAST), source));
+        }
+    }
+
     /** Horizontal outward facing from tower center for radial eaves / rings. */
     public static Direction outwardFromCenter(int x, int z) {
         if (x == 0 && z == 0) return Direction.SOUTH;
@@ -160,13 +175,32 @@ public final class ChineseTypologyDetailUtil {
             List<PlannedBlock> blocks, BlockPos origin, int baseY,
             BlockState accent, BlockState ring, BlockState spire
     ) {
-        addStupaFinial(blocks, origin, baseY, accent, ring, spire, null);
+        addStupaFinial(blocks, origin, baseY, accent, ring, spire, null, 10);
     }
 
     public static void addStupaFinial(
             List<PlannedBlock> blocks, BlockPos origin, int baseY,
             BlockState accent, BlockState ring, BlockState spire, GeometrySource source
     ) {
+        addStupaFinial(blocks, origin, baseY, accent, ring, spire, source, 10);
+    }
+
+    /**
+     * Formal pagoda finial on the tower axis. {@code maxHeight} ≤ 4 yields a compact
+     * base/body/tip stack that still satisfies morphology (≥3 axis solids, span ≥2).
+     */
+    public static void addStupaFinial(
+            List<PlannedBlock> blocks, BlockPos origin, int baseY,
+            BlockState accent, BlockState ring, BlockState spire, GeometrySource source, int maxHeight
+    ) {
+        BlockState tip = spire != null ? spire : Blocks.LIGHTNING_ROD.getDefaultState();
+        if (maxHeight <= 4) {
+            blocks.add(new PlannedBlock(origin.add(0, baseY, 0), accent, source));
+            blocks.add(new PlannedBlock(origin.add(0, baseY + 1, 0), accent, source));
+            blocks.add(new PlannedBlock(origin.add(0, baseY + 2, 0), accent, source));
+            blocks.add(new PlannedBlock(origin.add(0, baseY + 3, 0), tip, source));
+            return;
+        }
         blocks.add(new PlannedBlock(origin.add(0, baseY, 0), accent, source));
         blocks.add(new PlannedBlock(origin.add(0, baseY + 1, 0), accent, source));
         blocks.add(new PlannedBlock(origin.add(0, baseY + 2, 0), Blocks.IRON_CHAIN.getDefaultState(), source));
@@ -177,10 +211,7 @@ public final class ChineseTypologyDetailUtil {
             blocks.add(new PlannedBlock(origin.add(0, y + 1, 0), accent, source));
             y += 2;
         }
-        blocks.add(new PlannedBlock(
-                origin.add(0, y, 0),
-                spire != null ? spire : Blocks.LIGHTNING_ROD.getDefaultState(),
-                source));
+        blocks.add(new PlannedBlock(origin.add(0, y, 0), tip, source));
     }
 
     public static void addPuzuoZoning(

@@ -1,0 +1,48 @@
+package com.formacraft.server.generation.typology.builder;
+
+import com.formacraft.common.typology.TypologyGenerationException;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class PagodaVerticalLayoutTest {
+
+    @Test
+    void threeStoreyDoubleEaveComfortableMinIsTwentySix() {
+        PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
+        assertEquals(26, PagodaVerticalLayout.requiredMinHeight(v));
+        assertEquals(19, PagodaVerticalLayout.absoluteMinHeight(v));
+    }
+
+    @Test
+    void explicitHeightBelowAbsoluteMinThrowsSizeConflict() {
+        PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
+        TypologyGenerationException ex = assertThrows(
+                TypologyGenerationException.class,
+                () -> PagodaVerticalLayout.plan("dense_eaves_pagoda", v, 26, true, 18, 4));
+        assertEquals("E_PAGODA_SIZE", ex.code());
+        assertTrue(ex.getMessage().contains("minimum feasible height=19"), ex.getMessage());
+    }
+
+    @Test
+    void explicitHeightTwentyFourCompressesInsteadOfExpanding() {
+        PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
+        PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
+                "dense_eaves_pagoda", v, 26, true, 24, 4);
+        assertEquals(24, layout.plannedHeight());
+        assertTrue(layout.compressed());
+        assertEquals(PagodaVerticalLayout.FINIAL_HEIGHT_COMPACT, layout.finialHeight());
+        assertEquals(3, layout.storeys().size());
+        assertEquals(6, layout.eaves().size());
+    }
+
+    @Test
+    void implicitHeightUsesSoftDefaultAtOrAboveRequired() {
+        PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
+        PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
+                "dense_eaves_pagoda", v, 28, false, 0, 4);
+        assertEquals(28, layout.plannedHeight());
+        assertFalse(layout.compressed());
+        assertEquals(PagodaVerticalLayout.FINIAL_HEIGHT_FULL, layout.finialHeight());
+    }
+}
