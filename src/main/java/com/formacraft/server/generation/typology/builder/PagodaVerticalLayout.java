@@ -95,26 +95,23 @@ public final class PagodaVerticalLayout {
         } else {
             height = Math.max(1, authoredHeight);
             if (height < abs) {
-                // Floor/eave counts win over a soft LLM height: expand near-miss or
-                // floors-explicit envelopes (e.g. height=38 vs absoluteMin=39) instead of aborting.
-                if (vertical.floorsExplicit() || height >= abs - 4) {
-                    height = abs;
-                } else {
-                    List<String> diags = List.of(
-                            "height=" + height,
-                            "minimum_feasible_height=" + abs,
-                            "required_comfortable_height=" + req,
-                            "floor_count=" + floors,
-                            "eaves_per_level=" + epl
-                    );
-                    throw new TypologyGenerationException(
-                            typologyId == null ? "dense_eaves_pagoda" : typologyId,
-                            "E_PAGODA_SIZE",
-                            "Pagoda height " + height + " cannot keep floor_count=" + floors
-                                    + " eaves_per_level=" + epl
-                                    + "; minimum feasible height=" + abs,
-                            diags);
-                }
+                // Authored height is a hard constraint — never silently expand it.
+                // Callers that only inferred height must leave heightExplicit=false so the
+                // soft path above can grow to requiredMin / softDefault.
+                List<String> diags = List.of(
+                        "height=" + height,
+                        "minimum_feasible_height=" + abs,
+                        "required_comfortable_height=" + req,
+                        "floor_count=" + floors,
+                        "eaves_per_level=" + epl
+                );
+                throw new TypologyGenerationException(
+                        typologyId == null ? "dense_eaves_pagoda" : typologyId,
+                        "E_PAGODA_SIZE",
+                        "Pagoda height " + height + " cannot keep floor_count=" + floors
+                                + " eaves_per_level=" + epl
+                                + "; minimum feasible height=" + abs,
+                        diags);
             }
         }
 
@@ -180,14 +177,10 @@ public final class PagodaVerticalLayout {
             half = Math.max(2, half - 1);
         }
 
-        int finialBaseY = y;
-        // Keep finial inside the planned envelope when height was authored tightly.
-        if (heightExplicit) {
-            int maxFinialBase = Math.max(0, height - finialH);
-            if (finialBaseY > maxFinialBase) {
-                finialBaseY = maxFinialBase;
-            }
-        }
+        // Anchor 宝刹 to the top of the planned envelope so above-ground tip ≈ plannedHeight.
+        // Body/eave flush stacking may finish early; leftover budget belongs to the finial seat,
+        // not to a silently truncated compact tip. (y is retained for storey/eave placement only.)
+        int finialBaseY = Math.max(0, height - finialH);
 
         return new Result(
                 vertical,

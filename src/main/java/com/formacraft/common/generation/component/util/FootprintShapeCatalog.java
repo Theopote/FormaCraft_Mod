@@ -28,10 +28,13 @@ public final class FootprintShapeCatalog {
     /**
      * Octagon is authored as a rectangular AABB + {@code plan_type=octagon} cut-corners.
      * Accept the shape token so validators do not reject LLM plans that say shape=octagon.
+     * <p>
+     * Hexagon is intentionally NOT listed here — {@code shape=hexagon} must throw
+     * {@code E_FOOTPRINT_SHAPE_UNSUPPORTED} rather than silently becoming a rectangle.
+     * (plan_type=hexagon may still map to cut-corners via {@link PlanPatternCatalog}.)
      */
     public static final Set<String> OCTAGON_TOKENS = Set.of(
-            "octagon", "octagonal", "regular_octagon", "8gon",
-            "hexagon", "hexagonal", "6gon"
+            "octagon", "octagonal", "regular_octagon", "8gon"
     );
 
     public static final Set<String> SUPPORTED_TOKENS;

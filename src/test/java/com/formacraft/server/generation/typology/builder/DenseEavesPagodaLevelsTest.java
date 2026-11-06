@@ -108,6 +108,31 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
+    void comfortableHeightUsesFullFinialAndMatchesPlannedAboveGroundSpan() {
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 2,
+                "height", 26,
+                "baseWidth", 8,
+                "footprint", "octagon",
+                "detailLevel", "simple"
+        ), origin);
+        int maxY = structure.getBlocks().stream()
+                .mapToInt(b -> b.getPos().getY())
+                .filter(y -> y >= origin.getY())
+                .max()
+                .orElse(origin.getY());
+        int aboveGround = maxY - origin.getY() + 1;
+        assertEquals(26, aboveGround, "full finial must consume the reserved 10-block tip; span=" + aboveGround);
+        long finialBlocks = structure.getBlocks().stream()
+                .filter(b -> b.getPos().getY() >= origin.getY() + 16)
+                .filter(b -> b.getPos().getX() == origin.getX() && b.getPos().getZ() == origin.getZ())
+                .count();
+        assertTrue(finialBlocks >= 4, "axis finial stack should be present; count=" + finialBlocks);
+    }
+
+    @Test
     void octagonThreeStoreyDoubleEaveAtTwentyEightHasFullMorphology() {
         // Batch A #2
         BlockPos origin = new BlockPos(0, 64, 0);

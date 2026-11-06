@@ -129,7 +129,7 @@ final class PlanIntentFidelityRepair {
             }
         }
         if (roofType != null) features.add(roofType);
-        if (doubleEave) features.add("double_eave");
+        // double_eave is stamped only onto the primary host in enrich() — do not seed globally.
         if (preferStairs) features.add("stair_roof");
         if (doorFlank) features.add("door_flank_windows");
 
@@ -179,10 +179,11 @@ final class PlanIntentFidelityRepair {
                         hints.solidSides(), hints.windowSides(), hints.featureSeeds(),
                         hints.footprintWidth(), hints.footprintDepth())
                 : hints;
+        String primaryHost = BuildingHostResolver.primaryMassId(plan, plan.components());
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
-            Component enriched = enrich(plan, c, effective);
+            Component enriched = enrich(plan, c, effective, primaryHost);
             if (enriched != c) {
                 changed = true;
             }
@@ -193,10 +194,20 @@ final class PlanIntentFidelityRepair {
 
     static Component enrich(LlmPlan plan, Component component) {
         if (component == null) return null;
-        return enrich(plan, component, parse(plan));
+        String primary = plan == null || plan.components() == null
+                ? null
+                : BuildingHostResolver.primaryMassId(plan, plan.components());
+        return enrich(plan, component, parse(plan), primary);
     }
 
     static Component enrich(LlmPlan plan, Component component, IntentHints hints) {
+        String primary = plan == null || plan.components() == null
+                ? null
+                : BuildingHostResolver.primaryMassId(plan, plan.components());
+        return enrich(plan, component, hints, primary);
+    }
+
+    static Component enrich(LlmPlan plan, Component component, IntentHints hints, String primaryHost) {
         if (component == null || hints == null) return component;
         String type = ComponentPlanTypes.normalizeType(component.componentType());
         boolean mass = ComponentPlanTypes.isMassType(type);
@@ -217,6 +228,11 @@ final class PlanIntentFidelityRepair {
 
         for (String seed : hints.featureSeeds()) {
             if (seed == null || seed.isBlank()) continue;
+            // Never broadcast double_eave onto accessory masses/roofs via feature seeds.
+            if (seed.toLowerCase(Locale.ROOT).contains("double_eave")
+                    && !isInPrimaryRoofScope(component, mass, roof, structure, primaryHost)) {
+                continue;
+            }
             if (features.stream().noneMatch(f -> f != null && f.equalsIgnoreCase(seed))) {
                 features.add(seed);
                 changed = true;
@@ -230,7 +246,9 @@ final class PlanIntentFidelityRepair {
                 changed |= DesignProvenance.putIfAllowed(plan, params, "preferred_roof_type", hints.roofType());
             }
         }
-        if ((mass || roof || structure) && hints.doubleEave()) {
+        // Double-eave intent binds only to the primary host mass / roofs on that host.
+        boolean inDoubleEaveScope = isInPrimaryRoofScope(component, mass, roof, structure, primaryHost);
+        if ((mass || roof || structure) && hints.doubleEave() && inDoubleEaveScope) {
             if (!params.containsKey("double_eave") && !params.containsKey("doubleEave")) {
                 changed |= DesignProvenance.putIfAllowed(plan, params, "double_eave", true);
             }
@@ -263,13 +281,13 @@ final class PlanIntentFidelityRepair {
             }
             // Drop shallow authored roof_height so normalizeStairRoofRise can lift to ~45°.
             if (roof || mass) {
-                changed |= dropShallowRoofHeight(params, component);
+                changed |= dropShallowRoofHeight(plan, params, component);
             }
         }
         // Even without prefer_stairs, shallow roof_height on a wide span flattens the ridge
         // (RoofShapeAudit no_ridge_rise) — drop so normalizeStairRoofRise can bump rise.
         if ((roof || mass) && !hints.preferStairs()) {
-            changed |= dropShallowRoofHeight(params, component);
+            changed |= dropShallowRoofHeight(plan, params, component);
         }
         if (mass && hints.floorBlock() != null
                 && isBlank(ComponentPlanTypes.getParamString(params, "floor_block"))) {
@@ -364,59 +382,23 @@ final class PlanIntentFidelityRepair {
             String corpus = intentCorpus(plan).toLowerCase(Locale.ROOT);
             boolean officeLike = corpus.contains("办公") || corpus.contains("office")
                     || corpus.contains("curtain") || corpus.contains("幕墙")
-                    || corpus.contains("international") || corpus.contains("玻璃幕");
-            if (floors >= 2 || officeLike) {
-                int minW = officeLike || floors >= 3 ? 14 : 12;
-                int minD = officeLike || floors >= 3 ? 12 : 10;
-                if (hints.footprintWidth() > 0) minW = Math.max(minW, hints.footprintWidth());
-                if (hints.footprintDepth() > 0) minD = Math.max(minD, hints.footprintDepth());
+                    || corpus.contains("international") || corpus.contains("玻璃幕")
+                    || corpus.contains("商业") || corpus.contains("commercial");
+            boolean explicitFootprint = hints.footprintWidth() > 0 && hints.footprintDepth() > 0;
+            // Plate-size optimization is office/commercial only — never force 14×12 on towers/halls.
+            // Explicit player footprints (e.g. 7×7) are hard constraints for every building class.
+            if (officeLike && !explicitFootprint) {
+                int minW = floors >= 3 ? 14 : 12;
+                int minD = floors >= 3 ? 12 : 10;
                 int nw = Math.max(dims.width(), minW);
                 int nd = Math.max(dims.depth(), minD);
-                // Per-floor plate must read as a real office plate, not a tower shaft.
-                if (officeLike && nw * nd < 14 * 12) {
+                if (nw * nd < 14 * 12) {
                     nw = Math.max(nw, 14);
                     nd = Math.max(nd, 12);
                 }
                 int nh = dims.height();
-                if (officeLike || floors >= 3) {
-                    // Drop LLM-invented circles unless the prompt asked for a round plan —
-                    // circular offices push inferred stairs outside the curved wall.
-                    boolean wantsRound = corpus.contains("圆形") || corpus.contains("圆楼")
-                            || corpus.contains("圆柱") || corpus.contains("circle")
-                            || corpus.contains("circular") || corpus.contains("round plan");
-                    if (!wantsRound) {
-                        for (String key : List.of(
-                                "shape", "footprint_shape", "footprintShape", "plan_type", "planType")) {
-                            Object shape = params.get(key);
-                            if (shape != null) {
-                                String s = String.valueOf(shape).toLowerCase(Locale.ROOT);
-                                if (s.contains("circle") || s.contains("round") || s.contains("cylinder")
-                                        || s.contains("圆")) {
-                                    params.put(key, "rectangle");
-                                    changed = true;
-                                }
-                            }
-                        }
-                    }
-                    // Exact storey stack: taller lobby + equal upper floors — no leftover half band.
-                    int ground = Math.max(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT,
-                            ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
-                    if (corpus.contains("底层") && (corpus.contains("净高") || corpus.contains("明显高于"))) {
-                        ground = Math.max(ground, InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT + 1);
-                    }
-                    int upper = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
-                    int f = Math.max(2, floors > 0 ? floors : 3);
-                    int needH = ground + Math.max(0, f - 1) * upper + 1; // +1 roof deck
-                    if (nh < needH || (nh > needH + 2 && floors > 0)) {
-                        nh = needH;
-                        changed = true;
-                    }
-                    // Force the exact stack even when the LLM authored a conflicting floor_height.
-                    params.put("floor_count", f);
-                    params.put("floor_height", upper);
-                    params.put("ground_clear_height", ground);
-                    changed = true;
-                }
+                nh = applyOfficeStoreyStack(params, corpus, floors, nh);
+                changed = true;
                 if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
                     if (position != null && (nw != dims.width() || nd != dims.depth())) {
                         int dx = (nw - dims.width()) / 2;
@@ -424,6 +406,37 @@ final class PlanIntentFidelityRepair {
                         position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
                     }
                     dims = new Dimensions(nw, nd, nh);
+                    changed = true;
+                }
+            } else if (officeLike && explicitFootprint) {
+                // Honour explicit W×D; only repair the vertical storey stack.
+                int nw = hints.footprintWidth();
+                int nd = hints.footprintDepth();
+                int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
+                changed = true;
+                if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
+                    if (position != null && (nw != dims.width() || nd != dims.depth())) {
+                        int dx = (nw - dims.width()) / 2;
+                        int dz = (nd - dims.depth()) / 2;
+                        position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
+                    }
+                    dims = new Dimensions(nw, nd, nh);
+                    changed = true;
+                }
+            } else if (floors >= 3 && !officeLike) {
+                // Multi-storey non-office: may normalize height stack, never enlarge W/D.
+                int nh = dims.height();
+                int ground = Math.max(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT,
+                        ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
+                int upper = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+                int f = Math.max(2, floors);
+                int needH = ground + Math.max(0, f - 1) * upper + 1;
+                if (nh < needH) {
+                    nh = needH;
+                    params.put("floor_count", f);
+                    params.put("floor_height", upper);
+                    params.put("ground_clear_height", ground);
+                    dims = new Dimensions(dims.width(), dims.depth(), nh);
                     changed = true;
                 }
             }
@@ -502,6 +515,24 @@ final class PlanIntentFidelityRepair {
     static String intentCorpus(LlmPlan plan) {
         if (plan == null) return "";
         StringBuilder sb = new StringBuilder();
+        // Player text is authoritative — read request_intent before LLM-authored features.
+        if (plan.planMeta() != null) {
+            Object ri = plan.planMeta().get("request_intent");
+            if (ri instanceof Map<?, ?> map) {
+                Object text = map.get("original_text");
+                if (text != null) sb.append(' ').append(text);
+                Object markers = map.get("markers");
+                if (markers instanceof List<?> list) {
+                    for (Object m : list) {
+                        if (m != null) sb.append(' ').append(m);
+                    }
+                }
+                Object cls = map.get("building_class");
+                if (cls != null) sb.append(' ').append(cls);
+            }
+            Object rit = plan.planMeta().get("request_intent_text");
+            if (rit != null) sb.append(' ').append(rit);
+        }
         if (plan.distinguishingFeatures() != null) {
             for (String f : plan.distinguishingFeatures()) {
                 if (f != null) sb.append(' ').append(f);
@@ -846,16 +877,83 @@ final class PlanIntentFidelityRepair {
         return id.toLowerCase(Locale.ROOT);
     }
 
-    /** Remove roof_height≤3 on wide footprints so rise can be normalized toward a visible ridge. */
-    private static boolean dropShallowRoofHeight(Map<String, Object> params, Component component) {
+    /**
+     * True when this component may receive primary-roof intent (double_eave / roof_type stamping).
+     * Accessory pavilions keep their own roof constraints.
+     */
+    private static boolean isInPrimaryRoofScope(
+            Component component,
+            boolean mass,
+            boolean roof,
+            boolean structure,
+            String primaryHost
+    ) {
+        if (primaryHost == null || primaryHost.isBlank()) return true;
+        if (mass || structure) {
+            String self = BuildingHostResolver.massId(component);
+            return primaryHost.equals(self);
+        }
+        if (roof) {
+            String host = BuildingHostResolver.roofHostId(component);
+            if (host == null || host.isBlank()) {
+                // Unbound roofs: only stamp when this is the sole roofing component context.
+                return true;
+            }
+            return primaryHost.equals(host);
+        }
+        return false;
+    }
+
+    private static int applyOfficeStoreyStack(
+            Map<String, Object> params, String corpus, int floors, int nh
+    ) {
+        boolean wantsRound = corpus.contains("圆形") || corpus.contains("圆楼")
+                || corpus.contains("圆柱") || corpus.contains("circle")
+                || corpus.contains("circular") || corpus.contains("round plan");
+        if (!wantsRound) {
+            for (String key : List.of(
+                    "shape", "footprint_shape", "footprintShape", "plan_type", "planType")) {
+                Object shape = params.get(key);
+                if (shape != null) {
+                    String s = String.valueOf(shape).toLowerCase(Locale.ROOT);
+                    if (s.contains("circle") || s.contains("round") || s.contains("cylinder")
+                            || s.contains("圆")) {
+                        params.put(key, "rectangle");
+                    }
+                }
+            }
+        }
+        int ground = Math.max(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT,
+                ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
+        if (corpus.contains("底层") && (corpus.contains("净高") || corpus.contains("明显高于"))) {
+            ground = Math.max(ground, InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT + 1);
+        }
+        int upper = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+        int f = Math.max(2, floors > 0 ? floors : 3);
+        int needH = ground + Math.max(0, f - 1) * upper + 1; // +1 roof deck
+        if (nh < needH || (nh > needH + 2 && floors > 0)) {
+            nh = needH;
+        }
+        params.put("floor_count", f);
+        params.put("floor_height", upper);
+        params.put("ground_clear_height", ground);
+        return nh;
+    }
+
+    /**
+     * Remove roof_height≤3 on wide footprints so rise can be normalized toward a visible ridge.
+     * USER_EXPLICIT / design-locked roof_height is never dropped.
+     */
+    private static boolean dropShallowRoofHeight(LlmPlan plan, Map<String, Object> params, Component component) {
         if (params == null || component == null || component.dimensions() == null) return false;
         Object rh = params.get("roof_height");
         if (rh == null) rh = params.get("roofHeight");
         if (!(rh instanceof Number n) || n.intValue() <= 0 || n.intValue() > 3) return false;
         if (Math.min(component.dimensions().width(), component.dimensions().depth()) < 8) return false;
-        params.remove("roof_height");
-        params.remove("roofHeight");
-        return true;
+        if (!DesignProvenance.canMutateParam(plan, params, "roof_height")) {
+            return false;
+        }
+        return DesignProvenance.removeIfAllowed(plan, params, "roof_height", "roofHeight");
     }
 
     private static boolean isBlank(String value) {

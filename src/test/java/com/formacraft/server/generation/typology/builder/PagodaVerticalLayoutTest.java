@@ -26,13 +26,25 @@ class PagodaVerticalLayoutTest {
     }
 
     @Test
-    void explicitHeightNearMissExpandsWhenFloorsExplicit() {
+    void explicitHeightNearMissThrowsInsteadOfExpanding() {
+        // Authored height is hard: floor_count cannot silently bump 18 → 19.
+        PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
+        TypologyGenerationException ex = assertThrows(
+                TypologyGenerationException.class,
+                () -> PagodaVerticalLayout.plan("dense_eaves_pagoda", v, 26, true, 18, 4));
+        assertEquals("E_PAGODA_SIZE", ex.code());
+        assertTrue(ex.getMessage().contains("minimum feasible height=19"), ex.getMessage());
+    }
+
+    @Test
+    void comfortableHeightReservesFullFinial() {
         PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
         PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
-                "dense_eaves_pagoda", v, 26, true, 18, 4);
-        assertEquals(19, layout.plannedHeight());
-        assertEquals(3, layout.storeys().size());
-        assertEquals(6, layout.eaves().size());
+                "dense_eaves_pagoda", v, 26, true, 26, 4);
+        assertEquals(26, layout.plannedHeight());
+        assertFalse(layout.compressed());
+        assertEquals(PagodaVerticalLayout.FINIAL_HEIGHT_FULL, layout.finialHeight());
+        assertEquals(layout.plannedHeight() - PagodaVerticalLayout.FINIAL_HEIGHT_FULL, layout.finialBaseY());
     }
 
     @Test

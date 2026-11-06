@@ -275,21 +275,13 @@ public final class DenseEavesPagodaBuilder {
             }
         }
 
-        // Chinese dense-eaves 宝刹: compact axis stack on a sealed deck (not a floating stupa).
-        int finialH = Math.min(layout.finialHeight(), PagodaVerticalLayout.FINIAL_HEIGHT_COMPACT);
-        int topHalf = layout.storeys().get(floors - 1).half();
-        fillFootprintDisk(
-                blocks,
-                origin,
-                footprint,
-                Math.max(1, topHalf),
-                layout.finialBaseY(),
-                body,
-                PagodaMorphologyAudit.finialRole());
+        // Honour layout finial budget (FULL=10 or COMPACT=4) — do not force compact when
+        // PagodaVerticalLayout already reserved a full 宝刹 envelope.
+        int finialH = layout.finialHeight();
         ChineseTypologyDetailUtil.addStupaFinial(
                 blocks,
                 origin,
-                layout.finialBaseY() + 1,
+                layout.finialBaseY(),
                 accent,
                 trim,
                 Blocks.LIGHTNING_ROD.getDefaultState(),
@@ -297,12 +289,21 @@ public final class DenseEavesPagodaBuilder {
                 finialH
         );
 
-        int maxY = blocks.stream().mapToInt(b -> b.getPos().getY()).max().orElse(origin.getY());
+        // Above-ground span only (exclude plinth at negative local Y).
+        int maxY = blocks.stream()
+                .filter(b -> b.getPos().getY() >= origin.getY())
+                .mapToInt(b -> b.getPos().getY())
+                .max()
+                .orElse(origin.getY());
         int span = maxY - origin.getY() + 1;
         if (span > height + 2) {
             FormacraftMod.LOGGER.warn(
                     "DenseEavesPagodaBuilder: vertical span {} exceeds planned height {} (floors={}, eaves_per_level={}, footprint={})",
                     span, height, floors, eavesPerLevel, footprint.name().toLowerCase(Locale.ROOT));
+        } else if (span < height - 2) {
+            FormacraftMod.LOGGER.warn(
+                    "DenseEavesPagodaBuilder: above-ground span {} short of planned height {} (finialH={}, floors={}, footprint={})",
+                    span, height, finialH, floors, footprint.name().toLowerCase(Locale.ROOT));
         }
 
         PagodaMorphologyAudit.checkFromBlocks(

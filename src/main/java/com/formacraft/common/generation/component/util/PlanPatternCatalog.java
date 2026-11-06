@@ -26,9 +26,8 @@ public final class PlanPatternCatalog {
 
     public static final Set<String> CUT_CORNERS_TOKENS = Set.of(
             "cut_corners", "cut-corners", "cutcorner", "cut_corner",
-            "chamfer", "chamfered", "octagon", "octagonal",
-            // LLM often says hexagon for a chamfered / near-regular polygonal plan.
-            "hexagon", "hexagonal", "6gon"
+            "chamfer", "chamfered", "octagon", "octagonal"
+            // hexagon/hexagonal/6gon intentionally unsupported: do not silently map to cut-corners.
     );
 
     public static final Set<String> L_SHAPE_TOKENS = Set.of(
