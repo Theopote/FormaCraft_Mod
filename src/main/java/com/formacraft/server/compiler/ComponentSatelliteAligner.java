@@ -53,7 +53,7 @@ final class ComponentSatelliteAligner {
             if (assemblyPrimarySlots != null && assemblyPrimarySlots.contains(ComponentPlanTypes.slotKey(c))) {
                 continue;
             }
-            if (ComponentPlanTypes.isMassType(ComponentPlanTypes.normalizeType(c.componentType()))
+            if (isSatelliteHostMass(c)
                     && !com.formacraft.common.generation.component.util.MassComponentKinds.isPlate(c)) {
                 massBySlot.putIfAbsent(ComponentPlanTypes.slotKey(c), c);
             }
@@ -93,9 +93,7 @@ final class ComponentSatelliteAligner {
             if (hostId != null) {
                 mass = null;
                 for (Component candidate : components) {
-                    if (candidate == null || !(ComponentPlanTypes.isMassType(ComponentPlanTypes.normalizeType(candidate.componentType()))
-                            || "TOWER".equals(ComponentPlanTypes.normalizeType(candidate.componentType()))
-                            || "MASS_ANCILLARY".equals(ComponentPlanTypes.normalizeType(candidate.componentType())))
+                    if (candidate == null || !isSatelliteHostMass(candidate)
                             || candidate.params() == null
                             || !hostId.equals(candidate.params().get("component_id"))) continue;
                     // Explicit ownership cannot equate different real slot coordinate frames.
@@ -162,6 +160,22 @@ final class ComponentSatelliteAligner {
         if (realigned > 0) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: realigned {} satellite component(s) to MASS min_corner", realigned);
         }
+    }
+
+    /** Hosts that may own roofs / doors / foundations — includes GATE and MASS_ANCILLARY. */
+    private static boolean isSatelliteHostMass(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        String type = ComponentPlanTypes.normalizeType(c.componentType());
+        if (type == null) {
+            type = c.componentType().trim().toUpperCase(Locale.ROOT);
+        }
+        return ComponentPlanTypes.isMassType(type)
+                || "TOWER".equals(type)
+                || "MASS_ANCILLARY".equals(type)
+                || "GATE".equals(type)
+                || "GATE_STRUCTURE".equals(type)
+                || "HALL".equals(type)
+                || "STRUCTURE".equals(type);
     }
 
     static GlobalConstraints.Facing resolveSlotFacing(LlmPlan plan, Map<String, Slot> slotMap, String slotId) {
@@ -269,6 +283,11 @@ final class ComponentSatelliteAligner {
         return false;
     }
 
+    /** Package-visible for alignment unit tests. */
+    static Component alignFoundationToMassForTest(Component foundation, Component mass) {
+        return alignFoundationToMass(foundation, mass);
+    }
+
     private static Component alignFoundationToMass(Component foundation, Component mass) {
         // A terrace is an authored deck, not buried support beneath the host.
         if ("TERRACE".equalsIgnoreCase(foundation.componentType())) return foundation;
@@ -291,6 +310,22 @@ final class ComponentSatelliteAligner {
                     new Dimensions(mass.dimensions().width(), mass.dimensions().depth(), height),
                     foundation.features(), params);
         }
+        // Visible 台基 / plinth: center under the host and keep authored height so the podium
+        // top meets the mass floor (do not preserve a drifted LLM XZ corner).
+        if (isVisiblePlinth(foundation, params) && mass.dimensions() != null) {
+            int height = Math.max(1, dims.height());
+            Object ph = params.get("plinth_height");
+            if (ph == null) ph = params.get("plinthHeight");
+            if (ph instanceof Number n) height = Math.max(1, n.intValue());
+            params.put("anchor_mode", "min_corner");
+            int ox = massOrigin.x() - Math.max(0, (dims.width() - mass.dimensions().width()) / 2);
+            int oz = massOrigin.z() - Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2);
+            int bottom = massOrigin.y() - height;
+            return new Component(foundation.componentType(), foundation.slotId(),
+                    new Vec3i(ox, bottom, oz),
+                    new Dimensions(dims.width(), dims.depth(), height),
+                    foundation.features(), params);
+        }
         boolean rebased = Boolean.TRUE.equals(params.get("coordinate_frame_rebased"));
         boolean corner = ComponentFootprintUtil.isCornerAnchor(params) && !rebased;
         boolean centered = !rebased && "center".equalsIgnoreCase(
@@ -310,6 +345,22 @@ final class ComponentSatelliteAligner {
                 new Vec3i(centered ? fp.x() - dims.width()/2 : corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
                         bottom, centered ? fp.z() - dims.depth()/2 : corner ? fp.z() : massOrigin.z() - (rebased ? Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2) : 0)),
                 new Dimensions(dims.width(), dims.depth(), massOrigin.y() - bottom), foundation.features(), params);
+    }
+
+    private static boolean isVisiblePlinth(Component foundation, Map<String, Object> params) {
+        if (Boolean.TRUE.equals(params.get("plinth"))) return true;
+        if (params.containsKey("plinth_height") || params.containsKey("plinthHeight")) return true;
+        if (foundation.features() != null) {
+            for (String f : foundation.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("plinth") || f.contains("台基") || lower.contains("podium")
+                        || lower.contains("阶条")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Small MASS/TOWER sitting on a larger host roof plane — center like DECOR_DETAIL. */
@@ -638,6 +689,8 @@ final class ComponentSatelliteAligner {
         if (isUpperPlatformDoor(llmEntrance)) {
             return llmEntrance;
         }
+        // Authored facing (and stair connections) must place the opening on that wall.
+        // Template rebuild would ignore the authored face and re-anchor to slot facing.
         if (llmEntrance.params() != null && (llmEntrance.params().containsKey("stair_connection")
                 || llmEntrance.params().containsKey("facing"))) {
             return alignStairEntrance(llmEntrance, mass, plan);

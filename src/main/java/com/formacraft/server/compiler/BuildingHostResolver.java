@@ -62,7 +62,8 @@ final class BuildingHostResolver {
     static boolean isHostMass(Component c) {
         if (c == null || c.componentType() == null) return false;
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
-        return t.startsWith("MASS") || "STRUCTURE".equals(t) || "HALL".equals(t);
+        return t.startsWith("MASS") || "STRUCTURE".equals(t) || "HALL".equals(t)
+                || "GATE".equals(t) || "GATE_STRUCTURE".equals(t) || "TOWER".equals(t);
     }
 
     static String massId(Component c) {

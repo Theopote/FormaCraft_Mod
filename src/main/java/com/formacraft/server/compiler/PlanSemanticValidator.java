@@ -419,15 +419,39 @@ final class PlanSemanticValidator {
                 }
             }
             boolean throughPassage = false;
+            boolean multiBay = false;
             if (c.params() != null) {
+                Object id = c.params().get("component_id");
+                if (id == null) id = c.params().get("componentId");
+                if (id != null) {
+                    String idLower = String.valueOf(id).toLowerCase(Locale.ROOT);
+                    if (idLower.contains("gate") || idLower.contains("shanmen")
+                            || idLower.contains("paifang") || idLower.contains("山门")) {
+                        gateCue = true;
+                    }
+                }
                 if (c.params().get("passage_axis") != null) {
                     gateCue = true;
                     throughPassage = true;
+                }
+                Object entranceType = c.params().get("entrance_type");
+                if (entranceType == null) entranceType = c.params().get("entranceType");
+                if (entranceType != null) {
+                    String et = String.valueOf(entranceType).toLowerCase(Locale.ROOT);
+                    if (et.contains("gate")) {
+                        gateCue = true;
+                        throughPassage = true;
+                    }
                 }
                 Object dw = c.params().get("door_width");
                 if (dw == null) dw = c.params().get("doorWidth");
                 if (dw instanceof Number n && n.intValue() >= 2) {
                     throughPassage = true;
+                }
+                Object bays = c.params().get("bays");
+                if (bays == null) bays = c.params().get("bay_count");
+                if (bays instanceof Number n && n.intValue() >= 3) {
+                    multiBay = true;
                 }
             }
             boolean wideShallow = false;
@@ -441,6 +465,11 @@ final class PlanSemanticValidator {
             }
             // Mass / wing accepted when proportions + cue/passage prove gate morphology.
             if (wideShallow && (gateCue || throughPassage)) {
+                return true;
+            }
+            // Deep ceremonial gate-halls (山门殿): gate cues + passage/multi-bay, even when not wide-shallow.
+            if (gateCue && (throughPassage || multiBay)
+                    && (type.startsWith("MASS") || "STRUCTURE".equals(type) || "HALL".equals(type))) {
                 return true;
             }
         }

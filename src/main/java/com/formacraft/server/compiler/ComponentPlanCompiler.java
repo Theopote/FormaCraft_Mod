@@ -129,6 +129,8 @@ public final class ComponentPlanCompiler {
         plan = CourtyardRatioRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
+        plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.
         plan = FloorLayoutOverflowRepair.apply(plan);
         // Pavilion may reintroduce plan_type=octagon after the first pass — reconcile again.

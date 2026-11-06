@@ -472,6 +472,10 @@ public final class LlmPlanPreviewBuilder {
                     }
                 }
             } else {
+                // Off-thread compile stores gaps on the worker ThreadLocal. Always clear the
+                // server-thread holder before applying an artifact so a prior on-thread failure
+                // (e.g. garden E_PATCH_CONFLICT) cannot poison a later successful plan.
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
                 if (compiled != null && compiled.matchesOrigin(planOrigin)) {
                     if (compiled.gap() != null) {
                         com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(compiled.gap());

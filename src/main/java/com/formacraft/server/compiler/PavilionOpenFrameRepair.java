@@ -58,13 +58,16 @@ final class PavilionOpenFrameRepair {
                     || "MAIN_MASS".equalsIgnoreCase(repaired.componentType()))) {
                 Object id = repaired.params().get("component_id");
                 if (id != null) {
-                    bodyFloorY.put(String.valueOf(id), repaired.relativePosition().y());
+                    String idStr = String.valueOf(id);
+                    bodyFloorY.put(idStr, repaired.relativePosition().y());
                     // Only open-frame / pavilion-named masses — never every MASS_MAIN because
                     // the plan happens to contain a pavilion (hall+pavilion compounds).
-                    if (OpenFramePolicy.isOpen(repaired.params())
+                    // Hall-like bodies must never enter stilts injection even if open=true leaked in.
+                    if (!isHallLikeMass(repaired, idStr.toLowerCase(Locale.ROOT))
+                            && (OpenFramePolicy.isOpen(repaired.params())
                             || looksPavilion(repaired.features())
-                            || looksPavilionToken(String.valueOf(id))) {
-                        pavilionMassIds.add(String.valueOf(id));
+                            || looksPavilionToken(idStr))) {
+                        pavilionMassIds.add(idStr);
                     }
                 }
             }
@@ -144,10 +147,15 @@ final class PavilionOpenFrameRepair {
         }
         String id = mass.params().get("component_id") == null ? ""
                 : String.valueOf(mass.params().get("component_id")).toLowerCase(Locale.ROOT);
+        // Primary halls in garden compounds keep enclosed walls even if a stilts foundation
+        // was wrongly hosted on them (LLM often binds stilts to hall_main).
+        if (isHallLikeMass(mass, id)) {
+            return mass;
+        }
         boolean pavilionNamed = id.contains("pavilion") || id.contains("gazebo") || id.contains("kiosk")
                 || id.contains("ting") || id.contains("shuixie") || looksPavilion(mass.features());
         // Plan-level「亭」must not rewrite every MASS_MAIN in a compound (hall + pavilion).
-        if (planWantsPavilion && !pavilionNamed && !isHallLikeMass(mass, id)) {
+        if (planWantsPavilion && !pavilionNamed) {
             pavilionNamed = true;
         }
         boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")));
