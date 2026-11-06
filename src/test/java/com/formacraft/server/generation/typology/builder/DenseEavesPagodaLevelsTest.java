@@ -315,6 +315,58 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
+    void threeStoreySealsTopDeckAndHasPlinthAndEaveSoffit() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(11, 11, 28),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                Map.of(
+                        "floor_count", 3,
+                        "eaves_per_level", 2,
+                        "height", 28,
+                        "baseWidth", 11,
+                        "footprint", "octagon",
+                        "detailLevel", "refined",
+                        "plinth_height", 1
+                )
+        );
+        Map<String, Object> params = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = DenseEavesPagodaBuilder.generate(params, origin, null, null);
+
+        // Plinth below origin.
+        boolean hasPlinth = structure.getBlocks().stream().anyMatch(b ->
+                b.getPos().getY() == origin.getY() - 1
+                        && b.getTargetState() != null
+                        && !b.getTargetState().isAir());
+        assertTrue(hasPlinth, "expected plinth pad below origin");
+
+        // Axis at the top of the last storey must be solid (sealed deck), not open to sky.
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        int topBodyY = structure.getBlocks().stream()
+                .filter(b -> b.getTargetState() != null && !b.getTargetState().isAir())
+                .filter(b -> b.getPos().getX() == origin.getX() && b.getPos().getZ() == origin.getZ())
+                .filter(b -> {
+                    String prod = b.getSource() == null ? "" : String.valueOf(b.getSource().producer());
+                    return prod.startsWith(PagodaMorphologyAudit.ROLE_SHAFT)
+                            || prod.startsWith(PagodaMorphologyAudit.ROLE_FINIAL);
+                })
+                .mapToInt(b -> b.getPos().getY())
+                .max()
+                .orElse(origin.getY());
+        boolean sealedAxis = structure.getBlocks().stream().anyMatch(b ->
+                b.getPos().getX() == origin.getX()
+                        && b.getPos().getZ() == origin.getZ()
+                        && b.getPos().getY() >= origin.getY() + 8
+                        && b.getTargetState() != null
+                        && !b.getTargetState().isAir());
+        assertTrue(sealedAxis, "tower axis near top must be sealed; topBodyY=" + topBodyY);
+        assertTrue(geo.finialCentered(), "compact Chinese finial must stay on axis");
+    }
+
+    @Test
     void smallOctagonPagodaIsHollowWithUsableClearHeight() {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",

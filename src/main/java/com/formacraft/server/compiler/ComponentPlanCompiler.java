@@ -129,6 +129,8 @@ public final class ComponentPlanCompiler {
         plan = CourtyardRatioRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        // Clamp garden blobs / force enclosure walls before footprint separation.
+        plan = GardenCompositionRepair.apply(plan);
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
         plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.
@@ -143,6 +145,7 @@ public final class ComponentPlanCompiler {
         plan = FloatingTowerSnapRepair.apply(plan);
         plan = FloatingMassSnapRepair.apply(plan);
         plan = HostedPlateLevelRepair.apply(plan);
+        plan = HostIdRemapRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
         var authoredIssue = DesignValidatorSuite.checkAuthored(plan);

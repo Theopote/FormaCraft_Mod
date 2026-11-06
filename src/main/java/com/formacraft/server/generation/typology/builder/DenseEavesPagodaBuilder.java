@@ -2,6 +2,7 @@ package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.GeometrySource;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
@@ -163,6 +164,21 @@ public final class DenseEavesPagodaBuilder {
         boolean solidCore = p.boolVal("solid", false) || p.boolVal("solid_core", false);
         List<PlannedBlock> blocks = new ArrayList<>(floors * eavesPerLevel * 900);
 
+        int plinthH = p.intVal("plinth_height", "plinthHeight", 1, 0, 3);
+        int baseHalf = layout.storeys().isEmpty() ? baseW / 2 : layout.storeys().getFirst().half();
+        if (plinthH > 0) {
+            int plinthHalf = baseHalf + Math.max(1, Math.min(3, baseHalf / 4 + 1));
+            var plinthSrc = PagodaMorphologyAudit.shaftRole(0);
+            BlockState plinth = body;
+            if (paletteId != null && !paletteId.isBlank()) {
+                plinth = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0xD4C1A0F1L, body);
+                plinth = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0xD4C1A0F2L, plinth);
+            }
+            for (int dy = -plinthH; dy < 0; dy++) {
+                fillFootprintDisk(blocks, origin, footprint, plinthHalf, dy, plinth, plinthSrc);
+            }
+        }
+
         for (PagodaVerticalLayout.Storey storey : layout.storeys()) {
             int half = storey.half();
             int levelH = storey.height();
@@ -172,10 +188,14 @@ public final class DenseEavesPagodaBuilder {
             int inner = Math.max(0, half - wallThick);
             boolean hollow = !solidCore && inner >= 1;
             var shaftSrc = PagodaMorphologyAudit.shaftRole(lv);
+            boolean lastStorey = lv == floors - 1;
 
             for (int dy = 0; dy < levelH; dy++) {
                 int yy = y + dy;
-                boolean floorPlate = lv == 0 && dy == 0;
+                // Every storey gets a floor; every storey gets a ceiling so eaves sit on a solid deck
+                // and the top of the tower seals under the finial (no open shaft to the sky).
+                boolean floorPlate = dy == 0;
+                boolean ceilingPlate = dy == levelH - 1;
                 for (int x = -half; x <= half; x++) {
                     for (int z = -half; z <= half; z++) {
                         if (footprint == Footprint.OCTAGON
@@ -185,7 +205,7 @@ public final class DenseEavesPagodaBuilder {
                         boolean edge = footprint == Footprint.OCTAGON
                                 ? ChineseTypologyDetailUtil.onRegularOctagonEdge(x, z, half)
                                 : (Math.abs(x) == half || Math.abs(z) == half);
-                        if (hollow && !floorPlate && !edge) {
+                        if (hollow && !floorPlate && !ceilingPlate && !edge) {
                             if (footprint == Footprint.OCTAGON) {
                                 if (ChineseTypologyDetailUtil.inRegularOctagon(x, z, inner)) continue;
                             } else if (Math.abs(x) <= inner && Math.abs(z) <= inner) {
@@ -193,7 +213,9 @@ public final class DenseEavesPagodaBuilder {
                             }
                         }
                         BlockState s = body;
-                        if (footprint == Footprint.OCTAGON) {
+                        if (floorPlate || ceilingPlate) {
+                            s = body;
+                        } else if (footprint == Footprint.OCTAGON) {
                             if (edge && (dy % 4 == 0)) s = trim;
                         } else {
                             boolean corner = Math.abs(x) == half && Math.abs(z) == half;
@@ -212,7 +234,13 @@ public final class DenseEavesPagodaBuilder {
                 }
             } else if (footprint == Footprint.OCTAGON) {
                 ChineseTypologyDetailUtil.addPagodaTierNiche(
-                        blocks, origin, half, y, levelH, lv, floors, refined, trim, archStair);
+                        blocks, origin, half, y, levelH, lv, floors, refined, trim, archStair, facing);
+            }
+
+            // Extra sealed deck on the last storey so the finial sits on a solid roof, not air.
+            if (lastStorey) {
+                fillFootprintDisk(
+                        blocks, origin, footprint, half, y + levelH - 1, body, shaftSrc);
             }
         }
 
@@ -221,35 +249,50 @@ public final class DenseEavesPagodaBuilder {
             int half = layout.storeys().get(band.levelIndex()).half();
             int ey = band.y();
             int e = band.tier();
+            int outer = half + 1 + e;
             var eaveSrc = PagodaMorphologyAudit.eaveRole(band.levelIndex(), e);
+            // Fill the annulus between shaft and eave tip with body (not directional eave stairs)
+            // so eaves read as solid decks instead of hollow rings.
+            fillFootprintAnnulus(blocks, origin, footprint, half, outer, ey, body, eaveTrimSrc);
             if (footprint == Footprint.OCTAGON) {
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + 1 + e, ey, eave, eaveSrc);
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, outer, ey, eave, eaveSrc);
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim, eaveTrimSrc);
                 if (refined) {
                     ChineseTypologyDetailUtil.ringRegularOctagon(
-                            blocks, origin, half + 1 + e, ey + 1, eave, eaveTrimSrc);
+                            blocks, origin, outer, ey + 1, eave, eaveTrimSrc);
                     ChineseTypologyDetailUtil.ringRegularOctagon(
                             blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
                 }
             } else {
-                ChineseTypologyDetailUtil.ringSquare(blocks, origin, half + 1 + e, ey, eave, eaveSrc);
+                ChineseTypologyDetailUtil.ringSquare(blocks, origin, outer, ey, eave, eaveSrc);
                 ChineseTypologyDetailUtil.ringSquare(blocks, origin, half + e, ey, trim, eaveTrimSrc);
                 if (refined) {
                     ChineseTypologyDetailUtil.ringSquare(
-                            blocks, origin, half + 1 + e, ey + 1, eave, eaveTrimSrc);
+                            blocks, origin, outer, ey + 1, eave, eaveTrimSrc);
                 }
             }
         }
 
+        // Chinese dense-eaves 宝刹: compact axis stack on a sealed deck (not a floating stupa).
+        int finialH = Math.min(layout.finialHeight(), PagodaVerticalLayout.FINIAL_HEIGHT_COMPACT);
+        int topHalf = layout.storeys().get(floors - 1).half();
+        fillFootprintDisk(
+                blocks,
+                origin,
+                footprint,
+                Math.max(1, topHalf),
+                layout.finialBaseY(),
+                body,
+                PagodaMorphologyAudit.finialRole());
         ChineseTypologyDetailUtil.addStupaFinial(
                 blocks,
                 origin,
-                layout.finialBaseY(),
+                layout.finialBaseY() + 1,
                 accent,
                 trim,
                 Blocks.LIGHTNING_ROD.getDefaultState(),
                 PagodaMorphologyAudit.finialRole(),
-                layout.finialHeight()
+                finialH
         );
 
         int maxY = blocks.stream().mapToInt(b -> b.getPos().getY()).max().orElse(origin.getY());
@@ -283,6 +326,52 @@ public final class DenseEavesPagodaBuilder {
             if (p.raw().containsKey(key) && p.raw().get(key) != null) return true;
         }
         return false;
+    }
+
+    private static void fillFootprintDisk(
+            List<PlannedBlock> blocks,
+            BlockPos origin,
+            Footprint footprint,
+            int half,
+            int y,
+            BlockState state,
+            GeometrySource source
+    ) {
+        if (half < 0 || state == null) return;
+        for (int x = -half; x <= half; x++) {
+            for (int z = -half; z <= half; z++) {
+                if (footprint == Footprint.OCTAGON
+                        && !ChineseTypologyDetailUtil.inRegularOctagon(x, z, half)) {
+                    continue;
+                }
+                blocks.add(new PlannedBlock(origin.add(x, y, z), state, source));
+            }
+        }
+    }
+
+    /** Fills the ring between {@code innerHalf} (exclusive) and {@code outerHalf} (inclusive). */
+    private static void fillFootprintAnnulus(
+            List<PlannedBlock> blocks,
+            BlockPos origin,
+            Footprint footprint,
+            int innerHalf,
+            int outerHalf,
+            int y,
+            BlockState state,
+            GeometrySource source
+    ) {
+        if (outerHalf < 0 || state == null || outerHalf <= innerHalf) return;
+        for (int x = -outerHalf; x <= outerHalf; x++) {
+            for (int z = -outerHalf; z <= outerHalf; z++) {
+                if (footprint == Footprint.OCTAGON) {
+                    if (!ChineseTypologyDetailUtil.inRegularOctagon(x, z, outerHalf)) continue;
+                    if (innerHalf >= 0 && ChineseTypologyDetailUtil.inRegularOctagon(x, z, innerHalf)) continue;
+                } else {
+                    if (Math.abs(x) <= innerHalf && Math.abs(z) <= innerHalf) continue;
+                }
+                blocks.add(new PlannedBlock(origin.add(x, y, z), state, source));
+            }
+        }
     }
 
     /**

@@ -289,6 +289,8 @@ public final class LlmPlanPreviewBuilder {
 
         // Bind original user request into plan_meta before any compile/semantic gate.
         llmPlan = com.formacraft.server.compiler.RequestIntentInjector.ensure(llmPlan, req);
+        // Soft-repair unknown host_id gaps (censer→courtyard) before the hard fail path.
+        llmPlan = com.formacraft.server.compiler.HostIdRemapRepair.apply(llmPlan);
 
         if (llmPlan.hasCapabilityGap()) {
             reportCapabilityGap(player, req, hbAlive, resolvePlanGap(llmPlan));

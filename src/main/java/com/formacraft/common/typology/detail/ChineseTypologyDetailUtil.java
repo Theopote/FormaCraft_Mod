@@ -161,13 +161,29 @@ public final class ChineseTypologyDetailUtil {
             int y0, int levelH, int levelIndex, int totalLevels,
             boolean refined, BlockState trim, BlockState stair
     ) {
+        addPagodaTierNiche(blocks, origin, half, y0, levelH, levelIndex, totalLevels,
+                refined, trim, stair, Direction.SOUTH);
+    }
+
+    /**
+     * Niches stack on the entrance face (and opposite when refined) so every storey
+     * aligns vertically — do not rotate the face by {@code levelIndex}.
+     */
+    public static void addPagodaTierNiche(
+            List<PlannedBlock> blocks, BlockPos origin, int half,
+            int y0, int levelH, int levelIndex, int totalLevels,
+            boolean refined, BlockState trim, BlockState stair, Direction facing
+    ) {
         if (levelIndex <= 0 || levelIndex >= totalLevels || levelH < 3 || half < 3) return;
         int y = y0 + Math.max(1, levelH / 2) - 1;
-        OctagonFace primary = octagonFaceByIndex(half, levelIndex);
-        carveArchedNiche(blocks, origin, primary.x(), y, primary.z(), primary.outward(), trim, stair);
-        if (refined && levelIndex % 2 == 0) {
-            OctagonFace opposite = octagonFaceByIndex(half, levelIndex + 4);
-            carveArchedNiche(blocks, origin, opposite.x(), y, opposite.z(), opposite.outward(), trim, stair);
+        Direction face = facing == null || !facing.getAxis().isHorizontal() ? Direction.SOUTH : facing;
+        BlockPos primaryCell = octagonFaceCell(half, face);
+        carveArchedNiche(blocks, origin, primaryCell.getX(), y, primaryCell.getZ(), face, trim, stair);
+        if (refined) {
+            Direction opposite = face.getOpposite();
+            BlockPos oppositeCell = octagonFaceCell(half, opposite);
+            carveArchedNiche(
+                    blocks, origin, oppositeCell.getX(), y, oppositeCell.getZ(), opposite, trim, stair);
         }
     }
 

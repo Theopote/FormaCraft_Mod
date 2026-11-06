@@ -65,9 +65,20 @@ public class WallComponentGenerator implements ComponentGenerator {
         boolean hasWindows = hasFeature(c, "windows", "window", "arrow_slits");
         boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved");
         boolean hasBattlements = hasFeature(c, "battlements", "battlement", "crenelation");
-        boolean enclosure = "curtain_wall".equals(getParamString(c.params(), "wall_type"));
+        boolean enclosure = "curtain_wall".equals(getParamString(c.params(), "wall_type"))
+                || hasFeature(c, "perimeter_enclosure", "perimeter", "enclosure", "courtyard_wall",
+                "tsuiji", "enclosing_wall", "围墙", "院墙");
+        // Wide low walls with enclosure intent must hollow the courtyard — otherwise Japanese /
+        // garden compounds look like a solid plate with roofs sitting on top.
+        if (!enclosure && width >= 12 && depth >= 12 && height <= 4
+                && hasFeature(c, "garden", "courtyard", "庭院", "园林", "japanese", "tsuiji")) {
+            enclosure = true;
+        }
         int thickness = Math.max(1, com.formacraft.common.generation.component.util.ComponentParamParsers
-                .intParam(c.params(), 1, "thickness", "wall_thickness"));
+                .intParam(c.params(), enclosure ? 1 : 1, "thickness", "wall_thickness"));
+        if (enclosure) {
+            thickness = Math.max(1, Math.min(2, thickness));
+        }
         Map<?,?> gate = c.params() != null && c.params().get("gate_opening") instanceof Map<?,?> g ? g : Map.of();
         String gateSide = String.valueOf(gate.get("side")).toLowerCase(java.util.Locale.ROOT);
         int gateWidth = gate.get("width") instanceof Number n ? n.intValue() : 0;

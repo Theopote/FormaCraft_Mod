@@ -25,9 +25,18 @@ final class ExplicitDesignConflictRepair {
     static List<Component> apply(List<Component> components) {
         if (components == null || components.isEmpty()) return components;
         var bodies = new HashMap<Object, Component>();
+        var roofHosts = new java.util.HashSet<String>();
         for (var c : components) {
-            if (c != null && "MASS_MAIN".equals(c.componentType()) && c.params() != null) {
-                bodies.put(c.params().get("component_id"), c);
+            if (c == null || c.params() == null) continue;
+            if ("MASS_MAIN".equals(c.componentType()) || "MASS_ANCILLARY".equals(c.componentType())
+                    || "GATE".equals(c.componentType())) {
+                Object id = c.params().get("component_id");
+                if (id != null) bodies.put(id, c);
+            }
+            if (ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(c.componentType()))) {
+                Object host = c.params().get("host_id");
+                if (host == null) host = c.params().get("hostId");
+                if (host != null) roofHosts.add(String.valueOf(host));
             }
         }
         List<Component> out = new ArrayList<>(components.size());
@@ -58,6 +67,20 @@ final class ExplicitDesignConflictRepair {
                         c.params().get("host_id"));
                 changed = true;
                 continue;
+            }
+            // Temple/vernacular gates already carry a pitched ROOF; a classical CROWN on the same
+            // host overwrites roof tiles → E_PATCH_CONFLICT. Prefer the authored roof.
+            String type = ComponentPlanTypes.normalizeType(c.componentType());
+            if (("CROWN".equals(type) || "CUPOLA".equals(type) || "DOME".equals(type))) {
+                Object host = c.params().get("host_id");
+                if (host == null) host = c.params().get("hostId");
+                if (host != null && roofHosts.contains(String.valueOf(host))) {
+                    FormacraftMod.LOGGER.info(
+                            "ExplicitDesignConflictRepair: drop {} host={} (ROOF already present)",
+                            type, host);
+                    changed = true;
+                    continue;
+                }
             }
             out.add(c);
         }

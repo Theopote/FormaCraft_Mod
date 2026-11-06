@@ -185,4 +185,106 @@ class TempleGardenAlignmentRepairTest {
         AssemblyCompileDiagnostics.clear();
         assertFalse(AssemblyCompileDiagnostics.hasGap());
     }
+
+    @Test
+    void unknownCourtyardHostRemapsAndClearsGap() {
+        Component court = new Component(
+                "COURTYARD", "main", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 1), List.of("courtyard"),
+                Map.of("component_id", "garden_courtyard"));
+        Component censer = new Component(
+                "DECOR_DETAIL", "main", new Vec3i(0, 1, 0),
+                new Dimensions(1, 1, 2), List.of("censer"),
+                Map.of("component_id", "censer", "host_id", "courtyard"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(court, censer))
+                .planStatus("capability_gap")
+                .error("capability: host_id='courtyard' unknown for censer")
+                .capabilityGap(new CapabilityGap(
+                        "E_LLMPLAN_VALIDATION",
+                        "capability: host_id='courtyard' unknown for censer",
+                        "components",
+                        List.of()))
+                .build();
+        LlmPlan repaired = HostIdRemapRepair.apply(plan);
+        assertFalse(repaired.hasCapabilityGap());
+        Component fixed = repaired.components().stream()
+                .filter(c -> "censer".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("garden_courtyard", fixed.params().get("host_id"));
+    }
+
+    @Test
+    void crownDroppedWhenRoofOwnsSameGateHost() {
+        Component gate = new Component(
+                "MASS_MAIN", "gate", new Vec3i(0, 0, 0),
+                new Dimensions(12, 8, 10), List.of("gate"),
+                Map.of("component_id", "gate_mass_01"));
+        Component roof = new Component(
+                "ROOF", "gate", new Vec3i(-1, 10, -1),
+                new Dimensions(14, 10, 3), List.of(),
+                Map.of("component_id", "gate_roof_01", "host_id", "gate_mass_01", "roof_type", "xuanshan"));
+        Component crown = new Component(
+                "CROWN", "gate", new Vec3i(0, 12, 0),
+                new Dimensions(4, 4, 3), List.of(),
+                Map.of("component_id", "component_14", "host_id", "gate_mass_01"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(gate, roof, crown))
+                .build();
+        LlmPlan repaired = ExplicitDesignConflictRepair.apply(plan);
+        assertTrue(repaired.components().stream()
+                .noneMatch(c -> c != null && "CROWN".equals(c.componentType())));
+        assertTrue(repaired.components().stream()
+                .anyMatch(c -> c != null && "ROOF".equals(c.componentType())));
+    }
+
+    @Test
+    void gardenCompositionClampsFoundationAndForcesEnclosureWall() {
+        Component hall = new Component(
+                "MASS_MAIN", "main_hall_slot", new Vec3i(0, 0, 0),
+                new Dimensions(8, 6, 8), List.of("main_hall"),
+                Map.of("component_id", "main_hall"));
+        Component foundation = new Component(
+                "FOUNDATION", "main_hall_slot", new Vec3i(0, 0, 0),
+                new Dimensions(8, 6, 8), List.of("plinth"),
+                Map.of("component_id", "main_hall_foundation", "host_id", "main_hall"));
+        Component wall = new Component(
+                "WALL", "garden_slot", new Vec3i(0, 0, 0),
+                new Dimensions(8, 6, 8), List.of("decorative_wall_doorway"),
+                Map.of("component_id", "garden_wall"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("jiangnan_garden")
+                .distinguishingFeatures(List.of("江南园林"))
+                .components(List.of(hall, foundation, wall))
+                .build();
+        LlmPlan repaired = GardenCompositionRepair.apply(plan);
+        Component found = repaired.components().stream()
+                .filter(c -> "main_hall_foundation".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(1, found.dimensions().height());
+        Component enclosure = repaired.components().stream()
+                .filter(c -> "garden_wall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("curtain_wall", enclosure.params().get("wall_type"));
+        assertTrue(enclosure.dimensions().width() >= 24);
+        assertTrue(enclosure.dimensions().height() <= 4);
+    }
+
+    @Test
+    void horseHeadSteppedGableDoesNotInsetHuizhouWalls() {
+        var mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(14, 14, 8),
+                List.of("white_walls", "black_tile_roof", "two_storey", "horse_head_gable_walls"),
+                Map.of("component_id", "mass_main_huizhou_01"));
+        var semantic = new com.formacraft.common.compiler.semantic.SemanticComponent(
+                "MASS_MAIN", null, mass, "Chinese_Vernacular_Huizhou");
+        var layers = com.formacraft.common.generation.component.util.ResolvedFacadeLayers
+                .resolve(semantic, 14, 14, 8);
+        // Upper storey must keep full footprint — no 1-block setback that floats windows.
+        assertEquals(14, layers[4].width);
+        assertEquals(14, layers[4].depth);
+        assertEquals(0, layers[4].xOffset);
+        assertEquals(0, layers[4].zOffset);
+    }
 }

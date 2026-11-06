@@ -255,6 +255,48 @@ def apply_stage_b_capability_repair(
 
     repairs: List[str] = []
     aliases = roof_aliases()
+    hostable = hostable_types()
+    hosted = hosted_types()
+
+    # Index component_id → component for host remapping.
+    id_index: Dict[str, Dict[str, Any]] = {}
+    for c in comps:
+        if not isinstance(c, dict):
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        cid = params.get("component_id")
+        if cid:
+            id_index[str(cid)] = c
+
+    def _pick_host_remap(wanted: str) -> Optional[str]:
+        key = str(wanted).strip().lower()
+        if not key:
+            return None
+        # Exact / case-insensitive id match.
+        for cid in id_index:
+            if cid.lower() == key:
+                return cid
+        # Fuzzy: host name appears in component_id (courtyard → garden_courtyard).
+        fuzzy = [
+            cid
+            for cid, comp in id_index.items()
+            if key in cid.lower()
+            and str(comp.get("component_type") or "").upper() in hostable
+        ]
+        if fuzzy:
+            return sorted(fuzzy, key=len)[0]
+        # Role fallback: courtyard-like hosts → first COURTYARD / PATH / MASS.
+        if any(tok in key for tok in ("court", "yard", "庭", "院")):
+            for prefer in ("COURTYARD", "COURTYARD_SPACE", "PATH", "PLAZA", "MASS_MAIN", "MASS_ANCILLARY"):
+                for cid, comp in id_index.items():
+                    if str(comp.get("component_type") or "").upper() == prefer:
+                        return cid
+        # Last resort: any hostable mass.
+        for prefer in ("MASS_MAIN", "MASS_ANCILLARY", "GATE", "STRUCTURE"):
+            for cid, comp in id_index.items():
+                if str(comp.get("component_type") or "").upper() == prefer:
+                    return cid
+        return None
 
     for c in comps:
         if not isinstance(c, dict):
@@ -263,6 +305,16 @@ def apply_stage_b_capability_repair(
         if not isinstance(params, dict):
             continue
         ctype = str(c.get("component_type") or "").upper()
+
+        # Remap unknown host_id before evaluate_capability hard-fails (e.g. censer→courtyard).
+        if ctype in hosted:
+            host = params.get("host_id")
+            if host and str(host) not in id_index:
+                remapped = _pick_host_remap(str(host))
+                if remapped:
+                    params["host_id_mapped_from"] = str(host)
+                    params["host_id"] = remapped
+                    repairs.append(f"host_id {host!r}→{remapped!r}")
 
         # Typology alias → typology_id for STRUCTURE routing.
         if ctype in {"STRUCTURE", "MODULE"}:
