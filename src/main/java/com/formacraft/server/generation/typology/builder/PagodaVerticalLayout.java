@@ -4,6 +4,7 @@ import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.typology.TypologyGenerationException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -131,7 +132,7 @@ public final class PagodaVerticalLayout {
             int base = minClear;
             int used = base * floors;
             int leftover = Math.max(0, bodyBudget - used);
-            for (int i = 0; i < floors; i++) levelH[i] = base;
+            Arrays.fill(levelH, base);
             if (floors > 1 && leftover > 0 && levelH[0] < groundClear) {
                 int bump = Math.min(leftover, groundClear - levelH[0]);
                 levelH[0] += bump;
@@ -146,7 +147,7 @@ public final class PagodaVerticalLayout {
         } else {
             int per = Math.max(minClear, Math.min(maxPer, bodyBudget / floors));
             int leftover = Math.max(0, bodyBudget - per * floors);
-            for (int i = 0; i < floors; i++) levelH[i] = per;
+            Arrays.fill(levelH, per);
             if (floors > 1 && per < groundClear) {
                 int bump = Math.min(leftover, groundClear - per);
                 levelH[0] += bump;

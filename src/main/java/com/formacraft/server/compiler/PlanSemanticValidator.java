@@ -126,38 +126,126 @@ final class PlanSemanticValidator {
 
     /** Explicit roof from request_intent / chinese contract / architecture text. */
     static String explicitRoofType(LlmPlan plan, String originalRequestIntent) {
+        // Vocab on the authoritative corpus owns negation (不要做成歇山) and must win over
+        // a stale / LLM-authored request_intent.roof_type that ignored the forbid.
+        String rawCorpus = authoritativeCorpus(plan, originalRequestIntent);
+        Map<String, Object> fromVocab = null;
+        if (rawCorpus != null && !rawCorpus.isBlank()) {
+            fromVocab = RequestIntentInjector.extract(rawCorpus);
+            Object rt = fromVocab.get("roof_type");
+            if (rt != null && !String.valueOf(rt).isBlank()) {
+                return String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+            }
+            // Forbidden-only mentions must not become requirements via naive contains()
+            // or a conflicting request_intent.roof_type.
+            if (fromVocab.get("roof_forbids") instanceof List<?> forbids && !forbids.isEmpty()) {
+                Map<String, Object> ri = requestIntentMap(plan);
+                if (ri != null && ri.get("roof_type") != null) {
+                    String have = String.valueOf(ri.get("roof_type")).trim().toLowerCase(Locale.ROOT);
+                    if (roofTypeForbiddenBy(have, forbids)) {
+                        return null;
+                    }
+                } else {
+                    return null;
+                }
+            }
+        }
         Map<String, Object> ri = requestIntentMap(plan);
         if (ri != null) {
             if (Boolean.TRUE.equals(ri.get("roof_explicit")) || ri.get("roof_type") != null) {
                 Object rt = ri.get("roof_type");
                 if (rt != null && !String.valueOf(rt).isBlank()) {
-                    return String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+                    String have = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+                    if (fromVocab != null
+                            && fromVocab.get("roof_forbids") instanceof List<?> forbids
+                            && roofTypeForbiddenBy(have, forbids)) {
+                        return null;
+                    }
+                    return have;
                 }
             }
         }
-        String corpus = authoritativeCorpus(plan, originalRequestIntent).toLowerCase(Locale.ROOT);
-        // Honour negation via shared vocab extractor (不要重檐 must not force double_eave).
-        String rawCorpus = authoritativeCorpus(plan, originalRequestIntent);
-        if (rawCorpus != null && !rawCorpus.isBlank()) {
-            Map<String, Object> fromVocab = RequestIntentInjector.extract(rawCorpus);
-            Object rt = fromVocab.get("roof_type");
-            if (rt != null && !String.valueOf(rt).isBlank()) {
-                return String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
-            }
-        }
+        String corpus = rawCorpus == null ? "" : rawCorpus.toLowerCase(Locale.ROOT);
         // 重檐 before plain 庑殿/歇山 so 「重檐庑殿」keeps double-eave intent.
-        if (corpus.contains("重檐") && !corpus.contains("不要重檐") && !corpus.contains("无重檐")) {
-            if (corpus.contains("歇山")) return "double_eave_xieshan";
+        if (corpus.contains("重檐") && !negatedRoofMention(rawCorpus, "重檐")) {
+            if (corpus.contains("歇山") && !negatedRoofMention(rawCorpus, "歇山")) {
+                return "double_eave_xieshan";
+            }
             return "double_eave_hip";
         }
-        if (corpus.contains("歇山")) return "xieshan";
-        if (corpus.contains("庑殿")) return "wudian";
-        if (corpus.contains("攒尖")) return "pyramid";
-        if (corpus.contains("悬山")) return "xuanshan";
-        if (corpus.contains("硬山")) return "yingshan";
+        if (corpus.contains("歇山") && !negatedRoofMention(rawCorpus, "歇山")) return "xieshan";
+        if (corpus.contains("庑殿") && !negatedRoofMention(rawCorpus, "庑殿")) return "wudian";
+        if (corpus.contains("攒尖") && !negatedRoofMention(rawCorpus, "攒尖")) return "pyramid";
+        if (corpus.contains("悬山") && !negatedRoofMention(rawCorpus, "悬山")) return "xuanshan";
+        if (corpus.contains("硬山") && !negatedRoofMention(rawCorpus, "硬山")) return "yingshan";
         if (corpus.contains("穹顶") || corpus.contains("dome")) return "dome";
         if (corpus.contains("平顶") || corpus.contains("flat roof")) return "flat";
         return null;
+    }
+
+    private static boolean roofTypeForbiddenBy(String roofType, List<?> forbids) {
+        if (roofType == null || forbids == null) return false;
+        String have = roofType.trim().toLowerCase(Locale.ROOT);
+        for (Object f : forbids) {
+            if (f == null) continue;
+            String s = String.valueOf(f).toLowerCase(Locale.ROOT);
+            if (have.contains(s) || s.contains(have)
+                    || (have.contains("xieshan") && s.contains("xieshan"))
+                    || (have.contains("double_eave") && s.contains("double_eave"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when {@code token} appears only under local negation (不要做成X). */
+    private static boolean negatedRoofMention(String rawCorpus, String token) {
+        if (rawCorpus == null || token == null || token.isBlank()) return false;
+        Map<String, Object> fromVocab = RequestIntentInjector.extract(rawCorpus);
+        String canonical = switch (token) {
+            case "歇山" -> "xieshan";
+            case "庑殿" -> "wudian";
+            case "悬山" -> "xuanshan";
+            case "硬山" -> "yingshan";
+            case "攒尖" -> "pyramid";
+            case "重檐" -> "double_eave_hip";
+            default -> token.toLowerCase(Locale.ROOT);
+        };
+        Object rt = fromVocab.get("roof_type");
+        if (rt != null) {
+            String have = String.valueOf(rt).toLowerCase(Locale.ROOT);
+            if (have.contains(canonical) || canonical.contains(have)
+                    || (canonical.contains("xieshan") && have.contains("xieshan"))
+                    || (canonical.contains("double_eave") && have.contains("double_eave"))) {
+                return false;
+            }
+        }
+        if (fromVocab.get("roof_forbids") instanceof List<?> forbids) {
+            for (Object f : forbids) {
+                if (f == null) continue;
+                String s = String.valueOf(f).toLowerCase(Locale.ROOT);
+                if (s.contains(canonical) || canonical.contains(s)
+                        || (canonical.contains("xieshan") && s.contains("xieshan"))
+                        || (canonical.contains("double_eave") && s.contains("double_eave"))) {
+                    return true;
+                }
+            }
+        }
+        // Fallback: every occurrence of the surface token is locally negated.
+        String lower = rawCorpus.toLowerCase(Locale.ROOT);
+        String needle = token.toLowerCase(Locale.ROOT);
+        int start = 0;
+        boolean saw = false;
+        while (true) {
+            int idx = lower.indexOf(needle, start);
+            if (idx < 0) break;
+            saw = true;
+            if (!RequestIntentInjector.isNegatedAt(rawCorpus, idx)) {
+                return false;
+            }
+            start = idx + needle.length();
+        }
+        return saw;
     }
 
     private static boolean hasAlternateGeometry(LlmPlan plan) {

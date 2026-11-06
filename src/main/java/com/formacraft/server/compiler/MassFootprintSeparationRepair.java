@@ -132,9 +132,7 @@ final class MassFootprintSeparationRepair {
             if (role != null && String.valueOf(role).toLowerCase(Locale.ROOT).contains("bridge")) {
                 return false;
             }
-            if ("plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
-                return false;
-            }
+            return !"plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")));
         }
         return true;
     }

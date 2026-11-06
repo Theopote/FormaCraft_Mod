@@ -747,7 +747,7 @@ final class ComponentSatelliteAligner {
     }
 
     /** True for balcony / upper-deck doors that intentionally sit above the ground storey. */
-    private static boolean isUpperPlatformDoor(Component door) {
+    static boolean isUpperPlatformDoor(Component door) {
         if (door == null) return false;
         String id = ComponentPlanTypes.getParamString(door.params(), "component_id");
         if (id != null) {

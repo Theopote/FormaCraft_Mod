@@ -34,6 +34,14 @@ class RoofMaterialReplaceIntentTest {
     }
 
     @Test
+    void ignoresNewBuildThatMentionsRoofType() {
+        assertFalse(RoofMaterialReplaceIntent.matches(
+                "生成一座日式入母屋造神社拜殿，木材质，屋顶是入母屋/歇山，不要自动改成双坡。"));
+        assertFalse(RoofMaterialReplaceIntent.matches(
+                "生成一座重檐歇山顶大雄宝殿，主殿必须是重檐歇山。"));
+    }
+
+    @Test
     void darkOakPhraseDoesNotCollapseToOak() {
         assertEquals("minecraft:dark_oak_planks",
                 RoofMaterialIntent.resolveBlockId("深色橡木").orElseThrow());

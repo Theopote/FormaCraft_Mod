@@ -42,11 +42,17 @@ public final class RequestIntentInjector {
                 && existingMap.get("original_text") != null
                 && !String.valueOf(existingMap.get("original_text")).isBlank()) {
             // Keep Python-authored merged intent; only fill missing text echo.
+            // Still reconcile roof_type / roof_forbids from the original text so
+            // 「不要做成歇山」cannot survive as a positive roof_type from the LLM.
+            @SuppressWarnings("unchecked")
+            Map<String, Object> reconciled = new HashMap<>((Map<String, Object>) existingMap);
+            reconcileRoofFromText(reconciled, String.valueOf(existingMap.get("original_text")));
+            meta.put("request_intent", reconciled);
             if (!meta.containsKey("request_intent_text")) {
                 meta.put("request_intent_text", String.valueOf(existingMap.get("original_text")));
             }
-            if (!meta.containsKey("building_class") && existingMap.get("building_class") != null) {
-                meta.put("building_class", existingMap.get("building_class"));
+            if (!meta.containsKey("building_class") && reconciled.get("building_class") != null) {
+                meta.put("building_class", reconciled.get("building_class"));
             }
             return OpeningConstraintProvenance.stamp(withMeta(plan, meta));
         }
@@ -407,15 +413,81 @@ public final class RequestIntentInjector {
 
     private static final Pattern CJK_NEGATION_SUFFIX = Pattern.compile(
             "(?:不要|别要|无需|不用|不采用|不使用|禁止|避免|无)[的了着过]?$");
+    /**
+     * 「不要做成歇山」「不要做成歇山大殿」— verb fillers, plus a short compound tail
+     * so 大殿 under 「不要做成歇山大殿」is still treated as negated.
+     * Bare 「无」stays on {@link #CJK_NEGATION_SUFFIX} so 「无窗的中式古塔」is safe.
+     */
+    private static final Pattern CJK_NEGATION_WITH_VERB = Pattern.compile(
+            "(?:不要|别要|别|无需|不用|禁止|避免)"
+                    + "(?:做成|改成|改为|改用|做成了|改成了|用|当|作为)?"
+                    + "[\\u4e00-\\u9fffA-Za-z0-9_/·\\-]{0,6}$");
     private static final Pattern ASCII_NEGATION_SUFFIX = Pattern.compile(
             "(?:(?:do\\s+)?not|don't|dont|no|without)\\s+$", Pattern.CASE_INSENSITIVE);
 
-    private static boolean isNegatedAt(String text, int start) {
+    /**
+     * Overlay keyword roof_type / roof_forbids onto an existing request_intent map.
+     * Keyword negatives win: a forbidden roof must not remain as roof_type.
+     */
+    static void reconcileRoofFromText(Map<String, Object> intent, String text) {
+        if (intent == null || text == null || text.isBlank()) return;
+        Map<String, Object> keyword = extractKeyword(text);
+        Object kwType = keyword.get("roof_type");
+        Object kwForbids = keyword.get("roof_forbids");
+        if (kwForbids instanceof List<?> forbids && !forbids.isEmpty()) {
+            intent.put("roof_forbids", forbids);
+        }
+        Object have = intent.get("roof_type");
+        boolean haveForbidden = have != null
+                && kwForbids instanceof List<?> forbids
+                && roofForbidden(String.valueOf(have), forbids);
+        if (kwType != null && !String.valueOf(kwType).isBlank()) {
+            // Keyword positive roof wins when LLM left blank or authored a forbidden type.
+            if (have == null || String.valueOf(have).isBlank() || haveForbidden
+                    || !String.valueOf(have).equalsIgnoreCase(String.valueOf(kwType))) {
+                if (have == null || String.valueOf(have).isBlank() || haveForbidden) {
+                    intent.put("roof_type", kwType);
+                    intent.put("roof_explicit", true);
+                }
+            }
+        } else if (haveForbidden) {
+            intent.put("roof_type", null);
+            intent.put("roof_explicit", false);
+        }
+        // Demote temple class when the only hall marker sits under local negation.
+        Object cls = intent.get("building_class");
+        if ("temple".equals(String.valueOf(cls))
+                && "generic".equals(String.valueOf(keyword.getOrDefault("building_class", "generic")))) {
+            intent.put("building_class", "generic");
+            intent.put("confidence", keyword.getOrDefault("confidence", 0.0));
+            intent.put("refuse_residential_autofill", false);
+            intent.put("scaffold_eligible", false);
+        }
+    }
+
+    private static boolean roofForbidden(String roofType, List<?> forbids) {
+        if (roofType == null || forbids == null) return false;
+        String have = roofType.trim().toLowerCase(Locale.ROOT);
+        for (Object f : forbids) {
+            if (f == null) continue;
+            String s = String.valueOf(f).toLowerCase(Locale.ROOT);
+            if (have.contains(s) || s.contains(have)
+                    || (have.contains("xieshan") && s.contains("xieshan"))
+                    || (have.contains("double_eave") && s.contains("double_eave"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Package-visible for PlanSemanticValidator roof-negation fallbacks. */
+    static boolean isNegatedAt(String text, int start) {
         // Only the immediate preceding suffix counts — otherwise
         // 「无窗的中式古塔」would treat 古塔 as negated because 无 appears earlier.
         if (start <= 0) return false;
         String window = text.substring(Math.max(0, start - 16), start);
         String compact = window.replaceAll("\\s+", "");
+        if (CJK_NEGATION_WITH_VERB.matcher(compact).find()) return true;
         if (CJK_NEGATION_SUFFIX.matcher(compact).find()) return true;
         return ASCII_NEGATION_SUFFIX.matcher(window.toLowerCase(Locale.ROOT)).find();
     }

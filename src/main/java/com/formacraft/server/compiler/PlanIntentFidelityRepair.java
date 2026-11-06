@@ -52,26 +52,50 @@ final class PlanIntentFidelityRepair {
         String corpus = intentCorpus(plan);
         String lower = corpus.toLowerCase(Locale.ROOT);
 
-        String roofType = roofTypeFromChineseContract(plan);
+        // Vocab extractor owns negation (不要做成歇山) — prefer it over naive contains().
+        String roofType = null;
+        boolean doubleEave = false;
+        boolean roofForbidsOnly = false;
+        if (corpus != null && !corpus.isBlank()) {
+            Map<String, Object> fromVocab = RequestIntentInjector.extract(corpus);
+            Object rt = fromVocab.get("roof_type");
+            if (rt != null && !String.valueOf(rt).isBlank()) {
+                String raw = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+                if (raw.contains("double_eave")) {
+                    doubleEave = true;
+                    roofType = raw.contains("xieshan") || raw.contains("hip_gable") ? "xieshan" : "hip";
+                } else {
+                    roofType = canonicalizeRoofType(raw);
+                }
+            } else if (fromVocab.get("roof_forbids") instanceof List<?> forbids && !forbids.isEmpty()) {
+                roofForbidsOnly = true;
+            }
+        }
         if (roofType == null) {
+            roofType = roofTypeFromChineseContract(plan);
+        }
+        if (roofType == null && !roofForbidsOnly) {
             roofType = roofTypeFromCorpus(lower);
         }
-        if (roofType == null && plan != null && plan.styleAttributes() != null
+        if (roofType == null && !roofForbidsOnly && plan != null && plan.styleAttributes() != null
                 && plan.styleAttributes().roofForm() != null) {
             roofType = roofTypeFromCorpus(plan.styleAttributes().roofForm().toLowerCase(Locale.ROOT));
         }
-        boolean doubleEave = lower.contains("重檐")
-                || lower.contains("double_eave")
-                || lower.contains("double-eave")
-                || lower.contains("double_eave_hip")
-                || lower.contains("上下两层屋檐")
-                || eaveTiers(plan) >= 2;
+        if (!doubleEave) {
+            doubleEave = (lower.contains("重檐") && !roofTokenNegated(corpus, "重檐"))
+                    || lower.contains("double_eave")
+                    || lower.contains("double-eave")
+                    || lower.contains("double_eave_hip")
+                    || lower.contains("上下两层屋檐")
+                    || eaveTiers(plan) >= 2;
+        }
 
         boolean preferStairs = lower.contains("楼梯") || lower.contains("stair")
                 || lower.contains("坡屋面") || lower.contains("坡屋顶")
                 || lower.contains("pitched") || lower.contains("gable")
                 || lower.contains("双坡") || lower.contains("人字")
-                || lower.contains("歇山") || lower.contains("庑殿") || lower.contains("悬山");
+                || (lower.contains("歇山") && !roofTokenNegated(corpus, "歇山"))
+                || lower.contains("庑殿") || lower.contains("悬山");
 
         String wallBlock = wallBlockFromStyle(plan);
         if (wallBlock == null) {
@@ -239,21 +263,30 @@ final class PlanIntentFidelityRepair {
             }
         }
 
-        if ((mass || roof || structure) && hints.roofType() != null
-                && isBlank(ComponentPlanTypes.getParamString(params, "roof_type", "roofType"))) {
-            changed |= DesignProvenance.putIfAllowed(plan, params, "roof_type", hints.roofType());
-            if (mass) {
-                changed |= DesignProvenance.putIfAllowed(plan, params, "preferred_roof_type", hints.roofType());
+        // Explicit user roof intent overrides LLM substitutions (gable/hip for 歇山 etc.).
+        boolean inPrimaryRoofScope = isInPrimaryRoofScope(component, mass, roof, structure, primaryHost);
+        if ((mass || roof || structure) && hints.roofType() != null && inPrimaryRoofScope) {
+            String current = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
+            String want = hints.roofType();
+            if (isBlank(current) || !roofTypesCompatible(want, current)) {
+                params.put("roof_type", want);
+                if (mass) {
+                    params.put("preferred_roof_type", want);
+                }
+                changed = true;
             }
         }
         // Double-eave intent binds only to the primary host mass / roofs on that host.
-        boolean inDoubleEaveScope = isInPrimaryRoofScope(component, mass, roof, structure, primaryHost);
-        if ((mass || roof || structure) && hints.doubleEave() && inDoubleEaveScope) {
-            if (!params.containsKey("double_eave") && !params.containsKey("doubleEave")) {
-                changed |= DesignProvenance.putIfAllowed(plan, params, "double_eave", true);
+        if ((mass || roof || structure) && hints.doubleEave() && inPrimaryRoofScope) {
+            Object existing = params.get("double_eave");
+            if (existing == null) existing = params.get("doubleEave");
+            if (!Boolean.TRUE.equals(existing) && !"true".equalsIgnoreCase(String.valueOf(existing))) {
+                params.put("double_eave", true);
+                changed = true;
             }
             if (!params.containsKey("eave_tiers") && !params.containsKey("eaveTiers")) {
-                changed |= DesignProvenance.putIfAllowed(plan, params, "eave_tiers", 2);
+                params.put("eave_tiers", 2);
+                changed = true;
             }
             if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("double_eave"))) {
                 features.add("double_eave");
@@ -637,12 +670,45 @@ final class PlanIntentFidelityRepair {
         if (value == null || value.isBlank()) return null;
         String v = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         return switch (v) {
-            case "wu_dian", "wudian", "庑殿", "chinese_hip" -> "hip";
-            case "xie_shan", "xieshan", "歇山", "hip_and_gable", "hip_gable" -> "xieshan";
+            case "wu_dian", "wudian", "庑殿", "chinese_hip", "double_eave_hip" -> "hip";
+            case "xie_shan", "xieshan", "歇山", "hip_and_gable", "hip_gable", "double_eave_xieshan" -> "xieshan";
             case "xuan_shan", "xuanshan", "悬山" -> "xuanshan";
             case "ying_shan", "yingshan", "硬山" -> "yingshan";
             default -> v;
         };
+    }
+
+    private static boolean roofTypesCompatible(String want, String have) {
+        if (want == null || have == null) return want == have;
+        String a = want.trim().toLowerCase(Locale.ROOT);
+        String b = have.trim().toLowerCase(Locale.ROOT);
+        if (a.equals(b) || a.contains(b) || b.contains(a)) return true;
+        var ak = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(a);
+        var bk = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(b);
+        return ak.isPresent() && bk.isPresent() && ak.get() == bk.get();
+    }
+
+    /** True when extract() marked the roof token as forbidden (不要做成歇山). */
+    private static boolean roofTokenNegated(String corpus, String token) {
+        if (corpus == null || corpus.isBlank() || token == null) return false;
+        Map<String, Object> fromVocab = RequestIntentInjector.extract(corpus);
+        if (fromVocab.get("roof_type") != null) {
+            // A positive roof choice exists — token may still be forbidden separately.
+        }
+        String canonical = switch (token) {
+            case "歇山" -> "xieshan";
+            case "重檐" -> "double_eave";
+            default -> token.toLowerCase(Locale.ROOT);
+        };
+        if (fromVocab.get("roof_forbids") instanceof List<?> forbids) {
+            for (Object f : forbids) {
+                if (f == null) continue;
+                String s = String.valueOf(f).toLowerCase(Locale.ROOT);
+                if (s.contains(canonical) || canonical.contains(s)) return true;
+            }
+        }
+        int idx = corpus.toLowerCase(Locale.ROOT).indexOf(token.toLowerCase(Locale.ROOT));
+        return idx >= 0 && RequestIntentInjector.isNegatedAt(corpus, idx);
     }
 
     private static int eaveTiers(LlmPlan plan) {

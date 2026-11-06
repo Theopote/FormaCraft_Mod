@@ -472,6 +472,8 @@ final class ComponentSatelliteInference {
         // Elevated hosts only (see ExteriorDoorAttachmentCompiler): ground-level openings stay authored.
         ExteriorDoorAttachmentCompiler.apply(prepared);
         DoorFloorDatumCompiler.apply(prepared);
+        // Second-floor street doors without a balcony/terrace landing are illegal openings.
+        UpperStoreyEntranceRepair.apply(prepared);
         // Infer interior stairs when satellites are allowed, or when circulation is REQUIRED
         // (fidelity cases keep allow_compiler_satellites=false but still need vertical links).
         if (plan.allowCompilerSatellites()
