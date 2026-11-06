@@ -366,29 +366,6 @@ final class PlanSemanticValidator {
         return false;
     }
 
-    private static boolean hasPagodaCue(Component c) {
-        if (c.params() != null) {
-            String typology = String.valueOf(c.params().getOrDefault("typology_id",
-                    c.params().getOrDefault("typology",
-                            c.params().getOrDefault("structural_typology", "")))).toLowerCase(Locale.ROOT);
-            if (typology.contains("pagoda") || typology.contains("stupa") || typology.contains("dense_eaves")) {
-                return true;
-            }
-        }
-        if (c.features() != null) {
-            for (String f : c.features()) {
-                if (f == null) continue;
-                String lower = f.toLowerCase(Locale.ROOT);
-                if (lower.contains("pagoda") || lower.contains("stupa") || lower.contains("dense_eaves")
-                        || lower.contains("finial") || lower.contains("spire")
-                        || f.contains("佛塔") || f.contains("古塔") || f.contains("塔刹") || f.contains("重檐")) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     private static boolean hasTierParams(Component c) {
         if (c.params() == null) return false;
         if (c.params().containsKey("tier_index")) return true;

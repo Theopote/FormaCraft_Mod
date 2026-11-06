@@ -175,7 +175,9 @@ public final class DenseEavesPagodaBuilder {
                 plinth = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0xD4C1A0F2L, plinth);
             }
             for (int dy = -plinthH; dy < 0; dy++) {
-                fillFootprintDisk(blocks, origin, footprint, plinthHalf, dy, plinth, plinthSrc);
+                // Solid square 台基 under every tower — octagon plinths leave corner holes that
+                // read as missing foundation blocks, and a square podium keeps the shaft centered.
+                fillFootprintDisk(blocks, origin, Footprint.SQUARE, plinthHalf, dy, plinth, plinthSrc);
             }
         }
 
@@ -258,8 +260,8 @@ public final class DenseEavesPagodaBuilder {
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, outer, ey, eave, eaveSrc);
                 ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim, eaveTrimSrc);
                 if (refined) {
-                    ChineseTypologyDetailUtil.ringRegularOctagon(
-                            blocks, origin, outer, ey + 1, eave, eaveTrimSrc);
+                    // Thicken horizontally at the same Y — ey+1 collides with the next storey
+                    // floor now that eaves sit flush on the ceiling plate.
                     ChineseTypologyDetailUtil.ringRegularOctagon(
                             blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
                 }
@@ -268,7 +270,7 @@ public final class DenseEavesPagodaBuilder {
                 ChineseTypologyDetailUtil.ringSquare(blocks, origin, half + e, ey, trim, eaveTrimSrc);
                 if (refined) {
                     ChineseTypologyDetailUtil.ringSquare(
-                            blocks, origin, outer, ey + 1, eave, eaveTrimSrc);
+                            blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
                 }
             }
         }

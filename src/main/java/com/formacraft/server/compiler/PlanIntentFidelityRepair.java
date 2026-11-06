@@ -3,8 +3,10 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.StyleAttributes;
+import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -153,6 +155,39 @@ final class PlanIntentFidelityRepair {
         return new int[]{0, 0};
     }
 
+    /** Stamp intent onto authored components before design validation can hard-fail. */
+    static LlmPlan apply(LlmPlan plan) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty()) {
+            return plan;
+        }
+        IntentHints hints = parse(plan);
+        // Also honour PlanSemanticValidator's explicit 重檐* tokens from the raw corpus.
+        String corpus = intentCorpus(plan).toLowerCase(Locale.ROOT);
+        boolean forceDoubleEave = hints.doubleEave()
+                || (corpus.contains("重檐") && !corpus.contains("不要重檐") && !corpus.contains("无重檐"));
+        if (!forceDoubleEave && hints.roofType() == null && hints.floorCount() <= 0
+                && hints.footprintWidth() <= 0 && hints.wallBlock() == null) {
+            return plan;
+        }
+        IntentHints effective = forceDoubleEave && !hints.doubleEave()
+                ? new IntentHints(
+                        hints.roofType(), true, hints.preferStairs(), hints.wallBlock(), hints.roofBlock(),
+                        hints.floorBlock(), hints.floorCount(), hints.ridgeAxis(), hints.doorFlankWindows(),
+                        hints.solidSides(), hints.windowSides(), hints.featureSeeds(),
+                        hints.footprintWidth(), hints.footprintDepth())
+                : hints;
+        List<Component> out = new ArrayList<>(plan.components().size());
+        boolean changed = false;
+        for (Component c : plan.components()) {
+            Component enriched = enrich(plan, c, effective);
+            if (enriched != c) {
+                changed = true;
+            }
+            out.add(enriched);
+        }
+        return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
     static Component enrich(LlmPlan plan, Component component) {
         if (component == null) return null;
         return enrich(plan, component, parse(plan));
@@ -283,12 +318,46 @@ final class PlanIntentFidelityRepair {
             }
         }
 
+        Dimensions dims = component.dimensions();
+        Vec3i position = component.relativePosition();
+        if (mass && dims != null) {
+            int floors = Math.max(
+                    hints.floorCount(),
+                    ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount"));
+            String corpus = intentCorpus(plan).toLowerCase(Locale.ROOT);
+            boolean officeLike = corpus.contains("办公") || corpus.contains("office")
+                    || corpus.contains("curtain") || corpus.contains("幕墙")
+                    || corpus.contains("international") || corpus.contains("玻璃幕");
+            if (floors >= 2 || officeLike) {
+                int minW = officeLike || floors >= 3 ? 14 : 12;
+                int minD = officeLike || floors >= 3 ? 12 : 10;
+                if (hints.footprintWidth() > 0) minW = Math.max(minW, hints.footprintWidth());
+                if (hints.footprintDepth() > 0) minD = Math.max(minD, hints.footprintDepth());
+                int nw = Math.max(dims.width(), minW);
+                int nd = Math.max(dims.depth(), minD);
+                // Per-floor plate must read as a real office plate, not a tower shaft.
+                if (officeLike && nw * nd < 14 * 12) {
+                    nw = Math.max(nw, 14);
+                    nd = Math.max(nd, 12);
+                }
+                if (nw != dims.width() || nd != dims.depth()) {
+                    if (position != null) {
+                        int dx = (nw - dims.width()) / 2;
+                        int dz = (nd - dims.depth()) / 2;
+                        position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
+                    }
+                    dims = new Dimensions(nw, nd, dims.height());
+                    changed = true;
+                }
+            }
+        }
+
         if (!changed) return component;
         return new Component(
                 component.componentType(),
                 component.slotId(),
-                component.relativePosition(),
-                component.dimensions(),
+                position,
+                dims,
                 features,
                 params);
     }

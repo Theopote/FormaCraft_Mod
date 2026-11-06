@@ -55,6 +55,10 @@ public final class MaterialFallbackPolicy {
         if ((key.endsWith("_block") || key.endsWith("_material")
                 || Set.of("material", "block", "floor", "supportMaterial").contains(key)) && value instanceof String) {
             String text = String.valueOf(value);
+            String mapped = DynamicPaletteResolver.mapMaterialToBlock(text);
+            if (mapped != null) {
+                return stabilizeMaterial(mapped, key);
+            }
             if (ExplicitMaterialPolicy.canonical(text) != null) {
                 return stabilizeMaterial(text, key);
             }

@@ -95,20 +95,26 @@ public final class PagodaVerticalLayout {
         } else {
             height = Math.max(1, authoredHeight);
             if (height < abs) {
-                List<String> diags = List.of(
-                        "height=" + height,
-                        "minimum_feasible_height=" + abs,
-                        "required_comfortable_height=" + req,
-                        "floor_count=" + floors,
-                        "eaves_per_level=" + epl
-                );
-                throw new TypologyGenerationException(
-                        typologyId == null ? "dense_eaves_pagoda" : typologyId,
-                        "E_PAGODA_SIZE",
-                        "Pagoda height " + height + " cannot keep floor_count=" + floors
-                                + " eaves_per_level=" + epl
-                                + "; minimum feasible height=" + abs,
-                        diags);
+                // Floor/eave counts win over a soft LLM height: expand near-miss or
+                // floors-explicit envelopes (e.g. height=38 vs absoluteMin=39) instead of aborting.
+                if (vertical.floorsExplicit() || height >= abs - 4) {
+                    height = abs;
+                } else {
+                    List<String> diags = List.of(
+                            "height=" + height,
+                            "minimum_feasible_height=" + abs,
+                            "required_comfortable_height=" + req,
+                            "floor_count=" + floors,
+                            "eaves_per_level=" + epl
+                    );
+                    throw new TypologyGenerationException(
+                            typologyId == null ? "dense_eaves_pagoda" : typologyId,
+                            "E_PAGODA_SIZE",
+                            "Pagoda height " + height + " cannot keep floor_count=" + floors
+                                    + " eaves_per_level=" + epl
+                                    + "; minimum feasible height=" + abs,
+                            diags);
+                }
             }
         }
 
@@ -164,7 +170,9 @@ public final class PagodaVerticalLayout {
         for (int lv = 0; lv < floors; lv++) {
             int h = Math.max(minClear, levelH[lv]);
             storeys.add(new Storey(lv, y, h, half));
-            int eaveY = y + h;
+            // Flush eaves with the storey ceiling plate so the eave ring sits on the wall top
+            // (y+h would leave a one-block visual gap between shaft and eave).
+            int eaveY = y + h - 1;
             for (int t = 0; t < epl; t++) {
                 eaves.add(new EaveBand(lv, t, eaveY + t));
             }

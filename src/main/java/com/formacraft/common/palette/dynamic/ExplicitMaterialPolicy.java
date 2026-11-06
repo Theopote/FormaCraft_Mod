@@ -85,6 +85,15 @@ public final class ExplicitMaterialPolicy {
 
     public static String canonical(String target) {
         var state = BlockPatchTargetResolver.parse(target);
+        if (state != null) {
+            return state.toString();
+        }
+        // Accept planner aliases (stone_brick_slabs → stone_brick_slab) before hard-fail.
+        String mapped = DynamicPaletteResolver.mapMaterialToBlock(target);
+        if (mapped == null || mapped.equals(target)) {
+            return null;
+        }
+        state = BlockPatchTargetResolver.parse(mapped);
         return state == null ? null : state.toString();
     }
 

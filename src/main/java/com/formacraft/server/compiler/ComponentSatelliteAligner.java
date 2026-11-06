@@ -219,7 +219,22 @@ final class ComponentSatelliteAligner {
                 && detail.relativePosition().y() >= origin.y() + Math.max(0, body.height() - 3);
         boolean perimeter = dims.width() >= body.width() - 2 && dims.depth() >= body.depth() - 2
                 && dims.height() <= 1;
-        if (!chimney && !perimeter && !ridgeOrSpire && !smallRoofOrnament) return detail;
+        Vec3i rp = detail.relativePosition();
+        boolean overlapsHost = rp.x() + dims.width() > origin.x()
+                && rp.x() < origin.x() + body.width()
+                && rp.z() + dims.depth() > origin.z()
+                && rp.z() < origin.z() + body.depth();
+        // Detached frames / mullion boxes next to a curtain-wall mass: snap onto the host
+        // instead of leaving an offset satellite (DECOR_CLIPPED then leaves a floating remnant).
+        boolean detachedSatellite = !overlapsHost
+                && dims.width() <= body.width() + 6
+                && dims.depth() <= body.depth() + 6;
+        if (!chimney && !perimeter && !ridgeOrSpire && !smallRoofOrnament && !detachedSatellite) {
+            return detail;
+        }
+        if (detachedSatellite && !ridgeOrSpire && !smallRoofOrnament && !perimeter && !chimney) {
+            ridgeOrSpire = true;
+        }
         if (smallRoofOrnament) ridgeOrSpire = true;
         var params = new HashMap<String, Object>();
         if (detail.params() != null) params.putAll(detail.params());

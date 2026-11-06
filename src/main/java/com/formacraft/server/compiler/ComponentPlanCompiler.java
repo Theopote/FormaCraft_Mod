@@ -147,6 +147,8 @@ public final class ComponentPlanCompiler {
         plan = HostedPlateLevelRepair.apply(plan);
         plan = HostIdRemapRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);
+        // Land 重檐 / footprint / material intent before authored gates can hard-fail.
+        plan = PlanIntentFidelityRepair.apply(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
         var authoredIssue = DesignValidatorSuite.checkAuthored(plan);
         if (authoredIssue.isPresent()) {

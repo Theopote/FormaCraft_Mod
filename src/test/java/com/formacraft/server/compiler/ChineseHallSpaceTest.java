@@ -196,6 +196,22 @@ class ChineseHallSpaceTest {
         for(int i=1;i<axis.length;i++) assertTrue(axis[i]-axis[i-1]>=2);
         assertThrows(IllegalArgumentException.class,()->TailiangTimberHallBuilder.bayAxis(15,9));
     }
+    @Test void sevenBayHallExpandsWidthInsteadOfClampingToSix() {
+        // Legacy width=21 + minBaySpan=3 capped at six bays; 面阔七间 must expand the span.
+        var env = TailiangTimberHallBuilder.envelope(Map.of("baysX", 7, "baysZ", 4));
+        assertTrue(env.width() >= 22, "width=" + env.width());
+        var states = generate(Map.of("baysX", 7, "baysZ", 4, "depth", 15,
+                "anchorMode", "corner", "includeSubEaves", false));
+        var xs = TailiangTimberHallBuilder.bayAxis(env.width(), 7);
+        assertEquals(8, xs.length);
+        assertEquals(0, xs[0]);
+        assertEquals(env.width() - 1, xs[7]);
+        int columns = 0;
+        for (int x : xs) {
+            if (states.get(at(Direction.SOUTH, x, 5, 0)).isOf(Blocks.DARK_OAK_LOG)) columns++;
+        }
+        assertEquals(8, columns, "面阔七间 must keep seven bays / eight columns");
+    }
     @Test void wallsAndWindowsPreserveColumnsAndEntranceCrossesPorchAcrossFacings() {
         for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST))
             for(boolean sub:List.of(false,true)) {

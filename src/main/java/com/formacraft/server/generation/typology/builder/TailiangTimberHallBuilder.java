@@ -51,9 +51,14 @@ public final class TailiangTimberHallBuilder {
     public static Envelope envelope(Map<String, Object> params) {
         TypologyParams p = new TypologyParams(params);
         int bay = p.intVal("bayWidth", 3, 2, 4);
+        int baysX = p.intVal("baysX", 7, 1, 9);
+        int baysZ = p.intVal("baysZ", 4, 1, 5);
+        // Width must fit bays at the preferred span (≥3) so terrain pad matches generation.
+        int minW = Math.max(15, baysX * Math.max(bay, 3) + 1);
+        int minD = Math.max(11, baysZ * Math.max(bay, 3) + 1);
         return new Envelope(
-                clampOdd(p.intVal("width", p.intVal("baysX", 7, 5, 9) * bay, 15, 35), 15, 35),
-                clampOdd(p.intVal("depth", p.intVal("baysZ", 4, 3, 5) * bay, 11, 25), 11, 25),
+                clampOdd(p.intVal("width", Math.max(baysX * bay, minW), 15, 35), 15, 35),
+                clampOdd(p.intVal("depth", Math.max(baysZ * bay, minD), 11, 25), 11, 25),
                 p.boolVal("includeSubEaves", true) ? p.intVal("subEavesDepth", 3, 2, 5) : 0,
                 p.intVal("platformHeight", 2, 1, 4) + p.intVal("hallHeight", 7, 5, 12) + 20);
     }
@@ -91,14 +96,36 @@ public final class TailiangTimberHallBuilder {
         Envelope envelope = envelope(params);
         int w = envelope.width();
         int d = envelope.depth();
-        // Legacy halls keep 7×4 defaults; only shrink when the LLM overpacks a short span.
-        int minBaySpan = w <= 18 || d <= 14 ? 4 : 3;
+        // Prefer readable bay spans, but expand the envelope when the authored bay count
+        // (e.g. 面阔七间) cannot fit — never silently drop 7→6 on a default 21-wide hall.
+        int baysXWanted = p.intVal("baysX", 7, 1, 9);
+        int baysZWanted = p.intVal("baysZ", 4, 1, 5);
+        int minBaySpan = 3;
+        int needW = baysXWanted * minBaySpan + 1;
+        int needD = baysZWanted * minBaySpan + 1;
+        if (w < needW) {
+            w = clampOdd(Math.min(35, needW), 15, 35);
+        }
+        if (d < needD) {
+            d = clampOdd(Math.min(25, needD), 11, 25);
+        }
         int maxBaysX = Math.max(1, (w - 1) / minBaySpan);
         int maxBaysZ = Math.max(1, (d - 1) / minBaySpan);
-        int baysX = Math.min(p.intVal("baysX", 7, 1, 9), maxBaysX);
-        int baysZ = Math.min(p.intVal("baysZ", 4, 1, 5), maxBaysZ);
-        baysX = Math.max(1, baysX);
-        baysZ = Math.max(1, baysZ);
+        if (baysXWanted > maxBaysX || baysZWanted > maxBaysZ) {
+            minBaySpan = 2;
+            needW = baysXWanted * minBaySpan + 1;
+            needD = baysZWanted * minBaySpan + 1;
+            if (w < needW) {
+                w = clampOdd(Math.min(35, needW), 15, 35);
+            }
+            if (d < needD) {
+                d = clampOdd(Math.min(25, needD), 11, 25);
+            }
+            maxBaysX = Math.max(1, (w - 1) / minBaySpan);
+            maxBaysZ = Math.max(1, (d - 1) / minBaySpan);
+        }
+        int baysX = Math.max(1, Math.min(baysXWanted, maxBaysX));
+        int baysZ = Math.max(1, Math.min(baysZWanted, maxBaysZ));
         int bayWidth = p.intVal("bayWidth", 3, 2, 4);
         int platformH = p.intVal("platformHeight", 2, 1, 4);
         int bodyH = p.intVal("hallHeight", 7, 5, 12);

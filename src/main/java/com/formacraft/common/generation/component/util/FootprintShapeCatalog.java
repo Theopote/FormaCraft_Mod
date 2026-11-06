@@ -30,7 +30,8 @@ public final class FootprintShapeCatalog {
      * Accept the shape token so validators do not reject LLM plans that say shape=octagon.
      */
     public static final Set<String> OCTAGON_TOKENS = Set.of(
-            "octagon", "octagonal", "regular_octagon", "8gon"
+            "octagon", "octagonal", "regular_octagon", "8gon",
+            "hexagon", "hexagonal", "6gon"
     );
 
     public static final Set<String> SUPPORTED_TOKENS;
