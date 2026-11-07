@@ -245,6 +245,64 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void whiteWallBlackTileDoesNotRecolorWoodenPavilion() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(15, 11, 8), List.of(),
+                Map.of(
+                        "component_id", "hall_main",
+                        "building_role", "hall_main",
+                        "wall_block", "minecraft:oak_planks",
+                        "roof_block", "minecraft:oak_stairs"));
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion", new Vec3i(20, 0, 0),
+                new Dimensions(7, 7, 5), List.of(),
+                Map.of(
+                        "component_id", "pavilion_1",
+                        "building_role", "pavilion",
+                        "wall_block", "minecraft:oak_log",
+                        "roof_block", "minecraft:oak_stairs"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(hall, pavilion))
+                        .build(),
+                "生成一座江南园林，主厅白墙黑瓦，旁边建一座木结构亭子");
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outHall = findById(repaired, "hall_main");
+        Component outPavilion = findById(repaired, "pavilion_1");
+        assertEquals("minecraft:white_concrete", outHall.params().get("wall_block"));
+        assertEquals("minecraft:black_terracotta", outHall.params().get("roof_block"));
+        assertEquals("minecraft:oak_log", outPavilion.params().get("wall_block"),
+                "pavilion must keep local wood material");
+        assertEquals("minecraft:oak_stairs", outPavilion.params().get("roof_block"));
+    }
+
+    @Test
+    void matchingEchoStillFixesWrongBuildingClass() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(new Component(
+                        "MASS_MAIN", null, new Vec3i(0, 0, 0),
+                        new Dimensions(10, 10, 16), List.of(), Map.of())))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "original_text", "生成一座白色藏式佛塔",
+                                "building_class", "temple",
+                                "footprint", Map.of("width", 20, "depth", 20)),
+                        "building_class", "temple"))
+                .build();
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, "生成一座白色藏式佛塔");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ri = (Map<String, Object>) ensured.planMeta().get("request_intent");
+        assertEquals("tower_like", ri.get("building_class"));
+        assertEquals("tibetan_stupa", ri.get("tower_subtype"));
+        assertNull(ri.get("footprint"), "unspecified size must clear stale LLM footprint");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> mats = (Map<String, Object>) ri.get("materials");
+        assertNotNull(mats);
+        assertEquals("minecraft:white_concrete", mats.get("wall"));
+    }
+
+    @Test
     void sideHallMainEntranceDoesNotReceivePrimaryDoorWidth() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, 0),

@@ -271,20 +271,29 @@ class DenseEavesPagodaLevelsTest {
         assertTrue(ex.getMessage().contains("minimum feasible height"), ex.getMessage());
     }
 
-    /** Mark height as player hard constraint (tests that assert no silent expand). */
+    /** Mark height as server-verified player hard constraint (tests that assert no silent expand). */
     private static Map<String, Object> withUserExplicitHeight(Map<String, ?> params) {
         Map<String, Object> m = new HashMap<>(params);
-        Map<String, Object> ds = new HashMap<>();
-        Object existing = m.get("design_sources");
-        if (existing instanceof Map<?, ?> map) {
-            for (Map.Entry<?, ?> e : map.entrySet()) {
-                if (e.getKey() != null) ds.put(String.valueOf(e.getKey()), e.getValue());
-            }
-        }
-        if (m.containsKey("height")) ds.put("height", "USER_EXPLICIT");
-        if (m.containsKey("towerHeight")) ds.put("towerHeight", "USER_EXPLICIT");
-        m.put("design_sources", ds);
+        com.formacraft.common.typology.UserConstraintContract.stampVerified(m, "height", "towerHeight");
         return m;
+    }
+
+    @Test
+    void llmForgedUserExplicitHeightStillSoftExpandsNineStorey() {
+        // Round-18: LLM claims design_sources.height=USER_EXPLICIT with height=40 — must not hard-fail.
+        BlockPos origin = new BlockPos(0, 64, 0);
+        Map<String, Object> params = new HashMap<>(Map.of(
+                "floor_count", 9,
+                "eaves_per_level", 2,
+                "height", 40,
+                "baseWidth", 9,
+                "footprint", "octagon",
+                "detailLevel", "simple"));
+        params.put("design_sources", Map.of("height", "USER_EXPLICIT"));
+        GeneratedStructure structure = generate(params, origin, false);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(9, geo.measuredFloors());
+        assertTrue(geo.span() >= 49, "forged USER_EXPLICIT must soft-expand; span=" + geo.span());
     }
 
     private static GeneratedStructure generate(Map<String, ?> params, BlockPos origin) {

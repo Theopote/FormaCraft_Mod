@@ -55,14 +55,21 @@ public final class RequestIntentInjector {
                 FormacraftMod.LOGGER.info(
                         "RequestIntentInjector: INTENT_ECHO_MISMATCH serverText≠plan echo; re-extracting intent");
                 echo = text;
-                // Full re-extract — class/materials/footprint must not keep stale LLM fields.
-                applyKeywordAuthority(reconciled, extractKeyword(echo));
             } else if (!text.isBlank()) {
                 reconciled.put("original_text", text);
                 echo = text;
-                reconcileRoofFromText(reconciled, echo);
+            }
+            // Always verify structured intent against server text — matching echo can still have wrong class.
+            if (!echo.isBlank()) {
+                applyKeywordAuthority(reconciled, extractKeyword(echo), mismatch || !text.isBlank());
             } else {
                 reconcileRoofFromText(reconciled, echo);
+            }
+            int explicitH = com.formacraft.common.typology.UserConstraintContract
+                    .parseExplicitHeightBlocks(echo);
+            if (explicitH > 0) {
+                reconciled.put("height_explicit", Boolean.TRUE);
+                reconciled.put("explicit_height_blocks", explicitH);
             }
             meta.put("request_intent", reconciled);
             meta.put("request_intent_text", echo);
@@ -191,6 +198,13 @@ public final class RequestIntentInjector {
             intent.put("footprint", Map.of("width", width, "depth", depth));
         }
         intent.put("forbids", forbids);
+        // Whole-building white body (白色藏式佛塔) — shaft material, not door/roof trim.
+        if (!materials.containsKey("wall")
+                && (text.contains("白色") || lower.contains("white "))
+                && (text.contains("佛塔") || text.contains("白塔") || text.contains("古塔")
+                || text.contains("宝塔") || lower.contains("stupa") || lower.contains("pagoda"))) {
+            materials.put("wall", "minecraft:white_concrete");
+        }
         intent.put("materials", materials);
         intent.put("door_width_explicit", doorWidthExplicit);
         intent.put("window_material_explicit", windowMaterialExplicit);
@@ -244,10 +258,28 @@ public final class RequestIntentInjector {
 
     /**
      * Overlay keyword-extracted authoritative fields from server user text onto an existing intent.
-     * Stale LLM class / materials / footprint must not survive INTENT_ECHO_MISMATCH.
+     * Stale LLM class / materials / footprint must not survive mismatch or structured conflict.
      */
     static void applyKeywordAuthority(Map<String, Object> intent, Map<String, Object> keyword) {
+        applyKeywordAuthority(intent, keyword, true);
+    }
+
+    static void applyKeywordAuthority(
+            Map<String, Object> intent, Map<String, Object> keyword, boolean clearStaleHardConstraints
+    ) {
         if (intent == null || keyword == null) return;
+        if (clearStaleHardConstraints) {
+            // Drop LLM-guessed hard sizes when the player did not specify them.
+            if (!keyword.containsKey("footprint") || keyword.get("footprint") == null) {
+                intent.remove("footprint");
+            }
+        }
+        String kwClass = String.valueOf(keyword.getOrDefault("building_class", "generic"));
+        String haveClass = String.valueOf(intent.getOrDefault("building_class", "generic"));
+        if (!"generic".equals(kwClass) && !kwClass.equalsIgnoreCase(haveClass)) {
+            intent.put("intent_structure_mismatch", Boolean.TRUE);
+            intent.put("stale_building_class", haveClass);
+        }
         for (String key : List.of(
                 "building_class", "tower_subtype", "composition", "markers", "materials",
                 "footprint", "roof_type", "roof_forbids", "forbids", "confidence",
@@ -257,6 +289,16 @@ public final class RequestIntentInjector {
             if (!keyword.containsKey(key)) continue;
             Object v = keyword.get(key);
             if (v != null) intent.put(key, v);
+        }
+        // Keyword non-generic class always wins over conflicting LLM class when confidence is usable.
+        if (!"generic".equals(kwClass)) {
+            intent.put("building_class", kwClass);
+            if (keyword.get("tower_subtype") != null) {
+                intent.put("tower_subtype", keyword.get("tower_subtype"));
+            }
+            if (keyword.get("confidence") != null) {
+                intent.put("confidence", keyword.get("confidence"));
+            }
         }
         reconcileRoofFromText(intent, String.valueOf(intent.getOrDefault("original_text", "")));
     }

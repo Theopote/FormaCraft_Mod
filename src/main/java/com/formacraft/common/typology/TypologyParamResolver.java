@@ -113,6 +113,10 @@ public final class TypologyParamResolver {
             return SOURCE_LLM_INFERRED;
         }
         Map<String, Object> params = component.params();
+        // Only server-verified stamps grant hard USER_EXPLICIT — never trust LLM design_sources claims.
+        if (UserConstraintContract.isServerVerified(params, key)) {
+            return SOURCE_USER_EXPLICIT;
+        }
         Object designSources = params.get("design_sources");
         if (designSources instanceof Map<?, ?> ds) {
             Object tagged = ds.get(key);
@@ -121,25 +125,25 @@ public final class TypologyParamResolver {
             }
             if (tagged != null) {
                 String t = String.valueOf(tagged).trim().toUpperCase();
-                if ("USER_EXPLICIT".equals(t) || "USER".equals(t) || "PLAYER".equals(t)) {
-                    return SOURCE_USER_EXPLICIT;
-                }
-                if ("LLM_INFERRED".equals(t) || "AI_PLANNED".equals(t) || "PLAN".equals(t)) {
+                // LLM-claimed USER_EXPLICIT is demoted — forged hard constraints caused E_PAGODA_SIZE.
+                if ("USER_EXPLICIT".equals(t) || "USER".equals(t) || "PLAYER".equals(t)
+                        || "LLM_INFERRED".equals(t) || "AI_PLANNED".equals(t) || "PLAN".equals(t)) {
                     return SOURCE_LLM_INFERRED;
                 }
             }
         }
+        // Booleans on the component are also LLM-controllable — treat as inferred unless verified.
         if (("height".equals(key) || "towerHeight".equals(key))
                 && (truthy(params.get("height_explicit"))
                 || truthy(params.get("user_explicit_height"))
                 || truthy(params.get("height_user_explicit")))) {
-            return SOURCE_USER_EXPLICIT;
+            return SOURCE_LLM_INFERRED;
         }
         Object nested = params.get("_param_sources");
         if (nested instanceof Map<?, ?> existing && existing.get(key) != null) {
             String s = String.valueOf(existing.get(key));
-            if (SOURCE_USER_EXPLICIT.equals(s)) return SOURCE_USER_EXPLICIT;
-            if (isPlanLikeSource(s)) return SOURCE_LLM_INFERRED;
+            // Nested USER_EXPLICIT from plan JSON is untrusted without server verification.
+            if (isPlanLikeSource(s) || SOURCE_USER_EXPLICIT.equals(s)) return SOURCE_LLM_INFERRED;
         }
         return SOURCE_LLM_INFERRED;
     }

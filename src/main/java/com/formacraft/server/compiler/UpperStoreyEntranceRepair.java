@@ -185,10 +185,7 @@ final class UpperStoreyEntranceRepair {
             return true;
         }
         // Legacy door_explicit without width-only provenance still counts as presence.
-        if (Boolean.TRUE.equals(door.params().get("door_explicit"))
-                && !Boolean.TRUE.equals(door.params().get("door_width_user_explicit"))) {
-            return true;
-        }
-        return false;
+        return Boolean.TRUE.equals(door.params().get("door_explicit"))
+                && !Boolean.TRUE.equals(door.params().get("door_width_user_explicit"));
     }
 }

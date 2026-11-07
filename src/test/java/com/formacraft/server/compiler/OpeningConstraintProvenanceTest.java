@@ -103,6 +103,46 @@ class OpeningConstraintProvenanceTest {
     }
 
     @Test
+    void llmInferredConstraintSourceStillUpgradesUserBlackGlass() {
+        Component window = new Component(
+                "FACADE_WINDOWS", "main", new Vec3i(0, 1, 0),
+                new Dimensions(2, 2, 1), List.of(),
+                Map.of(
+                        "glass_block", "minecraft:black_stained_glass",
+                        "constraint_source", "LLM_INFERRED"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(window)).build(),
+                "生成房屋，窗户使用黑色染色玻璃");
+        Component stamped = plan.components().getFirst();
+        assertEquals("USER_EXPLICIT", String.valueOf(stamped.params().get("constraint_source")));
+        assertTrue(OpeningMaterialAudit.isUserExplicitWindowMaterial(stamped));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> field = (Map<String, Object>) stamped.params().get("constraint_sources");
+        assertNotNull(field);
+        assertEquals("USER_EXPLICIT", field.get("glass_block"));
+    }
+
+    @Test
+    void upperEntranceCueDoesNotStampGroundDoor() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "house", "floor_count", 2, "floor_height", 4));
+        Component groundDoor = new Component(
+                "ENTRANCE", "main", new Vec3i(4, 0, 0),
+                new Dimensions(3, 1, 3), List.of(),
+                Map.of("host_id", "house", "door_width", 2));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, groundDoor)).build(),
+                "二层设置一个连接室外楼梯的入口");
+        Component stamped = plan.components().stream()
+                .filter(c -> "ENTRANCE".equals(c.componentType()))
+                .findFirst().orElseThrow();
+        assertFalse(Boolean.TRUE.equals(stamped.params().get("upper_entrance_explicit")),
+                "ground door must not receive upper_entrance_explicit");
+    }
+
+    @Test
     void styleDefaultWindowAllowsSoftDegrade() {
         Component window = new Component(
                 "FACADE_WINDOWS", "main", new Vec3i(0, 1, 0),

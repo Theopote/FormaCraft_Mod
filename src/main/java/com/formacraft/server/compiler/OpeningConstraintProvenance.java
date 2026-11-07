@@ -10,7 +10,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Stamps opening {@code constraint_source} from request_intent — never from bare param presence.
+ * Stamps opening field-level {@code constraint_sources} from request_intent.
+ * Component-level {@code constraint_source} alone never blocks upgrades from user text.
  */
 final class OpeningConstraintProvenance {
     private OpeningConstraintProvenance() {}
@@ -35,7 +36,7 @@ final class OpeningConstraintProvenance {
         List<Component> out = new ArrayList<>(plan.components().size());
         for (Component c : plan.components()) {
             Component stamped = stampOne(
-                    c, doorWidthUser, upperEntranceUser, windowMaterialUser, windowBlock);
+                    c, plan, doorWidthUser, upperEntranceUser, windowMaterialUser, windowBlock);
             if (stamped != c) changed = true;
             out.add(stamped);
         }
@@ -45,36 +46,48 @@ final class OpeningConstraintProvenance {
 
     private static Component stampOne(
             Component c,
+            LlmPlan plan,
             boolean doorWidthUser,
             boolean upperEntranceUser,
             boolean windowMaterialUser,
             String windowBlock
     ) {
         if (c == null || c.params() == null || c.params().isEmpty()) return c;
-        if (hasConstraintSource(c.params())) return c;
 
         String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
         Map<String, Object> params = new HashMap<>(c.params());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> fieldSources = params.get("constraint_sources") instanceof Map<?, ?> existing
+                ? new HashMap<>((Map<String, Object>) existing)
+                : new HashMap<>();
         boolean mutated = false;
         boolean entranceLike = type.contains("ENTRANCE") || type.contains("DOOR") || type.isEmpty();
 
         boolean hasDoorWidth = params.get("door_width") != null || params.get("doorWidth") != null;
         if (hasDoorWidth && entranceLike) {
-            // 「正门宽三格」 is primary-entrance only — side doors stay soft / inferred.
             boolean sideDoor = looksLikeSideEntrance(c);
             if (doorWidthUser && !sideDoor) {
                 params.put("door_width_user_explicit", true);
-                params.put("constraint_source", "USER_EXPLICIT");
-                // Width alone does not prove this opening's existence/placement was user-required.
-            } else {
-                params.put("constraint_source", "LLM_INFERRED");
+                fieldSources.put("door_width", "USER_EXPLICIT");
+                // Legacy component-level tag for material audits.
+                if (!"USER_EXPLICIT".equalsIgnoreCase(String.valueOf(
+                        params.getOrDefault("constraint_source", "")))) {
+                    params.put("constraint_source", "USER_EXPLICIT");
+                }
+            } else if (!fieldSources.containsKey("door_width")) {
+                fieldSources.put("door_width", "LLM_INFERRED");
+                if (!hasConstraintSource(params)) {
+                    params.put("constraint_source", "LLM_INFERRED");
+                }
             }
             mutated = true;
         }
-        // 「二层入口」 presence — never inferred from ground-door width cues alone.
-        if (upperEntranceUser && entranceLike && !looksLikeSideEntrance(c)) {
+        // 「二层入口」 only when this entrance actually sits on/above the second storey.
+        if (upperEntranceUser && entranceLike && !looksLikeSideEntrance(c)
+                && isUpperStoreyEntrance(c, plan)) {
             params.put("door_presence_explicit", true);
             params.put("upper_entrance_explicit", true);
+            fieldSources.put("opening_presence", "USER_EXPLICIT");
             params.put("constraint_source", "USER_EXPLICIT");
             mutated = true;
         }
@@ -83,16 +96,60 @@ final class OpeningConstraintProvenance {
         if (glass != null && (type.contains("WINDOW") || type.contains("FACADE") || glass != null)) {
             boolean match = windowMaterialUser
                     || (windowBlock != null && blockEquals(windowBlock, glass));
-            if (match && !hasConstraintSource(params)) {
-                params.put("constraint_source", "USER_EXPLICIT");
+            if (match) {
+                // Upgrade even when LLM pre-tagged constraint_source=LLM_INFERRED.
+                fieldSources.put("glass_block", "USER_EXPLICIT");
                 params.put("window_explicit", true);
+                params.put("constraint_source", "USER_EXPLICIT");
                 mutated = true;
             }
+        }
+
+        if (!fieldSources.isEmpty()) {
+            params.put("constraint_sources", fieldSources);
+            mutated = true;
         }
 
         if (!mutated) return c;
         return new Component(
                 c.componentType(), c.slotId(), c.relativePosition(), c.dimensions(), c.features(), params);
+    }
+
+    /** True when entrance Y is at/above the host's second storey band. */
+    private static boolean isUpperStoreyEntrance(Component door, LlmPlan plan) {
+        if (door == null || door.relativePosition() == null || plan == null || plan.components() == null) {
+            return false;
+        }
+        Component host = findHostMass(door, plan.components());
+        if (host == null || host.relativePosition() == null) {
+            // Without a host, do not stamp upper presence onto a possible ground door.
+            return door.relativePosition().y() >= 3;
+        }
+        int groundY = host.relativePosition().y();
+        int fh = 4;
+        if (host.params() != null) {
+            Object fhObj = host.params().get("floor_height");
+            if (fhObj == null) fhObj = host.params().get("floorHeight");
+            if (fhObj instanceof Number n) fh = Math.max(3, n.intValue());
+            Object ground = host.params().get("ground_clear_height");
+            if (ground instanceof Number n) fh = Math.max(fh, n.intValue());
+        }
+        int secondStoreyY = groundY + fh;
+        return door.relativePosition().y() >= secondStoreyY;
+    }
+
+    private static Component findHostMass(Component door, List<Component> parts) {
+        if (door.params() == null) return null;
+        Object hostId = door.params().get("host_id");
+        if (hostId == null) hostId = door.params().get("hostId");
+        if (hostId == null) return null;
+        String want = String.valueOf(hostId).trim();
+        for (Component c : parts) {
+            if (c == null || c.params() == null) continue;
+            Object id = c.params().get("component_id");
+            if (id != null && want.equals(String.valueOf(id).trim())) return c;
+        }
+        return null;
     }
 
     private static boolean hasConstraintSource(Map<String, Object> params) {
@@ -112,8 +169,8 @@ final class OpeningConstraintProvenance {
             Object v = c.params().get(key);
             if (v == null) continue;
             String s = String.valueOf(v).toLowerCase(Locale.ROOT);
-            if (s.contains("side") || s.contains("secondary") || s.contains("back")
-                    || s.contains("balcony") || s.contains("侧") || s.contains("旁")) {
+            if (s.contains("side") || s.contains("back") || s.contains("balcony")
+                    || s.contains("侧") || s.contains("旁")) {
                 return true;
             }
         }

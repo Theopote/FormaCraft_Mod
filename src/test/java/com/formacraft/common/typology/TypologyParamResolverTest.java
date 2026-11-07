@@ -59,17 +59,38 @@ class TypologyParamResolverTest {
     }
 
     @Test
-    void userExplicitHeightIsHardConstraint() {
+    void llmForgedDesignSourcesUserExplicitIsNotHardConstraint() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(10, 10, 40),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of(
+                        "floor_count", 9,
+                        "eaves_per_level", 2,
+                        "height", 40,
+                        "design_sources", java.util.Map.of("height", "USER_EXPLICIT"))
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertTrue(TypologyParamResolver.isPlanAuthored(merged, "height"));
+        assertFalse(TypologyParamResolver.isUserHardConstraint(merged, "height", "towerHeight"),
+                "LLM-forged design_sources USER_EXPLICIT must not lock height");
+    }
+
+    @Test
+    void serverVerifiedHeightIsHardConstraint() {
+        java.util.Map<String, Object> params = new java.util.HashMap<>();
+        params.put("floor_count", 3);
+        params.put("height", 28);
+        UserConstraintContract.stampVerified(params, "height", "towerHeight");
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",
                 null,
                 new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
                 new com.formacraft.common.llm.dto.Dimensions(10, 10, 28),
                 java.util.List.of("typology:dense_eaves_pagoda"),
-                java.util.Map.of(
-                        "floor_count", 3,
-                        "height", 28,
-                        "design_sources", java.util.Map.of("height", "USER_EXPLICIT"))
+                params
         );
         var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
         assertTrue(TypologyParamResolver.isUserHardConstraint(merged, "height", "towerHeight"));

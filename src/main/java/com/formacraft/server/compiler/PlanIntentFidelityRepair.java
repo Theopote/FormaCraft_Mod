@@ -363,23 +363,37 @@ final class PlanIntentFidelityRepair {
             }
         }
 
+        // Material scope mirrors floors/roofs: user-explicit palette binds to primary host only.
+        boolean inPrimaryMassScope = !multiBuilding
+                || primaryHost == null
+                || primaryHost.isBlank()
+                || primaryHost.equals(BuildingHostResolver.massId(component));
         if ((mass || structure) && hints.wallBlock() != null) {
             String currentWall = ComponentPlanTypes.getParamString(
                     params, "wall_block", "material", "primary_block", "bodyBlock");
-            if (isBlank(currentWall) || (hints.wallMaterialUserExplicit()
-                    && !materialRoleCompatible(hints.wallBlock(), currentWall))) {
+            boolean userWall = hints.wallMaterialUserExplicit();
+            if (userWall && inPrimaryMassScope
+                    && (isBlank(currentWall) || !materialRoleCompatible(hints.wallBlock(), currentWall))) {
                 params.put("wall_block", hints.wallBlock());
                 params.put("bodyBlock", hints.wallBlock());
                 changed = true;
+            } else if (!userWall && isBlank(currentWall) && inPrimaryMassScope) {
+                changed |= DesignProvenance.putIfAllowed(plan, params, "wall_block", hints.wallBlock());
             }
         }
         if ((mass || roof || structure) && hints.roofBlock() != null) {
+            boolean roofInScope = roof
+                    ? isInPrimaryRoofScope(component, mass, roof, structure, primaryHost, multiBuilding)
+                    : inPrimaryMassScope;
             String currentRoof = ComponentPlanTypes.getParamString(
                     params, "roof_block", "roof_material", "roof_stairs_block", "eaveBlock");
-            if (isBlank(currentRoof) || (hints.roofMaterialUserExplicit()
-                    && !materialRoleCompatible(hints.roofBlock(), currentRoof))) {
+            boolean userRoof = hints.roofMaterialUserExplicit();
+            if (userRoof && roofInScope
+                    && (isBlank(currentRoof) || !materialRoleCompatible(hints.roofBlock(), currentRoof))) {
                 params.put("roof_block", hints.roofBlock());
                 changed = true;
+            } else if (!userRoof && isBlank(currentRoof) && roofInScope) {
+                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_block", hints.roofBlock());
             }
         }
         if ((mass || roof || structure) && hints.preferStairs()) {
@@ -407,10 +421,6 @@ final class PlanIntentFidelityRepair {
             changed |= DesignProvenance.putIfAllowed(plan, params, "floor_block", hints.floorBlock());
         }
         // Global floor hints bind only to the primary host — never force a pavilion to 3 storeys.
-        boolean inPrimaryMassScope = !multiBuilding
-                || primaryHost == null
-                || primaryHost.isBlank()
-                || primaryHost.equals(BuildingHostResolver.massId(component));
         if ((mass || structure) && hints.floorCount() > 0 && inPrimaryMassScope) {
             int existingFloors = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
             boolean shouldWrite = existingFloors <= 0
@@ -882,6 +892,13 @@ final class PlanIntentFidelityRepair {
             return "minecraft:oak_planks";
         }
         if (lower.contains("白墙") || lower.contains("white_concrete") || lower.contains("white wall")) {
+            return "minecraft:white_concrete";
+        }
+        // Whole-building body color: 「白色藏式佛塔」— primary shaft, not doors/roof trim.
+        if ((lower.contains("白色") || lower.contains("white "))
+                && (lower.contains("佛塔") || lower.contains("白塔") || lower.contains("古塔")
+                || lower.contains("宝塔") || lower.contains("stupa") || lower.contains("pagoda")
+                || lower.contains("塔"))) {
             return "minecraft:white_concrete";
         }
         if (lower.contains("石砖墙") || lower.contains("stone_brick")) {
