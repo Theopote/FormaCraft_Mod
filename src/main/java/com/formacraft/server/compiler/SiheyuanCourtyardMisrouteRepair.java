@@ -117,12 +117,16 @@ final class SiheyuanCourtyardMisrouteRepair {
                 hasCourt = true;
             }
         }
+        String blob = blob(plan);
+        // 三进 (and other multi-jin) layouts are not supported by courtyard_compound's single yard.
+        // Never silently demote them — keep the compositional plan (or let validators surface a gap).
+        if (blob.contains("三进") || blob.contains("两进") || blob.contains("多进")) {
+            return false;
+        }
         // Too many free masses is a classic bad 四合院 compositional dump.
         if (masses >= 4 && !(hasCourt && hasWing && hasGate && hasMain)) return true;
-        if (masses >= 3 && !hasCourt) return true;
-        // Explicit multi-entry 三进 request — prefer the compound typology.
-        String blob = blob(plan);
-        return blob.contains("三进") || (blob.contains("正房") && blob.contains("厢房"));
+        // Incomplete single-jin composition: several masses but no courtyard void / path.
+        return masses >= 3 && !hasCourt;
     }
 
     private static int[] footprintHint(LlmPlan plan) {

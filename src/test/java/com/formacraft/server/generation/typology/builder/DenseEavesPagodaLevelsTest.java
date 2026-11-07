@@ -256,6 +256,32 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
+    void refinedSquareDoubleEavesSurviveLastWriteWinsMerge() {
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 2,
+                "height", 28,
+                "baseWidth", 11,
+                "footprint", "square",
+                "detailLevel", "refined"
+        ), origin);
+        var merged = PagodaMorphologyAudit.mergeLastWriteWins(structure.getBlocks());
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(6, geo.measuredEaveTiers(),
+                "after coordinate merge, all six eave roles must still occupy final cells");
+        assertTrue(merged.size() < structure.getBlocks().size()
+                        || merged.size() == structure.getBlocks().size(),
+                "merge helper must be safe on overlapping writes");
+        // Distinct Y for the two tiers of storey 0.
+        PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
+                "dense_eaves_pagoda",
+                new PagodaVerticalSemantics(3, 2, 6, true),
+                28, true, 28, 5);
+        assertTrue(layout.eaves().get(1).y() > layout.eaves().get(0).y());
+    }
+
+    @Test
     void explicitHeightTooSmallReturnsSizeConflictNotMorphology() {
         TypologyGenerationException ex = assertThrows(
                 TypologyGenerationException.class,

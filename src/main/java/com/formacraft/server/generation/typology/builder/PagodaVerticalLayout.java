@@ -49,8 +49,8 @@ public final class PagodaVerticalLayout {
     }
 
     /**
-     * Multi-tier eaves (重檐) expand horizontally at the storey ceiling — they no longer
-     * consume dedicated vertical rows between storeys (that left 1–2 empty shaft layers).
+     * Multi-tier eaves (重檐) stack with 1-block vertical offset inside the storey band.
+     * They do not insert empty shaft rows between storeys.
      */
     public static int eaveNeed(int floors, int eavesPerLevel) {
         return 0;
@@ -169,11 +169,12 @@ public final class PagodaVerticalLayout {
         for (int lv = 0; lv < floors; lv++) {
             int h = Math.max(minClear, levelH[lv]);
             storeys.add(new Storey(lv, y, h, half));
-            // All eave tiers of this storey share the ceiling Y and expand horizontally
-            // (tier → outer radius). Next storey starts immediately above — no empty shaft gap.
+            // Outer/main tier (higher index) sits at ceiling; lower tiers step down by 1 each
+            // so 重檐 has real vertical separation without leaving an empty shaft between storeys.
             int eaveY = y + h - 1;
             for (int t = 0; t < epl; t++) {
-                eaves.add(new EaveBand(lv, t, eaveY));
+                int bandY = Math.max(y, eaveY - (epl - 1 - t));
+                eaves.add(new EaveBand(lv, t, bandY));
             }
             y = y + h;
             half = Math.max(2, half - 1);

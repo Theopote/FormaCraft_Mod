@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SiheyuanCourtyardMisrouteRepairTest {
 
     @Test
-    void threeJinSiheyuanRewritesToCourtyardCompound() {
+    void threeJinSiheyuanKeepsCompositionalPlan() {
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .styleProfile("Chinese_Vernacular_Siheyuan")
                 .planMeta(Map.of(
@@ -29,10 +29,25 @@ class SiheyuanCourtyardMisrouteRepairTest {
                         mass("extra_shed", 20, 20, 8, 8, 3)))
                 .build();
         LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
+        assertSame(plan, out, "三进 must not be silently demoted to single courtyard_compound");
+        assertTrue(out.components().size() >= 4, "compositional masses must remain");
+    }
+
+    @Test
+    void incompleteSingleJinWithoutCourtStillRewrites() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Chinese_Vernacular_Siheyuan")
+                .planMeta(Map.of("request_intent_text", "生成一座四合院，正房和厢房"))
+                .components(List.of(
+                        mass("main", 0, 0, 12, 8, 6),
+                        mass("east", 14, 0, 6, 10, 4),
+                        mass("west", -8, 0, 6, 10, 4)))
+                .build();
+        LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
         assertEquals(1, out.components().size());
-        Component s = out.components().getFirst();
-        assertEquals("STRUCTURE", s.componentType());
-        assertEquals("courtyard_compound", String.valueOf(s.params().get("typology_id")));
+        assertEquals("STRUCTURE", out.components().getFirst().componentType());
+        assertEquals("courtyard_compound",
+                String.valueOf(out.components().getFirst().params().get("typology_id")));
     }
 
     @Test

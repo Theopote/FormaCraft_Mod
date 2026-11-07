@@ -108,21 +108,23 @@ public final class RequestIntentInjector {
     }
 
     /**
-     * Strip forged verification markers, then bind server-authoritative height onto primary masses.
-     * Params and {@link com.formacraft.common.llm.dto.Dimensions#height()} are kept in lockstep so
-     * MASS_MAIN (which reads dimensions) cannot diverge from typology builders (which read params).
+     * Strip forged verification markers, then bind server-authoritative heights onto host masses.
+     * Multiple height cues are matched by role hint (hall / pavilion / tower); a single cue still
+     * binds the primary mass. Params and {@link com.formacraft.common.llm.dto.Dimensions#height()}
+     * stay in lockstep.
      */
     static LlmPlan applyServerConstraintsToComponents(LlmPlan plan, String userText) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         String text = userText == null ? "" : userText;
-        int explicitH = com.formacraft.common.typology.UserConstraintContract
-                .parseExplicitHeightBlocks(text);
+        List<com.formacraft.common.typology.UserConstraintContract.HeightBinding> bindings =
+                com.formacraft.common.typology.UserConstraintContract.parseExplicitHeightBindings(text);
         String primary = BuildingHostResolver.primaryMassId(plan, plan.components());
-        int hostCount = 0;
+        List<Component> hosts = new ArrayList<>();
         for (Component c : plan.components()) {
-            if (BuildingHostResolver.isHostMass(c)) hostCount++;
+            if (BuildingHostResolver.isHostMass(c)) hosts.add(c);
         }
-        boolean multi = hostCount > 1;
+        boolean multi = hosts.size() > 1;
+        Map<String, Integer> heightByMassId = resolveHeightBindings(hosts, primary, multi, bindings);
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
@@ -130,10 +132,9 @@ public final class RequestIntentInjector {
                 out.add(null);
                 continue;
             }
-            boolean host = BuildingHostResolver.isHostMass(c);
-            boolean primaryHost = !multi || primary == null || primary.isBlank()
-                    || primary.equals(BuildingHostResolver.massId(c));
-            boolean needHeight = explicitH > 0 && host && primaryHost;
+            String mid = BuildingHostResolver.massId(c);
+            Integer boundH = heightByMassId.get(mid);
+            boolean needHeight = boundH != null && boundH > 0;
             boolean hadParams = c.params() != null && !c.params().isEmpty();
             if (!hadParams && !needHeight) {
                 out.add(c);
@@ -143,8 +144,9 @@ public final class RequestIntentInjector {
             com.formacraft.common.typology.UserConstraintContract.stripUntrustedMarkers(params);
             com.formacraft.common.llm.dto.Dimensions dims = c.dimensions();
             if (needHeight) {
+                int explicitH = boundH;
                 com.formacraft.common.typology.UserConstraintContract
-                        .applyAuthoritativeHeight(params, text);
+                        .applyAuthoritativeHeightValue(params, explicitH);
                 if (dims == null) {
                     dims = new com.formacraft.common.llm.dto.Dimensions(8, 8, explicitH);
                 } else if (dims.height() != explicitH) {
@@ -168,6 +170,103 @@ public final class RequestIntentInjector {
             }
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    /**
+     * Map mass ids to player height values. Multi-cue texts bind by role hint; single cue → primary.
+     */
+    static Map<String, Integer> resolveHeightBindings(
+            List<Component> hosts,
+            String primary,
+            boolean multi,
+            List<com.formacraft.common.typology.UserConstraintContract.HeightBinding> bindings
+    ) {
+        Map<String, Integer> out = new HashMap<>();
+        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) return out;
+        if (bindings.size() == 1 || !multi) {
+            int h = bindings.getFirst().blocks();
+            if (h < 8) h = bindings.getFirst().blocks(); // allow small single cue
+            String target = primary;
+            if (target == null || target.isBlank()) {
+                target = BuildingHostResolver.massId(hosts.getFirst());
+            }
+            if (target != null) out.put(target, bindings.getFirst().blocks());
+            return out;
+        }
+        boolean[] used = new boolean[bindings.size()];
+        for (Component host : hosts) {
+            String mid = BuildingHostResolver.massId(host);
+            if (mid == null) continue;
+            int bestIdx = -1;
+            int bestScore = 0;
+            for (int i = 0; i < bindings.size(); i++) {
+                if (used[i]) continue;
+                int score = heightRoleScore(host, bindings.get(i).roleHint());
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestIdx = i;
+                }
+            }
+            if (bestIdx >= 0 && bestScore > 0) {
+                used[bestIdx] = true;
+                out.put(mid, bindings.get(bestIdx).blocks());
+            }
+        }
+        // Unmatched hall/null cues → primary; unmatched pavilion cues → largest unbound secondary.
+        for (int i = 0; i < bindings.size(); i++) {
+            if (used[i]) continue;
+            var b = bindings.get(i);
+            if ("pavilion".equals(b.roleHint())) {
+                Component secondary = null;
+                long bestVol = -1;
+                for (Component host : hosts) {
+                    String mid = BuildingHostResolver.massId(host);
+                    if (mid == null || out.containsKey(mid)) continue;
+                    if (primary != null && primary.equals(mid)) continue;
+                    long vol = host.dimensions() == null ? 0L
+                            : (long) host.dimensions().width() * host.dimensions().depth();
+                    if (vol > bestVol) {
+                        bestVol = vol;
+                        secondary = host;
+                    }
+                }
+                if (secondary != null) {
+                    used[i] = true;
+                    out.put(BuildingHostResolver.massId(secondary), b.blocks());
+                }
+            } else if (primary != null && !out.containsKey(primary)) {
+                used[i] = true;
+                out.put(primary, b.blocks());
+            }
+        }
+        return out;
+    }
+
+    private static int heightRoleScore(Component host, String roleHint) {
+        if (roleHint == null || roleHint.isBlank() || host == null) return 0;
+        String blob = (BuildingHostResolver.massId(host) == null ? "" : BuildingHostResolver.massId(host))
+                + " " + (host.slotId() == null ? "" : host.slotId())
+                + " " + (host.componentType() == null ? "" : host.componentType());
+        if (host.params() != null) {
+            for (String k : List.of("building_role", "buildingRole", "role", "part")) {
+                Object v = host.params().get(k);
+                if (v != null) blob += " " + v;
+            }
+        }
+        if (host.features() != null) {
+            for (String f : host.features()) {
+                if (f != null) blob += " " + f;
+            }
+        }
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return switch (roleHint) {
+            case "pavilion" -> (lower.contains("pavilion") || lower.contains("亭") || lower.contains("廊")
+                    || lower.contains("wing") || lower.contains("wood")) ? 3 : 0;
+            case "hall" -> (lower.contains("hall") || lower.contains("main") || lower.contains("殿")
+                    || lower.contains("正房") || lower.contains("主")) ? 3 : 0;
+            case "tower" -> (lower.contains("tower") || lower.contains("塔") || lower.contains("pagoda")) ? 3 : 0;
+            default -> 0;
+        };
     }
 
     /**

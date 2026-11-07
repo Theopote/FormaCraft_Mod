@@ -394,6 +394,34 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void multiBuildingHeightsBindHallAndPavilionSeparately() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(15, 11, 40), List.of(),
+                Map.of("component_id", "hall_main", "building_role", "hall_main", "height", 40));
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion", new Vec3i(22, 0, 0),
+                new Dimensions(5, 5, 16), List.of(),
+                Map.of("component_id", "wood_pavilion", "building_role", "pavilion", "height", 16));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(hall, pavilion))
+                        .planMeta(Map.of("primary_building_id", "hall_main"))
+                        .build(),
+                "生成一座高24格的三层主殿，旁边有一座高10格的木亭");
+        Component outHall = plan.components().stream()
+                .filter(c -> "hall_main".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component outPavilion = plan.components().stream()
+                .filter(c -> "wood_pavilion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(24, outHall.dimensions().height(), "hall must keep 24, not last-match 10");
+        assertEquals(24, ((Number) outHall.params().get("height")).intValue());
+        assertEquals(10, outPavilion.dimensions().height(), "pavilion must receive its own 10");
+        assertEquals(10, ((Number) outPavilion.params().get("height")).intValue());
+    }
+
+    @Test
     void constraintFingerprintChangesWhenHeightInjected() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
@@ -446,6 +474,34 @@ class PlanIntentFidelityRepairTest {
         String path = gap.orElseThrow().path() == null ? "" : gap.orElseThrow().path().toLowerCase();
         assertTrue(path.contains("stair") || path.contains("access") || path.contains("楼梯"),
                 "detail should mention missing access link");
+    }
+
+    @Test
+    void stairOnOtherBuildingDoesNotSatisfyUpperEntranceAccess() {
+        Component house = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 10), List.of(),
+                Map.of("component_id", "house", "floor_count", 2, "floor_height", 4));
+        Component upperDoor = new Component(
+                "ENTRANCE", "upper", new Vec3i(4, 4, 0),
+                new Dimensions(2, 1, 3), List.of(),
+                Map.of("host_id", "house", "door_width", 2));
+        Component other = new Component(
+                "MASS_MAIN", "other", new Vec3i(40, 0, 0),
+                new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "other_house"));
+        Component foreignStair = new Component(
+                "STAIR", "stair", new Vec3i(42, 0, 2),
+                new Dimensions(3, 4, 4), List.of(),
+                Map.of("host_id", "other_house", "exterior", true));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(house, upperDoor, other, foreignStair))
+                        .build(),
+                "二层设置一个连接室外楼梯的入口");
+        var gap = UpperStoreyEntranceAudit.check(plan);
+        assertTrue(gap.isPresent(), "stair on another host must not count");
+        assertEquals("E_UPPER_ENTRANCE_MISSING", gap.orElseThrow().code());
     }
 
     @Test

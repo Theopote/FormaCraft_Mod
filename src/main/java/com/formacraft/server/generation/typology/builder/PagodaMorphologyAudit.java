@@ -8,8 +8,10 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -109,14 +111,27 @@ public final class PagodaMorphologyAudit {
         if (blocks == null || blocks.isEmpty() || origin == null) {
             return new GeometryObservation(0, 0, false, false, 0, false);
         }
+        // Match TypologyPatchBridge / StructurePatchBridge: last write wins per coordinate.
+        List<PlannedBlock> merged = mergeLastWriteWins(blocks);
         boolean rolesPresent = false;
-        for (PlannedBlock b : blocks) {
+        for (PlannedBlock b : merged) {
             if (producer(b) != null && producer(b).startsWith("pagoda.")) {
                 rolesPresent = true;
                 break;
             }
         }
-        return rolesPresent ? observeByRole(blocks, origin) : observeByGeometry(blocks, origin);
+        return rolesPresent ? observeByRole(merged, origin) : observeByGeometry(merged, origin);
+    }
+
+    /** Collapse overlapping positions the same way compile bridges do (LinkedHashMap put). */
+    public static List<PlannedBlock> mergeLastWriteWins(List<PlannedBlock> blocks) {
+        if (blocks == null || blocks.isEmpty()) return List.of();
+        Map<BlockPos, PlannedBlock> last = new LinkedHashMap<>(Math.max(16, blocks.size() * 2));
+        for (PlannedBlock b : blocks) {
+            if (b == null || b.getPos() == null) continue;
+            last.put(b.getPos().toImmutable(), b);
+        }
+        return List.copyOf(last.values());
     }
 
     private static GeometryObservation observeByRole(List<PlannedBlock> blocks, BlockPos origin) {

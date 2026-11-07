@@ -21,7 +21,6 @@ import net.minecraft.util.math.Direction;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -257,45 +256,48 @@ public final class DenseEavesPagodaBuilder {
         }
 
         var eaveTrimSrc = PagodaMorphologyAudit.eaveTrimRole();
-        // Group eave bands by storey: fill the deck once to the outermost tip, then lay
-        // concentric stair/slab rings (outer → inner) so same-Y multi-tier 重檐 do not
-        // overwrite each other with body fill.
-        Map<Integer, List<PagodaVerticalLayout.EaveBand>> eavesByLevel = new LinkedHashMap<>();
-        for (PagodaVerticalLayout.EaveBand band : layout.eaves()) {
-            eavesByLevel.computeIfAbsent(band.levelIndex(), k -> new ArrayList<>()).add(band);
-        }
-        for (var entry : eavesByLevel.entrySet()) {
-            int lv = entry.getKey();
-            List<PagodaVerticalLayout.EaveBand> bands = entry.getValue();
-            if (bands.isEmpty() || lv < 0 || lv >= layout.storeys().size()) continue;
+        // Place each eave band at its own Y (vertical 重檐). Trim stays inward of that band's
+        // tip so it cannot overwrite another tier's EAVE ring after LinkedHashMap merge.
+        List<PagodaVerticalLayout.EaveBand> eaveBands = new ArrayList<>(layout.eaves());
+        eaveBands.sort((a, b) -> {
+            int dy = Integer.compare(a.y(), b.y());
+            if (dy != 0) return dy;
+            return Integer.compare(b.tier(), a.tier()); // outer first at same Y
+        });
+        for (PagodaVerticalLayout.EaveBand band : eaveBands) {
+            int lv = band.levelIndex();
+            if (lv < 0 || lv >= layout.storeys().size()) continue;
             int half = layout.storeys().get(lv).half();
-            int ey = bands.getFirst().y();
-            int maxTier = 0;
-            for (PagodaVerticalLayout.EaveBand b : bands) {
-                maxTier = Math.max(maxTier, b.tier());
+            int ey = band.y();
+            int e = band.tier();
+            int outer = half + 1 + e;
+            int innerTrim = half + e;
+            var eaveSrc = PagodaMorphologyAudit.eaveRole(lv, e);
+            // Deck fill only under the outermost (highest) band of this storey.
+            boolean topBand = e == eavesPerLevel - 1;
+            if (topBand) {
+                fillFootprintAnnulus(blocks, origin, footprint, half, outer, ey, body, eaveTrimSrc);
             }
-            int maxOuter = half + 1 + maxTier + (refined ? 1 : 0);
-            fillFootprintAnnulus(blocks, origin, footprint, half, maxOuter, ey, body, eaveTrimSrc);
-            // Outer rings first so stair eaves remain visible at every tier tip.
-            bands.sort((a, b) -> Integer.compare(b.tier(), a.tier()));
-            for (PagodaVerticalLayout.EaveBand band : bands) {
-                int e = band.tier();
-                int outer = half + 1 + e;
-                var eaveSrc = PagodaMorphologyAudit.eaveRole(lv, e);
-                if (footprint == Footprint.OCTAGON) {
-                    if (refined) {
-                        ChineseTypologyDetailUtil.ringRegularOctagon(
-                                blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
-                    }
-                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, outer, ey, eave, eaveSrc);
-                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim, eaveTrimSrc);
-                } else {
-                    if (refined) {
-                        ChineseTypologyDetailUtil.ringSquare(
-                                blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
-                    }
-                    ChineseTypologyDetailUtil.ringSquare(blocks, origin, outer, ey, eave, eaveSrc);
-                    ChineseTypologyDetailUtil.ringSquare(blocks, origin, half + e, ey, trim, eaveTrimSrc);
+            if (footprint == Footprint.OCTAGON) {
+                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, outer, ey, eave, eaveSrc);
+                if (innerTrim > half) {
+                    ChineseTypologyDetailUtil.ringRegularOctagon(
+                            blocks, origin, innerTrim, ey, trim, eaveTrimSrc);
+                }
+                // Refined tip one ring beyond this eave — safe because other tiers sit on other Ys.
+                if (refined) {
+                    ChineseTypologyDetailUtil.ringRegularOctagon(
+                            blocks, origin, outer + 1, ey, eave, eaveTrimSrc);
+                }
+            } else {
+                ChineseTypologyDetailUtil.ringSquare(blocks, origin, outer, ey, eave, eaveSrc);
+                if (innerTrim > half) {
+                    ChineseTypologyDetailUtil.ringSquare(
+                            blocks, origin, innerTrim, ey, trim, eaveTrimSrc);
+                }
+                if (refined) {
+                    ChineseTypologyDetailUtil.ringSquare(
+                            blocks, origin, outer + 1, ey, eave, eaveTrimSrc);
                 }
             }
         }

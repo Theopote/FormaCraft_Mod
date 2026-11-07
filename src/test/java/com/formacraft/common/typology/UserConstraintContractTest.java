@@ -63,4 +63,27 @@ class UserConstraintContractTest {
         assertTrue(UserConstraintContract.isServerVerified(params, "height"));
         assertTrue(UserConstraintContract.hasServerSeal(params));
     }
+
+    @Test
+    void multiHeightBindingsPreferHallNotLastMatch() {
+        var bindings = UserConstraintContract.parseExplicitHeightBindings(
+                "生成一座高24格的三层主殿，旁边有一座高10格的木亭");
+        assertEquals(2, bindings.size());
+        assertEquals(24, UserConstraintContract.parseExplicitHeightBlocks(
+                "生成一座高24格的三层主殿，旁边有一座高10格的木亭"),
+                "primary height must be hall 24, not pavilion 10");
+        assertEquals("hall", bindings.get(0).roleHint());
+        assertEquals("pavilion", bindings.get(1).roleHint());
+    }
+
+    @Test
+    void sealInvalidatesWhenSealedValueChanges() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("height", 24);
+        UserConstraintContract.stampVerified(params, "height", "towerHeight");
+        assertTrue(UserConstraintContract.hasServerSeal(params));
+        params.put("height", 40);
+        assertFalse(UserConstraintContract.hasServerSeal(params),
+                "changing sealed height must break the digest");
+    }
 }

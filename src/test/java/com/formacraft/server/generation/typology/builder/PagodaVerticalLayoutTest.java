@@ -71,10 +71,12 @@ class PagodaVerticalLayoutTest {
         PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
         PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
                 "dense_eaves_pagoda", v, 26, true, 24, 4);
-        assertEquals(layout.storeys().get(0).y0() + layout.storeys().get(0).height() - 1,
-                layout.eaves().get(0).y());
-        // Both tiers of storey-0 share the ceiling Y (horizontal 重檐).
-        assertEquals(layout.eaves().get(0).y(), layout.eaves().get(1).y());
+        int ceiling = layout.storeys().get(0).y0() + layout.storeys().get(0).height() - 1;
+        // Outer/main tier at ceiling; lower tier one block below (vertical 重檐).
+        assertEquals(ceiling - 1, layout.eaves().get(0).y());
+        assertEquals(ceiling, layout.eaves().get(1).y());
+        assertTrue(layout.eaves().get(1).y() > layout.eaves().get(0).y(),
+                "重檐 must have vertical separation");
         // Next storey starts immediately above the ceiling — no empty shaft band.
         assertEquals(layout.storeys().get(0).y0() + layout.storeys().get(0).height(),
                 layout.storeys().get(1).y0());

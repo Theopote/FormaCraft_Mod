@@ -12,7 +12,7 @@ import java.util.Optional;
  * Final existence check: when the player required an upper-storey entrance, at least one
  * ENTRANCE must actually sit on/above the second storey (not merely a ground door).
  * When the player also required stair/bridge/balcony access, a matching circulation component
- * must be present — a floating second-storey door alone is not enough.
+ * must share the same host (or sit adjacent to that door) — a stair on another building does not count.
  */
 final class UpperStoreyEntranceAudit {
     private UpperStoreyEntranceAudit() {}
@@ -27,68 +27,130 @@ final class UpperStoreyEntranceAudit {
         if (plan.components() == null || plan.components().isEmpty()) {
             return Optional.of(gap("plan has no components"));
         }
-        boolean foundUpper = false;
+        Component upperDoor = null;
         for (Component c : plan.components()) {
             if (c == null || c.componentType() == null) continue;
             String t = c.componentType().trim().toUpperCase(Locale.ROOT);
             if (!t.contains("ENTRANCE") && !t.contains("DOOR")) continue;
             if (OpeningConstraintProvenance.isUpperStoreyEntrancePublic(c, plan)) {
-                foundUpper = true;
+                upperDoor = c;
                 break;
             }
         }
-        if (!foundUpper) {
+        if (upperDoor == null) {
             return Optional.of(gap("player required upper-storey entrance but only ground-level doors exist"));
         }
         boolean requiresAccess = truthy(intent.get("upper_entrance_requires_access"))
                 || truthy(nested(intent, "openings", "upper_entrance_requires_access"));
-        if (requiresAccess && !hasExternalAccessLink(plan)) {
+        if (requiresAccess && !hasExternalAccessLinkFor(plan, upperDoor)) {
             return Optional.of(gap(
                     "player required upper-storey entrance linked to exterior stairs/bridge/balcony, "
-                            + "but no access circulation component exists"));
+                            + "but no access circulation component exists on the same host"));
         }
         return Optional.empty();
     }
 
-    /** Stairs, balcony, bridge, platform, ramp, or corridor that can serve as external access. */
+    /** @deprecated use {@link #hasExternalAccessLinkFor} — global any-stair checks are too weak. */
+    @Deprecated
     static boolean hasExternalAccessLink(LlmPlan plan) {
         if (plan == null || plan.components() == null) return false;
         for (Component c : plan.components()) {
-            if (c == null || c.componentType() == null) continue;
-            String t = c.componentType().trim().toUpperCase(Locale.ROOT);
-            if (t.contains("STAIR") || t.contains("BALCONY") || t.contains("BRIDGE")
-                    || t.contains("PLATFORM") || t.contains("RAMP") || t.contains("CORRIDOR")
-                    || t.contains("GALLERY") || t.contains("WALKWAY")) {
+            if (isAccessComponent(c)) return true;
+        }
+        return false;
+    }
+
+    static boolean hasExternalAccessLinkFor(LlmPlan plan, Component upperDoor) {
+        if (plan == null || plan.components() == null || upperDoor == null) return false;
+        String doorHost = hostIdOf(upperDoor);
+        for (Component c : plan.components()) {
+            if (!isAccessComponent(c)) continue;
+            String accessHost = hostIdOf(c);
+            if (doorHost != null && !doorHost.isBlank()
+                    && accessHost != null && !accessHost.isBlank()
+                    && doorHost.equals(accessHost)) {
                 return true;
             }
-            if (c.features() != null) {
-                for (String f : c.features()) {
-                    if (f == null) continue;
-                    String fl = f.toLowerCase(Locale.ROOT);
-                    if (fl.contains("stair") || fl.contains("balcony") || fl.contains("bridge")
-                            || fl.contains("platform") || fl.contains("exterior_access")) {
-                        return true;
-                    }
+            // Same slot family without host_id: accept when both omit host and share slot.
+            if ((doorHost == null || doorHost.isBlank())
+                    && (accessHost == null || accessHost.isBlank())
+                    && upperDoor.slotId() != null
+                    && upperDoor.slotId().equals(c.slotId())) {
+                return true;
+            }
+            // Geometric adjacency fallback: access footprint overlaps or touches the door's host mass.
+            if (doorHost != null && sharesHostMassProximity(plan, upperDoor, c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean sharesHostMassProximity(LlmPlan plan, Component door, Component access) {
+        Component host = findHost(plan, hostIdOf(door));
+        if (host == null || host.relativePosition() == null || host.dimensions() == null) return false;
+        if (access.relativePosition() == null) return false;
+        int hx0 = host.relativePosition().x();
+        int hz0 = host.relativePosition().z();
+        int hx1 = hx0 + Math.max(1, host.dimensions().width()) - 1;
+        int hz1 = hz0 + Math.max(1, host.dimensions().depth()) - 1;
+        int ax = access.relativePosition().x();
+        int az = access.relativePosition().z();
+        int aw = access.dimensions() == null ? 1 : Math.max(1, access.dimensions().width());
+        int ad = access.dimensions() == null ? 1 : Math.max(1, access.dimensions().depth());
+        int ax1 = ax + aw - 1;
+        int az1 = az + ad - 1;
+        // Expand host by 2 blocks so exterior stairs just outside the wall still count.
+        return ax1 >= hx0 - 2 && ax <= hx1 + 2 && az1 >= hz0 - 2 && az <= hz1 + 2;
+    }
+
+    private static Component findHost(LlmPlan plan, String hostId) {
+        if (hostId == null || hostId.isBlank() || plan.components() == null) return null;
+        for (Component c : plan.components()) {
+            if (!BuildingHostResolver.isHostMass(c)) continue;
+            if (hostId.equals(BuildingHostResolver.massId(c))) return c;
+        }
+        return null;
+    }
+
+    private static boolean isAccessComponent(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        if (t.contains("STAIR") || t.contains("BALCONY") || t.contains("BRIDGE")
+                || t.contains("PLATFORM") || t.contains("RAMP") || t.contains("CORRIDOR")
+                || t.contains("GALLERY") || t.contains("WALKWAY")) {
+            return true;
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String fl = f.toLowerCase(Locale.ROOT);
+                if (fl.contains("stair") || fl.contains("balcony") || fl.contains("bridge")
+                        || fl.contains("platform") || fl.contains("exterior_access")) {
+                    return true;
                 }
             }
-            if (c.params() != null) {
-                Object role = c.params().get("role");
-                if (role == null) role = c.params().get("circulation_role");
-                if (role != null) {
-                    String r = String.valueOf(role).toLowerCase(Locale.ROOT);
-                    if (r.contains("stair") || r.contains("balcony") || r.contains("bridge")
-                            || r.contains("access")) {
-                        return true;
-                    }
-                }
-                if (Boolean.TRUE.equals(c.params().get("exterior"))
-                        && (t.contains("STAIR") || String.valueOf(c.params().get("type"))
-                        .toLowerCase(Locale.ROOT).contains("stair"))) {
+        }
+        if (c.params() != null) {
+            Object role = c.params().get("role");
+            if (role == null) role = c.params().get("circulation_role");
+            if (role != null) {
+                String r = String.valueOf(role).toLowerCase(Locale.ROOT);
+                if (r.contains("stair") || r.contains("balcony") || r.contains("bridge")
+                        || r.contains("access")) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    private static String hostIdOf(Component c) {
+        if (c == null || c.params() == null) return null;
+        Object host = c.params().get("host_id");
+        if (host == null) host = c.params().get("hostId");
+        if (host == null) host = c.params().get("building_id");
+        return host == null || String.valueOf(host).isBlank() ? null : String.valueOf(host).trim();
     }
 
     private static CapabilityGap gap(String detail) {
