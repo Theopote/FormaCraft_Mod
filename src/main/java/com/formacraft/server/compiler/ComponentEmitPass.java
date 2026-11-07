@@ -542,7 +542,40 @@ final class ComponentEmitPass {
     static boolean isSoftGenerationFailure(Component c) {
         if (c == null) return false;
         String type = ComponentPlanTypes.normalizeType(c.componentType());
-        return "DECOR_DETAIL".equals(type) || type.startsWith("DECOR");
+        if ("DECOR_DETAIL".equals(type) || type.startsWith("DECOR")) {
+            return true;
+        }
+        // Floor / moon plates must not abort the whole hall when host-clip yields nothing.
+        if (c.params() != null && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
+            return true;
+        }
+        // Accessory STRUCTURE (porch pillars) often has no native generator — keep the hall.
+        if ("STRUCTURE".equals(type) && isAccessoryStructure(c)) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isAccessoryStructure(Component c) {
+        String id = ComponentPlanTypes.paramIdentity(c);
+        if (id == null || id.isBlank()) return false;
+        String lower = id.toLowerCase(Locale.ROOT);
+        if (lower.contains("plinth") || lower.contains("foundation") || lower.contains("台基")
+                || lower.contains("steps") || lower.contains("台阶")
+                || lower.contains("kouhai") || lower.contains("向拝") || lower.contains("porch")
+                || lower.contains("pillar") || lower.contains("column")) {
+            // Primary typology STRUCTURE carriers keep hard-fail (e.g. haiden_main).
+            if (c.params() != null) {
+                for (String key : List.of("typology_id", "typology", "structural_typology")) {
+                    Object v = c.params().get(key);
+                    if (v != null && !String.valueOf(v).isBlank()) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     static boolean isSitePeripheral(String normalizedType) {

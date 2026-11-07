@@ -21,7 +21,7 @@
       "params": {
         "component_id": "body",
         "anchor_mode": "min_corner",
-        "shape": "hexagon",
+        "shape": "star",
         "roof_type": "none",
         "window_style": "none",
         "entrance_type": "none",

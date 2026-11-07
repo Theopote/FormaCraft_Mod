@@ -1124,6 +1124,24 @@ public class MassMainGenerator implements ComponentGenerator {
                 out.add(new BlockPatch(BlockPatch.PLACE, wx, wy, wz, floor));
             }
         }
+        // Moon platforms / forecourts often sit outside the host shell with plate_role=interior.
+        // Host-clip then yields zero cells → required_component_empty. Fall back to the plate AABB.
+        if (out.isEmpty() && clipToHost && width > 0 && depth > 0) {
+            FormacraftMod.LOGGER.info(
+                    "MassMainGenerator: hosted plate clip empty → standalone fill id={} host_id={}",
+                    c.params() == null ? null : c.params().get("component_id"),
+                    hostId);
+            for (int x = 0; x < width; x++) {
+                for (int z = 0; z < depth; z++) {
+                    out.add(new BlockPatch(
+                            BlockPatch.PLACE,
+                            actualRp.x() + x,
+                            actualRp.y(),
+                            actualRp.z() + z,
+                            floor));
+                }
+            }
+        }
     }
 
     private static com.formacraft.common.generation.component.util.ResolvedBuildingGeometry resolveMassGeometry(

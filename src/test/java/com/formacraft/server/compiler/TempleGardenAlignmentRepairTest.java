@@ -179,6 +179,28 @@ class TempleGardenAlignmentRepairTest {
     }
 
     @Test
+    void plinthAndStepsStayUnderHall() {
+        Component main = new Component(
+                "STRUCTURE", "main", new Vec3i(0, 1, 0),
+                new Dimensions(14, 12, 8), List.of(),
+                Map.of("component_id", "haiden_main", "typology_id", "japanese_haiden",
+                        "anchor_mode", "min_corner"));
+        Component plinth = new Component(
+                "STRUCTURE", "main", new Vec3i(-1, 0, -1),
+                new Dimensions(16, 14, 1), List.of("台基"),
+                Map.of("component_id", "haiden_plinth", "anchor_mode", "min_corner"));
+        Component steps = new Component(
+                "STRUCTURE", "main", new Vec3i(4, 0, 12),
+                new Dimensions(4, 4, 1), List.of(),
+                Map.of("component_id", "haiden_steps", "anchor_mode", "min_corner"));
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(main, plinth, steps))
+                .build());
+        assertEquals(plinth.relativePosition(), repaired.components().get(1).relativePosition());
+        assertEquals(steps.relativePosition(), repaired.components().get(2).relativePosition());
+    }
+
+    @Test
     void overlappingPavilionIsNudgedOffHallFootprint() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, -8),

@@ -73,7 +73,7 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
         }
 
         // top spire
-        int topY = plan.levels.get(plan.levels.size() - 1).eaveY + 2;
+        int topY = plan.levels.getLast().eaveY + 2;
         blocks.add(new PlannedBlock(origin.add(0, topY, 0), accent));
         blocks.add(new PlannedBlock(origin.add(0, topY + 1, 0), Blocks.LIGHTNING_ROD.getDefaultState()));
 

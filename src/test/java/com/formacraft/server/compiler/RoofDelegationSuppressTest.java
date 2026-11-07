@@ -47,6 +47,12 @@ class RoofDelegationSuppressTest {
     void softGenerationFailureOnlyForDecor() {
         assertTrue(ComponentPlanCompiler.isSoftGenerationFailure(
                 new Component("DECOR_DETAIL", "d", new Vec3i(0, 0, 0), null, null, Map.of())));
+        assertTrue(ComponentPlanCompiler.isSoftGenerationFailure(
+                new Component("MASS_SECONDARY", "p", new Vec3i(0, 0, 0), null, null,
+                        Map.of("extrude_mode", "plate", "component_id", "main_floor_plate"))));
+        assertTrue(ComponentPlanCompiler.isSoftGenerationFailure(
+                new Component("STRUCTURE", "s", new Vec3i(0, 0, 0), null, null,
+                        Map.of("component_id", "haiden_kouhai_pillars"))));
         assertFalse(ComponentPlanCompiler.isSoftGenerationFailure(
                 new Component("ROOF", "r", new Vec3i(0, 0, 0), null, null, Map.of())));
         assertFalse(ComponentPlanCompiler.isSoftGenerationFailure(

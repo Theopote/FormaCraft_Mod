@@ -122,6 +122,10 @@ final class MassFootprintSeparationRepair {
         if (!(t.startsWith("MASS") || "TOWER".equals(t) || "GATE".equals(t) || "STRUCTURE".equals(t))) {
             return false;
         }
+        // Plinth / steps / porch posts belong under the host mass — never separate them.
+        if (isFoundationLike(c)) {
+            return false;
+        }
         if (c.params() != null) {
             // Bridge / hosted plates intentionally touch two hosts — never nudge them apart.
             if (c.params().containsKey("target_host_id") || c.params().containsKey("targetHostId")) {
@@ -135,6 +139,32 @@ final class MassFootprintSeparationRepair {
             return !"plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")));
         }
         return true;
+    }
+
+    /** Foundations, platforms, and porch posts that must stay co-located with the hall. */
+    private static boolean isFoundationLike(Component c) {
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        if (id.contains("plinth") || id.contains("foundation") || id.contains("台基")
+                || id.contains("steps") || id.contains("台阶") || id.contains("stair_approach")
+                || id.contains("approach_stair") || id.contains("kouhai") || id.contains("向拝")
+                || id.contains("porch")) {
+            return true;
+        }
+        // Free-standing "pillars" accessory under a shrine porch — not a hall mass.
+        if (id.contains("pillar") && (id.contains("kouhai") || id.contains("porch") || id.contains("向拝"))) {
+            return true;
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("plinth") || f.contains("台基") || lower.contains("foundation")
+                        || lower.contains("steps") || f.contains("台阶")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean isAnchorMass(Component c) {
