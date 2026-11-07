@@ -67,6 +67,9 @@ final class PlanSemanticValidator {
                     List.of("Preserve the requested roof type; do not substitute gable.")));
         }
 
+        Optional<CapabilityGap> upperDoorGap = UpperStoreyEntranceAudit.check(plan);
+        if (upperDoorGap.isPresent()) return upperDoorGap;
+
         IntentClass intent = detectIntent(plan, originalRequestIntent);
         if (intent == IntentClass.GENERIC) {
             return Optional.empty();

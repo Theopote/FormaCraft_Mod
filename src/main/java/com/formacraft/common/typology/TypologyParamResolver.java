@@ -55,10 +55,24 @@ public final class TypologyParamResolver {
         }
 
         if (component != null && component.params() != null) {
-            for (Map.Entry<String, Object> e : component.params().entrySet()) {
+            // Defense in depth: never copy unsealed LLM forged verification maps into merged params.
+            Map<String, Object> incoming = new LinkedHashMap<>(component.params());
+            boolean sealed = UserConstraintContract.hasServerSeal(incoming);
+            if (!sealed) {
+                UserConstraintContract.stripUntrustedMarkers(incoming);
+            }
+            for (Map.Entry<String, Object> e : incoming.entrySet()) {
                 if (e.getKey() == null || PARAM_SOURCES_KEY.equals(e.getKey())) continue;
+                if (UserConstraintContract.SERVER_SEAL_KEY.equals(e.getKey())) {
+                    if (sealed) merged.put(e.getKey(), e.getValue());
+                    continue;
+                }
+                if (UserConstraintContract.SERVER_VERIFIED_SOURCES_KEY.equals(e.getKey())) {
+                    if (sealed) merged.put(e.getKey(), e.getValue());
+                    continue;
+                }
                 merged.put(e.getKey(), e.getValue());
-                sources.put(e.getKey(), resolveComponentParamSource(component, e.getKey()));
+                sources.put(e.getKey(), resolveComponentParamSource(incoming, e.getKey()));
             }
         }
         normalizeAliases(merged, sources);
@@ -112,8 +126,14 @@ public final class TypologyParamResolver {
         if (component == null || component.params() == null || key == null) {
             return SOURCE_LLM_INFERRED;
         }
-        Map<String, Object> params = component.params();
-        // Only server-verified stamps grant hard USER_EXPLICIT — never trust LLM design_sources claims.
+        return resolveComponentParamSource(component.params(), key);
+    }
+
+    private static String resolveComponentParamSource(Map<String, Object> params, String key) {
+        if (params == null || key == null) {
+            return SOURCE_LLM_INFERRED;
+        }
+        // Only sealed server-verified stamps grant hard USER_EXPLICIT.
         if (UserConstraintContract.isServerVerified(params, key)) {
             return SOURCE_USER_EXPLICIT;
         }

@@ -303,6 +303,69 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void playerHeightTwentyFourOverridesLlmFortyAndSeals() {
+        Component tower = new Component(
+                "STRUCTURE", "main", new Vec3i(0, 0, 0),
+                new Dimensions(9, 9, 40), List.of("typology:dense_eaves_pagoda"),
+                new HashMap<>(Map.of(
+                        "component_id", "pagoda",
+                        "floor_count", 3,
+                        "eaves_per_level", 2,
+                        "height", 40,
+                        "design_sources", Map.of("height", "USER_EXPLICIT"))));
+        LlmPlan ensured = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(tower)).build(),
+                "生成一座高度24格的三层重檐古塔");
+        Component out = ensured.components().getFirst();
+        assertEquals(24, ((Number) out.params().get("height")).intValue());
+        assertTrue(com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(out.params(), "height"));
+        var merged = com.formacraft.common.typology.TypologyParamResolver
+                .merge("dense_eaves_pagoda", out);
+        assertTrue(com.formacraft.common.typology.TypologyParamResolver
+                .isUserHardConstraint(merged, "height", "towerHeight"));
+        assertEquals(24, ((Number) merged.get("height")).intValue());
+    }
+
+    @Test
+    void weakKeywordGenericDoesNotDemoteLlmTempleClass() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(new Component(
+                        "MASS_MAIN", null, new Vec3i(0, 0, 0),
+                        new Dimensions(12, 10, 8), List.of(), Map.of())))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "original_text", "生成一座清真寺",
+                                "building_class", "temple",
+                                "confidence", 0.8),
+                        "building_class", "temple"))
+                .build();
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, "生成一座清真寺");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ri = (Map<String, Object>) ensured.planMeta().get("request_intent");
+        assertEquals("temple", ri.get("building_class"),
+                "weak/generic keyword must not demote LLM temple class");
+    }
+
+    @Test
+    void upperEntranceRequiredButOnlyGroundDoorFailsAudit() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "house", "floor_count", 2, "floor_height", 4));
+        Component groundDoor = new Component(
+                "ENTRANCE", "main", new Vec3i(4, 0, 0),
+                new Dimensions(3, 1, 3), List.of(),
+                Map.of("host_id", "house", "door_width", 2));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, groundDoor)).build(),
+                "二层设置一个连接室外楼梯的入口");
+        var gap = UpperStoreyEntranceAudit.check(plan);
+        assertTrue(gap.isPresent(), "must fail when only a ground door exists");
+        assertEquals("E_UPPER_ENTRANCE_MISSING", gap.orElseThrow().code());
+    }
+
+    @Test
     void sideHallMainEntranceDoesNotReceivePrimaryDoorWidth() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, 0),

@@ -79,6 +79,28 @@ class TypologyParamResolverTest {
     }
 
     @Test
+    void llmForgedServerVerifiedSourcesWithoutSealIsNotHardConstraint() {
+        java.util.Map<String, Object> params = new java.util.HashMap<>();
+        params.put("floor_count", 9);
+        params.put("eaves_per_level", 2);
+        params.put("height", 40);
+        params.put(UserConstraintContract.SERVER_VERIFIED_SOURCES_KEY,
+                java.util.Map.of("height", "USER_EXPLICIT"));
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(10, 10, 40),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                params
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertFalse(TypologyParamResolver.isUserHardConstraint(merged, "height", "towerHeight"),
+                "forged _server_verified_sources without seal must not lock height");
+        assertFalse(merged.containsKey(UserConstraintContract.SERVER_VERIFIED_SOURCES_KEY));
+    }
+
+    @Test
     void serverVerifiedHeightIsHardConstraint() {
         java.util.Map<String, Object> params = new java.util.HashMap<>();
         params.put("floor_count", 3);

@@ -93,16 +93,25 @@ final class OpeningConstraintProvenance {
         }
 
         String glass = firstString(params, "glass_block", "glazing_block", "glass_material", "window_block");
-        if (glass != null && (type.contains("WINDOW") || type.contains("FACADE") || glass != null)) {
-            boolean match = windowMaterialUser
-                    || (windowBlock != null && blockEquals(windowBlock, glass));
-            if (match) {
-                // Upgrade even when LLM pre-tagged constraint_source=LLM_INFERRED.
+        boolean windowLike = type.contains("WINDOW") || type.contains("FACADE") || glass != null;
+        if (windowLike && windowMaterialUser && windowBlock != null && !windowBlock.isBlank()) {
+            // Authority value from player text — never stamp LLM's wrong glass as USER_EXPLICIT.
+            if (glass == null || !blockEquals(windowBlock, glass)) {
+                params.put("glass_block", windowBlock);
+                glass = windowBlock;
+                mutated = true;
+            }
+            if (blockEquals(windowBlock, glass)) {
                 fieldSources.put("glass_block", "USER_EXPLICIT");
                 params.put("window_explicit", true);
                 params.put("constraint_source", "USER_EXPLICIT");
                 mutated = true;
             }
+        } else if (windowLike && glass != null && windowBlock != null && blockEquals(windowBlock, glass)) {
+            fieldSources.put("glass_block", "USER_EXPLICIT");
+            params.put("window_explicit", true);
+            params.put("constraint_source", "USER_EXPLICIT");
+            mutated = true;
         }
 
         if (!fieldSources.isEmpty()) {
@@ -113,6 +122,11 @@ final class OpeningConstraintProvenance {
         if (!mutated) return c;
         return new Component(
                 c.componentType(), c.slotId(), c.relativePosition(), c.dimensions(), c.features(), params);
+    }
+
+    /** True when entrance Y is at/above the host's second storey band. */
+    static boolean isUpperStoreyEntrancePublic(Component door, LlmPlan plan) {
+        return isUpperStoreyEntrance(door, plan);
     }
 
     /** True when entrance Y is at/above the host's second storey band. */

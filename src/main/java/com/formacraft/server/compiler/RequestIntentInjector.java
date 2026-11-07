@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
+import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
 import com.google.gson.JsonArray;
@@ -70,23 +71,82 @@ public final class RequestIntentInjector {
             if (explicitH > 0) {
                 reconciled.put("height_explicit", Boolean.TRUE);
                 reconciled.put("explicit_height_blocks", explicitH);
+            } else {
+                reconciled.remove("height_explicit");
+                reconciled.remove("explicit_height_blocks");
             }
             meta.put("request_intent", reconciled);
             meta.put("request_intent_text", echo);
+            meta.put(com.formacraft.common.typology.UserConstraintContract.PLAN_META_KEY,
+                    com.formacraft.common.typology.UserConstraintContract.buildPlanMetaContract(echo));
             if (reconciled.get("building_class") != null) {
                 meta.put("building_class", reconciled.get("building_class"));
             }
-            return OpeningConstraintProvenance.stamp(withMeta(plan, meta));
+            LlmPlan withIntent = withMeta(plan, meta);
+            withIntent = applyServerConstraintsToComponents(withIntent, echo);
+            return OpeningConstraintProvenance.stamp(withIntent);
         }
         if (text.isBlank()) {
             return plan;
         }
         Map<String, Object> keyword = extractKeyword(text);
         Map<String, Object> intent = mergeWithLlmDeclared(keyword, meta);
+        int explicitH = com.formacraft.common.typology.UserConstraintContract
+                .parseExplicitHeightBlocks(text);
+        if (explicitH > 0) {
+            intent.put("height_explicit", Boolean.TRUE);
+            intent.put("explicit_height_blocks", explicitH);
+        }
         meta.put("request_intent", intent);
         meta.put("request_intent_text", text);
+        meta.put(com.formacraft.common.typology.UserConstraintContract.PLAN_META_KEY,
+                com.formacraft.common.typology.UserConstraintContract.buildPlanMetaContract(text));
         meta.put("building_class", intent.get("building_class"));
-        return OpeningConstraintProvenance.stamp(withMeta(plan, meta));
+        LlmPlan withIntent = withMeta(plan, meta);
+        withIntent = applyServerConstraintsToComponents(withIntent, text);
+        return OpeningConstraintProvenance.stamp(withIntent);
+    }
+
+    /**
+     * Strip forged verification markers, then bind server-authoritative height onto primary masses.
+     */
+    static LlmPlan applyServerConstraintsToComponents(LlmPlan plan, String userText) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
+        String text = userText == null ? "" : userText;
+        int explicitH = com.formacraft.common.typology.UserConstraintContract
+                .parseExplicitHeightBlocks(text);
+        String primary = BuildingHostResolver.primaryMassId(plan, plan.components());
+        int hostCount = 0;
+        for (Component c : plan.components()) {
+            if (BuildingHostResolver.isHostMass(c)) hostCount++;
+        }
+        boolean multi = hostCount > 1;
+        List<Component> out = new ArrayList<>(plan.components().size());
+        boolean changed = false;
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null || c.params().isEmpty()) {
+                out.add(c);
+                continue;
+            }
+            Map<String, Object> params = new HashMap<>(c.params());
+            com.formacraft.common.typology.UserConstraintContract.stripUntrustedMarkers(params);
+            boolean host = BuildingHostResolver.isHostMass(c);
+            boolean primaryHost = !multi || primary == null || primary.isBlank()
+                    || primary.equals(BuildingHostResolver.massId(c));
+            if (explicitH > 0 && host && primaryHost) {
+                com.formacraft.common.typology.UserConstraintContract
+                        .applyAuthoritativeHeight(params, text);
+            }
+            if (!params.equals(c.params())) {
+                changed = true;
+                out.add(new Component(
+                        c.componentType(), c.slotId(), c.relativePosition(),
+                        c.dimensions(), c.features(), params));
+            } else {
+                out.add(c);
+            }
+        }
+        return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
     }
 
     private static boolean textEqualsIgnoreSpace(String a, String b) {
@@ -276,13 +336,22 @@ public final class RequestIntentInjector {
         }
         String kwClass = String.valueOf(keyword.getOrDefault("building_class", "generic"));
         String haveClass = String.valueOf(intent.getOrDefault("building_class", "generic"));
-        if (!"generic".equals(kwClass) && !kwClass.equalsIgnoreCase(haveClass)) {
+        double kwConf = 0.0;
+        try {
+            Object c = keyword.get("confidence");
+            if (c instanceof Number n) kwConf = n.doubleValue();
+        } catch (Exception ignored) {
+            kwConf = 0.0;
+        }
+        double strongMin = RequestIntentVocab.conf("strong_hit", 0.9);
+        boolean keywordStrong = !"generic".equals(kwClass) && kwConf >= strongMin * 0.5;
+        if (keywordStrong && !kwClass.equalsIgnoreCase(haveClass)) {
             intent.put("intent_structure_mismatch", Boolean.TRUE);
             intent.put("stale_building_class", haveClass);
         }
         for (String key : List.of(
-                "building_class", "tower_subtype", "composition", "markers", "materials",
-                "footprint", "roof_type", "roof_forbids", "forbids", "confidence",
+                "composition", "markers", "materials",
+                "footprint", "roof_type", "roof_forbids", "forbids",
                 "roof_explicit", "door_width_explicit", "window_material_explicit",
                 "door_presence_explicit", "upper_entrance_explicit", "openings",
                 "refuse_residential_autofill", "scaffold_eligible", "source")) {
@@ -290,8 +359,8 @@ public final class RequestIntentInjector {
             Object v = keyword.get(key);
             if (v != null) intent.put(key, v);
         }
-        // Keyword non-generic class always wins over conflicting LLM class when confidence is usable.
-        if (!"generic".equals(kwClass)) {
+        // Strong keyword class wins; weak/generic keyword must not demote a reasonable LLM class.
+        if (keywordStrong) {
             intent.put("building_class", kwClass);
             if (keyword.get("tower_subtype") != null) {
                 intent.put("tower_subtype", keyword.get("tower_subtype"));
@@ -299,6 +368,8 @@ public final class RequestIntentInjector {
             if (keyword.get("confidence") != null) {
                 intent.put("confidence", keyword.get("confidence"));
             }
+        } else if ("generic".equals(kwClass) && !"generic".equalsIgnoreCase(haveClass)) {
+            intent.put("building_class_source", "llm_retained");
         }
         reconcileRoofFromText(intent, String.valueOf(intent.getOrDefault("original_text", "")));
     }
@@ -572,14 +643,25 @@ public final class RequestIntentInjector {
             intent.put("roof_type", null);
             intent.put("roof_explicit", false);
         }
-        // Demote temple class when the only hall marker sits under local negation.
+        // Demote temple only when hall/temple tokens are locally negated (不要做成…大殿).
+        // Do not demote when keywords simply miss an uncommon type (清真寺) that LLM classified.
         Object cls = intent.get("building_class");
         if ("temple".equals(String.valueOf(cls))
                 && "generic".equals(String.valueOf(keyword.getOrDefault("building_class", "generic")))) {
-            intent.put("building_class", "generic");
-            intent.put("confidence", keyword.getOrDefault("confidence", 0.0));
-            intent.put("refuse_residential_autofill", false);
-            intent.put("scaffold_eligible", false);
+            boolean negatedHall = false;
+            for (String token : List.of("大殿", "殿堂", "正殿", "寺庙", "庙宇", "道观")) {
+                int idx = text.indexOf(token);
+                if (idx >= 0 && isNegatedAt(text, idx)) {
+                    negatedHall = true;
+                    break;
+                }
+            }
+            if (negatedHall) {
+                intent.put("building_class", "generic");
+                intent.put("confidence", keyword.getOrDefault("confidence", 0.0));
+                intent.put("refuse_residential_autofill", false);
+                intent.put("scaffold_eligible", false);
+            }
         }
     }
 

@@ -123,6 +123,24 @@ class OpeningConstraintProvenanceTest {
     }
 
     @Test
+    void wrongLlmGlassIsCorrectedToUserBlackStainedGlass() {
+        Component window = new Component(
+                "FACADE_WINDOWS", "main", new Vec3i(0, 1, 0),
+                new Dimensions(2, 2, 1), List.of(),
+                Map.of(
+                        "glass_block", "minecraft:glass",
+                        "constraint_source", "LLM_INFERRED"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(window)).build(),
+                "生成一栋现代住宅，所有窗户使用黑色染色玻璃");
+        Component stamped = plan.components().getFirst();
+        assertEquals("minecraft:black_stained_glass", stamped.params().get("glass_block"),
+                "LLM clear glass must be replaced with player black stained glass");
+        assertEquals("USER_EXPLICIT", String.valueOf(stamped.params().get("constraint_source")));
+        assertTrue(OpeningMaterialAudit.isUserExplicitWindowMaterial(stamped));
+    }
+
+    @Test
     void upperEntranceCueDoesNotStampGroundDoor() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
