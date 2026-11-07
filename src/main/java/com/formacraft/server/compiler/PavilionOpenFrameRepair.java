@@ -153,15 +153,19 @@ final class PavilionOpenFrameRepair {
             return mass;
         }
         boolean pavilionNamed = id.contains("pavilion") || id.contains("gazebo") || id.contains("kiosk")
-                || id.contains("ting") || id.contains("shuixie") || looksPavilion(mass.features());
-        // Plan-level「亭」must not rewrite every MASS_MAIN in a compound (hall + pavilion).
-        if (planWantsPavilion && !pavilionNamed) {
+                || id.contains("ting") || id.contains("shuixie") || id.contains("亭")
+                || looksPavilion(mass.features());
+        // Plan-level「亭」only tags anonymous masses when this mass itself is pavilion-like
+        // (never force open-frame onto every MASS_MAIN in a compound).
+        if (planWantsPavilion && !pavilionNamed && looksPavilionToken(id)) {
             pavilionNamed = true;
         }
         boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")));
-        boolean octagon = planWantsOctagon || looksOctagon(mass);
-        if (!pavilionNamed && !onStilts && !octagon) return mass;
-        if (!pavilionNamed && onStilts && mass.dimensions().height() <= 3 && !octagon
+        boolean hexagon = looksHexagon(mass);
+        // Octagon intent is per-mass — never let a sibling 八角亭 rewrite an explicit 六角亭.
+        boolean octagon = !hexagon && (looksOctagon(mass) || (planWantsOctagon && pavilionNamed && !hasExplicitNonOctagonShape(mass)));
+        if (!pavilionNamed && !onStilts && !octagon && !hexagon) return mass;
+        if (!pavilionNamed && onStilts && mass.dimensions().height() <= 3 && !octagon && !hexagon
                 && OpenFramePolicy.isOpen(mass.params())) {
             return mass;
         }
@@ -180,7 +184,16 @@ final class PavilionOpenFrameRepair {
         // (dark_oak vs oak posts) and trip E_PATCH_CONFLICT inside a single MASS_MAIN.
         params.put("roof_type", "none");
         changed = true;
-        if (octagon) {
+        if (hexagon) {
+            params.put("shape", "hexagon");
+            params.put("sides", 6);
+            Object planType = params.get("plan_type");
+            if (planType == null) planType = params.get("planType");
+            if (planType != null && looksOctagonToken(String.valueOf(planType))) {
+                params.put("plan_type", "none");
+            }
+            changed = true;
+        } else if (octagon) {
             for (String key : com.formacraft.common.generation.component.util.FootprintShapeCatalog.SHAPE_KEYS) {
                 Object cur = params.get(key);
                 if (cur == null && !"shape".equals(key)) continue;
@@ -406,11 +419,14 @@ final class PavilionOpenFrameRepair {
     }
 
     private static boolean looksPavilionToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
         String lower = raw.toLowerCase(Locale.ROOT);
         return lower.contains("pavilion") || lower.contains("gazebo") || lower.contains("open bay")
                 || lower.contains("open-frame") || lower.contains("colonnade frame")
                 || lower.contains("凉亭") || lower.contains("水上亭") || lower.contains("亭子")
-                || lower.contains("水榭") || lower.contains("八角亭")
+                || lower.contains("水榭")                 || lower.contains("八角亭") || lower.contains("六角亭")
+                || lower.contains("四角亭") || lower.contains("攒尖亭") || lower.contains("方亭")
+                || (lower.contains("hexagon") && (lower.contains("pavilion") || raw.contains("亭")))
                 || "亭".equals(raw.trim());
     }
 
@@ -488,5 +504,56 @@ final class PavilionOpenFrameRepair {
         String lower = raw.toLowerCase(Locale.ROOT);
         return lower.contains("octagon") || lower.contains("octagonal")
                 || lower.contains("八角") || lower.contains("八角形");
+    }
+
+    private static boolean looksHexagon(Component c) {
+        if (c == null) return false;
+        if (c.params() != null) {
+            for (String key : List.of("shape", "footprint_shape", "footprintShape", "plan_type", "planType",
+                    "component_id", "sides")) {
+                Object v = c.params().get(key);
+                if (v == null) continue;
+                if ("sides".equals(key)) {
+                    try {
+                        if (Integer.parseInt(String.valueOf(v).trim()) == 6) return true;
+                    } catch (NumberFormatException ignored) {
+                        // fall through
+                    }
+                    continue;
+                }
+                if (looksHexagonToken(String.valueOf(v))) return true;
+            }
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null && looksHexagonToken(f)) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean looksHexagonToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String lower = raw.toLowerCase(Locale.ROOT);
+        return lower.contains("hexagon") || lower.contains("hexagonal")
+                || lower.contains("六角") || lower.contains("六角形") || lower.contains("6gon");
+    }
+
+    /** True when this mass already authored a non-octagon footprint that must not be remapped. */
+    private static boolean hasExplicitNonOctagonShape(Component mass) {
+        if (mass == null || mass.params() == null) return false;
+        if (looksHexagon(mass)) return true;
+        for (String key : com.formacraft.common.generation.component.util.FootprintShapeCatalog.SHAPE_KEYS) {
+            Object v = mass.params().get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+            if (s.isEmpty() || looksOctagonToken(s)) continue;
+            if (com.formacraft.common.generation.component.util.FootprintShapeCatalog.CIRCLE_TOKENS.contains(s)
+                    || com.formacraft.common.generation.component.util.FootprintShapeCatalog.ROUNDED_RECT_TOKENS.contains(s)
+                    || com.formacraft.common.generation.component.util.FootprintShapeCatalog.HEXAGON_TOKENS.contains(s)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

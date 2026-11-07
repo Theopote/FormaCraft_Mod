@@ -279,6 +279,39 @@ class RoofGeneratorGeometryQualityTest {
     }
 
     @Test
+    void hexagonPyramidUsesSixSlopeApexNotChebyshev() {
+        // Mid-edge of a hexagon (top of flat-top) is farther from corners than AABB Chebyshev implies.
+        double apexMidEdge = com.formacraft.common.generation.component.util.ResolvedFootprint
+                .hexagonApexFactor(5, 0, 11, 11);
+        double apexCorner = com.formacraft.common.generation.component.util.ResolvedFootprint
+                .hexagonApexFactor(0, 0, 11, 11);
+        assertTrue(apexMidEdge > 0.0, "mid-edge is on/near hex boundary with small apex");
+        assertEquals(0.0, apexCorner, 1e-9, "AABB corner is outside hex");
+        double center = com.formacraft.common.generation.component.util.ResolvedFootprint
+                .hexagonApexFactor(5, 5, 11, 11);
+        assertTrue(center > apexMidEdge, "center must rise above edge facets");
+
+        List<BlockPatch> patches = generate(
+                "pyramid",
+                List.of(),
+                Map.of("material", "oak_stairs", "overhang", 0, "shape", "hexagon"),
+                11, 11, 6, 0, 5, 0
+        );
+        assertFalse(patches.isEmpty());
+        // Corner cells of the AABB must not be roofed (outside hex).
+        assertTrue(patches.stream().noneMatch(p -> p.dx() == 0 && p.dz() == 0));
+        assertTrue(patches.stream().noneMatch(p -> p.dx() == 10 && p.dz() == 10));
+        // Center column reaches higher than a mid-edge cell.
+        int centerY = patches.stream().filter(p -> p.dx() == 5 && p.dz() == 5)
+                .mapToInt(BlockPatch::dy).max().orElse(-1);
+        int edgeY = patches.stream().filter(p -> p.dx() == 5 && p.dz() == 0)
+                .mapToInt(BlockPatch::dy).max().orElse(-1);
+        assertTrue(centerY > edgeY, "centerY=" + centerY + " edgeY=" + edgeY);
+        assertEquals("east", RoofGenerator.hexagonInwardFacing(0, 5, 11, 11));
+        assertEquals("west", RoofGenerator.hexagonInwardFacing(10, 5, 11, 11));
+    }
+
+    @Test
     void fourRoofKindsCoverFootprintWithoutConflictingCellIds() {
         for (String type : List.of("gable", "hip", "xieshan")) {
             List<BlockPatch> patches = generate(

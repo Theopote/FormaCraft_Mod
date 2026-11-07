@@ -1099,9 +1099,9 @@ public class MassMainGenerator implements ComponentGenerator {
             }
         }
 
-        // Standalone plates (no host clip): optional own footprint mask when plan_type/shape authored.
+        // Own footprint is independent of host clip: exterior 月台 with host_id may still be hexagon/etc.
         com.formacraft.common.generation.component.util.ResolvedFootprint selfFootprint = null;
-        if (!clipToHost && hostId == null) {
+        if (!clipToHost) {
             var explicitPlan = com.formacraft.common.generation.component.util.PlanPatternCatalog.extractExplicit(params);
             var explicitShape = com.formacraft.common.generation.component.util.FootprintShapeCatalog.extractExplicit(params);
             if (explicitPlan.isPresent() || explicitShape.isPresent()) {

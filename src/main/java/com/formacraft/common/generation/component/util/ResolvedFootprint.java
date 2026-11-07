@@ -142,6 +142,14 @@ public record ResolvedFootprint(
      * {@code inset} shrinks the effective radii (wall thickness erosion).
      */
     public static boolean isInsideHexagon(int x, int z, int width, int depth, int inset) {
+        return hexagonFillFactor(x, z, width, depth, inset) <= 1.0;
+    }
+
+    /**
+     * Flat-top hexagon radial fill: 0 at center, 1 on the hexagon boundary, &gt;1 outside.
+     * Pyramid roofs use {@code 1 - clamp(fill,0,1)} as normalized height toward the apex.
+     */
+    public static double hexagonFillFactor(int x, int z, int width, int depth, int inset) {
         double cx = (width - 1) / 2.0;
         double cz = (depth - 1) / 2.0;
         double rx = Math.max(0.5, width / 2.0 - Math.max(0, inset));
@@ -150,7 +158,14 @@ public record ResolvedFootprint(
         double nz = (z - cz) / rz;
         double ax = Math.abs(nx);
         double az = Math.abs(nz);
-        return ax <= 1.0 && az <= 1.0 && (0.5 * ax + az) <= 1.0;
+        return Math.max(ax, Math.max(az, 0.5 * ax + az));
+    }
+
+    /** Inward distance from the hexagon perimeter in [0,1] (1 = center apex). */
+    public static double hexagonApexFactor(int x, int z, int width, int depth) {
+        double fill = hexagonFillFactor(x, z, width, depth, 0);
+        if (fill > 1.0) return 0.0;
+        return 1.0 - fill;
     }
 
     private boolean isInCrossArms(int x, int z) {

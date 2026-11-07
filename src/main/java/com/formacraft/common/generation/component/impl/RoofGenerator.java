@@ -756,7 +756,63 @@ public class RoofGenerator implements ComponentGenerator {
     private void generatePyramidRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                      int width, int depth, int height, Palette palette,
                                      ComponentFootprintMask footprint, int overhang) {
+        if (footprint != null && footprint.footprint() != null
+                && footprint.footprint().shape()
+                == com.formacraft.common.generation.component.util.ResolvedFootprint.FootprintShape.HEXAGON) {
+            generateHexagonPyramidRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette,
+                    footprint, overhang);
+            return;
+        }
         generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+    }
+
+    /**
+     * Six-slope 攒尖: rise follows inward normal distance to the hexagon perimeter
+     * (not AABB Chebyshev), so six facets converge at the center apex.
+     */
+    private void generateHexagonPyramidRoof(List<BlockPatch> out, SemanticComponent semantic,
+                                            int baseX, int baseY, int baseZ,
+                                            int width, int depth, int height, Palette palette,
+                                            ComponentFootprintMask footprint, int overhang) {
+        if (width < 2 || depth < 2 || height < 2) {
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                    0, 0);
+            return;
+        }
+        boolean fillUnder = wantsStairSurface(semantic.source() != null ? semantic.source().params() : null)
+                || height >= 3;
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, 0, 0)) {
+                    continue;
+                }
+                // Six facets: distance to hex perimeter (not AABB Chebyshev).
+                double apex = com.formacraft.common.generation.component.util.ResolvedFootprint
+                        .hexagonApexFactor(x, z, width, depth);
+                int rise = (int) Math.round(com.formacraft.common.generation.component.util.StyleRoofGeometry.profile(
+                        semantic, apex) * (height - 1));
+                boolean nearApex = apex >= 0.85;
+                SemanticPart part = nearApex ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
+                String block = getBlockForPart(semantic, palette, part);
+                if (part == SemanticPart.ROOF) {
+                    String facing = hexagonInwardFacing(x, z, width, depth);
+                    block = withStairsFacing(block, facing);
+                }
+                emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block, fillUnder && part == SemanticPart.ROOF);
+            }
+        }
+    }
+
+    /** Stair facing toward the hexagon center (higher half), using dominant axis. */
+    static String hexagonInwardFacing(int x, int z, int width, int depth) {
+        double cx = (width - 1) / 2.0;
+        double cz = (depth - 1) / 2.0;
+        double dx = cx - x;
+        double dz = cz - z;
+        if (Math.abs(dx) >= Math.abs(dz)) {
+            return dx >= 0 ? "east" : "west";
+        }
+        return dz >= 0 ? "south" : "north";
     }
 
     private void generateConeRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,

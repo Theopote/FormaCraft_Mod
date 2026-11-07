@@ -31,17 +31,28 @@ public final class StraightStairComponentGenerator {
             if (!op.containsKey("from") || !op.containsKey("to")) {
                 // Compatibility with the logged straight-flight contract only. Curves/turns need explicit ops.
                 String features = String.join(" ", c.features() == null ? List.of() : c.features());
-                if (!features.contains("stair:straight_single_run") || !features.contains("ascends_from_north_low_end_to_south_high_end"))
+                if (!features.contains("stair:straight_single_run") || !features.contains("ascends_from_"))
                     throw new IllegalArgumentException("Straight stairs require explicit from/to endpoints; split turns into flights and landings");
                 Dimensions d = Objects.requireNonNull(c.dimensions(), "Missing stair dimensions");
-                op.put("width", d.width());
-                op.put("from", Map.of("x", d.width() / 2, "y", 0, "z", 0));
-                op.put("to", Map.of("x", d.width() / 2, "y", d.height() - 1, "z", d.depth() - 4));
-                op.put("landing_length", 3);
-                String floor = String.valueOf(op.getOrDefault("material", "minecraft:oak_planks"));
+                int rise = Math.max(1, d.height() <= 1 ? 1 : d.height() - 1);
+                int run = Math.max(rise, Math.max(1, d.depth() - 1));
+                int midX = Math.max(0, d.width() / 2);
+                op.put("width", Math.max(1, Math.min(5, d.width())));
+                // Low at z=0, high at z=run — run always >= rise so flightError accepts 4×4×3 volumes.
+                op.put("from", Map.of("x", midX, "y", 0, "z", 0));
+                op.put("to", Map.of("x", midX, "y", rise, "z", run));
+                op.put("landing_length", 1);
+                String floor = String.valueOf(op.getOrDefault("material",
+                        op.getOrDefault("floor", "minecraft:stone_bricks")));
                 if (!floor.contains(":")) floor = "minecraft:" + floor;
                 op.put("floor", floor);
-                op.put("stairs", floor.replace("_planks", "_stairs"));
+                op.put("stairs", resolveStairsBlock(floor));
+            } else if (!(op.get("stairs") instanceof String s) || !s.endsWith("_stairs")) {
+                String floor = String.valueOf(op.getOrDefault("floor",
+                        op.getOrDefault("material", "minecraft:stone_bricks")));
+                if (!floor.contains(":")) floor = "minecraft:" + floor;
+                op.putIfAbsent("floor", floor);
+                op.put("stairs", resolveStairsBlock(floor));
             }
             int width = integer(op.getOrDefault("width", 3));
             if (point(op.get("from")).getY() > point(op.get("to")).getY()) {
@@ -97,5 +108,20 @@ public final class StraightStairComponentGenerator {
     private static BlockPos point(Object value) {
         var map = (Map<?, ?>) value;
         return new BlockPos(integer(map.get("x")), integer(map.get("y")), integer(map.get("z")));
+    }
+
+    /** stone_bricks → stone_brick_stairs; never leave a full cube as stairs. */
+    static String resolveStairsBlock(String floorBlock) {
+        if (floorBlock == null || floorBlock.isBlank()) return "minecraft:stone_brick_stairs";
+        String id = floorBlock;
+        int props = id.indexOf('[');
+        if (props >= 0) id = id.substring(0, props);
+        if (id.endsWith("_stairs")) return id;
+        if (id.endsWith("_planks")) return id.substring(0, id.length() - 7) + "_stairs";
+        if (id.endsWith("_bricks")) return id.substring(0, id.length() - 7) + "_brick_stairs";
+        if (id.endsWith("_tiles")) return id.substring(0, id.length() - 6) + "_tile_stairs";
+        if (id.equals("minecraft:stone") || id.endsWith(":stone")) return "minecraft:stone_stairs";
+        if (id.endsWith("_block")) return id.substring(0, id.length() - 6) + "_stairs";
+        return "minecraft:stone_brick_stairs";
     }
 }
