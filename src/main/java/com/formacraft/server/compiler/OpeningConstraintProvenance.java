@@ -25,6 +25,8 @@ final class OpeningConstraintProvenance {
         }
         boolean doorWidthUser = truthy(intent.get("door_width_explicit"))
                 || truthy(nested(intent, "openings", "door_width_explicit"));
+        boolean upperEntranceUser = truthy(intent.get("upper_entrance_explicit"))
+                || truthy(nested(intent, "openings", "upper_entrance_explicit"));
         boolean windowMaterialUser = truthy(intent.get("window_material_explicit"))
                 || truthy(nested(intent, "openings", "window_material_explicit"));
         String windowBlock = materialSlot(intent, "window", "glass");
@@ -32,7 +34,8 @@ final class OpeningConstraintProvenance {
         boolean changed = false;
         List<Component> out = new ArrayList<>(plan.components().size());
         for (Component c : plan.components()) {
-            Component stamped = stampOne(c, doorWidthUser, windowMaterialUser, windowBlock);
+            Component stamped = stampOne(
+                    c, doorWidthUser, upperEntranceUser, windowMaterialUser, windowBlock);
             if (stamped != c) changed = true;
             out.add(stamped);
         }
@@ -43,6 +46,7 @@ final class OpeningConstraintProvenance {
     private static Component stampOne(
             Component c,
             boolean doorWidthUser,
+            boolean upperEntranceUser,
             boolean windowMaterialUser,
             String windowBlock
     ) {
@@ -52,17 +56,26 @@ final class OpeningConstraintProvenance {
         String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
         Map<String, Object> params = new HashMap<>(c.params());
         boolean mutated = false;
+        boolean entranceLike = type.contains("ENTRANCE") || type.contains("DOOR") || type.isEmpty();
 
         boolean hasDoorWidth = params.get("door_width") != null || params.get("doorWidth") != null;
-        if (hasDoorWidth && (type.contains("ENTRANCE") || type.contains("DOOR") || type.isEmpty())) {
+        if (hasDoorWidth && entranceLike) {
             // 「正门宽三格」 is primary-entrance only — side doors stay soft / inferred.
             boolean sideDoor = looksLikeSideEntrance(c);
             if (doorWidthUser && !sideDoor) {
+                params.put("door_width_user_explicit", true);
                 params.put("constraint_source", "USER_EXPLICIT");
-                params.put("door_explicit", true);
+                // Width alone does not prove this opening's existence/placement was user-required.
             } else {
                 params.put("constraint_source", "LLM_INFERRED");
             }
+            mutated = true;
+        }
+        // 「二层入口」 presence — never inferred from ground-door width cues alone.
+        if (upperEntranceUser && entranceLike && !looksLikeSideEntrance(c)) {
+            params.put("door_presence_explicit", true);
+            params.put("upper_entrance_explicit", true);
+            params.put("constraint_source", "USER_EXPLICIT");
             mutated = true;
         }
 

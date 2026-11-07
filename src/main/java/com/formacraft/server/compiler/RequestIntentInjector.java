@@ -46,21 +46,27 @@ public final class RequestIntentInjector {
             Map<String, Object> reconciled = new HashMap<>((Map<String, Object>) existingMap);
             String echo = String.valueOf(existingMap.get("original_text")).trim();
             // Server userText is authoritative. Python/LLM echo must not replace it.
-            if (!text.isBlank() && !textEqualsIgnoreSpace(text, echo)) {
+            boolean mismatch = !text.isBlank() && !textEqualsIgnoreSpace(text, echo);
+            if (mismatch) {
                 reconciled.put("parsed_intent_echo", echo);
+                reconciled.put("stale_parsed_intent", snapshotStructuredIntent(existingMap));
                 reconciled.put("original_text", text);
                 reconciled.put("intent_echo_mismatch", Boolean.TRUE);
                 FormacraftMod.LOGGER.info(
-                        "RequestIntentInjector: INTENT_ECHO_MISMATCH serverText≠plan echo; using server text");
+                        "RequestIntentInjector: INTENT_ECHO_MISMATCH serverText≠plan echo; re-extracting intent");
                 echo = text;
+                // Full re-extract — class/materials/footprint must not keep stale LLM fields.
+                applyKeywordAuthority(reconciled, extractKeyword(echo));
             } else if (!text.isBlank()) {
                 reconciled.put("original_text", text);
                 echo = text;
+                reconcileRoofFromText(reconciled, echo);
+            } else {
+                reconcileRoofFromText(reconciled, echo);
             }
-            reconcileRoofFromText(reconciled, echo);
             meta.put("request_intent", reconciled);
             meta.put("request_intent_text", echo);
-            if (!meta.containsKey("building_class") && reconciled.get("building_class") != null) {
+            if (reconciled.get("building_class") != null) {
                 meta.put("building_class", reconciled.get("building_class"));
             }
             return OpeningConstraintProvenance.stamp(withMeta(plan, meta));
@@ -188,15 +194,71 @@ public final class RequestIntentInjector {
         intent.put("materials", materials);
         intent.put("door_width_explicit", doorWidthExplicit);
         intent.put("window_material_explicit", windowMaterialExplicit);
+        boolean doorPresenceExplicit = detectDoorPresenceExplicit(text, lower);
+        boolean upperEntranceExplicit = detectUpperEntranceExplicit(text, lower);
+        intent.put("door_presence_explicit", doorPresenceExplicit);
+        intent.put("upper_entrance_explicit", upperEntranceExplicit);
         intent.put("openings", Map.of(
                 "door_width_explicit", doorWidthExplicit,
-                "window_material_explicit", windowMaterialExplicit
+                "window_material_explicit", windowMaterialExplicit,
+                "door_presence_explicit", doorPresenceExplicit,
+                "upper_entrance_explicit", upperEntranceExplicit
         ));
         intent.put("refuse_residential_autofill",
                 !"generic".equals(buildingClass) && confidence >= scaffoldMin);
         intent.put("scaffold_eligible",
                 !"generic".equals(buildingClass) && confidence >= scaffoldMin);
         return intent;
+    }
+
+    /** Player asked for an entrance/door to exist (not merely a width). */
+    private static boolean detectDoorPresenceExplicit(String text, String lower) {
+        if (text == null || text.isBlank()) return false;
+        return containsAny(text, lower, List.of(
+                "入口", "开门", "设门", "装门", "正门", "大门", "侧门", "门洞",
+                "entrance", "add a door", "with a door", "front door"));
+    }
+
+    /** Player asked for an upper-storey / balcony / stair-connected entrance. */
+    private static boolean detectUpperEntranceExplicit(String text, String lower) {
+        if (text == null || text.isBlank()) return false;
+        boolean storey = text.contains("二层") || text.contains("上层") || text.contains("楼上")
+                || lower.contains("second floor") || lower.contains("upper floor")
+                || lower.contains("second-storey") || lower.contains("upper storey");
+        boolean door = text.contains("入口") || text.contains("门") || lower.contains("entrance")
+                || lower.contains("door");
+        boolean stairLink = text.contains("楼梯") || text.contains("廊桥") || text.contains("阳台")
+                || lower.contains("stair") || lower.contains("balcony") || lower.contains("bridge");
+        return (storey && door) || (stairLink && door && storey);
+    }
+
+    private static Map<String, Object> snapshotStructuredIntent(Map<?, ?> existing) {
+        Map<String, Object> snap = new HashMap<>();
+        for (String key : List.of(
+                "building_class", "tower_subtype", "composition", "markers", "materials",
+                "footprint", "roof_type", "roof_forbids", "forbids", "confidence")) {
+            if (existing.containsKey(key)) snap.put(key, existing.get(key));
+        }
+        return snap;
+    }
+
+    /**
+     * Overlay keyword-extracted authoritative fields from server user text onto an existing intent.
+     * Stale LLM class / materials / footprint must not survive INTENT_ECHO_MISMATCH.
+     */
+    static void applyKeywordAuthority(Map<String, Object> intent, Map<String, Object> keyword) {
+        if (intent == null || keyword == null) return;
+        for (String key : List.of(
+                "building_class", "tower_subtype", "composition", "markers", "materials",
+                "footprint", "roof_type", "roof_forbids", "forbids", "confidence",
+                "roof_explicit", "door_width_explicit", "window_material_explicit",
+                "door_presence_explicit", "upper_entrance_explicit", "openings",
+                "refuse_residential_autofill", "scaffold_eligible", "source")) {
+            if (!keyword.containsKey(key)) continue;
+            Object v = keyword.get(key);
+            if (v != null) intent.put(key, v);
+        }
+        reconcileRoofFromText(intent, String.valueOf(intent.getOrDefault("original_text", "")));
     }
 
     @SuppressWarnings("unchecked")

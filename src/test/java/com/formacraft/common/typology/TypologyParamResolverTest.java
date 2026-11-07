@@ -42,7 +42,7 @@ class TypologyParamResolverTest {
     }
 
     @Test
-    void planAuthoredHeightIsHard() {
+    void llmInferredHeightIsPlanAuthoredButNotUserHardConstraint() {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",
                 null,
@@ -53,6 +53,26 @@ class TypologyParamResolverTest {
         );
         var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
         assertTrue(TypologyParamResolver.isPlanAuthored(merged, "height", "towerHeight"));
+        assertFalse(TypologyParamResolver.isUserHardConstraint(merged, "height", "towerHeight"),
+                "LLM-filled height must not be treated as player hard constraint");
+        assertEquals(28, ((Number) merged.get("height")).intValue());
+    }
+
+    @Test
+    void userExplicitHeightIsHardConstraint() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(10, 10, 28),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of(
+                        "floor_count", 3,
+                        "height", 28,
+                        "design_sources", java.util.Map.of("height", "USER_EXPLICIT"))
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertTrue(TypologyParamResolver.isUserHardConstraint(merged, "height", "towerHeight"));
         assertEquals(28, ((Number) merged.get("height")).intValue());
     }
 

@@ -89,6 +89,24 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
+    void llmInferredShortHeightForNineStoreyExpandsInsteadOfFailing() {
+        // Round-17: player asked 九层重檐, LLM guessed height=40 (< abs min) — must not E_PAGODA_SIZE.
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 9,
+                "eaves_per_level", 2,
+                "height", 40,
+                "baseWidth", 9,
+                "footprint", "octagon",
+                "detailLevel", "simple"
+        ), origin, false);
+        var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
+        assertEquals(9, geo.measuredFloors());
+        assertEquals(18, geo.measuredEaveTiers());
+        assertTrue(geo.span() >= 49, "LLM height=40 must soft-expand; span=" + geo.span());
+    }
+
+    @Test
     void tightHeightStillEmitsAllExplicitDoubleEaveTiers() {
         // Batch A #1: height=24 must resolve size feasibility up-front (compress), not drop eaves mid-build.
         BlockPos origin = new BlockPos(0, 64, 0);
@@ -99,7 +117,7 @@ class DenseEavesPagodaLevelsTest {
                 "baseWidth", 8,
                 "footprint", "octagon",
                 "detailLevel", "refined"
-        ), origin);
+        ), origin, true);
         var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
         assertEquals(3, geo.measuredFloors(), "floor_count");
         assertEquals(6, geo.measuredEaveTiers(), "eave_tiers must not be trimmed under tight height");
@@ -117,7 +135,7 @@ class DenseEavesPagodaLevelsTest {
                 "baseWidth", 8,
                 "footprint", "octagon",
                 "detailLevel", "simple"
-        ), origin);
+        ), origin, true);
         int maxY = structure.getBlocks().stream()
                 .mapToInt(b -> b.getPos().getY())
                 .filter(y -> y >= origin.getY())
@@ -248,19 +266,44 @@ class DenseEavesPagodaLevelsTest {
                         "baseWidth", 8,
                         "footprint", "octagon",
                         "detailLevel", "simple"
-                ), new BlockPos(0, 64, 0)));
+                ), new BlockPos(0, 64, 0), true));
         assertEquals("E_PAGODA_SIZE", ex.code());
         assertTrue(ex.getMessage().contains("minimum feasible height"), ex.getMessage());
     }
 
+    /** Mark height as player hard constraint (tests that assert no silent expand). */
+    private static Map<String, Object> withUserExplicitHeight(Map<String, ?> params) {
+        Map<String, Object> m = new HashMap<>(params);
+        Map<String, Object> ds = new HashMap<>();
+        Object existing = m.get("design_sources");
+        if (existing instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> e : map.entrySet()) {
+                if (e.getKey() != null) ds.put(String.valueOf(e.getKey()), e.getValue());
+            }
+        }
+        if (m.containsKey("height")) ds.put("height", "USER_EXPLICIT");
+        if (m.containsKey("towerHeight")) ds.put("towerHeight", "USER_EXPLICIT");
+        m.put("design_sources", ds);
+        return m;
+    }
+
     private static GeneratedStructure generate(Map<String, ?> params, BlockPos origin) {
+        return generate(params, origin, false);
+    }
+
+    private static GeneratedStructure generate(
+            Map<String, ?> params, BlockPos origin, boolean userExplicitHeight
+    ) {
+        Map<String, Object> raw = userExplicitHeight
+                ? withUserExplicitHeight(params)
+                : new HashMap<>(params);
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",
                 null,
                 new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
                 new com.formacraft.common.llm.dto.Dimensions(9, 9, 40),
                 java.util.List.of("typology:dense_eaves_pagoda"),
-                new HashMap<>(params)
+                raw
         );
         Map<String, Object> merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
         return DenseEavesPagodaBuilder.generate(merged, origin, null, null);

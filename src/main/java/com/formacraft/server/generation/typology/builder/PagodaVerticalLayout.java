@@ -183,13 +183,9 @@ public final class PagodaVerticalLayout {
             half = Math.max(2, half - 1);
         }
 
-        // Finial starts on the top roof deck (last eave top + 1 == y). Never float above eaves.
+        // Finial always sits on the actual top roof deck (y after last eave). Never clamp to
+        // height-finialH alone — that created gaps when body+eaves ended below the tip budget.
         int finialBaseY = y;
-        int targetFinialBase = Math.max(0, height - finialH);
-        if (finialBaseY != targetFinialBase) {
-            // Safety: if distribution drifted, prefer connection over floating tip.
-            finialBaseY = Math.min(finialBaseY, targetFinialBase);
-        }
 
         return new Result(
                 vertical,

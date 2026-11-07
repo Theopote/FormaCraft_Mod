@@ -73,13 +73,21 @@ public final class DenseEavesPagodaBuilder {
         int floors = vertical.floorCount();
         int eavesPerLevel = vertical.eavesPerLevel();
 
-        // Registry default height (e.g. 47) is soft — only plan-authored height is hard.
-        boolean heightExplicit = TypologyParamResolver.isPlanAuthored(p.raw(), "height", "towerHeight");
+        // Registry / LLM-inferred height is soft — only USER_EXPLICIT height is hard.
+        boolean heightUserHard = TypologyParamResolver.isUserHardConstraint(
+                p.raw(), "height", "towerHeight");
+        boolean heightFromPlan = TypologyParamResolver.isPlanAuthored(
+                p.raw(), "height", "towerHeight");
         int req = PagodaVerticalLayout.requiredMinHeight(vertical);
         int softDefault = footprint == Footprint.SQUARE
                 ? Math.max(18, floors * 5)
                 : (vertical.floorsExplicit() ? req : Math.max(47, req));
         int authoredHeight = p.intVal("height", "towerHeight", softDefault, 1, 120);
+        // LLM-inferred height is a soft preference: keep it when ≥ required, else expand.
+        if (!heightUserHard && heightFromPlan) {
+            softDefault = Math.max(softDefault, authoredHeight);
+        }
+        boolean heightExplicit = heightUserHard;
 
         int baseWDefault = footprint == Footprint.SQUARE ? 17 : 10;
         int baseWMin = footprint == Footprint.SQUARE ? 9 : 7;

@@ -13,8 +13,9 @@ import java.util.Objects;
  * Order: typology defaults → landmark soft prior → explicit plan (plan always wins).
  * No landmark hard-routing or locked replicas.
  * <p>
- * Merged maps carry {@link #PARAM_SOURCES_KEY} so builders can tell registry defaults
- * apart from plan-authored hard constraints.
+ * Merged maps carry {@link #PARAM_SOURCES_KEY}. {@link #SOURCE_PLAN} remains as a legacy
+ * lineage tag; hard geometry constraints use {@link #SOURCE_USER_EXPLICIT} only.
+ * LLM-filled plan values are {@link #SOURCE_LLM_INFERRED} and may be adjusted for feasibility.
  */
 public final class TypologyParamResolver {
 
@@ -23,7 +24,10 @@ public final class TypologyParamResolver {
     public static final String PARAM_SOURCES_KEY = "_param_sources";
     public static final String SOURCE_TYPOLOGY_DEFAULT = "TYPOLOGY_DEFAULT";
     public static final String SOURCE_LANDMARK_PRIOR = "LANDMARK_PRIOR";
+    /** Legacy lineage tag — prefer {@link #SOURCE_LLM_INFERRED} / {@link #SOURCE_USER_EXPLICIT} for new code. */
     public static final String SOURCE_PLAN = "PLAN";
+    public static final String SOURCE_LLM_INFERRED = "LLM_INFERRED";
+    public static final String SOURCE_USER_EXPLICIT = "USER_EXPLICIT";
 
     public static Map<String, Object> merge(String typologyId, Component component) {
         Map<String, Object> defaults = baseDefaults(typologyId);
@@ -36,7 +40,7 @@ public final class TypologyParamResolver {
         String ref = component != null ? TypologyComponentRouter.extractReferenceLandmark(component) : null;
         if (ref != null && !ref.isBlank()) {
             merged.put("reference_landmark", ref);
-            sources.put("reference_landmark", SOURCE_PLAN);
+            sources.put("reference_landmark", SOURCE_LLM_INFERRED);
         }
 
         // Soft prior over generic typology defaults; explicit plan below overwrites.
@@ -44,7 +48,7 @@ public final class TypologyParamResolver {
         TypologyReferencePresets.apply(merged);
         for (Map.Entry<String, Object> e : merged.entrySet()) {
             String key = e.getKey();
-            if (SOURCE_PLAN.equals(sources.get(key))) continue;
+            if (isPlanLikeSource(sources.get(key))) continue;
             if (!snapshot.containsKey(key) || !Objects.equals(snapshot.get(key), e.getValue())) {
                 sources.put(key, SOURCE_LANDMARK_PRIOR);
             }
@@ -54,7 +58,7 @@ public final class TypologyParamResolver {
             for (Map.Entry<String, Object> e : component.params().entrySet()) {
                 if (e.getKey() == null || PARAM_SOURCES_KEY.equals(e.getKey())) continue;
                 merged.put(e.getKey(), e.getValue());
-                sources.put(e.getKey(), SOURCE_PLAN);
+                sources.put(e.getKey(), resolveComponentParamSource(component, e.getKey()));
             }
         }
         normalizeAliases(merged, sources);
@@ -64,7 +68,10 @@ public final class TypologyParamResolver {
         return merged;
     }
 
-    /** True when {@code key} was authored on the plan/component, not a registry/landmark default. */
+    /**
+     * True when {@code key} came from the plan/component (LLM or player), not a registry/landmark default.
+     * Does <em>not</em> mean the value is a player hard constraint — use {@link #isUserHardConstraint}.
+     */
     public static boolean isPlanAuthored(Map<String, Object> params, String... keys) {
         if (params == null || keys == null) return false;
         Object raw = params.get(PARAM_SOURCES_KEY);
@@ -77,10 +84,68 @@ public final class TypologyParamResolver {
         }
         for (String key : keys) {
             if (key == null) continue;
-            Object src = sources.get(key);
-            if (src != null && SOURCE_PLAN.equals(String.valueOf(src))) return true;
+            if (isPlanLikeSource(sources.get(key))) return true;
         }
         return false;
+    }
+
+    /** True when the player explicitly required this param — geometry must not silently rewrite it. */
+    public static boolean isUserHardConstraint(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return false;
+        Object raw = params.get(PARAM_SOURCES_KEY);
+        if (!(raw instanceof Map<?, ?> sources)) return false;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object src = sources.get(key);
+            if (src != null && SOURCE_USER_EXPLICIT.equals(String.valueOf(src))) return true;
+        }
+        return false;
+    }
+
+    static boolean isPlanLikeSource(Object src) {
+        if (src == null) return false;
+        String s = String.valueOf(src);
+        return SOURCE_PLAN.equals(s) || SOURCE_LLM_INFERRED.equals(s) || SOURCE_USER_EXPLICIT.equals(s);
+    }
+
+    private static String resolveComponentParamSource(Component component, String key) {
+        if (component == null || component.params() == null || key == null) {
+            return SOURCE_LLM_INFERRED;
+        }
+        Map<String, Object> params = component.params();
+        Object designSources = params.get("design_sources");
+        if (designSources instanceof Map<?, ?> ds) {
+            Object tagged = ds.get(key);
+            if (tagged == null && ("height".equals(key) || "towerHeight".equals(key))) {
+                tagged = firstNonNull(ds.get("height"), ds.get("towerHeight"));
+            }
+            if (tagged != null) {
+                String t = String.valueOf(tagged).trim().toUpperCase();
+                if ("USER_EXPLICIT".equals(t) || "USER".equals(t) || "PLAYER".equals(t)) {
+                    return SOURCE_USER_EXPLICIT;
+                }
+                if ("LLM_INFERRED".equals(t) || "AI_PLANNED".equals(t) || "PLAN".equals(t)) {
+                    return SOURCE_LLM_INFERRED;
+                }
+            }
+        }
+        if (("height".equals(key) || "towerHeight".equals(key))
+                && (truthy(params.get("height_explicit"))
+                || truthy(params.get("user_explicit_height"))
+                || truthy(params.get("height_user_explicit")))) {
+            return SOURCE_USER_EXPLICIT;
+        }
+        Object nested = params.get("_param_sources");
+        if (nested instanceof Map<?, ?> existing && existing.get(key) != null) {
+            String s = String.valueOf(existing.get(key));
+            if (SOURCE_USER_EXPLICIT.equals(s)) return SOURCE_USER_EXPLICIT;
+            if (isPlanLikeSource(s)) return SOURCE_LLM_INFERRED;
+        }
+        return SOURCE_LLM_INFERRED;
+    }
+
+    private static Object firstNonNull(Object a, Object b) {
+        return a != null ? a : b;
     }
 
     public static Map<String, Object> fromBuildingSpec(BuildingSpec spec, String typologyId) {
@@ -112,7 +177,7 @@ public final class TypologyParamResolver {
         TypologyReferencePresets.apply(merged);
         for (Map.Entry<String, Object> e : merged.entrySet()) {
             String key = e.getKey();
-            if (SOURCE_PLAN.equals(sources.get(key))) continue;
+            if (isPlanLikeSource(sources.get(key))) continue;
             if (!snapshot.containsKey(key) || !Objects.equals(snapshot.get(key), e.getValue())) {
                 sources.put(key, SOURCE_LANDMARK_PRIOR);
             }
@@ -123,7 +188,7 @@ public final class TypologyParamResolver {
                 for (Map.Entry<String, Object> e : spec.getExtra().entrySet()) {
                     if (e.getKey() == null || PARAM_SOURCES_KEY.equals(e.getKey())) continue;
                     merged.put(e.getKey(), e.getValue());
-                    sources.put(e.getKey(), SOURCE_PLAN);
+                    sources.put(e.getKey(), SOURCE_LLM_INFERRED);
                 }
             }
             if ("tailiang_timber_hall".equals(typologyId) && spec.getMaterials() != null) {
@@ -145,10 +210,10 @@ public final class TypologyParamResolver {
             }
             if (spec.getHeight() > 0) {
                 merged.put("height", spec.getHeight());
-                sources.put("height", SOURCE_PLAN);
+                sources.put("height", SOURCE_LLM_INFERRED);
                 if (!merged.containsKey("towerHeight")) {
                     merged.put("towerHeight", spec.getHeight());
-                    sources.put("towerHeight", SOURCE_PLAN);
+                    sources.put("towerHeight", SOURCE_LLM_INFERRED);
                 }
             }
             if (spec.getFootprint() != null) {
@@ -156,20 +221,20 @@ public final class TypologyParamResolver {
                 int d = spec.getFootprint().getDepth();
                 if (w > 0) {
                     merged.put("width", w);
-                    sources.put("width", SOURCE_PLAN);
+                    sources.put("width", SOURCE_LLM_INFERRED);
                 }
                 if (d > 0) {
                     merged.put("depth", d);
-                    sources.put("depth", SOURCE_PLAN);
+                    sources.put("depth", SOURCE_LLM_INFERRED);
                 }
                 if (Math.max(w, d) > 0) {
                     merged.put("baseWidth", Math.max(w, d));
-                    sources.put("baseWidth", SOURCE_PLAN);
+                    sources.put("baseWidth", SOURCE_LLM_INFERRED);
                 }
             }
             if (spec.getFloors() > 0) {
                 merged.put("levels", spec.getFloors());
-                sources.put("levels", SOURCE_PLAN);
+                sources.put("levels", SOURCE_LLM_INFERRED);
             }
         }
         normalizeAliases(merged, sources);
@@ -246,36 +311,45 @@ public final class TypologyParamResolver {
     }
 
     /**
-     * Prefer PLAN-authored height aliases over soft registry defaults.
-     * When both height and towerHeight are PLAN with different values, keep {@code height}
+     * Prefer plan-authored height aliases over soft registry defaults.
+     * When both height and towerHeight are authored with different values, keep {@code height}
      * and mirror it onto {@code towerHeight} (canonical wins on conflict).
+     * USER_EXPLICIT source is preserved when present.
      */
     private static void syncHeightAliases(Map<String, Object> merged, Map<String, String> sources) {
         if (merged == null) return;
         String heightSrc = sources == null ? null : sources.get("height");
         String towerSrc = sources == null ? null : sources.get("towerHeight");
-        boolean heightPlan = SOURCE_PLAN.equals(heightSrc);
-        boolean towerPlan = SOURCE_PLAN.equals(towerSrc);
+        boolean heightAuthored = isPlanLikeSource(heightSrc);
+        boolean towerAuthored = isPlanLikeSource(towerSrc);
         Object heightVal = merged.get("height");
         Object towerVal = merged.get("towerHeight");
 
-        if (towerPlan && !heightPlan && towerVal != null) {
+        if (towerAuthored && !heightAuthored && towerVal != null) {
             merged.put("height", towerVal);
-            if (sources != null) sources.put("height", SOURCE_PLAN);
+            if (sources != null) sources.put("height", towerSrc);
             return;
         }
-        if (heightPlan && !towerPlan && heightVal != null) {
+        if (heightAuthored && !towerAuthored && heightVal != null) {
             merged.put("towerHeight", heightVal);
-            if (sources != null) sources.put("towerHeight", SOURCE_PLAN);
+            if (sources != null) sources.put("towerHeight", heightSrc);
             return;
         }
-        if (heightPlan && towerPlan && heightVal != null && towerVal != null
+        if (heightAuthored && towerAuthored && heightVal != null && towerVal != null
                 && !Objects.equals(String.valueOf(heightVal), String.valueOf(towerVal))) {
-            // Both PLAN and disagree: canonical height wins; keep towerHeight in sync.
-            merged.put("towerHeight", heightVal);
-            if (sources != null) {
-                sources.put("towerHeight", SOURCE_PLAN);
-                sources.put("height_alias_conflict", "height_wins");
+            // Prefer USER_EXPLICIT side; otherwise canonical height wins.
+            if (SOURCE_USER_EXPLICIT.equals(towerSrc) && !SOURCE_USER_EXPLICIT.equals(heightSrc)) {
+                merged.put("height", towerVal);
+                if (sources != null) {
+                    sources.put("height", SOURCE_USER_EXPLICIT);
+                    sources.put("height_alias_conflict", "towerHeight_user_wins");
+                }
+            } else {
+                merged.put("towerHeight", heightVal);
+                if (sources != null) {
+                    sources.put("towerHeight", heightSrc != null ? heightSrc : SOURCE_LLM_INFERRED);
+                    sources.put("height_alias_conflict", "height_wins");
+                }
             }
         }
     }
@@ -298,21 +372,21 @@ public final class TypologyParamResolver {
             if (!merged.containsKey(alt)) continue;
             Object v = merged.get(alt);
             if (v != null && !String.valueOf(v).isBlank()) {
-                boolean altPlan = sources != null && SOURCE_PLAN.equals(sources.get(alt));
-                boolean canonPlan = sources != null && SOURCE_PLAN.equals(sources.get(canonical));
-                // Soft default on canonical must yield to PLAN-authored alias.
+                boolean altPlan = sources != null && isPlanLikeSource(sources.get(alt));
+                boolean canonPlan = sources != null && isPlanLikeSource(sources.get(canonical));
+                // Soft default on canonical must yield to plan-authored alias.
                 if (merged.containsKey(canonical) && !altPlan && canonPlan) {
                     return;
                 }
                 if (merged.containsKey(canonical) && !altPlan
                         && sources != null && SOURCE_TYPOLOGY_DEFAULT.equals(sources.get(canonical))
-                        && !SOURCE_PLAN.equals(sources.get(alt))
+                        && !isPlanLikeSource(sources.get(alt))
                         && !SOURCE_LANDMARK_PRIOR.equals(sources.get(alt))) {
                     // Both soft — keep first canonical.
                     return;
                 }
                 if (altPlan || !merged.containsKey(canonical)
-                        || (sources != null && !SOURCE_PLAN.equals(sources.get(canonical)))) {
+                        || (sources != null && !isPlanLikeSource(sources.get(canonical)))) {
                     merged.put(canonical, v);
                     if (sources != null) {
                         String src = sources.get(alt);
@@ -332,14 +406,14 @@ public final class TypologyParamResolver {
             Map<String, Object> merged, Map<String, String> sources, String canonical, String... alts
     ) {
         if (merged.containsKey(canonical)) {
-            // Soft registry value must still yield to a PLAN-authored alias.
-            if (sources != null && !SOURCE_PLAN.equals(sources.get(canonical))) {
+            // Soft registry value must still yield to a plan-authored alias.
+            if (sources != null && !isPlanLikeSource(sources.get(canonical))) {
                 for (String alt : alts) {
-                    if (!SOURCE_PLAN.equals(sources.get(alt))) continue;
+                    if (!isPlanLikeSource(sources.get(alt))) continue;
                     Object v = merged.get(alt);
                     if (v != null && !String.valueOf(v).isBlank()) {
                         merged.put(canonical, v);
-                        sources.put(canonical, SOURCE_PLAN);
+                        sources.put(canonical, sources.get(alt));
                         return;
                     }
                 }

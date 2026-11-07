@@ -75,7 +75,8 @@ class UpperStoreyEntranceRepairTest {
         upperDoor.put("door_width", 2);
         upperDoor.put("anchor_mode", "min_corner");
         upperDoor.put("constraint_source", "USER_EXPLICIT");
-        upperDoor.put("door_explicit", true);
+        upperDoor.put("door_presence_explicit", true);
+        upperDoor.put("upper_entrance_explicit", true);
         Component door = new Component(
                 "ENTRANCE", "main", new Vec3i(4, 4, 0),
                 new Dimensions(4, 1, 3), List.of(), upperDoor);
@@ -83,6 +84,30 @@ class UpperStoreyEntranceRepairTest {
         UpperStoreyEntranceRepair.apply(parts);
         assertEquals(2, parts.size());
         assertTrue(parts.stream().anyMatch(c -> "ENTRANCE".equals(c.componentType())));
+    }
+
+    @Test
+    void dropsWidthOnlyUserStampedUpperDoorWithoutDeck() {
+        // 「正门宽三格」 must not keep a floating second-storey door that LLM misplaced.
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "house", "anchor_mode", "min_corner",
+                        "floor_count", 2, "floor_height", 4));
+        Map<String, Object> upperDoor = new HashMap<>();
+        upperDoor.put("host_id", "house");
+        upperDoor.put("facing", "SOUTH");
+        upperDoor.put("door_width", 3);
+        upperDoor.put("anchor_mode", "min_corner");
+        upperDoor.put("constraint_source", "USER_EXPLICIT");
+        upperDoor.put("door_width_user_explicit", true);
+        Component door = new Component(
+                "ENTRANCE", "main", new Vec3i(4, 4, 0),
+                new Dimensions(4, 1, 3), List.of(), upperDoor);
+        List<Component> parts = new ArrayList<>(List.of(mass, door));
+        UpperStoreyEntranceRepair.apply(parts);
+        assertTrue(parts.stream().noneMatch(c -> "ENTRANCE".equals(c.componentType())),
+                "width-only USER_EXPLICIT must not preserve floating upper door");
     }
 
     @Test

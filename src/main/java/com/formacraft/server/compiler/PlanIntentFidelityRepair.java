@@ -8,6 +8,8 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.llm.dto.Vec3i;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +43,10 @@ final class PlanIntentFidelityRepair {
             int floorCount,
             /** True when {@link #floorCount} came from player request_intent, not LLM corpus mix. */
             boolean floorCountUserExplicit,
+            /** True when wall block came from player text / request_intent materials. */
+            boolean wallMaterialUserExplicit,
+            /** True when roof block came from player text / request_intent materials. */
+            boolean roofMaterialUserExplicit,
             String ridgeAxis,
             boolean doorFlankWindows,
             List<String> solidSides,
@@ -100,11 +106,19 @@ final class PlanIntentFidelityRepair {
                 || (lower.contains("歇山") && !roofTokenNegated(corpus, "歇山"))
                 || lower.contains("庑殿") || lower.contains("悬山");
 
-        String wallBlock = wallBlockFromStyle(plan);
+        // Player material cues beat styleAttributes / LLM palette guesses.
+        String userMaterialText = !userText.isBlank() ? userText.toLowerCase(Locale.ROOT) : lower;
+        String wallFromUser = wallBlockFromRequestIntent(plan);
+        if (wallFromUser == null) wallFromUser = wallBlockFromCorpus(userMaterialText);
+        String roofFromUser = roofBlockFromRequestIntent(plan);
+        if (roofFromUser == null) roofFromUser = roofBlockFromCorpus(userMaterialText);
+        boolean wallMaterialUserExplicit = wallFromUser != null;
+        boolean roofMaterialUserExplicit = roofFromUser != null;
+        String wallBlock = wallFromUser != null ? wallFromUser : wallBlockFromStyle(plan);
         if (wallBlock == null) {
             wallBlock = wallBlockFromCorpus(lower);
         }
-        String roofBlock = roofBlockFromStyle(plan);
+        String roofBlock = roofFromUser != null ? roofFromUser : roofBlockFromStyle(plan);
         if (roofBlock == null) {
             roofBlock = roofBlockFromCorpus(lower);
         }
@@ -119,19 +133,7 @@ final class PlanIntentFidelityRepair {
         boolean floorCountUserExplicit = userFloorCount > 0;
         int floorCount = floorCountUserExplicit ? userFloorCount : parseFloorCount(lower);
 
-        String ridgeAxis = null;
-        if (lower.contains("屋脊沿东西")
-                || (lower.contains("ridge") && lower.contains("east-west"))
-                || lower.contains("ridge_axis:x")
-                || (lower.contains("南北两坡") && lower.contains("东西"))) {
-            ridgeAxis = "x";
-        } else if (lower.contains("屋脊沿南北")
-                || (lower.contains("ridge") && lower.contains("north-south"))
-                || lower.contains("ridge_axis:z")) {
-            ridgeAxis = "z";
-        } else if (lower.contains("屋脊沿长边")) {
-            ridgeAxis = "long";
-        }
+        String ridgeAxis = getString(lower);
 
         boolean doorFlank = lower.contains("一门两窗") || lower.contains("正门两侧窗")
                 || lower.contains("两侧窗户") || lower.contains("window on each side")
@@ -155,8 +157,26 @@ final class PlanIntentFidelityRepair {
 
         int[] footprint = parseFootprint(corpus);
         return new IntentHints(roofType, doubleEave, preferStairs, wallBlock, roofBlock, floorBlock,
-                floorCount, floorCountUserExplicit, ridgeAxis, doorFlank, solid, windows, features,
+                floorCount, floorCountUserExplicit, wallMaterialUserExplicit, roofMaterialUserExplicit,
+                ridgeAxis, doorFlank, solid, windows, features,
                 footprint[0], footprint[1]);
+    }
+
+    private static @Nullable String getString(String lower) {
+        String ridgeAxis = null;
+        if (lower.contains("屋脊沿东西")
+                || (lower.contains("ridge") && lower.contains("east-west"))
+                || lower.contains("ridge_axis:x")
+                || (lower.contains("南北两坡") && lower.contains("东西"))) {
+            ridgeAxis = "x";
+        } else if (lower.contains("屋脊沿南北")
+                || (lower.contains("ridge") && lower.contains("north-south"))
+                || lower.contains("ridge_axis:z")) {
+            ridgeAxis = "z";
+        } else if (lower.contains("屋脊沿长边")) {
+            ridgeAxis = "long";
+        }
+        return ridgeAxis;
     }
 
     static int parseFloorCount(String text) {
@@ -224,6 +244,7 @@ final class PlanIntentFidelityRepair {
                 ? new IntentHints(
                         hints.roofType(), true, hints.preferStairs(), hints.wallBlock(), hints.roofBlock(),
                         hints.floorBlock(), hints.floorCount(), hints.floorCountUserExplicit(),
+                        hints.wallMaterialUserExplicit(), hints.roofMaterialUserExplicit(),
                         hints.ridgeAxis(), hints.doorFlankWindows(),
                         hints.solidSides(), hints.windowSides(), hints.featureSeeds(),
                         hints.footprintWidth(), hints.footprintDepth())
@@ -342,13 +363,24 @@ final class PlanIntentFidelityRepair {
             }
         }
 
-        if ((mass || structure) && hints.wallBlock() != null
-                && isBlank(ComponentPlanTypes.getParamString(params, "wall_block", "material", "primary_block"))) {
-            changed |= DesignProvenance.putIfAllowed(plan, params, "wall_block", hints.wallBlock());
+        if ((mass || structure) && hints.wallBlock() != null) {
+            String currentWall = ComponentPlanTypes.getParamString(
+                    params, "wall_block", "material", "primary_block", "bodyBlock");
+            if (isBlank(currentWall) || (hints.wallMaterialUserExplicit()
+                    && !materialRoleCompatible(hints.wallBlock(), currentWall))) {
+                params.put("wall_block", hints.wallBlock());
+                params.put("bodyBlock", hints.wallBlock());
+                changed = true;
+            }
         }
-        if ((mass || roof || structure) && hints.roofBlock() != null
-                && isBlank(ComponentPlanTypes.getParamString(params, "roof_block", "roof_material", "roof_stairs_block"))) {
-            changed |= DesignProvenance.putIfAllowed(plan, params, "roof_block", hints.roofBlock());
+        if ((mass || roof || structure) && hints.roofBlock() != null) {
+            String currentRoof = ComponentPlanTypes.getParamString(
+                    params, "roof_block", "roof_material", "roof_stairs_block", "eaveBlock");
+            if (isBlank(currentRoof) || (hints.roofMaterialUserExplicit()
+                    && !materialRoleCompatible(hints.roofBlock(), currentRoof))) {
+                params.put("roof_block", hints.roofBlock());
+                changed = true;
+            }
         }
         if ((mass || roof || structure) && hints.preferStairs()) {
             changed |= DesignProvenance.putIfAllowed(plan, params, "prefer_stairs", true);
@@ -841,6 +873,7 @@ final class PlanIntentFidelityRepair {
     }
 
     private static String wallBlockFromCorpus(String lower) {
+        if (lower == null || lower.isBlank()) return null;
         if (lower.contains("深色橡木墙") || (lower.contains("dark_oak") && lower.contains("wall"))) {
             return "minecraft:dark_oak_planks";
         }
@@ -858,6 +891,11 @@ final class PlanIntentFidelityRepair {
     }
 
     private static String roofBlockFromCorpus(String lower) {
+        if (lower == null || lower.isBlank()) return null;
+        if (lower.contains("黑瓦") || lower.contains("black_terracotta")
+                || lower.contains("black tile") || lower.contains("black roof")) {
+            return "minecraft:black_terracotta";
+        }
         if (lower.contains("石砖楼梯") || (lower.contains("stone_brick") && lower.contains("stair"))) {
             return "minecraft:stone_brick_stairs";
         }
@@ -876,6 +914,56 @@ final class PlanIntentFidelityRepair {
             return "minecraft:dark_oak_stairs";
         }
         return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String wallBlockFromRequestIntent(LlmPlan plan) {
+        Map<String, Object> mats = requestIntentMaterials(plan);
+        if (mats == null) return null;
+        Object wall = mats.get("wall");
+        if (wall == null || String.valueOf(wall).isBlank()) return null;
+        return stabilizeBlock(String.valueOf(wall));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String roofBlockFromRequestIntent(LlmPlan plan) {
+        Map<String, Object> mats = requestIntentMaterials(plan);
+        if (mats == null) return null;
+        Object roof = mats.get("roof");
+        if (roof == null || String.valueOf(roof).isBlank()) return null;
+        return stabilizeBlock(String.valueOf(roof));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> requestIntentMaterials(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null) return null;
+        Object ri = plan.planMeta().get("request_intent");
+        if (!(ri instanceof Map<?, ?> map)) return null;
+        Object mats = map.get("materials");
+        if (!(mats instanceof Map<?, ?>)) return null;
+        return (Map<String, Object>) mats;
+    }
+
+    /**
+     * True when have is an acceptable substitute for want (same color/family role).
+     * Opposite colors (white vs oak/stone brick walls, black tile vs oak stairs) are incompatible.
+     */
+    static boolean materialRoleCompatible(String want, String have) {
+        if (want == null || have == null) return want == have;
+        String a = stabilizeBlock(want);
+        String b = stabilizeBlock(have);
+        if (a.equals(b)) return true;
+        if (a.contains("white") || a.contains("quartz")) {
+            return b.contains("white") || b.contains("quartz") || b.contains("smooth_quartz");
+        }
+        if (a.contains("black_terracotta") || a.contains("blackstone") || a.contains("black_")) {
+            return b.contains("black") || b.contains("deepslate") || b.contains("dark");
+        }
+        if (a.contains("dark_oak")) return b.contains("dark_oak");
+        if (a.contains("oak") && !a.contains("dark")) {
+            return b.contains("oak") && !b.contains("dark");
+        }
+        return a.equals(b);
     }
 
     private static void applyFacadeIntent(String lower, List<String> solid, List<String> windows) {
@@ -936,6 +1024,14 @@ final class PlanIntentFidelityRepair {
             changed |= DesignProvenance.putIfAllowed(plan, params, "faces", List.copyOf(hints.windowSides()));
         }
         // Feature tokens like walls:east_west_solid / east_west:no_openings
+        Set<String> fromFeatures = getStrings(features);
+        if (!fromFeatures.isEmpty() && !params.containsKey("solid_sides") && !params.containsKey("solidSides")) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "solid_sides", List.copyOf(fromFeatures));
+        }
+        return changed;
+    }
+
+    private static @NotNull Set<String> getStrings(List<String> features) {
         Set<String> fromFeatures = new LinkedHashSet<>();
         for (String f : features) {
             if (f == null) continue;
@@ -950,10 +1046,7 @@ final class PlanIntentFidelityRepair {
                 fromFeatures.add("SOUTH");
             }
         }
-        if (!fromFeatures.isEmpty() && !params.containsKey("solid_sides") && !params.containsKey("solidSides")) {
-            changed |= DesignProvenance.putIfAllowed(plan, params, "solid_sides", List.copyOf(fromFeatures));
-        }
-        return changed;
+        return fromFeatures;
     }
 
     /** Thin 1-deep / 1-wide facade strips often omit faces[]; infer from features or shape. */

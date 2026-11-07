@@ -177,12 +177,18 @@ final class UpperStoreyEntranceRepair {
 
     private static boolean isUserExplicitEntrance(Component door) {
         if (door == null || door.params() == null) return false;
-        Object src = door.params().get("constraint_source");
-        if (src == null) src = door.params().get("constraintSource");
-        if (src != null && "USER_EXPLICIT".equalsIgnoreCase(String.valueOf(src).trim())) {
+        // Presence / placement must be user-authored — door width alone is not enough.
+        if (Boolean.TRUE.equals(door.params().get("door_presence_explicit"))
+                || Boolean.TRUE.equals(door.params().get("entrance_explicit"))
+                || Boolean.TRUE.equals(door.params().get("upper_entrance_explicit"))
+                || Boolean.TRUE.equals(door.params().get("user_explicit"))) {
             return true;
         }
-        return Boolean.TRUE.equals(door.params().get("door_explicit"))
-                || Boolean.TRUE.equals(door.params().get("user_explicit"));
+        // Legacy door_explicit without width-only provenance still counts as presence.
+        if (Boolean.TRUE.equals(door.params().get("door_explicit"))
+                && !Boolean.TRUE.equals(door.params().get("door_width_user_explicit"))) {
+            return true;
+        }
+        return false;
     }
 }

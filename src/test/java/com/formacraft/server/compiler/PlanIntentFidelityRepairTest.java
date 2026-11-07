@@ -197,8 +197,51 @@ class PlanIntentFidelityRepairTest {
         assertEquals("生成一座三层中式古塔", ri.get("original_text"));
         assertEquals(Boolean.TRUE, ri.get("intent_echo_mismatch"));
         assertEquals("生成一座两层普通房屋", ri.get("parsed_intent_echo"));
+        assertEquals("tower_like", ri.get("building_class"),
+                "mismatch must re-extract building_class from server text");
+        assertEquals("tower_like", ensured.planMeta().get("building_class"));
         LlmPlan repaired = PlanIntentFidelityRepair.apply(ensured);
         assertEquals(3, ((Number) repaired.components().getFirst().params().get("floor_count")).intValue());
+    }
+
+    @Test
+    void intentEchoMismatchReclassifiesTempleEchoAsTibetanStupa() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(new Component(
+                        "MASS_MAIN", null, new Vec3i(0, 0, 0),
+                        new Dimensions(10, 10, 16), List.of(), Map.of())))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "original_text", "生成一座寺庙大殿",
+                                "building_class", "temple"),
+                        "building_class", "temple"))
+                .build();
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, "生成一座白色藏式佛塔");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ri = (Map<String, Object>) ensured.planMeta().get("request_intent");
+        assertEquals(Boolean.TRUE, ri.get("intent_echo_mismatch"));
+        assertEquals("tower_like", ri.get("building_class"));
+        assertEquals("tibetan_stupa", ri.get("tower_subtype"));
+        assertEquals("tower_like", ensured.planMeta().get("building_class"));
+        assertNotNull(ri.get("stale_parsed_intent"));
+    }
+
+    @Test
+    void whiteWallBlackTileOverridesWrongLlmWallBlock() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(11, 9, 6), List.of(),
+                Map.of(
+                        "component_id", "hui_house",
+                        "wall_block", "minecraft:oak_planks",
+                        "roof_block", "minecraft:oak_stairs"));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass)).build(),
+                "生成一座徽派民居，白墙黑瓦");
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component out = repaired.components().getFirst();
+        assertEquals("minecraft:white_concrete", out.params().get("wall_block"));
+        assertEquals("minecraft:black_terracotta", out.params().get("roof_block"));
     }
 
     @Test

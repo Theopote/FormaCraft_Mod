@@ -96,4 +96,18 @@ class PagodaVerticalLayoutTest {
         assertFalse(layout.compressed());
         assertEquals(PagodaVerticalLayout.FINIAL_HEIGHT_FULL, layout.finialHeight());
     }
+
+    @Test
+    void threeStoreyDoubleEaveFinialMeetsTopEaveAtTwentyFourTwentySixTwentyEight() {
+        PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
+        for (int h : new int[]{24, 26, 28}) {
+            PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
+                    "dense_eaves_pagoda", v, 26, true, h, 4);
+            int lastEaveY = layout.eaves().get(layout.eaves().size() - 1).y();
+            assertEquals(layout.finialBaseY() - 1, lastEaveY,
+                    "height=" + h + ": finial must sit on top roof deck");
+            assertEquals(3, layout.storeys().size());
+            assertEquals(6, layout.eaves().size());
+        }
+    }
 }
