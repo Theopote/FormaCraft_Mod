@@ -62,10 +62,19 @@ final class InteriorStairInferenceCompiler {
             if (c == null || c.params() == null || Boolean.TRUE.equals(c.params().get("exterior"))) {
                 continue;
             }
-            if (!StraightStairComponentGenerator.accepts(c)) {
+            if (!id.equals(c.params().get("host_id"))) {
                 continue;
             }
-            if (id.equals(c.params().get("host_id"))) {
+            // Hosted flight already owns vertical circulation.
+            if (StraightStairComponentGenerator.accepts(c)) {
+                return false;
+            }
+            // Authored stair packages leave rail/guard furniture even when the flight is
+            // omitted (ablation / partial plans) — do not invent a second stair core.
+            String cid = String.valueOf(c.params().getOrDefault("component_id", ""))
+                    .toLowerCase(Locale.ROOT);
+            if (cid.contains("stair_guard") || cid.contains("stair_rail")
+                    || cid.contains("opening_stair_guard")) {
                 return false;
             }
         }

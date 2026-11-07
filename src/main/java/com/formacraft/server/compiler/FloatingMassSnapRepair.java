@@ -75,8 +75,20 @@ final class FloatingMassSnapRepair {
 
     private static boolean isSupport(Component c) {
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
-        return "FOUNDATION".equals(t) || "TERRACE".equals(t) || "BASE".equals(t)
-                || "KEEP".equals(t) || "WALL".equals(t);
+        if ("FOUNDATION".equals(t) || "TERRACE".equals(t) || "BASE".equals(t)
+                || "KEEP".equals(t) || "WALL".equals(t)) {
+            return true;
+        }
+        // Authored pier posts / trunks under a raised deck (stilts, treehouses, water platforms).
+        if ("PRIMITIVE".equals(t) || "STRUCTURE".equals(t)) {
+            String id = componentId(c).toLowerCase(Locale.ROOT);
+            if (id.startsWith("post_") || id.startsWith("access_post")
+                    || id.contains("stilt") || id.contains("piling") || id.contains("_pile")
+                    || id.contains("trunk") || id.contains("stem") || id.contains("column")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean xzOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {

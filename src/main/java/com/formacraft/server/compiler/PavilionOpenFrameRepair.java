@@ -159,8 +159,7 @@ final class PavilionOpenFrameRepair {
         }
         String id = mass.params().get("component_id") == null ? ""
                 : String.valueOf(mass.params().get("component_id")).toLowerCase(Locale.ROOT);
-        boolean pavilionNamed = id.contains("pavilion") || id.contains("gazebo") || id.contains("kiosk")
-                || id.contains("ting") || id.contains("shuixie") || id.contains("亭")
+        boolean pavilionNamed = idLooksPavilion(id)
                 || looksPavilion(mass.features())
                 || isExplicitPavilionMass(mass, id);
         // Plan-level「亭」only tags anonymous masses when this mass itself is pavilion-like
@@ -174,6 +173,11 @@ final class PavilionOpenFrameRepair {
             return mass;
         }
         boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")));
+        // English "pavilion" on a windowed flat-roof shell (midcentury etc.) is not 凉亭.
+        if (pavilionNamed && !hexagon && !looksOctagon(mass) && !onStilts
+                && looksEnclosedModernPavilion(mass)) {
+            return mass;
+        }
         // Octagon intent is per-mass — never let a sibling 八角亭 rewrite an explicit 六角亭.
         boolean octagon = !hexagon && (looksOctagon(mass) || (planWantsOctagon && pavilionNamed && !hasExplicitNonOctagonShape(mass)));
         if (!pavilionNamed && !onStilts && !octagon && !hexagon) return mass;
@@ -682,10 +686,60 @@ final class PavilionOpenFrameRepair {
         return slot.contains("hall") || slot.contains("殿") || slot.contains("堂");
     }
 
+    /**
+     * Windowed / flat-roof shells named pavilion (modern visitor centers) keep walls —
+     * open-frame repair is for 亭 / gazebo / colonnade frames only.
+     */
+    private static boolean looksEnclosedModernPavilion(Component mass) {
+        if (mass == null || mass.params() == null) return false;
+        if (OpenFramePolicy.isOpen(mass.params())) return false;
+        if (looksPavilion(mass.features())) return false;
+        Object roof = mass.params().get("roof_type");
+        if (roof == null) roof = mass.params().get("roofType");
+        String roofType = roof == null ? "" : String.valueOf(roof).trim().toLowerCase(Locale.ROOT);
+        if (!roofType.isEmpty() && !"none".equals(roofType) && !"flat".equals(roofType)) {
+            return false;
+        }
+        Object wr = mass.params().get("window_ratio");
+        if (wr == null) wr = mass.params().get("windowRatio");
+        boolean glazed = wr instanceof Number n && n.doubleValue() > 0.05;
+        Object facade = mass.params().get("facade_profile");
+        if (facade == null) facade = mass.params().get("facadeProfile");
+        boolean hasFacade = facade != null && !"none".equalsIgnoreCase(String.valueOf(facade).trim());
+        Object voidRatio = mass.params().get("void_ratio");
+        if (voidRatio == null) voidRatio = mass.params().get("voidRatio");
+        boolean lowVoid = !(voidRatio instanceof Number n) || n.doubleValue() < 0.35;
+        return (glazed || hasFacade) && lowVoid;
+    }
+
+    /** Pavilion id tokens — {@code ting} must not match inside {@code timber}/{@code casting}. */
+    private static boolean idLooksPavilion(String idLower) {
+        if (idLower == null || idLower.isBlank()) return false;
+        if (idLower.contains("pavilion") || idLower.contains("gazebo") || idLower.contains("kiosk")
+                || idLower.contains("shuixie") || idLower.contains("亭")) {
+            return true;
+        }
+        return containsStandaloneToken(idLower, "ting");
+    }
+
+    private static boolean containsStandaloneToken(String haystack, String token) {
+        int from = 0;
+        while (from <= haystack.length() - token.length()) {
+            int i = haystack.indexOf(token, from);
+            if (i < 0) return false;
+            char before = i == 0 ? '_' : haystack.charAt(i - 1);
+            int end = i + token.length();
+            char after = end >= haystack.length() ? '_' : haystack.charAt(end);
+            if (!Character.isLetterOrDigit(before) && !Character.isLetterOrDigit(after)) {
+                return true;
+            }
+            from = i + 1;
+        }
+        return false;
+    }
+
     private static boolean isExplicitPavilionMass(Component mass, String idLower) {
-        if (idLower != null && (idLower.contains("pavilion") || idLower.contains("gazebo")
-                || idLower.contains("kiosk") || idLower.contains("ting") || idLower.contains("shuixie")
-                || idLower.contains("亭"))) {
+        if (idLooksPavilion(idLower)) {
             return true;
         }
         if (mass != null && mass.params() != null) {

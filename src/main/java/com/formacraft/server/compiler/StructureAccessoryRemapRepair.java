@@ -427,10 +427,10 @@ final class StructureAccessoryRemapRepair {
         }
         if (!Boolean.TRUE.equals(c.params().get("exterior"))) return false;
         String id = identity(c).toLowerCase(Locale.ROOT);
-        // Prefer approach/steps tokens; bare "stair" alone is too broad (tower shafts).
-        return id.contains("steps") || id.contains("step") || id.contains("台阶")
-                || id.contains("踏步") || id.contains("approach")
-                || id.contains("haiden_steps");
+        // Prefer approach/steps tokens. Do not match bare "stair"/"step" inside "stairwell".
+        return id.contains("steps") || id.contains("台阶") || id.contains("踏步")
+                || id.contains("approach") || id.contains("haiden_steps")
+                || id.endsWith("_step") || id.contains("_step_") || id.startsWith("step_");
     }
 
     private static boolean looksApproachSteps(Component c) {

@@ -99,9 +99,10 @@ final class PlanIntentFidelityRepair {
                     || eaveTiers(plan) >= 2;
         }
 
+        // Avoid typology ids like timber_gable_house falsely implying stair roofs.
         boolean preferStairs = lower.contains("楼梯") || lower.contains("stair")
                 || lower.contains("坡屋面") || lower.contains("坡屋顶")
-                || lower.contains("pitched") || lower.contains("gable")
+                || lower.contains("pitched") || containsStandaloneToken(lower, "gable")
                 || lower.contains("双坡") || lower.contains("人字")
                 || (lower.contains("歇山") && !roofTokenNegated(corpus, "歇山"))
                 || lower.contains("庑殿") || lower.contains("悬山");
@@ -1273,6 +1274,24 @@ final class PlanIntentFidelityRepair {
             return false;
         }
         return DesignProvenance.removeIfAllowed(plan, params, "roof_height", "roofHeight");
+    }
+
+    /** True when {@code token} appears bounded by non-alphanumeric chars (not inside typology ids). */
+    private static boolean containsStandaloneToken(String haystack, String token) {
+        if (haystack == null || token == null || token.isEmpty()) return false;
+        int from = 0;
+        while (from <= haystack.length() - token.length()) {
+            int i = haystack.indexOf(token, from);
+            if (i < 0) return false;
+            char before = i == 0 ? '_' : haystack.charAt(i - 1);
+            int end = i + token.length();
+            char after = end >= haystack.length() ? '_' : haystack.charAt(end);
+            if (!Character.isLetterOrDigit(before) && !Character.isLetterOrDigit(after)) {
+                return true;
+            }
+            from = i + 1;
+        }
+        return false;
     }
 
     private static boolean isBlank(String value) {

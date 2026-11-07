@@ -99,7 +99,7 @@ public class RoofGenerator implements ComponentGenerator {
                 case GAMBREL, BARREL_VAULT, ONION_DOME, STEEP_THATCH -> out.addAll(
                         com.formacraft.common.generation.component.util.SpecialtyRoofSurfaces.generate(
                                 roofType, baseX, rp.y(), baseZ, width, depth, height,
-                                getBlockForPart(semantic, palette, SemanticPart.ROOF), footprint, appliedOverhang));
+                                resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang));
                 case SHED -> generateShedRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         palette, footprint, appliedOverhang);
                 case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
@@ -123,8 +123,12 @@ public class RoofGenerator implements ComponentGenerator {
             }
         }
 
+        // Specialty hollow shells keep authored full blocks — slope-riser fill is for pitched skins.
         if (!doubleEave && roofType != RoofTypeKind.FLAT && roofType != RoofTypeKind.SAWTOOTH
-                && roofType != RoofTypeKind.ONION_DOME) sealSlopeRisers(out);
+                && roofType != RoofTypeKind.ONION_DOME && roofType != RoofTypeKind.BARREL_VAULT
+                && roofType != RoofTypeKind.GAMBREL && roofType != RoofTypeKind.STEEP_THATCH) {
+            sealSlopeRisers(out);
+        }
         List<BlockPatch> roofShell = List.copyOf(out);
         if (ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c)
                 && width >= 7) {
@@ -206,7 +210,8 @@ public class RoofGenerator implements ComponentGenerator {
                                       Map<String, Object> params, boolean alongDepth) {
         int across = switch (roofType) {
             case HIP, XIESHAN, PYRAMID, CONE, DOME -> Math.min(width, depth);
-            case FLAT, SAWTOOTH, SHED -> 0;
+            // Hollow specialty shells / flats keep authored rise — never promote to ~45° stairs.
+            case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH -> 0;
             default -> alongDepth ? width : depth;
         };
         if (across <= 0) return Math.max(1, height);
@@ -312,14 +317,16 @@ public class RoofGenerator implements ComponentGenerator {
         String wall=getParamString(semantic.source().params(),"wall_block");
         if(wall==null) wall=getBlockForPart(semantic,palette,SemanticPart.WALL);
         else if(!wall.contains(":")) wall="minecraft:"+wall;
-        String cap=getBlockForPart(semantic,palette,SemanticPart.ROOF);
+        String cap=resolveFullRoofBlock(semantic,palette);
         boolean alongDepth=depth>=width;
         int span=alongDepth?width:depth, length=alongDepth?depth:width;
         for(int end:new int[]{0,length-1}) for(int across=0;across<span;across++) {
             int x=origin.x()+(alongDepth?across:end), z=origin.z()+(alongDepth?end:across);
             Integer y=heights.get(new net.minecraft.util.math.BlockPos(x,0,z));
             if(y==null) continue;
-            int top=origin.y()+((y-origin.y()+1)/2)*2+1;
+            // Cap must sit on/above the roof shell so ridge slabs do not outrank the tile coping.
+            int stepped=origin.y()+((y-origin.y()+1)/2)*2+1;
+            int top=Math.max(y, stepped);
             for(int level=origin.y();level<=top;level++) {
                 out.add(new BlockPatch(BlockPatch.PLACE,x,level,z,level==top?cap:wall));
                 GeneratedSurfaceCapture.record(x,level,z,GeneratedSurfaceCapture.Role.WALL);
@@ -1137,6 +1144,21 @@ public class RoofGenerator implements ComponentGenerator {
             }
         }
         return false;
+    }
+
+    /** Full-cube roof material for vault shells / horse-head caps (never stairs/slab). */
+    private static String resolveFullRoofBlock(SemanticComponent semantic, Palette palette) {
+        Map<String, Object> params = semantic != null && semantic.source() != null
+                ? semantic.source().params() : null;
+        // Prefer the authored cube id before coerceRoofShape turns gables into stairs/slabs.
+        String resolved = getParamString(params, "roof_block", "roof_material");
+        if (resolved == null || resolved.isBlank()) {
+            resolved = getBlockForPart(semantic, palette, SemanticPart.ROOF);
+        } else if (!resolved.contains(":")) {
+            resolved = "minecraft:" + resolved.trim();
+        }
+        String full = com.formacraft.common.palette.component.MaterialBlockFamily.fullBlock(resolved);
+        return full != null ? full : resolved;
     }
 
     private static String getBlockForPart(SemanticComponent semantic, Palette palette, SemanticPart part) {
