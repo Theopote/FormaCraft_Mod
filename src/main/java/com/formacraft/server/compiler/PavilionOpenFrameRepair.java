@@ -33,7 +33,8 @@ final class PavilionOpenFrameRepair {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         boolean planWantsOctagon = looksOctagon(plan);
         boolean planWantsPavilion = looksPavilionPlan(plan);
-        boolean planWantsStilts = planWantsPavilion || looksStiltIntent(plan);
+        // Stilts are opt-in (水上/架空) — never implied by "it is a pavilion".
+        boolean planWantsStilts = looksStiltIntent(plan);
 
         Set<String> stiltHosts = new HashSet<>();
         for (Component c : plan.components()) {
@@ -50,7 +51,7 @@ final class PavilionOpenFrameRepair {
         Map<String, Integer> bodyFloorY = new HashMap<>();
         Set<String> pavilionMassIds = new HashSet<>();
         for (Component c : plan.components()) {
-            Component repaired = repairMass(c, stiltHosts, planWantsOctagon, planWantsPavilion || planWantsStilts);
+            Component repaired = repairMass(c, stiltHosts, planWantsOctagon, planWantsPavilion);
             if (repaired != c) changed = true;
             out.add(repaired);
             if (repaired != null && repaired.params() != null && repaired.relativePosition() != null
@@ -83,34 +84,47 @@ final class PavilionOpenFrameRepair {
             }
         }
 
-        // Convert solid pads / missing foundations into thin oak stilts for pavilion hosts only.
+        // Stilts only when the plan/mass asks for water / 架空 — never for ordinary courtyard 凉亭.
         if (!pavilionMassIds.isEmpty()) {
-            Set<String> hostsNeedingStilts = new HashSet<>(pavilionMassIds);
-            Set<String> hostsWithStilts = new HashSet<>();
-            for (int i = 0; i < out.size(); i++) {
-                Component c = out.get(i);
-                if (c == null || !"FOUNDATION".equalsIgnoreCase(c.componentType()) || c.params() == null) continue;
-                Object host = c.params().get("host_id");
-                if (host == null) host = c.params().get("hostId");
-                if (host == null || !hostsNeedingStilts.contains(String.valueOf(host))) continue;
-                Component forced = forceOakStilts(c, String.valueOf(host), massById.get(String.valueOf(host)));
-                if (!forced.equals(c)) {
-                    out.set(i, forced);
-                    changed = true;
-                }
-                hostsWithStilts.add(String.valueOf(host));
-            }
-            for (String hostId : hostsNeedingStilts) {
-                if (hostsWithStilts.contains(hostId)) continue;
+            Set<String> hostsNeedingStilts = new HashSet<>();
+            for (String hostId : pavilionMassIds) {
                 Component mass = massById.get(hostId);
-                if (mass == null || mass.dimensions() == null || mass.relativePosition() == null) continue;
-                Component injected = injectOakStilts(mass, hostId);
-                out.add(injected);
-                hostsWithStilts.add(hostId);
-                changed = true;
-                FormacraftMod.LOGGER.info("PavilionOpenFrameRepair: inject stilts for host={}", hostId);
+                if (mass != null && (planWantsStilts || wantsStiltsForMass(mass, plan))) {
+                    hostsNeedingStilts.add(hostId);
+                }
             }
-            stiltHosts.addAll(hostsWithStilts);
+            if (!hostsNeedingStilts.isEmpty()) {
+                Set<String> hostsWithStilts = new HashSet<>();
+                for (int i = 0; i < out.size(); i++) {
+                    Component c = out.get(i);
+                    if (c == null || !"FOUNDATION".equalsIgnoreCase(c.componentType()) || c.params() == null) continue;
+                    Object host = c.params().get("host_id");
+                    if (host == null) host = c.params().get("hostId");
+                    if (host == null || !hostsNeedingStilts.contains(String.valueOf(host))) continue;
+                    // Preserve authored stone plinths / non-stilt pads — do not force oak piles.
+                    if (!isStilts(c.params()) && looksSolidPlinth(c)) {
+                        hostsWithStilts.add(String.valueOf(host));
+                        continue;
+                    }
+                    Component forced = forceOakStilts(c, String.valueOf(host), massById.get(String.valueOf(host)));
+                    if (!forced.equals(c)) {
+                        out.set(i, forced);
+                        changed = true;
+                    }
+                    hostsWithStilts.add(String.valueOf(host));
+                }
+                for (String hostId : hostsNeedingStilts) {
+                    if (hostsWithStilts.contains(hostId)) continue;
+                    Component mass = massById.get(hostId);
+                    if (mass == null || mass.dimensions() == null || mass.relativePosition() == null) continue;
+                    Component injected = injectOakStilts(mass, hostId);
+                    out.add(injected);
+                    hostsWithStilts.add(hostId);
+                    changed = true;
+                    FormacraftMod.LOGGER.info("PavilionOpenFrameRepair: inject stilts for host={}", hostId);
+                }
+                stiltHosts.addAll(hostsWithStilts);
+            }
         }
 
         for (int i = 0; i < out.size(); i++) {
@@ -180,9 +194,17 @@ final class PavilionOpenFrameRepair {
         params.put("suppress_doors", true);
         params.put("open_sides", List.of("N", "E", "S", "W"));
         params.put("hollow", true);
-        // Host-bound ROOF components own the pitch; embedded mass roofs double-write eaves
-        // (dark_oak vs oak posts) and trip E_PATCH_CONFLICT inside a single MASS_MAIN.
-        params.put("roof_type", "none");
+        // Open-frame already skips embedded roofs (MassMainGenerator: hasRoof && !openRoof).
+        // Never write roof_type=none here — that blocks satellite ROOF inference when the LLM
+        // only emitted MASS_MAIN. Prefer an explicit pavilion roof so garden intents still autofill.
+        String existingRoof = params.get("roof_type") == null ? null
+                : String.valueOf(params.get("roof_type")).trim();
+        if (existingRoof == null || existingRoof.isBlank() || "none".equalsIgnoreCase(existingRoof)) {
+            String preferred = preferredPavilionRoofType(mass, hexagon);
+            params.put("roof_type", preferred);
+            params.put("preferred_roof_type", preferred);
+            params.remove("compiler_suppressed_roof");
+        }
         changed = true;
         if (hexagon) {
             params.put("shape", "hexagon");
@@ -217,21 +239,106 @@ final class PavilionOpenFrameRepair {
 
         Dimensions dims = mass.dimensions();
         int height = dims.height();
+        boolean hardHeight = isHardPostHeight(params);
         if (pavilionNamed || onStilts || OpenFramePolicy.isOpen(params)) {
-            if (height > MAX_POST_HEIGHT) {
+            // 3–5 is a soft recommendation — never clamp USER_EXPLICIT / sealed heights.
+            if (height > MAX_POST_HEIGHT && !hardHeight) {
                 height = MAX_POST_HEIGHT;
                 changed = true;
-            } else if (height < MIN_POST_HEIGHT && (pavilionNamed || onStilts)) {
+            } else if (height < MIN_POST_HEIGHT && (pavilionNamed || onStilts) && !hardHeight) {
                 height = MIN_POST_HEIGHT;
                 changed = true;
             }
         }
+        if (hardHeight) {
+            // Keep params.height aligned with dimensions when the player locked the post height.
+            Object ph = params.get("height");
+            if (ph instanceof Number n && n.intValue() > 0 && n.intValue() != height) {
+                height = n.intValue();
+                changed = true;
+            } else if (height != dims.height()) {
+                params.put("height", height);
+            }
+        }
         if (!changed && height == dims.height()) return mass;
         FormacraftMod.LOGGER.info(
-                "PavilionOpenFrameRepair: pavilion id={} height {}→{} stilts={} octagon={}",
-                id, dims.height(), height, onStilts, octagon);
+                "PavilionOpenFrameRepair: pavilion id={} height {}→{} stilts={} octagon={} hardHeight={}",
+                id, dims.height(), height, onStilts, octagon, hardHeight);
+        if (height != dims.height() && params.get("height") instanceof Number) {
+            params.put("height", height);
+        }
         return new Component(mass.componentType(), mass.slotId(), mass.relativePosition(),
                 new Dimensions(dims.width(), dims.depth(), height), mass.features(), params);
+    }
+
+    /** Soft default roof for open pavilions — 攒尖/hex → pyramid. */
+    private static String preferredPavilionRoofType(Component mass, boolean hexagon) {
+        if (hexagon || looksHexagon(mass)) return "pyramid";
+        if (mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("攒尖") || lower.contains("pyramid") || lower.contains("pointed")) {
+                    return "pyramid";
+                }
+            }
+        }
+        return "pyramid";
+    }
+
+    private static boolean isHardPostHeight(Map<String, Object> params) {
+        if (params == null) return false;
+        if (com.formacraft.common.typology.UserConstraintContract.isServerVerified(params, "height")
+                || com.formacraft.common.typology.UserConstraintContract.isServerVerified(params, "towerHeight")) {
+            return true;
+        }
+        if (com.formacraft.common.typology.TypologyParamResolver.isUserHardConstraint(params, "height", "towerHeight")) {
+            return true;
+        }
+        Object level = params.get("requirement_level");
+        return level != null && "USER_REQUIRED".equalsIgnoreCase(String.valueOf(level).trim());
+    }
+
+    private static boolean wantsStiltsForMass(Component mass, LlmPlan plan) {
+        if (mass == null) return false;
+        if (mass.params() != null) {
+            Object ft = mass.params().get("foundation_type");
+            if (ft != null && isStilts(Map.of("foundation_type", ft))) return true;
+            Object id = mass.params().get("component_id");
+            if (id != null && looksStiltToken(String.valueOf(id))) return true;
+        }
+        if (looksStiltIntent(plan)) return true;
+        if (mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f != null && looksStiltToken(f)) return true;
+            }
+        }
+        // 水上亭 / water pavilion in id or features.
+        String blob = (mass.params() == null ? "" : String.valueOf(mass.params().get("component_id")))
+                + " " + (mass.features() == null ? "" : String.join(" ", mass.features()));
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return lower.contains("水上") || lower.contains("water") || lower.contains("lake")
+                || lower.contains("overwater") || lower.contains("pier");
+    }
+
+    private static boolean looksSolidPlinth(Component foundation) {
+        if (foundation == null) return false;
+        String id = "";
+        if (foundation.params() != null) {
+            Object raw = foundation.params().get("component_id");
+            if (raw != null) id = String.valueOf(raw);
+            Object mat = foundation.params().get("material");
+            if (mat != null) {
+                String m = String.valueOf(mat).toLowerCase(Locale.ROOT);
+                if (m.contains("stone") || m.contains("brick") || m.contains("andesite")
+                        || m.contains("deepslate")) {
+                    return true;
+                }
+            }
+        }
+        String lower = id.toLowerCase(Locale.ROOT);
+        return lower.contains("plinth") || id.contains("台基") || lower.contains("foundation")
+                || lower.contains("base");
     }
 
     private static Component forceOakStilts(Component foundation, String hostId, Component hostMass) {

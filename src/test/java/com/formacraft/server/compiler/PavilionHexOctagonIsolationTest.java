@@ -83,6 +83,8 @@ class PavilionHexOctagonIsolationTest {
         assertEquals(Boolean.TRUE, out.params().get("open"));
         assertEquals("hexagon", String.valueOf(out.params().get("shape")));
         assertEquals(6, ((Number) out.params().get("sides")).intValue());
+        assertNotEquals("none", String.valueOf(out.params().get("roof_type")).toLowerCase());
+        assertEquals("pyramid", String.valueOf(out.params().get("preferred_roof_type")).toLowerCase());
     }
 
     private static Component byId(LlmPlan plan, String id) {

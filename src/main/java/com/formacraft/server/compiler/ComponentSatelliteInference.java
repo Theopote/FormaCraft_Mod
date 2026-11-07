@@ -1548,7 +1548,17 @@ final class ComponentSatelliteInference {
         if (base == null || base.params() == null) {
             return null;
         }
-        return normalizeRoofTypeToken(ComponentPlanTypes.getParamString(base.params(), "preferred_roof_type", "preferredRoofType"));
+        String preferred = normalizeRoofTypeToken(ComponentPlanTypes.getParamString(
+                base.params(), "preferred_roof_type", "preferredRoofType"));
+        if (preferred != null) {
+            return preferred;
+        }
+        // Non-none roof_type on the mass is an explicit pitch hint (pavilion open-frame path).
+        String roofType = ComponentPlanTypes.getParamString(base.params(), "roof_type", "roofType");
+        if (roofType != null && !roofType.isBlank() && !"none".equalsIgnoreCase(roofType.trim())) {
+            return normalizeRoofTypeToken(roofType);
+        }
+        return null;
     }
 
     private static String roofTypeHintFromFeatures(Component base) {

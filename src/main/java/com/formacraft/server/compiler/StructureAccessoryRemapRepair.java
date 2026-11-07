@@ -117,7 +117,9 @@ final class StructureAccessoryRemapRepair {
         params.put("facing", facing);
 
         String floor = resolveFloorBlock(params);
-        String stairs = resolveStairsBlock(floor);
+        // Preserve player/LLM-authored stairs blocks; only map full cubes → stairs.
+        String authoredStairs = firstStairsCandidate(params);
+        String stairs = authoredStairs != null ? authoredStairs : resolveStairsBlock(floor);
         params.put("floor", floor);
         params.put("stairs", stairs);
         params.putIfAbsent("material", floor);
@@ -132,16 +134,102 @@ final class StructureAccessoryRemapRepair {
         }
 
         Dimensions nextDims = new Dimensions(width, depth, rise + 1);
+        Vec3i origin = component.relativePosition() == null ? new Vec3i(0, 0, 0) : component.relativePosition();
+        // Snap stair high end toward the host entrance threshold when possible.
+        origin = snapApproachToEntrance(origin, width, depth, rise, facing, component, plan);
         FormacraftMod.LOGGER.info(
                 "StructureAccessoryRemapRepair: STRUCTURE → STAIR_SYSTEM id={} facing={} rise={} run={} stairs={}",
                 params.get("component_id"), facing, rise, run, stairs);
         return new Component(
                 "STAIR_SYSTEM",
                 component.slotId(),
-                component.relativePosition() == null ? new Vec3i(0, 0, 0) : component.relativePosition(),
+                origin,
                 nextDims,
                 List.copyOf(features),
                 params);
+    }
+
+    /** Keep an already-valid stairs block id from params. */
+    private static String firstStairsCandidate(Map<String, Object> params) {
+        for (String key : List.of("stairs", "stairs_block", "stair_block", "material")) {
+            Object raw = params.get(key);
+            if (raw == null) continue;
+            String id = String.valueOf(raw).trim();
+            int props = id.indexOf('[');
+            if (props >= 0) id = id.substring(0, props);
+            if (!id.contains(":")) id = "minecraft:" + id;
+            if (id.endsWith("_stairs")) return id;
+        }
+        return null;
+    }
+
+    /**
+     * Place the stair volume so its high end meets the host mass entrance face at threshold Y.
+     * Falls back to the authored origin when no host geometry is available.
+     */
+    private static Vec3i snapApproachToEntrance(
+            Vec3i origin, int width, int depth, int rise, String facing,
+            Component steps, LlmPlan plan) {
+        if (plan == null || plan.components() == null || steps.params() == null) return origin;
+        Object hostId = steps.params().get("host_id");
+        if (hostId == null) hostId = steps.params().get("hostId");
+        Component host = null;
+        Component entrance = null;
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            if (hostId != null
+                    && String.valueOf(hostId).equals(String.valueOf(c.params().get("component_id")))) {
+                host = c;
+            }
+            String type = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
+            if (type.contains("ENTRANCE") || type.contains("DOOR")) {
+                Object eh = c.params().get("host_id");
+                if (eh == null) eh = c.params().get("hostId");
+                if (hostId != null && String.valueOf(hostId).equals(String.valueOf(eh))) {
+                    entrance = c;
+                }
+            }
+        }
+        if (host == null || host.relativePosition() == null || host.dimensions() == null) {
+            return origin;
+        }
+        Vec3i hr = host.relativePosition();
+        Dimensions hd = host.dimensions();
+        int thresholdY = hr.y();
+        int highX;
+        int highZ;
+        if (entrance != null && entrance.relativePosition() != null) {
+            highX = entrance.relativePosition().x();
+            highZ = entrance.relativePosition().z();
+            thresholdY = entrance.relativePosition().y();
+        } else {
+            // Midpoint of the entrance face of the host AABB.
+            highX = hr.x() + hd.width() / 2;
+            highZ = hr.z() + hd.depth() / 2;
+            switch (facing) {
+                case "NORTH" -> highZ = hr.z();
+                case "SOUTH" -> highZ = hr.z() + hd.depth() - 1;
+                case "EAST" -> highX = hr.x() + hd.width() - 1;
+                case "WEST" -> highX = hr.x();
+                default -> highZ = hr.z() + hd.depth() - 1;
+            }
+        }
+        // Local high-end cell inside the stair AABB, then back-solve world origin.
+        int localHighX = width / 2;
+        int localHighZ = switch (facing) {
+            case "NORTH" -> 0;
+            case "SOUTH" -> depth - 1;
+            default -> depth / 2;
+        };
+        int localHighXAdj = switch (facing) {
+            case "EAST" -> width - 1;
+            case "WEST" -> 0;
+            default -> localHighX;
+        };
+        int ox = highX - localHighXAdj;
+        int oz = highZ - localHighZ;
+        int oy = thresholdY - rise;
+        return new Vec3i(ox, oy, oz);
     }
 
     private static String ascentFeature(String facing) {
