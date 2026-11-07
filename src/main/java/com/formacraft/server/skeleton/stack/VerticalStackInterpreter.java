@@ -93,12 +93,13 @@ public final class VerticalStackInterpreter implements SkeletonInterpreter<Verti
 
     private static BlockState faceOut(BlockState state, int x, int z) {
         if (state == null) return state;
-        Direction out = com.formacraft.common.typology.detail.ChineseTypologyDetailUtil.outwardFromCenter(x, z);
+        // Stair eaves: high side faces the shaft (inward).
+        Direction inward = com.formacraft.common.typology.detail.ChineseTypologyDetailUtil.inwardFromCenter(x, z);
         if (state.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
-            return state.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, out);
+            return state.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, inward);
         }
-        if (state.contains(net.minecraft.state.property.Properties.FACING) && out.getAxis().isHorizontal()) {
-            return state.with(net.minecraft.state.property.Properties.FACING, out);
+        if (state.contains(net.minecraft.state.property.Properties.FACING) && inward.getAxis().isHorizontal()) {
+            return state.with(net.minecraft.state.property.Properties.FACING, inward);
         }
         return state;
     }

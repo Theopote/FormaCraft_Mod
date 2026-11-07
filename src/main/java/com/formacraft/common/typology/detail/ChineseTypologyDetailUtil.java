@@ -56,8 +56,9 @@ public final class ChineseTypologyDetailUtil {
         for (int x = -half; x <= half; x++) {
             for (int z = -half; z <= half; z++) {
                 if (inRegularOctagon(x, z, half) && !inRegularOctagon(x, z, half - 1)) {
-                    // Stairs/directional blocks radiate outward from the tower axis.
-                    BlockState placed = withFacing(state, outwardFromCenter(x, z));
+                    // Stair eaves: facing = high side. High side must sit against the shaft
+                    // (inward) so the slope runs down toward the outer tip.
+                    BlockState placed = withFacing(state, inwardFromCenter(x, z));
                     blocks.add(new PlannedBlock(origin.add(x, y, z), placed, source));
                 }
             }
@@ -69,23 +70,29 @@ public final class ChineseTypologyDetailUtil {
             List<PlannedBlock> blocks, BlockPos origin, int half, int y, BlockState state, GeometrySource source
     ) {
         if (half < 0) return;
+        // North edge (z=-half): high side faces south (toward shaft). South edge: face north.
         for (int x = -half; x <= half; x++) {
-            blocks.add(new PlannedBlock(origin.add(x, y, -half), withFacing(state, Direction.NORTH), source));
-            blocks.add(new PlannedBlock(origin.add(x, y, half), withFacing(state, Direction.SOUTH), source));
+            blocks.add(new PlannedBlock(origin.add(x, y, -half), withFacing(state, Direction.SOUTH), source));
+            blocks.add(new PlannedBlock(origin.add(x, y, half), withFacing(state, Direction.NORTH), source));
         }
         for (int z = -half + 1; z <= half - 1; z++) {
-            blocks.add(new PlannedBlock(origin.add(-half, y, z), withFacing(state, Direction.WEST), source));
-            blocks.add(new PlannedBlock(origin.add(half, y, z), withFacing(state, Direction.EAST), source));
+            blocks.add(new PlannedBlock(origin.add(-half, y, z), withFacing(state, Direction.EAST), source));
+            blocks.add(new PlannedBlock(origin.add(half, y, z), withFacing(state, Direction.WEST), source));
         }
     }
 
-    /** Horizontal outward facing from tower center for radial eaves / rings. */
+    /** Horizontal outward facing from tower center (low side of a stair eave). */
     public static Direction outwardFromCenter(int x, int z) {
         if (x == 0 && z == 0) return Direction.SOUTH;
         if (Math.abs(x) >= Math.abs(z)) {
             return x >= 0 ? Direction.EAST : Direction.WEST;
         }
         return z >= 0 ? Direction.SOUTH : Direction.NORTH;
+    }
+
+    /** High side of a stair eave faces the shaft — opposite of {@link #outwardFromCenter}. */
+    public static Direction inwardFromCenter(int x, int z) {
+        return outwardFromCenter(x, z).getOpposite();
     }
 
     public static BlockPos octagonFaceCell(int half, Direction face) {

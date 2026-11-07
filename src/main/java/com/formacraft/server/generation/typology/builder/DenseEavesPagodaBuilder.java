@@ -20,9 +20,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 
-import java.util.Locale;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -256,30 +257,45 @@ public final class DenseEavesPagodaBuilder {
         }
 
         var eaveTrimSrc = PagodaMorphologyAudit.eaveTrimRole();
+        // Group eave bands by storey: fill the deck once to the outermost tip, then lay
+        // concentric stair/slab rings (outer → inner) so same-Y multi-tier 重檐 do not
+        // overwrite each other with body fill.
+        Map<Integer, List<PagodaVerticalLayout.EaveBand>> eavesByLevel = new LinkedHashMap<>();
         for (PagodaVerticalLayout.EaveBand band : layout.eaves()) {
-            int half = layout.storeys().get(band.levelIndex()).half();
-            int ey = band.y();
-            int e = band.tier();
-            int outer = half + 1 + e;
-            var eaveSrc = PagodaMorphologyAudit.eaveRole(band.levelIndex(), e);
-            // Fill the annulus between shaft and eave tip with body (not directional eave stairs)
-            // so eaves read as solid decks instead of hollow rings.
-            fillFootprintAnnulus(blocks, origin, footprint, half, outer, ey, body, eaveTrimSrc);
-            if (footprint == Footprint.OCTAGON) {
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, outer, ey, eave, eaveSrc);
-                ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim, eaveTrimSrc);
-                if (refined) {
-                    // Thicken horizontally at the same Y — ey+1 collides with the next storey
-                    // floor now that eaves sit flush on the ceiling plate.
-                    ChineseTypologyDetailUtil.ringRegularOctagon(
-                            blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
-                }
-            } else {
-                ChineseTypologyDetailUtil.ringSquare(blocks, origin, outer, ey, eave, eaveSrc);
-                ChineseTypologyDetailUtil.ringSquare(blocks, origin, half + e, ey, trim, eaveTrimSrc);
-                if (refined) {
-                    ChineseTypologyDetailUtil.ringSquare(
-                            blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
+            eavesByLevel.computeIfAbsent(band.levelIndex(), k -> new ArrayList<>()).add(band);
+        }
+        for (var entry : eavesByLevel.entrySet()) {
+            int lv = entry.getKey();
+            List<PagodaVerticalLayout.EaveBand> bands = entry.getValue();
+            if (bands.isEmpty() || lv < 0 || lv >= layout.storeys().size()) continue;
+            int half = layout.storeys().get(lv).half();
+            int ey = bands.getFirst().y();
+            int maxTier = 0;
+            for (PagodaVerticalLayout.EaveBand b : bands) {
+                maxTier = Math.max(maxTier, b.tier());
+            }
+            int maxOuter = half + 1 + maxTier + (refined ? 1 : 0);
+            fillFootprintAnnulus(blocks, origin, footprint, half, maxOuter, ey, body, eaveTrimSrc);
+            // Outer rings first so stair eaves remain visible at every tier tip.
+            bands.sort((a, b) -> Integer.compare(b.tier(), a.tier()));
+            for (PagodaVerticalLayout.EaveBand band : bands) {
+                int e = band.tier();
+                int outer = half + 1 + e;
+                var eaveSrc = PagodaMorphologyAudit.eaveRole(lv, e);
+                if (footprint == Footprint.OCTAGON) {
+                    if (refined) {
+                        ChineseTypologyDetailUtil.ringRegularOctagon(
+                                blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
+                    }
+                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, outer, ey, eave, eaveSrc);
+                    ChineseTypologyDetailUtil.ringRegularOctagon(blocks, origin, half + e, ey, trim, eaveTrimSrc);
+                } else {
+                    if (refined) {
+                        ChineseTypologyDetailUtil.ringSquare(
+                                blocks, origin, half + 2 + e, ey, eave, eaveTrimSrc);
+                    }
+                    ChineseTypologyDetailUtil.ringSquare(blocks, origin, outer, ey, eave, eaveSrc);
+                    ChineseTypologyDetailUtil.ringSquare(blocks, origin, half + e, ey, trim, eaveTrimSrc);
                 }
             }
         }

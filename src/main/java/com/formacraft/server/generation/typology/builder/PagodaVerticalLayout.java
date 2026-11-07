@@ -48,22 +48,22 @@ public final class PagodaVerticalLayout {
         return Math.max(1, floors) * InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
     }
 
+    /**
+     * Multi-tier eaves (重檐) expand horizontally at the storey ceiling — they no longer
+     * consume dedicated vertical rows between storeys (that left 1–2 empty shaft layers).
+     */
     public static int eaveNeed(int floors, int eavesPerLevel) {
-        return Math.max(1, floors) * Math.max(1, eavesPerLevel);
+        return 0;
     }
 
     public static int requiredMinHeight(PagodaVerticalSemantics vertical) {
         if (vertical == null) return FINIAL_HEIGHT_FULL + InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
-        return bodyNeedComfortable(vertical.floorCount())
-                + eaveNeed(vertical.floorCount(), vertical.eavesPerLevel())
-                + FINIAL_HEIGHT_FULL;
+        return bodyNeedComfortable(vertical.floorCount()) + FINIAL_HEIGHT_FULL;
     }
 
     public static int absoluteMinHeight(PagodaVerticalSemantics vertical) {
         if (vertical == null) return FINIAL_HEIGHT_COMPACT + InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
-        return bodyNeedAbsolute(vertical.floorCount())
-                + eaveNeed(vertical.floorCount(), vertical.eavesPerLevel())
-                + FINIAL_HEIGHT_COMPACT;
+        return bodyNeedAbsolute(vertical.floorCount()) + FINIAL_HEIGHT_COMPACT;
     }
 
     /**
@@ -118,12 +118,8 @@ public final class PagodaVerticalLayout {
 
         boolean compressed = height < req;
         int finialH = compressed ? FINIAL_HEIGHT_COMPACT : FINIAL_HEIGHT_FULL;
-        int eaveRows = eaveNeed(floors, epl);
-        // Flush eaves share each storey ceiling (advance = h-1+epl, not h+epl). Compensate so
-        // body+eaves fill exactly to height-finialH and the finial sits on the top roof deck.
-        int bodyBudget = Math.max(
-                bodyNeedAbsolute(floors),
-                height - eaveRows - finialH + floors);
+        // Eaves share the ceiling Y (horizontal tiers) — body fills everything below the finial.
+        int bodyBudget = Math.max(bodyNeedAbsolute(floors), height - finialH);
         // Prefer comfortable clear heights when budget allows.
         int minClear = InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
         int groundClear = InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT;
@@ -167,24 +163,23 @@ public final class PagodaVerticalLayout {
         }
 
         List<Storey> storeys = new ArrayList<>(floors);
-        List<EaveBand> eaves = new ArrayList<>(eaveRows);
+        List<EaveBand> eaves = new ArrayList<>(floors * epl);
         int y = 0;
         int half = half0;
         for (int lv = 0; lv < floors; lv++) {
             int h = Math.max(minClear, levelH[lv]);
             storeys.add(new Storey(lv, y, h, half));
-            // Flush eaves with the storey ceiling plate so the eave ring sits on the wall top
-            // (y+h would leave a one-block visual gap between shaft and eave).
+            // All eave tiers of this storey share the ceiling Y and expand horizontally
+            // (tier → outer radius). Next storey starts immediately above — no empty shaft gap.
             int eaveY = y + h - 1;
             for (int t = 0; t < epl; t++) {
-                eaves.add(new EaveBand(lv, t, eaveY + t));
+                eaves.add(new EaveBand(lv, t, eaveY));
             }
-            y = eaveY + epl;
+            y = y + h;
             half = Math.max(2, half - 1);
         }
 
-        // Finial always sits on the actual top roof deck (y after last eave). Never clamp to
-        // height-finialH alone — that created gaps when body+eaves ended below the tip budget.
+        // Finial sits on the top storey roof deck (ceiling of last storey + 1 = y).
         int finialBaseY = y;
 
         return new Result(

@@ -131,6 +131,8 @@ public final class ComponentPlanCompiler {
         plan = PavilionOpenFrameRepair.apply(plan);
         // Clamp garden blobs / force enclosure walls before footprint separation.
         plan = GardenCompositionRepair.apply(plan);
+        // 四合院 compositional dumps → native courtyard_compound before separation can scramble halls.
+        plan = SiheyuanCourtyardMisrouteRepair.apply(plan);
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
         plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.

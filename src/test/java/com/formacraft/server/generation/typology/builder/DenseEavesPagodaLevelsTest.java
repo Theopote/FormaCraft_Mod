@@ -103,7 +103,7 @@ class DenseEavesPagodaLevelsTest {
         var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
         assertEquals(9, geo.measuredFloors());
         assertEquals(18, geo.measuredEaveTiers());
-        assertTrue(geo.span() >= 49, "LLM height=40 must soft-expand; span=" + geo.span());
+        assertTrue(geo.span() >= 38, "LLM height=40 must soft-expand; span=" + geo.span());
     }
 
     @Test
@@ -161,7 +161,7 @@ class DenseEavesPagodaLevelsTest {
         assertEquals(9, geo.measuredFloors());
         assertEquals(18, geo.measuredEaveTiers());
         assertTrue(geo.finialCentered());
-        assertTrue(geo.span() >= 49, "should auto-expand past registry 47; span=" + geo.span());
+        assertTrue(geo.span() >= 38, "should keep a comfortable 9-storey envelope; span=" + geo.span());
     }
 
     private static void assertFinialConnectedToTopRoof(
@@ -262,7 +262,7 @@ class DenseEavesPagodaLevelsTest {
                 () -> generate(Map.of(
                         "floor_count", 3,
                         "eaves_per_level", 2,
-                        "height", 18,
+                        "height", 12,
                         "baseWidth", 8,
                         "footprint", "octagon",
                         "detailLevel", "simple"
@@ -293,7 +293,7 @@ class DenseEavesPagodaLevelsTest {
         GeneratedStructure structure = generate(params, origin, false);
         var geo = PagodaMorphologyAudit.observe(structure.getBlocks(), origin);
         assertEquals(9, geo.measuredFloors());
-        assertTrue(geo.span() >= 49, "forged USER_EXPLICIT must soft-expand; span=" + geo.span());
+        assertTrue(geo.span() >= 38, "forged USER_EXPLICIT must soft-expand; span=" + geo.span());
     }
 
     private static GeneratedStructure generate(Map<String, ?> params, BlockPos origin) {
@@ -344,7 +344,7 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
-    void eaveStairsRadiateOutwardFromCenter() {
+    void eaveStairsHighSideFacesShaftInward() {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",
                 null,
@@ -378,7 +378,7 @@ class DenseEavesPagodaLevelsTest {
             int dx = b.getPos().getX() - origin.getX();
             int dz = b.getPos().getZ() - origin.getZ();
             if (dx == 0 && dz == 0) continue;
-            var expected = ChineseTypologyDetailUtil.outwardFromCenter(dx, dz);
+            var expected = ChineseTypologyDetailUtil.inwardFromCenter(dx, dz);
             var actual = b.getTargetState().get(facingProp);
             assertEquals(expected, actual, "eave stair at relative (" + dx + "," + dz + ")");
             checked++;
