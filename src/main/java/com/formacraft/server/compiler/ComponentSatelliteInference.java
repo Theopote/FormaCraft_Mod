@@ -474,6 +474,8 @@ final class ComponentSatelliteInference {
         DoorFloorDatumCompiler.apply(prepared);
         // Second-floor street doors without a balcony/terrace landing are illegal openings.
         UpperStoreyEntranceRepair.apply(prepared);
+        // Approach stairs were remapped before satellite entrance alignment — re-bind tops now.
+        StructureAccessoryRemapRepair.resnapApproachStairs(prepared);
         // Infer interior stairs when satellites are allowed, or when circulation is REQUIRED
         // (fidelity cases keep allow_compiler_satellites=false but still need vertical links).
         if (plan.allowCompilerSatellites()

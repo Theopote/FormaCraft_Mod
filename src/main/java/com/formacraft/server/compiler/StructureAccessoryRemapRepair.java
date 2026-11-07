@@ -73,7 +73,10 @@ final class StructureAccessoryRemapRepair {
             params.putAll(component.params());
         }
         params.putIfAbsent("exterior", true);
+        params.put("compiler_approach_remap", true);
         params.put("support", false);
+        params.put("approach_stair", true);
+        params.putIfAbsent("compiler_approach_remap", true);
 
         Dimensions d = component.dimensions();
         int rise = d == null ? 2 : Math.max(1, d.height() <= 1 ? 1 : d.height() - 1);
@@ -164,18 +167,57 @@ final class StructureAccessoryRemapRepair {
     }
 
     /**
+     * After satellite inference / entrance realignment, re-bind approach STAIR_SYSTEM volumes
+     * to the final door threshold so early remap snaps are not left behind.
+     */
+    static void resnapApproachStairs(List<Component> components) {
+        if (components == null || components.isEmpty()) return;
+        for (int i = 0; i < components.size(); i++) {
+            Component c = components.get(i);
+            if (c == null || c.params() == null || c.dimensions() == null) continue;
+            if (!"STAIR_SYSTEM".equalsIgnoreCase(c.componentType())) continue;
+            // Only exterior approach flights. Do NOT use looksApproachSteps here — that also
+            // matches interior ids like guard_tower_stair_* and would wreck tower shafts.
+            if (!isExteriorApproachStair(c)) continue;
+            Object from = c.params().get("from");
+            Object to = c.params().get("to");
+            if (!(from instanceof Map<?, ?>) || !(to instanceof Map<?, ?>)) continue;
+            String facing = parseFacing(c.params().get("facing"));
+            if (facing == null) facing = "SOUTH";
+            int rise = Math.max(1, ((Number) ((Map<?, ?>) to).get("y")).intValue()
+                    - ((Number) ((Map<?, ?>) from).get("y")).intValue());
+            Vec3i origin = c.relativePosition() == null ? new Vec3i(0, 0, 0) : c.relativePosition();
+            Vec3i snapped = snapApproachToEntrance(
+                    origin, c.dimensions().width(), c.dimensions().depth(), rise, facing, c, components);
+            if (snapped.equals(origin)) continue;
+            FormacraftMod.LOGGER.info(
+                    "StructureAccessoryRemapRepair: resnap approach stair id={} {} → {}",
+                    c.params().get("component_id"), origin, snapped);
+            components.set(i, new Component(
+                    c.componentType(), c.slotId(), snapped, c.dimensions(), c.features(), c.params()));
+        }
+    }
+
+    /**
      * Place the stair volume so its high end meets the host mass entrance face at threshold Y.
      * Falls back to the authored origin when no host geometry is available.
      */
     private static Vec3i snapApproachToEntrance(
             Vec3i origin, int width, int depth, int rise, String facing,
             Component steps, LlmPlan plan) {
-        if (plan == null || plan.components() == null || steps.params() == null) return origin;
+        if (plan == null || plan.components() == null) return origin;
+        return snapApproachToEntrance(origin, width, depth, rise, facing, steps, plan.components());
+    }
+
+    private static Vec3i snapApproachToEntrance(
+            Vec3i origin, int width, int depth, int rise, String facing,
+            Component steps, List<Component> components) {
+        if (components == null || steps == null || steps.params() == null) return origin;
         Object hostId = steps.params().get("host_id");
         if (hostId == null) hostId = steps.params().get("hostId");
         Component host = null;
-        Component entrance = null;
-        for (Component c : plan.components()) {
+        List<Component> entrances = new ArrayList<>();
+        for (Component c : components) {
             if (c == null || c.params() == null) continue;
             if (hostId != null
                     && String.valueOf(hostId).equals(String.valueOf(c.params().get("component_id")))) {
@@ -186,7 +228,7 @@ final class StructureAccessoryRemapRepair {
                 Object eh = c.params().get("host_id");
                 if (eh == null) eh = c.params().get("hostId");
                 if (hostId != null && String.valueOf(hostId).equals(String.valueOf(eh))) {
-                    entrance = c;
+                    entrances.add(c);
                 }
             }
         }
@@ -195,6 +237,7 @@ final class StructureAccessoryRemapRepair {
         }
         Vec3i hr = host.relativePosition();
         Dimensions hd = host.dimensions();
+        Component entrance = pickEntranceForApproach(entrances, facing, origin, width, depth, rise, hr, hd);
         int thresholdY = hr.y();
         int highX;
         int highZ;
@@ -234,6 +277,40 @@ final class StructureAccessoryRemapRepair {
         int oz = highZ - localHighZ;
         int oy = thresholdY - rise;
         return new Vec3i(ox, oy, oz);
+    }
+
+    /** Prefer the entrance on the approach face; fall back to nearest door to the authored stair. */
+    private static Component pickEntranceForApproach(
+            List<Component> entrances, String facing, Vec3i stairOrigin,
+            int width, int depth, int rise, Vec3i hr, Dimensions hd) {
+        if (entrances == null || entrances.isEmpty()) return null;
+        if (entrances.size() == 1) return entrances.getFirst();
+        int[] front = com.formacraft.common.generation.component.util.FacadeDirection
+                .frontEntranceThresholdXZ(hr.x(), hr.z(), hd.width(), hd.depth(), facing);
+        Component best = null;
+        int bestScore = Integer.MAX_VALUE;
+        int stairHighX = stairOrigin == null ? front[0] : stairOrigin.x() + width / 2;
+        int stairHighZ = stairOrigin == null ? front[1] : switch (facing) {
+            case "NORTH" -> stairOrigin.z();
+            case "SOUTH" -> stairOrigin.z() + depth - 1;
+            default -> stairOrigin.z() + depth / 2;
+        };
+        for (Component e : entrances) {
+            if (e.relativePosition() == null) continue;
+            int ex = e.relativePosition().x()
+                    + (e.dimensions() == null ? 0 : e.dimensions().width() / 2);
+            int ez = e.relativePosition().z()
+                    + (e.dimensions() == null ? 0 : e.dimensions().depth() / 2);
+            int score = Math.abs(ex - front[0]) + Math.abs(ez - front[1]);
+            score += Math.abs(ex - stairHighX) + Math.abs(ez - stairHighZ);
+            String ef = parseFacing(e.params() == null ? null : e.params().get("facing"));
+            if (ef != null && facing != null && !ef.equals(facing)) score += 8;
+            if (score < bestScore) {
+                bestScore = score;
+                best = e;
+            }
+        }
+        return best != null ? best : entrances.getFirst();
     }
 
     private static String ascentFeature(String facing) {
@@ -341,6 +418,21 @@ final class StructureAccessoryRemapRepair {
     }
 
     /** Entrance steps / 台阶 — never treat as a solid foundation pad. */
+    /** True for entrance-approach stairs that should follow final door alignment. */
+    private static boolean isExteriorApproachStair(Component c) {
+        if (c == null || c.params() == null) return false;
+        if (Boolean.TRUE.equals(c.params().get("compiler_approach_remap"))
+                || Boolean.TRUE.equals(c.params().get("approach_stair"))) {
+            return true;
+        }
+        if (!Boolean.TRUE.equals(c.params().get("exterior"))) return false;
+        String id = identity(c).toLowerCase(Locale.ROOT);
+        // Prefer approach/steps tokens; bare "stair" alone is too broad (tower shafts).
+        return id.contains("steps") || id.contains("step") || id.contains("台阶")
+                || id.contains("踏步") || id.contains("approach")
+                || id.contains("haiden_steps");
+    }
+
     private static boolean looksApproachSteps(Component c) {
         String id = identity(c);
         String lower = id.toLowerCase(Locale.ROOT);

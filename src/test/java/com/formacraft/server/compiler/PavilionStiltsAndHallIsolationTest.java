@@ -120,6 +120,48 @@ class PavilionStiltsAndHallIsolationTest {
     }
 
     @Test
+    void approachStairsFollowEntranceAfterSatelliteRealign() {
+        Component host = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(14, 12, 8), List.of(),
+                mutable("component_id", "haiden_main", "facing", "SOUTH",
+                        "anchor_mode", "min_corner", "wall_thickness", 1));
+        // LLM door on the wrong (rear) face — aligner rebuilds to front (z=min).
+        Component door = new Component(
+                "ENTRANCE", "main", new Vec3i(5, 1, 11),
+                new Dimensions(4, 1, 4), List.of("entrance"),
+                mutable("component_id", "haiden_door", "host_id", "haiden_main"));
+        Component steps = new Component(
+                "STAIR_SYSTEM", "main", new Vec3i(4, -1, 8),
+                new Dimensions(3, 4, 3), List.of("stair:straight_single_run"),
+                mutable("component_id", "haiden_steps", "host_id", "haiden_main",
+                        "exterior", true, "approach_stair", true, "facing", "SOUTH",
+                        "from", Map.of("x", 1, "y", 0, "z", 0),
+                        "to", Map.of("x", 1, "y", 2, "z", 3)));
+        var prepared = ComponentSatelliteInference.prepareComponents(
+                LlmPlanTestFixtures.builder().components(List.of(host, door, steps)).build(),
+                Map.of(), false);
+        Component outDoor = prepared.components().stream()
+                .filter(c -> "ENTRANCE".equalsIgnoreCase(c.componentType()))
+                .findFirst().orElseThrow();
+        Component outSteps = prepared.components().stream()
+                .filter(c -> "haiden_steps".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> to = (Map<String, Object>) outSteps.params().get("to");
+        int topX = outSteps.relativePosition().x() + ((Number) to.get("x")).intValue();
+        int topY = outSteps.relativePosition().y() + ((Number) to.get("y")).intValue();
+        int topZ = outSteps.relativePosition().z() + ((Number) to.get("z")).intValue();
+        int doorMidX = outDoor.relativePosition().x() + outDoor.dimensions().width() / 2;
+        int doorMidZ = outDoor.relativePosition().z() + outDoor.dimensions().depth() / 2;
+        assertEquals(doorMidX, topX);
+        assertEquals(outDoor.relativePosition().y(), topY);
+        assertEquals(doorMidZ, topZ);
+        assertTrue(outDoor.relativePosition().z() <= 1,
+                "realigned door should sit on front (z≈0), was " + outDoor.relativePosition());
+    }
+
+    @Test
     void verifiedRoofNoneIsPreservedOnOpenPavilion() {
         Map<String, Object> params = mutable(
                 "component_id", "open_colonnade",
