@@ -49,6 +49,26 @@ public final class FacadeDirection {
         return name(worldIdx);
     }
 
+    /**
+     * Default front-entrance threshold on a host AABB in plan space.
+     * Matches {@code ComponentSatelliteInference.makeEntranceComponent}: local SOUTH (front) is
+     * {@code z=0}, NORTH {@code z=max}, EAST {@code x=0}, WEST {@code x=max}.
+     *
+     * @return {@code int[]{x, z}} midpoint of the front face
+     */
+    public static int[] frontEntranceThresholdXZ(int hostX, int hostZ, int width, int depth, String buildingFacing) {
+        String facing = normalize(buildingFacing);
+        if (facing == null) facing = SOUTH;
+        int midX = hostX + Math.max(0, width) / 2;
+        int midZ = hostZ + Math.max(0, depth) / 2;
+        return switch (facing) {
+            case NORTH -> new int[]{midX, hostZ + Math.max(1, depth) - 1};
+            case EAST -> new int[]{hostX, midZ};
+            case WEST -> new int[]{hostX + Math.max(1, width) - 1, midZ};
+            default -> new int[]{midX, hostZ}; // SOUTH / front at z=0
+        };
+    }
+
     private static String normalize(String face) {
         if (face == null || face.isBlank()) return null;
         return face.trim().toUpperCase(Locale.ROOT);

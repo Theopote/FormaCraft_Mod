@@ -33,8 +33,6 @@ final class PavilionOpenFrameRepair {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         boolean planWantsOctagon = looksOctagon(plan);
         boolean planWantsPavilion = looksPavilionPlan(plan);
-        // Stilts are opt-in (水上/架空) — never implied by "it is a pavilion".
-        boolean planWantsStilts = looksStiltIntent(plan);
 
         Set<String> stiltHosts = new HashSet<>();
         for (Component c : plan.components()) {
@@ -84,12 +82,12 @@ final class PavilionOpenFrameRepair {
             }
         }
 
-        // Stilts only when the plan/mass asks for water / 架空 — never for ordinary courtyard 凉亭.
+        // Stilts are per-mass (REQUIRED / FORBIDDEN / UNSPECIFIED) — never plan-global bleed.
         if (!pavilionMassIds.isEmpty()) {
             Set<String> hostsNeedingStilts = new HashSet<>();
             for (String hostId : pavilionMassIds) {
                 Component mass = massById.get(hostId);
-                if (mass != null && (planWantsStilts || wantsStiltsForMass(mass, plan))) {
+                if (mass != null && stiltIntentForMass(mass, plan) == StiltIntent.REQUIRED) {
                     hostsNeedingStilts.add(hostId);
                 }
             }
@@ -161,21 +159,21 @@ final class PavilionOpenFrameRepair {
         }
         String id = mass.params().get("component_id") == null ? ""
                 : String.valueOf(mass.params().get("component_id")).toLowerCase(Locale.ROOT);
-        // Primary halls in garden compounds keep enclosed walls even if a stilts foundation
-        // was wrongly hosted on them (LLM often binds stilts to hall_main).
-        if (isHallLikeMass(mass, id)) {
-            return mass;
-        }
         boolean pavilionNamed = id.contains("pavilion") || id.contains("gazebo") || id.contains("kiosk")
                 || id.contains("ting") || id.contains("shuixie") || id.contains("亭")
-                || looksPavilion(mass.features());
+                || looksPavilion(mass.features())
+                || isExplicitPavilionMass(mass, id);
         // Plan-level「亭」only tags anonymous masses when this mass itself is pavilion-like
         // (never force open-frame onto every MASS_MAIN in a compound).
         if (planWantsPavilion && !pavilionNamed && looksPavilionToken(id)) {
             pavilionNamed = true;
         }
-        boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")));
         boolean hexagon = looksHexagon(mass);
+        // Primary halls keep enclosed walls — but never over explicit pavilion / hex-oct footprints.
+        if (isHallLikeMass(mass, id) && !pavilionNamed && !hexagon && !looksOctagon(mass)) {
+            return mass;
+        }
+        boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")));
         // Octagon intent is per-mass — never let a sibling 八角亭 rewrite an explicit 六角亭.
         boolean octagon = !hexagon && (looksOctagon(mass) || (planWantsOctagon && pavilionNamed && !hasExplicitNonOctagonShape(mass)));
         if (!pavilionNamed && !onStilts && !octagon && !hexagon) return mass;
@@ -195,11 +193,15 @@ final class PavilionOpenFrameRepair {
         params.put("open_sides", List.of("N", "E", "S", "W"));
         params.put("hollow", true);
         // Open-frame already skips embedded roofs (MassMainGenerator: hasRoof && !openRoof).
-        // Never write roof_type=none here — that blocks satellite ROOF inference when the LLM
-        // only emitted MASS_MAIN. Prefer an explicit pavilion roof so garden intents still autofill.
+        // Missing roof → soft pyramid default. Verified / hard roof_type=none stays none.
         String existingRoof = params.get("roof_type") == null ? null
                 : String.valueOf(params.get("roof_type")).trim();
-        if (existingRoof == null || existingRoof.isBlank() || "none".equalsIgnoreCase(existingRoof)) {
+        if (existingRoof == null || existingRoof.isBlank()) {
+            String preferred = preferredPavilionRoofType(mass, hexagon);
+            params.put("roof_type", preferred);
+            params.put("preferred_roof_type", preferred);
+            params.remove("compiler_suppressed_roof");
+        } else if ("none".equalsIgnoreCase(existingRoof) && !isHardRoofNone(params, mass)) {
             String preferred = preferredPavilionRoofType(mass, hexagon);
             params.put("roof_type", preferred);
             params.put("preferred_roof_type", preferred);
@@ -299,26 +301,130 @@ final class PavilionOpenFrameRepair {
         return level != null && "USER_REQUIRED".equalsIgnoreCase(String.valueOf(level).trim());
     }
 
-    private static boolean wantsStiltsForMass(Component mass, LlmPlan plan) {
-        if (mass == null) return false;
+    /** Per-mass stilts policy — FORBIDDEN always beats automatic REQUIRED inference. */
+    enum StiltIntent { REQUIRED, FORBIDDEN, UNSPECIFIED }
+
+    private static StiltIntent stiltIntentForMass(Component mass, LlmPlan plan) {
+        if (mass == null) return StiltIntent.UNSPECIFIED;
+        // Authored stilts foundation on the mass itself is hard REQUIRED.
         if (mass.params() != null) {
             Object ft = mass.params().get("foundation_type");
-            if (ft != null && isStilts(Map.of("foundation_type", ft))) return true;
-            Object id = mass.params().get("component_id");
-            if (id != null && looksStiltToken(String.valueOf(id))) return true;
-        }
-        if (looksStiltIntent(plan)) return true;
-        if (mass.features() != null) {
-            for (String f : mass.features()) {
-                if (f != null && looksStiltToken(f)) return true;
+            if (ft != null && isStilts(Map.of("foundation_type", ft))) {
+                return StiltIntent.REQUIRED;
+            }
+            Object mode = mass.params().get("foundation_mode");
+            if (mode != null) {
+                String m = String.valueOf(mode).trim().toUpperCase(Locale.ROOT);
+                if (m.equals("STILTS") || m.equals("FLOATING") || m.equals("PILES")) {
+                    return StiltIntent.REQUIRED;
+                }
+                if (m.equals("GROUND") || m.equals("PLINTH") || m.equals("PAD") || m.equals("NONE")) {
+                    return StiltIntent.FORBIDDEN;
+                }
             }
         }
-        // 水上亭 / water pavilion in id or features.
-        String blob = (mass.params() == null ? "" : String.valueOf(mass.params().get("component_id")))
-                + " " + (mass.features() == null ? "" : String.join(" ", mass.features()));
-        String lower = blob.toLowerCase(Locale.ROOT);
+        String massBlob = massIntentBlob(mass);
+        if (hasStiltForbidden(massBlob)) {
+            return StiltIntent.FORBIDDEN;
+        }
+        // Plan-level「不需要架空」forbids auto stilts unless this mass itself is water/stilt named.
+        if (hasStiltForbidden(planIntentBlob(plan)) && !massLocalRequiresStilts(mass, massBlob)) {
+            return StiltIntent.FORBIDDEN;
+        }
+        if (massLocalRequiresStilts(mass, massBlob)) {
+            return StiltIntent.REQUIRED;
+        }
+        return StiltIntent.UNSPECIFIED;
+    }
+
+    /** Mass-local stilts / water cues only — never plan-global sibling bleed. */
+    private static boolean massLocalRequiresStilts(Component mass, String massBlob) {
+        if (mass != null && mass.params() != null) {
+            Object id = mass.params().get("component_id");
+            if (id != null && looksPositiveStiltToken(String.valueOf(id))) return true;
+        }
+        if (mass != null && mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f != null && looksPositiveStiltToken(f)) return true;
+            }
+        }
+        String lower = massBlob == null ? "" : massBlob.toLowerCase(Locale.ROOT);
         return lower.contains("水上") || lower.contains("water") || lower.contains("lake")
-                || lower.contains("overwater") || lower.contains("pier");
+                || lower.contains("overwater") || lower.contains("pier")
+                || lower.contains("吊脚") || lower.contains("高脚");
+    }
+
+    private static String massIntentBlob(Component mass) {
+        if (mass == null) return "";
+        StringBuilder sb = new StringBuilder();
+        if (mass.params() != null && mass.params().get("component_id") != null) {
+            sb.append(mass.params().get("component_id")).append(' ');
+        }
+        if (mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f != null) sb.append(f).append(' ');
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String planIntentBlob(LlmPlan plan) {
+        if (plan == null) return "";
+        StringBuilder sb = new StringBuilder();
+        if (plan.distinguishingFeatures() != null) {
+            for (String f : plan.distinguishingFeatures()) {
+                if (f != null) sb.append(f).append(' ');
+            }
+        }
+        if (plan.playerFidelityNoticeZh() != null) {
+            sb.append(plan.playerFidelityNoticeZh()).append(' ');
+        }
+        if (plan.planMeta() != null) {
+            Object intent = plan.planMeta().get("request_intent");
+            if (intent instanceof Map<?, ?> map) {
+                Object text = map.get("original_text");
+                if (text != null) sb.append(text).append(' ');
+            }
+        }
+        return sb.toString();
+    }
+
+    private static boolean hasStiltForbidden(String blob) {
+        if (blob == null || blob.isBlank()) return false;
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return lower.contains("不需要架空") || lower.contains("不要架空") || lower.contains("无需架空")
+                || lower.contains("不用架空") || lower.contains("不架空")
+                || lower.contains("no stilts") || lower.contains("without stilts")
+                || lower.contains("not elevated") || lower.contains("no elevated")
+                || lower.contains("ground level") || lower.contains("落地");
+    }
+
+    private static boolean isHardRoofNone(Map<String, Object> params, Component mass) {
+        if (params != null) {
+            if (com.formacraft.common.typology.UserConstraintContract.isServerVerified(params, "roof_type")
+                    || com.formacraft.common.typology.UserConstraintContract.isServerVerified(params, "roofType")) {
+                return true;
+            }
+            if (com.formacraft.common.typology.TypologyParamResolver.isUserHardConstraint(
+                    params, "roof_type", "roofType")) {
+                return true;
+            }
+            Object level = params.get("requirement_level");
+            if (level != null && "USER_REQUIRED".equalsIgnoreCase(String.valueOf(level).trim())) {
+                return true;
+            }
+        }
+        if (mass != null && mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("无屋顶") || lower.contains("无顶") || lower.contains("open colonnade")
+                        || lower.contains("roofless") || lower.contains("no roof")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean looksSolidPlinth(Component foundation) {
@@ -508,15 +614,6 @@ final class PavilionOpenFrameRepair {
         return false;
     }
 
-    private static boolean looksStiltIntent(LlmPlan plan) {
-        if (plan.distinguishingFeatures() != null) {
-            for (String f : plan.distinguishingFeatures()) {
-                if (f != null && looksStiltToken(f)) return true;
-            }
-        }
-        return plan.playerFidelityNoticeZh() != null && looksStiltToken(plan.playerFidelityNoticeZh());
-    }
-
     private static boolean looksPavilion(List<String> features) {
         if (features == null) return false;
         for (String f : features) {
@@ -537,37 +634,81 @@ final class PavilionOpenFrameRepair {
                 || "亭".equals(raw.trim());
     }
 
-    /** Primary halls in garden compounds must keep enclosed walls / no forced stilts. */
+    /**
+     * Primary halls keep enclosed walls. Explicit pavilion role / 亭 tokens win over
+     * weak name cues like {@code main} in {@code main_pavilion} or {@code slotId=main}.
+     */
     private static boolean isHallLikeMass(Component mass, String idLower) {
-        if (idLower != null && (idLower.contains("hall") || idLower.contains("main")
-                || idLower.contains("殿") || idLower.contains("堂") || idLower.contains("house"))) {
-            return true;
+        if (isExplicitPavilionMass(mass, idLower)) {
+            return false;
         }
         if (mass.params() != null) {
             Object role = mass.params().get("building_role");
             if (role == null) role = mass.params().get("buildingRole");
             if (role != null) {
                 String r = String.valueOf(role).toLowerCase(Locale.ROOT);
-                if (r.contains("hall") || r.equals("main") || r.contains("primary")) return true;
+                if (r.contains("hall") || r.equals("main") || r.contains("primary")
+                        || r.contains("殿") || r.contains("堂")) {
+                    return true;
+                }
             }
+            Object typology = mass.params().get("typology_id");
+            if (typology == null) typology = mass.params().get("typologyId");
+            if (typology != null) {
+                String t = String.valueOf(typology).toLowerCase(Locale.ROOT);
+                if (t.contains("pavilion") || t.contains("gazebo") || t.contains("ting")) {
+                    return false;
+                }
+            }
+        }
+        // Bare "main" / slot main is not hall — need hall/house/殿 or *_main hall carriers.
+        if (idLower != null && (idLower.contains("hall") || idLower.contains("殿")
+                || idLower.contains("堂") || idLower.contains("house")
+                || idLower.endsWith("_main") || idLower.equals("main"))) {
+            return true;
         }
         if (mass.features() != null) {
             for (String f : mass.features()) {
                 if (f == null) continue;
                 String lower = f.toLowerCase(Locale.ROOT);
-                if (lower.contains("main_hall") || lower.contains("hall") || lower.contains("殿")) {
+                if (lower.contains("main_hall") || lower.contains("正殿") || lower.contains("主殿")
+                        || lower.contains("正房") || (lower.contains("hall") && !looksPavilionToken(f))) {
                     return true;
                 }
             }
         }
         String slot = mass.slotId() == null ? "" : mass.slotId().toLowerCase(Locale.ROOT);
-        return slot.contains("hall") || slot.contains("main");
+        // slotId=main only means primary carrier — not hall typology.
+        return slot.contains("hall") || slot.contains("殿") || slot.contains("堂");
     }
 
-    private static boolean looksStiltToken(String raw) {
+    private static boolean isExplicitPavilionMass(Component mass, String idLower) {
+        if (idLower != null && (idLower.contains("pavilion") || idLower.contains("gazebo")
+                || idLower.contains("kiosk") || idLower.contains("ting") || idLower.contains("shuixie")
+                || idLower.contains("亭"))) {
+            return true;
+        }
+        if (mass != null && mass.params() != null) {
+            Object role = mass.params().get("building_role");
+            if (role == null) role = mass.params().get("buildingRole");
+            if (role != null) {
+                String r = String.valueOf(role).toLowerCase(Locale.ROOT);
+                if (r.contains("pavilion") || r.contains("gazebo") || r.contains("ting") || r.contains("亭")) {
+                    return true;
+                }
+            }
+        }
+        return mass != null && looksPavilion(mass.features());
+    }
+
+    /** Positive stilts / elevated tokens only — 木柱/pillar are post framing, not stilts. */
+    private static boolean looksPositiveStiltToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        if (hasStiltForbidden(raw)) return false;
         String lower = raw.toLowerCase(Locale.ROOT);
-        return lower.contains("stilt") || lower.contains("架空") || lower.contains("木柱")
-                || lower.contains("吊脚") || lower.contains("高脚") || lower.contains("pillar");
+        return lower.contains("stilt") || lower.contains("架空")
+                || lower.contains("吊脚") || lower.contains("高脚")
+                || lower.contains("piling") || lower.contains("piles");
     }
 
     private static boolean looksOctagon(Component c) {

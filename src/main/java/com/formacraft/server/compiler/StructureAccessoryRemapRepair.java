@@ -202,29 +202,33 @@ final class StructureAccessoryRemapRepair {
             highX = entrance.relativePosition().x();
             highZ = entrance.relativePosition().z();
             thresholdY = entrance.relativePosition().y();
-        } else {
-            // Midpoint of the entrance face of the host AABB.
-            highX = hr.x() + hd.width() / 2;
-            highZ = hr.z() + hd.depth() / 2;
-            switch (facing) {
-                case "NORTH" -> highZ = hr.z();
-                case "SOUTH" -> highZ = hr.z() + hd.depth() - 1;
-                case "EAST" -> highX = hr.x() + hd.width() - 1;
-                case "WEST" -> highX = hr.x();
-                default -> highZ = hr.z() + hd.depth() - 1;
+            if (entrance.dimensions() != null) {
+                // Door box midpoint on the host face (not the min-corner alone).
+                highX += entrance.dimensions().width() / 2;
+                highZ += entrance.dimensions().depth() / 2;
             }
+        } else {
+            // Same front-face contract as ComponentSatelliteInference.makeEntranceComponent /
+            // FacadeDirection (local SOUTH/front at z=0, NORTH at z=max, …).
+            int[] thr = com.formacraft.common.generation.component.util.FacadeDirection
+                    .frontEntranceThresholdXZ(hr.x(), hr.z(), hd.width(), hd.depth(), facing);
+            highX = thr[0];
+            highZ = thr[1];
+            thresholdY = hr.y() + 1;
         }
-        // Local high-end cell inside the stair AABB, then back-solve world origin.
-        int localHighX = width / 2;
+        // Local high-end must match remapToStair from/to (outside → front face).
+        // SOUTH front z=min → stair north of face, high at local z=max; visitors walk +Z.
+        // NORTH front z=max → stair south of face, high at local z=min; visitors walk -Z.
+        // EAST front x=min → high at local x=max; WEST front x=max → high at local x=min.
+        int localHighXAdj = switch (facing) {
+            case "EAST" -> width - 1;
+            case "WEST" -> 0;
+            default -> width / 2;
+        };
         int localHighZ = switch (facing) {
             case "NORTH" -> 0;
             case "SOUTH" -> depth - 1;
             default -> depth / 2;
-        };
-        int localHighXAdj = switch (facing) {
-            case "EAST" -> width - 1;
-            case "WEST" -> 0;
-            default -> localHighX;
         };
         int ox = highX - localHighXAdj;
         int oz = highZ - localHighZ;

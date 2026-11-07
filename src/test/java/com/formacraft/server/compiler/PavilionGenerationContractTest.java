@@ -150,9 +150,11 @@ class PavilionGenerationContractTest {
         int topX = out.relativePosition().x() + ((Number) to.get("x")).intValue();
         int topY = out.relativePosition().y() + ((Number) to.get("y")).intValue();
         int topZ = out.relativePosition().z() + ((Number) to.get("z")).intValue();
-        assertEquals(entrance.relativePosition().x(), topX);
+        int expectX = entrance.relativePosition().x() + entrance.dimensions().width() / 2;
+        int expectZ = entrance.relativePosition().z() + entrance.dimensions().depth() / 2;
+        assertEquals(expectX, topX);
         assertEquals(entrance.relativePosition().y(), topY);
-        assertEquals(entrance.relativePosition().z(), topZ);
+        assertEquals(expectZ, topZ);
     }
 
     private static Component byId(LlmPlan plan, String id) {
