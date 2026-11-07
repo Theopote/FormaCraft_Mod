@@ -63,6 +63,54 @@ class UpperStoreyEntranceRepairTest {
     }
 
     @Test
+    void keepsUserExplicitUpperDoorWithoutDeck() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "house", "anchor_mode", "min_corner",
+                        "floor_count", 2, "floor_height", 4));
+        Map<String, Object> upperDoor = new HashMap<>();
+        upperDoor.put("host_id", "house");
+        upperDoor.put("facing", "SOUTH");
+        upperDoor.put("door_width", 2);
+        upperDoor.put("anchor_mode", "min_corner");
+        upperDoor.put("constraint_source", "USER_EXPLICIT");
+        upperDoor.put("door_explicit", true);
+        Component door = new Component(
+                "ENTRANCE", "main", new Vec3i(4, 4, 0),
+                new Dimensions(4, 1, 3), List.of(), upperDoor);
+        List<Component> parts = new ArrayList<>(List.of(mass, door));
+        UpperStoreyEntranceRepair.apply(parts);
+        assertEquals(2, parts.size());
+        assertTrue(parts.stream().anyMatch(c -> "ENTRANCE".equals(c.componentType())));
+    }
+
+    @Test
+    void ignoresForeignHostBalconyAsLanding() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "house", "anchor_mode", "min_corner",
+                        "floor_count", 2, "floor_height", 4));
+        Map<String, Object> upperDoor = new HashMap<>();
+        upperDoor.put("host_id", "house");
+        upperDoor.put("facing", "SOUTH");
+        upperDoor.put("door_width", 2);
+        upperDoor.put("anchor_mode", "min_corner");
+        Component door = new Component(
+                "ENTRANCE", "main", new Vec3i(4, 4, 0),
+                new Dimensions(4, 1, 3), List.of(), upperDoor);
+        Component foreignBalcony = new Component(
+                "BALCONY", "other", new Vec3i(3, 4, -2),
+                new Dimensions(6, 3, 1), List.of(),
+                Map.of("component_id", "balc", "host_id", "other_house", "anchor_mode", "min_corner"));
+        List<Component> parts = new ArrayList<>(List.of(mass, door, foreignBalcony));
+        UpperStoreyEntranceRepair.apply(parts);
+        assertTrue(parts.stream().noneMatch(c -> "ENTRANCE".equals(c.componentType())),
+                "foreign-host balcony must not rescue floating door");
+    }
+
+    @Test
     void keepsGroundEntrance() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),

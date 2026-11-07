@@ -44,7 +44,8 @@ public record PagodaVerticalSemantics(
             floorCount = implicitFloors;
             floorsExplicit = false;
         }
-        int minFloors = floorsExplicit ? 3 : implicitMin;
+        // Explicit floor_count is a hard authoring constraint — never silently bump 2→3.
+        int minFloors = floorsExplicit ? 1 : implicitMin;
         floorCount = clamp(floorCount, minFloors, maxFloors);
 
         boolean wantsDoubleEaves = truthy(raw.get("double_eaves")) || truthy(raw.get("doubleEaves"))

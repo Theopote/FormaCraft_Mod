@@ -158,6 +158,88 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void threeStoreyHallDoesNotRaiseSingleStoreyPavilion() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(15, 11, 12), List.of(),
+                Map.of("component_id", "hall_main", "building_role", "hall_main", "floor_count", 3));
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion", new Vec3i(20, 0, 0),
+                new Dimensions(7, 7, 5), List.of(),
+                Map.of("component_id", "pavilion_1", "building_role", "pavilion", "floor_count", 1));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(hall, pavilion))
+                        .build(),
+                "生成一座三层道观主殿，旁边建一座单层亭子");
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outHall = findById(repaired, "hall_main");
+        Component outPavilion = findById(repaired, "pavilion_1");
+        assertEquals(3, ((Number) outHall.params().get("floor_count")).intValue());
+        assertEquals(1, ((Number) outPavilion.params().get("floor_count")).intValue(),
+                "pavilion must keep single-storey floor_count");
+    }
+
+    @Test
+    void serverUserTextOverridesWrongLlmOriginalTextEcho() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(new Component(
+                        "MASS_MAIN", null, new Vec3i(0, 0, 0),
+                        new Dimensions(8, 8, 10), List.of(), Map.of("floor_count", 2))))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "original_text", "生成一座两层普通房屋",
+                                "building_class", "generic")))
+                .build();
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, "生成一座三层中式古塔");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ri = (Map<String, Object>) ensured.planMeta().get("request_intent");
+        assertEquals("生成一座三层中式古塔", ri.get("original_text"));
+        assertEquals(Boolean.TRUE, ri.get("intent_echo_mismatch"));
+        assertEquals("生成一座两层普通房屋", ri.get("parsed_intent_echo"));
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(ensured);
+        assertEquals(3, ((Number) repaired.components().getFirst().params().get("floor_count")).intValue());
+    }
+
+    @Test
+    void sideHallMainEntranceDoesNotReceivePrimaryDoorWidth() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(15, 11, 9), List.of(),
+                Map.of("component_id", "hall_main", "building_role", "hall_main"));
+        Component hallDoor = new Component(
+                "ENTRANCE", "main_entrance", new Vec3i(6, 0, 11),
+                new Dimensions(3, 1, 3), List.of(),
+                Map.of("entrance_role", "main", "host_id", "hall_main", "door_width", 1));
+        Component sideHall = new Component(
+                "MASS_MAIN", "side", new Vec3i(20, 0, 0),
+                new Dimensions(9, 7, 6), List.of(),
+                Map.of("component_id", "side_hall", "building_role", "secondary"));
+        Component sideDoor = new Component(
+                "ENTRANCE", "main_entrance", new Vec3i(23, 0, 7),
+                new Dimensions(2, 1, 3), List.of(),
+                Map.of("entrance_role", "main", "host_id", "side_hall", "door_width", 1));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(hall, hallDoor, sideHall, sideDoor))
+                        .planMeta(Map.of("primary_building_id", "hall_main"))
+                        .build(),
+                "主殿正门宽三格");
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outHallDoor = repaired.components().stream()
+                .filter(c -> "ENTRANCE".equalsIgnoreCase(c.componentType()))
+                .filter(c -> "hall_main".equals(String.valueOf(c.params().get("host_id"))))
+                .findFirst().orElseThrow();
+        Component outSideDoor = repaired.components().stream()
+                .filter(c -> "ENTRANCE".equalsIgnoreCase(c.componentType()))
+                .filter(c -> "side_hall".equals(String.valueOf(c.params().get("host_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(3, ((Number) outHallDoor.params().get("door_width")).intValue());
+        assertEquals(1, ((Number) outSideDoor.params().get("door_width")).intValue(),
+                "side-hall main entrance must not inherit hall 正门 width");
+    }
+
+    @Test
     void mainDoorWidthThreeDoesNotWidenSideEntrance() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),

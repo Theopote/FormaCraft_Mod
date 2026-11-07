@@ -57,6 +57,44 @@ class TypologyParamResolverTest {
     }
 
     @Test
+    void planTowerHeightOverwritesRegistryDefaultHeightValueAndSource() {
+        // Registry default height=47 must not win when only towerHeight=28 is PLAN-authored.
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(9, 9, 28),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("floor_count", 3, "towerHeight", 28)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals(28, ((Number) merged.get("height")).intValue(),
+                "canonical height must take PLAN towerHeight, not registry 47");
+        assertEquals(28, ((Number) merged.get("towerHeight")).intValue());
+        assertTrue(TypologyParamResolver.isPlanAuthored(merged, "height"));
+        assertTrue(TypologyParamResolver.isPlanAuthored(merged, "towerHeight"));
+        // TypologyParams prefers height when both keys exist.
+        var tp = new TypologyParams(merged);
+        assertEquals(28, tp.intVal("height", "towerHeight", 47, 1, 120));
+    }
+
+    @Test
+    void conflictingPlanHeightAndTowerHeightKeepsCanonicalHeight() {
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(9, 9, 30),
+                java.util.List.of("typology:dense_eaves_pagoda"),
+                java.util.Map.of("height", 30, "towerHeight", 24)
+        );
+        var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
+        assertEquals(30, ((Number) merged.get("height")).intValue());
+        assertEquals(30, ((Number) merged.get("towerHeight")).intValue(),
+                "towerHeight must sync to canonical height on PLAN conflict");
+    }
+
+    @Test
     void snakeCaseFootprintShapeBeatsRegistryDefault() {
         var component = new com.formacraft.common.llm.dto.Component(
                 "STRUCTURE",

@@ -69,6 +69,14 @@ class PagodaVerticalSemanticsTest {
     }
 
     @Test
+    void explicitTwoFloorsIsNotSilentlyBumpedToThree() {
+        TypologyParams p = new TypologyParams(Map.of("floor_count", 2));
+        PagodaVerticalSemantics v = PagodaVerticalSemantics.resolve(p, 13, 7, 15);
+        assertEquals(2, v.floorCount());
+        assertTrue(v.floorsExplicit());
+    }
+
+    @Test
     void morphologyAuditFailsWrongFloorCount() {
         PagodaVerticalSemantics expected = new PagodaVerticalSemantics(3, 2, 6, true);
         TypologyGenerationException ex = assertThrows(

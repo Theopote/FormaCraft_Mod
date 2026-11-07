@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
@@ -41,16 +42,24 @@ public final class RequestIntentInjector {
         if (existing instanceof Map<?, ?> existingMap
                 && existingMap.get("original_text") != null
                 && !String.valueOf(existingMap.get("original_text")).isBlank()) {
-            // Keep Python-authored merged intent; only fill missing text echo.
-            // Still reconcile roof_type / roof_forbids from the original text so
-            // 「不要做成歇山」cannot survive as a positive roof_type from the LLM.
             @SuppressWarnings("unchecked")
             Map<String, Object> reconciled = new HashMap<>((Map<String, Object>) existingMap);
-            reconcileRoofFromText(reconciled, String.valueOf(existingMap.get("original_text")));
-            meta.put("request_intent", reconciled);
-            if (!meta.containsKey("request_intent_text")) {
-                meta.put("request_intent_text", String.valueOf(existingMap.get("original_text")));
+            String echo = String.valueOf(existingMap.get("original_text")).trim();
+            // Server userText is authoritative. Python/LLM echo must not replace it.
+            if (!text.isBlank() && !textEqualsIgnoreSpace(text, echo)) {
+                reconciled.put("parsed_intent_echo", echo);
+                reconciled.put("original_text", text);
+                reconciled.put("intent_echo_mismatch", Boolean.TRUE);
+                FormacraftMod.LOGGER.info(
+                        "RequestIntentInjector: INTENT_ECHO_MISMATCH serverText≠plan echo; using server text");
+                echo = text;
+            } else if (!text.isBlank()) {
+                reconciled.put("original_text", text);
+                echo = text;
             }
+            reconcileRoofFromText(reconciled, echo);
+            meta.put("request_intent", reconciled);
+            meta.put("request_intent_text", echo);
             if (!meta.containsKey("building_class") && reconciled.get("building_class") != null) {
                 meta.put("building_class", reconciled.get("building_class"));
             }
@@ -65,6 +74,11 @@ public final class RequestIntentInjector {
         meta.put("request_intent_text", text);
         meta.put("building_class", intent.get("building_class"));
         return OpeningConstraintProvenance.stamp(withMeta(plan, meta));
+    }
+
+    private static boolean textEqualsIgnoreSpace(String a, String b) {
+        if (a == null || b == null) return a == b;
+        return a.replaceAll("\\s+", "").equals(b.replaceAll("\\s+", ""));
     }
 
     /** Keyword-only extract (tests / fallback). Prefer {@link #ensure} for full merge. */

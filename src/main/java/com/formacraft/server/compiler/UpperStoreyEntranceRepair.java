@@ -74,6 +74,14 @@ final class UpperStoreyEntranceRepair {
                 changed = true;
                 continue;
             }
+            if (isUserExplicitEntrance(door)) {
+                // Never drop USER_EXPLICIT upper doors — leave for circulation / stair repair.
+                keep.add(door);
+                FormacraftMod.LOGGER.info(
+                        "UpperStoreyEntranceRepair: keep USER_EXPLICIT upper ENTRANCE without deck (y={})",
+                        doorY);
+                continue;
+            }
             FormacraftMod.LOGGER.info(
                     "UpperStoreyEntranceRepair: drop upper-storey ENTRANCE without balcony/terrace (y={} host={})",
                     doorY,
@@ -143,13 +151,19 @@ final class UpperStoreyEntranceRepair {
             case "EAST" -> maxX += 2;
             default -> maxZ += 2;
         }
+        String doorHost = door.params() == null ? null
+                : String.valueOf(door.params().getOrDefault("host_id",
+                door.params().getOrDefault("hostId", "")));
+        if (doorHost != null && doorHost.isBlank()) doorHost = null;
         for (Component deck : decks) {
-            if (!Objects.equals(door.slotId(), deck.slotId())
-                    && deck.params() != null && door.params() != null
-                    && door.params().get("host_id") != null
-                    && !Objects.equals(String.valueOf(door.params().get("host_id")),
-                    String.valueOf(deck.params().getOrDefault("host_id", "")))) {
-                // Different hosts — still allow if footprints touch (shared courtyard decks).
+            if (doorHost != null && deck.params() != null) {
+                Object deckHost = deck.params().get("host_id");
+                if (deckHost == null) deckHost = deck.params().get("hostId");
+                if (deckHost == null) deckHost = deck.params().get("building_id");
+                if (deckHost != null && !doorHost.equals(String.valueOf(deckHost).trim())) {
+                    // Foreign host platform — do not count as this door's landing.
+                    continue;
+                }
             }
             var db = ComponentFootprintUtil.bounds(deck);
             if (db == null) continue;
@@ -159,5 +173,16 @@ final class UpperStoreyEntranceRepair {
             if (overlapXZ && nearY) return deck;
         }
         return null;
+    }
+
+    private static boolean isUserExplicitEntrance(Component door) {
+        if (door == null || door.params() == null) return false;
+        Object src = door.params().get("constraint_source");
+        if (src == null) src = door.params().get("constraintSource");
+        if (src != null && "USER_EXPLICIT".equalsIgnoreCase(String.valueOf(src).trim())) {
+            return true;
+        }
+        return Boolean.TRUE.equals(door.params().get("door_explicit"))
+                || Boolean.TRUE.equals(door.params().get("user_explicit"));
     }
 }

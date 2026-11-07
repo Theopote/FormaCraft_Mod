@@ -374,12 +374,17 @@ final class PlanIntentFidelityRepair {
                 && isBlank(ComponentPlanTypes.getParamString(params, "floor_block"))) {
             changed |= DesignProvenance.putIfAllowed(plan, params, "floor_block", hints.floorBlock());
         }
-        if ((mass || structure) && hints.floorCount() > 0) {
+        // Global floor hints bind only to the primary host — never force a pavilion to 3 storeys.
+        boolean inPrimaryMassScope = !multiBuilding
+                || primaryHost == null
+                || primaryHost.isBlank()
+                || primaryHost.equals(BuildingHostResolver.massId(component));
+        if ((mass || structure) && hints.floorCount() > 0 && inPrimaryMassScope) {
             int existingFloors = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
             boolean shouldWrite = existingFloors <= 0
                     || (hints.floorCountUserExplicit() && existingFloors != hints.floorCount());
             if (shouldWrite) {
-                // USER_EXPLICIT floor count overwrites wrong LLM values.
+                // USER_EXPLICIT floor count overwrites wrong LLM values on the primary host.
                 params.put("floor_count", hints.floorCount());
                 params.put("levels", hints.floorCount());
                 changed = true;
@@ -472,9 +477,11 @@ final class PlanIntentFidelityRepair {
         Dimensions dims = dimsOverride != null ? dimsOverride : component.dimensions();
         Vec3i position = component.relativePosition();
         if (mass && dims != null) {
-            int floors = Math.max(
-                    hints.floorCount(),
-                    ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount"));
+            int ownFloors = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
+            // Global floor hints inflate only the primary host — accessory pavilions keep own storeys.
+            int floors = inPrimaryMassScope
+                    ? Math.max(hints.floorCount(), ownFloors)
+                    : ownFloors;
             String corpus = intentCorpus(plan).toLowerCase(Locale.ROOT);
             boolean officeLike = corpus.contains("办公") || corpus.contains("office")
                     || corpus.contains("curtain") || corpus.contains("幕墙")
@@ -745,10 +752,31 @@ final class PlanIntentFidelityRepair {
         if (want == null || have == null) return want == have;
         String a = want.trim().toLowerCase(Locale.ROOT);
         String b = have.trim().toLowerCase(Locale.ROOT);
-        if (a.equals(b) || a.contains(b) || b.contains(a)) return true;
+        if (a.equals(b)) return true;
+        // Do NOT use substring contains — hip ⊆ hip_gable but they are different forms.
         var ak = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(a);
         var bk = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(b);
-        return ak.isPresent() && bk.isPresent() && ak.get() == bk.get();
+        if (ak.isPresent() && bk.isPresent()) {
+            return ak.get() == bk.get();
+        }
+        // Synonym tokens only when catalog cannot parse either side.
+        return synonymRoofToken(a).equals(synonymRoofToken(b));
+    }
+
+    private static String synonymRoofToken(String raw) {
+        if (raw == null) return "";
+        String s = raw.trim().toLowerCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_');
+        return switch (s) {
+            case "hip_roof", "si_po", "庑殿", "庑殿顶" -> "hip";
+            case "hip_gable", "xieshan", "歇山", "歇山顶" -> "xieshan";
+            case "gable", "gable_roof", "人字", "双坡", "悬山" -> "gable";
+            case "pyramid", "pyramidal", "攒尖", "攒尖顶" -> "pyramid";
+            case "double_eave_hip", "重檐庑殿" -> "double_eave_hip";
+            case "double_eave_xieshan", "重檐歇山" -> "double_eave_xieshan";
+            default -> s;
+        };
     }
 
     /** True when extract() marked the roof token as forbidden (不要做成歇山). */
@@ -1043,6 +1071,13 @@ final class PlanIntentFidelityRepair {
             return primaryHost.equals(BuildingHostResolver.massId(component));
         }
         if (!entrance || component == null) return false;
+        // Host binding first — side-hall main_entrance must not receive hall_main 正门 width.
+        if (primaryHost != null && !primaryHost.isBlank()) {
+            String host = BuildingHostResolver.roofHostId(component);
+            if (host != null && !host.isBlank() && !primaryHost.equals(host)) {
+                return false;
+            }
+        }
         String slot = component.slotId() == null ? "" : component.slotId().toLowerCase(Locale.ROOT);
         if (slot.contains("side") || slot.contains("back") || slot.contains("balcony")
                 || slot.contains("侧") || slot.contains("后门") || slot.contains("旁门")) {
@@ -1071,15 +1106,10 @@ final class PlanIntentFidelityRepair {
                     return false;
                 }
             }
-            String host = BuildingHostResolver.roofHostId(component);
-            if (host != null && primaryHost != null && !primaryHost.equals(host)) {
-                return false;
-            }
         }
         if (slot.contains("main") || slot.contains("front") || slot.contains("正门") || slot.isBlank()) {
             return true;
         }
-        // Ambiguous entrance in a multi-entrance plan: only stamp when clearly main-ish.
         return slot.contains("entrance") && !slot.contains("side");
     }
 
