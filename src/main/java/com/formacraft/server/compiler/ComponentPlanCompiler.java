@@ -126,7 +126,7 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
         plan = FootprintCombinationRepair.apply(plan);
-        // Hexagon pavilion tokens → octagon cut-corners before authored shape gates.
+        // Hexagon pavilion tokens → native shape=hexagon (never silent octagon substitute).
         plan = FootprintShapeRemapRepair.apply(plan);
         plan = CourtyardRatioRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
@@ -135,7 +135,7 @@ public final class ComponentPlanCompiler {
         plan = GardenCompositionRepair.apply(plan);
         // 四合院 compositional dumps → native courtyard_compound before separation can scramble halls.
         plan = SiheyuanCourtyardMisrouteRepair.apply(plan);
-        // STRUCTURE plinth / steps → FOUNDATION so accessory pads emit solid geometry.
+        // STRUCTURE plinth → FOUNDATION; approach steps → STAIR_SYSTEM (not solid pads).
         plan = StructureAccessoryRemapRepair.apply(plan);
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
         plan = MassFootprintSeparationRepair.apply(plan);

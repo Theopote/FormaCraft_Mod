@@ -30,7 +30,9 @@ public record ResolvedFootprint(
     public enum FootprintShape {
         RECTANGLE,
         CIRCLE,
-        ROUNDED_RECT
+        ROUNDED_RECT,
+        /** Flat-top hexagon inscribed in the AABB (six major façades). */
+        HEXAGON
     }
 
     public enum PlanPattern {
@@ -113,6 +115,9 @@ public record ResolvedFootprint(
             double dz = (z - cz) / rz;
             return (dx * dx + dz * dz) <= 1.0;
         }
+        if (shape == FootprintShape.HEXAGON) {
+            return isInsideHexagon(x, z, width, depth, 0);
+        }
         int r = Math.max(0, Math.min(cornerRadius, Math.min(width, depth) / 2));
         if (r == 0) {
             return true;
@@ -130,6 +135,22 @@ public record ResolvedFootprint(
         double dz = z - cornerZ;
         double rr = r - 0.5;
         return (dx * dx + dz * dz) <= (rr * rr);
+    }
+
+    /**
+     * Flat-top hexagon filling the AABB: vertices at (±1,±0.5) and (0,±1) in normalized space.
+     * {@code inset} shrinks the effective radii (wall thickness erosion).
+     */
+    public static boolean isInsideHexagon(int x, int z, int width, int depth, int inset) {
+        double cx = (width - 1) / 2.0;
+        double cz = (depth - 1) / 2.0;
+        double rx = Math.max(0.5, width / 2.0 - Math.max(0, inset));
+        double rz = Math.max(0.5, depth / 2.0 - Math.max(0, inset));
+        double nx = (x - cx) / rx;
+        double nz = (z - cz) / rz;
+        double ax = Math.abs(nx);
+        double az = Math.abs(nz);
+        return ax <= 1.0 && az <= 1.0 && (0.5 * ax + az) <= 1.0;
     }
 
     private boolean isInCrossArms(int x, int z) {

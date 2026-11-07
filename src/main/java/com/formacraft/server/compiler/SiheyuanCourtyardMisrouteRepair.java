@@ -34,7 +34,7 @@ final class SiheyuanCourtyardMisrouteRepair {
         params.put("structural_typology", "courtyard_compound");
         params.put("width", size[0]);
         params.put("depth", size[1]);
-        params.put("facing", "SOUTH");
+        params.put("facing", preserveFacing(plan));
         params.put("includePaths", true);
         params.put("pathWidth", 3);
         params.put("paveCourtyard", true);
@@ -150,6 +150,37 @@ final class SiheyuanCourtyardMisrouteRepair {
             if (cd instanceof Number n) d = Math.max(d, n.intValue());
         }
         return new int[]{w, d};
+    }
+
+    /**
+     * Prefer authored facing from global constraints or the first component that names one.
+     * Default SOUTH only when nothing was specified (classical 坐北朝南).
+     */
+    private static String preserveFacing(LlmPlan plan) {
+        if (plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
+            return plan.globalConstraints().facing().name();
+        }
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            Object raw = c.params().get("facing");
+            if (raw == null) raw = c.params().get("orientation");
+            if (raw == null) continue;
+            String s = String.valueOf(raw).trim().toUpperCase(Locale.ROOT);
+            if (s.equals("NORTH") || s.equals("SOUTH") || s.equals("EAST") || s.equals("WEST")) {
+                return s;
+            }
+        }
+        String blob = blob(plan);
+        if (blob.contains("朝北") || blob.contains("坐南朝北") || blob.contains("facing north")) {
+            return "NORTH";
+        }
+        if (blob.contains("朝东") || blob.contains("facing east")) {
+            return "EAST";
+        }
+        if (blob.contains("朝西") || blob.contains("facing west")) {
+            return "WEST";
+        }
+        return "SOUTH";
     }
 
     private static void stampMaterials(Map<String, Object> params, StyleAttributes attrs) {

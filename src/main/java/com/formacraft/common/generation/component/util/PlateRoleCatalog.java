@@ -17,7 +17,10 @@ public final class PlateRoleCatalog {
 
     public static final Set<String> TERRACE_TOKENS = Set.of(
             "terrace", "balcony", "deck", "cantilever", "platform", "partial_platform", "maintenance_platform",
-            "roof", "tower_platform", "roof_platform", "canopy", "landing", "stair_landing", "path", "walkway"
+            "roof", "tower_platform", "roof_platform", "canopy", "landing", "stair_landing", "path", "walkway",
+            // Exterior moon platforms / forecourts — must not host-clip as interior floors.
+            "月台", "yuetai", "moon_platform", "moon-platform", "exterior_platform", "forecourt",
+            "exterior", "front_platform"
     );
 
     public static final Set<String> BRIDGE_TOKENS = Set.of(

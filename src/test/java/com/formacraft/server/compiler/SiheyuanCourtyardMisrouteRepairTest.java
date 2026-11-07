@@ -51,6 +51,24 @@ class SiheyuanCourtyardMisrouteRepairTest {
     }
 
     @Test
+    void rewritePreservesAuthoredFacing() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 8, 6), List.of(),
+                Map.of("component_id", "main", "facing", "NORTH", "anchor_mode", "min_corner"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Chinese_Vernacular_Siheyuan")
+                .planMeta(Map.of("request_intent_text", "生成一座朝北的四合院，正房和厢房"))
+                .components(List.of(
+                        main,
+                        mass("east", 14, 0, 6, 10, 4),
+                        mass("west", -8, 0, 6, 10, 4)))
+                .build();
+        LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
+        assertEquals("NORTH", String.valueOf(out.components().getFirst().params().get("facing")));
+    }
+
+    @Test
     void leavesExistingCourtyardCompoundAlone() {
         Component structure = new Component(
                 "STRUCTURE", "main", new Vec3i(0, 0, 0),

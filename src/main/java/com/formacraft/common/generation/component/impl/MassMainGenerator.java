@@ -31,7 +31,8 @@ public class MassMainGenerator implements ComponentGenerator {
     private enum FootprintShape {
         RECTANGLE,
         CIRCLE,
-        ROUNDED_RECT
+        ROUNDED_RECT,
+        HEXAGON
     }
 
     private enum PlanPattern {
@@ -1084,8 +1085,10 @@ public class MassMainGenerator implements ComponentGenerator {
     ) {
         var role = com.formacraft.common.generation.component.util.HostedPlateOccupancy.resolveRole(params);
         String hostId = getParamString(params, "host_id", "hostId");
-        boolean clipToHost = hostId != null
-                && !com.formacraft.common.generation.component.util.HostedPlateOccupancy.skipsHostFootprintClip(role);
+        // 月台 / exterior platforms often omit plate_role=terrace; still skip host clip.
+        boolean exteriorPlate = com.formacraft.common.generation.component.util.HostedPlateOccupancy
+                .skipsHostFootprintClip(role) || looksExteriorMoonPlatform(c);
+        boolean clipToHost = hostId != null && !exteriorPlate;
 
         com.formacraft.common.generation.component.util.BuildingGeometryContext.Entry hostEntry = null;
         if (clipToHost) {
@@ -1124,24 +1127,29 @@ public class MassMainGenerator implements ComponentGenerator {
                 out.add(new BlockPatch(BlockPatch.PLACE, wx, wy, wz, floor));
             }
         }
-        // Moon platforms / forecourts often sit outside the host shell with plate_role=interior.
-        // Host-clip then yields zero cells → required_component_empty. Fall back to the plate AABB.
-        if (out.isEmpty() && clipToHost && width > 0 && depth > 0) {
-            FormacraftMod.LOGGER.info(
-                    "MassMainGenerator: hosted plate clip empty → standalone fill id={} host_id={}",
-                    c.params() == null ? null : c.params().get("component_id"),
-                    hostId);
-            for (int x = 0; x < width; x++) {
-                for (int z = 0; z < depth; z++) {
-                    out.add(new BlockPatch(
-                            BlockPatch.PLACE,
-                            actualRp.x() + x,
-                            actualRp.y(),
-                            actualRp.z() + z,
-                            floor));
-                }
+        // Interior floors: empty host-clip must stay empty (surfaces planning errors).
+        // Mis-tagged exterior platforms already skipped clip via exteriorPlate above.
+    }
+
+    private static boolean looksExteriorMoonPlatform(Component c) {
+        if (c == null) return false;
+        StringBuilder sb = new StringBuilder();
+        if (c.params() != null) {
+            Object id = c.params().get("component_id");
+            if (id == null) id = c.params().get("componentId");
+            if (id != null) sb.append(id).append(' ');
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null) sb.append(f).append(' ');
             }
         }
+        String blob = sb.toString();
+        if (blob.isEmpty()) return false;
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return blob.contains("月台") || lower.contains("yuetai") || lower.contains("moon_platform")
+                || lower.contains("moon-platform") || lower.contains("forecourt")
+                || lower.contains("exterior_platform");
     }
 
     private static com.formacraft.common.generation.component.util.ResolvedBuildingGeometry resolveMassGeometry(
@@ -1184,6 +1192,7 @@ public class MassMainGenerator implements ComponentGenerator {
         return switch (shape) {
             case CIRCLE -> FootprintShape.CIRCLE;
             case ROUNDED_RECT -> FootprintShape.ROUNDED_RECT;
+            case HEXAGON -> FootprintShape.HEXAGON;
             default -> FootprintShape.RECTANGLE;
         };
     }
@@ -1459,6 +1468,10 @@ public class MassMainGenerator implements ComponentGenerator {
             double dz = (z - cz) / rz;
             return (dx * dx + dz * dz) <= 1.0;
         }
+        if (shape == FootprintShape.HEXAGON) {
+            return com.formacraft.common.generation.component.util.ResolvedFootprint
+                    .isInsideHexagon(x, z, width, depth, 0);
+        }
         int r = Math.max(0, Math.min(cornerRadius, Math.min(width, depth) / 2));
         if (r == 0) {
             return true;
@@ -1521,6 +1534,8 @@ public class MassMainGenerator implements ComponentGenerator {
                 double dz = (z - cz) / rz;
                 yield (dx * dx + dz * dz) <= 1.0;
             }
+            case HEXAGON -> com.formacraft.common.generation.component.util.ResolvedFootprint
+                    .isInsideHexagon(x, z, width, depth, wallThickness);
             case ROUNDED_RECT -> {
                 int r = Math.max(0, footprint.cornerRadius() - wallThickness);
                 int iw = width - wallThickness * 2;
@@ -1565,6 +1580,10 @@ public class MassMainGenerator implements ComponentGenerator {
             double dx = (x - cx) / rx;
             double dz = (z - cz) / rz;
             return (dx * dx + dz * dz) <= 1.0;
+        }
+        if (shape == FootprintShape.HEXAGON) {
+            return com.formacraft.common.generation.component.util.ResolvedFootprint
+                    .isInsideHexagon(x, z, width, depth, wallThickness);
         }
         int innerWidth = width - wallThickness * 2;
         int innerDepth = depth - wallThickness * 2;

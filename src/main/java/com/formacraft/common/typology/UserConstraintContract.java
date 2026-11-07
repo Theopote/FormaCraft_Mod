@@ -203,16 +203,17 @@ public final class UserConstraintContract {
     static String inferHeightRoleHint(String text, int matchStart, int matchEnd) {
         if (text == null) return null;
         // Restrict to the local clause so "高24格的主殿，…高10格的木亭" does not bleed roles.
+        // Chinese顿号 、, newlines, and parentheses are also clause boundaries.
         int from = matchStart;
         while (from > 0) {
             char c = text.charAt(from - 1);
-            if (c == '，' || c == ',' || c == '；' || c == ';' || c == '。' || c == '.' || c == '!') break;
+            if (isHeightClauseBoundary(c)) break;
             from--;
         }
         int to = matchEnd;
         while (to < text.length()) {
             char c = text.charAt(to);
-            if (c == '，' || c == ',' || c == '；' || c == ';' || c == '。' || c == '.' || c == '!') break;
+            if (isHeightClauseBoundary(c)) break;
             to++;
         }
         String window = text.substring(from, to).toLowerCase(Locale.ROOT);
@@ -229,6 +230,14 @@ public final class UserConstraintContract {
             return "tower";
         }
         return null;
+    }
+
+    /** Sentence / list separators that bound a height cue's local role window. */
+    private static boolean isHeightClauseBoundary(char c) {
+        return c == '，' || c == ',' || c == '；' || c == ';' || c == '。' || c == '.' || c == '!'
+                || c == '、' || c == '\n' || c == '\r'
+                || c == '（' || c == '）' || c == '(' || c == ')'
+                || c == '【' || c == '】' || c == '[' || c == ']';
     }
 
     static String computeSeal(Map<String, Object> verified, Map<String, Object> params) {

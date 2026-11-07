@@ -15,9 +15,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Soft-remap LLM footprint tokens that the runtime cannot cut exactly.
- * Hexagon / hexagonal → octagon AABB + plan_type=octagon (cut-corners), before
- * {@link MassDesignValidator} hard-fails {@code E_FOOTPRINT_SHAPE_UNSUPPORTED}.
+ * Normalize hexagon plan tokens onto native {@code shape=hexagon}.
+ * Never substitutes octagon — six- and eight-sided pavilions are different forms.
+ * When only {@code plan_type} carries a hexagon token, clear it to {@code none} so the
+ * pattern catalog does not hard-fail while {@link ResolvedFootprint} cuts a hex base.
  */
 final class FootprintShapeRemapRepair {
     private static final Set<String> HEXAGON_TOKENS = Set.of(
@@ -54,33 +55,26 @@ final class FootprintShapeRemapRepair {
             return component;
         }
         Map<String, Object> next = new HashMap<>(params);
-        if (shapeHex) {
-            boolean wroteShape = false;
-            for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
-                if (next.containsKey(key)) {
-                    next.put(key, "octagon");
-                    wroteShape = true;
-                }
-            }
-            if (!wroteShape) {
-                next.put("shape", "octagon");
+        boolean wroteShape = false;
+        for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
+            if (next.containsKey(key)) {
+                next.put(key, "hexagon");
+                wroteShape = true;
             }
         }
-        // Ensure cut-corners plan so the octagon silhouette is actually carved.
-        if (planHex || shapeHex) {
-            boolean wrotePlan = false;
+        if (!wroteShape) {
+            next.put("shape", "hexagon");
+        }
+        // plan_type=hexagon is not a cut-corners pattern — clear to none so native HEXAGON shape owns the cut.
+        if (planHex) {
             for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
-                if (next.containsKey(key)) {
-                    next.put(key, "octagon");
-                    wrotePlan = true;
+                if (next.containsKey(key) && isHexagonToken(String.valueOf(next.get(key)))) {
+                    next.put(key, "none");
                 }
-            }
-            if (!wrotePlan) {
-                next.put("plan_type", "octagon");
             }
         }
         FormacraftMod.LOGGER.info(
-                "FootprintShapeRemapRepair: hexagon → octagon (component={} shape={} plan_type={})",
+                "FootprintShapeRemapRepair: normalize hexagon → shape=hexagon (component={} shape={} plan_type={})",
                 component.componentType(),
                 shapeRaw.orElse("-"),
                 planRaw.orElse("-"));

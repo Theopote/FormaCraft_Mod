@@ -541,41 +541,97 @@ final class ComponentEmitPass {
 
     static boolean isSoftGenerationFailure(Component c) {
         if (c == null) return false;
+        // Player-required parts (月台 / steps / entrance / …) must hard-fail — never soft-skip.
+        if (isUserRequiredComponent(c)) {
+            return false;
+        }
         String type = ComponentPlanTypes.normalizeType(c.componentType());
         if ("DECOR_DETAIL".equals(type) || type.startsWith("DECOR")) {
             return true;
         }
-        // Floor / moon plates must not abort the whole hall when host-clip yields nothing.
+        // Optional interior floor plates may soft-degrade when host-clip yields nothing.
+        // Exterior / moon platforms are user-required above and never reach here.
         if (c.params() != null && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
-            return true;
+            return !looksStructuralPlate(c);
         }
-        // Accessory STRUCTURE (porch pillars) often has no native generator — keep the hall.
-        if ("STRUCTURE".equals(type) && isAccessoryStructure(c)) {
+        // Porch pillars often have no native generator — keep the hall.
+        // Plinth / steps are remapped or hard-fail; never soft-skip them as "accessory".
+        if ("STRUCTURE".equals(type) && isOptionalColumnAccessory(c)) {
             return true;
         }
         return false;
     }
 
-    private static boolean isAccessoryStructure(Component c) {
+    /** Explicit player / sealed constraint — failure must surface as a capability gap. */
+    static boolean isUserRequiredComponent(Component c) {
+        if (c == null) return false;
+        if (c.params() != null) {
+            Object level = c.params().get("requirement_level");
+            if (level != null && "USER_REQUIRED".equalsIgnoreCase(String.valueOf(level).trim())) {
+                return true;
+            }
+            Object src = c.params().get("constraint_source");
+            if (src != null) {
+                String s = String.valueOf(src).trim();
+                if ("USER_EXPLICIT".equalsIgnoreCase(s) || "USER".equalsIgnoreCase(s)
+                        || "PLAYER".equalsIgnoreCase(s)) {
+                    return true;
+                }
+            }
+        }
+        return looksStructuralPlate(c) || looksRequiredApproach(c);
+    }
+
+    private static boolean looksStructuralPlate(Component c) {
+        String blob = identityAndFeatures(c);
+        if (blob.isEmpty()) return false;
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return blob.contains("月台") || lower.contains("yuetai") || lower.contains("moon_platform")
+                || lower.contains("moon-platform") || lower.contains("forecourt")
+                || lower.contains("exterior_platform") || (lower.contains("platform")
+                && (lower.contains("moon") || lower.contains("front") || lower.contains("entrance")));
+    }
+
+    private static boolean looksRequiredApproach(Component c) {
+        String blob = identityAndFeatures(c);
+        if (blob.isEmpty()) return false;
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return lower.contains("steps") || blob.contains("台阶") || lower.contains("stair")
+                || blob.contains("台基") || lower.contains("plinth") || lower.contains("foundation")
+                || blob.contains("入口") || lower.contains("entrance");
+    }
+
+    private static String identityAndFeatures(Component c) {
+        StringBuilder sb = new StringBuilder();
+        String id = ComponentPlanTypes.paramIdentity(c);
+        if (id != null) sb.append(id).append(' ');
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null) sb.append(f).append(' ');
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Soft-skip only column / porch posts that lack a dedicated generator. */
+    private static boolean isOptionalColumnAccessory(Component c) {
         String id = ComponentPlanTypes.paramIdentity(c);
         if (id == null || id.isBlank()) return false;
         String lower = id.toLowerCase(Locale.ROOT);
-        if (lower.contains("plinth") || lower.contains("foundation") || lower.contains("台基")
-                || lower.contains("steps") || lower.contains("台阶")
-                || lower.contains("kouhai") || lower.contains("向拝") || lower.contains("porch")
-                || lower.contains("pillar") || lower.contains("column")) {
-            // Primary typology STRUCTURE carriers keep hard-fail (e.g. haiden_main).
-            if (c.params() != null) {
-                for (String key : List.of("typology_id", "typology", "structural_typology")) {
-                    Object v = c.params().get(key);
-                    if (v != null && !String.valueOf(v).isBlank()) {
-                        return false;
-                    }
+        if (!(lower.contains("kouhai") || id.contains("向拝") || lower.contains("porch")
+                || lower.contains("pillar") || lower.contains("column"))) {
+            return false;
+        }
+        // Primary typology STRUCTURE carriers keep hard-fail (e.g. haiden_main).
+        if (c.params() != null) {
+            for (String key : List.of("typology_id", "typology", "structural_typology")) {
+                Object v = c.params().get(key);
+                if (v != null && !String.valueOf(v).isBlank()) {
+                    return false;
                 }
             }
-            return true;
         }
-        return false;
+        return true;
     }
 
     static boolean isSitePeripheral(String normalizedType) {

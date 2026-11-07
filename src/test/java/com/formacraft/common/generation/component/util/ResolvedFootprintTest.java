@@ -113,7 +113,7 @@ class ResolvedFootprintTest {
 
     @Test
     void unsupportedExplicitShapeThrows() {
-        Map<String, Object> params = Map.of("shape", "hexagon");
+        Map<String, Object> params = Map.of("shape", "triangle");
         try {
             ResolvedFootprint.resolve(
                     new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
@@ -123,6 +123,18 @@ class ResolvedFootprintTest {
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().startsWith("E_FOOTPRINT_SHAPE_UNSUPPORTED"));
         }
+    }
+
+    @Test
+    void hexagonShapeResolvesWithCutCorners() {
+        ResolvedFootprint fp = ResolvedFootprint.resolve(
+                new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                        new Dimensions(16, 16, 8), List.of(),
+                        Map.of("shape", "hexagon")),
+                16, 16);
+        assertEquals(ResolvedFootprint.FootprintShape.HEXAGON, fp.shape());
+        assertTrue(fp.contains(8, 8));
+        assertFalse(fp.contains(0, 0));
     }
 
     @Test

@@ -77,6 +77,18 @@ class UserConstraintContractTest {
     }
 
     @Test
+    void dunHaoSeparatesHeightRoleHints() {
+        var bindings = UserConstraintContract.parseExplicitHeightBindings(
+                "主殿高24格、木亭高10格");
+        assertEquals(2, bindings.size());
+        assertEquals(24, bindings.get(0).blocks());
+        assertEquals("hall", bindings.get(0).roleHint());
+        assertEquals(10, bindings.get(1).blocks());
+        assertEquals("pavilion", bindings.get(1).roleHint(),
+                "顿号 must split clauses so 木亭 is not swallowed by 主殿");
+    }
+
+    @Test
     void sealInvalidatesWhenSealedValueChanges() {
         Map<String, Object> params = new HashMap<>();
         params.put("height", 24);

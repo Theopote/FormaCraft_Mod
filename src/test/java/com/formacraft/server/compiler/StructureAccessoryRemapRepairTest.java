@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StructureAccessoryRemapRepairTest {
 
@@ -33,14 +35,29 @@ class StructureAccessoryRemapRepairTest {
     }
 
     @Test
-    void remapsApproachSteps() {
+    void remapsApproachStepsToStairSystemNotFoundation() {
         Component steps = new Component(
                 "STRUCTURE", "main", new Vec3i(4, 0, 12),
-                new Dimensions(4, 6, 1), List.of(),
+                new Dimensions(4, 6, 3), List.of(),
                 Map.of("component_id", "haiden_steps"));
         LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
                 .components(List.of(steps))
                 .build());
-        assertEquals("FOUNDATION", repaired.components().getFirst().componentType());
+        Component out = repaired.components().getFirst();
+        assertEquals("STAIR_SYSTEM", out.componentType());
+        assertFalse("FOUNDATION".equalsIgnoreCase(out.componentType()));
+        assertTrue(out.features().stream().anyMatch(f -> f != null && f.startsWith("stair:")));
+    }
+
+    @Test
+    void leavesColumnsAsStructure() {
+        Component pillars = new Component(
+                "STRUCTURE", "main", new Vec3i(0, 0, 0),
+                new Dimensions(2, 2, 4), List.of(),
+                Map.of("component_id", "haiden_kouhai_pillars"));
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(pillars))
+                .build());
+        assertEquals("STRUCTURE", repaired.components().getFirst().componentType());
     }
 }

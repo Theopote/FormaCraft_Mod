@@ -106,7 +106,7 @@ final class MassDesignValidator {
                     "E_FOOTPRINT_SHAPE_UNSUPPORTED",
                     "Unsupported shape: " + explicit.get(),
                     "components[]",
-                    List.of("Use a supported shape (rectangle/circle/rounded_rect) or omit for rectangle.")));
+                    List.of("Use a supported shape (rectangle/circle/rounded_rect/hexagon) or omit for rectangle.")));
         }
         return Optional.empty();
     }

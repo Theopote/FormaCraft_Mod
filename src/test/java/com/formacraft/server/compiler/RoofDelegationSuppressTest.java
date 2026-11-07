@@ -57,6 +57,17 @@ class RoofDelegationSuppressTest {
                 new Component("ROOF", "r", new Vec3i(0, 0, 0), null, null, Map.of())));
         assertFalse(ComponentPlanCompiler.isSoftGenerationFailure(
                 new Component("MASS_MAIN", "m", new Vec3i(0, 0, 0), null, null, Map.of())));
+        // 月台 / approach steps are player-required — must not soft-skip.
+        assertFalse(ComponentPlanCompiler.isSoftGenerationFailure(
+                new Component("MASS_SECONDARY", "p", new Vec3i(0, 0, 0), null, null,
+                        Map.of("extrude_mode", "plate", "component_id", "daxiong_yuetai_月台"))));
+        assertFalse(ComponentPlanCompiler.isSoftGenerationFailure(
+                new Component("STRUCTURE", "s", new Vec3i(0, 0, 0), null, null,
+                        Map.of("component_id", "haiden_steps"))));
+        assertFalse(ComponentPlanCompiler.isSoftGenerationFailure(
+                new Component("MASS_SECONDARY", "p", new Vec3i(0, 0, 0), null, null,
+                        Map.of("extrude_mode", "plate", "component_id", "front_platform",
+                                "requirement_level", "USER_REQUIRED"))));
     }
 
     @Test
