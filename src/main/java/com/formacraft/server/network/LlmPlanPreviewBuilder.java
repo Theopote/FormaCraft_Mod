@@ -54,10 +54,28 @@ public final class LlmPlanPreviewBuilder {
             ComponentPlanCompiler.Compilation compilation,
             com.formacraft.common.llm.dto.CapabilityGap gap,
             List<com.formacraft.server.assembly.AssemblyCompileDiagnostics.SoftWarning> softWarnings,
-            BlockPos planOrigin
+            BlockPos planOrigin,
+            String constraintFingerprint
     ) {
+        CompiledBuildArtifact(
+                ComponentPlanCompiler.Compilation compilation,
+                com.formacraft.common.llm.dto.CapabilityGap gap,
+                List<com.formacraft.server.assembly.AssemblyCompileDiagnostics.SoftWarning> softWarnings,
+                BlockPos planOrigin
+        ) {
+            this(compilation, gap, softWarnings, planOrigin, "");
+        }
+
         boolean matchesOrigin(BlockPos expected) {
             return Objects.equals(planOrigin, expected);
+        }
+
+        /** Origin and constraint fingerprint must both match the plan used for delivery. */
+        boolean matches(BlockPos expectedOrigin, String expectedFingerprint) {
+            return matchesOrigin(expectedOrigin)
+                    && Objects.equals(
+                    constraintFingerprint == null ? "" : constraintFingerprint,
+                    expectedFingerprint == null ? "" : expectedFingerprint);
         }
     }
 
@@ -102,20 +120,26 @@ public final class LlmPlanPreviewBuilder {
                 finish.accept(false);
                 return;
             }
-            if (!canOffThreadComponentCompile(llmPlan, req)) {
+            // Normalize server constraints before any compile path so async workers never see
+            // an un-injected plan whose dimensions/height diverge from the delivered preview.
+            final LlmPlan normalizedPlan =
+                    com.formacraft.server.compiler.RequestIntentInjector.ensure(llmPlan, req);
+            final String constraintFp =
+                    com.formacraft.server.compiler.RequestIntentInjector.constraintFingerprint(normalizedPlan);
+            if (!canOffThreadComponentCompile(normalizedPlan, req)) {
                 deliverPreview(finish, () -> {
                     if (gateTicket != null && !BuildRequestGate.mayDeliverPreview(gateTicket)) {
                         LOG.warn("skipping on-thread preview; ticket stale/cancelled");
                         hbAlive.set(false);
                         return true;
                     }
-                    return tryBuildPreview(player, req, llmPlan, origin, serverWorld, hbAlive);
+                    return tryBuildPreview(player, req, normalizedPlan, origin, serverWorld, hbAlive);
                 });
                 return;
             }
 
-            BlockPos planOrigin = resolveBuildPlanOrigin(req, llmPlan, origin, serverWorld);
-            var compileCtx = com.formacraft.server.generation.GenerationCompileContext.fromPlan(llmPlan, false);
+            BlockPos planOrigin = resolveBuildPlanOrigin(req, normalizedPlan, origin, serverWorld);
+            var compileCtx = com.formacraft.server.generation.GenerationCompileContext.fromPlan(normalizedPlan, false);
             PlanCompileWorkers.submit(() -> {
                 try {
                     CompiledBuildArtifact artifact = com.formacraft.server.generation.GenerationCompileContext.runWith(
@@ -123,12 +147,12 @@ public final class LlmPlanPreviewBuilder {
                                 com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
                                 var sampler = new com.formacraft.common.terrain.TerrainStrategySampler();
                                 var compilation = ComponentPlanCompiler.compileWithCirculation(
-                                        llmPlan, planOrigin, null, sampler, false);
+                                        normalizedPlan, planOrigin, null, sampler, false);
                                 var gap = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
                                 var softs = com.formacraft.server.assembly.AssemblyCompileDiagnostics.softWarnings();
                                 if (gap != null) {
                                     // Deterministic capability gap — do not recompile on the main thread.
-                                    return new CompiledBuildArtifact(null, gap, softs, planOrigin);
+                                    return new CompiledBuildArtifact(null, gap, softs, planOrigin, constraintFp);
                                 }
                                 if (compilation == null
                                         || compilation.patches() == null
@@ -141,9 +165,11 @@ public final class LlmPlanPreviewBuilder {
                                                     "compile",
                                                     List.of("Simplify the plan or retry.")),
                                             softs,
-                                            planOrigin);
+                                            planOrigin,
+                                            constraintFp);
                                 }
-                                return new CompiledBuildArtifact(compilation, null, softs, planOrigin);
+                                return new CompiledBuildArtifact(
+                                        compilation, null, softs, planOrigin, constraintFp);
                             });
                     server.execute(() -> {
                         if (gateTicket != null && !BuildRequestGate.mayDeliverPreview(gateTicket)) {
@@ -171,7 +197,7 @@ public final class LlmPlanPreviewBuilder {
                         com.formacraft.server.generation.GenerationCompileContext.runWith(
                                 compileCtx,
                                 () -> deliverPreview(finish, () -> tryBuildPreview(
-                                        player, req, llmPlan, origin, serverWorld, hbAlive, true, artifact)));
+                                        player, req, normalizedPlan, origin, serverWorld, hbAlive, true, artifact)));
                     });
                 } catch (Throwable t) {
                     // Deterministic off-thread failures must not kick a full main-thread recompile.
@@ -478,7 +504,9 @@ public final class LlmPlanPreviewBuilder {
                 // server-thread holder before applying an artifact so a prior on-thread failure
                 // (e.g. garden E_PATCH_CONFLICT) cannot poison a later successful plan.
                 com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
-                if (compiled != null && compiled.matchesOrigin(planOrigin)) {
+                String liveFp = com.formacraft.server.compiler.RequestIntentInjector
+                        .constraintFingerprint(llmPlan);
+                if (compiled != null && compiled.matches(planOrigin, liveFp)) {
                     if (compiled.gap() != null) {
                         com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(compiled.gap());
                     }

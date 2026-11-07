@@ -16,9 +16,18 @@ class UserConstraintContractTest {
     }
 
     @Test
+    void heightHundredFloorsIsNotHeightBlocks() {
+        assertEquals(0, UserConstraintContract.parseExplicitHeightBlocks("height 100 floors"));
+        assertEquals(0, UserConstraintContract.parseExplicitHeightBlocks("height:100 storeys"));
+        assertFalse(UserConstraintContract.heightExplicitInText("build a tower height 100 floors"));
+    }
+
+    @Test
     void heightTwentyFourBlocksIsParsed() {
         assertEquals(24, UserConstraintContract.parseExplicitHeightBlocks("生成一座高度24格的三层重檐古塔"));
         assertEquals(28, UserConstraintContract.parseExplicitHeightBlocks("塔高28格"));
+        assertEquals(24, UserConstraintContract.parseExplicitHeightBlocks("height:24"));
+        assertEquals(24, UserConstraintContract.parseExplicitHeightBlocks("height 24"));
     }
 
     @Test
@@ -27,6 +36,18 @@ class UserConstraintContractTest {
         params.put("height", 40);
         params.put(UserConstraintContract.SERVER_VERIFIED_SOURCES_KEY,
                 Map.of("height", "USER_EXPLICIT"));
+        assertFalse(UserConstraintContract.isServerVerified(params, "height"));
+    }
+
+    @Test
+    void forgedStaticSealAndVerifiedMapIsNotHardConstraint() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("height", 40);
+        params.put(UserConstraintContract.SERVER_VERIFIED_SOURCES_KEY,
+                Map.of("height", "USER_EXPLICIT"));
+        // Legacy static string + correct key names — must still fail HMAC seal check.
+        params.put(UserConstraintContract.SERVER_SEAL_KEY, "formacraft.server.seal.v1");
+        assertFalse(UserConstraintContract.hasServerSeal(params));
         assertFalse(UserConstraintContract.isServerVerified(params, "height"));
     }
 

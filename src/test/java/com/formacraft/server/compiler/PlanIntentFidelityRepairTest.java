@@ -366,6 +366,89 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void userHeightTwentyFourOverridesMassMainDimensionsForty() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 40), List.of(),
+                Map.of("component_id", "house_main", "height", 40));
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion", new Vec3i(20, 0, 0),
+                new Dimensions(5, 5, 6), List.of(),
+                Map.of("component_id", "wood_pavilion", "height", 6));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder()
+                        .components(List.of(mass, pavilion))
+                        .planMeta(Map.of("primary_building_id", "house_main"))
+                        .build(),
+                "生成一座高度24格的三层主殿，旁边有木亭");
+        Component primary = plan.components().stream()
+                .filter(c -> "house_main".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component side = plan.components().stream()
+                .filter(c -> "wood_pavilion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(24, primary.dimensions().height(), "MASS_MAIN dimensions must follow user height");
+        assertEquals(24, ((Number) primary.params().get("height")).intValue());
+        assertEquals(6, side.dimensions().height(), "secondary pavilion keeps its own height");
+        assertEquals(6, ((Number) side.params().get("height")).intValue());
+    }
+
+    @Test
+    void constraintFingerprintChangesWhenHeightInjected() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 40), List.of(),
+                Map.of("component_id", "house_main", "height", 40));
+        LlmPlan raw = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        String before = RequestIntentInjector.constraintFingerprint(raw);
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "生成一座高度24格的住宅");
+        String after = RequestIntentInjector.constraintFingerprint(ensured);
+        assertNotEquals(before, after, "constraint injection must invalidate compile fingerprint");
+        assertEquals(24, ensured.components().getFirst().dimensions().height());
+    }
+
+    @Test
+    void teaHouseWithCourtyardAnnexDoesNotBecomeGarden() {
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(new Component(
+                        "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                        new Dimensions(9, 7, 6), List.of(),
+                        Map.of("component_id", "tea_house"))))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "original_text", "生成一座茶馆，旁边带一个小庭院",
+                                "building_class", "generic",
+                                "confidence", 0.7)))
+                .build();
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, "生成一座茶馆，旁边带一个小庭院");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ri = (Map<String, Object>) ensured.planMeta().get("request_intent");
+        assertNotEquals("garden", String.valueOf(ri.get("building_class")).toLowerCase(),
+                "weak courtyard keyword must not override tea-house class to garden");
+    }
+
+    @Test
+    void upperDoorWithoutStairFailsAccessAudit() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 10), List.of(),
+                Map.of("component_id", "house", "floor_count", 2, "floor_height", 4));
+        Component upperDoor = new Component(
+                "ENTRANCE", "upper", new Vec3i(4, 4, 0),
+                new Dimensions(2, 1, 3), List.of(),
+                Map.of("host_id", "house", "door_width", 2));
+        LlmPlan plan = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().components(List.of(mass, upperDoor)).build(),
+                "二层设置一个连接室外楼梯的入口");
+        var gap = UpperStoreyEntranceAudit.check(plan);
+        assertTrue(gap.isPresent(), "floating upper door without stair must fail");
+        assertEquals("E_UPPER_ENTRANCE_MISSING", gap.orElseThrow().code());
+        String path = gap.orElseThrow().path() == null ? "" : gap.orElseThrow().path().toLowerCase();
+        assertTrue(path.contains("stair") || path.contains("access") || path.contains("楼梯"),
+                "detail should mention missing access link");
+    }
+
+    @Test
     void sideHallMainEntranceDoesNotReceivePrimaryDoorWidth() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, 0),

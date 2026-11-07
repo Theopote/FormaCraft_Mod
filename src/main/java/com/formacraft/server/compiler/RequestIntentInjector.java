@@ -109,6 +109,8 @@ public final class RequestIntentInjector {
 
     /**
      * Strip forged verification markers, then bind server-authoritative height onto primary masses.
+     * Params and {@link com.formacraft.common.llm.dto.Dimensions#height()} are kept in lockstep so
+     * MASS_MAIN (which reads dimensions) cannot diverge from typology builders (which read params).
      */
     static LlmPlan applyServerConstraintsToComponents(LlmPlan plan, String userText) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
@@ -124,29 +126,86 @@ public final class RequestIntentInjector {
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
-            if (c == null || c.params() == null || c.params().isEmpty()) {
-                out.add(c);
+            if (c == null) {
+                out.add(null);
                 continue;
             }
-            Map<String, Object> params = new HashMap<>(c.params());
-            com.formacraft.common.typology.UserConstraintContract.stripUntrustedMarkers(params);
             boolean host = BuildingHostResolver.isHostMass(c);
             boolean primaryHost = !multi || primary == null || primary.isBlank()
                     || primary.equals(BuildingHostResolver.massId(c));
-            if (explicitH > 0 && host && primaryHost) {
+            boolean needHeight = explicitH > 0 && host && primaryHost;
+            boolean hadParams = c.params() != null && !c.params().isEmpty();
+            if (!hadParams && !needHeight) {
+                out.add(c);
+                continue;
+            }
+            Map<String, Object> params = hadParams ? new HashMap<>(c.params()) : new HashMap<>();
+            com.formacraft.common.typology.UserConstraintContract.stripUntrustedMarkers(params);
+            com.formacraft.common.llm.dto.Dimensions dims = c.dimensions();
+            if (needHeight) {
                 com.formacraft.common.typology.UserConstraintContract
                         .applyAuthoritativeHeight(params, text);
+                if (dims == null) {
+                    dims = new com.formacraft.common.llm.dto.Dimensions(8, 8, explicitH);
+                } else if (dims.height() != explicitH) {
+                    dims = new com.formacraft.common.llm.dto.Dimensions(
+                            Math.max(1, dims.width()), Math.max(1, dims.depth()), explicitH);
+                }
             }
-            if (!params.equals(c.params())) {
+            boolean paramsChanged = !params.equals(hadParams ? c.params() : Map.of());
+            boolean dimsChanged = dims != c.dimensions()
+                    && (c.dimensions() == null || dims == null
+                    || dims.width() != c.dimensions().width()
+                    || dims.depth() != c.dimensions().depth()
+                    || dims.height() != c.dimensions().height());
+            if (paramsChanged || dimsChanged) {
                 changed = true;
                 out.add(new Component(
                         c.componentType(), c.slotId(), c.relativePosition(),
-                        c.dimensions(), c.features(), params));
+                        dims, c.features(), params));
             } else {
                 out.add(c);
             }
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    /**
+     * Stable digest of constraint-affecting geometry so async precompile caches cannot reuse
+     * blocks from a plan that was later rewritten by {@link #ensure}.
+     */
+    public static String constraintFingerprint(LlmPlan plan) {
+        if (plan == null) return "null";
+        StringBuilder sb = new StringBuilder(128);
+        if (plan.planMeta() != null) {
+            Object contract = plan.planMeta().get(
+                    com.formacraft.common.typology.UserConstraintContract.PLAN_META_KEY);
+            sb.append("c=").append(contract);
+            Object ri = plan.planMeta().get("request_intent");
+            if (ri instanceof Map<?, ?> map) {
+                sb.append("|h=").append(map.get("explicit_height_blocks"));
+                sb.append("|cls=").append(map.get("building_class"));
+            }
+        }
+        if (plan.components() != null) {
+            for (Component c : plan.components()) {
+                if (c == null) continue;
+                sb.append('|').append(c.componentType()).append('@').append(c.slotId());
+                if (c.dimensions() != null) {
+                    sb.append(':').append(c.dimensions().width()).append('x')
+                            .append(c.dimensions().depth()).append('x')
+                            .append(c.dimensions().height());
+                }
+                if (c.params() != null) {
+                    sb.append('#')
+                            .append(c.params().get("height")).append('/')
+                            .append(c.params().get("towerHeight")).append('/')
+                            .append(c.params().get(
+                                    com.formacraft.common.typology.UserConstraintContract.SERVER_SEAL_KEY));
+                }
+            }
+        }
+        return Integer.toHexString(sb.toString().hashCode());
     }
 
     private static boolean textEqualsIgnoreSpace(String a, String b) {
@@ -270,13 +329,17 @@ public final class RequestIntentInjector {
         intent.put("window_material_explicit", windowMaterialExplicit);
         boolean doorPresenceExplicit = detectDoorPresenceExplicit(text, lower);
         boolean upperEntranceExplicit = detectUpperEntranceExplicit(text, lower);
+        boolean upperEntranceRequiresAccess = upperEntranceExplicit
+                && detectUpperEntranceAccessCue(text, lower);
         intent.put("door_presence_explicit", doorPresenceExplicit);
         intent.put("upper_entrance_explicit", upperEntranceExplicit);
+        intent.put("upper_entrance_requires_access", upperEntranceRequiresAccess);
         intent.put("openings", Map.of(
                 "door_width_explicit", doorWidthExplicit,
                 "window_material_explicit", windowMaterialExplicit,
                 "door_presence_explicit", doorPresenceExplicit,
-                "upper_entrance_explicit", upperEntranceExplicit
+                "upper_entrance_explicit", upperEntranceExplicit,
+                "upper_entrance_requires_access", upperEntranceRequiresAccess
         ));
         intent.put("refuse_residential_autofill",
                 !"generic".equals(buildingClass) && confidence >= scaffoldMin);
@@ -301,9 +364,16 @@ public final class RequestIntentInjector {
                 || lower.contains("second-storey") || lower.contains("upper storey");
         boolean door = text.contains("入口") || text.contains("门") || lower.contains("entrance")
                 || lower.contains("door");
-        boolean stairLink = text.contains("楼梯") || text.contains("廊桥") || text.contains("阳台")
-                || lower.contains("stair") || lower.contains("balcony") || lower.contains("bridge");
+        boolean stairLink = detectUpperEntranceAccessCue(text, lower);
         return (storey && door) || (stairLink && door && storey);
+    }
+
+    /** Player required the upper entrance to connect via stairs / bridge / balcony. */
+    private static boolean detectUpperEntranceAccessCue(String text, String lower) {
+        if (text == null || text.isBlank()) return false;
+        return text.contains("楼梯") || text.contains("廊桥") || text.contains("阳台")
+                || text.contains("平台") || lower.contains("stair") || lower.contains("balcony")
+                || lower.contains("bridge") || lower.contains("platform");
     }
 
     private static Map<String, Object> snapshotStructuredIntent(Map<?, ?> existing) {
@@ -343,8 +413,9 @@ public final class RequestIntentInjector {
         } catch (Exception ignored) {
             kwConf = 0.0;
         }
-        double strongMin = RequestIntentVocab.conf("strong_hit", 0.9);
-        boolean keywordStrong = !"generic".equals(kwClass) && kwConf >= strongMin * 0.5;
+        // Only keyword_override_min (default 0.8) may replace LLM class — weak hits (0.45) cannot.
+        double kwOverride = RequestIntentVocab.conf("keyword_override_min", 0.8);
+        boolean keywordStrong = !"generic".equals(kwClass) && kwConf >= kwOverride;
         if (keywordStrong && !kwClass.equalsIgnoreCase(haveClass)) {
             intent.put("intent_structure_mismatch", Boolean.TRUE);
             intent.put("stale_building_class", haveClass);
@@ -353,7 +424,8 @@ public final class RequestIntentInjector {
                 "composition", "markers", "materials",
                 "footprint", "roof_type", "roof_forbids", "forbids",
                 "roof_explicit", "door_width_explicit", "window_material_explicit",
-                "door_presence_explicit", "upper_entrance_explicit", "openings",
+                "door_presence_explicit", "upper_entrance_explicit",
+                "upper_entrance_requires_access", "openings",
                 "refuse_residential_autofill", "scaffold_eligible", "source")) {
             if (!keyword.containsKey(key)) continue;
             Object v = keyword.get(key);

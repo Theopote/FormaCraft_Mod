@@ -55,7 +55,7 @@ public final class TypologyParamResolver {
         }
 
         if (component != null && component.params() != null) {
-            // Defense in depth: never copy unsealed LLM forged verification maps into merged params.
+            // Defense in depth: only HMAC-valid seals from stampVerified survive; static forgeries strip.
             Map<String, Object> incoming = new LinkedHashMap<>(component.params());
             boolean sealed = UserConstraintContract.hasServerSeal(incoming);
             if (!sealed) {
