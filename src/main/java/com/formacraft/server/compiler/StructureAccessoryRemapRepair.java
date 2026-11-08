@@ -95,11 +95,17 @@ final class StructureAccessoryRemapRepair {
                 || Boolean.TRUE.equals(c.params().get("compiler_approach_remap"))) {
             return false;
         }
+        String id = identity(c).toLowerCase(Locale.ROOT);
+        // True entrance-approach / facade-service tokens keep the approach remap path.
+        boolean approachNamed = id.contains("approach") || id.contains("haiden_steps")
+                || id.contains("台阶") || id.contains("踏步")
+                || (id.contains("steps") && !id.contains("stair"));
         if (!(c.params().get("from") instanceof Map<?, ?>)
                 || !(c.params().get("to") instanceof Map<?, ?>)) {
-            return false;
+            // Feature-authored straight runs synthesize from/to in StraightStairComponentGenerator.
+            // Without this, logged interior shafts become exterior approach and get door-snapped.
+            return !approachNamed && hasStraightSingleRunFeature(c);
         }
-        String id = identity(c).toLowerCase(Locale.ROOT);
         // Authored exterior flights already declare endpoints — rewriting them as entrance
         // approach snaps treads onto the host facade (E_CIRCULATION_EXTERIOR_CONFLICT).
         // Service/escape/fire stairs still use approach snap (often mis-authored into a wall).
@@ -110,11 +116,7 @@ final class StructureAccessoryRemapRepair {
                 && (id.contains("stair") || id.contains("external") || hasStairFeature(c))) {
             return true;
         }
-        // True entrance-approach / facade-service tokens keep the approach remap path.
-        if (id.contains("approach") || id.contains("haiden_steps")
-                || id.contains("台阶") || id.contains("踏步")
-                || (id.contains("steps") && !id.contains("stair"))
-                || serviceEscape) {
+        if (approachNamed || serviceEscape) {
             return false;
         }
         return id.contains("stair") || hasStairFeature(c);
@@ -126,6 +128,16 @@ final class StructureAccessoryRemapRepair {
             if (f == null) continue;
             String fl = f.toLowerCase(Locale.ROOT);
             if (fl.startsWith("stair:") || fl.contains("straight_single_run") || fl.contains("stair")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasStraightSingleRunFeature(Component c) {
+        if (c == null || c.features() == null) return false;
+        for (String f : c.features()) {
+            if (f != null && f.toLowerCase(Locale.ROOT).contains("straight_single_run")) {
                 return true;
             }
         }

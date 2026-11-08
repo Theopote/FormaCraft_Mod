@@ -5,7 +5,7 @@ import java.util.*;
 final class StairOpeningGuardCompiler {
     static void apply(List<Component> parts) {
         var extras=new ArrayList<Component>();
-        var handled=new HashSet<Object>();
+        var handled= new HashSet<>();
         for(var it=parts.listIterator();it.hasNext();) {
             var rail=it.next();
             if(rail==null || rail.params()==null || rail.relativePosition()==null
@@ -48,9 +48,9 @@ final class StairOpeningGuardCompiler {
         parts.addAll(extras);
     }
     private static Component line(Component source,String suffix,int x,int y,int z,int w,int d) {
-        var p=new HashMap<String,Object>(source.params());
+        var p= new HashMap<>(source.params());
         p.put("placement","compiled_stair_guard");p.put("anchor_mode","min_corner");
-        p.put("component_id",String.valueOf(p.get("component_id"))+"_"+suffix);
+        p.put("component_id", p.get("component_id") +"_"+suffix);
         return new Component("DECOR_DETAIL",source.slotId(),new Vec3i(x,y,z),new Dimensions(w,d,1),List.of(),p);
     }
     private static int n(Map<?,?> p,String k) {return p.get(k) instanceof Number n?n.intValue():0;}

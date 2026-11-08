@@ -93,7 +93,7 @@ final class ComponentSatelliteAligner {
             if (hostId != null) {
                 mass = null;
                 for (Component candidate : components) {
-                    if (candidate == null || !isSatelliteHostMass(candidate)
+                    if (!isSatelliteHostMass(candidate)
                             || candidate.params() == null
                             || !hostId.equals(candidate.params().get("component_id"))) continue;
                     // Explicit ownership cannot equate different real slot coordinate frames.

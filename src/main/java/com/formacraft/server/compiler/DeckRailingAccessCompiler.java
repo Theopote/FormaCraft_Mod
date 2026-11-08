@@ -3,7 +3,6 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.generation.component.util.HostedPlateOccupancy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
-import com.formacraft.common.llm.dto.Vec3i;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.HashMap;
@@ -45,7 +44,7 @@ final class DeckRailingAccessCompiler {
             // Thin bridge rail carpets block deck headroom — keep a walk corridor through the centre.
             clearBridgeWalkCorridor(clear, rail, parts);
             if (clear.isEmpty()) continue;
-            var p = new HashMap<String, Object>(rail.params());
+            var p = new HashMap<>(rail.params());
             p.put("compiler_clear_railing_cells", clear);
             parts.set(i, new Component(rail.componentType(), rail.slotId(), r, d, rail.features(), p));
         }

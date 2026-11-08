@@ -116,7 +116,7 @@ final class InteriorStairInferenceCompiler {
         boolean circular = isCircularPlan(host);
         if (circular) {
             width = 1;
-            int inset = Math.max(wall + 2, Math.min(span, run) / 4);
+            int inset = Math.max(wall + 2, span / 4);
             laneA = laneB = span / 2;
             interiorRun = Math.max(0, run - 2 * inset);
             // Rebuild low/high with a deeper inset below.
