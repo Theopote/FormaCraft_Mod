@@ -457,16 +457,14 @@ public final class ComponentPlanCompiler {
             AssemblyCirculationConstraints.validatePatches(result, circulation);
         } catch (AssemblyCirculationConstraints.Conflict conflict) {
             // Typology shells / castle keeps often re-carve stair shafts after STAIR_SYSTEM
-            // capture; hard-failing the whole building is worse than a soft warning.
+            // capture; hard-failing the whole typology building is worse than a soft warning.
+            // Ordinary compositional plans still hard-fail so circulation contracts stay binding.
             String msg = conflict.getMessage() == null ? "" : conflict.getMessage();
-            boolean stairTreadOverlap = msg.contains("STAIR_SYSTEM")
-                    && (msg.contains("tread/support removed") || msg.contains("clearance"));
-            if (typologyExclusivePlan || stairTreadOverlap) {
+            if (typologyExclusivePlan) {
                 FormacraftMod.LOGGER.warn(
-                        "E_PLAN_CIRCULATION_CONFLICT softened (typology={} stairOverlap={}): {}",
-                        typologyExclusivePlan, stairTreadOverlap, msg);
+                        "E_PLAN_CIRCULATION_CONFLICT softened (typology): {}", msg);
                 AssemblyCompileDiagnostics.addSoftWarning(
-                        typologyExclusivePlan ? "TYPOLOGY_CIRCULATION_OVERLAP" : "STAIR_CIRCULATION_OVERLAP",
+                        "TYPOLOGY_CIRCULATION_OVERLAP",
                         msg,
                         "STRUCTURE",
                         null);

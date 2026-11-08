@@ -269,6 +269,9 @@ final class StructureAccessoryRemapRepair {
             // Only exterior approach flights. Do NOT use looksApproachSteps here — that also
             // matches interior ids like guard_tower_stair_* and would wreck tower shafts.
             if (!isExteriorApproachStair(c)) continue;
+            // Authored exterior connectors with from/to were preserved at promote time —
+            // do not re-snap them onto the host facade (would dissolve mid-run conflict fixtures).
+            if (isAuthoredFlight(c)) continue;
             int[] fromPt = parseEndpoint(c.params().get("from"));
             int[] toPt = parseEndpoint(c.params().get("to"));
             if (fromPt == null || toPt == null) {

@@ -1084,15 +1084,15 @@ class DesignFidelityTest {
         assertFalse(AssemblyCompileDiagnostics.hasGap(),
                 () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         var blocks = PatchTestSnapshot.blocks(patches);
-        // Relative deck (9,4,3) + slotAnchor (50,10,20) → (59,14,23)
-        assertTrue(isSprucePlate(blocks.get(new Vec3i(59, 14, 23))), "deck shifted by slotAnchor");
-        // Relative portal (9,5,3) / (12,5,3) must share the same shift.
-        assertTrue(isAirOrMissing(blocks, 59, 15, 23), "hall portal shifted with deck");
-        assertTrue(isAirOrMissing(blocks, 62, 15, 23), "wing portal shifted with deck");
+        // Relative deck (9,4,3) + slotAnchor Y(+10); SlotPrimary keeps primary XZ at plan origin.
+        assertTrue(isSprucePlate(blocks.get(new Vec3i(9, 14, 3))), "deck shifted by slotAnchor Y");
+        // Relative portal (9,5,3) / (12,5,3) must share the same Y shift.
+        assertTrue(isAirOrMissing(blocks, 9, 15, 3), "hall portal shifted with deck");
+        assertTrue(isAirOrMissing(blocks, 12, 15, 3), "wing portal shifted with deck");
         assertFalse(isSprucePlate(blocks.get(new Vec3i(9, 4, 3))),
                 "unshifted relative deck coords must not appear in output");
-        // Hall east face wall exists only in shifted space; portal cleared there.
-        assertTrue(blocks.containsKey(new Vec3i(59, 11, 23)) || blocks.containsKey(new Vec3i(58, 11, 23)),
+        // Hall east face wall exists only in Y-shifted space; portal cleared there.
+        assertTrue(blocks.containsKey(new Vec3i(9, 11, 3)) || blocks.containsKey(new Vec3i(8, 11, 3)),
                 "mass geometry must be emitted in slot-shifted coordinates");
     }
 

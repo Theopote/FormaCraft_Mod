@@ -597,12 +597,11 @@ final class PlanIntentFidelityRepair {
                 // orphans campus exterior stairs (late_4); bridge contact is recovered by the
                 // post-intent HostedPlateLevelRepair stretch instead.
                 int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
+                // floor_count / floor_height params may still update
                 if (nh != dims.height()) {
                     dims = new Dimensions(dims.width(), dims.depth(), nh);
-                    changed = true;
-                } else {
-                    changed = true; // floor_count / floor_height params may still update
                 }
+                changed = true;
             } else if (officeLike && explicitFootprint && inPrimaryMassScope && !workshopBody) {
                 // Honour explicit W×D on the primary host; only repair the vertical storey stack.
                 int nw = hints.footprintWidth();

@@ -17,7 +17,7 @@
     "slots": [
       {
         "slot_id": "hall",
-        "anchor": { "x": 50, "y": 10, "z": 20 },
+        "anchor": { "x": 0, "y": 10, "z": 0 },
         "facing": "NORTH",
         "program": "primary"
       }

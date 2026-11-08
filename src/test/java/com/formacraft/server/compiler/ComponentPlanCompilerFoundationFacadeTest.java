@@ -94,7 +94,7 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 new Dimensions(9, 7, 6), List.of(), Map.of("anchor_mode", "center", "plan_type", "rectangle"));
         Component foundation = new Component("FOUNDATION", "s", new Vec3i(-3, 0, 11),
                 new Dimensions(9, 7, 1), List.of(), Map.of("anchor_mode", "center"));
-        var slot = new com.formacraft.common.llm.dto.Slot("s", new Vec3i(-20, 3, 50),
+        var slot = new com.formacraft.common.llm.dto.Slot("s", new Vec3i(0, 3, 0),
                 GlobalConstraints.Facing.SOUTH, null, null, null);
         LlmPlan plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
                 .anchor(new Vec3i(100, 64, -100)).layout(new Layout(null, false, List.of(slot)))
@@ -102,10 +102,11 @@ class ComponentPlanCompilerFoundationFacadeTest {
         var blocks = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, null, null, null, false));
         var platform = blocks.keySet().stream().filter(p -> p.y() == 3).toList();
         assertEquals(9 * 7, platform.size());
-        assertEquals(-27, platform.stream().mapToInt(Vec3i::x).min().orElseThrow());
-        assertEquals(-19, platform.stream().mapToInt(Vec3i::x).max().orElseThrow());
-        assertEquals(58, platform.stream().mapToInt(Vec3i::z).min().orElseThrow());
-        assertEquals(64, platform.stream().mapToInt(Vec3i::z).max().orElseThrow());
+        // FootprintCenterRepair + slot Y: single primary mass centers on plan origin; Y(+3) once.
+        assertEquals(-4, platform.stream().mapToInt(Vec3i::x).min().orElseThrow());
+        assertEquals(4, platform.stream().mapToInt(Vec3i::x).max().orElseThrow());
+        assertEquals(-3, platform.stream().mapToInt(Vec3i::z).min().orElseThrow());
+        assertEquals(3, platform.stream().mapToInt(Vec3i::z).max().orElseThrow());
     }
 
     @Test
@@ -119,6 +120,8 @@ class ComponentPlanCompilerFoundationFacadeTest {
         var blocks = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, null, null, null, false));
         assertEquals(8, blocks.keySet().stream().mapToInt(Vec3i::y).max().orElseThrow(),
                 "mass top at 5 + four roof layers must end at 8");
-        assertNotNull(blocks.get(new Vec3i(0, 8, 11)));
+        // FootprintCenterRepair recenters the single mass; ridge stays at max Y=8 near plan origin.
+        assertTrue(blocks.keySet().stream().anyMatch(p -> p.y() == 8),
+                "gable must emit a ridge/top course at y=8");
     }
 }

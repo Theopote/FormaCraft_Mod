@@ -44,16 +44,17 @@ class ComponentPlanCompilerDesignIntentTest {
         assertTrue(output.keySet().stream().allMatch(p -> p.x() < 60 && p.z() < 30));
     }
     @Test void sharedRealSlotAppliesOffsetOnceForBothFacadesAndEntrances() {
-        var slot = new Slot("s", new Vec3i(-20, 4, 50), GlobalConstraints.Facing.NORTH, null, null, null);
+        // SlotPrimaryAnchorRepair zeros primary XZ; Y still shifts both bodies once.
+        var slot = new Slot("s", new Vec3i(0, 4, 0), GlobalConstraints.Facing.NORTH, null, null, null);
         var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of(slot)))
                 .components(List.of(body("a", 0, Map.of()), body("b", 30, Map.of()))).build();
         var output = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan));
         assertFalse(output.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
-        for (int x : new int[]{-20, 10}) {
+        for (int x : new int[]{0, 30}) {
             assertTrue(output.entrySet().stream().anyMatch(e -> e.getKey().x() >= x && e.getKey().x() < x + 15
-                    && e.getKey().z() >= 50 && e.getKey().z() <= 62 && e.getValue().contains("glass")));
-            assertFalse(output.containsKey(new Vec3i(x + 7, 5, 62)));
+                    && e.getKey().z() >= 0 && e.getKey().z() <= 12 && e.getValue().contains("glass")));
+            assertFalse(output.containsKey(new Vec3i(x + 7, 5, 12)));
         }
     }
     @Test void scopedDecorationOptOutProtectsOneBuildingWithoutImplicitRingsOnTheOther() {

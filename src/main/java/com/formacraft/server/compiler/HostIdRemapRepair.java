@@ -142,17 +142,14 @@ public final class HostIdRemapRepair {
             }
         }
         if (best != null) return best;
+        // Semantic aliases only — never invent a host for an arbitrary missing id
+        // (e.g. host_id=missing_host must stay unresolved for E_HOST_ID_UNRESOLVED).
         if (key.contains("court") || key.contains("yard") || key.contains("庭") || key.contains("院")) {
             for (String prefer : List.of("COURTYARD", "COURTYARD_SPACE", "PATH", "PLAZA",
                     "MASS_MAIN", "MASS_ANCILLARY")) {
                 for (Map.Entry<String, Component> e : byId.entrySet()) {
                     if (prefer.equalsIgnoreCase(e.getValue().componentType())) return e.getKey();
                 }
-            }
-        }
-        for (String prefer : List.of("MASS_MAIN", "MASS_ANCILLARY", "GATE", "STRUCTURE")) {
-            for (Map.Entry<String, Component> e : byId.entrySet()) {
-                if (prefer.equalsIgnoreCase(e.getValue().componentType())) return e.getKey();
             }
         }
         return null;

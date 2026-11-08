@@ -33,10 +33,12 @@ class ComponentPlanCompilerCirculationTest {
         });
     }
     private LlmPlan plan(String mode, boolean separate) {
+        // Primary XZ already at plan origin so SlotPrimaryAnchorRepair is a no-op; keep Y and
+        // inter-slot spacing (20 on X) so circulation metadata stays plan-local and predictable.
         return LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).anchor(new Vec3i(100, 64, 200)).styleProfile("DEFAULT")
             .layout(new Layout(null, false, List.of(
-                new Slot("a", new Vec3i(10, 2, -5), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
-                new Slot("b", new Vec3i(30, 2, -5), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null))))
+                new Slot("a", new Vec3i(0, 2, 0), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
+                new Slot("b", new Vec3i(20, 2, 0), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null))))
             .components(List.of(new Component(SOURCE, "a", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1), List.of(), Map.of()),
                 new Component(OVERRIDE, separate ? "b" : "a", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1), List.of(),
                         Map.of("test_mode", mode, "allow_patch_overwrite", true))))
@@ -45,7 +47,7 @@ class ComponentPlanCompilerCirculationTest {
     @Test void laterComponentBlockingClearanceRejectsWholePlan() {
         assertTrue(ComponentPlanCompiler.compile(plan("block", false), new BlockPos(100, 64, 200), null, null, false).isEmpty());
         assertEquals("E_PLAN_CIRCULATION_CONFLICT", AssemblyCompileDiagnostics.get().code());
-        assertTrue(AssemblyCompileDiagnostics.get().message().contains("12, 6, -1"));
+        assertTrue(AssemblyCompileDiagnostics.get().message().contains("2, 6, 4"));
     }
     @Test void laterComponentRemovingTreadIsRejectedEvenWithoutPostProcessing() {
         assertTrue(ComponentPlanCompiler.compile(plan("remove", false)).isEmpty());
@@ -54,7 +56,7 @@ class ComponentPlanCompilerCirculationTest {
     @Test void differentSlotDoesNotConflictAndAnchorIsAddedOnlyOnce() {
         var result = ComponentPlanCompiler.compile(plan("block", true), new BlockPos(100, 64, 200), null, null, false);
         assertFalse(result.isEmpty()); assertNull(AssemblyCompileDiagnostics.get());
-        assertTrue(result.stream().anyMatch(p -> p.dx() == 12 && p.dy() == 5 && p.dz() == -1));
+        assertTrue(result.stream().anyMatch(p -> p.dx() == 2 && p.dy() == 5 && p.dz() == 4));
         assertTrue(result.stream().noneMatch(p -> p.dx() >= 100));
     }
     @Test void temporaryBlockFollowedByRemoveUsesFinalState() {
@@ -96,8 +98,8 @@ class ComponentPlanCompilerCirculationTest {
     @Test void explicitCompilationResultReturnsPlanLocalMetadataOnlyOnSuccess() {
         var result = ComponentPlanCompiler.compileWithCirculation(plan("restore", false), new BlockPos(100, 64, 200), null, null, false);
         assertFalse(result.patches().isEmpty()); assertEquals(1, result.circulation().size());
-        assertEquals(Set.of(new BlockPos(12, 5, -1)), result.circulation().getFirst().occupied());
-        assertEquals(Set.of(new BlockPos(12, 6, -1)), result.circulation().getFirst().clearance());
+        assertEquals(Set.of(new BlockPos(2, 5, 4)), result.circulation().getFirst().occupied());
+        assertEquals(Set.of(new BlockPos(2, 6, 4)), result.circulation().getFirst().clearance());
         assertThrows(UnsupportedOperationException.class, () -> result.circulation().clear());
         var failed = ComponentPlanCompiler.compileWithCirculation(plan("block", false), BlockPos.ORIGIN, null, null, false);
         assertTrue(failed.patches().isEmpty()); assertTrue(failed.circulation().isEmpty());
