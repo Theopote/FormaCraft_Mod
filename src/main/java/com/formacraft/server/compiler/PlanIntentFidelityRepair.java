@@ -593,24 +593,15 @@ final class PlanIntentFidelityRepair {
             boolean officeBody = looksOfficeBodyMass(component);
             boolean workshopBody = looksWorkshopBodyMass(component);
             if (officeLike && !explicitFootprint && officeBody && !workshopBody) {
-                int minW = floors >= 3 ? 14 : 12;
-                int minD = floors >= 3 ? 12 : 10;
-                int nw = Math.max(dims.width(), minW);
-                int nd = Math.max(dims.depth(), minD);
-                if (nw * nd < 14 * 12) {
-                    nw = Math.max(nw, 14);
-                    nd = Math.max(nd, 12);
-                }
+                // Annex offices: repair vertical storey bands only. Footprint grow/recenter
+                // orphans campus exterior stairs (late_4); bridge contact is recovered by the
+                // post-intent HostedPlateLevelRepair stretch instead.
                 int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
-                changed = true;
-                if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
-                    if (position != null && (nw != dims.width() || nd != dims.depth())) {
-                        int dx = (nw - dims.width()) / 2;
-                        int dz = (nd - dims.depth()) / 2;
-                        position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
-                    }
-                    dims = new Dimensions(nw, nd, nh);
+                if (nh != dims.height()) {
+                    dims = new Dimensions(dims.width(), dims.depth(), nh);
                     changed = true;
+                } else {
+                    changed = true; // floor_count / floor_height params may still update
                 }
             } else if (officeLike && explicitFootprint && inPrimaryMassScope && !workshopBody) {
                 // Honour explicit W×D on the primary host; only repair the vertical storey stack.
@@ -619,7 +610,9 @@ final class PlanIntentFidelityRepair {
                 int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
                 changed = true;
                 if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
-                    if (position != null && (nw != dims.width() || nd != dims.depth())) {
+                    if (position != null && (nw != dims.width() || nd != dims.depth())
+                            && !com.formacraft.common.generation.component.util.ComponentFootprintUtil
+                            .isCornerAnchor(params)) {
                         int dx = (nw - dims.width()) / 2;
                         int dz = (nd - dims.depth()) / 2;
                         position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);

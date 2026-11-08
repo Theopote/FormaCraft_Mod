@@ -1,6 +1,6 @@
 # Archived Documentation
 
-Historical snapshots. These files are **not maintained**.
+Historical snapshots. These files are **not maintained**. Prefer live docs in the table below; use `git log --follow` if you need the original context of a deleted report.
 
 ## Where to look instead
 
@@ -12,17 +12,13 @@ Historical snapshots. These files are **not maintained**.
 | Full doc index | [INDEX.md](../INDEX.md) |
 | Preserved design ideas | [GENERALIZATION_STRATEGY.md](../GENERALIZATION_STRATEGY.md) §4 |
 
-Git history preserves original context (`git log --follow <file>`).
-
-## Subdirectories (2026-07 reorganization)
+## Subdirectories
 
 | Directory | Contents |
 |-----------|----------|
 | `archive/` (root) | Pre-2026-07 snapshots moved from repository root |
-| `archive/reports/` | Point-in-time reports: `*_SUMMARY`, `COMPLETE_*`, `PHASE*`, `FINAL_*`, `*_STATUS`, `*_REPORT` |
-| `archive/fixes/` | Bug fix notes: `*_FIX`, `THUMBNAIL_*`, `SELECTION_*`, `BUG_FIX_*` |
 | `archive/superseded/` | Superseded design docs (e.g. `ROOF_PLATE_V1`, old ranking systems) |
 
-## Adding to archive
+## Do not commit session dumps
 
-See [DOC_CONVENTIONS.md](../DOC_CONVENTIONS.md) — do not create `*_SUMMARY` or `*_FIX` files in `docs/` root.
+Point-in-time `*_SUMMARY` / `*_FIX` / `COMPLETE_*` / `PHASE*` / `FINAL_*` reports and local diagnostic `.txt` dumps are **not** kept in the repo. Record lasting decisions in live Tier 0–2 docs; leave ephemeral notes out of git (see [DOC_CONVENTIONS.md](../DOC_CONVENTIONS.md)).

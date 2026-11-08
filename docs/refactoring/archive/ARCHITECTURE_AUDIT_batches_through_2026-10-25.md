@@ -18,7 +18,7 @@
 | P2 | `server/skeleton/gen/geometry/ToolConstraintBuilder.java` 无源码调用者，却读取客户端全局状态 | 本轮移到 `client/skeleton`；服务端未来只接受请求快照，不读取客户端状态 |
 | P2 | ARCHITECTURE 将 ComponentPlanCompiler 写成 common.compiler，实际位于 server.compiler | 本轮纠正文档，区分主干与仍存在的兼容入口 |
 | P2 | 文档写 agent 环境不能编译，README 写 Gradle 8+，Wrapper 实际为 9.1.0 | 本轮更新；本机基线 compileJava --offline 成功，不能以历史环境限制代替验证 |
-| P2 | 历史文档宣称 PathLayoutService 已集成，但代码没有调用者 | 完成报告不能作为运行事实；UNUSED_FILES_ANALYSIS 标记为历史参考，禁止照着旧建议恢复第二套入口 |
+| P2 | 历史文档宣称 PathLayoutService 已集成，但代码没有调用者 | 完成报告不能作为运行事实；禁止照着旧分析恢复第二套入口 |
 
 ## 已实施的边界防回归
 

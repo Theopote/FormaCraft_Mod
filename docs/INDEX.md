@@ -93,7 +93,7 @@
 | [SOCKET_REFINEMENT_RULES.md](SOCKET_REFINEMENT_RULES.md) | Socket 细化规则 |
 | [VARIANT_RULES_SPEC.md](VARIANT_RULES_SPEC.md) | Variant 规则 |
 | [ComponentQueryRankingSystemV3.md](ComponentQueryRankingSystemV3.md) | 构件查询排序 v3 |
-| [COMPONENT_CAPTURE_DESIGN_V2.md](COMPONENT_CAPTURE_DESIGN_V2.md) | 构件拾取面板 v2（活文档；实现计划见 `archive/reports/COMPONENT_CAPTURE_IMPLEMENTATION_PLAN.md`） |
+| [COMPONENT_CAPTURE_DESIGN_V2.md](COMPONENT_CAPTURE_DESIGN_V2.md) | 构件拾取面板 v2（活文档） |
 
 ### 路径 / 交通 / Memory
 
@@ -133,9 +133,7 @@
 | 目录 | 内容 |
 |------|------|
 | [archive/](archive/) | 2026-07 前从根目录迁入的历史快照 |
-| [archive/reports/](archive/reports/) | 时点报告：`*_SUMMARY`、`*_COMPLETE`、`*_STATUS`、`*_REPORT`、`PHASE*` |
-| [archive/fixes/](archive/fixes/) | 点修记录：`*_FIX`、`THUMBNAIL_*`、`SELECTION_*`、`BUG_FIX_*` |
-| [archive/superseded/](archive/superseded/) | 被新版本取代的设计/分析稿 |
+| [archive/superseded/](archive/superseded/) | 被新版本取代的设计/分析稿（有设计思想可摘要至活文档） |
 
 归档文档可能含宝贵设计思想，已摘要迁入 [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md)。查阅历史决策请用 `git log --follow`。
 

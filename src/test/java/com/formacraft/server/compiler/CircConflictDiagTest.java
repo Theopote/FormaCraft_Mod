@@ -17,33 +17,37 @@ class CircConflictDiagTest {
 
     @Test
     void dumpEvening5Bridge() throws Exception {
-        var plan = LlmPlanParser.parse(Files.readString(Path.of(
+        var raw = LlmPlanParser.parse(Files.readString(Path.of(
                 "python_backend/tests/fixtures/complex_build_retest/oct17_evening_5.normalized.json")));
+        var plan = PlanIntentFidelityRepair.apply(MassFootprintSeparationRepair.apply(
+                StructureAccessoryRemapRepair.apply(raw)));
+        // Run the same early repairs as compile (subset) then dump bridge geometry.
+        plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(raw);
+        plan = SlotPrimaryAnchorRepair.apply(plan);
+        plan = RequestIntentInjector.ensure(plan, (String) null);
+        plan = MassFootprintSeparationRepair.apply(plan);
+        plan = HostedPlateLevelRepair.apply(plan);
+        plan = PlanIntentFidelityRepair.apply(plan);
+        plan = HostedPlateLevelRepair.apply(plan);
+        for (var c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            String id = String.valueOf(c.params().get("component_id"));
+            if (id.contains("office") || id.contains("workshop") || id.contains("corridor")
+                    || id.contains("bridge") || id.contains("landing")) {
+                var b = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(c);
+                System.out.println(id + " type=" + c.componentType() + " slot=" + c.slotId()
+                        + " pos=" + c.relativePosition() + " dim=" + c.dimensions()
+                        + " bounds=" + b
+                        + " host=" + c.params().get("host_id")
+                        + " target=" + c.params().get("target_host_id")
+                        + " extrude=" + c.params().get("extrude_mode")
+                        + " plate_role=" + c.params().get("plate_role"));
+            }
+        }
         AssemblyCompileDiagnostics.clear();
-        var patches = ComponentPlanCompiler.compile(plan);
+        var patches = ComponentPlanCompiler.compile(raw);
         var gap = AssemblyCompileDiagnostics.get();
         System.out.println("patches=" + patches.size()
                 + " gap=" + (gap == null ? "PASS" : gap.code() + " | " + gap.message()));
-    }
-
-    @Test
-    void dumpOct16() throws Exception {
-        var plan = LlmPlanParser.parse(Files.readString(Path.of(
-                "python_backend/tests/fixtures/complex_build_retest/oct16_3.normalized.json")));
-        plan = PlanIntentFidelityRepair.apply(
-                StructureAccessoryRemapRepair.apply(
-                        MassFootprintSeparationRepair.apply(plan)));
-        // full preprocess subset: just intent after a clean parse via compile path pieces
-        plan = LlmPlanParser.parse(Files.readString(Path.of(
-                "python_backend/tests/fixtures/complex_build_retest/oct16_3.normalized.json")));
-        AssemblyCompileDiagnostics.clear();
-        var patches = ComponentPlanCompiler.compile(plan);
-        var gap = AssemblyCompileDiagnostics.get();
-        System.out.println("oct16 patches=" + patches.size()
-                + " gap=" + (gap == null ? "PASS" : gap.code() + " | " + gap.message()));
-        int[] fp = PlanIntentFidelityRepair.parseFootprint(PlanIntentFidelityRepair.intentCorpus(
-                LlmPlanParser.parse(Files.readString(Path.of(
-                        "python_backend/tests/fixtures/complex_build_retest/oct16_3.normalized.json")))));
-        System.out.println("oct16 fp=" + fp[0] + "x" + fp[1]);
     }
 }

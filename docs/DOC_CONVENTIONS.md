@@ -30,15 +30,10 @@
 
 | 模式 | 去向 | 示例 |
 |------|------|------|
-| `*_SUMMARY.md` | `docs/archive/reports/` | `INTEGRATION_SUMMARY.md` |
-| `*_FIX.md` | `docs/archive/fixes/` | `THUMBNAIL_DISPLAY_FIX.md` |
-| `COMPLETE_*.md` | `docs/archive/reports/` | `COMPLETE_SYSTEM_INTEGRATION_REPORT.md` |
-| `PHASE*.md` | `docs/archive/reports/` | `PHASE1_TOOLTIP_COMPLETE.md` |
-| `FINAL_*.md` | `docs/archive/reports/` | `FINAL_INTEGRATION_STATUS.md` |
-| `*_STATUS*.md` | `docs/archive/reports/` | `SYSTEM_STATUS_REPORT.md` |
-| 被新版本取代 | `docs/archive/superseded/` | `ROOF_PLATE_V1.md` |
+| `*_SUMMARY.md` / `*_FIX.md` / `COMPLETE_*` / `PHASE*` / `FINAL_*` / `*_STATUS*` | **不入库**（本地笔记或 PR 描述即可） | `INTEGRATION_SUMMARY.md` |
+| 被新版本取代、且仍有设计参考价值 | `docs/archive/superseded/` | `ROOF_PLATE_V1.md` |
 
-**原则**：完成报告、bug 修复记录、阶段进度 → 直接写入 `docs/archive/`，不在根目录留副本。
+**原则**：完成报告、bug 修复记录、阶段进度、根目录诊断 `.txt` **不要提交到 git**。持久结论写进活文档（Tier 0–2）；旧设计稿若仍有思想价值再移入 `archive/superseded/`。
 
 ### 2.3 版本迭代
 
@@ -79,8 +74,8 @@
   ├─ 是系统级架构/流程变更？ → 更新 Tier 0（ARCHITECTURE / GENERATION_PIPELINE）
   ├─ 是泛化/路由/策略变更？   → 更新 GENERALIZATION_STRATEGY
   ├─ 是子系统实现细节？       → 新增/更新 Tier 2，并在 INDEX.md 登记
-  ├─ 是 bug 修复/完成报告？   → 直接写 docs/archive/fixes|reports/
-  └─ 是临时调试笔记？         → 不写进 repo；或放 archive/fixes 并标注日期
+  ├─ 是 bug 修复/完成报告？   → 写进 PR / 更新对应活文档；不要新建 SUMMARY/FIX 入库
+  └─ 是临时调试笔记？         → 不写进 repo
 ```
 
 ---

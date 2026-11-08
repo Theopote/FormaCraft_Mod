@@ -160,6 +160,9 @@ public final class ComponentPlanCompiler {
         plan = ExplicitDesignConflictRepair.apply(plan);
         // Land 重檐 / footprint / material intent before authored gates can hard-fail.
         plan = PlanIntentFidelityRepair.apply(plan);
+        // Office plate grow / storey bands can move hosts after the first bridge stretch —
+        // re-close corridor plates before authored bridge contact validation.
+        plan = HostedPlateLevelRepair.apply(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
         var authoredIssue = DesignValidatorSuite.checkAuthored(plan);
         if (authoredIssue.isPresent()) {
