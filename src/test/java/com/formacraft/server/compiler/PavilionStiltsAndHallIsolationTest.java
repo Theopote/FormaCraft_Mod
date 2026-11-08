@@ -44,6 +44,57 @@ class PavilionStiltsAndHallIsolationTest {
     }
 
     @Test
+    void playerForbidBeatsLlmStiltsParams() {
+        Component ting = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 5), List.of("凉亭", "不要架空"),
+                mutable("component_id", "llm_stilts_ting", "building_role", "pavilion",
+                        "foundation_type", "stilts", "foundation_mode", "STILTS",
+                        "anchor_mode", "min_corner"));
+        Component stilts = new Component(
+                "FOUNDATION", "main", new Vec3i(0, -12, 0),
+                new Dimensions(8, 8, 12), List.of(),
+                mutable("component_id", "llm_stilts_pad", "host_id", "llm_stilts_ting",
+                        "foundation_type", "stilts", "material", "minecraft:oak_log"));
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+                .distinguishingFeatures(List.of("庭院凉亭", "不要架空"))
+                .components(List.of(ting, stilts))
+                .build());
+        assertFalse(repaired.components().stream().anyMatch(c ->
+                "FOUNDATION".equalsIgnoreCase(c.componentType())
+                        && c.params() != null
+                        && "stilts".equalsIgnoreCase(String.valueOf(c.params().get("foundation_type")))),
+                "LLM stilts must be stripped when player forbids");
+        Component mass = byId(repaired, "llm_stilts_ting");
+        assertNotEquals("stilts", String.valueOf(mass.params().get("foundation_type")).toLowerCase());
+        assertEquals("GROUND", String.valueOf(mass.params().get("foundation_mode")));
+    }
+
+    @Test
+    void waterPavilionOnStonePlatformSkipsStiltsWhenPlayerForbids() {
+        Component ting = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 5), List.of("水上亭"),
+                mutable("component_id", "stone_deck_ting", "building_role", "pavilion",
+                        "anchor_mode", "min_corner"));
+        Component plinth = new Component(
+                "FOUNDATION", "main", new Vec3i(0, -1, 0),
+                new Dimensions(10, 10, 1), List.of("石质平台"),
+                mutable("component_id", "stone_deck", "host_id", "stone_deck_ting",
+                        "foundation_type", "plinth", "material", "minecraft:stone_bricks"));
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+                .distinguishingFeatures(List.of("水上亭", "直接落在石质平台上", "不要架空"))
+                .components(List.of(ting, plinth))
+                .build());
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                c.params() != null && "stone_deck".equals(String.valueOf(c.params().get("component_id")))));
+        assertFalse(repaired.components().stream().anyMatch(c ->
+                c.params() != null
+                        && "stilts".equalsIgnoreCase(String.valueOf(c.params().get("foundation_type")))),
+                "plan forbid must beat 水上 keyword; keep stone platform without piles");
+    }
+
+    @Test
     void waterPavilionStiltsDoNotBleedToSiblingGroundPavilion() {
         Component water = new Component(
                 "MASS_MAIN", "east", new Vec3i(20, 0, 0),
@@ -159,6 +210,26 @@ class PavilionStiltsAndHallIsolationTest {
         assertEquals(doorMidZ, topZ);
         assertTrue(outDoor.relativePosition().z() <= 1,
                 "realigned door should sit on front (z≈0), was " + outDoor.relativePosition());
+    }
+
+    @Test
+    void stairGuardAloneDoesNotSuppressInteriorStairInference() {
+        Component host = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(11, 11, 9), List.of(),
+                mutable("component_id", "three_storey_hall", "floor_count", 3,
+                        "floor_height", 4, "wall_thickness", 1, "anchor_mode", "min_corner"));
+        Component guard = new Component(
+                "STRUCTURE", "main", new Vec3i(4, 1, 4),
+                new Dimensions(1, 3, 3), List.of(),
+                mutable("component_id", "hall_stair_guard_0", "host_id", "three_storey_hall"));
+        List<Component> parts = new java.util.ArrayList<>(List.of(host, guard));
+        InteriorStairInferenceCompiler.apply(parts);
+        assertTrue(parts.stream().anyMatch(c ->
+                        "STAIR_SYSTEM".equalsIgnoreCase(c.componentType())
+                                && c.params() != null
+                                && Boolean.TRUE.equals(c.params().get("compiler_inferred_stair"))),
+                "rail/guard furniture must not block missing STAIR_SYSTEM inference");
     }
 
     @Test

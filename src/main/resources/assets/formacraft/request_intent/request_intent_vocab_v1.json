@@ -30,7 +30,8 @@
     "temple": {
       "strong_markers": [
         "道观", "寺庙", "庙宇", "大殿", "殿堂", "正殿",
-        "daoist temple", "shrine compound", "main hall"
+        "大雄宝殿", "宝殿", "配殿",
+        "daoist temple", "shrine compound", "main hall", "mahavira hall"
       ]
     }
   },

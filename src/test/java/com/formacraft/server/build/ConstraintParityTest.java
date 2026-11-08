@@ -46,8 +46,14 @@ class ConstraintParityTest {
         }
         var noStairTree=tree.deepCopy();
         var noStairComponents=(com.fasterxml.jackson.databind.node.ArrayNode)noStairTree.get("components");
-        for(int i=noStairComponents.size()-1;i>=0;i--)
-            if("earth_opening_stair".equals(noStairComponents.get(i).path("params").path("component_id").asText()))noStairComponents.remove(i);
+        for(int i=noStairComponents.size()-1;i>=0;i--) {
+            String cid=noStairComponents.get(i).path("params").path("component_id").asText();
+            // Ablation removes the flight only; remaining stair_guard must not trigger inference
+            // when satellites are disabled (guards ≠ stairs).
+            if("earth_opening_stair".equals(cid))noStairComponents.remove(i);
+        }
+        var noStairMeta=((com.fasterxml.jackson.databind.node.ObjectNode)noStairTree).putObject("plan_meta");
+        noStairMeta.put("allow_compiler_satellites",false);
         var noStair=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(noStairTree,LlmPlan.class),ORIGIN,null,null,false));
         assertFalse(noStair.isEmpty());
         for(int x=size/2-1;x<=size/2+1;x++)

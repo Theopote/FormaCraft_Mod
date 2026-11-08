@@ -85,11 +85,54 @@ final class PavilionOpenFrameRepair {
         // Stilts are per-mass (REQUIRED / FORBIDDEN / UNSPECIFIED) — never plan-global bleed.
         if (!pavilionMassIds.isEmpty()) {
             Set<String> hostsNeedingStilts = new HashSet<>();
+            Set<String> hostsForbiddingStilts = new HashSet<>();
             for (String hostId : pavilionMassIds) {
                 Component mass = massById.get(hostId);
-                if (mass != null && stiltIntentForMass(mass, plan) == StiltIntent.REQUIRED) {
+                if (mass == null) continue;
+                StiltIntent intent = stiltIntentForMass(mass, plan);
+                if (intent == StiltIntent.REQUIRED) {
                     hostsNeedingStilts.add(hostId);
+                } else if (intent == StiltIntent.FORBIDDEN) {
+                    hostsForbiddingStilts.add(hostId);
                 }
+            }
+            // Player forbid beats LLM stilts foundations / mass foundation_type=stilts.
+            if (!hostsForbiddingStilts.isEmpty()) {
+                List<Component> stripped = new ArrayList<>(out.size());
+                for (Component c : out) {
+                    if (c == null) {
+                        stripped.add(null);
+                        continue;
+                    }
+                    if ("FOUNDATION".equalsIgnoreCase(c.componentType()) && c.params() != null && isStilts(c.params())) {
+                        Object host = c.params().get("host_id");
+                        if (host == null) host = c.params().get("hostId");
+                        if (host != null && hostsForbiddingStilts.contains(String.valueOf(host))) {
+                            FormacraftMod.LOGGER.info(
+                                    "PavilionOpenFrameRepair: drop LLM stilts foundation host={}", host);
+                            changed = true;
+                            continue;
+                        }
+                    }
+                    if (c.params() != null) {
+                        Object id = c.params().get("component_id");
+                        if (id != null && hostsForbiddingStilts.contains(String.valueOf(id))) {
+                            Object ft = c.params().get("foundation_type");
+                            if (ft != null && isStilts(Map.of("foundation_type", ft))) {
+                                Map<String, Object> params = new HashMap<>(c.params());
+                                params.remove("foundation_type");
+                                params.put("foundation_mode", "GROUND");
+                                c = new Component(c.componentType(), c.slotId(), c.relativePosition(),
+                                        c.dimensions(), c.features(), params);
+                                massById.put(String.valueOf(id), c);
+                                changed = true;
+                            }
+                        }
+                    }
+                    stripped.add(c);
+                }
+                out = stripped;
+                stiltHosts.removeIf(hostsForbiddingStilts::contains);
             }
             if (!hostsNeedingStilts.isEmpty()) {
                 Set<String> hostsWithStilts = new HashSet<>();
@@ -305,36 +348,39 @@ final class PavilionOpenFrameRepair {
         return level != null && "USER_REQUIRED".equalsIgnoreCase(String.valueOf(level).trim());
     }
 
-    /** Per-mass stilts policy — FORBIDDEN always beats automatic REQUIRED inference. */
+    /**
+     * Per-mass stilts policy.
+     * Priority: player forbid &gt; player/mass require cues &gt; foundation_mode ground &gt; LLM stilts params
+     * &gt; water/stilt name cues. LLM {@code foundation_type=stilts} never beats player「不要架空」.
+     */
     enum StiltIntent { REQUIRED, FORBIDDEN, UNSPECIFIED }
 
     private static StiltIntent stiltIntentForMass(Component mass, LlmPlan plan) {
         if (mass == null) return StiltIntent.UNSPECIFIED;
-        // Authored stilts foundation on the mass itself is hard REQUIRED.
+        String massBlob = massIntentBlob(mass);
+        // 1. Player explicit forbid (mass features/id or request text) beats LLM stilts params
+        //    and weak water-name cues like「水上亭」.
+        if (hasStiltForbidden(massBlob) || hasStiltForbidden(planIntentBlob(plan))) {
+            return StiltIntent.FORBIDDEN;
+        }
         if (mass.params() != null) {
+            Object mode = mass.params().get("foundation_mode");
+            if (mode != null) {
+                String m = String.valueOf(mode).trim().toUpperCase(Locale.ROOT);
+                if (m.equals("GROUND") || m.equals("PLINTH") || m.equals("PAD") || m.equals("NONE")) {
+                    return StiltIntent.FORBIDDEN;
+                }
+                if (m.equals("STILTS") || m.equals("FLOATING") || m.equals("PILES")) {
+                    return StiltIntent.REQUIRED;
+                }
+            }
+            // 2. LLM stilts type — only after forbid checks.
             Object ft = mass.params().get("foundation_type");
             if (ft != null && isStilts(Map.of("foundation_type", ft))) {
                 return StiltIntent.REQUIRED;
             }
-            Object mode = mass.params().get("foundation_mode");
-            if (mode != null) {
-                String m = String.valueOf(mode).trim().toUpperCase(Locale.ROOT);
-                if (m.equals("STILTS") || m.equals("FLOATING") || m.equals("PILES")) {
-                    return StiltIntent.REQUIRED;
-                }
-                if (m.equals("GROUND") || m.equals("PLINTH") || m.equals("PAD") || m.equals("NONE")) {
-                    return StiltIntent.FORBIDDEN;
-                }
-            }
         }
-        String massBlob = massIntentBlob(mass);
-        if (hasStiltForbidden(massBlob)) {
-            return StiltIntent.FORBIDDEN;
-        }
-        // Plan-level「不需要架空」forbids auto stilts unless this mass itself is water/stilt named.
-        if (hasStiltForbidden(planIntentBlob(plan)) && !massLocalRequiresStilts(mass, massBlob)) {
-            return StiltIntent.FORBIDDEN;
-        }
+        // 3. Mass-local water / stilt name cues (no plan-level sibling bleed).
         if (massLocalRequiresStilts(mass, massBlob)) {
             return StiltIntent.REQUIRED;
         }

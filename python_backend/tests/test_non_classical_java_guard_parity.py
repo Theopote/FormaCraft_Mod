@@ -99,11 +99,13 @@ class NonClassicalJavaGuardParityTest(unittest.TestCase):
                 },
             },
         }
-        skip, _ = should_skip_classical_enrichment("中式园林", None, plan)
-        self.assertFalse(skip)
+        skip, reason = should_skip_classical_enrichment("中式园林", None, plan)
+        # Lattice must not fire non_classical_marker; East-Asian classical skip is expected.
+        self.assertTrue(skip)
+        self.assertEqual(reason, "traditional_east_asian_context")
 
         out = enrich_llm_plan_architectural_detail(plan, user_text="中式园林", profile=None)
-        self.assertNotIn("enrichment_guard", out)
+        self.assertEqual(out.get("enrichment_guard"), "traditional_east_asian_context")
 
 
 if __name__ == "__main__":

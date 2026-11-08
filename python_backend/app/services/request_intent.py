@@ -724,47 +724,124 @@ def scaffold_plan_for_intent(
     if building_class == "temple":
         composition = str(intent.get("composition") or "single")
         roof_type = _roof_or_default("xieshan")
+        wants_peidian = any(tok in text for tok in ("配殿", "厢房", "左右各一", "side hall", "side halls"))
+        wants_yuetai = any(tok in text for tok in ("月台", "月坛", "前有月台", "moon platform", "forecourt"))
+        double_eave = "重檐" in text or "double_eave" in text.lower() or (
+            isinstance(roof_type, str) and "double_eave" in roof_type
+        )
+        if wants_peidian and composition != "compound":
+            composition = "compound"
         if composition == "compound":
-            site_w = max(16, width * 2 if width else 20)
-            site_d = max(16, depth * 2 if depth else 20)
-            hall_w = max(7, site_w // 3)
-            hall_d = max(5, site_d // 4)
+            site_w = max(28, width * 2 if width else 32)
+            site_d = max(24, depth * 2 if depth else 28)
+            hall_w = max(11, min(18, site_w // 2))
+            hall_d = max(9, min(14, site_d // 2))
+            hall_h = 10 if double_eave else 8
+            hall_x = (site_w - hall_w) // 2
+            hall_z = site_d // 3
+            side_w = max(7, hall_w // 2)
+            side_d = max(7, hall_d - 2)
+            side_h = max(6, hall_h - 2)
+            gap = 3
+            left_x = max(0, hall_x - gap - side_w)
+            right_x = min(site_w - side_w, hall_x + hall_w + gap)
+            side_z = hall_z + max(0, (hall_d - side_d) // 2)
+            side_roof = "xuanshan" if ("悬山" in text or "xuanshan" in text.lower()) else "yingshan"
+            if "硬山" in text:
+                side_roof = "yingshan"
             comps: List[Dict[str, Any]] = [
-                {
-                    "component_type": "COURTYARD",
-                    "slot_id": "yard",
-                    "relative_position": {"x": 2, "y": 0, "z": 2},
-                    "dimensions": {"width": site_w - 4, "depth": site_d - 4, "height": 1},
-                    "features": ["courtyard"],
-                    "params": {"component_id": "temple_yard"},
-                },
-                {
-                    "component_type": "PATH",
-                    "slot_id": "path",
-                    "relative_position": {"x": site_w // 2, "y": 0, "z": 0},
-                    "dimensions": {"width": 3, "depth": site_d, "height": 1},
-                    "features": ["axis_path"],
-                    "params": {"component_id": "temple_path"},
-                },
                 {
                     "component_type": "MASS_MAIN",
                     "slot_id": "hall",
-                    "relative_position": {"x": site_w // 4, "y": 0, "z": site_d // 3},
-                    "dimensions": {"width": hall_w, "depth": hall_d, "height": 7},
-                    "features": ["main_hall", "temple", "道观"],
+                    "relative_position": {"x": hall_x, "y": 0, "z": hall_z},
+                    "dimensions": {"width": hall_w, "depth": hall_d, "height": hall_h},
+                    "features": ["main_hall", "temple", "大雄宝殿"],
                     "params": {
                         "component_id": "temple_hall",
                         "wall_block": wall,
                         "roof_block": roof,
                         "roof_type": roof_type,
+                        "anchor_mode": "min_corner",
+                        **({"double_eave": True, "eave_tiers": 2} if double_eave else {}),
                         **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
                     },
                 },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "hall",
+                    "relative_position": {"x": hall_x - 1, "y": hall_h, "z": hall_z - 1},
+                    "dimensions": {"width": hall_w + 2, "depth": hall_d + 2, "height": 5 if double_eave else 4},
+                    "features": ["temple_roof", "xieshan"],
+                    "params": {
+                        "component_id": "temple_roof",
+                        "host_id": "temple_hall",
+                        "roof_type": "xieshan" if "xieshan" in str(roof_type) or "歇山" in text else roof_type,
+                        "roof_block": roof,
+                        "anchor_mode": "min_corner",
+                        **({"double_eave": True, "eave_tiers": 2} if double_eave else {}),
+                    },
+                },
             ]
+            if wants_yuetai:
+                plat_w = max(hall_w - 2, 8)
+                plat_d = 6
+                comps.append({
+                    "component_type": "MASS_SECONDARY",
+                    "slot_id": "platform",
+                    "relative_position": {
+                        "x": hall_x + (hall_w - plat_w) // 2,
+                        "y": 0,
+                        "z": hall_z + hall_d,
+                    },
+                    "dimensions": {"width": plat_w, "depth": plat_d, "height": 1},
+                    "features": ["月台", "moon_platform"],
+                    "params": {
+                        "component_id": "temple_yuetai",
+                        "host_id": "temple_hall",
+                        "extrude_mode": "plate",
+                        "plate_role": "terrace",
+                        "anchor_mode": "min_corner",
+                        "floor_block": wall,
+                        "material": wall,
+                    },
+                })
+            for side_id, sx in (("left_peidian", left_x), ("right_peidian", right_x)):
+                comps.append({
+                    "component_type": "MASS_SECONDARY",
+                    "slot_id": side_id,
+                    "relative_position": {"x": sx, "y": 0, "z": side_z},
+                    "dimensions": {"width": side_w, "depth": side_d, "height": side_h},
+                    "features": ["配殿", "side_hall"],
+                    "params": {
+                        "component_id": side_id,
+                        "building_role": "side_hall",
+                        "wall_block": wall,
+                        "roof_block": roof,
+                        "roof_type": side_roof,
+                        "anchor_mode": "min_corner",
+                    },
+                })
+                comps.append({
+                    "component_type": "ROOF",
+                    "slot_id": side_id,
+                    "relative_position": {"x": sx - 1, "y": side_h, "z": side_z - 1},
+                    "dimensions": {"width": side_w + 2, "depth": side_d + 2, "height": 3},
+                    "features": ["配殿屋顶", side_roof],
+                    "params": {
+                        "component_id": f"{side_id}_roof",
+                        "host_id": side_id,
+                        "roof_type": side_roof,
+                        "roof_block": roof,
+                        "anchor_mode": "min_corner",
+                    },
+                })
+            temple_style = style_profile
+            if temple_style in ("DEFAULT", "", "default"):
+                temple_style = "chinese_temple_imperial"
             return _with_anchor({
                 "mode": "build",
-                "style_profile": style_profile,
-                "distinguishing_features": markers or ["道观", "temple", "compound"],
+                "style_profile": temple_style,
+                "distinguishing_features": markers or ["大雄宝殿", "配殿", "temple", "compound"],
                 "style_attributes": style_attrs,
                 "components": comps,
                 "plan_meta": _scaffold_plan_meta(
@@ -777,41 +854,66 @@ def scaffold_plan_for_intent(
 
         hall_w = max(9, width if width >= 7 else 11)
         hall_d = max(7, depth if depth >= 5 else max(7, hall_w - 2))
-        hall_h = 7
+        hall_h = 10 if double_eave else 7
+        temple_style = style_profile
+        if temple_style in ("DEFAULT", "", "default"):
+            temple_style = "chinese_temple_imperial"
+        comps_single: List[Dict[str, Any]] = [
+            {
+                "component_type": "MASS_MAIN",
+                "slot_id": "hall",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": hall_w, "depth": hall_d, "height": hall_h},
+                "features": ["main_hall", "temple", "殿"],
+                "params": {
+                    "component_id": "temple_hall",
+                    "wall_block": wall,
+                    "roof_block": roof,
+                    "roof_type": roof_type,
+                    "anchor_mode": "min_corner",
+                    **({"double_eave": True, "eave_tiers": 2} if double_eave else {}),
+                    **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
+                },
+            },
+            {
+                "component_type": "ROOF",
+                "slot_id": "hall",
+                "relative_position": {"x": -1, "y": hall_h, "z": -1},
+                "dimensions": {"width": hall_w + 2, "depth": hall_d + 2, "height": 5 if double_eave else 4},
+                "features": ["temple_roof"],
+                "params": {
+                    "component_id": "temple_roof",
+                    "host_id": "temple_hall",
+                    "roof_type": roof_type,
+                    "roof_block": roof,
+                    "anchor_mode": "min_corner",
+                    **({"double_eave": True, "eave_tiers": 2} if double_eave else {}),
+                },
+            },
+        ]
+        if wants_yuetai:
+            comps_single.append({
+                "component_type": "MASS_SECONDARY",
+                "slot_id": "platform",
+                "relative_position": {"x": 1, "y": 0, "z": hall_d},
+                "dimensions": {"width": max(hall_w - 2, 8), "depth": 6, "height": 1},
+                "features": ["月台", "moon_platform"],
+                "params": {
+                    "component_id": "temple_yuetai",
+                    "host_id": "temple_hall",
+                    "extrude_mode": "plate",
+                    "plate_role": "terrace",
+                    "anchor_mode": "min_corner",
+                    "floor_block": wall,
+                    "material": wall,
+                },
+            })
         return _with_anchor({
             "mode": "build",
-            "style_profile": style_profile,
+            "style_profile": temple_style,
             "distinguishing_features": markers or ["道观", "temple", "大殿"],
             "style_attributes": style_attrs,
-            "components": [
-                {
-                    "component_type": "MASS_MAIN",
-                    "slot_id": "hall",
-                    "relative_position": {"x": 0, "y": 0, "z": 0},
-                    "dimensions": {"width": hall_w, "depth": hall_d, "height": hall_h},
-                    "features": ["main_hall", "temple", "殿"],
-                    "params": {
-                        "component_id": "temple_hall",
-                        "wall_block": wall,
-                        "roof_block": roof,
-                        "roof_type": roof_type,
-                        **({"window_style": "none", "window_ratio": 0} if "windows" in forbids else {}),
-                    },
-                },
-                {
-                    "component_type": "ROOF",
-                    "slot_id": "hall",
-                    "relative_position": {"x": -1, "y": hall_h, "z": -1},
-                    "dimensions": {"width": hall_w + 2, "depth": hall_d + 2, "height": 4},
-                    "features": ["temple_roof"],
-                    "params": {
-                        "component_id": "temple_roof",
-                        "host_id": "temple_hall",
-                        "roof_type": roof_type,
-                        "roof_block": roof,
-                    },
-                },
-            ],
+            "components": comps_single,
             "plan_meta": _scaffold_plan_meta(
                 intent,
                 building_class="temple",

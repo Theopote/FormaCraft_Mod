@@ -35,6 +35,60 @@ class NonClassicalEnrichmentGuardTest {
     }
 
     @Test
+    void eastAsianIntentActivatesDespiteClassicalPollution() {
+        String prompt = "生成一座重檐歇山顶大雄宝殿，前有月台，左右各一配殿，配殿用悬山顶，主殿必须是重檐歇山。";
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of(
+                        new Component(
+                                "MASS_MAIN",
+                                "body",
+                                new Vec3i(0, 0, 0),
+                                new Dimensions(32, 40, 19),
+                                List.of("pilasters", "cornice"),
+                                Map.of("component_id", "component_1", "facade_profile", "vertical_pilasters")
+                        ),
+                        new Component(
+                                "CROWN",
+                                "body",
+                                new Vec3i(10, 24, 14),
+                                new Dimensions(13, 13, 10),
+                                List.of("crown"),
+                                Map.of("component_id", "component_8", "crown_template", "CLASSICAL_CUPOLA")
+                        ),
+                        new Component(
+                                "ROOF",
+                                "body",
+                                new Vec3i(-2, 19, -2),
+                                new Dimensions(36, 44, 5),
+                                List.of("overhang"),
+                                Map.of("component_id", "component_2", "host_id", "component_1", "roof_type", "hip")
+                        )
+                ))
+                .proportionHints(Map.of("typology", "classical_monument", "crown_assembly", true))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build();
+
+        assertTrue(NonClassicalEnrichmentGuard.isActive(plan));
+        LlmPlan sanitized = NonClassicalEnrichmentGuard.sanitize(plan);
+        assertTrue(sanitized.components().stream().noneMatch(c -> "CROWN".equalsIgnoreCase(c.componentType())));
+        Component roof = sanitized.components().stream()
+                .filter(c -> "ROOF".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("hip", String.valueOf(roof.params().get("roof_type")));
+        Component mass = sanitized.components().stream()
+                .filter(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("none", String.valueOf(mass.params().get("facade_profile")));
+    }
+
+    @Test
     void activeFromPlanHeuristicWhenGuardMissing() {
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)

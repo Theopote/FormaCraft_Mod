@@ -15,6 +15,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoofIntentNegationRepairTest {
 
+    @org.junit.jupiter.api.BeforeAll
+    static void bootstrap() {
+        // PlanIntentFidelityRepair may resolve stair material families via Registries.
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+    }
+
     @Test
     void doNotMakeXieshanDoesNotRequireXieshan() {
         LlmPlan plan = RequestIntentInjector.ensure(

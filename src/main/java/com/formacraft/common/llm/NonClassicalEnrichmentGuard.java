@@ -37,6 +37,13 @@ public final class NonClassicalEnrichmentGuard {
             "联合国", "egyptian pyramid", "埃及金字塔", "金字塔"
     );
 
+    /** East-Asian hall / temple cues — must strip classical pilaster packs even if the LLM already polluted the plan with CLASSICAL_* tokens. */
+    private static final List<String> EAST_ASIAN_CONTEXT_MARKERS = List.of(
+            "歇山", "庑殿", "悬山", "硬山", "重檐", "攒尖", "大雄宝殿", "宝殿", "配殿", "月台",
+            "道观", "寺庙", "庙宇", "殿堂", "正殿", "四合院", "xieshan", "xuanshan", "wudian",
+            "double_eave", "chinese temple", "chinese hall", "mahavira"
+    );
+
     private static final List<String> CLASSICAL_CONTEXT_MARKERS = List.of(
             "pantheon", "parthenon", "classical", "neoclassical", "baroque", "gothic cathedral",
             "roman temple", "capitol", "medieval_castle", "万神殿"
@@ -54,7 +61,13 @@ public final class NonClassicalEnrichmentGuard {
             return normalized.startsWith("non_classical_marker:")
                     || normalized.startsWith("archetype:")
                     || normalized.equals("distinguishing_features_non_classical")
-                    || normalized.startsWith("footprint:");
+                    || normalized.equals("traditional_east_asian_context")
+                    || normalized.startsWith("footprint:")
+                    || normalized.startsWith("massing_");
+        }
+        // User intent East-Asian markers win over classical pollution already on components.
+        if (hasEastAsianIntent(plan) && !hasExplicitClassicalUserRequest(plan)) {
+            return true;
         }
         return inferNonClassicalFromPlan(plan);
     }
@@ -183,12 +196,16 @@ public final class NonClassicalEnrichmentGuard {
                     stripClassicalFeatures(features);
                 }
             } else if ("ROOF".equals(type) || "ROOF_STRUCTURE".equals(type)) {
-                stripClassicalRoofParams(plan, params);
+                stripClassicalRoofParams(plan, params, hasEastAsianIntent(plan));
             } else if ("DECOR_DETAIL".equals(type)) {
                 if (DesignProvenance.canMutateParam(plan, params, "features")) {
                     stripClassicalFeatures(features);
                 }
                 stripClassicalDecorParams(plan, params);
+                // Classical cornice / pilaster bands left empty after strip — drop them.
+                if (features.isEmpty() && isClassicalDecorShell(component)) {
+                    continue;
+                }
             } else if ("FACADE_WINDOWS".equals(type)) {
                 stripClassicalFacadeParams(plan, params);
             }
@@ -217,7 +234,7 @@ public final class NonClassicalEnrichmentGuard {
         }
     }
 
-    private static void stripClassicalRoofParams(LlmPlan plan, Map<String, Object> params) {
+    private static void stripClassicalRoofParams(LlmPlan plan, Map<String, Object> params, boolean eastAsian) {
         if (hasRevolvedSurface(params)) {
             return;
         }
@@ -225,8 +242,10 @@ public final class NonClassicalEnrichmentGuard {
         if (roofType != null) {
             String lower = roofType.toLowerCase(Locale.ROOT);
             if (lower.contains("mansard")) {
-                DesignProvenance.putIfAllowed(plan, params, "roof_type", "hip");
-            } else if (lower.contains("gable") || lower.contains("hip")) {
+                DesignProvenance.putIfAllowed(plan, params, "roof_type", eastAsian ? "hip" : "flat");
+            } else if (!eastAsian && (lower.contains("gable") || lower.contains("hip"))) {
+                // Stadium / modern non-classical: flatten classical roof families.
+                // East-Asian halls must keep hip / gable / xieshan.
                 DesignProvenance.putIfAllowed(plan, params, "roof_type", "flat");
             }
         }
@@ -236,6 +255,18 @@ public final class NonClassicalEnrichmentGuard {
         }
         DesignProvenance.removeIfAllowed(plan, params, "roof_dormers");
         DesignProvenance.removeIfAllowed(plan, params, "roof_specialty");
+    }
+
+    private static boolean isClassicalDecorShell(Component component) {
+        if (component == null || component.features() == null || component.features().isEmpty()) {
+            return false;
+        }
+        for (String feature : component.features()) {
+            if (isClassicalFeatureToken(feature)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean inferNonClassicalFromPlan(LlmPlan plan) {
@@ -263,8 +294,67 @@ public final class NonClassicalEnrichmentGuard {
         return false;
     }
 
+    private static boolean hasEastAsianIntent(LlmPlan plan) {
+        String intent = intentTextBlob(plan);
+        if (intent.isBlank()) {
+            return false;
+        }
+        for (String marker : EAST_ASIAN_CONTEXT_MARKERS) {
+            if (intent.contains(marker.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasExplicitClassicalUserRequest(LlmPlan plan) {
+        String intent = intentTextBlob(plan);
+        if (intent.isBlank()) {
+            return false;
+        }
+        for (String marker : CLASSICAL_CONTEXT_MARKERS) {
+            if (intent.contains(marker)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** User / request_intent text only — ignores classical tokens already on components. */
+    private static String intentTextBlob(LlmPlan plan) {
+        StringBuilder sb = new StringBuilder();
+        if (plan.planMeta() != null) {
+            Object ri = plan.planMeta().get("request_intent");
+            if (ri instanceof Map<?, ?> map && map.get("original_text") != null) {
+                sb.append(map.get("original_text")).append(' ');
+            }
+            Object rit = plan.planMeta().get("request_intent_text");
+            if (rit != null) {
+                sb.append(rit).append(' ');
+            }
+        }
+        if (plan.playerFidelityNoticeZh() != null) {
+            sb.append(plan.playerFidelityNoticeZh()).append(' ');
+        }
+        if (plan.distinguishingFeatures() != null) {
+            for (String feature : plan.distinguishingFeatures()) {
+                if (feature != null) {
+                    sb.append(feature).append(' ');
+                }
+            }
+        }
+        if (plan.proportionHints() != null) {
+            Object ai = plan.proportionHints().get("architecture_intent");
+            if (ai instanceof Map<?, ?> m && m.get("original_text") != null) {
+                sb.append(m.get("original_text")).append(' ');
+            }
+        }
+        return sb.toString().toLowerCase(Locale.ROOT);
+    }
+
     private static String planTextBlob(LlmPlan plan) {
         StringBuilder sb = new StringBuilder();
+        sb.append(intentTextBlob(plan)).append(' ');
         if (plan.styleProfile() != null) {
             sb.append(plan.styleProfile()).append(' ');
         }

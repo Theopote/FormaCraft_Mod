@@ -50,6 +50,11 @@ final class StructureAccessoryRemapRepair {
             return component;
         }
         if (looksApproachSteps(component)) {
+            // Interior flights already carry lawful from/to — remapping them as exterior
+            // approach (facing=SOUTH …) plants treads on the host facade → E_CIRCULATION_EXTERIOR_CONFLICT.
+            if (isAuthoredInteriorFlight(component)) {
+                return promoteInteriorStair(component);
+            }
             return remapToStair(component, plan);
         }
         if (!looksFoundationAccessory(component)) {
@@ -67,10 +72,59 @@ final class StructureAccessoryRemapRepair {
                 component.params());
     }
 
+    /**
+     * Authored interior stair: explicit from/to, not marked exterior/approach.
+     * Ids like {@code hall_stair} / features {@code stair:*} match {@link #looksApproachSteps}
+     * but must not be rewritten as entrance approach flights.
+     */
+    private static boolean isAuthoredInteriorFlight(Component c) {
+        if (c == null || c.params() == null) return false;
+        if (Boolean.TRUE.equals(c.params().get("exterior"))
+                || Boolean.TRUE.equals(c.params().get("approach_stair"))
+                || Boolean.TRUE.equals(c.params().get("compiler_approach_remap"))) {
+            return false;
+        }
+        return c.params().get("from") instanceof Map<?, ?>
+                && c.params().get("to") instanceof Map<?, ?>;
+    }
+
+    /** Promote STRUCTURE → STAIR_SYSTEM while preserving endpoints and placement. */
+    private static Component promoteInteriorStair(Component component) {
+        if ("STAIR_SYSTEM".equalsIgnoreCase(component.componentType())) {
+            return component;
+        }
+        Map<String, Object> params = new HashMap<>();
+        if (component.params() != null) {
+            params.putAll(component.params());
+        }
+        params.put("exterior", false);
+        params.remove("approach_stair");
+        params.remove("compiler_approach_remap");
+        if (!(params.get("stairs") instanceof String s) || !s.endsWith("_stairs")) {
+            String floor = resolveFloorBlock(params);
+            params.putIfAbsent("floor", floor);
+            params.put("stairs", resolveStairsBlock(floor));
+        }
+        FormacraftMod.LOGGER.info(
+                "StructureAccessoryRemapRepair: STRUCTURE → STAIR_SYSTEM (preserve interior) id={}",
+                params.get("component_id"));
+        return new Component(
+                "STAIR_SYSTEM",
+                component.slotId(),
+                component.relativePosition(),
+                component.dimensions(),
+                component.features(),
+                params);
+    }
+
     private static Component remapToStair(Component component, LlmPlan plan) {
         Map<String, Object> params = new HashMap<>();
         if (component.params() != null) {
             params.putAll(component.params());
+        }
+        // Never overwrite an interior from/to flight as an exterior approach.
+        if (isAuthoredInteriorFlight(component)) {
+            return promoteInteriorStair(component);
         }
         params.putIfAbsent("exterior", true);
         params.put("compiler_approach_remap", true);
@@ -179,13 +233,23 @@ final class StructureAccessoryRemapRepair {
             // Only exterior approach flights. Do NOT use looksApproachSteps here — that also
             // matches interior ids like guard_tower_stair_* and would wreck tower shafts.
             if (!isExteriorApproachStair(c)) continue;
-            Object from = c.params().get("from");
-            Object to = c.params().get("to");
-            if (!(from instanceof Map<?, ?>) || !(to instanceof Map<?, ?>)) continue;
+            int[] fromPt = parseEndpoint(c.params().get("from"));
+            int[] toPt = parseEndpoint(c.params().get("to"));
+            if (fromPt == null || toPt == null) {
+                // Soft fail: name the bad approach stair; keep resnapping siblings.
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(
+                        new com.formacraft.common.llm.dto.CapabilityGap(
+                                "E_STAIR_COMPONENT_INVALID",
+                                "入口台阶 from/to 坐标无效：component_id="
+                                        + c.params().get("component_id"),
+                                "components[].params.from|to",
+                                List.of("Provide integer x/y/z maps for from and to.",
+                                        "Do not use string coordinates for stair endpoints.")));
+                continue;
+            }
             String facing = parseFacing(c.params().get("facing"));
             if (facing == null) facing = "SOUTH";
-            int rise = Math.max(1, ((Number) ((Map<?, ?>) to).get("y")).intValue()
-                    - ((Number) ((Map<?, ?>) from).get("y")).intValue());
+            int rise = Math.max(1, toPt[1] - fromPt[1]);
             Vec3i origin = c.relativePosition() == null ? new Vec3i(0, 0, 0) : c.relativePosition();
             Vec3i snapped = snapApproachToEntrance(
                     origin, c.dimensions().width(), c.dimensions().depth(), rise, facing, c, components);
@@ -195,6 +259,20 @@ final class StructureAccessoryRemapRepair {
                     c.params().get("component_id"), origin, snapped);
             components.set(i, new Component(
                     c.componentType(), c.slotId(), snapped, c.dimensions(), c.features(), c.params()));
+        }
+    }
+
+    /** Integer x/y/z endpoint, or null when type/shape is invalid (never throws). */
+    private static int[] parseEndpoint(Object value) {
+        if (!(value instanceof Map<?, ?> map)) return null;
+        try {
+            return new int[]{
+                    new java.math.BigDecimal(String.valueOf(map.get("x"))).intValueExact(),
+                    new java.math.BigDecimal(String.valueOf(map.get("y"))).intValueExact(),
+                    new java.math.BigDecimal(String.valueOf(map.get("z"))).intValueExact()
+            };
+        } catch (NumberFormatException | ArithmeticException | NullPointerException ex) {
+            return null;
         }
     }
 

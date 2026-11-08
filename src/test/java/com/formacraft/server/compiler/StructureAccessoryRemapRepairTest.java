@@ -103,6 +103,63 @@ class StructureAccessoryRemapRepairTest {
     }
 
     @Test
+    void interiorHostedFlightIsNotRewrittenAsExteriorApproach() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 10), List.of(),
+                Map.of("component_id", "hall", "anchor_mode", "min_corner", "wall_thickness", 1));
+        Component stair = new Component(
+                "STRUCTURE", "hall", new Vec3i(3, 0, 3),
+                new Dimensions(6, 3, 6), List.of("stair:straight_single_run"),
+                Map.of("component_id", "hall_stair", "host_id", "hall",
+                        "from", Map.of("x", 0, "y", 0, "z", 0),
+                        "to", Map.of("x", 4, "y", 4, "z", 0),
+                        "width", 2, "landing_length", 2,
+                        "stairs", "minecraft:oak_stairs", "floor", "minecraft:oak_planks"));
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(hall, stair))
+                .build());
+        Component out = repaired.components().get(1);
+        assertEquals("STAIR_SYSTEM", out.componentType());
+        assertEquals(new Vec3i(3, 0, 3), out.relativePosition());
+        assertEquals(Map.of("x", 0, "y", 0, "z", 0), out.params().get("from"));
+        assertEquals(Map.of("x", 4, "y", 4, "z", 0), out.params().get("to"));
+        assertFalse(Boolean.TRUE.equals(out.params().get("exterior")));
+        assertFalse(Boolean.TRUE.equals(out.params().get("approach_stair")));
+        assertFalse(Boolean.TRUE.equals(out.params().get("compiler_approach_remap")));
+    }
+
+    @Test
+    void invalidApproachEndpointSetsGapWithoutThrowing() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        Component host = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(14, 12, 8), List.of(),
+                Map.of("component_id", "hall_main", "facing", "SOUTH", "anchor_mode", "min_corner"));
+        Component bad = new Component(
+                "STAIR_SYSTEM", "main", new Vec3i(4, -1, 12),
+                new Dimensions(3, 4, 3), List.of("stair:straight_single_run"),
+                Map.of("component_id", "bad_approach", "host_id", "hall_main",
+                        "exterior", true, "approach_stair", true, "facing", "SOUTH",
+                        "from", Map.of("x", "oops", "y", 0, "z", 0),
+                        "to", Map.of("x", 1, "y", 2, "z", 3)));
+        Component good = new Component(
+                "STAIR_SYSTEM", "main", new Vec3i(4, -1, 12),
+                new Dimensions(3, 4, 3), List.of("stair:straight_single_run"),
+                Map.of("component_id", "good_approach", "host_id", "hall_main",
+                        "exterior", true, "approach_stair", true, "facing", "SOUTH",
+                        "from", Map.of("x", 1, "y", 0, "z", 0),
+                        "to", Map.of("x", 1, "y", 2, "z", 3)));
+        java.util.ArrayList<Component> parts = new java.util.ArrayList<>(List.of(host, bad, good));
+        StructureAccessoryRemapRepair.resnapApproachStairs(parts);
+        assertEquals("E_STAIR_COMPONENT_INVALID",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        assertTrue(String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().message())
+                .contains("bad_approach"));
+        assertEquals(3, parts.size(), "valid siblings must remain after invalid approach stair");
+    }
+
+    @Test
     void leavesColumnsAsStructure() {
         Component pillars = new Component(
                 "STRUCTURE", "main", new Vec3i(0, 0, 0),

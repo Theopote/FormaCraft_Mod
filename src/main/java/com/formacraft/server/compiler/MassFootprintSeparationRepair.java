@@ -221,7 +221,20 @@ final class MassFootprintSeparationRepair {
         return id == null ? String.valueOf(c.componentType()) : String.valueOf(id);
     }
 
+    /**
+     * Relative footprints only collide when they share a slot frame. Multi-slot compounds
+     * (bridges between slot_lobby / slot_mid / …) use independent local origins — treating
+     * them as overlapping falsely separates halls and breaks bridge contact.
+     */
+    private static boolean sameSlotSpace(Component a, Component b) {
+        String sa = a == null ? null : a.slotId();
+        String sb = b == null ? null : b.slotId();
+        if (sa == null && sb == null) return true;
+        return sa != null && sa.equals(sb);
+    }
+
     private static boolean overlaps(Component a, Component b) {
+        if (!sameSlotSpace(a, b)) return false;
         var ab = ComponentFootprintUtil.bounds(a);
         var bb = ComponentFootprintUtil.bounds(b);
         if (ab == null || bb == null) {

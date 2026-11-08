@@ -659,6 +659,12 @@ final class PlanSemanticValidator {
         String primaryHost = BuildingHostResolver.primaryMassId(plan, components);
         var wantKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(want);
 
+        // Compounds often mix roofs (主殿歇山+厢房双坡 / 塔楼穹顶+裙房平顶). Presence of the
+        // requested type on any host satisfies the gate; double-eave still binds to primary.
+        if (multiBuilding && !wantDoubleEave && planHasRequestedRoof(components, want, wantKind)) {
+            return false;
+        }
+
         boolean sawPrimaryBoundRoof = false;
         for (Component c : components) {
             if (c == null) continue;
@@ -802,5 +808,25 @@ final class PlanSemanticValidator {
         if (want.equals(have)) return true;
         return want.contains(have) || have.contains(want);
         // Common alias families already covered by RoofTypeKind when both parse.
+    }
+
+    private static boolean planHasRequestedRoof(
+            List<Component> components,
+            String want,
+            java.util.Optional<com.formacraft.common.generation.component.util.RoofTypeKind> wantKind
+    ) {
+        for (Component c : components) {
+            if (c == null || !isRoofDeclaringComponent(c)) continue;
+            String have = componentRoofType(c);
+            if (have == null) continue;
+            var haveKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(have);
+            if (wantKind.isPresent() && haveKind.isPresent() && wantKind.get() == haveKind.get()) {
+                return true;
+            }
+            if (wantKind.isEmpty() && roofTokenCompatible(want, have)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

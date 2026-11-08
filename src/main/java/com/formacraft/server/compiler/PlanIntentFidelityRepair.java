@@ -62,11 +62,16 @@ final class PlanIntentFidelityRepair {
         String userText = requestIntentOriginalText(plan);
 
         // Vocab extractor owns negation (不要做成歇山) — prefer it over naive contains().
+        // Architecture / player text wins over LLM distinguishing_features (gable_roof, flat roof)
+        // that otherwise outrank shorter 歇山/穹顶 tokens by phrase length alone.
         String roofType = null;
         boolean doubleEave = false;
         boolean roofForbidsOnly = false;
-        if (corpus != null && !corpus.isBlank()) {
-            Map<String, Object> fromVocab = RequestIntentInjector.extract(corpus);
+        String archText = architectureOriginalText(plan);
+        String roofCorpus = !userText.isBlank() ? userText
+                : (archText != null && !archText.isBlank() ? archText : corpus);
+        if (roofCorpus != null && !roofCorpus.isBlank()) {
+            Map<String, Object> fromVocab = RequestIntentInjector.extract(roofCorpus);
             Object rt = fromVocab.get("roof_type");
             if (rt != null && !String.valueOf(rt).isBlank()) {
                 String raw = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
@@ -77,6 +82,23 @@ final class PlanIntentFidelityRepair {
                     roofType = canonicalizeRoofType(raw);
                 }
             } else if (fromVocab.get("roof_forbids") instanceof List<?> forbids && !forbids.isEmpty()) {
+                roofForbidsOnly = true;
+            }
+        }
+        if (roofType == null && corpus != null && !corpus.isBlank()
+                && (roofCorpus == null || !roofCorpus.equals(corpus))) {
+            Map<String, Object> fromFull = RequestIntentInjector.extract(corpus);
+            Object rt = fromFull.get("roof_type");
+            if (rt != null && !String.valueOf(rt).isBlank()) {
+                String raw = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+                if (raw.contains("double_eave")) {
+                    doubleEave = true;
+                    roofType = raw.contains("xieshan") || raw.contains("hip_gable") ? "xieshan" : "hip";
+                } else {
+                    roofType = canonicalizeRoofType(raw);
+                }
+            } else if (!roofForbidsOnly
+                    && fromFull.get("roof_forbids") instanceof List<?> forbids && !forbids.isEmpty()) {
                 roofForbidsOnly = true;
             }
         }
@@ -208,6 +230,15 @@ final class PlanIntentFidelityRepair {
         return rit == null ? "" : String.valueOf(rit);
     }
 
+    /** Architecture contract text only — excludes LLM distinguishing_features. */
+    static String architectureOriginalText(LlmPlan plan) {
+        if (plan == null || plan.proportionHints() == null) return "";
+        Object intent = plan.proportionHints().get("architecture_intent");
+        if (!(intent instanceof Map<?, ?> map)) return "";
+        Object original = map.get("original_text");
+        return original == null ? "" : String.valueOf(original);
+    }
+
     /**
      * @return {@code [width, depth]} from the first plausible WxD token; zeros when absent.
      */
@@ -330,7 +361,13 @@ final class PlanIntentFidelityRepair {
         // Explicit user roof intent overrides LLM substitutions (gable/hip for 歇山 etc.).
         boolean inPrimaryRoofScope = isInPrimaryRoofScope(
                 component, mass, roof, structure, primaryHost, multiBuilding);
-        if ((mass || roof || structure) && hints.roofType() != null && inPrimaryRoofScope) {
+        // Campus specialty roofs (dome on tower) must not be stamped onto the primary reception hall.
+        boolean specialtyRoof = isSpecialtyRoofToken(hints.roofType());
+        boolean roofStampScope = specialtyRoof
+                ? (isSpecialtyRoofCarrier(component, hints.roofType())
+                    || (!multiBuilding && inPrimaryRoofScope))
+                : inPrimaryRoofScope;
+        if ((mass || roof || structure) && hints.roofType() != null && roofStampScope) {
             String current = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
             String want = hints.roofType();
             if (isBlank(current) || !roofTypesCompatible(want, current)) {
@@ -773,6 +810,10 @@ final class PlanIntentFidelityRepair {
         if (lower.contains("硬山") || lower.contains("yingshan")) {
             return "yingshan";
         }
+        if (lower.contains("穹顶") || lower.contains("dome") || lower.contains("polyhedral_dome")
+                || lower.contains("faceted_dome")) {
+            return "dome";
+        }
         if (lower.contains("双坡") || lower.contains("人字顶") || lower.contains("double_gable")) {
             return "gable";
         }
@@ -1160,7 +1201,10 @@ final class PlanIntentFidelityRepair {
         if (primaryHost == null || primaryHost.isBlank()) return true;
         if (mass || structure) {
             String self = BuildingHostResolver.massId(component);
-            return primaryHost.equals(self);
+            if (primaryHost.equals(self)) return true;
+            // Upper floors / bound plates on the primary host declare roof_type too.
+            String host = BuildingHostResolver.roofHostId(component);
+            return host != null && primaryHost.equals(host);
         }
         if (roof) {
             String host = BuildingHostResolver.roofHostId(component);
@@ -1171,6 +1215,42 @@ final class PlanIntentFidelityRepair {
             return primaryHost.equals(host);
         }
         return false;
+    }
+
+    private static boolean isSpecialtyRoofToken(String want) {
+        if (want == null || want.isBlank()) return false;
+        String w = want.trim().toLowerCase(Locale.ROOT);
+        return w.contains("dome") || w.contains("pyramid") || w.contains("cone")
+                || w.contains("onion") || w.contains("mansard");
+    }
+
+    /** Landmark specialty roofs land on tower/observation hosts, not the campus primary hall. */
+    private static boolean isSpecialtyRoofCarrier(Component component, String want) {
+        if (component == null || !isSpecialtyRoofToken(want)) return false;
+        StringBuilder blob = new StringBuilder();
+        String self = BuildingHostResolver.massId(component);
+        if (self != null) blob.append(' ').append(self);
+        String host = BuildingHostResolver.roofHostId(component);
+        if (host != null) blob.append(' ').append(host);
+        if (component.slotId() != null) blob.append(' ').append(component.slotId());
+        if (component.features() != null) {
+            for (String f : component.features()) {
+                if (f != null) blob.append(' ').append(f);
+            }
+        }
+        if (component.params() != null) {
+            for (String key : List.of(
+                    "building_role", "buildingRole", "role", "part",
+                    "component_id", "componentId", "mass_id", "massId")) {
+                Object v = component.params().get(key);
+                if (v != null) blob.append(' ').append(v);
+            }
+        }
+        String lower = blob.toString().toLowerCase(Locale.ROOT);
+        return lower.contains("tower") || lower.contains("dome") || lower.contains("observation")
+                || lower.contains("observatory") || lower.contains("塔") || lower.contains("穹")
+                || lower.contains("观景") || lower.contains("观测") || lower.contains("pyramid")
+                || lower.contains("spire");
     }
 
     /** 「正门」 / main entrance — side_entrance and accessory doors stay out of scope. */

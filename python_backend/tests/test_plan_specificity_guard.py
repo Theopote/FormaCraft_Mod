@@ -91,7 +91,7 @@ class TestPlanSpecificityGuard(unittest.TestCase):
         self.assertEqual(missing, [])
 
     def test_should_not_skip_chinese_garden_lattice_windows(self):
-        """Regression: 花窗 lattice must not trigger non-classical guard for 中式园林."""
+        """Regression: 花窗 lattice must not trigger non_classical_marker; East-Asian skip is OK."""
         plan = {
             "style_profile": "DEFAULT",
             "style_attributes": {
@@ -115,7 +115,9 @@ class TestPlanSpecificityGuard(unittest.TestCase):
             ],
         }
         skip, reason = should_skip_classical_enrichment("中式园林", None, plan)
-        self.assertFalse(skip, msg=f"unexpected guard: {reason}")
+        self.assertTrue(skip)
+        self.assertEqual(reason, "traditional_east_asian_context")
+        self.assertNotIn("lattice", reason)
 
     def test_should_still_skip_birds_nest_mesh_grid(self):
         skip, reason = should_skip_classical_enrichment("鸟巢国家体育场", None, None)
@@ -130,7 +132,34 @@ class TestPlanSpecificityGuard(unittest.TestCase):
             ),
         )
         skip, reason = should_skip_classical_enrichment("中式园林", profile)
-        self.assertFalse(skip, msg=f"unexpected guard: {reason}")
+        self.assertTrue(skip)
+        self.assertEqual(reason, "traditional_east_asian_context")
+        self.assertNotIn("lattice", reason)
+
+    def test_east_asian_user_intent_wins_over_classical_plan_pollution(self):
+        text = "生成一座重檐歇山顶大雄宝殿，前有月台，左右各一配殿，配殿用悬山顶，主殿必须是重檐歇山。"
+        polluted = {
+            "proportion_hints": {
+                "typology": "classical_monument",
+                "crown_assembly": True,
+                "crown_template": "CLASSICAL_CUPOLA",
+            },
+            "components": [
+                {
+                    "component_type": "CROWN",
+                    "features": ["crown"],
+                    "params": {"crown_template": "CLASSICAL_CUPOLA"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "features": ["pilasters", "cornice"],
+                    "params": {"facade_profile": "vertical_pilasters"},
+                },
+            ],
+        }
+        skip, reason = should_skip_classical_enrichment(text, None, polluted)
+        self.assertTrue(skip)
+        self.assertEqual(reason, "traditional_east_asian_context")
 
 
 if __name__ == "__main__":

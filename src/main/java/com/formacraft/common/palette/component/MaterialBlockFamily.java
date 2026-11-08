@@ -18,25 +18,31 @@ public final class MaterialBlockFamily {
         String base = block.split("\\[", 2)[0];
         if (!base.contains(":")) base = "minecraft:" + base;
         Identifier id = Identifier.tryParse(base);
-        if (id == null || !Registries.BLOCK.containsId(id)) return null;
+        if (id == null) return null;
         String name = id.getPath();
-        String stem;
-        if (name.endsWith("_stairs")) stem = name.substring(0, name.length() - 7);
-        else if (name.endsWith("_slab")) stem = name.substring(0, name.length() - 5);
-        else return base; // already a full-ish block
+        if (!name.endsWith("_stairs") && !name.endsWith("_slab")) {
+            return base; // already a full-ish block
+        }
+        String stem = stemOf(name);
         String ns = id.getNamespace();
-        for (String candidate : new String[]{
+        String[] candidates = {
                 ns + ":" + stem + "_planks",
                 ns + ":" + stem + "s",          // stone_brick → stone_bricks
                 ns + ":" + stem + "_bricks",
                 ns + ":" + stem + "_tiles",
                 ns + ":" + stem + "_block",
                 ns + ":" + stem
-        }) {
-            Identifier cid = Identifier.tryParse(candidate);
-            if (cid != null && Registries.BLOCK.containsId(cid)) return candidate;
+        };
+        try {
+            if (!Registries.BLOCK.containsId(id)) return null;
+            for (String candidate : candidates) {
+                Identifier cid = Identifier.tryParse(candidate);
+                if (cid != null && Registries.BLOCK.containsId(cid)) return candidate;
+            }
+            return null;
+        } catch (ExceptionInInitializerError | IllegalArgumentException | IllegalStateException e) {
+            return candidates[0];
         }
-        return null;
     }
 
     private static String shape(String block, String shape) {
@@ -44,19 +50,40 @@ public final class MaterialBlockFamily {
         String base = block.split("\\[", 2)[0];
         if (!base.contains(":")) base = "minecraft:" + base;
         Identifier id = Identifier.tryParse(base);
-        if (id == null || !Registries.BLOCK.containsId(id)) return null;
-        String name = id.getPath();
-        String stem;
-        if (name.endsWith("_stairs")) stem = name.substring(0, name.length() - 7);
-        else if (name.endsWith("_slab")) stem = name.substring(0, name.length() - 5);
-        else if (name.endsWith("_planks")) stem = name.substring(0, name.length() - 7);
-        else if (name.equals("quartz_block")) stem = "quartz";
-        else if (name.equals("bricks")) stem = "brick";
-        else if (name.endsWith("_bricks")) stem = name.substring(0, name.length() - 1);
-        else if (name.endsWith("_tiles")) stem = name.substring(0, name.length() - 1);
-        else stem = name;
-        String candidate = id.getNamespace() + ":" + stem + "_" + shape;
-        Identifier shapeId = Identifier.tryParse(candidate);
-        return shapeId != null && Registries.BLOCK.containsId(shapeId) ? candidate : null;
+        if (id == null) return null;
+        try {
+            if (!Registries.BLOCK.containsId(id)) return null;
+            String stem = stemOf(id.getPath());
+            String candidate = id.getNamespace() + ":" + stem + "_" + shape;
+            Identifier shapeId = Identifier.tryParse(candidate);
+            return shapeId != null && Registries.BLOCK.containsId(shapeId) ? candidate : null;
+        } catch (ExceptionInInitializerError | IllegalArgumentException | IllegalStateException e) {
+            // Unit tests / early parse before Minecraft Bootstrap.
+            return stringShapeCandidate(id, shape);
+        }
     }
+
+    private static String stemOf(String name) {
+        if (name.endsWith("_stairs")) return name.substring(0, name.length() - 7);
+        if (name.endsWith("_slab")) return name.substring(0, name.length() - 5);
+        if (name.endsWith("_planks")) return name.substring(0, name.length() - 7);
+        if (name.equals("quartz_block")) return "quartz";
+        if (name.equals("bricks")) return "brick";
+        if (name.endsWith("_bricks")) return name.substring(0, name.length() - 1);
+        if (name.endsWith("_tiles")) return name.substring(0, name.length() - 1);
+        return name;
+    }
+
+    /** Known stair/slab families when registries are unavailable (unit tests). */
+    private static String stringShapeCandidate(Identifier id, String shape) {
+        String stem = stemOf(id.getPath());
+        // Terracotta / concrete / wool have no stair variants — leave roof as full block.
+        String path = id.getPath();
+        if (path.contains("terracotta") || path.contains("concrete") || path.contains("wool")
+                || path.contains("glass") || path.equals("dirt") || path.equals("grass_block")) {
+            return null;
+        }
+        return id.getNamespace() + ":" + stem + "_" + shape;
+    }
+
 }

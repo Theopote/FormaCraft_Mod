@@ -73,6 +73,34 @@ def infer_heuristic_proportion_card(
 ) -> Dict[str, Any]:
     """Open-world fallback when no proportion_cards JSON matches."""
     blob = _text_blob(user_text, profile, {})
+    # East-Asian hall / temple cues: never route to classical_monument pilaster packs.
+    _east_asian = (
+        "歇山", "庑殿", "悬山", "硬山", "重檐", "攒尖", "大雄宝殿", "宝殿", "配殿", "月台",
+        "道观", "寺庙", "庙宇", "殿堂", "正殿", "四合院", "xieshan", "xuanshan", "wudian",
+        "double_eave", "chinese temple", "chinese hall",
+    )
+    if any(m in blob for m in _east_asian):
+        return {
+            "id": "heuristic_chinese_hall",
+            "typology": "chinese_timber_hall",
+            "ratios": {
+                "height_to_width": {"min": 0.35, "ideal": 0.5, "max": 0.75},
+                "depth_to_width": {"min": 0.55, "ideal": 0.75, "max": 1.15},
+                "roof_to_body_height": {"min": 0.22, "ideal": 0.35, "max": 0.5},
+                "window_wall_ratio": {"min": 0.12, "ideal": 0.22, "max": 0.35},
+            },
+            "openingGrammar": {
+                "window_aspect": ["square", "horizontal_strip"],
+                "min_enclosure_coverage": 0.72,
+                "max_void_ratio": 0.22,
+            },
+            "aiInstruction": (
+                "Chinese timber hall: MASS_MAIN + ROOF with roof_type xieshan/wudian (honour 重檐), "
+                "front 月台 platform when requested, left/right 配殿 with xuanshan roofs when requested; "
+                "no classical pilasters, no cupola CROWN, wrap FACADE_WINDOWS on all faces, "
+                "central ENTRANCE door_width 3–5."
+            ),
+        }
     if any(m in blob for m in _MONUMENTAL_MARKERS):
         return {
             "id": "heuristic_classical_monument",
@@ -318,6 +346,70 @@ def _plan_has_typology_structure(components: List[Dict[str, Any]]) -> bool:
     return False
 
 
+_CLASSICAL_FEATURE_TOKENS = (
+    "pilaster", "colonnade", "cornice", "cupola", "stylobate", "carved",
+)
+_CLASSICAL_FACADE = ("pilaster", "colonnade", "classical", "mullion_grid")
+
+
+def _strip_classical_pollution(plan: Dict[str, Any]) -> Dict[str, Any]:
+    """Drop cupola / pilaster / cornice leftovers when East-Asian skip wins."""
+    if not isinstance(plan, dict):
+        return plan
+    components = plan.get("components")
+    if isinstance(components, list):
+        cleaned: List[Dict[str, Any]] = []
+        for comp in components:
+            if not isinstance(comp, dict):
+                continue
+            ctype = str(comp.get("component_type") or "").upper()
+            if ctype in ("CROWN", "CUPOLA", "DOME"):
+                continue
+            feats = [
+                f for f in (comp.get("features") or [])
+                if isinstance(f, str)
+                and not any(tok in f.lower() for tok in _CLASSICAL_FEATURE_TOKENS)
+            ]
+            params = dict(comp.get("params") or {})
+            facade = str(params.get("facade_profile") or params.get("facadeProfile") or "").lower()
+            if any(tok in facade for tok in _CLASSICAL_FACADE):
+                params.pop("facade_profile", None)
+                params.pop("facadeProfile", None)
+            params.pop("floor_cornice", None)
+            rhythm = str(params.get("rhythm_preset") or params.get("rhythmPreset") or "").upper()
+            if "CLASSICAL" in rhythm or "PILASTER" in rhythm:
+                params.pop("rhythm_preset", None)
+                params.pop("rhythmPreset", None)
+                params.pop("repeating_pattern", None)
+            if ctype == "DECOR_DETAIL":
+                feat_blob = " ".join(str(f) for f in (comp.get("features") or [])).lower()
+                if any(tok in feat_blob for tok in _CLASSICAL_FEATURE_TOKENS):
+                    continue
+            door_w = params.get("door_width")
+            try:
+                if ctype == "ENTRANCE" and door_w is not None and int(door_w) > 7:
+                    params["door_width"] = 4
+            except (TypeError, ValueError):
+                pass
+            cleaned.append({**comp, "features": feats, "params": params})
+        plan = {**plan, "components": cleaned}
+    hints = plan.get("proportion_hints")
+    if isinstance(hints, dict):
+        hints = dict(hints)
+        hints.pop("floor_cornice", None)
+        hints.pop("base_plinth_detail", None)
+        hints.pop("crown_assembly", None)
+        hints.pop("crown_template", None)
+        hints.pop("detail_rules", None)
+        hints.pop("repeating_pattern", None)
+        if str(hints.get("typology") or "").lower() in (
+            "classical_monument", "baroque", "stadium_bowl"
+        ):
+            hints["typology"] = "chinese_timber_hall"
+        plan = {**plan, "proportion_hints": hints}
+    return plan
+
+
 def enrich_llm_plan_architectural_detail(
     plan: Dict[str, Any],
     *,
@@ -373,8 +465,9 @@ def enrich_llm_plan_architectural_detail(
     skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile, plan)
     if skip_classical:
         plan = apply_profile_features_to_plan(plan, profile)
+        plan = _strip_classical_pollution(plan)
         card = infer_heuristic_proportion_card(user_text, profile)
-        mass_hit = _find_mass(components)
+        mass_hit = _find_mass(plan.get("components") or [])
         if mass_hit is not None:
             _, mass = mass_hit
             hints = build_proportion_hints(card, _mass_dims(mass)["width"])
@@ -384,9 +477,15 @@ def enrich_llm_plan_architectural_detail(
             else:
                 merged = {**hints, **existing_hints}
                 merged.pop("floor_cornice", None)
+                merged.pop("base_plinth_detail", None)
                 merged.pop("crown_assembly", None)
                 merged.pop("crown_template", None)
                 merged.pop("detail_rules", None)
+                merged.pop("repeating_pattern", None)
+                if str(merged.get("typology") or "").lower() in (
+                    "classical_monument", "baroque", "stadium_bowl"
+                ):
+                    merged["typology"] = str(card.get("typology") or "chinese_timber_hall")
                 plan["proportion_hints"] = merged
         plan["enrichment_guard"] = skip_reason
         return plan

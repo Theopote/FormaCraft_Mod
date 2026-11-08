@@ -135,6 +135,8 @@ public final class ComponentPlanCompiler {
         plan = GardenCompositionRepair.apply(plan);
         // 四合院 compositional dumps → native courtyard_compound before separation can scramble halls.
         plan = SiheyuanCourtyardMisrouteRepair.apply(plan);
+        // Classical-monument degrade of 大雄宝殿+配殿 → inject side halls / 月台, strip cupola decor.
+        plan = TempleSideHallMisrouteRepair.apply(plan);
         // STRUCTURE plinth → FOUNDATION; approach steps → STAIR_SYSTEM (not solid pads).
         plan = StructureAccessoryRemapRepair.apply(plan);
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.

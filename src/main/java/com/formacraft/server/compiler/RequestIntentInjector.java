@@ -657,11 +657,37 @@ public final class RequestIntentInjector {
             occupied.add(span);
             if (isNegatedAt(text, span[0])) {
                 if (!forbidden.contains(canonical)) forbidden.add(canonical);
-            } else if (chosen == null) {
+            } else if (chosen == null || roofSpecificity(canonical) > roofSpecificity(chosen)) {
+                // Compounds mix roofs (歇山+双坡 / 穹顶+平顶). Longer LLM feature phrases like
+                // "gable_roof" / "flat roof" must not beat shorter architecture tokens 歇山/穹顶.
                 chosen = canonical;
             }
         }
         return new RoofResult(chosen, forbidden);
+    }
+
+    /**
+     * Higher = preferred when multiple roof phrases co-occur. Hall forms (歇山) beat
+     * pavilion 攒尖, and both beat generic wing/skirt flat or gable mentions from LLM features.
+     */
+    static int roofSpecificity(String canonical) {
+        if (canonical == null || canonical.isBlank()) return 0;
+        String c = canonical.trim().toLowerCase(Locale.ROOT);
+        if (c.contains("double_eave")) return 100;
+        // Primary Chinese hall roofs outrank accessory pavilion pyramids in compounds.
+        if (c.contains("xieshan") || c.contains("hip_gable") || c.contains("irimoya")) return 90;
+        if (c.contains("xuanshan") || c.contains("yingshan") || c.contains("wudian")
+                || "hip".equals(c)) {
+            return 85;
+        }
+        // Landmark domes beat flat skirts; stay below hall xieshan so courtyard+亭 stays hall-led.
+        if (c.contains("dome") || c.contains("onion") || c.contains("mansard")) return 80;
+        if (c.contains("pyramid") || c.contains("cone")) return 60;
+        if (c.contains("gable") || c.contains("shed") || c.contains("gambrel") || c.contains("sawtooth")) {
+            return 40;
+        }
+        if ("flat".equals(c) || "none".equals(c)) return 10;
+        return 50;
     }
 
     private static List<String> extractForbids(String text, String lower) {

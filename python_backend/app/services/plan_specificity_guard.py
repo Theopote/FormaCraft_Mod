@@ -41,6 +41,10 @@ _TRADITIONAL_EAST_ASIAN_CONTEXT_MARKERS = (
     "pavilion", "亭台", "园林", "garden pavilion", "siheyuan", "四合院", "dougong", "斗拱",
     "花窗", "格子窗", "carved_beam", "lattice window", "lattice_window", "window lattice",
     "wooden lattice", "lattice_window", "double_gable", "xuanshan", "xieshan",
+    # Chinese / East-Asian hall roofs and temple compound cues — never classical pilaster packs.
+    "歇山", "庑殿", "悬山", "硬山", "重檐", "攒尖", "大雄宝殿", "宝殿", "配殿", "月台",
+    "道观", "寺庙", "庙宇", "殿堂", "正殿", "山门", "牌坊",
+    "wudian", "yingshan", "double_eave", "irimoya", "入母屋",
 )
 
 _CLASSICAL_STYLE_MARKERS = (
@@ -180,9 +184,12 @@ def should_skip_classical_enrichment(
     """
     Return (skip, reason). When True, do not inject generic pilaster/gable/cornice templates.
     """
-    blob_parts = [user_text or ""]
+    # User / profile East-Asian intent must win even when the LLM plan is already
+    # polluted with classical_monument / CLASSICAL_CUPOLA tokens — those markers
+    # would otherwise defeat the skip via _CLASSICAL_STYLE_MARKERS ("classical").
+    intent_parts = [user_text or ""]
     if profile is not None:
-        blob_parts.extend([
+        intent_parts.extend([
             profile.query or "",
             profile.identity.name or "",
             profile.identity.style or "",
@@ -191,6 +198,12 @@ def should_skip_classical_enrichment(
             " ".join(profile.structure.distinctive_elements or []),
             " ".join(profile.form.massing or []),
         ])
+    intent_blob = " ".join(intent_parts).lower()
+    if any(m in intent_blob for m in _TRADITIONAL_EAST_ASIAN_CONTEXT_MARKERS):
+        if not any(m in intent_blob for m in _CLASSICAL_STYLE_MARKERS):
+            return True, "traditional_east_asian_context"
+
+    blob_parts = list(intent_parts)
     if plan is not None:
         blob_parts.append(plan_text_blob(plan))
     blob = " ".join(blob_parts).lower()
@@ -202,6 +215,12 @@ def should_skip_classical_enrichment(
     for marker in _AMBIGUOUS_NON_CLASSICAL_MARKERS:
         if _non_classical_marker_hit(blob, marker):
             return True, f"non_classical_marker:{marker}"
+
+    # Plan-only East-Asian cues (no user/profile hit above) — still skip unless
+    # the same blob also carries an explicit classical style request.
+    if any(m in blob for m in _TRADITIONAL_EAST_ASIAN_CONTEXT_MARKERS):
+        if not any(m in blob for m in _CLASSICAL_STYLE_MARKERS):
+            return True, "traditional_east_asian_context"
 
     tokens = extract_distinguishing_tokens(profile)
     if tokens:
