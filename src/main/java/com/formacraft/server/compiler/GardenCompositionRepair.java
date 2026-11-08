@@ -35,6 +35,16 @@ final class GardenCompositionRepair {
 
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
+        // Lone residential MASS under 园林/庭院 intent fails PlanSemanticValidator — seed a site
+        // PATH so the compound reads as a garden, not a single house.
+        if (!hasGardenSiteComponent(plan.components())) {
+            Component seed = seedGardenPath(plan.components().getFirst());
+            if (seed != null) {
+                out.add(seed);
+                changed = true;
+                FormacraftMod.LOGGER.info("GardenCompositionRepair: inject PATH for garden site composition");
+            }
+        }
         int fanIndex = 0;
         for (Component c : plan.components()) {
             if (c == null) {
@@ -147,7 +157,8 @@ final class GardenCompositionRepair {
             return true;
         }
         String style = plan.styleProfile() == null ? "" : plan.styleProfile().toLowerCase(Locale.ROOT);
-        if (style.contains("garden") || style.contains("jiangnan") || style.contains("japanese")) {
+        // Style alone is not enough — Jiangnan water-town houses must not enter garden repair.
+        if (style.contains("garden") || style.contains("japanese_garden") || style.contains("jiangnan_garden")) {
             return true;
         }
         if (plan.planMeta() != null) {
@@ -158,8 +169,42 @@ final class GardenCompositionRepair {
                 Object text = map.get("original_text");
                 if (text != null && looksGardenToken(String.valueOf(text))) return true;
             }
+            Object ri = plan.planMeta().get("request_intent_text");
+            if (ri != null && looksGardenToken(String.valueOf(ri))) return true;
         }
         return false;
+    }
+
+    private static boolean hasGardenSiteComponent(List<Component> components) {
+        if (components == null) return false;
+        for (Component c : components) {
+            if (c == null || c.componentType() == null) continue;
+            String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+            if ("PATH".equals(t) || "COURTYARD".equals(t) || "COURTYARD_SPACE".equals(t)
+                    || "ASSEMBLY".equals(t) || "GARDEN".equals(t) || "PLAZA".equals(t)
+                    || "ROAD".equals(t) || "PAVING".equals(t)
+                    || "TERRACE".equals(t) || "BALCONY".equals(t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Component seedGardenPath(Component hint) {
+        String slot = hint == null ? null : hint.slotId();
+        Vec3i origin = hint != null && hint.relativePosition() != null
+                ? new Vec3i(hint.relativePosition().x(), 0, hint.relativePosition().z())
+                : new Vec3i(0, 0, 0);
+        int span = 16;
+        if (hint != null && hint.dimensions() != null) {
+            span = Math.max(16, Math.max(hint.dimensions().width(), hint.dimensions().depth()) + 4);
+        }
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "garden_path");
+        params.put("path_width", 2);
+        params.put("material", "minecraft:gravel");
+        return new Component("PATH", slot, origin, new Dimensions(2, span, 1),
+                List.of("garden", "path"), params);
     }
 
     private static boolean looksGardenToken(String raw) {

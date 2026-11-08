@@ -106,14 +106,12 @@ class Live2252RegressionTest {
                             Map.entry("225358", "E_STAIR_COMPONENT_INVALID"),
                             Map.entry("225448", "E_COMPONENT_GENERATION_FAILED"),
                             Map.entry("225713", "E_SEMANTIC_FIDELITY"),
-                            // 230021: FloorLayoutOverflowRepair after pavilion clamp — compiles now.
-                            Map.entry("230232", "E_PATCH_CONFLICT"),
-                            Map.entry("230359", "E_SEMANTIC_FIDELITY"),
-                            Map.entry("231048", "E_PATCH_CONFLICT"),
-                            Map.entry("231158", "E_PATCH_CONFLICT"),
-                            Map.entry("231336", "E_PATCH_CONFLICT"),
+                            // Pagoda tier plate still overwrites a lower-tier post cell.
+                            Map.entry("230021", "E_PATCH_CONFLICT"),
+                            // Dup-id scrub lands, but plate/shell still collide at one cell.
+                            Map.entry("230659", "E_PATCH_CONFLICT"),
                             Map.entry("231921", "E_STAIR_COMPONENT_INVALID"));
-                    // 232025: opening material mismatch is soft — must compile.
+                    // Soft-repairs / open-frame / dup-id scrub now land several former hard rejects.
                     if (!rejected.containsKey(name)) {
                         assertNull(gap, name); assertFalse(blocks.isEmpty(), name);
                     } else {

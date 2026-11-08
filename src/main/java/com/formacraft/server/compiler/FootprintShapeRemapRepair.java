@@ -3,6 +3,7 @@ package com.formacraft.server.compiler;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.FootprintShapeCatalog;
 import com.formacraft.common.generation.component.util.PlanPatternCatalog;
+import com.formacraft.common.generation.component.util.ResolvedFootprint;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 

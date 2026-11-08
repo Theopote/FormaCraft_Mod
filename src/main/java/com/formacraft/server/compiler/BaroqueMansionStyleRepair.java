@@ -109,7 +109,7 @@ final class BaroqueMansionStyleRepair {
         boolean changed = false;
 
         if (type.startsWith("MASS") || "STRUCTURE".equals(type)) {
-            if (!features.stream().anyMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("base_plinth"))) {
+            if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("base_plinth"))) {
                 features.add("base_plinth");
                 changed = true;
             }
@@ -146,7 +146,7 @@ final class BaroqueMansionStyleRepair {
                 params.put("roof_dormers", true);
                 changed = true;
             }
-            if (!features.stream().anyMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("mansard"))) {
+            if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("mansard"))) {
                 features.add("mansard");
                 changed = true;
             }

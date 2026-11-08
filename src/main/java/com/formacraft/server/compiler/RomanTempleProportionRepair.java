@@ -5,6 +5,7 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,7 +22,7 @@ import java.util.regex.Pattern;
 final class RomanTempleProportionRepair {
     private RomanTempleProportionRepair() {}
 
-    private static final Pattern RADIUS = Pattern.compile("半径\\s*(?:为|=|:)?\\s*(\\d{1,2})|radius\\s*(?:of|=|:)?\\s*(\\d{1,2})",
+    private static final Pattern RADIUS = Pattern.compile("半径\\s*[为=:]?\\s*(\\d{1,2})|radius\\s*(?:of|=|:)?\\s*(\\d{1,2})",
             Pattern.CASE_INSENSITIVE);
 
     static LlmPlan apply(LlmPlan plan) {
@@ -78,22 +79,7 @@ final class RomanTempleProportionRepair {
                 continue;
             }
             if (isSameId(c, cella)) {
-                Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
-                // Never leave open-frame / pavilion clamps on a cella.
-                params.put("open", false);
-                params.remove("open_sides");
-                params.remove("hollow");
-                if ("none".equalsIgnoreCase(String.valueOf(params.get("wall_type")))) {
-                    params.remove("wall_type");
-                }
-                if ("none".equalsIgnoreCase(String.valueOf(params.get("wall_style")))) {
-                    params.remove("wall_style");
-                }
-                params.put("suppress_windows", false);
-                params.putIfAbsent("shape", "circle");
-                params.put("diameter", targetSpan);
-                params.put("height", targetHeight);
-                params.put("roman_temple_proportion_repaired", true);
+                Map<String, Object> params = getStringObjectMap(c, targetSpan, targetHeight);
                 Dimensions nextDims = new Dimensions(targetSpan, targetSpan, targetHeight);
                 Vec3i nextPos = new Vec3i(cellaPos.x() + dx, cellaPos.y(), cellaPos.z() + dz);
                 out.add(new Component(c.componentType(), c.slotId(), nextPos, nextDims, c.features(), params));
@@ -104,7 +90,7 @@ final class RomanTempleProportionRepair {
                 Dimensions d = c.dimensions();
                 int colH = d.height();
                 // Columns should not exceed the cella body; leave a short capital above the wall line only.
-                int targetColH = Math.min(colH, Math.max(8, targetHeight));
+                int targetColH = Math.min(colH, targetHeight);
                 int cross = Math.min(d.width(), d.depth());
                 // 1×1 shafts look oversized vs a short cella; keep 1×1 but shorten when needed.
                 if (targetColH != colH || cross > 1 && targetSpan >= 14) {
@@ -145,6 +131,26 @@ final class RomanTempleProportionRepair {
         return PlanComponentRewrite.withComponents(plan, out);
     }
 
+    private static @NotNull Map<String, Object> getStringObjectMap(Component c, int targetSpan, int targetHeight) {
+        Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
+        // Never leave open-frame / pavilion clamps on a cella.
+        params.put("open", false);
+        params.remove("open_sides");
+        params.remove("hollow");
+        if ("none".equalsIgnoreCase(String.valueOf(params.get("wall_type")))) {
+            params.remove("wall_type");
+        }
+        if ("none".equalsIgnoreCase(String.valueOf(params.get("wall_style")))) {
+            params.remove("wall_style");
+        }
+        params.put("suppress_windows", false);
+        params.putIfAbsent("shape", "circle");
+        params.put("diameter", targetSpan);
+        params.put("height", targetHeight);
+        params.put("roman_temple_proportion_repaired", true);
+        return params;
+    }
+
     private static boolean looksRomanCircularTemple(String corpus, LlmPlan plan) {
         // Baroque mansions often inherit Classical_GrecoRoman style — never square them into a cella.
         if (looksBaroqueOrResidentialMansion(corpus, plan)) {
@@ -163,7 +169,7 @@ final class RomanTempleProportionRepair {
         }
         // Columns alone are not enough — require an explicit cella/naos host.
         Component cella = findCella(plan);
-        return cella != null && isExplicitCella(cella) && !findColumns(plan).isEmpty();
+        return isExplicitCella(cella) && !findColumns(plan).isEmpty();
     }
 
     private static boolean looksBaroqueOrResidentialMansion(String corpus, LlmPlan plan) {
