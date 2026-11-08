@@ -93,17 +93,22 @@ final class StairOpeningGuardCompiler {
     }
 
     private static boolean isRailSeed(Component rail) {
+        // Type gate first: enriched ENTRANCE features often include plan tokens like
+        // "second_floor_stair_opening_railing", which must never beat a real rail seed.
+        String type = rail.componentType() == null ? "" : rail.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("ENTRANCE".equals(type) || "DOOR".equals(type) || "PORTAL".equals(type)
+                || "FACADE_WINDOWS".equals(type) || "WINDOW".equals(type)
+                || "PRIMITIVE".equals(type) || "MASS".equals(type) || "MASS_MAIN".equals(type)
+                || "TOWER".equals(type) || "STRUCTURE".equals(type)
+                || "STAIR_SYSTEM".equals(type) || "STAIRCASE".equals(type) || "STAIRS".equals(type)
+                || "ROOF".equals(type) || "FOUNDATION".equals(type)) {
+            return false;
+        }
         if (Boolean.TRUE.equals(rail.params().get("railing")) || "railing".equals(rail.params().get("role"))) {
             return true;
         }
         if (hasFeature(rail, "railing") || hasFeature(rail, "stair_opening_guard")) {
             return true;
-        }
-        // Openings are never stair-rail seeds — "guard_tower_portal_*" must not match bare "guard".
-        String type = rail.componentType() == null ? "" : rail.componentType().trim().toUpperCase(Locale.ROOT);
-        if ("ENTRANCE".equals(type) || "DOOR".equals(type) || "PORTAL".equals(type)
-                || "FACADE_WINDOWS".equals(type) || "WINDOW".equals(type)) {
-            return false;
         }
         Object id = rail.params().get("component_id");
         if (id == null) return false;

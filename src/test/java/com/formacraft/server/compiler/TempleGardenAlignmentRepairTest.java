@@ -634,6 +634,33 @@ class TempleGardenAlignmentRepairTest {
     }
 
     @Test
+    void hostedTowerStairIsNotNudgedAwayFromHostShell() {
+        // live-2323 fortress: STRUCTURE stair with host_id overlaps tower corner — must stay put.
+        Component tower = new Component(
+                "MASS_MAIN", "tower_left", new Vec3i(0, 0, 0),
+                new Dimensions(11, 11, 10), List.of(),
+                Map.of("component_id", "tower_left", "anchor_mode", "min_corner"));
+        var stairParams = new java.util.HashMap<String, Object>();
+        stairParams.put("component_id", "tower_left_stair");
+        stairParams.put("host_id", "tower_left");
+        stairParams.put("anchor_mode", "min_corner");
+        stairParams.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        stairParams.put("to", Map.of("x", 7, "y", 7, "z", 0));
+        Component stair = new Component(
+                "STRUCTURE", "tower_left", new Vec3i(-4, 1, -4),
+                new Dimensions(3, 8, 8), List.of("stair:straight_single_run"), stairParams);
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(tower, stair))
+                .build());
+        Component kept = repaired.components().stream()
+                .filter(c -> "tower_left_stair".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(stair.relativePosition(), kept.relativePosition(),
+                "tower stair must not be footprint-separated from its host");
+        assertNull(kept.params().get("footprint_separated"));
+    }
+
+    @Test
     void nestedFootprintsWithOverlappingYStillSeparate() {
         // XZ nested + different minY must NOT skip separation when heights still collide.
         Component outer = new Component(

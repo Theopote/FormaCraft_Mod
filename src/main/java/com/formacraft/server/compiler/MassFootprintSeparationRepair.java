@@ -145,6 +145,16 @@ final class MassFootprintSeparationRepair {
         if (isFoundationLike(c)) {
             return false;
         }
+        // Interior / tower stair flights are circulation, not peer masses. Nudging them off the
+        // host shell plants treads in exterior volume → E_CIRCULATION_EXTERIOR_CONFLICT.
+        if (isStairFlight(c)) {
+            return false;
+        }
+        // Hosted STRUCTURE satellites (stairs, shafts) stay glued; typology STRUCTURE halls
+        // without host_id remain movable anchors (e.g. japanese_haiden).
+        if ("STRUCTURE".equals(t) && explicitHostId(c) != null) {
+            return false;
+        }
         // Peristyle / porch columns are ring ornaments — nudging them destroys the colonnade.
         if (isThinColumnOrPeristyle(c)) {
             return false;
@@ -162,6 +172,33 @@ final class MassFootprintSeparationRepair {
             return !"plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")));
         }
         return true;
+    }
+
+    /** Authored stair runs / stair-named STRUCTURE — never peer-separate from the host shell. */
+    private static boolean isStairFlight(Component c) {
+        if (c == null) return false;
+        String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("STAIR_SYSTEM".equals(t) || "STAIRCASE".equals(t) || "STAIRS".equals(t)) {
+            return true;
+        }
+        if (c.params() != null
+                && c.params().get("from") instanceof Map<?, ?>
+                && c.params().get("to") instanceof Map<?, ?>) {
+            return true;
+        }
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        if (id.contains("stair") || id.contains("staircase") || id.contains("stairway")) {
+            return true;
+        }
+        if (c.features() == null) return false;
+        for (String f : c.features()) {
+            if (f == null) continue;
+            String lower = f.toLowerCase(Locale.ROOT);
+            if (lower.startsWith("stair:") || lower.contains("straight_single_run")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 1×1 / 2×2 shafts and named peristyle columns must stay on the authored ring. */

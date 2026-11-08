@@ -340,12 +340,15 @@ final class ExteriorCirculationValidator {
         int run=Math.max(Math.abs(number(to.get("x"))-number(from.get("x"))),Math.abs(number(to.get("z"))-number(from.get("z"))));
         int rise=number(to.get("y"))-number(from.get("y"));
         int width=number(stair.params().getOrDefault("width",3));
+        // Match StraightStairComponentGenerator: landing_length>1 emits a flat continuation past `to`.
+        int landing=number(stair.params().getOrDefault("landing_length",1));
+        int extent=run+(landing>1?landing:0);
         // +1 covers upward-transition floor-band carve beyond clearHeight.
         int clear=number(stair.params().getOrDefault("clearHeight",stair.params().getOrDefault("clear_h",2)))+1;
         var rp=stair.relativePosition();
         var result=new HashSet<BlockPos>();
-        for(int step=0;step<=run;step++) for(int side=-width/2;side<width-width/2;side++) {
-            int stepY=number(from.get("y"))+(int)Math.round(rise*(step/(double)Math.max(1,run)));
+        for(int step=0;step<=extent;step++) for(int side=-width/2;side<width-width/2;side++) {
+            int stepY=number(from.get("y"))+(int)Math.round(rise*(Math.min(run,step)/(double)Math.max(1,run)));
             int supportY=offset.getY()+rp.y()+stepY-1;
             var support=new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*step+(dz!=0?side:0),supportY,
                     offset.getZ()+rp.z()+number(from.get("z"))+dz*step+(dx!=0?side:0));
@@ -360,8 +363,12 @@ final class ExteriorCirculationValidator {
                 var fs=prev.owner().slotId()==null?null:slots.get(prev.owner().slotId()); var fa=fs==null?null:fs.anchor();
                 if(fb!=null && fb.maxY()+(fa==null?0:fa.y())==supportY+1) result.add(support);
             }
-            // Host mass / roof / decor along the clearance column (incl. transition headroom).
-            for (int y = 0; y <= clear; y++) {
+            // Host mass / roof / facade / decor along the support + clearance column (y=-1 = tread/support).
+            // Without the support band, interior flights sitting on the host floor slab collide as
+            // E_CIRCULATION_EXTERIOR_CONFLICT even though they belong inside the shell.
+            // FACADE (priority 3) often last-writes wall cells after MASS (0) and before stairs (7);
+            // treat hosted shell writers the same as doorway landings so mid-wall openings still grant.
+            for (int y = -1; y <= clear; y++) {
                 var pos = new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+dx*step+(dz!=0?side:0),
                         offset.getY()+rp.y()+stepY+y,
                         offset.getZ()+rp.z()+number(from.get("z"))+dz*step+(dx!=0?side:0));
@@ -371,9 +378,11 @@ final class ExteriorCirculationValidator {
                 Object ownerHost = placed.owner().params().get("host_id");
                 boolean sameHost = id.equals(ownerId) || id.equals(ownerHost);
                 if (!sameHost) continue;
-                if (Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY", "FOUNDATION",
-                        "ROOF", "ROOF_STRUCTURE", "DECOR_DETAIL", "FLOOR", "SLAB", "FLOOR_SLAB",
-                        "STRUCTURE_FLOOR", "INTERIOR_FLOOR").contains(placed.writerType())) {
+                if (isHostShellWriter(placed.writerType())
+                        || "ENTRANCE".equals(placed.writerType())
+                        || "DOOR".equals(placed.writerType())
+                        || Set.of("DECOR_DETAIL", "FLOOR", "SLAB", "FLOOR_SLAB",
+                                "STRUCTURE_FLOOR", "INTERIOR_FLOOR").contains(placed.writerType())) {
                     result.add(pos);
                 }
             }

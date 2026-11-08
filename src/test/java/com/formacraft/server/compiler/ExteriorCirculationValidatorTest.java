@@ -30,6 +30,70 @@ class ExteriorCirculationValidatorTest {
         assertTrue(index.validate(stair,List.of(new BlockPatch(BlockPatch.PLACE,2,0,2,"minecraft:oak_planks")),access).isEmpty());
         assertTrue(index.validate(stair,List.of(new BlockPatch(BlockPatch.PLACE,1,0,2,"minecraft:oak_planks")),access).isPresent());
     }
+
+    @Test void interiorStairMayRestOnHostMassFloorSupportBand() {
+        // Fortress tower flights sit one block above the host floor slab; tread/support must be allowed.
+        var host=new Component("MASS_MAIN","tower_left",new Vec3i(-5,0,-5),new Dimensions(11,11,10),List.of(),
+                Map.of("component_id","tower_left","anchor_mode","min_corner"));
+        var stair=new Component("STAIR_SYSTEM","tower_left",new Vec3i(-4,1,-4),new Dimensions(3,8,8),
+                List.of("stair:straight_single_run"),
+                Map.of("component_id","tower_left_stair","host_id","tower_left","width",3,
+                        "from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",7,"y",7,"z",0)));
+        var support=new BlockPos(-4,0,-5); // width side band under first tread
+        var tread=new BlockPos(-4,1,-4);
+        var index=new PatchOccupancyIndex();
+        index.commit(host,List.of(stone(support),stone(tread)));
+        var access=ExteriorCirculationValidator.connectorAccess(stair,List.of(host),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.contains(support),"host floor under interior stair support must be connectorAccess");
+        assertTrue(access.contains(tread));
+        var volumes=List.of(new BuildingVolume("tower_left", new Bounds(-5,0,-5,6,10,6), 4));
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(support)), flight(support,false), volumes, access, false).isEmpty());
+    }
+
+    @Test void interiorStairMayOpenHostFacadeWallCells() {
+        // Emit order: MASS then FACADE last-writes the same wall cell before STAIR_SYSTEM.
+        var host=new Component("MASS_MAIN","tower_left",new Vec3i(-5,0,-5),new Dimensions(11,11,10),List.of(),
+                Map.of("component_id","tower_left","anchor_mode","min_corner"));
+        var facade=new Component("FACADE","tower_left",new Vec3i(-5,0,-5),new Dimensions(11,1,10),List.of(),
+                Map.of("component_id","tower_left_facade","host_id","tower_left","anchor_mode","min_corner"));
+        var stair=new Component("STAIR_SYSTEM","tower_left",new Vec3i(-4,1,-4),new Dimensions(3,8,8),
+                List.of("stair:straight_single_run"),
+                Map.of("component_id","tower_left_stair","host_id","tower_left","width",3,
+                        "from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",7,"y",7,"z",0)));
+        var midWall=new BlockPos(-2,3,-5);
+        var index=new PatchOccupancyIndex();
+        index.commit(host,List.of(stone(midWall)));
+        index.commit(facade,List.of(stone(midWall)));
+        assertEquals("FACADE", index.placeAt(midWall).writerType());
+        var access=ExteriorCirculationValidator.connectorAccess(stair,List.of(host,facade),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.contains(midWall),"hosted FACADE wall under interior flight must be connectorAccess");
+        var volumes=List.of(new BuildingVolume("tower_left", new Bounds(-5,0,-5,6,10,6), 4));
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(midWall)), flight(midWall,false), volumes, access, false).isEmpty());
+    }
+
+    @Test void interiorStairLandingPastToMayOpenHostShell() {
+        // landing_length>1 emits flat plates past `to` (StraightStairComponentGenerator).
+        var host=new Component("MASS_MAIN","tower_left",new Vec3i(-5,0,-5),new Dimensions(11,11,10),List.of(),
+                Map.of("component_id","tower_left","anchor_mode","min_corner"));
+        var windows=new Component("FACADE_WINDOWS","tower_left",host.relativePosition(),host.dimensions(),List.of(),
+                Map.of("component_id","tower_left#facade","host_id","tower_left"));
+        var stair=new Component("STAIR_SYSTEM","tower_left",new Vec3i(-4,1,-4),new Dimensions(3,8,8),
+                List.of("stair:straight_single_run"),
+                Map.of("component_id","tower_left_stair","host_id","tower_left","width",3,"landing_length",3,
+                        "from",Map.of("x",0,"y",0,"z",0),"to",Map.of("x",7,"y",7,"z",0)));
+        var landing=new BlockPos(4,8,-5); // step=run+1 past to, width side -1
+        var index=new PatchOccupancyIndex();
+        index.commit(host,List.of(stone(landing)));
+        index.commit(windows,List.of(stone(landing)));
+        var access=ExteriorCirculationValidator.connectorAccess(
+                stair,List.of(host,windows),Map.of(),BlockPos.ORIGIN,index);
+        assertTrue(access.contains(landing),"landing_length extension must grant host shell access");
+        var volumes=List.of(new BuildingVolume("tower_left", new Bounds(-5,0,-5,6,10,6), 4));
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(landing)), flight(landing,false), volumes, access, false).isEmpty());
+    }
     @Test void sourcePortalAccessCannotCarveBeyondDoorOrForeignWalls() {
         var stair=new Component("STRUCTURE","flight",new Vec3i(0,0,0),new Dimensions(5,3,5),List.of("stair:straight_single_run"),
                 Map.of("component_id","stair","host_id","hall","exterior",true,"width",3,

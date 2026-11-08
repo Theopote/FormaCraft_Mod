@@ -2,14 +2,23 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.generation.component.util.*;
 import java.util.*;
-/** Compatibility fit for untagged STRUCTURE flights with explicit stair endpoints. */
+import java.util.Locale;
+/** Compatibility fit for authored flights (STRUCTURE / STAIR_SYSTEM) with explicit endpoints. */
 final class BareStairFitCompiler {
     static void apply(List<Component> parts) {
         var extras=new ArrayList<Component>();
         for(int i=0;i<parts.size();i++) {
-            var c=parts.get(i); if(c==null || !"STRUCTURE".equals(c.componentType()) || c.params()==null
-                    || c.relativePosition()==null || Boolean.TRUE.equals(c.params().get("exterior"))
-                    || c.features()!=null && c.features().stream().anyMatch(f->f!=null && f.startsWith("stair:"))
+            var c=parts.get(i);
+            // StructureAccessoryRemapRepair may rewrite STRUCTURE→STAIR_SYSTEM before prepare;
+            // still fit those authored flights to a host tower platform.
+            String type=c==null||c.componentType()==null?"":c.componentType().trim().toUpperCase(Locale.ROOT);
+            if(c==null || c.params()==null || c.relativePosition()==null
+                    || !(type.equals("STRUCTURE") || type.equals("STAIR_SYSTEM")
+                        || type.equals("STAIRCASE") || type.equals("STAIRS"))
+                    || Boolean.TRUE.equals(c.params().get("exterior"))
+                    || Boolean.TRUE.equals(c.params().get("compiler_fitted_stair"))
+                    || (type.equals("STRUCTURE") && c.features()!=null
+                        && c.features().stream().anyMatch(f->f!=null && f.startsWith("stair:")))
                     || !com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
                     || !(c.params().get("from") instanceof Map<?,?> from)
                     || !(c.params().get("to") instanceof Map<?,?> to)) continue;
