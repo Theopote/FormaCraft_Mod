@@ -369,7 +369,8 @@ public final class PatchOccupancyIndex {
                 if (!overwriteOk && !chimneyFooting && !gateOnPath
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
-                        && !isBoundUpperMassSeam(writer, prev, pos)) {
+                        && !isBoundUpperMassSeam(writer, prev, pos)
+                        && !isSoftFoliageOverRail(writer, prev, p.targetBlock())) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
                             type, p.targetBlock(), "unauthorized_place_overwrite"));
                 }
@@ -452,6 +453,41 @@ public final class PatchOccupancyIndex {
         if (!bindsToOwner(writer, ownerIdStr, ownerHostStr)) return false;
         return Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "FOUNDATION", "KEEP")
                 .contains(previous.writerType() == null ? "" : previous.writerType());
+    }
+
+    /**
+     * Terrace planters / foliage may soft-overwrite same-host railings (iron_bars/chains)
+     * without a hard occupancy conflict — common cyberpunk balcony composition.
+     */
+    private static boolean isSoftFoliageOverRail(Component writer, PlaceRecord previous, String nextBlock) {
+        if (writer == null || previous == null || previous.owner() == null) return false;
+        // Prefer canonical IDs, but fall back to raw strings — registry parse can miss aliases.
+        String nextCanon = canonical(nextBlock);
+        String prevCanon = canonical(previous.targetBlock());
+        String n = (nextCanon != null ? nextCanon : String.valueOf(nextBlock)).toLowerCase(Locale.ROOT);
+        String p = (prevCanon != null ? prevCanon : String.valueOf(previous.targetBlock())).toLowerCase(Locale.ROOT);
+        boolean foliage = n.contains("leaves") || n.contains("leaf") || n.contains("azalea")
+                || n.contains("vine") || n.contains("moss") || n.contains("flower")
+                || n.contains("plant") || n.contains("sapling");
+        boolean rail = p.contains("iron_bars") || p.contains("iron_bar") || p.contains("chain")
+                || p.contains("fence") || p.contains("pane");
+        if (!foliage || !rail) return false;
+        String writerType = writer.componentType() == null ? "" : writer.componentType().toUpperCase(Locale.ROOT);
+        if (!(writerType.contains("DECOR") || writerType.contains("FACADE") || writerType.contains("TERRACE")
+                || writerType.contains("BALCONY") || writerType.contains("PRIMITIVE"))) {
+            return false;
+        }
+        Object writerHost = writer.params() == null ? null : writer.params().get("host_id");
+        if (writerHost == null && writer.params() != null) writerHost = writer.params().get("hostId");
+        Object prevHost = previous.owner().params() == null ? null : previous.owner().params().get("host_id");
+        if (prevHost == null && previous.owner().params() != null) {
+            prevHost = previous.owner().params().get("hostId");
+        }
+        Object prevId = previous.owner().params() == null ? null : previous.owner().params().get("component_id");
+        if (writerHost != null && (writerHost.equals(prevHost) || writerHost.equals(prevId))) {
+            return true;
+        }
+        return java.util.Objects.equals(writer.slotId(), previous.owner().slotId());
     }
 
     private static boolean isHostedStructuralJoin(Component writer, PlaceRecord previous) {

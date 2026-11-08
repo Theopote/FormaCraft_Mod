@@ -171,17 +171,53 @@ final class DenseEavesPagodaMisrouteRepair {
         }
         Dimensions dims = c.dimensions();
         if (dims != null) {
-            // ~5 clear blocks per storey + eaves/crown budget so 三层 does not look squat.
-            int minHeight = Math.max(dims.height(), floors * 6 + 5);
+            // Floor+ceiling plates → band ≥6 for 净高≥4; reserve full finial (~10).
+            int minHeight = Math.max(dims.height(), floors * 8 + 10);
             if (minHeight > dims.height()) {
                 dims = new Dimensions(dims.width(), dims.depth(), minHeight);
                 changed = true;
             }
         }
-        if (!changed) {
-            return c;
+        // Honour authored / requested per-storey clear height (never leave squat 2-block bands).
+        int floorHeight = ComponentParamParsers.intParam(params, "floor_height", "floorHeight", "storey_height");
+        if (floorHeight < 6) {
+            params.put("floor_height", 6);
+            params.put("storey_height", 6);
+            changed = true;
         }
-        return new Component(c.componentType(), c.slotId(), c.relativePosition(), dims, c.features(), params);
+        if (params.get("tier_heights") instanceof List<?> tiers && !tiers.isEmpty()) {
+            List<Object> nextTiers = new ArrayList<>(tiers.size());
+            boolean tierChanged = false;
+            for (Object t : tiers) {
+                int v = 0;
+                if (t instanceof Number n) v = n.intValue();
+                else {
+                    try { v = Integer.parseInt(String.valueOf(t)); } catch (NumberFormatException ignored) { v = 0; }
+                }
+                if (v > 0 && v < 6) {
+                    nextTiers.add(6);
+                    tierChanged = true;
+                } else {
+                    nextTiers.add(t);
+                }
+            }
+            if (tierChanged) {
+                params.put("tier_heights", nextTiers);
+                changed = true;
+            }
+        }
+        // 四角塔 always hang corner lanterns under eaves (prompt may omit 灯笼 wording).
+        params.putIfAbsent("lantern_hang", 2);
+        params.putIfAbsent("corner_lanterns", true);
+        params.putIfAbsent("lantern_block", "minecraft:lantern");
+        params.putIfAbsent("lantern_chain_block", "minecraft:iron_bars");
+        changed = true;
+        List<String> features = c.features() == null ? new ArrayList<>() : new ArrayList<>(c.features());
+        if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("lantern"))) {
+            features.add("corner_lanterns");
+            return new Component(c.componentType(), c.slotId(), c.relativePosition(), dims, features, params);
+        }
+        return new Component(c.componentType(), c.slotId(), c.relativePosition(), dims, features, params);
     }
 
     private static int parseFloorCount(String corpus) {

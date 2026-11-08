@@ -85,6 +85,57 @@ class BuildingQualityRecoveryPhase1Test {
     }
 
     @Test
+    void wastelandPavilionTowerLikeMetaDoesNotTripPagodaGate() {
+        Component mass = new Component(
+                "MASS_MAIN", "main_site", new Vec3i(2, 4, 2),
+                new Dimensions(8, 6, 8), List.of("asymmetric Chinese pavilion body"),
+                Map.of("component_id", "wasteland_chinese_pavilion_body", "roof_type", "single_slope"));
+        Component roof = new Component(
+                "ROOF", "main_site", new Vec3i(1, 14, 2),
+                new Dimensions(8, 6, 1), List.of(),
+                Map.of("host_id", "wasteland_chinese_pavilion_body", "roof_type", "single_slope"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("building_class", "tower_like");
+        meta.put("request_intent", Map.of(
+                "building_class", "tower_like",
+                "confidence", 0.72,
+                "original_text", "生成一座 20x20 格的非对称废土风格中式楼阁。"));
+        meta.put("request_intent_text", "生成一座 20x20 格的非对称废土风格中式楼阁。");
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(mass, roof))
+                .planMeta(meta)
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty(),
+                () -> PlanSemanticValidator.check(plan).map(CapabilityGap::message).orElse(""));
+    }
+
+    @Test
+    void romanTholosTempleMetaDoesNotTripChineseTempleGate() {
+        Component cella = new Component(
+                "MASS_MAIN", "slot_tholos", new Vec3i(0, 3, 0),
+                new Dimensions(14, 14, 10), List.of("cylindrical cella", "roof_type:dome"),
+                Map.of("component_id", "tholos_cella", "shape", "circle", "roof_type", "dome"));
+        Component roof = new Component(
+                "ROOF", "slot_tholos", new Vec3i(-2, 8, -2),
+                new Dimensions(15, 18, 3), List.of("hemispherical dome"),
+                Map.of("host_id", "tholos_cella", "roof_type", "dome"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("building_class", "temple");
+        meta.put("request_intent", Map.of(
+                "building_class", "temple",
+                "confidence", 0.92,
+                "original_text", "生成一座半径为 9 的圆形罗马神殿。外围由 12 根石英柱环绕"));
+        meta.put("request_intent_text", "生成一座半径为 9 的圆形罗马神殿。外围由 12 根石英柱环绕");
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Classical_GrecoRoman")
+                .components(List.of(cella, roof))
+                .planMeta(meta)
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty(),
+                () -> PlanSemanticValidator.check(plan).map(CapabilityGap::message).orElse(""));
+    }
+
+    @Test
     void denseEavesPagodaStructurePassesSemanticGate() {
         Component structure = new Component(
                 "STRUCTURE",

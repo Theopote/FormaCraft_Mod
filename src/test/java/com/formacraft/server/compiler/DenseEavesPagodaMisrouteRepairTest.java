@@ -58,7 +58,9 @@ class DenseEavesPagodaMisrouteRepairTest {
         LlmPlan out = DenseEavesPagodaMisrouteRepair.apply(plan);
         Component c = out.components().get(0);
         assertEquals("square", c.params().get("footprint"));
-        assertTrue(c.dimensions().height() >= 23);
+        assertTrue(c.dimensions().height() >= 34, "height=" + c.dimensions().height());
+        assertTrue(((Number) c.params().get("floor_height")).intValue() >= 6);
+        assertEquals(true, c.params().get("corner_lanterns"));
         assertEquals("dense_eaves_pagoda", c.params().get("typology_id"));
     }
 

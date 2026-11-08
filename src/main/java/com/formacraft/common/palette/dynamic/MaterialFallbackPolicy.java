@@ -84,6 +84,10 @@ public final class MaterialFallbackPolicy {
             replacement = name.contains("dark") ? "minecraft:dark_oak_planks" : "minecraft:oak_planks";
         else if (name.contains("plaster") || name.contains("marble") || name.contains("灰泥")) replacement = "minecraft:white_concrete";
         else if (name.contains("brick") || name.contains("stone") || name.contains("石") || name.contains("砖")) replacement = "minecraft:stone_bricks";
+        else if (name.contains("chain") || role.contains("chain")) {
+            // Yarn may omit Blocks.CHAIN; iron_bars reads as a hangable link substitute.
+            replacement = "minecraft:iron_bars";
+        }
         else if (name.contains("metal") || name.contains("iron")) replacement = "minecraft:iron_block";
         else replacement = switch (role) {
             case "roof_material", "roof_block" -> "minecraft:deepslate_tiles";

@@ -100,7 +100,10 @@ def _extract_global_requirements(text: str) -> list[dict]:
                        'unit': 'floors' if key == 'floor_count' else 'blocks', 'source': 'user_explicit',
                        'source_text': [m[0] for m in group], 'scope': subject if len(values) == 1 else 'unresolved',
                        'priority': 'hard', 'status': 'pending' if len(values) == 1 and subject != 'element_scope' else 'unsupported_scope'})
-    if any(_positive_match(text, m) for m in re.finditer(r'双坡屋\s*顶|山墙屋\s*顶', text)):
+    # 破风 / 三角山墙屋顶 is a Japanese pediment cue — do NOT force western gable
+    # (pattern 山墙屋顶 previously false-triggered req_roof_gable).
+    # Only explicit 双坡/人字顶 should hard-require roof_type=gable.
+    if any(_positive_match(text, m) for m in re.finditer(r'双坡屋\s*顶|人字顶', text)):
         result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
                        'source_text': ['双坡屋顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     if any(_positive_match(text, m) for m in re.finditer(r'平屋顶|平顶', text)):

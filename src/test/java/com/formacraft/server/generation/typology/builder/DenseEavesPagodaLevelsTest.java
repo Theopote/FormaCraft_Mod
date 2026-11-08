@@ -211,6 +211,36 @@ class DenseEavesPagodaLevelsTest {
     }
 
     @Test
+    void squareThreeStoreyEmitsCornerLanternsAndTallStoreys() {
+        BlockPos origin = new BlockPos(0, 64, 0);
+        GeneratedStructure structure = generate(Map.of(
+                "floor_count", 3,
+                "eaves_per_level", 1,
+                "floor_height", 6,
+                "baseWidth", 11,
+                "footprint", "square",
+                "detailLevel", "simple",
+                "corner_lanterns", true,
+                "lantern_hang", 2,
+                "lantern_block", "minecraft:lantern"
+        ), origin);
+        PagodaVerticalLayout.Result layout = PagodaVerticalLayout.plan(
+                "dense_eaves_pagoda",
+                new PagodaVerticalSemantics(3, 1, 3, true),
+                34, false, 34, 5);
+        for (var storey : layout.storeys()) {
+            assertTrue(storey.height() >= 5, "storey band=" + storey.height());
+            assertTrue(storey.height() - 2 >= 3, "clear air must be ≥3");
+        }
+        long hangingLanterns = structure.getBlocks().stream()
+                .filter(b -> b.getTargetState() != null
+                        && b.getTargetState().getBlock() instanceof net.minecraft.block.LanternBlock
+                        && Boolean.TRUE.equals(b.getTargetState().get(net.minecraft.block.LanternBlock.HANGING)))
+                .count();
+        assertTrue(hangingLanterns >= 12, "expected ≥12 corner lanterns (3 storeys × 4), got " + hangingLanterns);
+    }
+
+    @Test
     void squareThreeStoreySingleEaveKeepsFormalFinial() {
         // Batch A #3: old 2-block tip failed heuristic finial audit; shared finial must pass.
         BlockPos origin = new BlockPos(0, 64, 0);

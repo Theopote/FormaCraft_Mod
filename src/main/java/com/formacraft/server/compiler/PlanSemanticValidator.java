@@ -269,16 +269,17 @@ final class PlanSemanticValidator {
     private enum IntentClass { GENERIC, TOWER_LIKE, GATE, TEMPLE, GARDEN }
 
     private static IntentClass detectIntent(LlmPlan plan, String originalRequestIntent) {
+        String corpus = authoritativeCorpus(plan, originalRequestIntent);
+        IntentClass raw = detectIntentRaw(plan, originalRequestIntent, corpus);
+        return demoteMisclassifiedIntent(raw, corpus, plan);
+    }
+
+    private static IntentClass detectIntentRaw(LlmPlan plan, String originalRequestIntent, String corpus) {
         Map<String, Object> ri = requestIntentMap(plan);
         if (ri != null) {
             IntentClass fromMeta = classFromToken(String.valueOf(ri.getOrDefault("building_class", "")));
             Object confObj = ri.get("confidence");
             double conf = confObj instanceof Number n ? n.doubleValue() : 1.0;
-            // Residential apartment prompts must not inherit a stale LLM tower_like class.
-            String corpus = authoritativeCorpus(plan, originalRequestIntent);
-            if (fromMeta == IntentClass.TOWER_LIKE && looksResidentialWithoutPagoda(corpus)) {
-                fromMeta = IntentClass.GENERIC;
-            }
             // Low-confidence keyword guesses must not force specialized semantic gates.
             if (fromMeta != IntentClass.GENERIC && conf >= 0.5) {
                 return fromMeta;
@@ -291,7 +292,7 @@ final class PlanSemanticValidator {
             }
         }
         // Shared vocab path — never treat 重檐 / bare 庭院 as class triggers.
-        String corpusText = authoritativeCorpus(plan, originalRequestIntent);
+        String corpusText = corpus != null ? corpus : authoritativeCorpus(plan, originalRequestIntent);
         if (corpusText != null && !corpusText.isBlank()) {
             Map<String, Object> fromVocab = RequestIntentInjector.extract(corpusText);
             IntentClass fromKw = classFromToken(String.valueOf(fromVocab.getOrDefault("building_class", "")));
@@ -310,13 +311,30 @@ final class PlanSemanticValidator {
         if (containsAny(weak, "山门", "牌坊", "paifang", "寺庙山门")) {
             return IntentClass.GATE;
         }
-        if (containsAny(weak, "道观", "寺庙", "庙宇", "大殿", "殿堂", "daoist", "temple")) {
+        // Bare English "temple" matches roman_tholos features — require Chinese hall cues here.
+        if (containsAny(weak, "道观", "寺庙", "庙宇", "大殿", "殿堂", "daoist")
+                || (weak.contains("temple") && !looksClassicalRomanTemple(corpusText, plan))) {
             return IntentClass.TEMPLE;
         }
         if (containsAny(weak, "江南园林", "日式庭院", "园林", "garden", "courtyard compound")) {
             return IntentClass.GARDEN;
         }
         return IntentClass.GENERIC;
+    }
+
+    /**
+     * Apply after every class source (request_intent, plan_meta.building_class, vocab, weak).
+     * LLM / plan_meta often leave tower_like on 楼阁 or temple on Roman tholos.
+     */
+    private static IntentClass demoteMisclassifiedIntent(IntentClass raw, String corpus, LlmPlan plan) {
+        if (raw == IntentClass.TOWER_LIKE
+                && (looksResidentialWithoutPagoda(corpus) || looksPavilionWithoutPagoda(corpus))) {
+            return IntentClass.GENERIC;
+        }
+        if (raw == IntentClass.TEMPLE && looksClassicalRomanTemple(corpus, plan)) {
+            return IntentClass.GENERIC;
+        }
+        return raw == null ? IntentClass.GENERIC : raw;
     }
 
     private static IntentClass classFromToken(String raw) {
@@ -339,9 +357,35 @@ final class PlanSemanticValidator {
                 || lower.contains("别墅") || lower.contains("residence") || lower.contains("apartment")
                 || lower.contains("villa") || (lower.contains("house") && !lower.contains("warehouse"));
         if (!residential) return false;
-        return !(lower.contains("密檐") || lower.contains("宝塔") || lower.contains("古塔")
+        return !hasPagodaMarkers(lower);
+    }
+
+    /** 楼阁 / 废土错落 pavilion — not a dense-eaves pagoda semantic gate. */
+    private static boolean looksPavilionWithoutPagoda(String corpus) {
+        if (corpus == null || corpus.isBlank()) return false;
+        String lower = corpus.toLowerCase(Locale.ROOT);
+        boolean pavilion = lower.contains("楼阁") || lower.contains("废土") || lower.contains("非对称")
+                || lower.contains("错落") || lower.contains("wasteland") || lower.contains("asymmetric")
+                || lower.contains("louge");
+        if (!pavilion) return false;
+        return !hasPagodaMarkers(lower);
+    }
+
+    private static boolean hasPagodaMarkers(String lower) {
+        return lower.contains("密檐") || lower.contains("宝塔") || lower.contains("古塔")
                 || lower.contains("佛塔") || lower.contains("pagoda") || lower.contains("stupa")
-                || lower.contains("舍利塔"));
+                || lower.contains("舍利塔");
+    }
+
+    private static boolean looksClassicalRomanTemple(String corpus, LlmPlan plan) {
+        String lower = corpus == null ? "" : corpus.toLowerCase(Locale.ROOT);
+        if (lower.contains("罗马") || lower.contains("roman") || lower.contains("tholos")
+                || lower.contains("peristyle") || lower.contains("圆形神殿") || lower.contains("半径")) {
+            return true;
+        }
+        String style = plan != null && plan.styleProfile() != null
+                ? plan.styleProfile().toLowerCase(Locale.ROOT) : "";
+        return style.contains("grecoroman") || style.contains("greco_roman") || style.contains("classical_greco");
     }
 
     @SuppressWarnings("unchecked")
@@ -687,7 +731,9 @@ final class PlanSemanticValidator {
                     String roof = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
                     if (roof.contains("xieshan") || roof.contains("wudian") || roof.contains("xuanshan")
                             || roof.contains("yingshan") || roof.contains("hip") || roof.contains("irimoya")
-                            || roof.contains("歇山") || roof.contains("庑殿") || roof.contains("入母屋")) {
+                            || roof.contains("dome") || roof.contains("hemispher")
+                            || roof.contains("歇山") || roof.contains("庑殿") || roof.contains("入母屋")
+                            || roof.contains("穹顶")) {
                         return true;
                     }
                 }
@@ -701,7 +747,8 @@ final class PlanSemanticValidator {
             if (c == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
             if (type.contains("PATH") || type.contains("COURTYARD") || type.contains("GARDEN")
-                    || type.contains("PAVING") || "ASSEMBLY".equals(type)) {
+                    || type.contains("PAVING") || "ASSEMBLY".equals(type)
+                    || "TERRACE".equals(type) || "BALCONY".equals(type)) {
                 return true;
             }
         }

@@ -37,15 +37,25 @@ public final class PagodaVerticalLayout {
             boolean compressed
     ) {}
 
+    /**
+     * Dense-eaves storeys place both a floor plate (dy=0) and a ceiling plate (dy=h-1).
+     * Clear air between them is {@code band - 2}, so a requested 净高 of N needs band N+2.
+     */
+    private static int storeyBandForClearAir(int clearAir) {
+        return Math.max(InteriorSpaceDefaults.minStoreyBand() + 1, clearAir + 2);
+    }
+
     public static int bodyNeedComfortable(int floors) {
         int f = Math.max(1, floors);
-        if (f <= 1) return InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
-        return InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT
-                + Math.max(0, f - 1) * InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+        if (f <= 1) {
+            return storeyBandForClearAir(InteriorSpaceDefaults.MIN_CLEAR_HEIGHT);
+        }
+        return storeyBandForClearAir(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT)
+                + Math.max(0, f - 1) * storeyBandForClearAir(InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT);
     }
 
     public static int bodyNeedAbsolute(int floors) {
-        return Math.max(1, floors) * InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
+        return Math.max(1, floors) * storeyBandForClearAir(InteriorSpaceDefaults.MIN_CLEAR_HEIGHT);
     }
 
     /**
@@ -120,12 +130,12 @@ public final class PagodaVerticalLayout {
         int finialH = compressed ? FINIAL_HEIGHT_COMPACT : FINIAL_HEIGHT_FULL;
         // Eaves share the ceiling Y (horizontal tiers) — body fills everything below the finial.
         int bodyBudget = Math.max(bodyNeedAbsolute(floors), height - finialH);
-        // Prefer comfortable clear heights when budget allows.
-        int minClear = InteriorSpaceDefaults.MIN_CLEAR_HEIGHT;
-        int groundClear = InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT;
-        int upperClear = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+        // Prefer comfortable clear heights when budget allows (bands include floor+ceiling plates).
+        int minClear = storeyBandForClearAir(InteriorSpaceDefaults.MIN_CLEAR_HEIGHT);
+        int groundClear = storeyBandForClearAir(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT);
+        int upperClear = storeyBandForClearAir(InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT);
         // Allow taller storeys when leftover is large (tall soft-default envelopes).
-        int maxPer = Math.max(5, (bodyBudget + floors - 1) / floors + 2);
+        int maxPer = Math.max(minClear + 2, (bodyBudget + floors - 1) / floors + 2);
 
         int[] levelH = new int[floors];
         if (compressed || bodyBudget < bodyNeedComfortable(floors)) {

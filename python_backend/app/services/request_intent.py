@@ -289,6 +289,15 @@ def _tower_subtype(text: str, building_class: str) -> Optional[str]:
     return None
 
 
+def _has_pagoda_markers(text: str) -> bool:
+    raw = str(text or "")
+    lower = raw.lower()
+    return any(
+        m in raw or m in lower
+        for m in ("密檐", "宝塔", "古塔", "佛塔", "pagoda", "stupa", "舍利塔")
+    )
+
+
 def _looks_residential_without_pagoda(text: str) -> bool:
     """True for 住宅/apartment prompts that are not 密檐/宝塔/佛塔."""
     if not text or not str(text).strip():
@@ -307,10 +316,27 @@ def _looks_residential_without_pagoda(text: str) -> bool:
     )
     if not residential:
         return False
-    pagoda_markers = (
-        "密檐", "宝塔", "古塔", "佛塔", "pagoda", "stupa", "舍利塔",
+    return not _has_pagoda_markers(raw)
+
+
+def _looks_pavilion_without_pagoda(text: str) -> bool:
+    """True for 楼阁 / 废土错落 that must not inherit tower_like pagoda gates."""
+    if not text or not str(text).strip():
+        return False
+    raw = str(text)
+    lower = raw.lower()
+    pavilion = (
+        "楼阁" in raw
+        or "废土" in raw
+        or "非对称" in raw
+        or "错落" in raw
+        or "wasteland" in lower
+        or "asymmetric" in lower
+        or "louge" in lower
     )
-    return not any(m in raw or m in lower for m in pagoda_markers)
+    if not pavilion:
+        return False
+    return not _has_pagoda_markers(raw)
 
 
 def extract_keyword_intent(user_text: str) -> Dict[str, Any]:
@@ -428,11 +454,12 @@ def merge_request_intent(
     else:
         out["source"] = "keyword_hint"
 
-    # LLM often labels 高密住宅 / apartment as tower_like (+ dense_eaves) — demote when
-    # the user text is clearly residential and lacks pagoda/stupa markers.
+    # LLM often labels 高密住宅 / 楼阁 as tower_like (+ dense_eaves) — demote when
+    # the user text is clearly residential/pavilion and lacks pagoda/stupa markers.
     text_for_override = str(out.get("original_text") or keyword.get("original_text") or "")
-    if str(out.get("building_class") or "") == "tower_like" and _looks_residential_without_pagoda(
-        text_for_override
+    if str(out.get("building_class") or "") == "tower_like" and (
+        _looks_residential_without_pagoda(text_for_override)
+        or _looks_pavilion_without_pagoda(text_for_override)
     ):
         out["building_class"] = "generic"
         out["tower_subtype"] = None
@@ -442,6 +469,20 @@ def merge_request_intent(
         out["building_class_source"] = "residential_override"
         out["source"] = "residential_override"
         out["llm_declared"] = llm
+    # Roman temples must not inherit Chinese temple/daoist semantic gates.
+    if str(out.get("building_class") or "") == "temple":
+        lower = text_for_override.lower()
+        if any(
+            m in text_for_override or m in lower
+            for m in ("罗马", "roman", "tholos", "peristyle", "圆形神殿", "半径")
+        ):
+            out["building_class"] = "generic"
+            out["confidence"] = kw_conf
+            out["refuse_residential_autofill"] = False
+            out["scaffold_eligible"] = False
+            out["building_class_source"] = "roman_temple_override"
+            out["source"] = "roman_temple_override"
+            out["llm_declared"] = llm
 
     final_class = str(out.get("building_class") or "generic")
     final_conf = float(out.get("confidence") or 0.0)

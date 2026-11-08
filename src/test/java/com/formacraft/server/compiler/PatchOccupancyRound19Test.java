@@ -96,6 +96,24 @@ class PatchOccupancyRound19Test {
     }
 
     @Test
+    void softFoliageMayOverwriteSameHostRail() {
+        PatchOccupancyIndex idx = new PatchOccupancyIndex();
+        Component rail = new Component(
+                "PRIMITIVE", "residential_tower", new Vec3i(12, 5, 3), new Dimensions(3, 6, 2),
+                List.of("iron_rail_guard"),
+                Map.of("component_id", "cyber_terrace_rail", "host_id", "cyber_tower_mass",
+                        "material", "minecraft:iron_bars"));
+        Component planters = new Component(
+                "PRIMITIVE", "residential_tower", new Vec3i(12, 5, 4), new Dimensions(2, 4, 2),
+                List.of("planter_boxes"),
+                Map.of("component_id", "cyber_terrace_planters", "host_id", "cyber_tower_mass",
+                        "material", "minecraft:oak_leaves"));
+        idx.commit(rail, List.of(new BlockPatch(BlockPatch.PLACE, 12, 5, 4, "minecraft:iron_bars")));
+        assertTrue(idx.validate(planters, List.of(
+                new BlockPatch(BlockPatch.PLACE, 12, 5, 4, "minecraft:oak_leaves"))).isEmpty());
+    }
+
+    @Test
     void openingGlazingOverSolidIsToleratedInFinalInspect() {
         // Japanese shoji / window panes may land after an authorized carve while the
         // occupancy index still holds the pre-window solid (emit clip / order edge).

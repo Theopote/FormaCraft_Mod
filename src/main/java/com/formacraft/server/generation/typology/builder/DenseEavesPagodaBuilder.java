@@ -79,9 +79,20 @@ public final class DenseEavesPagodaBuilder {
         boolean heightFromPlan = TypologyParamResolver.isPlanAuthored(
                 p.raw(), "height", "towerHeight");
         int req = PagodaVerticalLayout.requiredMinHeight(vertical);
+        // Square 四角塔: per-storey band ≥6 (净高≥4 with floor+ceiling plates) + full finial.
+        int authoredFloorBand = Math.max(
+                p.intVal("floor_height", p.intVal("storey_height", 0, 0, 20), 0, 20),
+                p.intVal("floorHeight", 0, 0, 20));
+        int minBand = footprint == Footprint.SQUARE
+                ? Math.max(6, authoredFloorBand)
+                : Math.max(5, authoredFloorBand);
         int softDefault = footprint == Footprint.SQUARE
-                ? Math.max(18, floors * 5)
+                ? Math.max(req, floors * minBand + PagodaVerticalLayout.FINIAL_HEIGHT_FULL)
                 : (vertical.floorsExplicit() ? req : Math.max(47, req));
+        if (authoredFloorBand > 0) {
+            softDefault = Math.max(softDefault, floors * Math.max(minBand, authoredFloorBand)
+                    + PagodaVerticalLayout.FINIAL_HEIGHT_FULL);
+        }
         int authoredHeight = p.intVal("height", "towerHeight", softDefault, 1, 120);
         // LLM-inferred height is a soft preference: keep it when ≥ required, else expand.
         if (!heightUserHard && heightFromPlan) {
@@ -127,10 +138,8 @@ public final class DenseEavesPagodaBuilder {
                 : facingFromParam(p.strVal("facing", "SOUTH"));
 
         BlockState body = blockOrDefault(world, p.strVal("bodyBlock", "minecraft:bricks"), Blocks.BRICKS.getDefaultState());
-        BlockState trimDefault = footprint == Footprint.SQUARE
-                ? Blocks.STONE_BRICK_SLAB.getDefaultState()
-                : Blocks.STONE_BRICK_SLAB.getDefaultState();
-        String trimId = footprint == Footprint.SQUARE ? "minecraft:stone_brick_slab" : "minecraft:stone_brick_slab";
+        BlockState trimDefault = Blocks.STONE_BRICK_SLAB.getDefaultState();
+        String trimId = "minecraft:stone_brick_slab";
         BlockState trim = blockOrDefault(world, p.strVal("trimBlock", trimId), trimDefault);
         BlockState eaveDefault = footprint == Footprint.SQUARE
                 ? Blocks.BRICK_SLAB.getDefaultState()
@@ -302,6 +311,9 @@ public final class DenseEavesPagodaBuilder {
             }
         }
 
+        // 檐角灯笼：hang under the outermost eave band at the four corners.
+        hangCornerLanterns(blocks, origin, world, footprint, layout, eavesPerLevel, p);
+
         // Honour layout finial budget (FULL=10 or COMPACT=4) — do not force compact when
         // PagodaVerticalLayout already reserved a full 宝刹 envelope.
         int finialH = layout.finialHeight();
@@ -356,6 +368,65 @@ public final class DenseEavesPagodaBuilder {
             if (p.raw().containsKey(key) && p.raw().get(key) != null) return true;
         }
         return false;
+    }
+
+    private static void hangCornerLanterns(
+            List<PlannedBlock> blocks,
+            BlockPos origin,
+            ServerWorld world,
+            Footprint footprint,
+            PagodaVerticalLayout.Result layout,
+            int eavesPerLevel,
+            TypologyParams p
+    ) {
+        if (p == null || layout == null || layout.storeys().isEmpty()) return;
+        boolean want = p.boolVal("corner_lanterns", false)
+                || p.boolVal("cornerLanterns", false)
+                || hasParam(p, "lantern_hang", "lanternHang", "lantern_block", "lanternBlock")
+                || footprint == Footprint.SQUARE;
+        if (!want) {
+            return;
+        }
+        int hang = Math.max(1, Math.min(3, p.intVal("lantern_hang", p.intVal("lanternHang", 2, 1, 3), 1, 3)));
+        String lanternId = p.strVal("lantern_block", p.strVal("lanternBlock", "minecraft:lantern"));
+        BlockState lantern = blockOrDefault(world, lanternId, Blocks.LANTERN.getDefaultState());
+        // redstone_lamp / solid cubes cannot hang — swap to a true hanging lantern.
+        if (lantern.contains(net.minecraft.block.LanternBlock.HANGING)) {
+            lantern = lantern.with(net.minecraft.block.LanternBlock.HANGING, true);
+        } else if (lanternId != null && lanternId.toLowerCase(Locale.ROOT).contains("soul")) {
+            lantern = Blocks.SOUL_LANTERN.getDefaultState().with(net.minecraft.block.LanternBlock.HANGING, true);
+        } else {
+            lantern = Blocks.LANTERN.getDefaultState().with(net.minecraft.block.LanternBlock.HANGING, true);
+        }
+        // Yarn may omit chain; MaterialFallback may have rewritten it to stone — always hangable link.
+        BlockState chain = resolveHangLink(world, p);
+        var decorSrc = PagodaMorphologyAudit.eaveTrimRole();
+        for (PagodaVerticalLayout.Storey storey : layout.storeys()) {
+            int half = storey.half();
+            int eaveY = storey.y0() + storey.height() - 1;
+            int outer = half + Math.max(1, eavesPerLevel);
+            int[][] corners = new int[][]{
+                    {outer, outer}, {outer, -outer}, {-outer, outer}, {-outer, -outer}
+            };
+            for (int[] c : corners) {
+                int cx = c[0];
+                int cz = c[1];
+                for (int d = 1; d < hang; d++) {
+                    blocks.add(new PlannedBlock(origin.add(cx, eaveY - d, cz), chain, decorSrc));
+                }
+                blocks.add(new PlannedBlock(origin.add(cx, eaveY - hang, cz), lantern, decorSrc));
+            }
+        }
+    }
+
+    private static BlockState resolveHangLink(ServerWorld world, TypologyParams p) {
+        String id = p.strVal("lantern_chain", p.strVal("lantern_chain_block", "minecraft:chain"));
+        BlockState resolved = blockOrDefault(world, id, Blocks.IRON_BARS.getDefaultState());
+        if (resolved == null || resolved.isAir() || resolved.isOf(Blocks.STONE_BRICKS)
+                || resolved.isOf(Blocks.STONE) || resolved.isOf(Blocks.COBBLESTONE)) {
+            return Blocks.IRON_BARS.getDefaultState();
+        }
+        return resolved;
     }
 
     private static void fillFootprintDisk(
@@ -470,7 +541,11 @@ public final class DenseEavesPagodaBuilder {
         try {
             var ident = net.minecraft.util.Identifier.tryParse(id);
             if (ident == null) return def;
-            return net.minecraft.registry.Registries.BLOCK.get(ident).getDefaultState();
+            BlockState state = net.minecraft.registry.Registries.BLOCK.get(ident).getDefaultState();
+            if (state == null || (state.isAir() && !"minecraft:air".equalsIgnoreCase(id.trim()))) {
+                return def;
+            }
+            return state;
         } catch (Exception e) {
             return def;
         }
