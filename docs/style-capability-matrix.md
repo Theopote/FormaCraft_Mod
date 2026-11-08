@@ -85,7 +85,7 @@ Counts and references below are generated from bundled profiles, culture cards a
 
 ## Capability evidence and remaining acceptance
 
-`Covered` below is limited to the named offline suites/fixtures; it is not a claim about arbitrary prompts. Historical baseline results are recorded in style-p1/p2/p3-acceptance.md.
+`Covered` below is limited to the named offline suites/fixtures; it is not a claim about arbitrary prompts. Historical baseline notes live under [archive/style-acceptance/](archive/style-acceptance/) (`style-p1/p2/p3-acceptance.md`).
 
 | Scope | Intent | Parameters | Geometry | Preview/build | Visual identity | Local edits |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -102,12 +102,12 @@ Counts and references below are generated from bundled profiles, culture cards a
 
 ## Next acceptance queue
 
-The [upper-tower follow-up](style-dark-fortress-upper-acceptance.md) adds authored
+The [upper-tower follow-up](archive/style-acceptance/style-dark-fortress-upper-acceptance.md) adds authored
 straight flights, turning landings and top platforms to the two dark-fortress
 fixtures. Live collision and fall-protection review remain pending.
 
 Dark-fortress ground access is now authored with scoped portals and supported
-thresholds; see [ground-access acceptance](style-dark-fortress-access-acceptance.md).
+thresholds; see [ground-access acceptance](archive/style-acceptance/style-dark-fortress-access-acceptance.md).
 Upper tower access and live-world walking/edit evidence remain pending.
 
 Skywell-window follow-up: explicit inward lattice windows now supplement the
@@ -115,12 +115,12 @@ front/rear halls without occupying side-wing corner posts. Dark-fortress
 fixtures now have two hollow blackstone defensive tower shells each; occupied
 tower access and stairs remain pending. Current warning inventory: 238.
 
-2026-10-25: [warning audit](style-warning-audit.md) inventories every unresolved
-warning; no waivers were introduced. [Four-wing skywell examples](style-huizhou-tianjing-acceptance.md)
+2026-10-25: [warning audit](archive/style-acceptance/style-warning-audit.md) inventories every unresolved
+warning; no waivers were introduced. [Four-wing skywell examples](archive/style-acceptance/style-huizhou-tianjing-acceptance.md)
 supplement the rectangular Huizhou dwellings. Live and historical review remain pending.
 
 Tulou now has a dedicated specialist asset bundle outside the style manifest;
-see [Tulou acceptance](style-tulou-acceptance.md). Development-client capture
+see [Tulou acceptance](archive/style-acceptance/style-tulou-acceptance.md). Development-client capture
 failed on 2026-10-23, so live evidence remains pending.
 
 Regional split validation on 2026-10-22: initial 20-test regional/P1/user-pack
@@ -140,9 +140,9 @@ gable-disable block locality and shared clipping parity. This is offline block
 evidence; live world edits, historical fidelity and screenshots remain pending.
 
 1. Northern siheyuan vs Huizhou: compare live gray-brick courtyard and white-wall/horse-head-gable dwelling. The earlier huizhou_vernacular examples remain rectangular dwellings; huizhou_tianjing_17.json and huizhou_tianjing_21.json now add four-wing skywell compounds with offline open-sky, floor/access reachability and clipping assertions. Windows, drainage, historical fidelity and live acceptance remain pending.
-2. Water/stilt: fixed-site pile contact, entrance access and untouched underfloor non-pile columns now have offline assertions. Validate arbitrary bed/bank/water levels, automatic landing passes and live water updates next; see [fixed-site acceptance](style-raised-timber-acceptance.md).
-3. Dwarven hall: original above-ground examples remain; two dedicated underground program fixtures now exercise dry-stone excavation and a descending approach. Live fluids, site selection, permissions and world edits remain pending. See [underground acceptance](style-dwarven-underground-acceptance.md).
-4. Elven treehouse: single-tree support, guarded straight timber access and a guarded landing now have dedicated fixtures and offline assertions. Live walking/collision and site fitting remain; connected canopy bridges, spiral access and a tree city require additional compositions. See [single-treehouse acceptance](style-treehouse-acceptance.md).
+2. Water/stilt: fixed-site pile contact, entrance access and untouched underfloor non-pile columns now have offline assertions. Validate arbitrary bed/bank/water levels, automatic landing passes and live water updates next; see [fixed-site acceptance](archive/style-acceptance/style-raised-timber-acceptance.md).
+3. Dwarven hall: original above-ground examples remain; two dedicated underground program fixtures now exercise dry-stone excavation and a descending approach. Live fluids, site selection, permissions and world edits remain pending. See [underground acceptance](archive/style-acceptance/style-dwarven-underground-acceptance.md).
+4. Elven treehouse: single-tree support, guarded straight timber access and a guarded landing now have dedicated fixtures and offline assertions. Live walking/collision and site fitting remain; connected canopy bridges, spiral access and a tree city require additional compositions. See [single-treehouse acceptance](archive/style-acceptance/style-treehouse-acceptance.md).
 5. Cyberpunk: luminous registry blocks and disable behavior have offline coverage; record actual night rendering and passage visibility.
 6. Deconstructivism: declared profile/algorithm does not establish continuous curved geometry.
 7. Local edits: replay roof/material/opening changes for each accepted style, then compare unaffected components and actual built blocks.

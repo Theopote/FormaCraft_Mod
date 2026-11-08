@@ -18,6 +18,7 @@ Historical snapshots. These files are **not maintained**. Prefer live docs in th
 |-----------|----------|
 | `archive/` (root) | Pre-2026-07 snapshots moved from repository root |
 | `archive/superseded/` | Superseded design docs (e.g. `ROOF_PLATE_V1`, old ranking systems) |
+| `archive/style-acceptance/` | Point-in-time style offline acceptance notes (P1–P3, per-specialist); live index is [style-capability-matrix.md](../style-capability-matrix.md) |
 
 ## Do not commit session dumps
 

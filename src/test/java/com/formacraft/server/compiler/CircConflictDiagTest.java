@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/** Temporary compile dump for remaining ComplexBuildRetest gaps. */
 class CircConflictDiagTest {
     @BeforeAll
     static void boot() {
@@ -16,38 +17,19 @@ class CircConflictDiagTest {
     }
 
     @Test
-    void dumpEvening5Bridge() throws Exception {
-        var raw = LlmPlanParser.parse(Files.readString(Path.of(
-                "python_backend/tests/fixtures/complex_build_retest/oct17_evening_5.normalized.json")));
-        var plan = PlanIntentFidelityRepair.apply(MassFootprintSeparationRepair.apply(
-                StructureAccessoryRemapRepair.apply(raw)));
-        // Run the same early repairs as compile (subset) then dump bridge geometry.
-        plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(raw);
-        plan = SlotPrimaryAnchorRepair.apply(plan);
-        plan = RequestIntentInjector.ensure(plan, (String) null);
-        plan = MassFootprintSeparationRepair.apply(plan);
-        plan = HostedPlateLevelRepair.apply(plan);
-        plan = PlanIntentFidelityRepair.apply(plan);
-        plan = HostedPlateLevelRepair.apply(plan);
-        for (var c : plan.components()) {
-            if (c == null || c.params() == null) continue;
-            String id = String.valueOf(c.params().get("component_id"));
-            if (id.contains("office") || id.contains("workshop") || id.contains("corridor")
-                    || id.contains("bridge") || id.contains("landing")) {
-                var b = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(c);
-                System.out.println(id + " type=" + c.componentType() + " slot=" + c.slotId()
-                        + " pos=" + c.relativePosition() + " dim=" + c.dimensions()
-                        + " bounds=" + b
-                        + " host=" + c.params().get("host_id")
-                        + " target=" + c.params().get("target_host_id")
-                        + " extrude=" + c.params().get("extrude_mode")
-                        + " plate_role=" + c.params().get("plate_role"));
-            }
+    void dumpRemainingGaps() throws Exception {
+        for (String name : new String[]{
+                "oct17_2", "oct17_late_1.normalized", "oct18_access_2.normalized",
+                "oct18_landmark_1.normalized", "oct19_crash_1.normalized"
+        }) {
+            var plan = LlmPlanParser.parse(Files.readString(Path.of(
+                    "python_backend/tests/fixtures/complex_build_retest/" + name + ".json")));
+            AssemblyCompileDiagnostics.clear();
+            var patches = ComponentPlanCompiler.compile(plan);
+            var gap = AssemblyCompileDiagnostics.get();
+            System.out.println(name + " => "
+                    + (gap == null ? "PASS size=" + patches.size()
+                    : gap.code() + " | " + gap.message()));
         }
-        AssemblyCompileDiagnostics.clear();
-        var patches = ComponentPlanCompiler.compile(raw);
-        var gap = AssemblyCompileDiagnostics.get();
-        System.out.println("patches=" + patches.size()
-                + " gap=" + (gap == null ? "PASS" : gap.code() + " | " + gap.message()));
     }
 }

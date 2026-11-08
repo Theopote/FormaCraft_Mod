@@ -181,8 +181,13 @@ final class SurfaceOwnershipLedger {
         GeneratedSurfaceCapture.Role role = surface.role();
         boolean sameHost = host != null && host.equals(surface.owner());
         boolean sameSource = writer.equals(surface.source());
-        if (opening && sameHost && host.equals(surface.source())
-                && role == GeneratedSurfaceCapture.Role.WINDOW) return null;
+        // Mass-intrinsic WINDOW (source == host) may be refined by same-host FACADE_WINDOWS.
+        // Authored ENTRANCE (balcony / platform door) may also punch same-host glazing even when
+        // the WINDOW was recorded under a facade source id.
+        if (opening && sameHost && role == GeneratedSurfaceCapture.Role.WINDOW
+                && (host.equals(surface.source()) || "ENTRANCE".equalsIgnoreCase(type))) {
+            return null;
+        }
 
         return switch (op) {
             case ERASE -> {
@@ -216,9 +221,11 @@ final class SurfaceOwnershipLedger {
                 if (host != null && !sameHost && role == GeneratedSurfaceCapture.Role.WALL)
                     yield "opening host_id does not own surface";
                 if ((role == GeneratedSurfaceCapture.Role.WINDOW
-                        || role == GeneratedSurfaceCapture.Role.DOOR_OPENING) && !sameSource)
+                        || role == GeneratedSurfaceCapture.Role.DOOR_OPENING) && !sameSource
+                        && !(sameHost && role == GeneratedSurfaceCapture.Role.WINDOW
+                        && (host.equals(surface.source()) || "ENTRANCE".equalsIgnoreCase(type))))
                     yield "opening cannot overwrite another's " + role;
-                // WALL / same-host flat-roof edge carve by ENTRANCE / FACADE_WINDOWS / FACADE
+                // WALL / same-host WINDOW / flat-roof edge carve by ENTRANCE / FACADE_WINDOWS / FACADE
                 yield null;
             }
         };
@@ -226,6 +233,7 @@ final class SurfaceOwnershipLedger {
 
     private static boolean carvableByOpening(Surface surface) {
         return surface.role() == GeneratedSurfaceCapture.Role.WALL
+                || surface.role() == GeneratedSurfaceCapture.Role.WINDOW
                 || surface.role() == GeneratedSurfaceCapture.Role.ROOF && surface.openingCarvable();
     }
 

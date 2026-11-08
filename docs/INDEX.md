@@ -134,6 +134,7 @@
 |------|------|
 | [archive/](archive/) | 2026-07 前从根目录迁入的历史快照 |
 | [archive/superseded/](archive/superseded/) | 被新版本取代的设计/分析稿（有设计思想可摘要至活文档） |
+| [archive/style-acceptance/](archive/style-acceptance/) | 风格离线验收时点记录；活入口见 [style-capability-matrix.md](style-capability-matrix.md) |
 
 归档文档可能含宝贵设计思想，已摘要迁入 [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md)。查阅历史决策请用 `git log --follow`。
 

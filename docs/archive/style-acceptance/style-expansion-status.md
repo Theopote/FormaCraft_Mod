@@ -1,7 +1,7 @@
 # Style expansion delivery status
 
 2026-10-25 live acceptance reconciliation: the
-[capability matrix](style-capability-matrix.md#live-workflow-gate-status) now
+[capability matrix](../../style-capability-matrix.md#live-workflow-gate-status) now
 links the player-recorded failures and distinguishes fixes awaiting retest from
 observed passes. Shared PATCH, preview/build, Undo and fence gates remain open;
 offline fixture acceptance does not close them.
@@ -63,7 +63,7 @@ specialist assets were subsequently added in the regional follow-up above.
 This document tracks phase completion separately from passing incremental CI.
 
 The six-axis product acceptance checklist and per-profile asset inventory are in
-[`style-capability-matrix.md`](style-capability-matrix.md). Offline phase completion
+[`style-capability-matrix.md`](../../style-capability-matrix.md). Offline phase completion
 does not certify live preview/build, visual identity or style-preserving local edits.
 The northern siheyuan identity now has its own profile and culture-card binding;
 Huizhou retains a separate culture card and now has two compiled dwelling fixtures

@@ -578,8 +578,8 @@ final class PlanIntentFidelityRepair {
                     ? Math.max(hints.floorCount(), ownFloors)
                     : ownFloors;
             String corpus = intentCorpus(plan).toLowerCase(Locale.ROOT);
-            // Residential "glass curtain wall" facade language is not an office plate cue.
-            // Require 办公/office/commercial (or international) — bare 幕墙/curtain alone is too broad.
+            // Residential "glass curtain wall" / Modern_International style is not an office plate cue.
+            // Require 办公/office/commercial — bare 幕墙/curtain alone is too broad.
             boolean officeLike = corpusContainsOffice(corpus);
             boolean explicitFootprint = hints.footprintWidth() > 0 && hints.footprintDepth() > 0;
             // Plate-size optimization is office/commercial only — never force 14×12 on towers/halls.
