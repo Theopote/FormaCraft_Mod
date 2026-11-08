@@ -99,11 +99,18 @@ final class StairOpeningGuardCompiler {
         if (hasFeature(rail, "railing") || hasFeature(rail, "stair_opening_guard")) {
             return true;
         }
+        // Openings are never stair-rail seeds — "guard_tower_portal_*" must not match bare "guard".
+        String type = rail.componentType() == null ? "" : rail.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("ENTRANCE".equals(type) || "DOOR".equals(type) || "PORTAL".equals(type)
+                || "FACADE_WINDOWS".equals(type) || "WINDOW".equals(type)) {
+            return false;
+        }
         Object id = rail.params().get("component_id");
         if (id == null) return false;
         String lower = String.valueOf(id).toLowerCase(Locale.ROOT);
         return lower.contains("rail") || lower.contains("parapet") || lower.contains("护栏")
-                || lower.contains("guard");
+                || lower.contains("guardrail") || lower.contains("guard_rail")
+                || lower.contains("opening_guard") || lower.contains("stair_guard");
     }
 
     private static boolean hasFeature(Component c, String token) {

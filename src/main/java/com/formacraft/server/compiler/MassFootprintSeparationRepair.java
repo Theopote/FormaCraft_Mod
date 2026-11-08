@@ -32,10 +32,7 @@ final class MassFootprintSeparationRepair {
         if (plan == null || plan.components() == null || plan.components().size() < 2) {
             return plan;
         }
-        // 「互相交叠」geometric museums intentionally overlap — separating wings destroys the form.
-        if (asksInterlockingMasses(plan)) {
-            return plan;
-        }
+        boolean interlockingIntent = asksInterlockingMasses(plan);
         List<Component> out = new ArrayList<>(plan.components());
         boolean changed = false;
         for (int i = 0; i < out.size(); i++) {
@@ -46,6 +43,9 @@ final class MassFootprintSeparationRepair {
                 Component b = out.get(j);
                 if (!isAnchorMass(b)) continue;
                 if (!overlaps(plan, a, b)) continue;
+                // 「互相交叠」applies only to abstract volume pairs — ordinary hall/pavilion/side
+                // annexes in the same plan must still separate.
+                if (interlockingIntent && looksInterlockVolume(a) && looksInterlockVolume(b)) continue;
                 // Stepped towers / pagoda tiers intentionally nest in XZ at different Y.
                 // Separating them flattens the stack onto the ground and causes E_PATCH_CONFLICT.
                 if (isAuthoredVerticalStack(plan, a, b)) continue;
@@ -297,6 +297,34 @@ final class MassFootprintSeparationRepair {
     }
 
     /**
+     * Abstract interlocking sculpture volumes — not courtyard halls, peidian, or pavilions that
+     * merely share a plan that also mentions 「交错」somewhere.
+     */
+    private static boolean looksInterlockVolume(Component c) {
+        if (c == null) return false;
+        if (looksSideHallRole(c) || looksHorizontalAnnex(idOf(c).toLowerCase(Locale.ROOT))) {
+            return false;
+        }
+        String blob = idOf(c).toLowerCase(Locale.ROOT);
+        if (c.params() != null) {
+            for (String key : List.of("building_role", "buildingRole", "mass_role", "composition_role")) {
+                Object v = c.params().get(key);
+                if (v != null) blob += " " + v;
+            }
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null) blob += " " + f;
+            }
+        }
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return lower.contains("volume") || lower.contains("prism") || lower.contains("block_")
+                || lower.contains("geometric") || lower.contains("sculpture") || lower.contains("museum")
+                || lower.contains("interlock") || blob.contains("体块") || blob.contains("体量")
+                || blob.contains("交叠") || blob.contains("穿插");
+    }
+
+    /**
      * Compare footprints in plan space. Different {@code slotId} values alone do not prove
      * non-collision — hall vs pavilion often use distinct slot labels in one shared frame.
      * When {@code layout.slots} defines anchors, local relative positions are offset into plan
@@ -459,9 +487,17 @@ final class MassFootprintSeparationRepair {
                 }
                 continue;
             }
-            // Passage hosted on one body of a keep/tower pair — preserve the shared wall.
-            if ((host.equals(aId) || host.equals(bId))
-                    && (looksFortressLink(aId) || looksFortressLink(bId) || looksFortressLink(host))) {
+            // No target_host_id: only keep a shared wall when the passage actually sits on the
+            // contact seam between these two fortress bodies — never skip on name tokens alone.
+            if (!(host.equals(aId) || host.equals(bId))) continue;
+            Component hostMass = host.equals(aId) ? a : b;
+            Component neighbor = host.equals(aId) ? b : a;
+            if (!looksFortressLink(idOf(hostMass)) || !looksFortressLink(idOf(neighbor))) continue;
+            if (looksHorizontalAnnex(idOf(neighbor).toLowerCase(Locale.ROOT))
+                    || looksHorizontalAnnex(idOf(hostMass).toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            if (passageTouchesNeighbor(plan, c, hostMass, neighbor)) {
                 return true;
             }
         }
@@ -471,8 +507,30 @@ final class MassFootprintSeparationRepair {
     private static boolean looksFortressLink(String id) {
         if (id == null || id.isBlank()) return false;
         String lower = id.toLowerCase(Locale.ROOT);
-        return lower.contains("tower") || lower.contains("keep") || lower.contains("hall")
-                || lower.contains("passage") || lower.contains("link") || lower.contains("curtain");
+        // Bare "hall" is too broad (temple halls, town halls). Require defensive / link cues.
+        return lower.contains("tower") || lower.contains("keep") || lower.contains("bastion")
+                || lower.contains("barbican") || lower.contains("gatehouse") || lower.contains("curtain")
+                || lower.contains("passage") || lower.contains("link") || lower.contains("donjon")
+                || lower.contains("fortress") || lower.contains("castle");
+    }
+
+    /** Passage footprint must touch both shells (shared-wall seam), not a distant unrelated mass. */
+    private static boolean passageTouchesNeighbor(
+            LlmPlan plan, Component passage, Component host, Component neighbor) {
+        var pb = planBounds(plan, passage);
+        var hb = planBounds(plan, host);
+        var nb = planBounds(plan, neighbor);
+        if (pb == null || hb == null || nb == null) return false;
+        if (!xzTouchOrOverlap(pb, hb) || !xzTouchOrOverlap(pb, nb)) return false;
+        // Host and neighbor must themselves share a wall / near-touch so the passage is a link.
+        return xzTouchOrOverlap(hb.expandHorizontal(1), nb);
+    }
+
+    private static boolean xzTouchOrOverlap(
+            ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
+        // Expand by 1 so adjacent shared-wall cells count as connected.
+        return a.minX() <= b.maxX() && b.minX() <= a.maxX()
+                && a.minZ() <= b.maxZ() && b.minZ() <= a.maxZ();
     }
 
     private static ComponentFootprintUtil.Bounds planBounds(LlmPlan plan, Component c) {

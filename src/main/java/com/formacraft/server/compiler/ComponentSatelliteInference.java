@@ -150,7 +150,6 @@ final class ComponentSatelliteInference {
             }
             components = filtered;
         }
-
         if (components.isEmpty()) {
             return new PreparedComponents(components, Set.of());
         }

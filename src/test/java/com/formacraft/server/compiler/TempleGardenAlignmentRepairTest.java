@@ -524,6 +524,116 @@ class TempleGardenAlignmentRepairTest {
     }
 
     @Test
+    void interlockingKeywordDoesNotSkipOrdinaryHallPavilionSeparation() {
+        Component hall = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "main_hall", "building_role", "hall_main",
+                        "anchor_mode", "min_corner"));
+        Component pavilion = new Component(
+                "MASS_MAIN", "main", new Vec3i(8, 0, 2),
+                new Dimensions(6, 6, 5), List.of("pavilion"),
+                Map.of("component_id", "garden_pavilion", "building_role", "pavilion",
+                        "anchor_mode", "min_corner"));
+        String prompt = "一座园林主厅与凉亭交叠穿插的构图";
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(hall, pavilion))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        Component moved = repaired.components().stream()
+                .filter(c -> "garden_pavilion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertNotEquals(pavilion.relativePosition(), moved.relativePosition(),
+                "交叠 keyword must not freeze ordinary pavilion/hall separation");
+    }
+
+    @Test
+    void interlockingVolumesStayOverlappedWhenIntentDeclared() {
+        Component a = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 8), List.of("geometric", "volume"),
+                Map.of("component_id", "volume_a", "building_role", "sculpture_volume",
+                        "anchor_mode", "min_corner"));
+        Component b = new Component(
+                "MASS_MAIN", "body", new Vec3i(4, 0, 4),
+                new Dimensions(10, 10, 8), List.of("geometric", "volume"),
+                Map.of("component_id", "volume_b", "building_role", "sculpture_volume",
+                        "anchor_mode", "min_corner"));
+        String prompt = "两个体块互相交叠穿插";
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(a, b))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        Component left = repaired.components().stream()
+                .filter(c -> "volume_a".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component right = repaired.components().stream()
+                .filter(c -> "volume_b".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(a.relativePosition(), left.relativePosition());
+        assertEquals(b.relativePosition(), right.relativePosition());
+    }
+
+    @Test
+    void passageWithoutTargetDoesNotSkipUnrelatedOverlappingHalls() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "main_hall", "building_role", "hall_main",
+                        "anchor_mode", "min_corner"));
+        Component wing = new Component(
+                "MASS_MAIN", "body", new Vec3i(8, 0, 2),
+                new Dimensions(8, 8, 6), List.of(),
+                Map.of("component_id", "east_wing", "building_role", "wing",
+                        "anchor_mode", "min_corner"));
+        // Passage on hall with fortress-ish name but no target and no geometric touch to wing.
+        Component door = new Component(
+                "ENTRANCE", "body", new Vec3i(5, 0, 0),
+                new Dimensions(3, 1, 4), List.of("passage"),
+                Map.of("component_id", "keep_passage", "host_id", "main_hall",
+                        "clear_passage", true, "anchor_mode", "min_corner"));
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(hall, wing, door))
+                .build());
+        Component moved = repaired.components().stream()
+                .filter(c -> "east_wing".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(Boolean.TRUE, moved.params().get("footprint_separated"),
+                "name-only passage heuristic must not freeze wing separation");
+    }
+
+    @Test
+    void fortressPassageTouchingBothShellsPreservesSharedWall() {
+        Component keep = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "dark_fortress", "building_role", "keep",
+                        "anchor_mode", "min_corner"));
+        Component tower = new Component(
+                "TOWER", "body", new Vec3i(10, 0, 1),
+                new Dimensions(8, 8, 16), List.of(),
+                Map.of("component_id", "guard_tower_0", "building_role", "tower",
+                        "anchor_mode", "min_corner"));
+        Component portal = new Component(
+                "ENTRANCE", "body", new Vec3i(10, 0, 3),
+                new Dimensions(2, 1, 4), List.of("passage"),
+                Map.of("component_id", "guard_tower_portal_0", "host_id", "guard_tower_0",
+                        "clear_passage", true, "anchor_mode", "min_corner"));
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(keep, tower, portal))
+                .build());
+        Component stayed = repaired.components().stream()
+                .filter(c -> "guard_tower_0".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(tower.relativePosition(), stayed.relativePosition(),
+                "shared-wall portal must keep tower against the keep");
+    }
+
+    @Test
     void nestedFootprintsWithOverlappingYStillSeparate() {
         // XZ nested + different minY must NOT skip separation when heights still collide.
         Component outer = new Component(
