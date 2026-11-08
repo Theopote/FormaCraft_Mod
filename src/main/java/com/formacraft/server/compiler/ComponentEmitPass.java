@@ -363,7 +363,8 @@ final class ComponentEmitPass {
                                 c.componentType(), ComponentPlanTypes.paramIdentity(c));
                     }
                     // Garden walls / gates / landscape must not punch into building interiors or block doors.
-                    if (isSitePeripheral(normalizedType)) {
+                    // Hosted stair/balcony rails are interior DECOR — do not treat them as site peripherals.
+                    if (isSitePeripheral(normalizedType) && !isHostedRailing(c)) {
                         int before = shiftedPatches.size();
                         shiftedPatches.removeIf(p ->
                                 isInsideMassInterior(components, slotMap, new BlockPos(p.dx(), p.dy(), p.dz()), c)
@@ -648,6 +649,23 @@ final class ComponentEmitPass {
                 || "COURTYARD_SPACE".equals(normalizedType)
                 || "DECOR_DETAIL".equals(normalizedType)
                 || normalizedType.startsWith("DECOR");
+    }
+
+    /** Interior / balcony rail seeds must remain inside the host mass. */
+    static boolean isHostedRailing(Component c) {
+        if (c == null || c.params() == null) return false;
+        if (Boolean.TRUE.equals(c.params().get("railing")) || "railing".equals(c.params().get("role"))) {
+            return true;
+        }
+        Object placement = c.params().get("placement");
+        if ("compiled_stair_guard".equals(placement) || "stair_opening".equals(placement)) {
+            return true;
+        }
+        String id = ComponentPlanTypes.paramIdentity(c);
+        if (id == null || id.isBlank()) return false;
+        String lower = id.toLowerCase(Locale.ROOT);
+        return lower.contains("rail") || lower.contains("parapet") || lower.contains("护栏")
+                || lower.contains("battlement") || lower.contains("guard");
     }
 
     /**

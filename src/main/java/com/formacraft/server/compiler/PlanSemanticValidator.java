@@ -82,10 +82,10 @@ final class PlanSemanticValidator {
             if (empty || !hasTowerMorphology(components) || looksLikeDefaultHouse(components)) {
                 return Optional.of(new CapabilityGap(
                         "E_SEMANTIC_FIDELITY",
-                        "佛塔/古塔类意图需要分层塔身或 STRUCTURE/typology，不能用单层住宅 MASS + 双坡屋顶替代。",
+                        "塔楼/钟楼/佛塔类意图需要分层塔身、STRUCTURE/typology 或堆叠塔体，不能用单层住宅 MASS + 双坡屋顶替代。",
                         "components",
                         List.of(
-                                "Use stacked/tapered masses, typology:dense_eaves_pagoda, or STRUCTURE.",
+                                "Use stacked/tapered masses, typology (gothic_bell_tower / dense_eaves_pagoda), or STRUCTURE.",
                                 "Do not emit a lone MASS_MAIN with residential windows and gable roof.")));
             }
         } else if (intent == IntentClass.GATE) {
@@ -471,8 +471,8 @@ final class PlanSemanticValidator {
     }
 
     /**
-     * Pagoda/stupa must bind STRUCTURE/TOWER to dense_eaves_pagoda / tibetan_stupa,
-     * or present a multi-part compositional tower (plinth + bumpa + harmika / spire).
+     * Tower / pagoda / gothic bell plans must bind a tower typology (STRUCTURE or MASS
+     * features), a TOWER component, stacked tall masses, or a compositional monument.
      * Lone residential MASS + windows/doors is not a tower.
      */
     private static boolean hasTowerMorphology(List<Component> components) {
@@ -483,6 +483,7 @@ final class PlanSemanticValidator {
         boolean towerType = false;
         boolean taperWithoutHouseKit = false;
         boolean compositionalMonument = hasCompositionalTowerMorphology(components);
+        boolean stackedTower = hasStackedTowerMasses(components);
         for (Component c : components) {
             if (c == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
@@ -491,9 +492,7 @@ final class PlanSemanticValidator {
             if ("ENTRANCE".equals(type)) hasEntrance = true;
             if (type.startsWith("TOWER")) towerType = true;
             if (type.startsWith("STRUCTURE") || type.startsWith("TOWER") || type.startsWith("MASS")) {
-                // Require an actual pagoda/stupa typology bind — feature keywords alone are not enough
-                // unless the whole plan is a compositional monument stack.
-                if (hasNativePagodaTypology(c)) {
+                if (hasNativeTowerTypology(c)) {
                     nativeTypology = true;
                 }
             }
@@ -501,11 +500,46 @@ final class PlanSemanticValidator {
                 taperWithoutHouseKit = true;
             }
         }
-        if (hasMass && hasWindows && hasEntrance && !nativeTypology && !compositionalMonument) {
+        if (hasMass && hasWindows && hasEntrance
+                && !nativeTypology && !compositionalMonument && !stackedTower && !towerType) {
             return false;
         }
-        return nativeTypology || towerType || compositionalMonument
+        return nativeTypology || towerType || compositionalMonument || stackedTower
                 || (taperWithoutHouseKit && !hasWindows);
+    }
+
+    /**
+     * Tall stacked MASS kits (gothic clocktower shaft + belfry / spire) count as tower
+     * morphology even without a STRUCTURE typology carrier.
+     */
+    private static boolean hasStackedTowerMasses(List<Component> components) {
+        if (components == null || components.isEmpty()) return false;
+        int tallMasses = 0;
+        int towerish = 0;
+        for (Component c : components) {
+            if (c == null || c.componentType() == null) continue;
+            String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!(type.startsWith("MASS") || "MAIN_MASS".equals(type)
+                    || type.startsWith("TOWER") || type.startsWith("STRUCTURE")
+                    || "ROOF".equals(type))) {
+                continue;
+            }
+            if (c.dimensions() != null) {
+                int w = Math.max(0, c.dimensions().width());
+                int d = Math.max(0, c.dimensions().depth());
+                int h = Math.max(0, c.dimensions().height());
+                int footprint = Math.max(w, d);
+                if (footprint > 0 && h >= Math.max(16, footprint * 2)) {
+                    tallMasses++;
+                }
+            }
+            String blob = monumentTokenBlob(c);
+            if (blob.matches("(?s).*(tower|belfry|spire|钟楼|塔楼|shaft|pinnacle|cantilever|"
+                    + "gothic_tower|gothic_bell|clock.?tower|bell_tower|clocktower).*")) {
+                towerish++;
+            }
+        }
+        return (tallMasses >= 1 && towerish >= 1) || towerish >= 2;
     }
 
     /**
@@ -548,37 +582,42 @@ final class PlanSemanticValidator {
         return sb.toString().toLowerCase(Locale.ROOT);
     }
 
-    private static boolean hasNativePagodaTypology(Component c) {
+    private static boolean hasNativeTowerTypology(Component c) {
         if (c.params() != null) {
             String typology = String.valueOf(c.params().getOrDefault("typology_id",
                     c.params().getOrDefault("typology",
                             c.params().getOrDefault("structural_typology", "")))).toLowerCase(Locale.ROOT);
-            if (typology.contains("dense_eaves_pagoda") || typology.contains("tibetan_stupa")
-                    || typology.contains("dense_eaves") || typology.contains("stupa")
-                    || typology.contains("pagoda") || typology.contains("chorten")) {
+            if (isTowerTypologyToken(typology)) {
                 return true;
             }
             Object id = c.params().get("component_id");
             if (id == null) id = c.params().get("componentId");
-            if (id != null) {
-                String lower = String.valueOf(id).toLowerCase(Locale.ROOT);
-                if (lower.contains("stupa") || lower.contains("pagoda") || lower.contains("chorten")) {
-                    return true;
-                }
+            if (id != null && isTowerTypologyToken(String.valueOf(id).toLowerCase(Locale.ROOT))) {
+                return true;
             }
         }
         if (c.features() != null) {
             for (String f : c.features()) {
                 if (f == null) continue;
-                String lower = f.toLowerCase(Locale.ROOT);
-                if (lower.contains("typology:dense_eaves") || lower.contains("typology:tibetan")
-                        || lower.contains("dense_eaves_pagoda") || lower.contains("tibetan_stupa")
-                        || lower.contains("stupa") || lower.contains("pagoda")) {
+                if (isTowerTypologyToken(f.toLowerCase(Locale.ROOT))) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    private static boolean isTowerTypologyToken(String blob) {
+        if (blob == null || blob.isBlank()) return false;
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return lower.contains("dense_eaves_pagoda") || lower.contains("tibetan_stupa")
+                || lower.contains("dense_eaves") || lower.contains("stupa")
+                || lower.contains("pagoda") || lower.contains("chorten")
+                || lower.contains("gothic_bell_tower") || lower.contains("bell_tower")
+                || lower.contains("clock_tower") || lower.contains("clocktower")
+                || lower.contains("watchtower") || lower.contains("keep_tower")
+                || lower.contains("typology:gothic") || lower.contains("typology:bell")
+                || lower.contains("typology:clock");
     }
 
     private static boolean hasTierParams(Component c) {

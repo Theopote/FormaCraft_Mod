@@ -53,10 +53,46 @@ final class FootprintShapeRemapRepair {
         boolean shapeHex = shapeRaw.isPresent() && isHexagonToken(shapeRaw.get());
         boolean planHex = planRaw.isPresent() && isHexagonToken(planRaw.get());
         boolean shapeRing = shapeRaw.isPresent() && isColonnadeRingToken(shapeRaw.get());
-        if (!shapeHex && !planHex && !shapeRing) {
+        boolean shapeSteps = shapeRaw.isPresent() && isStepsToken(shapeRaw.get());
+        boolean shapeDome = shapeRaw.isPresent() && isDomeToken(shapeRaw.get());
+        if (!shapeHex && !planHex && !shapeRing && !shapeSteps && !shapeDome) {
             return component;
         }
         Map<String, Object> next = new HashMap<>(params);
+        if (shapeSteps) {
+            for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
+                if (next.containsKey(key) && isStepsToken(String.valueOf(next.get(key)))) {
+                    next.put(key, "rectangle");
+                }
+            }
+            FormacraftMod.LOGGER.info(
+                    "FootprintShapeRemapRepair: normalize steps/stair → shape=rectangle (component={})",
+                    component.componentType());
+            return new Component(
+                    component.componentType(),
+                    component.slotId(),
+                    component.relativePosition(),
+                    component.dimensions(),
+                    component.features(),
+                    next);
+        }
+        if (shapeDome) {
+            for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
+                if (next.containsKey(key) && isDomeToken(String.valueOf(next.get(key)))) {
+                    next.put(key, "circle");
+                }
+            }
+            FormacraftMod.LOGGER.info(
+                    "FootprintShapeRemapRepair: normalize hemisphere/dome → shape=circle (component={})",
+                    component.componentType());
+            return new Component(
+                    component.componentType(),
+                    component.slotId(),
+                    component.relativePosition(),
+                    component.dimensions(),
+                    component.features(),
+                    next);
+        }
         if (shapeRing) {
             for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
                 if (next.containsKey(key) && isColonnadeRingToken(String.valueOf(next.get(key)))) {
@@ -122,6 +158,22 @@ final class FootprintShapeRemapRepair {
         String v = raw.trim().toLowerCase(Locale.ROOT);
         return v.equals("colonnade_ring") || v.equals("column_ring") || v.equals("peristyle_ring")
                 || v.equals("annulus") || v.equals("ring");
+    }
+
+    /** Processional stair / crepidoma — not a footprint cut; keep rectangular AABB. */
+    private static boolean isStepsToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String v = raw.trim().toLowerCase(Locale.ROOT);
+        return v.equals("steps") || v.equals("step") || v.equals("stair") || v.equals("stairs")
+                || v.equals("staircase") || v.equals("stepped") || v.equals("ramp")
+                || v.equals("crepidoma") || v.contains("processional_stair");
+    }
+
+    private static boolean isDomeToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String v = raw.trim().toLowerCase(Locale.ROOT);
+        return v.equals("hemisphere") || v.equals("hemispherical") || v.equals("dome")
+                || v.equals("半圆") || v.equals("半球");
     }
 
     private static boolean isHexagonToken(String raw) {

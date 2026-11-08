@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.formacraft.server.compiler.BuildingQualityRecoveryPhase1Test" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:16:47.244Z" hostname="DESKTOP-55APIDI" time="0.41">
+  <properties/>
+  <testcase name="gothicBellTowerMassStackPassesTowerSemanticGate()" classname="com.formacraft.server.compiler.BuildingQualityRecoveryPhase1Test" time="0.402"/>
+  <testcase name="romanTholosTempleMetaDoesNotTripChineseTempleGate()" classname="com.formacraft.server.compiler.BuildingQualityRecoveryPhase1Test" time="0.002"/>
+  <system-out><![CDATA[[23:16:19] [INFO] [FabricLoader/MixinExtras|Service]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

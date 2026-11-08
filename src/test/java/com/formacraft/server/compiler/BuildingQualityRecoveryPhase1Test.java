@@ -85,6 +85,47 @@ class BuildingQualityRecoveryPhase1Test {
     }
 
     @Test
+    void gothicBellTowerMassStackPassesTowerSemanticGate() {
+        Component shaft = new Component(
+                "MASS_MAIN", "tower", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 23),
+                List.of("typology:gothic_bell_tower", "mixed_masonry:deepslate_bricks+andesite"),
+                Map.of("component_id", "bell_tower_shaft", "shape", "rectangle"));
+        Component belfry = new Component(
+                "MASS_SECONDARY", "tower", new Vec3i(-1, 23, -1),
+                new Dimensions(10, 10, 5),
+                List.of("corbel_overhang:1", "pointed_arch_openings"),
+                Map.of("component_id", "belfry", "host_id", "bell_tower_shaft"));
+        Component spire = new Component(
+                "ROOF", "tower", new Vec3i(-2, 28, -2),
+                new Dimensions(12, 12, 7),
+                List.of("steep_pyramidal_spire", "finial:lightning_rod"),
+                Map.of("component_id", "spire", "host_id", "bell_tower_shaft", "roof_type", "pyramid"));
+        Component windows = new Component(
+                "FACADE_WINDOWS", "tower", new Vec3i(0, 4, 0),
+                new Dimensions(8, 8, 16), List.of("long_slit_windows"),
+                Map.of("host_id", "bell_tower_shaft"));
+        Component entrance = new Component(
+                "ENTRANCE", "tower", new Vec3i(3, 0, 0),
+                new Dimensions(2, 1, 4), List.of("pointed_arch_portal"),
+                Map.of("host_id", "bell_tower_shaft"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("building_class", "tower_like");
+        meta.put("request_intent", Map.of(
+                "building_class", "tower_like",
+                "confidence", 0.9,
+                "original_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼。"));
+        meta.put("request_intent_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼。");
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Gothic_Cathedral")
+                .components(List.of(shaft, belfry, spire, windows, entrance))
+                .planMeta(meta)
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty(),
+                () -> PlanSemanticValidator.check(plan).map(CapabilityGap::message).orElse(""));
+    }
+
+    @Test
     void wastelandPavilionTowerLikeMetaDoesNotTripPagodaGate() {
         Component mass = new Component(
                 "MASS_MAIN", "main_site", new Vec3i(2, 4, 2),

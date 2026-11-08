@@ -49,6 +49,9 @@ final class MassFootprintSeparationRepair {
                 // Stepped towers / pagoda tiers intentionally nest in XZ at different Y.
                 // Separating them flattens the stack onto the ground and causes E_PATCH_CONFLICT.
                 if (isAuthoredVerticalStack(plan, a, b)) continue;
+                // Keep/tower compounds declare ground-level passages that need a shared wall.
+                // Separating them by GAP leaves an uncut shell and breaks interior circulation.
+                if (linkedByPassage(plan, a, b)) continue;
                 // Prefer moving the pavilion / smaller body away from the hall / larger body.
                 if (priority(a) >= priority(b)) continue;
                 var before = planBounds(plan, a);
@@ -353,6 +356,53 @@ final class MassFootprintSeparationRepair {
         String aHost = explicitHostId(a);
         String bHost = explicitHostId(b);
         return (aHost != null && aHost.equals(bId)) || (bHost != null && bHost.equals(aId));
+    }
+
+    /** True when an ENTRANCE with passage/carve binds one mass and faces the other. */
+    private static boolean linkedByPassage(LlmPlan plan, Component a, Component b) {
+        if (plan == null || plan.components() == null || a == null || b == null) return false;
+        String aId = idOf(a);
+        String bId = idOf(b);
+        if (aId.isBlank() || bId.isBlank()) return false;
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!"ENTRANCE".equals(type)) continue;
+            boolean passage = Boolean.TRUE.equals(c.params().get("clear_passage"))
+                    || Boolean.TRUE.equals(c.params().get("compiler_internal_portal"))
+                    || (Boolean.TRUE.equals(c.params().get("carve"))
+                    && c.features() != null && c.features().stream()
+                    .anyMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("passage")));
+            if (!passage) continue;
+            String host = explicitHostId(c);
+            String target = null;
+            Object rawTarget = c.params().get("target_host_id");
+            if (rawTarget == null) rawTarget = c.params().get("targetHostId");
+            if (rawTarget != null) {
+                String t = String.valueOf(rawTarget).trim();
+                if (!t.isEmpty() && !"null".equalsIgnoreCase(t)) target = t;
+            }
+            if (host == null) continue;
+            if (target != null) {
+                if ((host.equals(aId) && target.equals(bId)) || (host.equals(bId) && target.equals(aId))) {
+                    return true;
+                }
+                continue;
+            }
+            // Passage hosted on one body of a keep/tower pair — preserve the shared wall.
+            if ((host.equals(aId) || host.equals(bId))
+                    && (looksFortressLink(aId) || looksFortressLink(bId) || looksFortressLink(host))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean looksFortressLink(String id) {
+        if (id == null || id.isBlank()) return false;
+        String lower = id.toLowerCase(Locale.ROOT);
+        return lower.contains("tower") || lower.contains("keep") || lower.contains("hall")
+                || lower.contains("passage") || lower.contains("link") || lower.contains("curtain");
     }
 
     private static ComponentFootprintUtil.Bounds planBounds(LlmPlan plan, Component c) {

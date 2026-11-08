@@ -35,13 +35,21 @@ public final class StraightStairComponentGenerator {
                     throw new IllegalArgumentException("Straight stairs require explicit from/to endpoints; split turns into flights and landings");
                 Dimensions d = Objects.requireNonNull(c.dimensions(), "Missing stair dimensions");
                 int rise = Math.max(1, d.height() <= 1 ? 1 : d.height() - 1);
-                int run = Math.max(rise, Math.max(1, d.depth() - 1));
+                // top_landing:3x3 / landing_plate leave a flat arrival band — do not eat it as run.
+                int landing = parseLandingLength(features, 1);
+                int run = rise;
+                if (run + landing > d.depth()) {
+                    landing = Math.max(1, d.depth() - run);
+                }
+                if (run + landing > d.depth()) {
+                    run = Math.max(rise, Math.max(1, d.depth() - landing));
+                }
                 int midX = Math.max(0, d.width() / 2);
                 op.put("width", Math.max(1, Math.min(5, d.width())));
                 // Low at z=0, high at z=run — run always >= rise so flightError accepts 4×4×3 volumes.
                 op.put("from", Map.of("x", midX, "y", 0, "z", 0));
                 op.put("to", Map.of("x", midX, "y", rise, "z", run));
-                op.put("landing_length", 1);
+                op.put("landing_length", Math.max(1, landing));
                 String floor = String.valueOf(op.getOrDefault("material",
                         op.getOrDefault("floor", "minecraft:stone_bricks")));
                 if (!floor.contains(":")) floor = "minecraft:" + floor;
@@ -108,6 +116,25 @@ public final class StraightStairComponentGenerator {
     private static BlockPos point(Object value) {
         var map = (Map<?, ?>) value;
         return new BlockPos(integer(map.get("x")), integer(map.get("y")), integer(map.get("z")));
+    }
+
+    /** Parse {@code top_landing:3x3} / {@code landing_plate:3x3_...} → landing length along the run. */
+    static int parseLandingLength(String features, int fallback) {
+        if (features == null || features.isBlank()) return fallback;
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("(?:top_landing|landing_plate)\\s*:\\s*(\\d+)\\s*[xX×]")
+                .matcher(features);
+        if (m.find()) {
+            try {
+                return Math.max(1, Math.min(16, Integer.parseInt(m.group(1))));
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        if (features.contains("landing_plate") || features.contains("top_landing")) {
+            return Math.max(fallback, 3);
+        }
+        return fallback;
     }
 
     /** stone_bricks → stone_brick_stairs; never leave a full cube as stairs. */

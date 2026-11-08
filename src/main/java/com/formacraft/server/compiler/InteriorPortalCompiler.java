@@ -27,7 +27,8 @@ final class InteriorPortalCompiler {
                 boolean xAxis=Set.of("EAST","WEST").contains(facing);
                 int span=xAxis?Math.min(hb.maxZ()+ha.z(),tb.maxZ()+ta.z())-Math.max(hb.minZ()+ha.z(),tb.minZ()+ta.z())
                         :Math.min(hb.maxX()+ha.x(),tb.maxX()+ta.x())-Math.max(hb.minX()+ha.x(),tb.minX()+ta.x());
-                if(gap<0 || gap>1 || span<4 || hb.minY()+ha.y()!=tb.minY()+ta.y())continue;
+                // gap=-1: shared wall cell; 0: flush faces; 1: one-cell corridor.
+                if(gap<-1 || gap>1 || span<4 || hb.minY()+ha.y()!=tb.minY()+ta.y())continue;
                 if(other!=null) {other=null;break;}other=target;
                 opposite=switch(facing){case "WEST"->"EAST";case "EAST"->"WEST";case "NORTH"->"SOUTH";default->"NORTH";};
             }

@@ -69,6 +69,33 @@ class FootprintShapeRemapRepairTest {
     }
 
     @Test
+    void remapsProcessionalStepsToRectangle() {
+        Component stair = new Component(
+                "MASS_SECONDARY", "slot_tholos", new Vec3i(0, 0, -6),
+                new Dimensions(7, 5, 2), List.of("frontal processional stair"),
+                Map.of("component_id", "processional_stair", "shape", "steps",
+                        "host_id", "tholos_cella"));
+        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(stair))
+                .build());
+        assertEquals("rectangle", String.valueOf(repaired.components().getFirst().params().get("shape")));
+        ResolvedFootprint fp = ResolvedFootprint.resolve(repaired.components().getFirst(), 7, 5);
+        assertEquals(ResolvedFootprint.FootprintShape.RECTANGLE, fp.shape());
+    }
+
+    @Test
+    void remapsHemisphereRoofShapeToCircle() {
+        Component roof = new Component(
+                "ROOF", "slot_tholos", new Vec3i(-2, 8, -2),
+                new Dimensions(13, 13, 3), List.of("hemispherical dome"),
+                Map.of("component_id", "dome", "shape", "hemisphere", "roof_type", "dome"));
+        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(roof))
+                .build());
+        assertEquals("circle", String.valueOf(repaired.components().getFirst().params().get("shape")));
+    }
+
+    @Test
     void leavesSupportedShapesAlone() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, 0),

@@ -72,25 +72,77 @@ public final class WindowInsertCompiler {
         }
         if(groups.size()!=1) return new Result(List.of(),groups.isEmpty()?"ENTRANCE_NOT_FOUND":"ENTRANCE_AMBIGUOUS",groups.size());
         var group=groups.getFirst();var seed=group.iterator().next();
-        Direction right=normals.get(seed).rotateYCounterclockwise();
-        // Old doorway carves may start at the floor block; new ones start above it.
-        int sillOffset=solid(live,seed.offset(normals.get(seed).getOpposite()))?1:0;
-        BlockPos edge=group.stream().max(Comparator.comparingInt(p->p.getX()*right.getOffsetX()+p.getZ()*right.getOffsetZ())).orElseThrow();
-        // Do not require a solid cell beyond the window rectangle: adjacent façade windows
-        // leave air/glass there and would falsely reject a complete WxH wall patch.
+        Direction outward=normals.get(seed);
+        // Prefer the player's "right of door", then fall back to the opposite jamb when that
+        // strip already holds a punched window (common on small cabins with symmetric glass).
+        int sillOffset=solid(live,seed.offset(outward.getOpposite()))?1:0;
+        for (Direction along : List.of(outward.rotateYCounterclockwise(), outward.rotateYClockwise())) {
+            Result hit = rectangleBeside(live, origin, roof, group, along, sillOffset, width, height);
+            if (!hit.patches().isEmpty()) return hit;
+        }
+        // Last resort: intact WxH on a flanking wall near the door (narrow cabins often already
+        // spent the entrance façade on symmetric glass, leaving only the side shells solid).
+        for (Direction flank : List.of(outward.rotateYCounterclockwise(), outward.rotateYClockwise())) {
+            Result side = rectangleOnFlank(live, origin, roof, group, outward, flank, sillOffset, width, height);
+            if (!side.patches().isEmpty()) return side;
+        }
+        return new Result(List.of(),"WALL_RECTANGLE_UNAVAILABLE",1);
+    }
+
+    private static Result rectangleBeside(Map<BlockPos,BlockState> live, BlockPos origin, Set<BlockPos> roof,
+                                          Set<BlockPos> group, Direction along, int sillOffset, int width, int height) {
+        BlockPos edge=group.stream()
+                .max(Comparator.comparingInt(p->p.getX()*along.getOffsetX()+p.getZ()*along.getOffsetZ()))
+                .orElseThrow();
         for(int distance:new int[]{2,1,3,4,5,6}) {
             var cells=new ArrayList<BlockPos>();
             boolean valid=true;
             for(int x=0;x<width;x++) for(int y=0;y<height;y++) {
-                BlockPos p=edge.offset(right,distance+x).up(y+sillOffset);var state=live.get(p);
-                if(state==null || !state.isOpaque() || state.getBlock() instanceof PillarBlock || roof.contains(p)
-                        || state.getBlock() instanceof StairsBlock || state.getBlock() instanceof SlabBlock) valid=false;
+                BlockPos p=edge.offset(along,distance+x).up(y+sillOffset);var state=live.get(p);
+                if(!usableWall(state, roof.contains(p))) valid=false;
                 cells.add(p);
             }
-            if(!valid)continue;
-            return new Result(cells.stream().map(p->new BlockPatch(BlockPatch.REPLACE,p.getX()-origin.getX(),p.getY()-origin.getY(),p.getZ()-origin.getZ(),"minecraft:glass")).toList(),"READY",1);
+            if(valid) return ready(cells, origin);
         }
         return new Result(List.of(),"WALL_RECTANGLE_UNAVAILABLE",1);
+    }
+
+    private static Result rectangleOnFlank(Map<BlockPos,BlockState> live, BlockPos origin, Set<BlockPos> roof,
+                                           Set<BlockPos> group, Direction outward, Direction flank,
+                                           int sillOffset, int width, int height) {
+        BlockPos jamb=group.stream()
+                .max(Comparator.comparingInt(p->p.getX()*flank.getOffsetX()+p.getZ()*flank.getOffsetZ()))
+                .orElseThrow();
+        // Step onto the flanking façade just past the corner, then walk inward along -outward.
+        BlockPos corner=jamb.offset(flank);
+        Direction inward=outward.getOpposite();
+        for (int distance : new int[]{1, 2, 3, 4, 5, 6}) {
+            var cells=new ArrayList<BlockPos>();
+            boolean valid=true;
+            for (int x=0;x<width;x++) for (int y=0;y<height;y++) {
+                BlockPos p=corner.offset(inward, distance+x).up(y+sillOffset);
+                // Refuse the outermost corner column itself.
+                if (x==0 && distance==0) valid=false;
+                var state=live.get(p);
+                if (!usableWall(state, roof.contains(p))) valid=false;
+                // Must remain an exterior shell cell (air outside the flank normal).
+                if (!air(live, p.offset(flank))) valid=false;
+                cells.add(p);
+            }
+            if (valid) return ready(cells, origin);
+        }
+        return new Result(List.of(),"WALL_RECTANGLE_UNAVAILABLE",1);
+    }
+
+    private static boolean usableWall(BlockState state, boolean roofCell) {
+        return state!=null && state.isOpaque() && !(state.getBlock() instanceof PillarBlock)
+                && !(state.getBlock() instanceof StairsBlock) && !(state.getBlock() instanceof SlabBlock)
+                && !roofCell;
+    }
+
+    private static Result ready(List<BlockPos> cells, BlockPos origin) {
+        return new Result(cells.stream().map(p->new BlockPatch(BlockPatch.REPLACE,
+                p.getX()-origin.getX(),p.getY()-origin.getY(),p.getZ()-origin.getZ(),"minecraft:glass")).toList(),"READY",1);
     }
     private static boolean ceiling(Map<BlockPos,BlockState> live,BlockPos p) {
         for(int y=2;y<=16;y++)if(solid(live,p.up(y)))return true;
