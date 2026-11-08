@@ -157,6 +157,8 @@ public final class ComponentPlanCompiler {
         plan = LandmarkMisrouteRepair.apply(plan);
         // Baroque mansion / villa must not stay locked to Bird's Nest stadium_bowl.
         plan = StadiumMisrouteRepair.apply(plan);
+        // GrecoRoman style on 巴洛克大宅 must not square the mass or force temple pilasters.
+        plan = BaroqueMansionStyleRepair.apply(plan);
         // 楼阁/废土 composition ≠ dense_eaves octagon; 四角塔 → footprint=square.
         plan = DenseEavesPagodaMisrouteRepair.apply(plan);
         // Non-suspension bridge prompts must not stay locked to twin-tower suspension typology.

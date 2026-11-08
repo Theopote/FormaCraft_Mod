@@ -146,13 +146,74 @@ final class RomanTempleProportionRepair {
     }
 
     private static boolean looksRomanCircularTemple(String corpus, LlmPlan plan) {
-        if (corpus.contains("罗马") || corpus.contains("roman") || corpus.contains("classical_grecoroman")
-                || (plan.styleProfile() != null && plan.styleProfile().toLowerCase(Locale.ROOT).contains("grecoroman"))) {
-            return corpus.contains("神殿") || corpus.contains("temple") || corpus.contains("cella")
-                    || corpus.contains("圆形") || corpus.contains("circular") || corpus.contains("peristyle")
-                    || findCella(plan) != null;
+        // Baroque mansions often inherit Classical_GrecoRoman style — never square them into a cella.
+        if (looksBaroqueOrResidentialMansion(corpus, plan)) {
+            return false;
         }
-        return findCella(plan) != null && !findColumns(plan).isEmpty();
+        boolean romanCue = corpus.contains("罗马") || corpus.contains("roman")
+                || corpus.contains("classical_grecoroman")
+                || (plan.styleProfile() != null
+                    && plan.styleProfile().toLowerCase(Locale.ROOT).contains("grecoroman"));
+        boolean templeCue = corpus.contains("神殿") || corpus.contains("temple") || corpus.contains("cella")
+                || corpus.contains("peristyle") || corpus.contains("围柱") || corpus.contains("柱廊");
+        boolean circularCue = corpus.contains("圆形") || corpus.contains("circular") || corpus.contains("半径")
+                || corpus.contains("radius") || corpus.contains("圆殿");
+        if (romanCue && (templeCue || circularCue)) {
+            return true;
+        }
+        // Columns alone are not enough — require an explicit cella/naos host.
+        Component cella = findCella(plan);
+        return cella != null && isExplicitCella(cella) && !findColumns(plan).isEmpty();
+    }
+
+    private static boolean looksBaroqueOrResidentialMansion(String corpus, LlmPlan plan) {
+        if (containsAny(corpus,
+                "巴洛克", "baroque", "大宅", "宅邸", "府邸", "公馆", "庄园", "马萨", "mansard",
+                "折线屋顶", "折线形屋顶", "老虎窗", "mansion", "villa", "townhouse")) {
+            return true;
+        }
+        if (plan.components() == null) return false;
+        for (Component c : plan.components()) {
+            if (c == null) continue;
+            String id = c.params() == null ? ""
+                    : String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
+            if (id.contains("mansion") || id.contains("villa") || id.contains("townhouse")
+                    || id.contains("baroque")) {
+                return true;
+            }
+            if (c.features() != null) {
+                for (String f : c.features()) {
+                    if (f == null) continue;
+                    String lower = f.toLowerCase(Locale.ROOT);
+                    if (lower.contains("baroque") || lower.contains("mansard") || lower.contains("mansion")) {
+                        return true;
+                    }
+                }
+            }
+            Object roof = c.params() == null ? null : c.params().get("roof_type");
+            if (roof == null && c.params() != null) {
+                roof = c.params().get("roofType");
+            }
+            if (roof != null && String.valueOf(roof).toLowerCase(Locale.ROOT).contains("mansard")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsAny(String corpus, String... cues) {
+        for (String cue : cues) {
+            if (cue != null && !cue.isBlank() && corpus.contains(cue.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isExplicitCella(Component c) {
+        if (c == null || c.params() == null) return false;
+        String id = String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
+        return id.contains("cella") || id.contains("naos") || id.contains("神殿主体");
     }
 
     private static Component findCella(LlmPlan plan) {
@@ -162,10 +223,11 @@ final class RomanTempleProportionRepair {
             String id = String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
             String type = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
             if (!(type.startsWith("MASS") || "STRUCTURE".equals(type))) continue;
-            if (id.contains("cella") || id.contains("naos") || id.contains("神殿主体")) {
+            if (isExplicitCella(c)) {
                 return c;
             }
-            if (best == null && (id.contains("temple") || id.contains("main")) && !isColumn(c)) {
+            // Never treat mansion_main / generic "main" as a Roman cella.
+            if (best == null && id.contains("temple") && !id.contains("mansion") && !isColumn(c)) {
                 best = c;
             }
         }

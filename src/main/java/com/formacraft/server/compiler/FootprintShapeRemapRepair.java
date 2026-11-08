@@ -51,10 +51,39 @@ final class FootprintShapeRemapRepair {
         Optional<String> planRaw = PlanPatternCatalog.extractExplicit(params);
         boolean shapeHex = shapeRaw.isPresent() && isHexagonToken(shapeRaw.get());
         boolean planHex = planRaw.isPresent() && isHexagonToken(planRaw.get());
-        if (!shapeHex && !planHex) {
+        boolean shapeRing = shapeRaw.isPresent() && isColonnadeRingToken(shapeRaw.get());
+        if (!shapeHex && !planHex && !shapeRing) {
             return component;
         }
         Map<String, Object> next = new HashMap<>(params);
+        if (shapeRing) {
+            for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
+                if (next.containsKey(key) && isColonnadeRingToken(String.valueOf(next.get(key)))) {
+                    next.put(key, "circle");
+                }
+            }
+            // Hollow the annulus so peristyle rings are not solid cylinders.
+            boolean hasPlan = false;
+            for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
+                if (next.containsKey(key)) {
+                    next.put(key, "ring");
+                    hasPlan = true;
+                }
+            }
+            if (!hasPlan) {
+                next.put("plan_type", "ring");
+            }
+            FormacraftMod.LOGGER.info(
+                    "FootprintShapeRemapRepair: normalize colonnade_ring → shape=circle plan_type=ring (component={})",
+                    component.componentType());
+            return new Component(
+                    component.componentType(),
+                    component.slotId(),
+                    component.relativePosition(),
+                    component.dimensions(),
+                    component.features(),
+                    next);
+        }
         boolean wroteShape = false;
         for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
             if (next.containsKey(key)) {
@@ -85,6 +114,13 @@ final class FootprintShapeRemapRepair {
                 component.dimensions(),
                 component.features(),
                 next);
+    }
+
+    private static boolean isColonnadeRingToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String v = raw.trim().toLowerCase(Locale.ROOT);
+        return v.equals("colonnade_ring") || v.equals("column_ring") || v.equals("peristyle_ring")
+                || v.equals("annulus") || v.equals("ring");
     }
 
     private static boolean isHexagonToken(String raw) {

@@ -18,7 +18,9 @@ public final class FootprintShapeCatalog {
     );
 
     public static final Set<String> CIRCLE_TOKENS = Set.of(
-            "circle", "circular", "round", "cylinder"
+            "circle", "circular", "round", "cylinder",
+            // LLM peristyle / colonnade annulus — solid circle AABB; plan_type=ring hollows it.
+            "colonnade_ring", "column_ring", "peristyle_ring", "annulus", "ring"
     );
 
     public static final Set<String> ROUNDED_RECT_TOKENS = Set.of(

@@ -196,9 +196,53 @@ def _structure_tower_typology(plan: Dict[str, Any]) -> bool:
     return False
 
 
+def _stacked_tower_masses(plan: Dict[str, Any]) -> bool:
+    """Accept tall stacked MASS kits (gothic clocktower shaft + belfry) as tower morphology."""
+    comps = plan.get("components") or []
+    if not isinstance(comps, list):
+        return False
+    tall_masses = 0
+    towerish = 0
+    for c in comps:
+        if not isinstance(c, dict):
+            continue
+        ctype = str(c.get("component_type") or "").upper()
+        if not (ctype.startswith("MASS") or ctype.startswith("TOWER") or ctype.startswith("STRUCTURE")):
+            continue
+        dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
+        try:
+            w = int(dims.get("width") or 0)
+            d = int(dims.get("depth") or 0)
+            h = int(dims.get("height") or 0)
+        except (TypeError, ValueError):
+            w = d = h = 0
+        footprint = max(w, d)
+        if footprint > 0 and h >= max(16, footprint * 2):
+            tall_masses += 1
+        feat_blob = " ".join(str(f) for f in (c.get("features") or []) if f).lower()
+        id_blob = str((c.get("params") or {}).get("component_id") or "").lower()
+        blob = f"{feat_blob} {id_blob}"
+        if any(
+            tok in blob
+            for tok in (
+                "tower", "belfry", "spire", "钟楼", "塔楼", "shaft", "pinnacle",
+                "cantilever", "gothic_tower", "clock",
+            )
+        ):
+            towerish += 1
+    # Shaft + upper stage, or one very tall towerish mass.
+    if tall_masses >= 1 and towerish >= 1:
+        return True
+    if towerish >= 2:
+        return True
+    return False
+
+
 def _has_tower_morphology(plan: Dict[str, Any]) -> bool:
     """Tower/pagoda intent needs STRUCTURE/tower typology — residential MASS kits are not towers."""
     types = set(_component_types(plan))
+    if _stacked_tower_masses(plan):
+        return True
     # Residential kit with windows/doors is never a pagoda, even if LLM tags features "pagoda".
     if {"FACADE_WINDOWS", "ENTRANCE"} <= types and any(t.startswith("MASS") for t in types):
         if not _structure_tower_typology(plan):

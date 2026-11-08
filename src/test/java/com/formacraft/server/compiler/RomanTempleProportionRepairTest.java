@@ -53,4 +53,31 @@ class RomanTempleProportionRepairTest {
         assertEquals(false, cella.params().get("open"));
         assertTrue(cella.dimensions().width() >= 12);
     }
+
+    @Test
+    void doesNotSquareBaroqueMansionUnderGrecoRomanStyle() {
+        Map<String, Object> mansionParams = new HashMap<>();
+        mansionParams.put("component_id", "mansion_main");
+        mansionParams.put("roof_type", "mansard");
+        mansionParams.put("wall_block", "minecraft:cut_sandstone");
+
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Classical_GrecoRoman")
+                .components(List.of(new Component(
+                        "MASS_MAIN", "slot_mansion",
+                        new Vec3i(-7, 0, -12),
+                        new Dimensions(15, 25, 9),
+                        List.of("baroque_mansion", "two_storey_shell"),
+                        mansionParams)))
+                .planMeta(Map.of(
+                        "request_intent_text",
+                        "生成一座 15x25 格的双层巴洛克式大宅。顶部为高耸的马萨折线形屋顶与带椭圆山花的老虎窗。"))
+                .build();
+
+        LlmPlan out = RomanTempleProportionRepair.apply(plan);
+        Component mass = out.components().get(0);
+        assertEquals(15, mass.dimensions().width());
+        assertEquals(25, mass.dimensions().depth());
+        assertEquals(9, mass.dimensions().height());
+    }
 }

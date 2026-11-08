@@ -1,2 +1,3 @@
-ù[20:30:36] [INFO] [FabricLoader/MixinExtras|Service]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
-∞[20:30:38] [Test worker/INFO]: StadiumMisrouteRepair: demoted stadium_bowl ‚Üí residential/baroque mansion (style=Legacy_Classical_Facade, mansard=true, clear ribbon_glazing)
+ù[21:01:06] [INFO] [FabricLoader/MixinExtras|Service]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
+p[21:01:10] [Test worker/INFO]: RomanTempleProportionRepair: cella 12x12x5 ‚Üí 14x14x12 (radius‚âà9, columns=1)
+∞[21:01:10] [Test worker/INFO]: StadiumMisrouteRepair: demoted stadium_bowl ‚Üí residential/baroque mansion (style=Legacy_Classical_Facade, mansard=true, clear ribbon_glazing)
