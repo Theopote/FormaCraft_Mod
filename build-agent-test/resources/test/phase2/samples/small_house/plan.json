@@ -1,0 +1,76 @@
+{
+  "mode": "build",
+  "style_profile": "RUSTIC",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "phase2_sample": "small_house"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 9, "depth": 7, "height": 6 },
+      "features": [],
+      "params": {
+        "component_id": "body",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "hollow": true,
+        "material": "oak_planks",
+        "roof_type": "none",
+        "facade_requirement": "REQUIRED",
+        "entrance_requirement": "REQUIRED",
+        "roof_requirement": "REQUIRED",
+        "crown_requirement": "OMITTED"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 5, "z": 0 },
+      "dimensions": { "width": 9, "depth": 7, "height": 3 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "roof_type": "gable",
+        "material": "spruce_stairs",
+        "overhang": 1,
+        "allow_patch_overwrite": true
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 9, "depth": 7, "height": 6 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "faces": ["SOUTH", "EAST"],
+        "window_ratio": 0.28,
+        "window_aspect": "square",
+        "window_width": 1,
+        "window_height": 2,
+        "sill_offset": 1,
+        "allow_patch_overwrite": true,
+        "reserve_entrance_bay": true
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 9, "depth": 7, "height": 6 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "face": "SOUTH",
+        "door_width": 1,
+        "door_height": 2,
+        "allow_patch_overwrite": true
+      }
+    }
+  ]
+}

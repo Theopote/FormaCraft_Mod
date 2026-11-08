@@ -1,0 +1,279 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL_CASTLE",
+  "style_attributes": {
+    "wall_color": "stone_gray",
+    "roof_color": "deepslate_blue",
+    "accent_color": "amethyst_purple",
+    "wall_material": "stone_brick",
+    "roof_material": "deepslate_tiles",
+    "floor_material": "cobblestone",
+    "decorative_elements": [
+      "battlements",
+      "arrow_slits",
+      "corner_turrets",
+      "gatehouse_arch",
+      "hanging_banners",
+      "braziers"
+    ]
+  },
+  "distinguishing_features": [
+    "rectangular curtain walls",
+    "four corner towers",
+    "south gatehouse",
+    "inner bailey courtyard",
+    "arrow slits and battlements"
+  ],
+  "anchor": {
+    "x": 717,
+    "y": 72,
+    "z": -803
+  },
+  "proportion_hints": {
+    "typology": "radial_fortress",
+    "wall_height_to_thickness": 6.0,
+    "tower_height_to_wall": 3.5,
+    "enclosure_coverage": 0.92,
+    "window_wall_ratio": 0.1,
+    "wallHeight": 9,
+    "wallThickness": 1.5,
+    "towerHeight": 24,
+    "towerBase": 8,
+    "moatWidth": 4,
+    "moatDepth": 3,
+    "window_aspect": "arrow_slit",
+    "max_void_ratio": 0.22,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": []
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座魔幻城堡",
+          "purposes": [
+            {
+              "id": "fortification",
+              "phrase": "城堡",
+              "start": 6,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座魔幻城堡",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "castle",
+      "confidence": 0.35
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "centered",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "solid",
+      "massiveness": 0.85,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "tower",
+      "courtyard"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "fortress",
+        "curtain wall",
+        "corner towers",
+        "gatehouse",
+        "magical",
+        "arcane"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 30,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "enclosure_readability",
+        "corner_tower_silhouette",
+        "narrow_defensive_openings"
+      ],
+      "avoid": [
+        "wide_punch_windows",
+        "thin_walls",
+        "flat_rectangular_box_silhouette"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "castle_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "component_preset": "STRUCTURE",
+        "required": true
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "castle_main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 52,
+        "depth": 44,
+        "height": 28
+      },
+      "features": [
+        "typology:radial_fortress"
+      ],
+      "params": {
+        "component_id": "magic_castle_main",
+        "typology": "radial_fortress",
+        "reference_landmark": "castle_compound",
+        "designSeed": 4821,
+        "facing": "WEST",
+        "symmetry": "MIRROR_X",
+        "enclosureShape": "rectangle",
+        "wallHeight": 9,
+        "wallThickness": 1.5,
+        "towerCount": 4,
+        "towerHeight": 24,
+        "towerBase": 8,
+        "towerRoofType": "cone",
+        "gatehouse": true,
+        "gatehouseSide": "WEST",
+        "innerCourtyard": true,
+        "courtyardRatio": 0.4,
+        "moat": true,
+        "moatWidth": 4,
+        "drawbridge": true,
+        "battlements": true,
+        "window_style": "arrow_slit",
+        "window_aspect": "arrow_slit",
+        "void_ratio": 0.18,
+        "accentStyle": "arcane",
+        "material": "stone_brick",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:cobblestone",
+        "roof_block": "minecraft:deepslate_tiles",
+        "detail_level": "medium"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「魔幻城堡」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "roof_color_change",
+  "editKind": "patch_roof_material",
+  "matchKeywords": [
+    "换屋顶", "改成红色", "屋顶换成", "屋顶改", "红色屋顶", "把屋顶",
+    "change roof", "red roof", "recolor roof", "roof color"
+  ],
+  "rules": {
+    "mode": "patch",
+    "max_components": 3,
+    "allowed_component_types": ["ROOF", "ROOF_STRUCTURE", "EAVE"],
+    "require_target_hint": true
+  },
+  "aiInstruction": "Output mode=patch ONLY. Modify ROOF (or roof-related component) — do NOT rebuild MASS_MAIN/ENTRANCE/FACADE. Set style_attributes.roof_color and/or ROOF params.roof_color. Keep relative_position aligned with existing roof. Prefer 1 component; max 3."
+}

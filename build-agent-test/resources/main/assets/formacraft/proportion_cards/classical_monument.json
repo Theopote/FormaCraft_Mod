@@ -1,0 +1,41 @@
+{
+  "id": "classical_monument",
+  "typology": "classical_monument",
+  "matchKeywords": [
+    "palace", "museum", "cathedral", "monument", "classical", "neoclassical",
+    "renaissance", "baroque", "colonnade", "portico", "louvre", "pantheon",
+    "parthenon", "白宫", "卢浮宫", "宫殿", "博物馆", "大教堂", "纪念", "柱廊"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 0.45,
+      "ideal": 0.62,
+      "max": 0.95,
+      "desc": "主体高度/宽度（古典纪念性建筑不宜过扁）"
+    },
+    "depth_to_width": {
+      "min": 0.85,
+      "ideal": 1.25,
+      "max": 2.0,
+      "desc": "深度/宽度（宫殿/U型往往更深）"
+    },
+    "roof_to_body_height": {
+      "min": 0.18,
+      "ideal": 0.28,
+      "max": 0.42,
+      "desc": "屋顶高度/主体高度"
+    },
+    "window_wall_ratio": {
+      "min": 0.1,
+      "ideal": 0.18,
+      "max": 0.3,
+      "desc": "窗洞占立面比例（古典立面实墙为主）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["vertical_bay", "square"],
+    "min_enclosure_coverage": 0.78,
+    "max_void_ratio": 0.15
+  },
+  "aiInstruction": "Classical/monumental: MASS_MAIN with params.facade_profile=vertical_pilasters, wall_pattern=gradient, FOUNDATION plinth, ROOF with overhang, vertical bay FACADE_WINDOWS, DECOR_DETAIL cornice + column bands. Output proportion_hints."
+}

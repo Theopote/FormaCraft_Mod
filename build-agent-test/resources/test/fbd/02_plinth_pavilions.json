@@ -1,0 +1,165 @@
+{
+  "dialect": "fbd/0",
+  "seed": 42,
+  "functions": [
+    {
+      "name": "pavilion",
+      "params": [
+        {
+          "name": "w",
+          "type": "int"
+        },
+        {
+          "name": "h",
+          "type": "int"
+        }
+      ],
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "v1",
+          "op": "SHELL_BOX",
+          "params": {
+            "w": "$w",
+            "d": "$w",
+            "h": "$h",
+            "floorStep": 6,
+            "wall": "wall"
+          }
+        },
+        {
+          "stmt": "emit",
+          "id": "v2",
+          "op": "ROOF_COVER",
+          "params": {
+            "type": "HIP",
+            "w": "$w",
+            "d": "$w",
+            "y": "$h",
+            "rise": 3,
+            "overhang": 2,
+            "roof": "roof"
+          }
+        }
+      ]
+    }
+  ],
+  "main": [
+    {
+      "stmt": "let",
+      "id": "g0",
+      "name": "n",
+      "value": 4
+    },
+    {
+      "stmt": "let",
+      "id": "g1",
+      "name": "pitch",
+      "value": 12
+    },
+    {
+      "stmt": "let",
+      "id": "g2",
+      "name": "pavW",
+      "value": 6
+    },
+    {
+      "stmt": "let",
+      "id": "g3",
+      "name": "pavH",
+      "value": 6
+    },
+    {
+      "stmt": "with_frame",
+      "id": "g4",
+      "origin": [
+        {
+          "expr": "/",
+          "args": [
+            {
+              "expr": "*",
+              "args": [
+                {
+                  "expr": "-",
+                  "args": [
+                    "$n",
+                    1
+                  ]
+                },
+                "$pitch"
+              ]
+            },
+            2
+          ]
+        },
+        0,
+        0
+      ],
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "g5",
+          "op": "ROOF_COVER",
+          "params": {
+            "type": "FLAT",
+            "w": {
+              "expr": "+",
+              "args": [
+                {
+                  "expr": "*",
+                  "args": [
+                    {
+                      "expr": "-",
+                      "args": [
+                        "$n",
+                        1
+                      ]
+                    },
+                    "$pitch"
+                  ]
+                },
+                "$pavW"
+              ]
+            },
+            "d": 10,
+            "y": 0,
+            "slab": "slab"
+          }
+        }
+      ]
+    },
+    {
+      "stmt": "repeat",
+      "id": "g6",
+      "times": "$n",
+      "body": [
+        {
+          "stmt": "with_frame",
+          "id": "g7",
+          "origin": [
+            {
+              "expr": "*",
+              "args": [
+                "$i",
+                "$pitch"
+              ]
+            },
+            0,
+            0
+          ],
+          "body": [
+            {
+              "stmt": "call",
+              "id": "g8",
+              "fn": "pavilion",
+              "args": {
+                "w": "$pavW",
+                "h": "$pavH"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "paletteId": "PALETTE_INDUSTRIAL_STEEL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "AnchorageA",
+        "type": "ANCHORAGE",
+        "at": { "x": -20, "y": 0, "z": 0 },
+        "w": 12, "d": 14, "h": 8,
+        "maxDepth": 20,
+        "solid": "smooth_stone",
+        "topBevel": 3,
+        "guardWallHeight": 2,
+        "guardWallCrenels": true,
+        "guardWallMaterial": "stone_brick_wall",
+        "holes": [
+          { "face": "EAST", "y": 5, "z": 0, "r": 1, "len": 6 }
+        ]
+      },
+      {
+        "id": "TowerA",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": -3 },
+        "w": 4, "d": 6, "h": 30,
+        "wall": "iron_block",
+        "floor": "smooth_stone",
+        "roof": "iron_block"
+      },
+      {
+        "id": "TowerA_Foundation",
+        "type": "ANCHOR_FOOTPRINT",
+        "at": { "x": 0, "y": 0, "z": -3 },
+        "x0": -2, "x1": 2,
+        "z0": -3, "z1": 3,
+        "yBase": 0,
+        "maxDepth": 24,
+        "material": "stone_bricks"
+      },
+      {
+        "id": "AnchorageB",
+        "type": "ANCHORAGE",
+        "at": { "x": 64, "y": 0, "z": 0 },
+        "w": 12, "d": 14, "h": 8,
+        "maxDepth": 20,
+        "solid": "smooth_stone",
+        "topBevel": 3,
+        "guardWallHeight": 2,
+        "guardWallCrenels": true,
+        "guardWallMaterial": "stone_brick_wall",
+        "holes": [
+          { "face": "WEST", "y": 5, "z": 0, "r": 1, "len": 6 }
+        ]
+      },
+      {
+        "id": "TowerB",
+        "type": "SHELL_BOX",
+        "at": { "x": 44, "y": 0, "z": -3 },
+        "w": 4, "d": 6, "h": 30,
+        "wall": "iron_block",
+        "floor": "smooth_stone",
+        "roof": "iron_block"
+      },
+      {
+        "id": "TowerB_Foundation",
+        "type": "ANCHOR_FOOTPRINT",
+        "at": { "x": 44, "y": 0, "z": -3 },
+        "x0": -2, "x1": 2,
+        "z0": -3, "z1": 3,
+        "yBase": 0,
+        "maxDepth": 24,
+        "material": "stone_bricks"
+      },
+      {
+        "id": "Deck",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 10, "z": -1 },
+        "w": 48, "d": 2, "h": 2,
+        "wall": "smooth_stone",
+        "floor": "smooth_stone",
+        "roof": "smooth_stone_slab"
+      },
+      {
+        "id": "MainCables",
+        "type": "TENSION_CABLE",
+        "from": { "x": 2, "y": 28, "z": 0 },
+        "to": { "x": 46, "y": 28, "z": 0 },
+        "sag": 12,
+        "material": "STRUCTURAL_CABLE",
+        "hangersEvery": 6,
+        "hangersToY": 12,
+        "cableCount": 2,
+        "cableSpacing": 6,
+        "cableAxis": "Z"
+      },
+      {
+        "id": "BackstayA",
+        "type": "TENSION_CABLE",
+        "from": { "x": 2, "y": 28, "z": 0 },
+        "to": { "x": -14, "y": 7, "z": 0 },
+        "sag": 1,
+        "material": "STRUCTURAL_CABLE",
+        "cableCount": 2,
+        "cableSpacing": 6,
+        "cableAxis": "Z"
+      },
+      {
+        "id": "BackstayB",
+        "type": "TENSION_CABLE",
+        "from": { "x": 46, "y": 28, "z": 0 },
+        "to": { "x": 70, "y": 7, "z": 0 },
+        "sag": 1,
+        "material": "STRUCTURAL_CABLE",
+        "cableCount": 2,
+        "cableSpacing": 6,
+        "cableAxis": "Z"
+      }
+    ],
+    "connections": []
+  }
+}
+
+

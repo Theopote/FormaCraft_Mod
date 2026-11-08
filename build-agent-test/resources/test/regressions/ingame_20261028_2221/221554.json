@@ -1,0 +1,600 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Vernacular_Jiangnan_WaterTown",
+  "style_attributes": {
+    "wall_color": "oak",
+    "roof_color": "dark_oak",
+    "accent_color": "oak_log",
+    "wall_material": "minecraft:oak_planks",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:oak_planks",
+    "decorative_elements": [
+      "exposed oak stilts",
+      "simple eave band",
+      "wooden shore stair",
+      "column"
+    ]
+  },
+  "distinguishing_features": [
+    "7x7 stilted oak cabin",
+    "living level raised above water",
+    "oak log support posts",
+    "wooden stair entrance from shore",
+    "water retained beneath the house",
+    "column"
+  ],
+  "anchor": {
+    "x": 487,
+    "y": 66,
+    "z": -912
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "stilt_house",
+      "confidence": 0.8
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.25,
+      "voidRatio": 0.3,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": false
+    },
+    "modules": [
+      "roof",
+      "windows"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "wood",
+      "accent": "wood",
+      "textureBias": "rough",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "stilt house",
+        "waterside",
+        "oak",
+        "shore stairs"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "preserve water beneath",
+        "oak posts",
+        "wooden shore stairs",
+        "7x7 footprint"
+      ],
+      "avoid": [
+        "stone platform",
+        "land reclamation",
+        "shoreline alteration"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "stilt_house_slot",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "stilt_oak_cabin_7x7",
+        "component_preset": "7x7 oak stilt cabin over water with raised living floor and shore stair entrance"
+      }
+    ]
+  },
+  "proportion_hints": {
+    "height_to_width": 0.57,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.75,
+    "typology": "stilt_house",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "house_body"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "house_body",
+          "slot_id": "stilt_house_slot",
+          "local_origin": {
+            "x": 0,
+            "y": 4,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": 0,
+            "y": 4,
+            "z": 0
+          },
+          "dimensions": {
+            "width": 7,
+            "depth": 7,
+            "height": 4
+          },
+          "floor_ys_local": [
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "house_body",
+                "local_origin": {
+                  "x": 0,
+                  "y": 4,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 7,
+                  "depth": 7,
+                  "height": 4
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 7,
+              "max_z": 7,
+              "min_y": 4,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": 0,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": 0,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "在岸边建一座7×7格的高脚木屋 ，用橡木柱支撑， 居住层高于水面， 入口用一段木楼梯连接岸上。 保留屋下的水，不填平成石台， 不改变周围岸线。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "在岸边建一座7×7格的高脚木屋\n，用橡木柱支撑，\n居住层高于水面，\n入口用一段木楼梯连接岸上。\n保留屋下的水，不填平成石台，\n不改变周围岸线。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "alignment_and_symmetry": {
+    "primary_axis": "N-S",
+    "symmetry": "NONE"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 4
+      },
+      "features": [
+        "hollow residential shell",
+        "oak plank walls",
+        "raised living floor",
+        "gable roof base",
+        "column"
+      ],
+      "params": {
+        "component_id": "house_body",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 1,
+        "floor_height": 4,
+        "wall_block": "minecraft:oak_planks",
+        "floor_block": "minecraft:oak_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "roof_type": "gable",
+        "window_ratio": 0.18,
+        "window_aspect": "punch_window",
+        "entrance_type": "door",
+        "entrance_facing": "NORTH",
+        "void_ratio": 0.3,
+        "material": "wood",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "wall_pattern": "smooth",
+        "facade_profile": "none",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "house_body"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "wooden floor plate",
+        "column"
+      ],
+      "params": {
+        "component_id": "floor_plate",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "material": "wood",
+        "floor_block": "minecraft:oak_planks",
+        "host_id": "house_body",
+        "wall_block": "minecraft:white_terracotta",
+        "roof_block": "minecraft:deepslate_tiles",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "roof_type": "none",
+        "window_style": "pane",
+        "window_ratio": 0.15,
+        "wall_pattern": "smooth",
+        "facade_profile": "none",
+        "floor_height": 4,
+        "shape": "rectangle",
+        "void_ratio": 0.3,
+        "plan_type": "cut_corners",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "house_body"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 4
+      },
+      "features": [
+        "oak log stilts",
+        "open water beneath",
+        "no base platform"
+      ],
+      "params": {
+        "component_id": "stilt_foundation",
+        "anchor_mode": "min_corner",
+        "foundation_type": "stilts",
+        "no_platform": true,
+        "post_spacing": 2,
+        "material": "wood",
+        "post_block": "minecraft:oak_log",
+        "support": false,
+        "host_id": "house_body",
+        "building_id": "house_body"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": -1,
+        "y": 8,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 3
+      },
+      "features": [
+        "dark oak gable roof",
+        "one block overhang",
+        "column"
+      ],
+      "params": {
+        "component_id": "house_roof",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "material": "wood",
+        "roof_block": "minecraft:dark_oak_planks",
+        "overhang": 1,
+        "host_id": "house_body",
+        "roof_height": 3,
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "house_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 4
+      },
+      "features": [
+        "punch windows on three sides",
+        "simple oak facade"
+      ],
+      "params": {
+        "component_id": "house_windows",
+        "anchor_mode": "min_corner",
+        "window_aspect": "square",
+        "window_ratio": 0.18,
+        "window_spacing": 2,
+        "wall_block": "minecraft:oak_planks",
+        "glass_block": "minecraft:glass_pane",
+        "sides": [
+          "NORTH",
+          "EAST",
+          "WEST"
+        ],
+        "host_id": "house_body",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "house_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": 3,
+        "y": 4,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "oak door",
+        "south shore-side entrance"
+      ],
+      "params": {
+        "component_id": "house_door",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "door_block": "minecraft:oak_door",
+        "width": 1,
+        "height": 3,
+        "facing": "NORTH",
+        "host_id": "house_body",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "house_body"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 7,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run",
+        "exterior wooden shore stair",
+        "no supports underneath",
+        "column"
+      ],
+      "params": {
+        "component_id": "shore_stair",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 6
+        },
+        "to": {
+          "x": 0,
+          "y": 4,
+          "z": 0
+        },
+        "width": 2,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "exterior": true,
+        "support": false,
+        "host_id": "house_body",
+        "distinctive_features": [
+          "column"
+        ],
+        "building_id": "house_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "stilt_house_slot",
+      "relative_position": {
+        "x": -1,
+        "y": 7,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "oak eave band"
+      ],
+      "params": {
+        "component_id": "eave_band",
+        "anchor_mode": "min_corner",
+        "decoration_type": "eave_band",
+        "material": "minecraft:oak_log",
+        "host_id": "house_body",
+        "building_id": "house_body"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「在岸边建一座7×7格的高脚木屋\n，用橡木柱支撑，\n居住层高于水面，\n入口用一段木楼梯连接岸上。\n保留屋下的水，不填平成石」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

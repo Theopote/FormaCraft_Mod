@@ -1,0 +1,209 @@
+[
+  {
+    "name": "l_annex",
+    "component": {
+      "component_type": "MASS_MAIN",
+      "slot_id": "house",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "house",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "masses": [
+          {
+            "offset": {
+              "x": 6,
+              "y": 0,
+              "z": 2
+            },
+            "dimensions": {
+              "width": 4,
+              "depth": 4,
+              "height": 5
+            }
+          }
+        ]
+      }
+    },
+    "expected": {
+      "part_ids": [
+        "house",
+        "house#mass_1"
+      ],
+      "part_origins": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 2
+        }
+      ],
+      "roof_ys": [
+        7,
+        4
+      ],
+      "envelope": {
+        "min_x": 0,
+        "min_y": 0,
+        "min_z": 0,
+        "max_x": 10,
+        "max_y": 8,
+        "max_z": 6
+      },
+      "perimeter": 32
+    }
+  },
+  {
+    "name": "overlap",
+    "component": {
+      "component_type": "MASS_MAIN",
+      "slot_id": "house",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "house",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "roof_type": "flat",
+        "masses": [
+          {
+            "offset": {
+              "x": 4,
+              "y": 0,
+              "z": 2
+            },
+            "dimensions": {
+              "width": 4,
+              "depth": 4,
+              "height": 10
+            }
+          }
+        ]
+      }
+    },
+    "expected": {
+      "part_ids": [
+        "house",
+        "house#mass_1"
+      ],
+      "part_origins": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 2
+        }
+      ],
+      "roof_ys": [
+        7,
+        9
+      ],
+      "envelope": {
+        "min_x": 0,
+        "min_y": 0,
+        "min_z": 0,
+        "max_x": 8,
+        "max_y": 10,
+        "max_z": 6
+      },
+      "perimeter": 28
+    }
+  },
+  {
+    "name": "circle",
+    "component": {
+      "component_type": "MASS_MAIN",
+      "slot_id": "house",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "house",
+        "anchor_mode": "min_corner",
+        "shape": "circle",
+        "roof_type": "flat",
+        "masses": [
+          {
+            "offset": {
+              "x": 6,
+              "y": 0,
+              "z": 2
+            },
+            "dimensions": {
+              "width": 4,
+              "depth": 4,
+              "height": 5
+            }
+          }
+        ]
+      }
+    },
+    "expected": {
+      "part_ids": [
+        "house",
+        "house#mass_1"
+      ],
+      "part_origins": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 2
+        }
+      ],
+      "roof_ys": [
+        7,
+        4
+      ],
+      "envelope": {
+        "min_x": 0,
+        "min_y": 0,
+        "min_z": 0,
+        "max_x": 10,
+        "max_y": 8,
+        "max_z": 6
+      },
+      "perimeter": null
+    }
+  }
+]

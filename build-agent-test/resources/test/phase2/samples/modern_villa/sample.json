@@ -1,0 +1,18 @@
+{
+  "id": "modern_villa",
+  "labelZh": "现代别墅",
+  "labelEn": "Modern Villa",
+  "prompt": "一座现代极简别墅，白色体块组合，大面积玻璃幕墙。",
+  "focus": ["glass_facade", "massing"],
+  "planFile": "plan.json",
+  "checks": {
+    "minSolidBlocks": 80,
+    "requireRoofLike": false,
+    "requireOpeningLike": true,
+    "requireStairLike": false,
+    "requireGlassLike": true,
+    "minDistinctBlockIds": 2,
+    "minHeightSpan": 5
+  },
+  "goldenPreviewDigest": "0bd8aceb0267487a"
+}

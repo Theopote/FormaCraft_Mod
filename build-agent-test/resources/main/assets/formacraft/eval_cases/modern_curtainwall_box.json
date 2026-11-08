@@ -1,0 +1,36 @@
+{
+  "id": "modern_curtainwall_box",
+  "prompt": "生成一个现代主义国际风格办公盒子：幕墙、少即是多、平屋顶",
+  "assembly": {
+    "entranceFacing": "WEST",
+    "graph": {
+      "components": [
+        {
+          "id": "Office",
+          "type": "SHELL_BOX",
+          "at": { "x": 0, "y": 0, "z": 0 },
+          "w": 20,
+          "d": 14,
+          "h": 16,
+          "facade": {
+            "facadeGrid": {
+              "faces": "NORTH,SOUTH,EAST,WEST",
+              "rows": 6,
+              "cols": 8,
+              "frame": "minecraft:iron_bars",
+              "fill": "minecraft:light_blue_stained_glass",
+              "spandrel": { "every": 4, "material": "minecraft:white_concrete" }
+            }
+          }
+        }
+      ],
+      "connections": []
+    }
+  },
+  "expect": {
+    "mustOps": ["FACADE_GRID"],
+    "maxOps": 500
+  }
+}
+
+

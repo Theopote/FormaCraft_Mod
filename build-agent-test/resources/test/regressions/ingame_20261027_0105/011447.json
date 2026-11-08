@@ -1,0 +1,1436 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Vernacular_Huizhou",
+  "style_attributes": {
+    "wall_color": "#EFEBDD",
+    "roof_color": "#343A3A",
+    "accent_color": "#5A3A22",
+    "wall_material": "minecraft:white_terracotta",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:dark_oak_planks",
+    "decorative_elements": [
+      "stepped_horse_head_wall",
+      "wooden_lattice_window",
+      "dark_grey_tile_eaves",
+      "stone_courtyard_paving",
+      "dark_wood_brackets"
+    ]
+  },
+  "distinguishing_features": [
+    "central_open_tianjing",
+    "whitewashed_walls",
+    "dark_grey_tile_roofs",
+    "stepped_horse_head_walls",
+    "wooden_lattice_windows_facing_courtyard",
+    "four_wings_enclosing_open_courtyard",
+    "passages_between_rooms_and_courtyard",
+    "no_roof_over_central_courtyard"
+  ],
+  "proportion_hints": {
+    "typology": "courtyard_house",
+    "height_to_width": 0.35,
+    "depth_to_width": 0.83,
+    "roof_to_body_height": 0.25,
+    "courtyard_ratio": 0.18,
+    "window_wall_ratio": 0.16,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_wing": [
+          "north_wing",
+          "south_wing",
+          "west_wing",
+          "east_wing"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "north_wing",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": -11,
+            "y": 4,
+            "z": -9
+          },
+          "plan_origin": {
+            "x": -11,
+            "y": 4,
+            "z": -9
+          },
+          "dimensions": {
+            "width": 23,
+            "depth": 6,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "north_wing",
+                "local_origin": {
+                  "x": -11,
+                  "y": 4,
+                  "z": -9
+                },
+                "dimensions": {
+                  "width": 23,
+                  "depth": 6,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -11,
+              "min_z": -9,
+              "max_x": 12,
+              "max_z": -3,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 12,
+                "start": -9,
+                "end": -3
+              },
+              {
+                "direction": "NORTH",
+                "plane": -9,
+                "start": -11,
+                "end": 12
+              },
+              {
+                "direction": "SOUTH",
+                "plane": -3,
+                "start": -11,
+                "end": 12
+              },
+              {
+                "direction": "WEST",
+                "plane": -11,
+                "start": -9,
+                "end": -3
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "south_wing",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": -11,
+            "y": 4,
+            "z": 3
+          },
+          "plan_origin": {
+            "x": -11,
+            "y": 4,
+            "z": 3
+          },
+          "dimensions": {
+            "width": 23,
+            "depth": 6,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "south_wing",
+                "local_origin": {
+                  "x": -11,
+                  "y": 4,
+                  "z": 3
+                },
+                "dimensions": {
+                  "width": 23,
+                  "depth": 6,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -11,
+              "min_z": 3,
+              "max_x": 12,
+              "max_z": 9,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 12,
+                "start": 3,
+                "end": 9
+              },
+              {
+                "direction": "NORTH",
+                "plane": 3,
+                "start": -11,
+                "end": 12
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 9,
+                "start": -11,
+                "end": 12
+              },
+              {
+                "direction": "WEST",
+                "plane": -11,
+                "start": 3,
+                "end": 9
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "west_wing",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": -11,
+            "y": 4,
+            "z": -3
+          },
+          "plan_origin": {
+            "x": -11,
+            "y": 4,
+            "z": -3
+          },
+          "dimensions": {
+            "width": 7,
+            "depth": 7,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "west_wing",
+                "local_origin": {
+                  "x": -11,
+                  "y": 4,
+                  "z": -3
+                },
+                "dimensions": {
+                  "width": 7,
+                  "depth": 7,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -11,
+              "min_z": -3,
+              "max_x": -4,
+              "max_z": 4,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": -4,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -3,
+                "start": -11,
+                "end": -4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": -11,
+                "end": -4
+              },
+              {
+                "direction": "WEST",
+                "plane": -11,
+                "start": -3,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "east_wing",
+          "slot_id": "compound",
+          "local_origin": {
+            "x": 5,
+            "y": 4,
+            "z": -3
+          },
+          "plan_origin": {
+            "x": 5,
+            "y": 4,
+            "z": -3
+          },
+          "dimensions": {
+            "width": 7,
+            "depth": 7,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "east_wing",
+                "local_origin": {
+                  "x": 5,
+                  "y": 4,
+                  "z": -3
+                },
+                "dimensions": {
+                  "width": 7,
+                  "depth": 7,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": 5,
+              "min_z": -3,
+              "max_x": 12,
+              "max_z": 4,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 12,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -3,
+                "start": 5,
+                "end": 12
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": 5,
+                "end": 12
+              },
+              {
+                "direction": "WEST",
+                "plane": 5,
+                "start": -3,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Chinese_Vernacular_Huizhou",
+          "identity_id": "Chinese_Vernacular_Huizhou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Huizhou"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建一座徽派四合天井民居， 白色粉墙、深灰瓦顶、 阶梯式马头墙。 四面房屋围合中央露天天井， 天井上方不要封顶， 各房间与天井之间可以通行， 朝向天井设置木格窗。",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "民居",
+              "start": 9,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Chinese_Vernacular_Huizhou",
+              "phrase": "徽派",
+              "start": 3,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "建一座徽派四合天井民居，\n白色粉墙、深灰瓦顶、\n阶梯式马头墙。\n四面房屋围合中央露天天井，\n天井上方不要封顶，\n各房间与天井之间可以通行，\n朝向天井设置木格窗。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "north_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Huizhou",
+          "status": "processed"
+        },
+        {
+          "host_id": "south_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Huizhou",
+          "status": "processed"
+        },
+        {
+          "host_id": "west_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Huizhou",
+          "status": "processed"
+        },
+        {
+          "host_id": "east_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Huizhou",
+          "status": "processed"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "anchor": {
+    "x": 417,
+    "y": 68,
+    "z": -1049
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "huizhou_courtyard_house",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "centered",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.6,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "stepping",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "courtyard",
+      "roof",
+      "windows"
+    ],
+    "materials": {
+      "primary": "earth",
+      "secondary": "wood",
+      "accent": "stone",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "Huizhou",
+        "siheyuan",
+        "tianjing",
+        "horse-head wall",
+        "whitewashed wall",
+        "grey tile"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 12,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "open central courtyard",
+        "courtyard-facing wooden lattice windows",
+        "stepped horse-head walls",
+        "dark grey tile roofs",
+        "whitewashed walls"
+      ],
+      "avoid": [
+        "roof over courtyard",
+        "stadium",
+        "fortress",
+        "solid central mass"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "compound",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "dimensions": {
+          "width": 25,
+          "depth": 20,
+          "height": 12
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_stone_plinth",
+      "component_preset": "Low stone plinth under the courtyard compound",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "stone_plinth",
+        "whitewashed_base"
+      ],
+      "params": {
+        "component_id": "foundation_plinth",
+        "anchor_mode": "min_corner",
+        "foundation_type": "plinth",
+        "material": "minecraft:stone_bricks",
+        "detail_level": "medium",
+        "building_id": "north_wing",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_north_wing",
+      "component_preset": "North two-storey wing with whitewashed hollow rooms and courtyard-facing lattice windows",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [
+        "white_powder_wall",
+        "dark_grey_tile_roof",
+        "stepped_horse_head_wall",
+        "wooden_lattice_window",
+        "courtyard_facing"
+      ],
+      "params": {
+        "component_id": "north_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.16,
+        "floor_height": 4,
+        "floor_count": 2,
+        "roof_type": "gable",
+        "window_ratio": 0.16,
+        "window_aspect": "punch_window",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "facade_cutout": "lattice",
+        "detail_level": "high",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "whitewashed_earth",
+        "setback_ratio": 0.06,
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_south_wing",
+      "component_preset": "South two-storey wing containing the main exterior gate and courtyard entrance",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [
+        "white_powder_wall",
+        "dark_grey_tile_roof",
+        "stepped_horse_head_wall",
+        "wooden_lattice_window",
+        "courtyard_facing",
+        "main_entrance_wing"
+      ],
+      "params": {
+        "component_id": "south_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.16,
+        "floor_height": 4,
+        "floor_count": 2,
+        "roof_type": "gable",
+        "window_ratio": 0.16,
+        "window_aspect": "punch_window",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "facade_cutout": "lattice",
+        "detail_level": "high",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "whitewashed_earth",
+        "setback_ratio": 0.06,
+        "building_id": "south_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_west_wing",
+      "component_preset": "West side wing with hollow rooms and lattice windows opening to the courtyard",
+      "relative_position": {
+        "x": -8,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 8
+      },
+      "features": [
+        "white_powder_wall",
+        "dark_grey_tile_roof",
+        "horse_head_wall",
+        "wooden_lattice_window",
+        "courtyard_facing"
+      ],
+      "params": {
+        "component_id": "west_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.14,
+        "floor_height": 4,
+        "floor_count": 2,
+        "roof_type": "gable",
+        "window_ratio": 0.14,
+        "window_aspect": "punch_window",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "facade_cutout": "lattice",
+        "detail_level": "high",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "whitewashed_earth",
+        "setback_ratio": 0.06,
+        "building_id": "west_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_east_wing",
+      "component_preset": "East side wing with hollow rooms and lattice windows opening to the courtyard",
+      "relative_position": {
+        "x": 8,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 8
+      },
+      "features": [
+        "white_powder_wall",
+        "dark_grey_tile_roof",
+        "horse_head_wall",
+        "wooden_lattice_window",
+        "courtyard_facing"
+      ],
+      "params": {
+        "component_id": "east_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.14,
+        "floor_height": 4,
+        "floor_count": 2,
+        "roof_type": "gable",
+        "window_ratio": 0.14,
+        "window_aspect": "punch_window",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "facade_cutout": "lattice",
+        "detail_level": "high",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "whitewashed_earth",
+        "setback_ratio": 0.06,
+        "building_id": "east_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_tile_roof",
+      "component_preset": "North dark grey tiled roof with deep eaves and horse-head wall ends",
+      "relative_position": {
+        "x": -12,
+        "y": 8,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 7,
+        "height": 2
+      },
+      "features": [
+        "dark_grey_tiles",
+        "deep_eaves",
+        "stepped_horse_head_wall_ends"
+      ],
+      "params": {
+        "component_id": "north_roof",
+        "host_id": "north_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "deepslate_tiles",
+        "detail_level": "high",
+        "roof_height": 2,
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_tile_roof",
+      "component_preset": "South dark grey tiled roof with deep eaves and horse-head wall ends",
+      "relative_position": {
+        "x": -12,
+        "y": 8,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 7,
+        "height": 2
+      },
+      "features": [
+        "dark_grey_tiles",
+        "deep_eaves",
+        "stepped_horse_head_wall_ends"
+      ],
+      "params": {
+        "component_id": "south_roof",
+        "host_id": "south_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "deepslate_tiles",
+        "detail_level": "high",
+        "roof_height": 2,
+        "building_id": "south_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_tile_roof",
+      "component_preset": "West dark grey tiled side roof with overhang",
+      "relative_position": {
+        "x": -12,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 8,
+        "height": 2
+      },
+      "features": [
+        "dark_grey_tiles",
+        "deep_eaves"
+      ],
+      "params": {
+        "component_id": "west_roof",
+        "host_id": "west_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "deepslate_tiles",
+        "detail_level": "high",
+        "roof_height": 2,
+        "building_id": "west_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_tile_roof",
+      "component_preset": "East dark grey tiled side roof with overhang",
+      "relative_position": {
+        "x": 3,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 8,
+        "height": 2
+      },
+      "features": [
+        "dark_grey_tiles",
+        "deep_eaves"
+      ],
+      "params": {
+        "component_id": "east_roof",
+        "host_id": "east_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "deepslate_tiles",
+        "detail_level": "high",
+        "roof_height": 2,
+        "building_id": "east_wing"
+      }
+    },
+    {
+      "component_type": "COURTYARD_SPACE",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_open_tianjing",
+      "component_preset": "Central open-air tianjing paved with stone and deliberately left roofless",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "open_to_sky",
+        "stone_courtyard_paving",
+        "no_roof",
+        "central_tianjing"
+      ],
+      "params": {
+        "component_id": "central_tianjing",
+        "anchor_mode": "min_corner",
+        "open": true,
+        "wall_type": "none",
+        "no_roof": true,
+        "material": "minecraft:stone_bricks",
+        "detail_level": "medium",
+        "building_id": "central_tianjing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_lattice_windows",
+      "component_preset": "Wooden lattice windows facing the central courtyard",
+      "relative_position": {
+        "x": 2,
+        "y": 2,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "wooden_lattice",
+        "courtyard_facing",
+        "dark_wood_frame"
+      ],
+      "params": {
+        "component_id": "north_courtyard_windows",
+        "host_id": "north_wing",
+        "anchor_mode": "center",
+        "window_style": "wooden_lattice",
+        "window_aspect": "punch_window",
+        "window_ratio": 0.18,
+        "frame_material": "minecraft:dark_oak_log",
+        "lattice_material": "minecraft:dark_oak_planks",
+        "glass_material": "minecraft:glass_pane",
+        "sill_height": 2,
+        "detail_level": "high",
+        "rhythm": "regular",
+        "building_id": "north_wing"
+      },
+      "facing": "SOUTH"
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_lattice_windows",
+      "component_preset": "Wooden lattice windows facing the central courtyard",
+      "relative_position": {
+        "x": 2,
+        "y": 2,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "wooden_lattice",
+        "courtyard_facing",
+        "dark_wood_frame"
+      ],
+      "params": {
+        "component_id": "south_courtyard_windows",
+        "host_id": "south_wing",
+        "anchor_mode": "center",
+        "window_style": "wooden_lattice",
+        "window_aspect": "punch_window",
+        "window_ratio": 0.18,
+        "frame_material": "minecraft:dark_oak_log",
+        "lattice_material": "minecraft:dark_oak_planks",
+        "glass_material": "minecraft:glass_pane",
+        "sill_height": 2,
+        "detail_level": "high",
+        "rhythm": "regular",
+        "building_id": "south_wing"
+      },
+      "facing": "NORTH"
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_lattice_windows",
+      "component_preset": "Wooden lattice windows facing the central courtyard",
+      "relative_position": {
+        "x": -4,
+        "y": 2,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 2
+      },
+      "features": [
+        "wooden_lattice",
+        "courtyard_facing",
+        "dark_wood_frame"
+      ],
+      "params": {
+        "component_id": "west_courtyard_windows",
+        "host_id": "west_wing",
+        "anchor_mode": "center",
+        "window_style": "wooden_lattice",
+        "window_aspect": "punch_window",
+        "window_ratio": 0.18,
+        "frame_material": "minecraft:dark_oak_log",
+        "lattice_material": "minecraft:dark_oak_planks",
+        "glass_material": "minecraft:glass_pane",
+        "sill_height": 2,
+        "detail_level": "high",
+        "rhythm": "regular",
+        "building_id": "west_wing"
+      },
+      "facing": "EAST"
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_lattice_windows",
+      "component_preset": "Wooden lattice windows facing the central courtyard",
+      "relative_position": {
+        "x": 4,
+        "y": 2,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 2
+      },
+      "features": [
+        "wooden_lattice",
+        "courtyard_facing",
+        "dark_wood_frame"
+      ],
+      "params": {
+        "component_id": "east_courtyard_windows",
+        "host_id": "east_wing",
+        "anchor_mode": "center",
+        "window_style": "wooden_lattice",
+        "window_aspect": "punch_window",
+        "window_ratio": 0.18,
+        "frame_material": "minecraft:dark_oak_log",
+        "lattice_material": "minecraft:dark_oak_planks",
+        "glass_material": "minecraft:glass_pane",
+        "sill_height": 2,
+        "detail_level": "high",
+        "rhythm": "regular",
+        "building_id": "east_wing"
+      },
+      "facing": "WEST"
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_main_gate",
+      "component_preset": "Main south exterior doorway into the south wing",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "dark_wood_double_door",
+        "stone_threshold",
+        "main_entrance"
+      ],
+      "params": {
+        "component_id": "main_south_gate",
+        "host_id": "south_wing",
+        "anchor_mode": "center",
+        "entrance_type": "double_door",
+        "door_material": "minecraft:dark_oak_door",
+        "frame_material": "minecraft:dark_oak_log",
+        "canopy": true,
+        "step_depth": 1,
+        "detail_level": "high",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "south_wing"
+      },
+      "facing": "NORTH"
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_door",
+      "component_preset": "Door connecting the north wing rooms to the open tianjing",
+      "relative_position": {
+        "x": -3,
+        "y": 1,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "courtyard_connection",
+        "wooden_door"
+      ],
+      "params": {
+        "component_id": "north_courtyard_door",
+        "host_id": "north_wing",
+        "anchor_mode": "center",
+        "entrance_type": "door",
+        "door_material": "minecraft:dark_oak_door",
+        "frame_material": "minecraft:dark_oak_log",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "north_wing"
+      },
+      "facing": "NORTH"
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_door",
+      "component_preset": "Door connecting the south wing rooms to the open tianjing",
+      "relative_position": {
+        "x": -3,
+        "y": 1,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "courtyard_connection",
+        "wooden_door"
+      ],
+      "params": {
+        "component_id": "south_courtyard_door",
+        "host_id": "south_wing",
+        "anchor_mode": "center",
+        "entrance_type": "door",
+        "door_material": "minecraft:dark_oak_door",
+        "frame_material": "minecraft:dark_oak_log",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "south_wing"
+      },
+      "facing": "SOUTH"
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_door",
+      "component_preset": "Door connecting the west wing rooms to the open tianjing",
+      "relative_position": {
+        "x": -4,
+        "y": 1,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "courtyard_connection",
+        "wooden_door"
+      ],
+      "params": {
+        "component_id": "west_courtyard_door",
+        "host_id": "west_wing",
+        "anchor_mode": "center",
+        "entrance_type": "door",
+        "door_material": "minecraft:dark_oak_door",
+        "frame_material": "minecraft:dark_oak_log",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "west_wing"
+      },
+      "facing": "WEST"
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_courtyard_door",
+      "component_preset": "Door connecting the east wing rooms to the open tianjing",
+      "relative_position": {
+        "x": 4,
+        "y": 1,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "courtyard_connection",
+        "wooden_door"
+      ],
+      "params": {
+        "component_id": "east_courtyard_door",
+        "host_id": "east_wing",
+        "anchor_mode": "center",
+        "entrance_type": "door",
+        "door_material": "minecraft:dark_oak_door",
+        "frame_material": "minecraft:dark_oak_log",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "east_wing"
+      },
+      "facing": "EAST"
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_horse_head_wall",
+      "component_preset": "Stepped horse-head wall on the west gable end of the north wing",
+      "relative_position": {
+        "x": -11,
+        "y": 9,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [
+        "stepped_horse_head_wall",
+        "whitewashed_wall",
+        "dark_grey_coping"
+      ],
+      "params": {
+        "component_id": "north_horsehead_west",
+        "host_id": "north_wing",
+        "anchor_mode": "center",
+        "detail_type": "stepped_horse_head_wall",
+        "step_count": 3,
+        "step_height": 1,
+        "wall_block": "minecraft:white_terracotta",
+        "coping_block": "minecraft:deepslate_tiles",
+        "detail_level": "high",
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_horse_head_wall",
+      "component_preset": "Stepped horse-head wall on the east gable end of the north wing",
+      "relative_position": {
+        "x": 11,
+        "y": 9,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [
+        "stepped_horse_head_wall",
+        "whitewashed_wall",
+        "dark_grey_coping"
+      ],
+      "params": {
+        "component_id": "north_horsehead_east",
+        "host_id": "north_wing",
+        "anchor_mode": "center",
+        "detail_type": "stepped_horse_head_wall",
+        "step_count": 3,
+        "step_height": 1,
+        "wall_block": "minecraft:white_terracotta",
+        "coping_block": "minecraft:deepslate_tiles",
+        "detail_level": "high",
+        "building_id": "north_wing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_horse_head_wall",
+      "component_preset": "Stepped horse-head wall on the west gable end of the south wing",
+      "relative_position": {
+        "x": -11,
+        "y": 9,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [
+        "stepped_horse_head_wall",
+        "whitewashed_wall",
+        "dark_grey_coping"
+      ],
+      "params": {
+        "component_id": "south_horsehead_west",
+        "host_id": "south_wing",
+        "anchor_mode": "center",
+        "detail_type": "stepped_horse_head_wall",
+        "step_count": 3,
+        "step_height": 1,
+        "wall_block": "minecraft:white_terracotta",
+        "coping_block": "minecraft:deepslate_tiles",
+        "detail_level": "high",
+        "building_id": "south_wing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "compound",
+      "component_preset_id": "huizhou_horse_head_wall",
+      "component_preset": "Stepped horse-head wall on the east gable end of the south wing",
+      "relative_position": {
+        "x": 11,
+        "y": 9,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [
+        "stepped_horse_head_wall",
+        "whitewashed_wall",
+        "dark_grey_coping"
+      ],
+      "params": {
+        "component_id": "south_horsehead_east",
+        "host_id": "south_wing",
+        "anchor_mode": "center",
+        "detail_type": "stepped_horse_head_wall",
+        "step_count": 3,
+        "step_height": 1,
+        "wall_block": "minecraft:white_terracotta",
+        "coping_block": "minecraft:deepslate_tiles",
+        "detail_level": "high",
+        "building_id": "south_wing"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「徽派四合天井民居」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

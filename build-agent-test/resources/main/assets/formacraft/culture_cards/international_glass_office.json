@@ -1,0 +1,46 @@
+{
+  "id": "international_glass_office",
+  "styleId": "Modern_International",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "现代主义",
+    "现代风格",
+    "现代国际式",
+    "international glass",
+    "international style",
+    "international_glass"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "现代主义": 12,
+    "现代风格": 12,
+    "现代国际式": 12,
+    "international glass": 12,
+    "international style": 12,
+    "international_glass": 12
+  },
+  "negativeKeywords": [
+    "不要现代主义",
+    "not international style"
+  ],
+  "proportionCardId": "international_glass_office",
+  "llmPlanExampleRefs": [
+    "international_glass_compact.json",
+    "international_glass_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "international_glass",
+      "constraints": [
+        "Use style_profile=Modern_International, proportion_hints.typology=concrete_civic_block; original style request, not a landmark.",
+        "Use flat roof, facade_profile=mullion_grid, window_ratio=0.48; bind attachments by host_id.",
+        "Preserve explicit user requirements. Use composition, not native STRUCTURE or MODULE.",
+        "Authored voxel interpretation: no cantilever, classical colonnade or curtain-wall solver is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "concrete_civic_block"
+}

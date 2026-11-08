@@ -1,0 +1,117 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED",
+      "circulation": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "hall",
+      "relative_position": { "x": 16, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 10 },
+      "features": [],
+      "params": {
+        "component_id": "hall",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 5,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "hall",
+      "relative_position": { "x": 14, "y": 5, "z": 2 },
+      "dimensions": { "width": 4, "depth": 4, "height": 1 },
+      "features": [],
+      "params": {
+        "component_id": "hall_terrace",
+        "host_id": "hall",
+        "extrude_mode": "plate",
+        "plate_role": "terrace",
+        "anchor_mode": "min_corner",
+        "material": "minecraft:spruce_planks"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "portico",
+      "relative_position": { "x": 4, "y": 0, "z": 0 },
+      "dimensions": { "width": 8, "depth": 8, "height": 10 },
+      "features": [],
+      "params": {
+        "component_id": "portico",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 4,
+        "hollow": true,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "portico",
+      "relative_position": { "x": 7, "y": 0, "z": 1 },
+      "dimensions": { "width": 1, "depth": 1, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "column_south",
+        "kind": "box",
+        "material": "minecraft:stone_bricks",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "portico",
+      "relative_position": { "x": 7, "y": 0, "z": 5 },
+      "dimensions": { "width": 1, "depth": 1, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "column_north",
+        "kind": "box",
+        "material": "minecraft:stone_bricks",
+        "anchor_mode": "min_corner"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "hall",
+      "relative_position": { "x": 0, "y": 0, "z": 3 },
+      "dimensions": { "width": 5, "depth": 16, "height": 8 },
+      "features": ["stair:straight_single_run"],
+      "params": {
+        "component_id": "approach_stair",
+        "host_id": "hall",
+        "building_id": "hall",
+        "exterior": true,
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 15, "y": 5, "z": 0 },
+        "width": 5,
+        "landing_length": 1,
+        "clearHeight": 2,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:stone_bricks"
+      }
+    }
+  ]
+}

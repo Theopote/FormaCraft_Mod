@@ -1,0 +1,45 @@
+{
+  "id": "castle_compound",
+  "styleId": "Medieval_Castle",
+  "intents": ["CASTLE", "FORTIFICATION", "城堡", "要塞"],
+  "keywords": [
+    "中世纪城堡", "城堡复合体", "要塞", "堡垒", "medieval castle",
+    "castle compound", "castle_compound", "fortress", "keep", "stone fortress"
+  ],
+  "synonyms": {
+    "中世纪城堡": ["medieval castle compound", "medieval stone fortress"],
+    "城堡复合体": ["castle compound", "walled castle complex"]
+  },
+  "keywordWeights": {
+    "中世纪城堡": 10.0,
+    "城堡复合体": 9.0,
+    "medieval castle": 8.5,
+    "castle compound": 8.0,
+    "fortress": 7.0,
+    "keep": 6.5
+  },
+  "negativeKeywords": [
+    "迪士尼", "disney", "灰姑娘", "cinderella", "童话",
+    "姬路", "himeji", "日式", "天守", "japanese castle",
+    "体育场", "四合院", "哥特", "摩天楼", "原创", "不要地标"
+  ],
+  "proportionCardId": "radial_fortress",
+  "structuralTypologyId": "radial_fortress",
+  "llmPlanExampleRefs": [
+    "castle_compound_typology.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "medieval_fortress_compound",
+      "constraints": [
+        "MANDATORY: structural_typology=radial_fortress + STRUCTURE/typology params（围墙+四角塔+门楼 COMPOUND）",
+        "reference_landmark=castle_compound 作比例锚点；禁止 MODULE/landmark:castle_compound 硬路由",
+        "params: width≈48, depth≈36, wallHeight≈6, towerHeight≈18, includePaths=true, facing=SOUTH",
+        "layout.skeleton_type=COMPOUND；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：typology=radial_fortress, tower_height_to_wall≈3.5, enclosure_coverage≈0.92",
+        "禁止用单一 MASS 方盒代替围合城堡群落"
+      ]
+    }
+  ]
+}

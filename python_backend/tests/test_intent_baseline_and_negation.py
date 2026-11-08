@@ -147,6 +147,38 @@ class IntentBaselineTest(unittest.TestCase):
         self.assertFalse(intent.get("scaffold_eligible"))
         self.assertIsNone(scaffold_plan_for_intent(intent))
 
+    def test_residential_demotes_llm_tower_like(self):
+        """Cyberpunk 高密住宅 must not inherit LLM tower_like + dense_eaves."""
+        text = "生成一座 12x12 格、高 20 格的赛博朋克风高密住宅。使用末地石砖与砂岩作为主墙面"
+        keyword = extract_keyword_intent(text)
+        self.assertEqual(keyword["building_class"], "generic")
+        merged = merge_request_intent(
+            keyword,
+            {"building_class": "tower_like", "confidence": 0.86, "tower_subtype": "dense_eaves_pagoda"},
+        )
+        self.assertEqual(merged["building_class"], "generic")
+        self.assertIsNone(merged.get("tower_subtype"))
+        self.assertEqual(merged.get("source"), "residential_override")
+
+        plan = {
+            "components": [
+                {"component_type": "MASS_MAIN", "dimensions": {"width": 12, "depth": 12, "height": 20}},
+                {"component_type": "ROOF", "params": {"roof_type": "gable"}},
+                {"component_type": "FACADE_WINDOWS"},
+                {"component_type": "ENTRANCE"},
+            ],
+            "plan_meta": {
+                "request_intent": {
+                    "building_class": "tower_like",
+                    "confidence": 0.86,
+                    "tower_subtype": "dense_eaves_pagoda",
+                    "original_text": text,
+                }
+            },
+        }
+        self.assertEqual(detect_semantic_intent(text, plan), "generic")
+        self.assertEqual(evaluate_plan_semantics(plan, text), [])
+
 
 class IntentBaselineFixtureIntegrityTest(unittest.TestCase):
     def test_fixture_ids_unique(self):

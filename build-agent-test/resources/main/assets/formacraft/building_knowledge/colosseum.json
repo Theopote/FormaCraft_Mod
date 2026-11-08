@@ -1,0 +1,91 @@
+{
+  "id": "colosseum",
+  "name": "罗马斗兽场",
+  "nameEn": "Colosseum",
+  "aliases": [
+    "斗兽场",
+    "罗马斗兽场",
+    "圆形竞技场",
+    "colosseum",
+    "roman colosseum",
+    "amphitheater",
+    "圆形剧场"
+  ],
+  "category": "LANDMARK",
+  "architect": "Ancient Roman",
+  "style": "Roman Classical",
+  "styleId": "Classical_GrecoRoman",
+  
+  "features": {
+    "shape": "elliptical_amphitheater",
+    "form": "tiered_oval",
+    "structuralType": "stone_arch",
+    "materials": ["travertine", "concrete", "tufa"],
+    "scale": "huge",
+    "distinctiveElements": [
+      "elliptical shape",
+      "tiered seating",
+      "arched facade",
+      "three levels of arches",
+      "columns between arches",
+      "arena floor",
+      "underground passages",
+      "classical orders",
+      "ruined state"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 80,
+    "typicalDepth": 60,
+    "typicalHeight": 20,
+    "footprintShape": "ellipse",
+    "aspectRatio": "4:3"
+  },
+  
+  "assemblyHints": {
+    "type": "CUSTOM",
+    "macro": {
+      "style": {
+        "styleId": "Classical_GrecoRoman",
+        "structureExposure": 0.8,
+        "density": 0.7,
+        "symmetry": 0.9,
+        "verticality": 0.4,
+        "transparency": 0.5
+      }
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "ARCHES",
+            "density": 0.7
+          },
+          "openings": {
+            "pattern": "ARCHED",
+            "rows": 3,
+            "cols": 8
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "The Colosseum is a massive elliptical amphitheater featuring tiered seating, a multi-level arched facade with columns, and an arena floor. The building showcases classical Roman architecture with three levels of arches and Doric, Ionic, and Corinthian orders.",
+  "descriptionZh": "罗马斗兽场是一个大型椭圆形圆形剧场，具有分层座位、带柱子的多层拱形立面和一个竞技场地面。该建筑展示了经典的罗马建筑，具有三层拱门和多立克、爱奥尼和科林斯柱式。",
+  
+  "keywords": [
+    "斗兽场",
+    "罗马",
+    "椭圆形",
+    "拱门",
+    "圆形剧场",
+    "古典",
+    "石柱",
+    "竞技场"
+  ],
+  "exampleRefs": []
+}
+

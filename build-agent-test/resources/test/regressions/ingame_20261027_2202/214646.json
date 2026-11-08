@@ -1,0 +1,550 @@
+{
+  "mode": "build",
+  "style_profile": "RUSTIC_MEDIEVAL_OAK_CABIN",
+  "style_attributes": {
+    "wall_color": "#b8945e",
+    "roof_color": "#3b2a1a",
+    "accent_color": "#8b8b8b",
+    "wall_material": "minecraft:oak_planks",
+    "roof_material": "minecraft:dark_oak_planks",
+    "floor_material": "minecraft:oak_planks",
+    "decorative_elements": [
+      "stone brick plinth",
+      "oak plank walls",
+      "dark oak gable roof",
+      "central wooden door",
+      "glass windows"
+    ]
+  },
+  "distinguishing_features": [
+    "9x7 single-story oak cabin footprint",
+    "stone brick plinth foundation",
+    "oak plank walls",
+    "dark oak gable roof",
+    "central front door",
+    "two glass windows flanking the door",
+    "interior clearance at least 3 blocks",
+    "walkable entrance from ground level"
+  ],
+  "anchor": {
+    "x": 450,
+    "y": 68,
+    "z": -1041
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "oak_cabin",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "centered",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.45,
+      "voidRatio": 0.12,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "foundation",
+      "walls",
+      "gable_roof",
+      "door",
+      "windows"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "stone",
+      "accent": "glass",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "oak cabin",
+        "gable roof",
+        "stone plinth",
+        "rustic"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 8,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "walkable entrance",
+        "interior clearance >=3",
+        "central door",
+        "symmetrical windows",
+        "dark oak gable roof"
+      ],
+      "avoid": [
+        "solid interior",
+        "stadium massing",
+        "fortress walls",
+        "oversized footprint"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "cabin_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "oak_cabin_9x7",
+        "component_preset": "Single-story oak cabin with a 9x7 footprint, stone brick plinth foundation, oak plank walls, dark oak gable roof, central front door, and two glass windows."
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "cabin_main",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 7,
+        "height": 4
+      },
+      "features": [
+        "single-story oak cabin shell",
+        "hollow interior",
+        "stone brick foundation support",
+        "walkable entry level"
+      ],
+      "params": {
+        "component_id": "cabin_main_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_height": 4,
+        "floor_count": 1,
+        "hollow": true,
+        "wall_block": "minecraft:oak_planks",
+        "floor_block": "minecraft:oak_planks",
+        "roof_type": "gable",
+        "roof_block": "minecraft:dark_oak_planks",
+        "window_style": "punch_window",
+        "window_aspect": "square",
+        "window_ratio": 0.11,
+        "void_ratio": 0.12,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "none",
+        "detail_level": "medium",
+        "material": "wood",
+        "glass_block": "minecraft:glass",
+        "requirement_scope": "all_main_masses",
+        "building_id": "cabin_main_mass"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "cabin_main",
+      "relative_position": {
+        "x": -4,
+        "y": -1,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "stone brick plinth",
+        "supports the oak cabin floor"
+      ],
+      "params": {
+        "component_id": "cabin_foundation",
+        "host_id": "cabin_main_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "foundation_type": "plinth",
+        "material": "minecraft:stone_bricks",
+        "detail_level": "medium",
+        "building_id": "cabin_main_mass"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "cabin_main",
+      "relative_position": {
+        "x": -5,
+        "y": 4,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 2
+      },
+      "features": [
+        "dark oak gable roof",
+        "one-block overhang around the eaves"
+      ],
+      "params": {
+        "component_id": "cabin_roof",
+        "host_id": "cabin_main_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "ridge_axis": "x",
+        "overhang": 1,
+        "material": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:dark_oak_planks",
+        "detail_level": "medium",
+        "roof_height": 2,
+        "building_id": "cabin_main_mass"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "cabin_main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "central front door",
+        "ground-level walkable entrance"
+      ],
+      "params": {
+        "component_id": "cabin_front_door",
+        "host_id": "cabin_main_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "entrance_type": "door",
+        "facing": "NORTH",
+        "door_block": "minecraft:oak_door",
+        "material": "wood",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 2,
+        "building_id": "cabin_main_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "cabin_main",
+      "relative_position": {
+        "x": -2,
+        "y": 1,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "left glass window",
+        "flanks the central door"
+      ],
+      "params": {
+        "component_id": "cabin_window_left",
+        "host_id": "cabin_main_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "window_style": "punch_window",
+        "window_aspect": "square",
+        "glass_block": "minecraft:glass",
+        "frame_block": "minecraft:oak_planks",
+        "facing": "NORTH",
+        "material": "glass",
+        "detail_level": "medium",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "cabin_main_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "cabin_main",
+      "relative_position": {
+        "x": 2,
+        "y": 1,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "right glass window",
+        "flanks the central door"
+      ],
+      "params": {
+        "component_id": "cabin_window_right",
+        "host_id": "cabin_main_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "window_style": "punch_window",
+        "window_aspect": "square",
+        "glass_block": "minecraft:glass",
+        "frame_block": "minecraft:oak_planks",
+        "facing": "NORTH",
+        "material": "glass",
+        "detail_level": "medium",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "cabin_main_mass"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "small_oak_cabin",
+    "height_to_width": 0.44,
+    "depth_to_width": 0.78,
+    "roof_to_body_height": 0.5,
+    "wall_height_to_thickness": 4.0,
+    "window_wall_ratio": 0.11,
+    "entrance_to_facade_width": 0.11,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_roof_gable",
+          "property": "roof_type",
+          "value": "gable",
+          "source": "user_explicit",
+          "source_text": [
+            "双坡屋顶"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "cabin_main_mass"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_glass_windows",
+          "property": "glass_block",
+          "value": "minecraft:glass",
+          "source": "user_explicit",
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "cabin_main_mass"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "all_main_masses": [
+          "cabin_main_mass"
+        ],
+        "named_main_body": [
+          "cabin_main_mass"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "cabin_main_mass",
+          "slot_id": "cabin_main",
+          "local_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -3
+          },
+          "plan_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -3
+          },
+          "dimensions": {
+            "width": 9,
+            "depth": 7,
+            "height": 4
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 3,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "cabin_main_mass",
+                "local_origin": {
+                  "x": -4,
+                  "y": 0,
+                  "z": -3
+                },
+                "dimensions": {
+                  "width": 9,
+                  "depth": 7,
+                  "height": 4
+                },
+                "roof_y_local": 3
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -3,
+              "max_x": 5,
+              "max_z": 4,
+              "min_y": 0,
+              "max_y": 4
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 5,
+                "start": -3,
+                "end": 4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -3,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 4,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -3,
+                "end": 4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建一座9×7格的单层橡木小木屋 ，石砖地基，橡木木板墙， 深色橡木双坡屋顶。 正面中央一扇门， 左右各一扇玻璃窗， 室内净高至少3格， 可以从门口正常走进屋内。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建一座9×7格的单层橡木小木屋\n，石砖地基，橡木木板墙，\n深色橡木双坡屋顶。\n正面中央一扇门，\n左右各一扇玻璃窗，\n室内净高至少3格，\n可以从门口正常走进屋内。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "alignment_and_symmetry": {
+    "symmetry": "MIRROR_X",
+    "primary_axis": "Z",
+    "entrance_aligned": true,
+    "notes": "Central front door flanked by symmetrical glass windows."
+  },
+  "player_fidelity_notice_zh": "组合式生成「建一座9×7格的单层橡木小木屋\n，石砖地基，橡木木板墙，\n深色橡木双坡屋顶。\n正面中央一扇门，\n左右各一扇玻璃窗，\n室内」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

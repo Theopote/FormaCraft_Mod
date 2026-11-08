@@ -1,0 +1,941 @@
+{
+  "schema": "formacraft.style_pack_manifest.v1",
+  "styles": [
+    {
+      "style_id": "Tang_Dynasty_Timber",
+      "genome_id": "tang_timber",
+      "culture_card_id": "tang_timber_hall",
+      "proportion_card_id": "tang_timber_hall",
+      "typology_id": "tailiang_timber_hall",
+      "palette_id": "PALETTE_TANG_TIMBER_A",
+      "family": "A",
+      "aliases": [
+        "唐风",
+        "唐风木构",
+        "唐代木构",
+        "tang style",
+        "tang timber",
+        "tang_timber"
+      ],
+      "prompts": [
+        "生成一座唐风木构大殿",
+        "build a tang timber hall"
+      ],
+      "negative_prompt": "文艺复兴立面，不要唐风",
+      "plans": [
+        "tang_timber_compact.json",
+        "tang_timber_large.json"
+      ],
+      "roof_type": "hip",
+      "expected_wall": "minecraft:dark_oak_planks",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:spruce_fence",
+      "variant_cards": [
+        {
+          "culture_card_id": "tang_study_hall",
+          "proportion_card_id": "tang_study_hall",
+          "typology_id": "tailiang_timber_hall",
+          "prompts": [
+            "生成一座唐风书院大殿",
+            "build a tang timber study hall"
+          ],
+          "negative_prompt": "要其他风格，不要唐风",
+          "plans": [
+            "tang_study_hall_compact.json",
+            "tang_study_hall_large.json"
+          ]
+        }
+      ],
+      "diversity_plans": [
+        "tang_timber_diversity.json"
+      ]
+    },
+    {
+      "style_id": "Renaissance_Classical",
+      "genome_id": "renaissance_stone",
+      "culture_card_id": "renaissance_palazzo",
+      "proportion_card_id": "renaissance_palazzo",
+      "typology_id": "masonry_palazzo",
+      "palette_id": "PALETTE_RENAISSANCE_STONE_A",
+      "family": "B",
+      "aliases": [
+        "文艺复兴",
+        "文艺复兴风格",
+        "renaissance style",
+        "renaissance palazzo",
+        "renaissance_stone"
+      ],
+      "prompts": [
+        "生成一座文艺复兴宅邸",
+        "build a renaissance palazzo"
+      ],
+      "negative_prompt": "唐风木构大殿，不要文艺复兴",
+      "plans": [
+        "renaissance_stone_compact.json",
+        "renaissance_stone_large.json"
+      ],
+      "roof_type": "hip",
+      "expected_wall": "minecraft:smooth_sandstone",
+      "expected_roof": "minecraft:dark_oak_planks",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Art_Deco",
+      "genome_id": "art_deco_vertical",
+      "culture_card_id": "art_deco_tower",
+      "proportion_card_id": "art_deco_tower",
+      "typology_id": "setback_tower",
+      "palette_id": "PALETTE_ART_DECO_A",
+      "family": "C",
+      "aliases": [
+        "装饰艺术",
+        "装饰艺术风格",
+        "Art Deco",
+        "artdeco",
+        "装饰艺术派",
+        "art_deco_vertical"
+      ],
+      "prompts": [
+        "生成装饰艺术退台塔楼",
+        "build an art deco tower"
+      ],
+      "negative_prompt": "唐风木构大殿，不要装饰艺术风格",
+      "plans": [
+        "art_deco_vertical_compact.json",
+        "art_deco_vertical_large.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:cut_sandstone",
+      "expected_roof": "minecraft:smooth_sandstone",
+      "expected_window": "minecraft:light_blue_stained_glass"
+    },
+    {
+      "style_id": "Brutalism",
+      "genome_id": "brutalist_concrete",
+      "culture_card_id": "brutalist_civic",
+      "proportion_card_id": "brutalist_civic",
+      "typology_id": "concrete_civic_block",
+      "palette_id": "PALETTE_BRUTALIST_CONCRETE_A",
+      "family": "C",
+      "aliases": [
+        "粗野主义",
+        "粗野派",
+        "brutalist",
+        "brutalism",
+        "brutalist_concrete"
+      ],
+      "prompts": [
+        "生成一座粗野主义大楼",
+        "build a brutalist museum"
+      ],
+      "negative_prompt": "唐风木构大殿，不要粗野主义",
+      "plans": [
+        "brutalist_concrete_compact.json",
+        "brutalist_concrete_large.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:gray_concrete",
+      "expected_roof": "minecraft:smooth_stone",
+      "expected_window": "minecraft:gray_stained_glass"
+    },
+    {
+      "style_id": "Industrial_Brick_Hall",
+      "genome_id": "industrial_brick",
+      "culture_card_id": "industrial_brick_hall",
+      "proportion_card_id": "industrial_brick_hall",
+      "typology_id": "industrial_brick_hall",
+      "palette_id": "PALETTE_INDUSTRIAL_BRICK_A",
+      "family": "C",
+      "aliases": [
+        "红砖工业",
+        "砖砌工业",
+        "industrial brick",
+        "brick factory",
+        "industrial_brick"
+      ],
+      "prompts": [
+        "生成一座红砖工业大楼",
+        "build an industrial brick hall"
+      ],
+      "negative_prompt": "唐风木构大殿，不要红砖工业",
+      "plans": [
+        "industrial_brick_compact.json",
+        "industrial_brick_large.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:bricks",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Japanese_Traditional",
+      "genome_id": "japanese_timber",
+      "culture_card_id": "japanese_timber_house",
+      "proportion_card_id": "japanese_timber_house",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_JAPANESE_TIMBER_A",
+      "family": "A",
+      "aliases": [
+        "日式传统",
+        "和风",
+        "日式建筑",
+        "japanese traditional",
+        "japanese timber",
+        "japanese_timber"
+      ],
+      "prompts": [
+        "生成一座日式传统木屋",
+        "build a japanese timber house"
+      ],
+      "negative_prompt": "唐风木构大殿，不要日式传统",
+      "plans": [
+        "japanese_timber_compact.json",
+        "japanese_timber_large.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:birch_planks",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:white_stained_glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "japanese_rural_inn",
+          "proportion_card_id": "japanese_rural_inn",
+          "typology_id": "timber_gable_house",
+          "prompts": [
+            "生成一座和风乡村旅馆",
+            "build a japanese timber inn"
+          ],
+          "negative_prompt": "要其他风格，不要日式传统",
+          "plans": [
+            "japanese_rural_inn_compact.json",
+            "japanese_rural_inn_large.json"
+          ]
+        }
+      ]
+    },
+    {
+      "style_id": "Scandinavian_Timber",
+      "genome_id": "scandinavian_timber",
+      "culture_card_id": "scandinavian_timber_house",
+      "proportion_card_id": "scandinavian_timber_house",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_SCANDINAVIAN_TIMBER_A",
+      "family": "B",
+      "aliases": [
+        "北欧木屋",
+        "北欧木构",
+        "斯堪的纳维亚木屋",
+        "scandinavian timber",
+        "nordic timber",
+        "scandinavian_timber"
+      ],
+      "prompts": [
+        "生成一座北欧木屋",
+        "build a scandinavian timber house"
+      ],
+      "negative_prompt": "唐风木构大殿，不要北欧木屋",
+      "plans": [
+        "scandinavian_timber_compact.json",
+        "scandinavian_timber_large.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:stripped_spruce_wood",
+      "expected_roof": "minecraft:spruce_planks",
+      "expected_window": "minecraft:glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "nordic_forest_lodge",
+          "proportion_card_id": "nordic_forest_lodge",
+          "typology_id": "timber_gable_house",
+          "prompts": [
+            "生成一座北欧木构森林山庄",
+            "build a scandinavian timber lodge"
+          ],
+          "negative_prompt": "要其他风格，不要北欧木屋",
+          "plans": [
+            "nordic_forest_lodge_compact.json",
+            "nordic_forest_lodge_large.json"
+          ]
+        }
+      ]
+    },
+    {
+      "style_id": "Mediterranean_Stucco",
+      "genome_id": "mediterranean_stucco",
+      "culture_card_id": "mediterranean_stucco_house",
+      "proportion_card_id": "mediterranean_stucco_house",
+      "typology_id": "stucco_tile_house",
+      "palette_id": "PALETTE_MEDITERRANEAN_STUCCO_A",
+      "family": "B",
+      "aliases": [
+        "地中海灰泥",
+        "地中海风格",
+        "mediterranean stucco",
+        "mediterranean style",
+        "mediterranean_stucco"
+      ],
+      "prompts": [
+        "生成一座地中海灰泥别墅",
+        "build a mediterranean stucco villa"
+      ],
+      "negative_prompt": "唐风木构大殿，不要地中海灰泥",
+      "plans": [
+        "mediterranean_stucco_compact.json",
+        "mediterranean_stucco_large.json"
+      ],
+      "roof_type": "hip",
+      "expected_wall": "minecraft:white_concrete",
+      "expected_roof": "minecraft:terracotta",
+      "expected_window": "minecraft:white_stained_glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "mediterranean_guesthouse",
+          "proportion_card_id": "mediterranean_guesthouse",
+          "typology_id": "stucco_tile_house",
+          "prompts": [
+            "生成一座地中海灰泥客舍",
+            "build a mediterranean stucco guesthouse"
+          ],
+          "negative_prompt": "要其他风格，不要地中海灰泥",
+          "plans": [
+            "mediterranean_guesthouse_compact.json",
+            "mediterranean_guesthouse_large.json"
+          ]
+        }
+      ]
+    },
+    {
+      "style_id": "Georgian_Brick",
+      "genome_id": "georgian_brick",
+      "culture_card_id": "georgian_brick_house",
+      "proportion_card_id": "georgian_brick_house",
+      "typology_id": "masonry_palazzo",
+      "palette_id": "PALETTE_GEORGIAN_BRICK_A",
+      "family": "B",
+      "aliases": [
+        "乔治王朝",
+        "乔治王朝砖砌",
+        "乔治王朝风格",
+        "georgian brick",
+        "georgian architecture",
+        "georgian_brick"
+      ],
+      "prompts": [
+        "生成一座乔治王朝砖砌宅邸",
+        "build a georgian brick house"
+      ],
+      "negative_prompt": "唐风木构大殿，不要乔治王朝",
+      "plans": [
+        "georgian_brick_compact.json",
+        "georgian_brick_large.json"
+      ],
+      "roof_type": "hip",
+      "expected_wall": "minecraft:bricks",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "georgian_civic_hall",
+          "proportion_card_id": "georgian_civic_hall",
+          "typology_id": "masonry_palazzo",
+          "prompts": [
+            "生成一座乔治王朝会馆",
+            "build a georgian brick civic hall"
+          ],
+          "negative_prompt": "要其他风格，不要乔治王朝",
+          "plans": [
+            "georgian_civic_hall_compact.json",
+            "georgian_civic_hall_large.json"
+          ]
+        }
+      ]
+    },
+    {
+      "style_id": "Prairie_House",
+      "genome_id": "prairie_horizontal",
+      "culture_card_id": "prairie_house",
+      "proportion_card_id": "prairie_house",
+      "typology_id": "flat_roof_pavilion",
+      "palette_id": "PALETTE_PRAIRIE_HORIZONTAL_A",
+      "family": "C",
+      "aliases": [
+        "草原式住宅",
+        "草原式",
+        "草原学派住宅",
+        "prairie house",
+        "prairie architecture",
+        "prairie_horizontal"
+      ],
+      "prompts": [
+        "生成一座草原式住宅",
+        "build a prairie house"
+      ],
+      "negative_prompt": "唐风木构大殿，不要草原式住宅",
+      "plans": [
+        "prairie_horizontal_compact.json",
+        "prairie_horizontal_large.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:brown_terracotta",
+      "expected_roof": "minecraft:dark_oak_planks",
+      "expected_window": "minecraft:glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "prairie_community_library",
+          "proportion_card_id": "prairie_community_library",
+          "typology_id": "flat_roof_pavilion",
+          "prompts": [
+            "生成一座草原式社区图书馆",
+            "build a prairie community library"
+          ],
+          "negative_prompt": "要其他风格，不要草原式住宅",
+          "plans": [
+            "prairie_community_library_compact.json",
+            "prairie_community_library_large.json"
+          ]
+        }
+      ]
+    },
+    {
+      "style_id": "Midcentury_House",
+      "genome_id": "midcentury_pavilion",
+      "culture_card_id": "midcentury_house",
+      "proportion_card_id": "midcentury_house",
+      "typology_id": "flat_roof_pavilion",
+      "palette_id": "PALETTE_MIDCENTURY_PAVILION_A",
+      "family": "C",
+      "aliases": [
+        "世纪中叶住宅",
+        "世纪中叶风格",
+        "midcentury house",
+        "mid-century house",
+        "midcentury_pavilion"
+      ],
+      "prompts": [
+        "生成一座世纪中叶住宅",
+        "build a midcentury house"
+      ],
+      "negative_prompt": "唐风木构大殿，不要世纪中叶住宅",
+      "plans": [
+        "midcentury_pavilion_compact.json",
+        "midcentury_pavilion_large.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:smooth_sandstone",
+      "expected_roof": "minecraft:smooth_stone",
+      "expected_window": "minecraft:light_blue_stained_glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "midcentury_visitor_center",
+          "proportion_card_id": "midcentury_visitor_center",
+          "typology_id": "flat_roof_pavilion",
+          "prompts": [
+            "生成一座世纪中叶游客中心",
+            "build a midcentury visitor center"
+          ],
+          "negative_prompt": "要其他风格，不要世纪中叶住宅",
+          "plans": [
+            "midcentury_visitor_center_compact.json",
+            "midcentury_visitor_center_large.json"
+          ]
+        }
+      ]
+    },
+    {
+      "style_id": "Alpine_Chalet",
+      "genome_id": "alpine_chalet",
+      "culture_card_id": "alpine_chalet_house",
+      "proportion_card_id": "alpine_chalet_house",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_ALPINE_CHALET_A",
+      "family": "B",
+      "aliases": [
+        "阿尔卑斯木屋",
+        "阿尔卑斯木构",
+        "alpine chalet",
+        "alpine timber",
+        "alpine_chalet"
+      ],
+      "prompts": [
+        "生成一座阿尔卑斯木屋",
+        "build an alpine chalet"
+      ],
+      "negative_prompt": "唐风木构大殿，不要阿尔卑斯木屋",
+      "plans": [
+        "alpine_chalet_compact.json",
+        "alpine_chalet_large.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:spruce_planks",
+      "expected_roof": "minecraft:dark_oak_planks",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Neoclassical_Civic",
+      "genome_id": "neoclassical_civic",
+      "culture_card_id": "neoclassical_civic_hall",
+      "proportion_card_id": "neoclassical_civic_hall",
+      "typology_id": "masonry_palazzo",
+      "palette_id": "PALETTE_NEOCLASSICAL_CIVIC_A",
+      "family": "B",
+      "aliases": [
+        "新古典公共建筑",
+        "新古典风格",
+        "neoclassical civic",
+        "neoclassical architecture",
+        "neoclassical_civic"
+      ],
+      "prompts": [
+        "生成一座新古典风格大楼",
+        "build a neoclassical civic hall"
+      ],
+      "negative_prompt": "唐风木构大殿，不要新古典公共建筑",
+      "plans": [
+        "neoclassical_civic_compact.json",
+        "neoclassical_civic_large.json"
+      ],
+      "roof_type": "hip",
+      "expected_wall": "minecraft:smooth_quartz",
+      "expected_roof": "minecraft:stone_bricks",
+      "expected_window": "minecraft:glass_pane",
+      "diversity_plans": [
+        "neoclassical_civic_diversity.json"
+      ]
+    },
+    {
+      "style_id": "Modern_International",
+      "genome_id": "international_glass",
+      "culture_card_id": "international_glass_office",
+      "proportion_card_id": "international_glass_office",
+      "typology_id": "concrete_civic_block",
+      "palette_id": "PALETTE_INTERNATIONAL_GLASS_A",
+      "family": "C",
+      "aliases": [
+        "现代主义",
+        "现代风格",
+        "现代国际式",
+        "international glass",
+        "international style",
+        "international_glass"
+      ],
+      "prompts": [
+        "生成一座现代国际式大楼",
+        "build an international glass office"
+      ],
+      "negative_prompt": "唐风木构大殿，不要现代主义",
+      "plans": [
+        "international_glass_compact.json",
+        "international_glass_large.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:white_concrete",
+      "expected_roof": "minecraft:smooth_stone",
+      "expected_window": "minecraft:light_gray_stained_glass_pane",
+      "diversity_plans": [
+        "international_glass_diversity.json"
+      ]
+    },
+    {
+      "style_id": "Desert_Adobe",
+      "genome_id": "desert_adobe",
+      "culture_card_id": "desert_adobe",
+      "proportion_card_id": "desert_adobe",
+      "typology_id": "flat_roof_pavilion",
+      "palette_id": "PALETTE_DESERT_ADOBE",
+      "family": "D",
+      "aliases": [
+        "沙漠泥砖",
+        "desert adobe",
+        "desert_adobe"
+      ],
+      "prompts": [
+        "生成一座沙漠泥砖",
+        "build a desert adobe"
+      ],
+      "negative_prompt": "不要沙漠泥砖",
+      "plans": [
+        "p2_desert_adobe_13.json",
+        "p2_desert_adobe_21.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:mud_bricks",
+      "expected_roof": "minecraft:smooth_sandstone",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Prairie_Earth",
+      "genome_id": "prairie_earth",
+      "culture_card_id": "prairie_earth",
+      "proportion_card_id": "prairie_earth",
+      "typology_id": "flat_roof_pavilion",
+      "palette_id": "PALETTE_PRAIRIE_EARTH",
+      "family": "D",
+      "aliases": [
+        "草原土坯",
+        "prairie earth house",
+        "prairie_earth"
+      ],
+      "prompts": [
+        "生成一座草原土坯",
+        "build a prairie earth house"
+      ],
+      "negative_prompt": "不要草原土坯",
+      "plans": [
+        "p2_prairie_earth_13.json",
+        "p2_prairie_earth_21.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:packed_mud",
+      "expected_roof": "minecraft:mud_bricks",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Arctic_Igloo",
+      "genome_id": "arctic_igloo",
+      "culture_card_id": "arctic_igloo",
+      "proportion_card_id": "arctic_igloo",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_ARCTIC_IGLOO",
+      "family": "D",
+      "aliases": [
+        "冰屋",
+        "arctic igloo",
+        "arctic_igloo"
+      ],
+      "prompts": [
+        "生成一座冰屋",
+        "build a arctic igloo"
+      ],
+      "negative_prompt": "不要冰屋",
+      "plans": [
+        "p2_arctic_igloo_13.json",
+        "p2_arctic_igloo_21.json"
+      ],
+      "roof_type": "dome",
+      "expected_wall": "minecraft:snow_block",
+      "expected_roof": "minecraft:snow_block",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Stilt_Timber",
+      "genome_id": "stilt_timber",
+      "culture_card_id": "stilt_timber",
+      "proportion_card_id": "stilt_timber",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_STILT_TIMBER",
+      "family": "D",
+      "aliases": [
+        "吊脚木楼",
+        "stilt timber house",
+        "stilt_timber"
+      ],
+      "prompts": [
+        "生成一座吊脚木楼",
+        "build a stilt timber house"
+      ],
+      "negative_prompt": "不要吊脚木楼",
+      "plans": [
+        "p2_stilt_timber_13.json",
+        "p2_stilt_timber_21.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:spruce_planks",
+      "expected_roof": "minecraft:dark_oak_planks",
+      "expected_window": "minecraft:glass_pane",
+      "diversity_plans": [
+        "p2_stilt_timber_17.json"
+      ]
+    },
+    {
+      "style_id": "Water_Platform",
+      "genome_id": "water_platform",
+      "culture_card_id": "water_platform",
+      "proportion_card_id": "water_platform",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_WATER_PLATFORM",
+      "family": "D",
+      "aliases": [
+        "水上木屋",
+        "water platform house",
+        "water_platform"
+      ],
+      "prompts": [
+        "生成一座水上木屋",
+        "build a water platform house"
+      ],
+      "negative_prompt": "不要水上木屋",
+      "plans": [
+        "p2_water_platform_13.json",
+        "p2_water_platform_21.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:oak_planks",
+      "expected_roof": "minecraft:spruce_planks",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Xianxia_Island",
+      "genome_id": "xianxia_island",
+      "culture_card_id": "xianxia_island",
+      "proportion_card_id": "xianxia_island",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_XIANXIA_ISLAND",
+      "family": "E",
+      "aliases": [
+        "仙侠悬浮岛",
+        "xianxia floating island",
+        "xianxia_island"
+      ],
+      "prompts": [
+        "生成一座仙侠悬浮岛",
+        "build a xianxia floating island"
+      ],
+      "negative_prompt": "不要仙侠悬浮岛",
+      "plans": [
+        "p2_xianxia_island_13.json",
+        "p2_xianxia_island_21.json"
+      ],
+      "roof_type": "hip",
+      "expected_wall": "minecraft:quartz_block",
+      "expected_roof": "minecraft:dark_prismarine",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Dwarven_Hall",
+      "genome_id": "dwarven_hall",
+      "culture_card_id": "dwarven_hall",
+      "proportion_card_id": "dwarven_hall",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_DWARVEN_HALL",
+      "family": "E",
+      "aliases": [
+        "矮人石殿",
+        "dwarven stone hall",
+        "dwarven_hall"
+      ],
+      "prompts": [
+        "生成一座矮人石殿",
+        "build a dwarven stone hall"
+      ],
+      "negative_prompt": "不要矮人石殿",
+      "plans": [
+        "p2_dwarven_hall_13.json",
+        "p2_dwarven_hall_21.json"
+      ],
+      "roof_type": "barrel_vault",
+      "expected_wall": "minecraft:polished_deepslate",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:glass_pane",
+      "variant_cards": [
+        {
+          "culture_card_id": "dwarven_underground_hall",
+          "proportion_card_id": "dwarven_hall",
+          "typology_id": "timber_gable_house",
+          "prompts": [
+            "生成一座地下矮人石殿",
+            "build an underground dwarven hall"
+          ],
+          "negative_prompt": "不要矮人石殿",
+          "plans": [
+            "dwarven_underground_13.json",
+            "dwarven_underground_21.json"
+          ]
+        }
+      ]
+    },
+    {
+      "style_id": "Elven_Treehouse",
+      "genome_id": "elven_treehouse",
+      "culture_card_id": "elven_treehouse",
+      "proportion_card_id": "elven_treehouse",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_ELVEN_TREEHOUSE",
+      "family": "E",
+      "aliases": [
+        "精灵树城",
+        "elven forest city",
+        "elven_treehouse",
+        "elven treehouse"
+      ],
+      "prompts": [
+        "生成一座精灵树城",
+        "build a elven forest city"
+      ],
+      "negative_prompt": "不要精灵树城",
+      "plans": [
+        "p2_elven_treehouse_13.json",
+        "p2_elven_treehouse_21.json"
+      ],
+      "roof_type": "cone",
+      "expected_wall": "minecraft:birch_planks",
+      "expected_roof": "minecraft:moss_block",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Cyberpunk",
+      "genome_id": "cyberpunk_block",
+      "culture_card_id": "cyberpunk_block",
+      "proportion_card_id": "cyberpunk_block",
+      "typology_id": "flat_roof_pavilion",
+      "palette_id": "PALETTE_CYBERPUNK",
+      "family": "E",
+      "aliases": [
+        "赛博朋克",
+        "cyberpunk block",
+        "cyberpunk_block"
+      ],
+      "prompts": [
+        "生成一座赛博朋克",
+        "build a cyberpunk block"
+      ],
+      "negative_prompt": "不要赛博朋克",
+      "plans": [
+        "p2_cyberpunk_block_13.json",
+        "p2_cyberpunk_block_21.json"
+      ],
+      "roof_type": "flat",
+      "expected_wall": "minecraft:black_concrete",
+      "expected_roof": "minecraft:gray_concrete",
+      "expected_window": "minecraft:glass_pane",
+      "diversity_plans": [
+        "p2_cyberpunk_block_17.json"
+      ]
+    },
+    {
+      "style_id": "Steampunk",
+      "genome_id": "steampunk_hall",
+      "culture_card_id": "steampunk_hall",
+      "proportion_card_id": "steampunk_hall",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_STEAMPUNK",
+      "family": "E",
+      "aliases": [
+        "蒸汽朋克",
+        "steampunk hall",
+        "steampunk_hall"
+      ],
+      "prompts": [
+        "生成一座蒸汽朋克",
+        "build a steampunk hall"
+      ],
+      "negative_prompt": "不要蒸汽朋克",
+      "plans": [
+        "p2_steampunk_hall_13.json",
+        "p2_steampunk_hall_21.json"
+      ],
+      "roof_type": "gambrel",
+      "expected_wall": "minecraft:bricks",
+      "expected_roof": "minecraft:cut_copper",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Dark_Fortress",
+      "genome_id": "dark_fortress",
+      "culture_card_id": "dark_fortress",
+      "proportion_card_id": "dark_fortress",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_DARK_FORTRESS",
+      "family": "E",
+      "aliases": [
+        "暗黑魔物堡",
+        "dark fantasy fortress",
+        "dark_fortress"
+      ],
+      "prompts": [
+        "生成一座暗黑魔物堡",
+        "build a dark fantasy fortress"
+      ],
+      "negative_prompt": "不要暗黑魔物堡",
+      "plans": [
+        "p2_dark_fortress_13.json",
+        "p2_dark_fortress_21.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:blackstone",
+      "expected_roof": "minecraft:polished_blackstone",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+      "genome_id": "jiangnan_quay",
+      "culture_card_id": "jiangnan_quay",
+      "proportion_card_id": "jiangnan_quay",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_JIANGNAN_QUAY",
+      "family": "A",
+      "aliases": [
+        "江南水乡",
+        "jiangnan water town",
+        "jiangnan_quay",
+        "江南民居"
+      ],
+      "prompts": [
+        "生成一座江南水乡",
+        "build a jiangnan water town"
+      ],
+      "negative_prompt": "不要江南水乡",
+      "plans": [
+        "jiangnan_quay_17.json",
+        "jiangnan_quay_25.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:white_terracotta",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Romanesque",
+      "genome_id": "romanesque_hall",
+      "culture_card_id": "romanesque_hall",
+      "proportion_card_id": "romanesque_hall",
+      "typology_id": "masonry_palazzo",
+      "palette_id": "PALETTE_ROMANESQUE_HALL",
+      "family": "B",
+      "aliases": [
+        "罗马风",
+        "romanesque hall",
+        "romanesque_hall"
+      ],
+      "prompts": [
+        "生成一座罗马风",
+        "build a romanesque hall"
+      ],
+      "negative_prompt": "不要罗马风",
+      "plans": [
+        "romanesque_hall_17.json",
+        "romanesque_hall_25.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:stone_bricks",
+      "expected_roof": "minecraft:deepslate_tiles",
+      "expected_window": "minecraft:glass_pane"
+    },
+    {
+      "style_id": "Tudor",
+      "genome_id": "tudor_house",
+      "culture_card_id": "tudor_house",
+      "proportion_card_id": "tudor_house",
+      "typology_id": "timber_gable_house",
+      "palette_id": "PALETTE_TUDOR_HOUSE",
+      "family": "B",
+      "aliases": [
+        "都铎",
+        "tudor house",
+        "tudor_house"
+      ],
+      "prompts": [
+        "生成一座都铎",
+        "build a tudor house"
+      ],
+      "negative_prompt": "不要都铎",
+      "plans": [
+        "tudor_house_17.json",
+        "tudor_house_25.json"
+      ],
+      "roof_type": "gable",
+      "expected_wall": "minecraft:white_terracotta",
+      "expected_roof": "minecraft:dark_oak_planks",
+      "expected_window": "minecraft:glass_pane"
+    }
+  ]
+}

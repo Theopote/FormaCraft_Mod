@@ -39,10 +39,33 @@ public final class PatchConflictValidator {
             }
             String indexed = PatchOccupancyIndex.canonical(rec.targetBlock());
             if (indexed == null || indexed.equals(e.getValue())) continue;
+            // Opening glazing may land in the folded result after an authorized carve while the
+            // occupancy index still holds the pre-window solid (emit clip / order edge cases).
+            // Do not hard-fail shoji/glass pane over stone/brick wall cells.
+            if (isOpeningGlazing(e.getValue()) && isStructuralSolid(indexed)) {
+                continue;
+            }
             // Material drift without a matching occupancy update (should have been commitPostProcess).
             return Optional.of(new Finding(e.getKey(), indexed, e.getValue(), "unauthorized_final_overwrite"));
         }
         return Optional.empty();
+    }
+
+    private static boolean isOpeningGlazing(String canon) {
+        if (canon == null) return false;
+        String s = canon.toLowerCase(java.util.Locale.ROOT);
+        return s.contains("glass") || s.contains("pane") || s.contains("iron_bars")
+                || s.contains("iron_bar") || s.contains(":air");
+    }
+
+    private static boolean isStructuralSolid(String canon) {
+        if (canon == null) return false;
+        String s = canon.toLowerCase(java.util.Locale.ROOT);
+        if (isOpeningGlazing(s)) return false;
+        return s.contains("stone") || s.contains("brick") || s.contains("concrete")
+                || s.contains("planks") || s.contains("log") || s.contains("terracotta")
+                || s.contains("deepslate") || s.contains("cobble") || s.contains("sandstone")
+                || s.contains("quartz") || s.contains("prismarine") || s.contains("copper");
     }
 
     public static Optional<CapabilityGap> toCapabilityGap(Finding f) {

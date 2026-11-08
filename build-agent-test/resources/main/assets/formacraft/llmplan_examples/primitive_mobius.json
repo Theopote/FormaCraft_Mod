@@ -1,0 +1,25 @@
+{
+  "description": "ShapeLibrary M3 — Möbius 带体素近似 few-shot",
+  "promptHints": ["mobius", "möbius", "莫比乌斯", "扭曲环"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "DEFAULT",
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+    "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+    "components": [
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 16, "depth": 16, "height": 8 },
+        "params": {
+          "kind": "mobius",
+          "radius": 5,
+          "mobius_width": 3,
+          "mobius_twist": 1.0,
+          "material": "quartz"
+        }
+      }
+    ]
+  }
+}

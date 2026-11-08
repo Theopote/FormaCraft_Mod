@@ -254,7 +254,15 @@ public final class OpeningGrammarResolver {
         }
         if (card != null) {
             String typology = card.typology() != null ? card.typology().toLowerCase(Locale.ROOT) : "";
-            if (typology.contains("classical") || typology.contains("monument") || typology.contains("palace")) {
+            String style = plan != null && plan.styleProfile() != null
+                    ? plan.styleProfile().toLowerCase(Locale.ROOT) : "";
+            // Never force classical pilaster bays onto Japanese / shoji / lattice facades.
+            boolean nonClassical = style.contains("japanese") || style.contains("chinese")
+                    || style.contains("asian")
+                    || String.valueOf(params.getOrDefault("window_style", "")).toLowerCase(Locale.ROOT)
+                    .contains("shoji");
+            if (!nonClassical && (typology.contains("classical") || typology.contains("monument")
+                    || typology.contains("palace"))) {
                 return DesignProvenance.putIfAllowed(plan, params, "rhythm_preset",
                         ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
             }

@@ -1,0 +1,101 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "circulation_scope": "CONNECTED_COMPLEX",
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED",
+      "circulation": "REQUIRED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 8,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "hall",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "target",
+      "relative_position": {
+        "x": 12,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 70,
+        "depth": 70,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "target",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "hall",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "sky_link",
+        "host_id": "hall",
+        "target_host_id": "target",
+        "connection_level": 0,
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "bridge",
+        "material": "minecraft:spruce_planks"
+      }
+    }
+  ]
+}

@@ -1,0 +1,610 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "dark_gray",
+    "accent_color": "dark_gray",
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:polished_deepslate",
+    "decorative_elements": [
+      "stone_plinth_base",
+      "flat_deepslate_tile_roof_with_overhang",
+      "perimeter_eave_band",
+      "brick_door_hood"
+    ]
+  },
+  "distinguishing_features": [
+    "white concrete walls (Huizhou whitewashed masonry)",
+    "flat roof clad in deepslate tiles with 1-block overhang",
+    "no horse-head gable walls, no double-pitch roof",
+    "single-storey hollow shell, interior clear height 4 blocks",
+    "rectangular doorway on the front facade flanked by two windows",
+    "polished deepslate plinth ring around the footprint"
+  ],
+  "anchor": {
+    "x": -518,
+    "y": 97,
+    "z": -1214
+  },
+  "proportion_hints": {
+    "typology": "residential_house",
+    "height_to_width": 0.45,
+    "depth_to_width": 0.82,
+    "roof_to_body_height": 0.2,
+    "wall_thickness": 1,
+    "floor_slab_thickness": 1,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width",
+          "property": "width",
+          "value": 11,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽11格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "mass_main_01"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_depth",
+          "property": "depth",
+          "value": 9,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "深9格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "mass_main_01"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_net_height",
+          "property": "net_height",
+          "value": 4,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "室内净高4格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_01"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 1,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "一层住宅，"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_01"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_type",
+          "property": "roof_type",
+          "value": "flat",
+          "source": "user_explicit",
+          "source_text": [
+            "平屋顶"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_01"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": [
+        {
+          "component_id": "mass_main_01",
+          "slot_id": "slot_0",
+          "local_origin": {
+            "x": -5,
+            "y": 0,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -5,
+            "y": 0,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 11,
+            "depth": 9,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_main_01",
+                "local_origin": {
+                  "x": -5,
+                  "y": 0,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 11,
+                  "depth": 9,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -5,
+              "min_z": -4,
+              "max_x": 6,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -5,
+                "start": -4,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Chinese_Vernacular_Huizhou",
+          "identity_id": "Chinese_Vernacular_Huizhou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Huizhou"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一栋徽派风格的一层住宅， 宽11格、深9格， 室内净高4格。 用户明确指定深板岩瓦平屋顶， 不使用双坡顶，不设置马头墙。 白色混凝土外墙，矩形占地， 墙厚1格，楼板厚1格， 室内中空。正面设置矩形入口， 入口两侧设置窗户。",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "住宅",
+              "start": 11,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Chinese_Vernacular_Huizhou",
+              "phrase": "徽派",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一栋徽派风格的一层住宅，\n宽11格、深9格，\n室内净高4格。\n用户明确指定深板岩瓦平屋顶，\n不使用双坡顶，不设置马头墙。\n白色混凝土外墙，矩形占地，\n墙厚1格，楼板厚1格，\n室内中空。正面设置矩形入口，\n入口两侧设置窗户。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    }
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "huizhou_single_storey_house",
+      "confidence": 0.6
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "east_west",
+      "levels": "single"
+    },
+    "structure": {
+      "type": "bearing_wall",
+      "massiveness": 0.55,
+      "voidRatio": 0.12,
+      "supports": "perimeter_walls"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "entrance",
+      "plinth"
+    ],
+    "materials": {
+      "primary": "white_concrete",
+      "secondary": "deepslate_tiles",
+      "accent": "polished_deepslate",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "china_huizhou",
+      "era": "ming_qing",
+      "keywords": [
+        "huizhou",
+        "white_wall",
+        "dark_tile",
+        "flat_roof",
+        "plain_gable_less"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 7,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "white_concrete_walls",
+        "deepslate_tile_flat_roof",
+        "single_storey_hollow_shell",
+        "front_rectangular_door_with_flanking_windows"
+      ],
+      "avoid": [
+        "double_pitch_roof",
+        "gable_roof",
+        "horse_head_wall",
+        "tapered_roof",
+        "excessive_ornament"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "MIRROR_Z",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "MAIN_SLOT",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "component_preset": "residential_house",
+        "scale": {
+          "width": 11,
+          "depth": 9,
+          "height": 5
+        },
+        "slot_id": "slot_0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 6
+      },
+      "features": [],
+      "params": {
+        "component_id": "mass_main_01",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.12,
+        "floor_count": 1,
+        "floor_height": 5,
+        "wall_thickness": 1,
+        "floor_slab_thickness": 1,
+        "roof_type": "flat",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "none",
+        "window_style": "punch_window",
+        "entrance_type": "rectangle",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:polished_deepslate",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "white_concrete",
+        "wings": [],
+        "window_ratio": 0.35,
+        "building_id": "mass_main_01"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -6,
+        "y": -1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "foundation_01",
+        "host_id": "mass_main_01",
+        "foundation_type": "plinth",
+        "protrusion": 1,
+        "block": "minecraft:polished_deepslate",
+        "material": "stone",
+        "building_id": "mass_main_01"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -6,
+        "y": 5,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_01",
+        "host_id": "mass_main_01",
+        "roof_type": "flat",
+        "overhang": 1,
+        "slab_thickness": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_material": "deepslate_tiles",
+        "eave_band": true,
+        "roof_height": 2,
+        "building_id": "mass_main_01"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"rectangular\", \"recessed\", \"timber\", \"plain\", \"huizhou\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"dark_timber_on_white_wall\"}, \"constraints\": {\"mustHave\": [\"rectangular_frame\", \"flush_with_wall\"], \"forbiddenTags\": [\"arched\", \"gothic\", \"ornate\", \"glass_curtain\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "entrance_01",
+        "host_id": "mass_main_01",
+        "entrance_type": "rectangle",
+        "facing": "EAST",
+        "door_width": 2,
+        "door_height": 3,
+        "recess": 1,
+        "door_material": "minecraft:dark_oak_planks",
+        "frame_material": "minecraft:polished_deepslate",
+        "building_id": "mass_main_01"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 5,
+        "y": 1,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"rectangular\", \"punch_window\", \"deep_reveal\", \"timber_lattice\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"dark_frame_on_white_wall\"}, \"constraints\": {\"mustHave\": [\"rectangular_frame\", \"wall_flush\"], \"forbiddenTags\": [\"arched\", \"rose\", \"ribbon_glazing\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "windows_east_north",
+        "host_id": "mass_main_01",
+        "facing": "EAST",
+        "window_style": "punch_window",
+        "window_width": 2,
+        "window_height": 2,
+        "sill_height": 1,
+        "window_count": 1,
+        "glazing": "minecraft:glass_pane",
+        "frame_material": "minecraft:polished_deepslate",
+        "shutter": false,
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "mass_main_01"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 5,
+        "y": 1,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"rectangular\", \"punch_window\", \"deep_reveal\", \"timber_lattice\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"dark_frame_on_white_wall\"}, \"constraints\": {\"mustHave\": [\"rectangular_frame\", \"wall_flush\"], \"forbiddenTags\": [\"arched\", \"rose\", \"ribbon_glazing\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "windows_east_south",
+        "host_id": "mass_main_01",
+        "facing": "EAST",
+        "window_style": "punch_window",
+        "window_width": 2,
+        "window_height": 2,
+        "sill_height": 1,
+        "window_count": 1,
+        "glazing": "minecraft:glass_pane",
+        "frame_material": "minecraft:polished_deepslate",
+        "shutter": false,
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "mass_main_01"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -6,
+        "y": 4,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"cornice\", \"horizontal_band\", \"dark_tile\", \"simple\", \"huizhou\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"roof\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"dark_gray_tile\"}, \"constraints\": {\"mustHave\": [\"perimeter_ring\", \"one_block_thick\"], \"forbiddenTags\": [\"stepped_gable\", \"horse_head\", \"statue\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "cornice_01",
+        "host_id": "mass_main_01",
+        "detail_type": "cornice_band",
+        "ring": true,
+        "protrusion": 1,
+        "block": "minecraft:deepslate_tiles",
+        "building_id": "mass_main_01"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": 6,
+        "y": 3,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"canopy\", \"tags\": [\"door_hood\", \"flat\", \"brick\", \"shallow\", \"huizhou\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"dark_gray_tile_on_white_wall\"}, \"constraints\": {\"mustHave\": [\"flat_hood\", \"projecting_above_door\"], \"forbiddenTags\": [\"gable\", \"double_pitch\", \"carved_figures\", \"gothic\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "door_hood_01",
+        "host_id": "mass_main_01",
+        "detail_type": "door_hood",
+        "projection": 1,
+        "block": "minecraft:deepslate_tiles",
+        "building_id": "mass_main_01"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「徽派风格的一层住宅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

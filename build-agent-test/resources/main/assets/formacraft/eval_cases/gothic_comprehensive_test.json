@@ -1,0 +1,39 @@
+{
+  "id": "gothic_comprehensive_test",
+  "prompt": "生成一个完整的哥特式大教堂：尖塔、玫瑰花窗、飞扶壁、尖拱、垂直性、神圣氛围",
+  "assembly": {
+    "entranceFacing": "EAST",
+    "graph": {
+      "components": [
+        { "id": "Nave", "type": "SHELL_BOX", "at": { "x": 0, "y": 0, "z": 0 }, "w": 22, "d": 12, "h": 28 }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Gothic_Cathedral",
+        "intent": "神圣",
+        "density": 0.7,
+        "symmetry": 0.8,
+        "verticality": 0.95,
+        "transparency": 0.4,
+        "structureExposure": 0.75
+      }
+    }
+  },
+  "expect": {
+    "expectedCultureCardId": "gothic_sacred",
+    "mustOps": ["OPENINGS", "BUTTRESS"],
+    "mustOpKinds": {
+      "OPENINGS": ["ROSE_WINDOW", "ARCH_WINDOW"]
+    },
+    "mustMacro": {
+      "style.styleId": "Gothic_Cathedral",
+      "style.verticality": 0.95,
+      "style.structureExposure": 0.75
+    },
+    "mustNotOps": ["FACADE_GRID", "FRAME_GRID_3D"],
+    "maxOps": 600
+  }
+}
+

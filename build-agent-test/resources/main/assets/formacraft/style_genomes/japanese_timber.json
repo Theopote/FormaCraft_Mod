@@ -1,0 +1,28 @@
+{
+  "id": "japanese_timber",
+  "name": "日式传统木屋",
+  "style": "ASIAN",
+  "palette": {
+    "wall": "minecraft:birch_planks",
+    "roof": "minecraft:deepslate_tiles",
+    "floor": "minecraft:birch_planks",
+    "window": "minecraft:white_stained_glass_pane",
+    "foundation": "minecraft:stone",
+    "trim": "minecraft:spruce_log",
+    "pillar": "minecraft:spruce_log",
+    "cap": "minecraft:deepslate_tile_slab",
+    "door": "minecraft:spruce_door",
+    "roof_trim": "minecraft:spruce_planks",
+    "stairs": "minecraft:deepslate_tile_stairs",
+    "roof_slab": "minecraft:deepslate_tile_slab"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.28,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "single",
+    "floorHeight": 5,
+    "preferSymmetry": false
+  }
+}

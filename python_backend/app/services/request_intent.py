@@ -280,9 +280,37 @@ def _tower_subtype(text: str, building_class: str) -> Optional[str]:
         return None
     subtypes = _vocab().get("tower_subtypes") or {}
     tibetan = list(subtypes.get("tibetan_stupa") or [])
+    dense = list(subtypes.get("dense_eaves_pagoda") or [])
     if _find_positive_hits(text, tibetan) or _contains_any_raw(text, tibetan):
         return "tibetan_stupa"
-    return "dense_eaves_pagoda"
+    # Bare 塔楼/楼阁 must not default into dense_eaves octagon pagoda.
+    if _find_positive_hits(text, dense) or _contains_any_raw(text, dense):
+        return "dense_eaves_pagoda"
+    return None
+
+
+def _looks_residential_without_pagoda(text: str) -> bool:
+    """True for 住宅/apartment prompts that are not 密檐/宝塔/佛塔."""
+    if not text or not str(text).strip():
+        return False
+    raw = str(text)
+    lower = raw.lower()
+    residential = (
+        "住宅" in raw
+        or "公寓" in raw
+        or "高密住宅" in raw
+        or "别墅" in raw
+        or "residence" in lower
+        or "apartment" in lower
+        or "villa" in lower
+        or ("house" in lower and "warehouse" not in lower)
+    )
+    if not residential:
+        return False
+    pagoda_markers = (
+        "密檐", "宝塔", "古塔", "佛塔", "pagoda", "stupa", "舍利塔",
+    )
+    return not any(m in raw or m in lower for m in pagoda_markers)
 
 
 def extract_keyword_intent(user_text: str) -> Dict[str, Any]:
@@ -399,6 +427,21 @@ def merge_request_intent(
             out["llm_declared"] = llm
     else:
         out["source"] = "keyword_hint"
+
+    # LLM often labels 高密住宅 / apartment as tower_like (+ dense_eaves) — demote when
+    # the user text is clearly residential and lacks pagoda/stupa markers.
+    text_for_override = str(out.get("original_text") or keyword.get("original_text") or "")
+    if str(out.get("building_class") or "") == "tower_like" and _looks_residential_without_pagoda(
+        text_for_override
+    ):
+        out["building_class"] = "generic"
+        out["tower_subtype"] = None
+        out["confidence"] = kw_conf
+        out["refuse_residential_autofill"] = False
+        out["scaffold_eligible"] = False
+        out["building_class_source"] = "residential_override"
+        out["source"] = "residential_override"
+        out["llm_declared"] = llm
 
     final_class = str(out.get("building_class") or "generic")
     final_conf = float(out.get("confidence") or 0.0)
@@ -615,6 +658,56 @@ def scaffold_plan_for_intent(
                 ),
             })
 
+        dense_cues = ("密檐", "古塔", "宝塔", "舍利塔", "pagoda", "dense_eaves")
+        wants_dense = (
+            intent.get("tower_subtype") == "dense_eaves_pagoda"
+            or any(tok in text or tok in lower_text for tok in dense_cues)
+        )
+        if not wants_dense:
+            # 楼阁 / bare 塔楼: compositional MASS stack, not octagon dense-eaves STRUCTURE.
+            floors = 3
+            m_floors = re.search(r"([三四五六七八九两\d]{1,2})\s*层", text)
+            if m_floors:
+                token = m_floors.group(1)
+                cn = {"三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "两": 2}
+                if token in cn:
+                    floors = cn[token]
+                elif token.isdigit():
+                    floors = max(2, min(8, int(token)))
+            fh = 5
+            total_h = max(height, floors * fh)
+            return _with_anchor({
+                "mode": "build",
+                "style_profile": style_profile,
+                "distinguishing_features": markers or ["tower", "楼阁"],
+                "style_attributes": style_attrs,
+                "components": [
+                    {
+                        "component_type": "MASS_MAIN",
+                        "slot_id": "tower",
+                        "relative_position": {"x": 0, "y": 0, "z": 0},
+                        "dimensions": {"width": width, "depth": depth, "height": total_h},
+                        "features": ["tower", "multi_storey"] + markers[:4],
+                        "params": {
+                            "component_id": "tower_body",
+                            "floor_count": floors,
+                            "floor_height": fh,
+                            "wall_block": wall,
+                            "roof_block": roof,
+                            "roof_type": _roof_or_default("pyramid"),
+                            "designSeed": seed,
+                            "design_seed": seed,
+                        },
+                    }
+                ],
+                "plan_meta": _scaffold_plan_meta(
+                    intent,
+                    building_class="tower_like",
+                    design_requirements={"facade": "REQUIRED", "entrance": "REQUIRED", "roof": "REQUIRED"},
+                    tower_subtype=None,
+                ),
+            })
+
         floors = 5
         m_floors = re.search(r"([三四五六七八九两\d]{1,2})\s*层", text)
         if m_floors:
@@ -636,8 +729,12 @@ def scaffold_plan_for_intent(
             or "双檐" in text
             or "密檐" in text
         ) else 1
-        footprint = "square" if (seed % 2 == 0) else "octagon"
-        height = max(18, floors * 5 + (seed % 4))
+        square_cues = ("四角", "方塔", "方形塔", "四角塔", "方正", "square tower", "four-corner", "four corner")
+        wants_square = any(c in text for c in square_cues)
+        footprint = "square" if wants_square or (seed % 2 == 0) else "octagon"
+        if wants_square:
+            footprint = "square"
+        height = max(18 if not wants_square else floors * 6 + 5, floors * 5 + (seed % 4))
         return _with_anchor({
             "mode": "build",
             "style_profile": style_profile,
@@ -650,7 +747,8 @@ def scaffold_plan_for_intent(
                     "relative_position": {"x": 0, "y": 0, "z": 0},
                     "dimensions": {"width": width, "depth": depth, "height": height},
                     "features": ["dense_eaves_pagoda", "finial_spire", "塔刹", "typology:dense_eaves_pagoda"]
-                    + (["重檐"] if eaves_per_level > 1 else []),
+                    + (["重檐"] if eaves_per_level > 1 else [])
+                    + (["四角", "square_footprint"] if wants_square else []),
                     "params": {
                         "typology_id": "dense_eaves_pagoda",
                         "typology": "dense_eaves_pagoda",
@@ -659,6 +757,7 @@ def scaffold_plan_for_intent(
                         "eaves_per_level": eaves_per_level,
                         "double_eaves": eaves_per_level > 1,
                         "footprint": footprint,
+                        **({"niche_rhythm": "none"} if wants_square else {}),
                         "designSeed": seed,
                         "design_seed": seed,
                         "wall_block": wall,

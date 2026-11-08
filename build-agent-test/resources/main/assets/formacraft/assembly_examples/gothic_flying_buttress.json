@@ -1,0 +1,79 @@
+{
+  "paletteId": "PALETTE_GOTHIC_CATHEDRAL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "Nave",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 22, "d": 10, "h": 22,
+        "wall": "deepslate_bricks",
+        "floor": "stone_bricks",
+        "roof": "polished_deepslate_slab",
+        "facade": {
+          "openings": [
+            {
+              "face": "NORTH,SOUTH",
+              "kind": "ARCH_WINDOW",
+              "archType": "POINTED",
+              "cols": 5,
+              "rows": 2,
+              "winW": 2,
+              "winH": 9,
+              "sillY": 6,
+              "frameThickness": 1,
+              "frame": "deepslate_brick_wall",
+              "fill": "purple_stained_glass"
+            }
+          ]
+        }
+      },
+      {
+        "id": "PierN",
+        "type": "SHELL_BOX",
+        "at": { "x": -5, "y": 0, "z": 1 },
+        "w": 3, "d": 3, "h": 16,
+        "wall": "deepslate_bricks",
+        "floor": "deepslate_bricks",
+        "roof": "polished_deepslate_slab"
+      },
+      {
+        "id": "FlyN",
+        "type": "BUTTRESS",
+        "from": { "x": 0, "y": 16, "z": 2 },
+        "to": { "x": -4, "y": 12, "z": 2 },
+        "rise": 4,
+        "pierDown": 10,
+        "thickness": 1,
+        "rib": "STRUCTURAL_BEAM",
+        "pier": "STRUCTURAL_BEAM",
+        "joint": "STRUCTURAL_BEAM"
+      },
+      {
+        "id": "PierS",
+        "type": "SHELL_BOX",
+        "at": { "x": -5, "y": 0, "z": 6 },
+        "w": 3, "d": 3, "h": 16,
+        "wall": "deepslate_bricks",
+        "floor": "deepslate_bricks",
+        "roof": "polished_deepslate_slab"
+      },
+      {
+        "id": "FlyS",
+        "type": "BUTTRESS",
+        "from": { "x": 0, "y": 16, "z": 7 },
+        "to": { "x": -4, "y": 12, "z": 7 },
+        "rise": 4,
+        "pierDown": 10,
+        "thickness": 1,
+        "rib": "STRUCTURAL_BEAM",
+        "pier": "STRUCTURAL_BEAM",
+        "joint": "STRUCTURAL_BEAM"
+      }
+    ],
+    "connections": []
+  }
+}
+
+

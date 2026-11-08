@@ -1,0 +1,37 @@
+{
+  "id": "nordic_forest_lodge",
+  "styleId": "Scandinavian_Timber",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "北欧木构森林山庄",
+    "scandinavian timber lodge"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "北欧木构森林山庄": 30,
+    "scandinavian timber lodge": 30
+  },
+  "negativeKeywords": [
+    "不要北欧木构森林山庄",
+    "not scandinavian timber lodge"
+  ],
+  "proportionCardId": "nordic_forest_lodge",
+  "llmPlanExampleRefs": [
+    "nordic_forest_lodge_compact.json",
+    "nordic_forest_lodge_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "nordic_forest_lodge",
+      "constraints": [
+        "Use style_profile=Scandinavian_Timber, proportion_hints.typology=timber_gable_house; original 北欧木构森林山庄 exterior request.",
+        "Use the dedicated envelope examples; preserve host bindings and explicit user requirements.",
+        "Exterior program proportions only; no furniture, room-use, accessibility or structural verification is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "timber_gable_house"
+}

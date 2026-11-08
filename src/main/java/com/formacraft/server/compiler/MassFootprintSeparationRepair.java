@@ -32,6 +32,10 @@ final class MassFootprintSeparationRepair {
         if (plan == null || plan.components() == null || plan.components().size() < 2) {
             return plan;
         }
+        // 「互相交叠」geometric museums intentionally overlap — separating wings destroys the form.
+        if (asksInterlockingMasses(plan)) {
+            return plan;
+        }
         List<Component> out = new ArrayList<>(plan.components());
         boolean changed = false;
         for (int i = 0; i < out.size(); i++) {
@@ -138,6 +142,10 @@ final class MassFootprintSeparationRepair {
         if (isFoundationLike(c)) {
             return false;
         }
+        // Peristyle / porch columns are ring ornaments — nudging them destroys the colonnade.
+        if (isThinColumnOrPeristyle(c)) {
+            return false;
+        }
         if (c.params() != null) {
             // Bridge / hosted plates intentionally touch two hosts — never nudge them apart.
             if (c.params().containsKey("target_host_id") || c.params().containsKey("targetHostId")) {
@@ -151,6 +159,28 @@ final class MassFootprintSeparationRepair {
             return !"plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")));
         }
         return true;
+    }
+
+    /** 1×1 / 2×2 shafts and named peristyle columns must stay on the authored ring. */
+    private static boolean isThinColumnOrPeristyle(Component c) {
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        if (id.contains("column") || id.contains("peristyle") || id.contains("pillar")
+                || id.contains("colonade") || id.contains("colonnade") || id.contains("柱")) {
+            return true;
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("peristyle") || lower.contains("colonnade")
+                        || lower.contains("quartz_column") || lower.contains("corinthian")) {
+                    return true;
+                }
+            }
+        }
+        Dimensions d = c.dimensions();
+        String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        return "MASS_ANCILLARY".equals(t) && d.width() <= 2 && d.depth() <= 2 && d.height() >= 4;
     }
 
     /** Foundations, platforms, and porch posts that must stay co-located with the hall. */
@@ -238,6 +268,29 @@ final class MassFootprintSeparationRepair {
         Object id = c.params().get("component_id");
         if (id == null) id = c.params().get("componentId");
         return id == null ? String.valueOf(c.componentType()) : String.valueOf(id);
+    }
+
+    private static boolean asksInterlockingMasses(LlmPlan plan) {
+        StringBuilder sb = new StringBuilder();
+        if (plan.planMeta() != null) {
+            Object ri = plan.planMeta().get("request_intent_text");
+            if (ri != null) sb.append(ri).append(' ');
+            Object intent = plan.planMeta().get("request_intent");
+            if (intent instanceof Map<?, ?> m && m.get("original_text") != null) {
+                sb.append(m.get("original_text")).append(' ');
+            }
+        }
+        if (plan.playerFidelityNoticeZh() != null) sb.append(plan.playerFidelityNoticeZh()).append(' ');
+        if (plan.distinguishingFeatures() != null) {
+            for (String f : plan.distinguishingFeatures()) {
+                if (f != null) sb.append(f).append(' ');
+            }
+        }
+        String blob = sb.toString().toLowerCase(Locale.ROOT);
+        return blob.contains("交叠") || blob.contains("交错") || blob.contains("互相穿插")
+                || blob.contains("interlock") || blob.contains("interlocking")
+                || blob.contains("overlapping mass") || blob.contains("overlapping volumes")
+                || blob.contains("interpenetrat");
     }
 
     /**
@@ -398,11 +451,11 @@ final class MassFootprintSeparationRepair {
         }
         if (dx == 0 && dz == 0) return mover;
 
-        // Keep the side hall on the same floor datum as the main body (avoid sinking underground
-        // while the main sits on a 月台 / raised mass).
+        // Keep coplanar side halls on the same floor datum as the main body (avoid sinking
+        // underground while the main sits on a 月台). Do NOT flatten cantilevered / raised wings.
         Vec3i anchorOrigin = ComponentFootprintUtil.resolveMinCornerOrigin(anchor);
         int targetY = mo.y();
-        if (anchorOrigin != null) {
+        if (anchorOrigin != null && Math.abs(mo.y() - anchorOrigin.y()) <= 1) {
             targetY = anchorOrigin.y();
         }
 

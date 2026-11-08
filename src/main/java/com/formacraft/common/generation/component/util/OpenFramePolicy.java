@@ -16,6 +16,16 @@ public final class OpenFramePolicy {
     }
 
     /**
+     * Stilt foundation posts on a rectangular pad: corners, edge midpoints, and center (3×3).
+     * Distinct from open-frame body posts ({@link #isPost}), which stay at corners only.
+     */
+    public static boolean isStiltPost(int localX, int localZ, int width, int depth) {
+        if (width <= 0 || depth <= 0) return false;
+        return (localX == 0 || localX == width / 2 || localX == width - 1)
+                && (localZ == 0 || localZ == depth / 2 || localZ == depth - 1);
+    }
+
+    /**
      * Pavilion posts: rectangle AABB corners, or {@code sides}-gon samples / footprint vertices
      * when the plan is circular / cut-corner (AABB corners sit outside the footprint).
      */
@@ -23,6 +33,9 @@ public final class OpenFramePolicy {
                                  int width, int depth, Map<String, Object> params) {
         if (footprint == null || !footprint.contains(localX, localZ)) return false;
         if (isFullyRectangular(footprint, width, depth)) {
+            // Open-frame body posts stay at AABB corners. Stilts foundations use
+            // {@link #isStiltPost} (3×3 grid) separately so mid-edge posts do not
+            // collide with exterior approach stairs.
             return (localX == 0 || localX == width - 1) && (localZ == 0 || localZ == depth - 1);
         }
         int sides = ComponentParamParsers.intParam(params, 0, "sides");
@@ -32,7 +45,13 @@ public final class OpenFramePolicy {
         return exteriorVertex(footprint, localX, localZ);
     }
 
+    /** True when every cell of the AABB is occupied (square/rect pad, not octagon cut). */
+    public static boolean isRectangularFootprint(ResolvedFootprint footprint, int width, int depth) {
+        return isFullyRectangular(footprint, width, depth);
+    }
+
     private static boolean isFullyRectangular(ResolvedFootprint footprint, int width, int depth) {
+        if (footprint == null || width <= 0 || depth <= 0) return false;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!footprint.contains(x, z)) return false;

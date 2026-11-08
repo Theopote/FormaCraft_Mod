@@ -1,0 +1,29 @@
+{
+  "id": "tang_timber",
+  "name": "唐风木构",
+  "style": "ASIAN",
+  "palette": {
+    "wall": "minecraft:dark_oak_planks",
+    "roof": "minecraft:deepslate_tiles",
+    "floor": "minecraft:polished_andesite",
+    "window": "minecraft:spruce_fence",
+    "foundation": "minecraft:stone_bricks",
+    "trim": "minecraft:spruce_planks",
+    "pillar": "minecraft:dark_oak_log",
+    "cap": "minecraft:deepslate_tile_slab",
+    "door": "minecraft:dark_oak_door",
+    "roof_trim": "minecraft:spruce_planks",
+    "stairs": "minecraft:deepslate_tile_stairs",
+    "roof_slab": "minecraft:deepslate_tile_slab"
+  },
+  "params": {
+    "roofType": "hipped",
+    "windowRatio": 0.18,
+    "windowStyle": "fence",
+    "wallPattern": "uniform",
+    "doorStyle": "double",
+    "floorHeight": 4,
+    "preferSymmetry": true,
+    "layeredRoof": true
+  }
+}

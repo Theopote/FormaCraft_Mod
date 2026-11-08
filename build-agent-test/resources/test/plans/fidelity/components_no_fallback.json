@@ -1,0 +1,23 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "generation_authority": "COMPONENTS",
+    "allow_compiler_satellites": false
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 10, "height": 8 },
+      "features": ["typology:cottage"],
+      "params": {
+        "typology_id": "cottage",
+        "roof_type": "none",
+        "entrance_type": "none"
+      }
+    }
+  ]
+}

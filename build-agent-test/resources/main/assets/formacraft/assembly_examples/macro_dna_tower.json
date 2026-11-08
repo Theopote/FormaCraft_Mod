@@ -1,0 +1,22 @@
+{
+  "paletteId": "PALETTE_MODERN_INTERNATIONAL_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "Main",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 12,
+        "d": 12,
+        "h": 30,
+        "twistTurns": 1.5,
+        "twistPhase": 0.0,
+        "wall": "minecraft:white_concrete",
+        "window": "minecraft:light_blue_stained_glass_pane",
+        "floor": "minecraft:smooth_stone"
+      }
+    ]
+  }
+}
+

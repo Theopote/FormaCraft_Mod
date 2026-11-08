@@ -1,0 +1,46 @@
+{
+  "id": "modern_skyscraper",
+  "styleId": "Modern_International",
+  "intents": ["TOWER", "SKYSCRAPER", "摩天楼", "高层建筑"],
+  "keywords": [
+    "摩天楼", "现代摩天大楼", "高层塔楼", "玻璃幕墙大楼",
+    "skyscraper", "modern skyscraper", "highrise", "high rise",
+    "modern_skyscraper", "tower block"
+  ],
+  "synonyms": {
+    "摩天楼": ["skyscraper", "highrise tower", "modern tower"],
+    "现代摩天大楼": ["modern skyscraper", "glass curtain wall tower"]
+  },
+  "keywordWeights": {
+    "摩天楼": 10.0,
+    "现代摩天大楼": 9.5,
+    "skyscraper": 9.0,
+    "modern skyscraper": 8.5,
+    "highrise": 8.0,
+    "high rise": 7.5
+  },
+  "negativeKeywords": [
+    "写字楼", "办公大楼", "office block", "office tower",
+    "扎哈", "zaha", "解构", "deconstruct", "参数化", "gehry",
+    "体育场", "城堡", "四合院", "哥特", "原创", "不要地标"
+  ],
+  "proportionCardId": "setback_tower",
+  "structuralTypologyId": "setback_tower",
+  "llmPlanExampleRefs": [
+    "modern_skyscraper_typology.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "modern_setback_skyscraper",
+      "constraints": [
+        "MANDATORY: structural_typology=setback_tower + STRUCTURE/typology params（退台方塔+幕墙）",
+        "reference_landmark=modern_skyscraper 作比例锚点；禁止 MODULE/landmark:modern_skyscraper 硬路由",
+        "params: width≈19, depth≈19, height≈64, floors≈12, setbackEveryFloors≈6, setbackStep≈2",
+        "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=RADIAL",
+        "输出 proportion_hints：typology=setback_tower, slenderness≈4.5, setback_ratio≈0.12, window_wall_ratio≈0.55",
+        "禁止用无退台的实心单盒子代替高层塔楼"
+      ]
+    }
+  ]
+}

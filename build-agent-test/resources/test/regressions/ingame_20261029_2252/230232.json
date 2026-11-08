@@ -1,0 +1,706 @@
+{
+  "mode": "build",
+  "style_profile": "TIBETAN_BUDDHIST",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "gold",
+    "accent_color": "gold",
+    "wall_material": "whitewashed_stone",
+    "roof_material": "gilded_copper",
+    "floor_material": "stone",
+    "decorative_elements": [
+      "whitewashed walls",
+      "golden spire",
+      "prayer wheel band",
+      "lotus cornice",
+      "sun and moon finial"
+    ]
+  },
+  "distinguishing_features": [
+    "whitewashed square stepped base",
+    "white dome bumpa",
+    "square harmika",
+    "thirteen-ring conical spire",
+    "sun and moon finial"
+  ],
+  "anchor": {
+    "x": 691,
+    "y": 70,
+    "z": -908
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "tibetan_stupa",
+      "confidence": 0.85
+    },
+    "topology": {
+      "layout": "radial",
+      "composition": "single",
+      "axis": "centered",
+      "levels": "vertical"
+    },
+    "structure": {
+      "type": "solid",
+      "massiveness": 0.9,
+      "voidRatio": 0.05,
+      "supports": "central"
+    },
+    "form": {
+      "repetition": "vertical",
+      "progression": "tapering",
+      "curvature": "mixed",
+      "rhythm": "segmented"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 4,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "tower"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "metal",
+      "accent": "metal",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "tibetan",
+      "era": "traditional",
+      "keywords": [
+        "stupa",
+        "chorten",
+        "buddhist",
+        "white"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 40,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "radial symmetry",
+        "stepped base",
+        "white dome",
+        "golden spire"
+      ],
+      "avoid": [
+        "large windows",
+        "rectangular box only"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "RADIAL_RING",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "stupa_core",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "program": "LANDMARK",
+        "component_preset_id": "tibetan_stupa",
+        "component_preset": "White Tibetan stupa with stepped base, dome, harmika, spire and finial"
+      }
+    ]
+  },
+  "proportion_hints": {
+    "typology": "stupa",
+    "height_to_width": 1.875,
+    "depth_to_width": 1.0,
+    "base_height_to_total": 0.1,
+    "dome_height_to_total": 0.166,
+    "spire_height_to_total": 0.233,
+    "bowl_depth_to_width": 0.38,
+    "height_to_major_axis": 0.48,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "stupa_base"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "stupa_base",
+          "slot_id": "stupa_core",
+          "local_origin": {
+            "x": -8,
+            "y": 3,
+            "z": -8
+          },
+          "plan_origin": {
+            "x": -8,
+            "y": 3,
+            "z": -8
+          },
+          "dimensions": {
+            "width": 16,
+            "depth": 16,
+            "height": 6
+          },
+          "floor_ys_local": [
+            3
+          ],
+          "roof_y_local": 8,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "stupa_base",
+                "local_origin": {
+                  "x": -8,
+                  "y": 3,
+                  "z": -8
+                },
+                "dimensions": {
+                  "width": 16,
+                  "depth": 16,
+                  "height": 6
+                },
+                "roof_y_local": 8
+              }
+            ],
+            "envelope_local": {
+              "min_x": -8,
+              "min_z": -8,
+              "max_x": 8,
+              "max_z": 8,
+              "min_y": 3,
+              "max_y": 9
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": -8,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": -8,
+                "start": -8,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座白色藏式佛塔。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座白色藏式佛塔。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "alignment_and_symmetry": {
+    "symmetry": "RADIAL",
+    "axis": "vertical",
+    "order": 4,
+    "mirror": true
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 24,
+        "height": 2
+      },
+      "features": [
+        "whitewashed stepped plinth",
+        "stone platform"
+      ],
+      "params": {
+        "component_id": "foundation_plinth",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone",
+        "foundation_type": "plinth",
+        "detail_level": "medium",
+        "building_id": "foundation_plinth"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -10,
+        "y": 2,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "circumambulation walkway",
+        "raised white platform"
+      ],
+      "params": {
+        "component_id": "circumambulation_terrace",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone",
+        "host_id": "foundation_plinth",
+        "detail_level": "medium",
+        "building_id": "foundation_plinth"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -8,
+        "y": 3,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 6
+      },
+      "features": [
+        "whitewashed square base",
+        "facade rhythm",
+        "base plinth"
+      ],
+      "params": {
+        "component_id": "stupa_base",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "flat",
+        "floor_count": 1,
+        "floor_height": 6,
+        "wall_pattern": "striped",
+        "facade_profile": "base_plinth",
+        "window_ratio": 0.08,
+        "void_ratio": 0.05,
+        "material": "stone",
+        "detail_level": "high",
+        "setback_ratio": 0.06,
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -7,
+        "y": 9,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 14,
+        "height": 2
+      },
+      "features": [
+        "second stepped tier",
+        "whitewashed band"
+      ],
+      "params": {
+        "component_id": "stupa_step2",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "host_id": "stupa_base",
+        "material": "stone",
+        "detail_level": "high",
+        "window_ratio": 0.35,
+        "void_ratio": 0.05,
+        "setback_ratio": 0.06,
+        "floor_height": 3,
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -6,
+        "y": 11,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 2
+      },
+      "features": [
+        "third stepped tier",
+        "lotus throne base"
+      ],
+      "params": {
+        "component_id": "stupa_step3",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "host_id": "stupa_base",
+        "material": "stone",
+        "detail_level": "high",
+        "window_ratio": 0.35,
+        "void_ratio": 0.05,
+        "setback_ratio": 0.06,
+        "floor_height": 3,
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -9,
+        "y": 8,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "lotus cornice band",
+        "whitewashed ornament"
+      ],
+      "params": {
+        "component_id": "lotus_cornice",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "host_id": "stupa_base",
+        "material": "stone",
+        "detail_level": "high",
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -6,
+        "y": 13,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 5
+      },
+      "features": [
+        "white dome bumpa",
+        "hemispherical body"
+      ],
+      "params": {
+        "component_id": "stupa_dome",
+        "anchor_mode": "min_corner",
+        "host_id": "stupa_base",
+        "roof_type": "dome",
+        "crown_template": "SIMPLE_DOME",
+        "crown_radius": 6,
+        "crown_height": 5,
+        "revolve_segments": 16,
+        "material": "stone",
+        "detail_level": "high",
+        "roof_height": 5,
+        "overhang": 2,
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -3,
+        "y": 18,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 6,
+        "height": 3
+      },
+      "features": [
+        "square harmika",
+        "white box on dome"
+      ],
+      "params": {
+        "component_id": "stupa_harmika",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "host_id": "stupa_base",
+        "material": "stone",
+        "detail_level": "high",
+        "roof_type": "dome",
+        "window_ratio": 0.35,
+        "void_ratio": 0.05,
+        "setback_ratio": 0.06,
+        "floor_height": 3,
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -2,
+        "y": 21,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 4,
+        "height": 7
+      },
+      "features": [
+        "thirteen-ring conical spire",
+        "gilded copper spire"
+      ],
+      "params": {
+        "component_id": "stupa_spire",
+        "anchor_mode": "min_corner",
+        "host_id": "stupa_base",
+        "roof_type": "cone",
+        "crown_radius": 2,
+        "crown_height": 7,
+        "revolve_segments": 12,
+        "material": "metal",
+        "detail_level": "high",
+        "roof_height": 7,
+        "overhang": 2,
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -1,
+        "y": 28,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "sun and moon finial",
+        "golden ornament"
+      ],
+      "params": {
+        "component_id": "stupa_finial",
+        "anchor_mode": "min_corner",
+        "host_id": "stupa_base",
+        "shape": "sphere",
+        "kind": "sphere",
+        "material": "metal",
+        "detail_level": "high",
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -9,
+        "y": 3,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 5
+      },
+      "features": [
+        "west-facing door",
+        "carved entrance"
+      ],
+      "params": {
+        "component_id": "stupa_entrance",
+        "anchor_mode": "min_corner",
+        "host_id": "stupa_base",
+        "entrance_type": "door",
+        "material": "wood",
+        "detail_level": "high",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -5,
+        "y": 4,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "small niche windows",
+        "south facade rhythm"
+      ],
+      "params": {
+        "component_id": "stupa_windows_south",
+        "anchor_mode": "min_corner",
+        "host_id": "stupa_base",
+        "facing": "SOUTH",
+        "window_style": "punch_window",
+        "window_ratio": 0.1,
+        "window_aspect": "vertical_strip",
+        "wall_pattern": "striped",
+        "material": "wood",
+        "detail_level": "medium",
+        "rhythm": "segmented",
+        "building_id": "stupa_base"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "stupa_core",
+      "relative_position": {
+        "x": -5,
+        "y": 4,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "small niche windows",
+        "north facade rhythm"
+      ],
+      "params": {
+        "component_id": "stupa_windows_north",
+        "anchor_mode": "min_corner",
+        "host_id": "stupa_base",
+        "facing": "NORTH",
+        "window_style": "punch_window",
+        "window_ratio": 0.1,
+        "window_aspect": "vertical_strip",
+        "wall_pattern": "striped",
+        "material": "wood",
+        "detail_level": "medium",
+        "rhythm": "segmented",
+        "building_id": "stupa_base"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「白色藏式佛塔」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

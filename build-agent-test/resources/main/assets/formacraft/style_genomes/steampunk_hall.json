@@ -1,0 +1,27 @@
+{
+  "id": "steampunk_hall",
+  "name": "steampunk hall",
+  "style": "Steampunk",
+  "palette": {
+    "wall": "minecraft:bricks",
+    "roof": "minecraft:cut_copper",
+    "floor": "minecraft:stone_bricks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:stone_bricks",
+    "trim": "minecraft:waxed_cut_copper",
+    "pillar": "minecraft:waxed_cut_copper",
+    "cap": "minecraft:stone_brick_slab",
+    "door": "minecraft:oak_door",
+    "roof_trim": "minecraft:waxed_cut_copper",
+    "stairs": "minecraft:stone_brick_stairs",
+    "roof_slab": "minecraft:stone_brick_slab"
+  },
+  "params": {
+    "roofType": "gambrel",
+    "windowRatio": 0.22,
+    "windowStyle": "pane",
+    "wallPattern": "timber_frame",
+    "floorHeight": 4,
+    "preferSymmetry": true
+  }
+}

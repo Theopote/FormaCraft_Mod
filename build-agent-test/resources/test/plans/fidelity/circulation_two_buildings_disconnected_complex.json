@@ -1,0 +1,92 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "circulation_scope": "CONNECTED_COMPLEX",
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED",
+      "circulation": "REQUIRED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "alpha",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 10 },
+      "features": [],
+      "params": {
+        "component_id": "alpha",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "alpha",
+      "relative_position": { "x": 2, "y": 0, "z": 3 },
+      "dimensions": { "width": 6, "depth": 2, "height": 6 },
+      "features": ["stair:straight_single_run"],
+      "params": {
+        "component_id": "alpha_stair",
+        "host_id": "alpha",
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 4, "y": 4, "z": 0 },
+        "width": 2,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 3,
+        "landing_length": 2
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "beta",
+      "relative_position": { "x": 24, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 10 },
+      "features": [],
+      "params": {
+        "component_id": "beta",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "beta",
+      "relative_position": { "x": 26, "y": 0, "z": 3 },
+      "dimensions": { "width": 6, "depth": 2, "height": 6 },
+      "features": ["stair:straight_single_run"],
+      "params": {
+        "component_id": "beta_stair",
+        "host_id": "beta",
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 4, "y": 4, "z": 0 },
+        "width": 2,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 3,
+        "landing_length": 2
+      }
+    }
+  ]
+}

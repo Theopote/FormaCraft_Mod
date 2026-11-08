@@ -1,0 +1,165 @@
+{
+  "dialect": "fbd/0",
+  "seed": 20261022,
+  "functions": [
+    {
+      "name": "wing",
+      "doc": "单个翼体：外壳（内建窗带与楼层）+ 坡顶 + 南立面节奏",
+      "params": [
+        {
+          "name": "w",
+          "type": "int"
+        },
+        {
+          "name": "h",
+          "type": "int"
+        }
+      ],
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "w1",
+          "op": "SHELL_BOX",
+          "params": {
+            "w": "$w",
+            "d": 12,
+            "h": "$h",
+            "floorStep": 4,
+            "wall": "wall",
+            "window": "window",
+            "floor": "floor"
+          }
+        },
+        {
+          "stmt": "emit",
+          "id": "w2",
+          "op": "ROOF_COVER",
+          "params": {
+            "type": "HIP",
+            "w": "$w",
+            "d": 12,
+            "y": "$h",
+            "overhang": 2,
+            "rise": 5,
+            "roof": "roof",
+            "slab": "slab"
+          }
+        },
+        {
+          "stmt": "emit",
+          "id": "w3",
+          "op": "SURFACE_PATTERN",
+          "params": {
+            "face": "SOUTH",
+            "pattern": "GRID",
+            "step": 4,
+            "x0": {
+              "expr": "-",
+              "args": [
+                {
+                  "expr": "/",
+                  "args": [
+                    "$w",
+                    2
+                  ]
+                },
+                3
+              ]
+            },
+            "x1": {
+              "expr": "-",
+              "args": [
+                {
+                  "expr": "/",
+                  "args": [
+                    "$w",
+                    2
+                  ]
+                },
+                1
+              ]
+            },
+            "y0": 2,
+            "y1": {
+              "expr": "-",
+              "args": [
+                "$h",
+                2
+              ]
+            },
+            "z0": -6,
+            "z1": -6,
+            "material": "accent"
+          }
+        }
+      ]
+    }
+  ],
+  "main": [
+    {
+      "stmt": "with_frame",
+      "id": "m1",
+      "origin": [
+        -12,
+        0,
+        0
+      ],
+      "body": [
+        {
+          "stmt": "call",
+          "id": "m2",
+          "fn": "wing",
+          "args": {
+            "w": 16,
+            "h": 10
+          }
+        }
+      ]
+    },
+    {
+      "stmt": "with_frame",
+      "id": "m3",
+      "origin": [
+        12,
+        0,
+        0
+      ],
+      "body": [
+        {
+          "stmt": "call",
+          "id": "m4",
+          "fn": "wing",
+          "args": {
+            "w": 16,
+            "h": 10
+          }
+        }
+      ]
+    },
+    {
+      "stmt": "with_frame",
+      "id": "m5",
+      "origin": [
+        0,
+        0,
+        2
+      ],
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "m6",
+          "op": "SHELL_BOX",
+          "params": {
+            "w": 8,
+            "d": 6,
+            "h": 6,
+            "floorStep": 6,
+            "wall": "wall",
+            "window": "window",
+            "floor": "floor"
+          }
+        }
+      ]
+    }
+  ]
+}

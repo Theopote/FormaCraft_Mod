@@ -1,0 +1,125 @@
+{
+  "schema": "formacraft.generation_capability.v1",
+  "version": 1,
+  "hostable_component_types": [
+    "MASS_MAIN", "TOWER", "MASS_WING", "SIDE_WING", "MASS_ANCILLARY", "MASS_SECONDARY",
+    "TERRACE", "COURTYARD", "COURTYARD_SPACE", "GATE", "GATE_STRUCTURE",
+    "STRUCTURE", "MODULE", "FOUNDATION", "PLAZA", "PAVING", "PATH", "ROAD", "KEEP",
+    "WALL"
+  ],
+  "hosted_component_types": [
+    "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "FACADE", "ENTRANCE",
+    "ENTRANCE_CANOPY", "CROWN", "CUPOLA", "DOME", "MASS_SECONDARY", "DECOR_DETAIL",
+    "BALCONY", "TERRACE", "STRUCTURE", "ASSEMBLY"
+  ],
+  "roof": {
+    "supported_tokens": [
+      "flat", "shed", "lean_to", "single_slope",
+      "gable", "gabled", "gable_low_pitch", "low_pitch_gable",
+      "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山",
+      "double_gable", "doublegable", "shuangpo", "双坡",
+      "hip", "hipped", "chinese_hip", "wu_dian", "wudian", "wu-dian", "庑殿", "四坡",
+      "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "hip_gable", "歇山",
+      "irimoya", "iri_moya", "iri-moya", "入母屋", "入母屋造",
+      "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山",
+      "pyramid", "pyramidal",
+      "cone", "conical",
+      "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome",
+      "mansard", "mansard_roof", "baroque_roof",
+      "gambrel", "gambrel_roof", "折线双坡顶",
+      "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶",
+      "onion_dome", "onion dome", "洋葱穹顶",
+      "steep_thatch", "steep thatch", "陡坡茅草顶",
+      "none"
+    ],
+    "aliases": {
+      "irimoya": "xieshan",
+      "iri_moya": "xieshan",
+      "iri-moya": "xieshan",
+      "入母屋": "xieshan",
+      "入母屋造": "xieshan",
+      "hip_and_gable": "xieshan",
+      "hip-gable": "xieshan",
+      "hip_gable": "xieshan",
+      "歇山": "xieshan",
+      "庑殿": "hip",
+      "wu_dian": "hip",
+      "wudian": "hip",
+      "四坡": "hip",
+      "悬山": "xuanshan",
+      "硬山": "yingshan",
+      "双坡": "double_gable",
+      "gabled": "gable",
+      "hipped": "hip",
+      "pyramidal": "pyramid",
+      "conical": "cone",
+      "domed": "dome"
+    },
+    "fallback_policy": "map_alias_then_reject_unknown"
+  },
+  "typologies": [
+    "dense_eaves_pagoda",
+    "tibetan_stupa",
+    "tailiang_timber_hall",
+    "courtyard_compound",
+    "suspension_bridge",
+    "radial_terrace_hall",
+    "tiered_mountain_palace"
+  ],
+  "building_classes": {
+    "tower_like": {
+      "preferred_components": ["STRUCTURE"],
+      "preferred_typologies": ["dense_eaves_pagoda", "tibetan_stupa"],
+      "composition": "single"
+    },
+    "gate": {
+      "preferred_components": ["GATE", "GATE_STRUCTURE", "STRUCTURE"],
+      "accept_mass_proportions": true,
+      "composition": "single"
+    },
+    "temple": {
+      "preferred_components": ["MASS_MAIN", "ROOF"],
+      "composition_default": "single",
+      "composition_compound_triggers": ["建筑群", "院落", "厢房", "配殿", "三进", "两进"]
+    },
+    "garden": {
+      "preferred_components": ["COURTYARD", "PATH", "MASS_MAIN"],
+      "composition": "compound"
+    },
+    "generic": {
+      "preferred_components": ["MASS_MAIN", "ROOF", "ENTRANCE", "FACADE_WINDOWS"],
+      "composition": "single"
+    }
+  },
+  "component_types": {
+    "GATE": {
+      "implementation_status": "supported",
+      "can_host": true,
+      "hosted": false,
+      "output_contract": ["through_passage", "wide_shallow_preferred"],
+      "fallback_policy": "accept_mass_with_passage_axis"
+    },
+    "GATE_STRUCTURE": {
+      "implementation_status": "supported",
+      "can_host": true,
+      "hosted": false,
+      "output_contract": ["through_passage", "wide_shallow_preferred"]
+    },
+    "STRUCTURE": {
+      "implementation_status": "typology_routed",
+      "can_host": true,
+      "hosted": true
+    },
+    "ROOF": {
+      "implementation_status": "supported",
+      "can_host": false,
+      "hosted": true,
+      "supported_types_ref": "roof.supported_tokens"
+    },
+    "MASS_MAIN": {
+      "implementation_status": "supported",
+      "can_host": true,
+      "hosted": false
+    }
+  }
+}

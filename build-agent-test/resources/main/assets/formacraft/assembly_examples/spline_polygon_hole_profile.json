@@ -1,0 +1,47 @@
+{
+  "paletteId": "PALETTE_PARAMETRIC_WHITE_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "polyHoleShell",
+        "type": "SPLINE_SWEEP",
+        "profile": "POLYGON",
+        "profileRings": [
+          [
+            { "u": -7, "v": -4 },
+            { "u":  7, "v": -4 },
+            { "u":  7, "v":  4 },
+            { "u": -7, "v":  4 }
+          ],
+          [
+            { "u": -3, "v": -2 },
+            { "u":  3, "v": -2 },
+            { "u":  3, "v":  2 },
+            { "u": -3, "v":  2 }
+          ]
+        ],
+        "profileScale0": 1.0,
+        "profileScale1": 0.9,
+        "twistTurns": 0.25,
+        "material": "minecraft:white_concrete",
+        "wall": "minecraft:smooth_quartz",
+        "hollow": true,
+        "thickness": 1,
+        "capEnds": true,
+        "capThickness": 1,
+        "connectSamples": true,
+        "connectMaxStep": 2,
+        "samplesPerBlock": 10,
+        "points": [
+          { "x": -16, "y": 3, "z": -10 },
+          { "x": -6,  "y": 9, "z": -2 },
+          { "x":  6,  "y": 7, "z":  10 },
+          { "x":  16, "y": 11, "z":  6 }
+        ]
+      }
+    ]
+  }
+}
+
+

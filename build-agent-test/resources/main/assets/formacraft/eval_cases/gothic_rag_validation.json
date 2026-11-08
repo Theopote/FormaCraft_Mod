@@ -1,0 +1,36 @@
+{
+  "id": "gothic_rag_validation",
+  "prompt": "生成一个哥特式大教堂立面：神圣、强垂直性、玫瑰花窗、飞扶壁、尖拱",
+  "assembly": {
+    "entranceFacing": "EAST",
+    "graph": {
+      "components": [
+        { "id": "Nave", "type": "SHELL_BOX", "at": { "x": 0, "y": 0, "z": 0 }, "w": 22, "d": 12, "h": 24 }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Gothic_Cathedral",
+        "intent": "神圣",
+        "density": 0.7,
+        "symmetry": 0.8,
+        "verticality": 0.95,
+        "transparency": 0.4,
+        "structureExposure": 0.75
+      }
+    }
+  },
+  "expect": {
+    "expectedCultureCardId": "gothic_sacred",
+    "mustOps": ["OPENINGS", "BUTTRESS"],
+    "mustOpKinds": {
+      "OPENINGS": ["ROSE_WINDOW", "ARCH_WINDOW"]
+    },
+    "mustMacro": {
+      "style.styleId": "Gothic_Cathedral"
+    },
+    "maxOps": 600
+  }
+}
+

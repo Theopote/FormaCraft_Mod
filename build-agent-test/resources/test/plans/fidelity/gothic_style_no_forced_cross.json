@@ -1,0 +1,32 @@
+{
+  "mode": "build",
+  "style_profile": "Gothic_Cathedral",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 20, "depth": 14, "height": 12 },
+      "features": ["gothic", "cathedral"],
+      "params": {
+        "component_id": "body",
+        "anchor_mode": "min_corner",
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    }
+  ]
+}

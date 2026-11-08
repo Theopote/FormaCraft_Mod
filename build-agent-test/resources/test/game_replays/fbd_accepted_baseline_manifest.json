@@ -1,0 +1,12 @@
+{
+  "accepted_on": "2026-10-25",
+  "source": "用户确认生成与撤销测试通过；保留本会话已有的程序回归基线",
+  "normalization": "UTF-8 text; CRLF normalized to LF before SHA-256",
+  "fixtures": [
+    {
+      "file": "fbd_20261024_patch_merge.json",
+      "plans": 5,
+      "sha256": "eb9ad58477eeab106e6c9a7358023abf25ac8a43100521411d1c82382255ab07"
+    }
+  ]
+}

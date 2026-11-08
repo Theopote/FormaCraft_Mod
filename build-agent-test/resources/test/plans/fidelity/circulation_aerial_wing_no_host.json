@@ -1,0 +1,91 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "circulation_scope": "BUILDING_LOCAL",
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED",
+      "circulation": "REQUIRED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "hall",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 12 },
+      "features": [],
+      "params": {
+        "component_id": "hall",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "MASS_WING",
+      "slot_id": "wing",
+      "relative_position": { "x": 12, "y": 4, "z": 0 },
+      "dimensions": { "width": 8, "depth": 8, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "wing",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "hall",
+      "relative_position": { "x": 2, "y": 0, "z": 3 },
+      "dimensions": { "width": 6, "depth": 2, "height": 6 },
+      "features": ["stair:straight_single_run"],
+      "params": {
+        "component_id": "hall_stair",
+        "host_id": "hall",
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 4, "y": 4, "z": 0 },
+        "width": 2,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 3,
+        "landing_length": 2
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "hall",
+      "relative_position": { "x": 8, "y": 4, "z": 2 },
+      "dimensions": { "width": 4, "depth": 4, "height": 1 },
+      "features": [],
+      "params": {
+        "component_id": "sky_link",
+        "host_id": "hall",
+        "target_host_id": "wing",
+        "connection_level": 1,
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "plate_role": "bridge",
+        "material": "minecraft:spruce_planks"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 16, "depth": 16, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "body",
+        "anchor_mode": "min_corner",
+        "plan_type": "u_shape",
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "design_sources": {
+          "plan_type": "AI_PLANNED"
+        }
+      }
+    }
+  ]
+}

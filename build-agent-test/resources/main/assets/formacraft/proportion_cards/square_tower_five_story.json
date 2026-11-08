@@ -1,0 +1,40 @@
+{
+  "id": "square_tower_five_story",
+  "typology": "square_tower",
+  "matchKeywords": [
+    "方塔", "五层", "5层", "5 层", "方形塔", "square tower", "five-story tower",
+    "5 story tower", "顶部平台", "tower platform", "多层塔"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 1.1,
+      "ideal": 1.65,
+      "max": 3.5,
+      "desc": "塔高/底边宽（五层方塔应明显竖向）"
+    },
+    "slenderness": {
+      "min": 1.0,
+      "ideal": 1.6,
+      "max": 3.0,
+      "desc": "height / max(width, depth)"
+    },
+    "floor_height": {
+      "min": 2,
+      "ideal": 3,
+      "max": 5,
+      "desc": "单层净高（格数）"
+    },
+    "window_wall_ratio": {
+      "min": 0.06,
+      "ideal": 0.14,
+      "max": 0.28,
+      "desc": "塔身开窗比例（窄缝/竖窗为主）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["vertical_strip", "square", "arrow_slit"],
+    "min_enclosure_coverage": 0.85,
+    "max_void_ratio": 0.15
+  },
+  "aiInstruction": "Vertical LlmPlan: square MASS_MAIN (width=depth, shape=rectangle) with height≈floor_count×floor_height (default 5×3=15). Add TERRACE or PLAZA on top for roof platform. skeleton_type=VERTICAL_STACK. Output proportion_hints with floor_count, floor_height, slenderness. ENTRANCE at ground + FACADE_WINDOWS on tower faces. Do NOT use a single circular TOWER blob for 方塔."
+}

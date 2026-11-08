@@ -313,7 +313,8 @@ public final class PatchOccupancyIndex {
             BlockPos pos = new BlockPos(p.dx(), p.dy(), p.dz());
             if (BlockPatch.REMOVE.equals(p.action())) {
                 PlaceRecord existing = placeMap.get(pos);
-                if (existing != null && !carveOk && !isHostedStairJoin(writer, existing, pos)
+                if (existing != null && !carveOk && !sameComponentIdentity(writer, existing.owner())
+                        && !isHostedStairJoin(writer, existing, pos)
                         && !isBoundUpperMassSeam(writer, existing, pos)
                         && !isHostedMassSecondaryCarve(writer, existing)
                         && !isHostedStructuralJoin(writer, existing)

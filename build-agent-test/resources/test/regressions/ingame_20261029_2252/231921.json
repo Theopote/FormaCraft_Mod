@@ -1,0 +1,526 @@
+{
+  "mode": "build",
+  "style_profile": "MODERN",
+  "style_attributes": {
+    "wall_color": "#F2F2F2",
+    "roof_color": "#5A5A5A",
+    "accent_color": "#2E2E2E",
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:light_gray_concrete",
+    "floor_material": "minecraft:smooth_quartz",
+    "decorative_elements": [
+      "large ribbon glazing",
+      "flat roof",
+      "cantilevered entrance canopy",
+      "clean rectangular massing"
+    ]
+  },
+  "distinguishing_features": [
+    "two-story modern villa",
+    "west-facing main entrance",
+    "flat roof",
+    "large horizontal windows",
+    "cantilevered entrance canopy"
+  ],
+  "anchor": {
+    "x": 582,
+    "y": 68,
+    "z": -864
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "modern_villa",
+      "confidence": 0.92
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "centered",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.35,
+      "voidRatio": 0.28,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "balcony"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "glass",
+      "accent": "metal",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "modern",
+      "keywords": [
+        "villa",
+        "flat_roof",
+        "ribbon_glazing",
+        "minimal",
+        "cantilever"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 9,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "clean_lines",
+        "large_windows",
+        "flat_roof",
+        "open_plan"
+      ],
+      "avoid": [
+        "ornamental",
+        "heavy_masonry",
+        "pitched_roof"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "modern_villa",
+    "width_to_depth": 1.5,
+    "height_to_width": 0.333,
+    "floor_height": 4,
+    "floor_count": 2,
+    "window_wall_ratio": 0.35,
+    "facade_openness": 0.28,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "villa_mass_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "villa_mass_main",
+          "slot_id": "villa_main",
+          "local_origin": {
+            "x": -12,
+            "y": 0,
+            "z": -8
+          },
+          "plan_origin": {
+            "x": -12,
+            "y": 0,
+            "z": -8
+          },
+          "dimensions": {
+            "width": 24,
+            "depth": 16,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "villa_mass_main",
+                "local_origin": {
+                  "x": -12,
+                  "y": 0,
+                  "z": -8
+                },
+                "dimensions": {
+                  "width": 24,
+                  "depth": 16,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -12,
+              "min_z": -8,
+              "max_x": 12,
+              "max_z": 8,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 12,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": -8,
+                "start": -12,
+                "end": 12
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": -12,
+                "end": 12
+              },
+              {
+                "direction": "WEST",
+                "plane": -12,
+                "start": -8,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一栋现代别墅。",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "别墅",
+              "start": 6,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一栋现代别墅。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [
+        "residential"
+      ],
+      "scope_status": "bound",
+      "bindings": [
+        {
+          "scope": "single_main_building",
+          "uses": [
+            "residential"
+          ],
+          "status": "bound",
+          "target_components": [
+            "villa_mass_main"
+          ]
+        }
+      ],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": [
+        {
+          "building_id": "villa_mass_main",
+          "uses": [
+            "residential"
+          ],
+          "status": "plan_review",
+          "checks": {
+            "entrance_component": "declared",
+            "interfloor_circulation": "not_declared",
+            "interior_clearance": "not_assessed",
+            "final_block_traversability": "not_assessed"
+          },
+          "entrance_components": [
+            "villa_entrance"
+          ],
+          "stair_components": [],
+          "notes": [
+            "An entrance may also be generated inline by the main mass; missing ENTRANCE is not proof of a missing door.",
+            "Declared stairs do not prove connection to every floor or final clearance."
+          ]
+        }
+      ]
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "GRID",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "villa_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "modern_villa",
+        "component_preset": "Two-story modern villa with flat roof, ribbon glazing, west entrance, and entrance canopy"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "villa_main",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 16,
+        "height": 8
+      },
+      "features": [
+        "modern_villa",
+        "flat_roof",
+        "two_story",
+        "residential_shell",
+        "large_glazing"
+      ],
+      "params": {
+        "component_id": "villa_mass_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.28,
+        "window_ratio": 0.35,
+        "window_aspect": "horizontal_strip",
+        "roof_type": "flat",
+        "setback_ratio": 0.0,
+        "floor_height": 4,
+        "floor_count": 2,
+        "facade_profile": "module_grid",
+        "wall_pattern": "none",
+        "facade_cutout": "none",
+        "detail_level": "medium",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:smooth_quartz",
+        "roof_block": "minecraft:light_gray_concrete",
+        "material": "stone",
+        "building_id": "villa_mass_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "villa_main",
+      "relative_position": {
+        "x": -13,
+        "y": -1,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "villa_plinth",
+        "terrain_adaptive_foundation"
+      ],
+      "params": {
+        "component_id": "villa_foundation",
+        "host_id": "villa_mass_main",
+        "foundation_type": "slab",
+        "material": "minecraft:smooth_stone",
+        "no_platform": false,
+        "building_id": "villa_mass_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "villa_main",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "west_entrance",
+        "double_door",
+        "glazed_entry"
+      ],
+      "params": {
+        "component_id": "villa_entrance",
+        "host_id": "villa_mass_main",
+        "entrance_type": "double_door",
+        "door_block": "minecraft:dark_oak_door",
+        "clearance": 3,
+        "canopy": true,
+        "door_width": 2,
+        "door_height": 3,
+        "facing": "EAST",
+        "building_id": "villa_mass_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "villa_main",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 16,
+        "height": 8
+      },
+      "features": [
+        "ribbon_glazing",
+        "floor_to_ceiling_windows",
+        "modern_mullions"
+      ],
+      "params": {
+        "component_id": "villa_facade_windows",
+        "host_id": "villa_mass_main",
+        "window_style": "ribbon_glazing",
+        "window_ratio": 0.35,
+        "window_aspect": "horizontal_strip",
+        "floor_height": 4,
+        "floor_count": 2,
+        "frame_block": "minecraft:dark_gray_concrete",
+        "glass_block": "minecraft:glass",
+        "mullion_block": "minecraft:dark_gray_concrete",
+        "rhythm": "regular",
+        "building_id": "villa_mass_main"
+      }
+    },
+    {
+      "component_type": "STAIR_SYSTEM",
+      "slot_id": "villa_main",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 8,
+        "height": 8
+      },
+      "features": [
+        "interior_stairs",
+        "floor_connection"
+      ],
+      "params": {
+        "component_id": "villa_stairs",
+        "host_id": "villa_mass_main",
+        "floor_height": 4,
+        "floor_count": 2,
+        "stair_type": "straight",
+        "direction": "SOUTH",
+        "width": 3,
+        "support": true
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "villa_main",
+      "relative_position": {
+        "x": -13,
+        "y": 4,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "entrance_canopy",
+        "cantilevered_slab",
+        "modern_detail"
+      ],
+      "params": {
+        "component_id": "villa_entrance_canopy",
+        "host_id": "villa_mass_main",
+        "detail_type": "canopy",
+        "material": "minecraft:light_gray_concrete",
+        "attachment": "WALL_SURFACE",
+        "building_id": "villa_mass_main"
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

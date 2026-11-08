@@ -1,0 +1,40 @@
+{
+  "id": "radial_fortress",
+  "typology": "radial_fortress",
+  "matchKeywords": [
+    "城堡", "要塞", "堡垒", "塔楼", "城墙", "垛口", "中世纪城堡",
+    "castle", "fortress", "keep", "medieval castle", "stone fortress", "battlements"
+  ],
+  "ratios": {
+    "wall_height_to_thickness": {
+      "min": 3.0,
+      "ideal": 6.0,
+      "max": 10.0,
+      "desc": "墙高/墙厚"
+    },
+    "tower_height_to_wall": {
+      "min": 2.5,
+      "ideal": 3.5,
+      "max": 6.0,
+      "desc": "角塔高/城墙高"
+    },
+    "enclosure_coverage": {
+      "min": 0.82,
+      "ideal": 0.92,
+      "max": 0.98,
+      "desc": "围墙围合覆盖率"
+    },
+    "window_wall_ratio": {
+      "min": 0.04,
+      "ideal": 0.1,
+      "max": 0.18,
+      "desc": "防御建筑：窄缝窗"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["vertical_strip", "arrow_slit"],
+    "min_enclosure_coverage": 0.88,
+    "max_void_ratio": 0.25
+  },
+  "aiInstruction": "Research width, depth, wallHeight, towerHeight, moat, facing before STRUCTURE typology:radial_fortress. layout.skeleton_type=COMPOUND; global_constraints.symmetry=MIRROR_X. 指名中世纪城堡 preset 时 reference_landmark=castle_compound。泛型城堡可走 compositional MASS+TOWER+WALL；迪士尼/姬路/日式天守勿与此 preset 混用。"
+}

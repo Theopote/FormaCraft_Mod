@@ -1,0 +1,557 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "warm_white",
+    "roof_color": "terracotta_red",
+    "accent_color": "gold",
+    "wall_material": "white_stucco",
+    "roof_material": "terracotta_tile",
+    "floor_material": "polished_granite",
+    "decorative_elements": [
+      "multi-tiered gable roof",
+      "gilded chofah finials",
+      "naga balustrades",
+      "lotus-capital columns",
+      "gold-leaf ornament",
+      "raised stone plinth"
+    ]
+  },
+  "distinguishing_features": [],
+  "anchor": {
+    "x": 683,
+    "y": 69,
+    "z": -847
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "thai_temple",
+      "confidence": 0.35
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "compound",
+      "axis": "axial",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.45,
+      "voidRatio": 0.15,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "stepping",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "balcony"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "thai",
+      "era": "traditional",
+      "keywords": [
+        "ubosot",
+        "chedi",
+        "naga",
+        "chofah",
+        "multi-tiered roof"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 24,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "multi-tiered gable roofs",
+        "gilded ornament",
+        "axial symmetry",
+        "raised plinth"
+      ],
+      "avoid": [
+        "flat roof",
+        "plain box"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "thai_temple_compound",
+    "height_to_width": 0.6,
+    "depth_to_width": 1.5,
+    "roof_to_body_height": 0.67,
+    "plinth_height_ratio": 0.12,
+    "window_wall_ratio": 0.16,
+    "roof_pitch_ratio": 0.65,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "thai_main_ubosot"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "thai_main_ubosot",
+          "slot_id": "main_temple",
+          "local_origin": {
+            "x": -10,
+            "y": 0,
+            "z": -15
+          },
+          "plan_origin": {
+            "x": -10,
+            "y": 0,
+            "z": -15
+          },
+          "dimensions": {
+            "width": 20,
+            "depth": 30,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            6
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "thai_main_ubosot",
+                "local_origin": {
+                  "x": -10,
+                  "y": 0,
+                  "z": -15
+                },
+                "dimensions": {
+                  "width": 20,
+                  "depth": 30,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -10,
+              "min_z": -15,
+              "max_x": 10,
+              "max_z": 15,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 10,
+                "start": -15,
+                "end": 15
+              },
+              {
+                "direction": "NORTH",
+                "plane": -15,
+                "start": -10,
+                "end": 10
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 15,
+                "start": -10,
+                "end": 10
+              },
+              {
+                "direction": "WEST",
+                "plane": -10,
+                "start": -15,
+                "end": 15
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座泰式寺庙",
+          "purposes": [
+            {
+              "id": "religious",
+              "phrase": "寺庙",
+              "start": 6,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座泰式寺庙",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main_temple",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "component_preset": "thai_temple_main"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 30,
+        "height": 12
+      },
+      "features": [
+        "ubosot ordination hall",
+        "raised plinth",
+        "multi-tiered roof base"
+      ],
+      "params": {
+        "component_id": "thai_main_ubosot",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "void_ratio": 0.15,
+        "window_ratio": 0.16,
+        "window_aspect": "vertical_strip",
+        "roof_type": "double_gable",
+        "floor_height": 6,
+        "floor_count": 2,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "material": "white_stucco",
+        "setback_ratio": 0.06,
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": -12,
+        "y": -2,
+        "z": -17
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 34,
+        "height": 2
+      },
+      "features": [
+        "stone plinth"
+      ],
+      "params": {
+        "component_id": "thai_plinth_main",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone",
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": -15,
+        "y": -3,
+        "z": -20
+      },
+      "dimensions": {
+        "width": 30,
+        "depth": 40,
+        "height": 1
+      },
+      "features": [
+        "paved temple court"
+      ],
+      "params": {
+        "component_id": "thai_terrace_main",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "terrace_type": "paved_courtyard",
+        "material": "polished_granite",
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": -12,
+        "y": 12,
+        "z": -17
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 34,
+        "height": 8
+      },
+      "features": [
+        "multi-tiered Thai gable roof",
+        "overhanging eaves",
+        "ridge ornament"
+      ],
+      "params": {
+        "component_id": "thai_roof_main",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "roof_type": "double_gable",
+        "overhang": 2,
+        "material": "terracotta_tile",
+        "ridge_ornament": true,
+        "roof_height": 8,
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 6
+      },
+      "features": [
+        "west-facing arched entrance",
+        "golden teak doors"
+      ],
+      "params": {
+        "component_id": "thai_entrance_main",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "entrance_type": "arch",
+        "facing": "WEST",
+        "material": "gold_teak",
+        "step_count": 3,
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": -10,
+        "y": 3,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 30,
+        "height": 8
+      },
+      "features": [
+        "vertical strip windows",
+        "golden teak shutters"
+      ],
+      "params": {
+        "component_id": "thai_windows_main",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "window_style": "vertical_strip",
+        "window_ratio": 0.16,
+        "window_aspect": "vertical_strip",
+        "mullion_grid": true,
+        "material": "gold_teak",
+        "rhythm": "regular",
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": -12,
+        "y": 6,
+        "z": -17
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 34,
+        "height": 2
+      },
+      "features": [
+        "wrap-around gallery",
+        "naga balustrade"
+      ],
+      "params": {
+        "component_id": "thai_gallery_main",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "balcony_type": "wrap_around_gallery",
+        "railing_style": "naga_balustrade",
+        "material": "gold_teak",
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": 0,
+        "y": 20,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 6
+      },
+      "features": [
+        "gilded chofah finial"
+      ],
+      "params": {
+        "component_id": "thai_chofah_finial",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "decor_type": "chofah",
+        "material": "gold",
+        "attachment_host_id": "thai_roof_main",
+        "building_id": "thai_main_ubosot"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main_temple",
+      "relative_position": {
+        "x": -13,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 12,
+        "height": 3
+      },
+      "features": [
+        "naga staircase balustrade"
+      ],
+      "params": {
+        "component_id": "thai_naga_stair",
+        "host_id": "thai_main_ubosot",
+        "anchor_mode": "min_corner",
+        "decor_type": "naga_balustrade",
+        "material": "gold_stone",
+        "building_id": "thai_main_ubosot"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「泰式寺庙」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

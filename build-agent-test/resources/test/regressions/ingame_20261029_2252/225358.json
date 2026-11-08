@@ -1,0 +1,928 @@
+{
+  "mode": "build",
+  "style_profile": "SURREAL_MODERN",
+  "style_attributes": {
+    "wall_color": "#F2F0E6",
+    "roof_color": "#D9D9D9",
+    "accent_color": "#2A9D8F",
+    "wall_material": "white_concrete",
+    "roof_material": "light_gray_concrete",
+    "floor_material": "smooth_quartz",
+    "decorative_elements": [
+      "cantilevered slabs",
+      "ribbon glazing",
+      "glass balustrades",
+      "roof planting",
+      "water feature",
+      "floating glass pod"
+    ]
+  },
+  "distinguishing_features": [
+    "three-storey hollow villa",
+    "cantilevered terraces at floors 2 and 3",
+    "roof-top sky garden",
+    "outdoor infinity pool",
+    "floating glass garden pod",
+    "ribbon glazing and glass balustrades"
+  ],
+  "anchor": {
+    "x": 717,
+    "y": 72,
+    "z": -803
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "residential_villa",
+      "confidence": 0.92
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "axial",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.45,
+      "voidRatio": 0.35,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "stepping",
+      "curvature": "mixed",
+      "rhythm": "irregular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": false
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "balcony",
+      "courtyard",
+      "sky_garden",
+      "pool"
+    ],
+    "materials": {
+      "primary": "mixed",
+      "secondary": "glass",
+      "accent": "metal",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "modern",
+      "keywords": [
+        "surrealism",
+        "cantilever",
+        "sky garden",
+        "stepped terraces",
+        "infinity pool",
+        "floating volume"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 16,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "cantilevered terraces",
+        "sky garden",
+        "outdoor pool",
+        "ribbon glazing",
+        "asymmetric floating volume"
+      ],
+      "avoid": [
+        "solid box",
+        "castle",
+        "stadium",
+        "symmetrical palace"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "slot_villa",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "WEST",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "surrealist_three_storey_villa",
+        "component_preset": "Three-storey surrealist villa with cantilevered terraces, roof sky garden, outdoor infinity pool, ribbon glazing and a floating garden pod."
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_villa",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 12
+      },
+      "features": [
+        "three_storey_villa",
+        "hollow_residential",
+        "flat_roof",
+        "cantilever_ready",
+        "ribbon_glazing"
+      ],
+      "params": {
+        "component_id": "villa_main_mass",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 3,
+        "floor_height": 4,
+        "void_ratio": 0.35,
+        "window_ratio": 0.45,
+        "window_aspect": "ribbon_glazing",
+        "roof_type": "flat",
+        "setback_ratio": 0.0,
+        "facade_profile": "module_grid",
+        "wall_pattern": "none",
+        "facade_cutout": "none",
+        "material": "concrete",
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:smooth_quartz",
+        "roof_block": "minecraft:light_gray_concrete",
+        "hollow": true,
+        "requirement_scope": "all_main_masses",
+        "detail_level": "high",
+        "building_id": "villa_main_mass"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "main_entrance",
+        "glass_door",
+        "west_facing"
+      ],
+      "params": {
+        "component_id": "villa_entrance",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "entrance_type": "double_door",
+        "facing": "EAST",
+        "material": "glass",
+        "detail_level": "high",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "villa_main_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 12,
+        "height": 12
+      },
+      "features": [
+        "ribbon_glazing",
+        "mullion_grid",
+        "west_facade"
+      ],
+      "params": {
+        "component_id": "facade_windows_west",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.5,
+        "window_aspect": "ribbon_glazing",
+        "facade_profile": "mullion_grid",
+        "material": "glass",
+        "detail_level": "high",
+        "rhythm": "irregular",
+        "building_id": "villa_main_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 12,
+        "height": 12
+      },
+      "features": [
+        "ribbon_glazing",
+        "mullion_grid",
+        "east_facade"
+      ],
+      "params": {
+        "component_id": "facade_windows_east",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.45,
+        "window_aspect": "ribbon_glazing",
+        "facade_profile": "mullion_grid",
+        "material": "glass",
+        "detail_level": "high",
+        "rhythm": "irregular",
+        "building_id": "villa_main_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 1,
+        "height": 12
+      },
+      "features": [
+        "ribbon_glazing",
+        "mullion_grid",
+        "north_facade"
+      ],
+      "params": {
+        "component_id": "facade_windows_north",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.42,
+        "window_aspect": "ribbon_glazing",
+        "facade_profile": "mullion_grid",
+        "material": "glass",
+        "detail_level": "high",
+        "rhythm": "irregular",
+        "building_id": "villa_main_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 1,
+        "height": 12
+      },
+      "features": [
+        "ribbon_glazing",
+        "mullion_grid",
+        "south_facade"
+      ],
+      "params": {
+        "component_id": "facade_windows_south",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.42,
+        "window_aspect": "ribbon_glazing",
+        "facade_profile": "mullion_grid",
+        "material": "glass",
+        "detail_level": "high",
+        "rhythm": "irregular",
+        "building_id": "villa_main_mass"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -9,
+        "y": 12,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 2
+      },
+      "features": [
+        "flat_roof",
+        "roof_garden_base",
+        "overhang"
+      ],
+      "params": {
+        "component_id": "villa_roof",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "material": "concrete",
+        "roof_block": "minecraft:light_gray_concrete",
+        "detail_level": "high",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "villa_main_mass"
+      }
+    },
+    {
+      "component_type": "STAIR_SYSTEM",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 4,
+        "height": 12
+      },
+      "features": [
+        "interior_stairs",
+        "floor_connections"
+      ],
+      "params": {
+        "component_id": "villa_stairs",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "floor_height": 4,
+        "floor_count": 3,
+        "stair_type": "straight",
+        "material": "wood",
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -14,
+        "y": 4,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "cantilevered_terrace",
+        "floor_2_terrace",
+        "glass_balustrade",
+        "planter"
+      ],
+      "params": {
+        "component_id": "terrace_l1",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "concrete",
+        "hollow": false,
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "host_id": "villa_main_mass",
+      "relative_position": {
+        "x": -16,
+        "y": 8,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "cantilevered_terrace",
+        "floor_3_terrace",
+        "stepped_terrace",
+        "glass_balustrade"
+      ],
+      "params": {
+        "component_id": "terrace_l2",
+        "host_id": "villa_main_mass",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "concrete",
+        "hollow": false,
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "host_id": "villa_roof",
+      "relative_position": {
+        "x": -6,
+        "y": 14,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "sky_garden",
+        "planting_beds",
+        "irrigation",
+        "roof_garden"
+      ],
+      "params": {
+        "component_id": "sky_garden_roof",
+        "host_id": "villa_roof",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "grass",
+        "hollow": false,
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "host_id": "terrace_l1",
+      "relative_position": {
+        "x": -14,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "glass_balustrade",
+        "terrace_edge"
+      ],
+      "params": {
+        "component_id": "terrace_l1_balustrade",
+        "host_id": "terrace_l1",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "glass",
+        "hollow": false,
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "host_id": "terrace_l2",
+      "relative_position": {
+        "x": -16,
+        "y": 9,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "glass_balustrade",
+        "terrace_edge"
+      ],
+      "params": {
+        "component_id": "terrace_l2_balustrade",
+        "host_id": "terrace_l2",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "glass",
+        "hollow": false,
+        "detail_level": "medium"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "host_id": "terrace_l2",
+      "relative_position": {
+        "x": -16,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 8,
+        "height": 4
+      },
+      "features": [
+        "hanging_garden",
+        "green_wall",
+        "vertical_planting"
+      ],
+      "params": {
+        "component_id": "hanging_garden_l2",
+        "host_id": "terrace_l2",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "leaves",
+        "hollow": false,
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "PAVING",
+      "slot_id": "slot_villa",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [
+        "pool_deck",
+        "stone_paving",
+        "outdoor_lounge"
+      ],
+      "params": {
+        "component_id": "pool_deck",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "relative_position": {
+        "x": 10,
+        "y": 1,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "outdoor_pool",
+        "infinity_edge",
+        "water_surface"
+      ],
+      "params": {
+        "component_id": "outdoor_pool",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "water",
+        "hollow": false,
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "relative_position": {
+        "x": 12,
+        "y": 9,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 5
+      },
+      "features": [
+        "floating_volume",
+        "floating_garden_pod",
+        "glass_pod",
+        "surreal_cantilever",
+        "sky_garden"
+      ],
+      "params": {
+        "component_id": "floating_garden_pod",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "glass",
+        "hollow": true,
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "slot_villa",
+      "relative_position": {
+        "x": 14,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 9
+      },
+      "features": [
+        "slender_support",
+        "metal_column",
+        "floating_pod_support"
+      ],
+      "params": {
+        "component_id": "floating_pod_support",
+        "anchor_mode": "min_corner",
+        "kind": "cylinder",
+        "material": "metal",
+        "hollow": false,
+        "detail_level": "medium"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "surrealist_villa",
+    "floor_count": 3,
+    "floor_height": 4,
+    "overall_height": 12,
+    "width_to_depth_ratio": 1.5,
+    "terrace_projection_ratio": 0.4,
+    "void_ratio": 0.35,
+    "sky_garden_to_roof_ratio": 0.33,
+    "pool_to_footprint_ratio": 0.15,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 3,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "三层"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "villa_main_mass"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "all_main_masses": [
+          "villa_main_mass"
+        ],
+        "named_main_body": [
+          "villa_main_mass"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "villa_main_mass",
+          "slot_id": "slot_villa",
+          "local_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 18,
+            "depth": 12,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "villa_main_mass",
+                "local_origin": {
+                  "x": -9,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 18,
+                  "depth": 12,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -9,
+              "min_z": -6,
+              "max_x": 9,
+              "max_z": 6,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 9,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -9,
+                "end": 9
+              },
+              {
+                "direction": "WEST",
+                "plane": -9,
+                "start": -6,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座超现实主义的三层别墅 ，要有空中花园、退台、 室外泳池",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "别墅",
+              "start": 12,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座超现实主义的三层别墅\n，要有空中花园、退台、\n室外泳池",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [
+        "residential"
+      ],
+      "scope_status": "bound",
+      "bindings": [
+        {
+          "scope": "single_main_building",
+          "uses": [
+            "residential"
+          ],
+          "status": "bound",
+          "target_components": [
+            "villa_main_mass"
+          ]
+        }
+      ],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": [
+        {
+          "building_id": "villa_main_mass",
+          "uses": [
+            "residential"
+          ],
+          "status": "plan_review",
+          "checks": {
+            "entrance_component": "declared",
+            "interfloor_circulation": "not_declared",
+            "interior_clearance": "not_assessed",
+            "final_block_traversability": "not_assessed"
+          },
+          "entrance_components": [
+            "villa_entrance"
+          ],
+          "stair_components": [],
+          "notes": [
+            "An entrance may also be generated inline by the main mass; missing ENTRANCE is not proof of a missing door.",
+            "Declared stairs do not prove connection to every floor or final clearance."
+          ]
+        }
+      ]
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
+  },
+  "alignment_and_symmetry": {
+    "symmetry": "NONE",
+    "primary_axis": "WEST",
+    "entrance_axis": "WEST",
+    "mirror_axis": null,
+    "notes": "Asymmetric cantilevered terraces and floating pod; main mass centered on slot."
+  },
+  "kind": "llmplan"
+}

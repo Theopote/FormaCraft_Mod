@@ -1,0 +1,351 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#7d7d7d",
+    "roof_color": "#8a8a8a",
+    "accent_color": "#b0884f",
+    "wall_material": "stone_brick",
+    "roof_material": "stone_brick",
+    "floor_material": "oak_planks",
+    "decorative_elements": [
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "ornament"
+  ],
+  "proportion_hints": {
+    "height_to_width": 0.73,
+    "depth_to_width": 0.87,
+    "roof_to_body_height": 0.0
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "residential_house",
+      "confidence": 0.82
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "N-S",
+      "levels": "2"
+    },
+    "structure": {
+      "type": "load_bearing_wall",
+      "massiveness": 0.62,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "stacked_floors",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "hollow_wall_shell",
+      "floor_plates",
+      "flat_roof",
+      "straight_stair",
+      "windows",
+      "main_door"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "oak_planks",
+      "accent": "oak_stairs",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "generic",
+      "era": "contemporary",
+      "keywords": [
+        "two_storey",
+        "stone_brick",
+        "flat_roof",
+        "oak_floor"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 13,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "continuous_circulation_ground_to_upper_floor",
+        "two_block_headroom_on_every_tread",
+        "floor_opening_reserved_for_stair",
+        "flat_roof"
+      ],
+      "avoid": [
+        "furniture",
+        "complex_ornament",
+        "landmark_module",
+        "stadium_typology"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "solid",
+        "material": "stone_brick",
+        "facade_profile": "base_plinth",
+        "description": "stone brick plinth, 1 block proud of the shell on all sides"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "material": "oak_planks",
+        "floor_material": "oak_planks",
+        "role": "ground_floor_plate",
+        "description": "oak plank ground floor surface at y=1; walking level of floor 1 is y=2",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "floor_count": 2,
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 11
+      },
+      "features": [
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "wall_material": "stone_brick",
+        "material": "stone_brick",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "gradient",
+        "window_ratio": 0.22,
+        "window_aspect": "punch_window",
+        "floor_count": 2,
+        "floor_height": 5,
+        "description": "hollow stone brick shell, y=2..12; floor 1 clear y=2..6, upper plate y=7, floor 2 clear y=8..12; keep walls continuous except the south door and window openings",
+        "void_ratio": 0.18,
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 0,
+        "y": 7,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "material": "oak_planks",
+        "floor_material": "oak_planks",
+        "role": "upper_floor_plate",
+        "description": "oak plank upper floor plate at y=7; walking level of floor 2 is y=8; the stair operation carves the opening above the flight and landing",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "floor_count": 2,
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -1,
+        "y": 13,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "material": "stone_brick",
+        "overhang": 1,
+        "description": "flat stone brick roof slab with a one block overhang on every side",
+        "roof_height": 2,
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 6,
+        "y": 2,
+        "z": 12
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"wooden\", \"plank\", \"plain\", \"rectangular\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"oak\"}, \"constraints\": {\"mustHave\": [\"rectangular_frame\"], \"forbiddenTags\": [\"ornate\", \"gothic\", \"arched\", \"double_height\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "description": "main door centred on the south wall, opening y=2..4, aligned with the ground floor walking level",
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 0,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 11
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"simple\", \"rectangular\", \"glazed\", \"modular\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"oak\"}, \"constraints\": {\"mustHave\": [\"rectangular_frame\"], \"forbiddenTags\": [\"stained_glass\", \"ornate\", \"rose\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.22,
+        "window_aspect": "punch_window",
+        "rhythm": 3,
+        "sill_height": 1,
+        "levels": [
+          "ground",
+          "upper"
+        ],
+        "description": "evenly rhymed punch windows on the exterior walls of both floors, skipping the centred south door bay",
+        "window_style": "stained"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 1,
+        "y": 2,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 9,
+        "height": 7
+      },
+      "features": [
+        "stair:straight_single_run",
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 0,
+          "y": 6,
+          "z": 6
+        },
+        "width": 3,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "description": "straight 3 wide oak stair along +Z inside the west side of the shell: bottom tread at floor 1 walking level y=2, top tread at floor 2 walking level y=8, 6 block rise over a 6 block run, top landing z(local) 6..9 well inside the shell, floor opening carved through the y=7 oak plate, at least 2 blocks of air above every tread",
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

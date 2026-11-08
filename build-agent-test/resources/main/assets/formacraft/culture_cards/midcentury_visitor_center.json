@@ -1,0 +1,37 @@
+{
+  "id": "midcentury_visitor_center",
+  "styleId": "Midcentury_House",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "世纪中叶游客中心",
+    "midcentury visitor center"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "世纪中叶游客中心": 30,
+    "midcentury visitor center": 30
+  },
+  "negativeKeywords": [
+    "不要世纪中叶游客中心",
+    "not midcentury visitor center"
+  ],
+  "proportionCardId": "midcentury_visitor_center",
+  "llmPlanExampleRefs": [
+    "midcentury_visitor_center_compact.json",
+    "midcentury_visitor_center_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "midcentury_visitor_center",
+      "constraints": [
+        "Use style_profile=Midcentury_House, proportion_hints.typology=flat_roof_pavilion; original 世纪中叶游客中心 exterior request.",
+        "Use the dedicated envelope examples; preserve host bindings and explicit user requirements.",
+        "Exterior program proportions only; no furniture, room-use, accessibility or structural verification is claimed."
+      ]
+    }
+  ],
+  "structuralTypologyId": "flat_roof_pavilion"
+}

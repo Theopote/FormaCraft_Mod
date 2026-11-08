@@ -1,0 +1,17 @@
+{
+  "id": "small_house",
+  "labelZh": "小型住宅",
+  "labelEn": "Small Residential",
+  "prompt": "一座小型木石住宅，带山墙屋顶、门和窗户，墙体完整。",
+  "focus": ["walls", "openings", "roof"],
+  "planFile": "plan.json",
+  "checks": {
+    "minSolidBlocks": 60,
+    "requireRoofLike": true,
+    "requireOpeningLike": true,
+    "requireStairLike": false,
+    "minDistinctBlockIds": 3,
+    "minHeightSpan": 4
+  },
+  "goldenPreviewDigest": "60620ea3568077f0"
+}

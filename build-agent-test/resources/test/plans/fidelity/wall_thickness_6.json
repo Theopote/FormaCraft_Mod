@@ -1,0 +1,46 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "REQUIRED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 16, "depth": 16, "height": 10 },
+      "features": [],
+      "params": {
+        "component_id": "body",
+        "wall_thickness": 6,
+        "roof_type": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "design_sources": {
+          "wall_thickness": "AI_PLANNED"
+        }
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 16, "depth": 16, "height": 10 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "window_ratio": 0.15,
+        "window_aspect": "square",
+        "allow_patch_overwrite": true
+      }
+    }
+  ]
+}

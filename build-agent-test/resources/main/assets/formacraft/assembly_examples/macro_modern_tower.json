@@ -1,0 +1,47 @@
+{
+  "paletteId": "PALETTE_PARAMETRIC_WHITE_A",
+  "entranceFacing": "SOUTH",
+  "macro": {
+    "primaryComponent": "Body",
+    "shapeType": "RECTANGLE",
+    "heightScale": 1.4,
+    "roofType": "GABLE",
+    "overhang": "MEDIUM",
+    "openness": 0.75,
+    "symmetry": "AXIAL"
+  },
+  "graph": {
+    "components": [
+      {
+        "id": "Body",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 19,
+        "d": 13,
+        "h": 18,
+        "wall": "minecraft:white_concrete",
+        "floor": "minecraft:smooth_stone",
+        "facade": {
+          "openings": [
+            {
+              "faces": "ALL",
+              "kind": "WINDOW_GRID",
+              "rows": 2,
+              "cols": 4,
+              "winW": 2,
+              "winH": 3,
+              "sillY": 3,
+              "gapX": 2,
+              "gapY": 2,
+              "frameThickness": 1,
+              "fill": "minecraft:light_blue_stained_glass_pane",
+              "frame": "minecraft:smooth_quartz"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+

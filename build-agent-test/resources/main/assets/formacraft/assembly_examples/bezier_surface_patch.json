@@ -1,0 +1,22 @@
+{
+  "entranceFacing": "EAST",
+  "paletteId": "PALETTE_MODERN_WHITE_A",
+  "ops": [
+    {
+      "op": "BEZIER_SURFACE",
+      "uSamples": 28,
+      "vSamples": 18,
+      "thickness": 2,
+      "connectSamples": true,
+      "material": "minecraft:white_concrete",
+      "points": [
+        [{"x": -18, "y": 2, "z": -10}, {"x": -6, "y": 10, "z": -10}, {"x": 6, "y": 10, "z": -10}, {"x": 18, "y": 2, "z": -10}],
+        [{"x": -18, "y": 4, "z": -3}, {"x": -6, "y": 18, "z": -3}, {"x": 6, "y": 18, "z": -3}, {"x": 18, "y": 4, "z": -3}],
+        [{"x": -18, "y": 4, "z": 3}, {"x": -6, "y": 18, "z": 3}, {"x": 6, "y": 18, "z": 3}, {"x": 18, "y": 4, "z": 3}],
+        [{"x": -18, "y": 2, "z": 10}, {"x": -6, "y": 10, "z": 10}, {"x": 6, "y": 10, "z": 10}, {"x": 18, "y": 2, "z": 10}]
+      ]
+    }
+  ]
+}
+
+

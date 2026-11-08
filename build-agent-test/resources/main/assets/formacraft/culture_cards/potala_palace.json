@@ -1,0 +1,45 @@
+{
+  "id": "potala_palace",
+  "styleId": "Chinese_Traditional",
+  "intents": ["PALACE", "LANDMARK", "布达拉宫", "宫城"],
+  "keywords": [
+    "布达拉宫", "宫城", "退台宫殿", "山地宫殿", "台地宫殿", "逐层退台",
+    "potala", "potala palace", "tiered palace", "mountain palace",
+    "himalayan palace", "tibetan palace", "potala_palace"
+  ],
+  "synonyms": {
+    "布达拉宫": ["potala palace", "potala", "tibetan palace"],
+    "退台宫殿": ["tiered mountain palace", "terraced palace"]
+  },
+  "keywordWeights": {
+    "布达拉宫": 10.0,
+    "potala palace": 9.5,
+    "potala": 9.0,
+    "退台宫殿": 8.0,
+    "山地宫殿": 7.5,
+    "tibetan palace": 7.0
+  },
+  "negativeKeywords": [
+    "四合院", "天坛", "摩天楼", "哥特", "城堡复合", "金门大桥", "原创别墅",
+    "courtyard", "skyscraper", "gothic", "stadium"
+  ],
+  "proportionCardId": "tiered_mountain_palace",
+  "structuralTypologyId": "tiered_mountain_palace",
+  "llmPlanExampleRefs": [
+    "potala_palace_typology.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "tiered_mountain_palace_potala",
+      "constraints": [
+        "MANDATORY: structural_typology=tiered_mountain_palace + STRUCTURE/typology params（石砌台地+逐层退台）",
+        "reference_landmark=potala_palace 作比例锚点；禁止 MODULE/landmark:potala_palace 硬路由",
+        "params: baseWidth≈48, baseDepth≈40, tiers≈5, tierInset≈3, tierHeight≈6, platformHeight≈4",
+        "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：typology=tiered_mountain_palace, setback_ratio≈0.08, tier_count≈5",
+        "禁止用无退台的实心单盒子代替台地宫城"
+      ]
+    }
+  ]
+}

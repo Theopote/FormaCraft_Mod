@@ -1,0 +1,44 @@
+{
+  "id": "midcentury_house",
+  "styleId": "Midcentury_House",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "世纪中叶住宅",
+    "世纪中叶风格",
+    "midcentury house",
+    "mid-century house",
+    "midcentury_pavilion"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "世纪中叶住宅": 12,
+    "世纪中叶风格": 12,
+    "midcentury house": 12,
+    "mid-century house": 12,
+    "midcentury_pavilion": 12
+  },
+  "negativeKeywords": [
+    "不要世纪中叶住宅",
+    "not mid-century house"
+  ],
+  "proportionCardId": "midcentury_house",
+  "llmPlanExampleRefs": [
+    "midcentury_pavilion_compact.json",
+    "midcentury_pavilion_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "midcentury_pavilion",
+      "constraints": [
+        "Use style_profile=Midcentury_House and proportion_hints.typology=flat_roof_pavilion; original style request, not a named building.",
+        "Compose a low single-story MASS_MAIN, flat ROOF with overhang=1, hosted windows and entrance; facade_profile=mullion_grid, window_ratio=0.42.",
+        "Preserve explicit user requirements; no native typology STRUCTURE or MODULE.",
+        "Authored voxel interpretation: do not claim a cantilever solver, ribbon-window generator or exact historic roof shape."
+      ]
+    }
+  ],
+  "structuralTypologyId": "flat_roof_pavilion"
+}

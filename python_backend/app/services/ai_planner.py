@@ -851,10 +851,60 @@ def _sanitize_genome_dict(genome: Any) -> Dict[str, Any]:
     return g
 
 
+# LLM sometimes invents skeleton labels outside the schema (e.g. TOWER_SHAFT).
+_SKELETON_ALIASES = {
+    "TOWER_SHAFT": "VERTICAL_STACK",
+    "TOWER": "VERTICAL_STACK",
+    "SHAFT": "VERTICAL_STACK",
+    "VERTICAL": "VERTICAL_STACK",
+    "STACK": "VERTICAL_STACK",
+    "TAPER": "VERTICAL_TAPER",
+    "LINEAR": "LINEAR_PATH",
+    "PATH": "LINEAR_PATH",
+    "RADIAL": "RADIAL_RING",
+    "RING": "RADIAL_RING",
+    "SPOKE": "RADIAL_SPOKE",
+    "BRIDGE": "SPAN_SUSPENSION",
+    "SUSPENSION": "SPAN_SUSPENSION",
+    "COURT": "COURTYARD",
+    "YARD": "COURTYARD",
+    "LOOP": "PERIMETER_LOOP",
+    "WALL": "ENCLOSURE",
+    "BAY": "GRID_BAY",
+}
+_SKELETON_ALLOWED = {
+    "LINEAR_PATH", "RADIAL_RING", "RADIAL_SPOKE", "GRID", "GRID_BAY", "COMPOUND",
+    "COURTYARD", "PATH_POLYLINE", "SPAN_SUSPENSION", "VERTICAL_TAPER",
+    "VERTICAL_STACK", "PERIMETER_LOOP", "ENCLOSURE",
+}
+
+
+def _coerce_skeleton_type(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    text = str(raw).strip().upper().replace("-", "_").replace(" ", "_")
+    if not text:
+        return None
+    if text in _SKELETON_ALLOWED:
+        return text
+    if text in _SKELETON_ALIASES:
+        return _SKELETON_ALIASES[text]
+    for alias, canonical in _SKELETON_ALIASES.items():
+        if alias in text:
+            return canonical
+    return "COMPOUND"
+
+
 def _sanitize_layout_slots(layout: Any) -> Any:
     if not isinstance(layout, dict):
         return layout
     layout = dict(layout)
+    if "skeleton_type" in layout:
+        coerced = _coerce_skeleton_type(layout.get("skeleton_type"))
+        if coerced is None:
+            layout.pop("skeleton_type", None)
+        else:
+            layout["skeleton_type"] = coerced
     slots = layout.get("slots")
     if not isinstance(slots, list):
         return layout

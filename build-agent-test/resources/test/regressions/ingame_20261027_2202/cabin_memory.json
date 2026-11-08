@@ -1,0 +1,804 @@
+{
+  "uuid": "d244af59-b392-4673-a547-fb5bfe810b07",
+  "name": "LlmPlan generated structure",
+  "createdAt": "2026-10-27T13:46:52.014201300Z",
+  "lastModified": "2026-10-27T13:46:52.144322600Z",
+  "bounds": {
+    "min": [
+      445,
+      67,
+      -1045
+    ],
+    "max": [
+      455,
+      72,
+      -1037
+    ],
+    "dimension": "minecraft:overworld",
+    "anchors": {
+      "origin": [
+        450,
+        68,
+        -1041
+      ]
+    }
+  },
+  "description": null,
+  "tags": [],
+  "geneData": null,
+  "genome": null,
+  "relations": {
+    "connectedTo": [],
+    "parentGroup": null,
+    "children": []
+  },
+  "metadata": {
+    "building_revision": 0,
+    "part_index_roof_states": {
+      "445,72,-1042": "minecraft:dark_oak_planks",
+      "446,72,-1042": "minecraft:dark_oak_planks",
+      "447,72,-1042": "minecraft:dark_oak_planks",
+      "448,72,-1042": "minecraft:dark_oak_planks",
+      "449,72,-1042": "minecraft:dark_oak_planks",
+      "450,72,-1042": "minecraft:dark_oak_planks",
+      "451,72,-1042": "minecraft:dark_oak_planks",
+      "452,72,-1042": "minecraft:dark_oak_planks",
+      "453,72,-1042": "minecraft:dark_oak_planks",
+      "454,72,-1042": "minecraft:dark_oak_planks",
+      "455,72,-1042": "minecraft:dark_oak_planks",
+      "453,71,-1038": "minecraft:dark_oak_planks",
+      "454,71,-1038": "minecraft:dark_oak_planks",
+      "455,71,-1038": "minecraft:dark_oak_planks",
+      "445,71,-1038": "minecraft:dark_oak_planks",
+      "446,71,-1038": "minecraft:dark_oak_planks",
+      "447,71,-1038": "minecraft:dark_oak_planks",
+      "448,71,-1038": "minecraft:dark_oak_planks",
+      "449,71,-1038": "minecraft:dark_oak_planks",
+      "450,71,-1038": "minecraft:dark_oak_planks",
+      "451,71,-1038": "minecraft:dark_oak_planks",
+      "452,71,-1038": "minecraft:dark_oak_planks",
+      "445,71,-1043": "minecraft:dark_oak_planks",
+      "446,71,-1043": "minecraft:oak_planks",
+      "447,71,-1043": "minecraft:dark_oak_planks",
+      "448,71,-1043": "minecraft:dark_oak_planks",
+      "449,71,-1043": "minecraft:dark_oak_planks",
+      "450,71,-1043": "minecraft:dark_oak_planks",
+      "451,71,-1043": "minecraft:dark_oak_planks",
+      "452,71,-1043": "minecraft:dark_oak_planks",
+      "453,71,-1043": "minecraft:dark_oak_planks",
+      "454,71,-1043": "minecraft:oak_planks",
+      "455,71,-1043": "minecraft:dark_oak_planks",
+      "445,72,-1043": "minecraft:dark_oak_planks",
+      "446,72,-1043": "minecraft:dark_oak_planks",
+      "447,72,-1043": "minecraft:dark_oak_planks",
+      "448,72,-1043": "minecraft:dark_oak_planks",
+      "449,72,-1043": "minecraft:dark_oak_planks",
+      "450,72,-1043": "minecraft:dark_oak_planks",
+      "451,72,-1043": "minecraft:dark_oak_planks",
+      "452,72,-1043": "minecraft:dark_oak_planks",
+      "453,72,-1043": "minecraft:dark_oak_planks",
+      "454,72,-1043": "minecraft:dark_oak_planks",
+      "455,72,-1043": "minecraft:dark_oak_planks",
+      "445,71,-1039": "minecraft:dark_oak_planks",
+      "454,71,-1039": "minecraft:oak_planks",
+      "455,71,-1039": "minecraft:dark_oak_planks",
+      "446,71,-1039": "minecraft:oak_planks",
+      "447,71,-1039": "minecraft:dark_oak_planks",
+      "448,71,-1039": "minecraft:dark_oak_planks",
+      "449,71,-1039": "minecraft:dark_oak_planks",
+      "450,71,-1039": "minecraft:dark_oak_planks",
+      "451,71,-1039": "minecraft:dark_oak_planks",
+      "452,71,-1039": "minecraft:dark_oak_planks",
+      "453,71,-1039": "minecraft:dark_oak_planks",
+      "445,71,-1044": "minecraft:dark_oak_planks",
+      "446,71,-1044": "minecraft:dark_oak_planks",
+      "447,71,-1044": "minecraft:dark_oak_planks",
+      "448,71,-1044": "minecraft:dark_oak_planks",
+      "449,71,-1044": "minecraft:dark_oak_planks",
+      "450,71,-1044": "minecraft:dark_oak_planks",
+      "451,71,-1044": "minecraft:dark_oak_planks",
+      "452,71,-1044": "minecraft:dark_oak_planks",
+      "453,71,-1044": "minecraft:dark_oak_planks",
+      "454,71,-1044": "minecraft:dark_oak_planks",
+      "455,71,-1044": "minecraft:dark_oak_planks",
+      "445,72,-1039": "minecraft:dark_oak_planks",
+      "446,72,-1039": "minecraft:dark_oak_planks",
+      "447,72,-1039": "minecraft:dark_oak_planks",
+      "448,72,-1039": "minecraft:dark_oak_planks",
+      "449,72,-1039": "minecraft:dark_oak_planks",
+      "450,72,-1039": "minecraft:dark_oak_planks",
+      "451,72,-1039": "minecraft:dark_oak_planks",
+      "452,72,-1039": "minecraft:dark_oak_planks",
+      "453,72,-1039": "minecraft:dark_oak_planks",
+      "455,72,-1039": "minecraft:dark_oak_planks",
+      "454,72,-1039": "minecraft:dark_oak_planks",
+      "446,71,-1040": "minecraft:oak_planks",
+      "454,71,-1040": "minecraft:oak_planks",
+      "445,71,-1045": "minecraft:dark_oak_planks",
+      "446,71,-1045": "minecraft:dark_oak_planks",
+      "447,71,-1045": "minecraft:dark_oak_planks",
+      "448,71,-1045": "minecraft:dark_oak_planks",
+      "449,71,-1045": "minecraft:dark_oak_planks",
+      "450,71,-1045": "minecraft:dark_oak_planks",
+      "451,71,-1045": "minecraft:dark_oak_planks",
+      "452,71,-1045": "minecraft:dark_oak_planks",
+      "453,71,-1045": "minecraft:dark_oak_planks",
+      "454,71,-1045": "minecraft:dark_oak_planks",
+      "455,71,-1045": "minecraft:dark_oak_planks",
+      "445,72,-1040": "minecraft:dark_oak_planks",
+      "446,72,-1040": "minecraft:dark_oak_planks",
+      "447,72,-1040": "minecraft:dark_oak_planks",
+      "448,72,-1040": "minecraft:dark_oak_planks",
+      "449,72,-1040": "minecraft:dark_oak_planks",
+      "450,72,-1040": "minecraft:dark_oak_planks",
+      "451,72,-1040": "minecraft:dark_oak_planks",
+      "452,72,-1040": "minecraft:dark_oak_planks",
+      "453,72,-1040": "minecraft:dark_oak_planks",
+      "454,72,-1040": "minecraft:dark_oak_planks",
+      "455,72,-1040": "minecraft:dark_oak_planks",
+      "446,71,-1041": "minecraft:oak_planks",
+      "454,71,-1041": "minecraft:oak_planks",
+      "445,72,-1041": "minecraft:dark_oak_planks",
+      "446,72,-1041": "minecraft:dark_oak_planks",
+      "447,72,-1041": "minecraft:dark_oak_planks",
+      "448,72,-1041": "minecraft:dark_oak_planks",
+      "449,72,-1041": "minecraft:dark_oak_planks",
+      "450,72,-1041": "minecraft:dark_oak_planks",
+      "451,72,-1041": "minecraft:dark_oak_planks",
+      "452,72,-1041": "minecraft:dark_oak_planks",
+      "453,72,-1041": "minecraft:dark_oak_planks",
+      "454,72,-1041": "minecraft:dark_oak_planks",
+      "455,72,-1041": "minecraft:dark_oak_planks",
+      "452,71,-1037": "minecraft:dark_oak_planks",
+      "453,71,-1037": "minecraft:dark_oak_planks",
+      "454,71,-1037": "minecraft:dark_oak_planks",
+      "455,71,-1037": "minecraft:dark_oak_planks",
+      "445,71,-1037": "minecraft:dark_oak_planks",
+      "446,71,-1037": "minecraft:dark_oak_planks",
+      "447,71,-1037": "minecraft:dark_oak_planks",
+      "448,71,-1037": "minecraft:dark_oak_planks",
+      "449,71,-1037": "minecraft:dark_oak_planks",
+      "450,71,-1037": "minecraft:dark_oak_planks",
+      "451,71,-1037": "minecraft:dark_oak_planks",
+      "446,71,-1042": "minecraft:oak_planks",
+      "454,71,-1042": "minecraft:oak_planks"
+    },
+    "part_index_roof_cells": [
+      [
+        445,
+        72,
+        -1042
+      ],
+      [
+        446,
+        72,
+        -1042
+      ],
+      [
+        447,
+        72,
+        -1042
+      ],
+      [
+        448,
+        72,
+        -1042
+      ],
+      [
+        449,
+        72,
+        -1042
+      ],
+      [
+        450,
+        72,
+        -1042
+      ],
+      [
+        451,
+        72,
+        -1042
+      ],
+      [
+        452,
+        72,
+        -1042
+      ],
+      [
+        453,
+        72,
+        -1042
+      ],
+      [
+        454,
+        72,
+        -1042
+      ],
+      [
+        455,
+        72,
+        -1042
+      ],
+      [
+        453,
+        71,
+        -1038
+      ],
+      [
+        454,
+        71,
+        -1038
+      ],
+      [
+        455,
+        71,
+        -1038
+      ],
+      [
+        445,
+        71,
+        -1038
+      ],
+      [
+        446,
+        71,
+        -1038
+      ],
+      [
+        447,
+        71,
+        -1038
+      ],
+      [
+        448,
+        71,
+        -1038
+      ],
+      [
+        449,
+        71,
+        -1038
+      ],
+      [
+        450,
+        71,
+        -1038
+      ],
+      [
+        451,
+        71,
+        -1038
+      ],
+      [
+        452,
+        71,
+        -1038
+      ],
+      [
+        445,
+        71,
+        -1043
+      ],
+      [
+        446,
+        71,
+        -1043
+      ],
+      [
+        447,
+        71,
+        -1043
+      ],
+      [
+        448,
+        71,
+        -1043
+      ],
+      [
+        449,
+        71,
+        -1043
+      ],
+      [
+        450,
+        71,
+        -1043
+      ],
+      [
+        451,
+        71,
+        -1043
+      ],
+      [
+        452,
+        71,
+        -1043
+      ],
+      [
+        453,
+        71,
+        -1043
+      ],
+      [
+        454,
+        71,
+        -1043
+      ],
+      [
+        455,
+        71,
+        -1043
+      ],
+      [
+        445,
+        72,
+        -1043
+      ],
+      [
+        446,
+        72,
+        -1043
+      ],
+      [
+        447,
+        72,
+        -1043
+      ],
+      [
+        448,
+        72,
+        -1043
+      ],
+      [
+        449,
+        72,
+        -1043
+      ],
+      [
+        450,
+        72,
+        -1043
+      ],
+      [
+        451,
+        72,
+        -1043
+      ],
+      [
+        452,
+        72,
+        -1043
+      ],
+      [
+        453,
+        72,
+        -1043
+      ],
+      [
+        454,
+        72,
+        -1043
+      ],
+      [
+        455,
+        72,
+        -1043
+      ],
+      [
+        445,
+        71,
+        -1039
+      ],
+      [
+        454,
+        71,
+        -1039
+      ],
+      [
+        455,
+        71,
+        -1039
+      ],
+      [
+        446,
+        71,
+        -1039
+      ],
+      [
+        447,
+        71,
+        -1039
+      ],
+      [
+        448,
+        71,
+        -1039
+      ],
+      [
+        449,
+        71,
+        -1039
+      ],
+      [
+        450,
+        71,
+        -1039
+      ],
+      [
+        451,
+        71,
+        -1039
+      ],
+      [
+        452,
+        71,
+        -1039
+      ],
+      [
+        453,
+        71,
+        -1039
+      ],
+      [
+        445,
+        71,
+        -1044
+      ],
+      [
+        446,
+        71,
+        -1044
+      ],
+      [
+        447,
+        71,
+        -1044
+      ],
+      [
+        448,
+        71,
+        -1044
+      ],
+      [
+        449,
+        71,
+        -1044
+      ],
+      [
+        450,
+        71,
+        -1044
+      ],
+      [
+        451,
+        71,
+        -1044
+      ],
+      [
+        452,
+        71,
+        -1044
+      ],
+      [
+        453,
+        71,
+        -1044
+      ],
+      [
+        454,
+        71,
+        -1044
+      ],
+      [
+        455,
+        71,
+        -1044
+      ],
+      [
+        445,
+        72,
+        -1039
+      ],
+      [
+        446,
+        72,
+        -1039
+      ],
+      [
+        447,
+        72,
+        -1039
+      ],
+      [
+        448,
+        72,
+        -1039
+      ],
+      [
+        449,
+        72,
+        -1039
+      ],
+      [
+        450,
+        72,
+        -1039
+      ],
+      [
+        451,
+        72,
+        -1039
+      ],
+      [
+        452,
+        72,
+        -1039
+      ],
+      [
+        453,
+        72,
+        -1039
+      ],
+      [
+        455,
+        72,
+        -1039
+      ],
+      [
+        454,
+        72,
+        -1039
+      ],
+      [
+        446,
+        71,
+        -1040
+      ],
+      [
+        454,
+        71,
+        -1040
+      ],
+      [
+        445,
+        71,
+        -1045
+      ],
+      [
+        446,
+        71,
+        -1045
+      ],
+      [
+        447,
+        71,
+        -1045
+      ],
+      [
+        448,
+        71,
+        -1045
+      ],
+      [
+        449,
+        71,
+        -1045
+      ],
+      [
+        450,
+        71,
+        -1045
+      ],
+      [
+        451,
+        71,
+        -1045
+      ],
+      [
+        452,
+        71,
+        -1045
+      ],
+      [
+        453,
+        71,
+        -1045
+      ],
+      [
+        454,
+        71,
+        -1045
+      ],
+      [
+        455,
+        71,
+        -1045
+      ],
+      [
+        445,
+        72,
+        -1040
+      ],
+      [
+        446,
+        72,
+        -1040
+      ],
+      [
+        447,
+        72,
+        -1040
+      ],
+      [
+        448,
+        72,
+        -1040
+      ],
+      [
+        449,
+        72,
+        -1040
+      ],
+      [
+        450,
+        72,
+        -1040
+      ],
+      [
+        451,
+        72,
+        -1040
+      ],
+      [
+        452,
+        72,
+        -1040
+      ],
+      [
+        453,
+        72,
+        -1040
+      ],
+      [
+        454,
+        72,
+        -1040
+      ],
+      [
+        455,
+        72,
+        -1040
+      ],
+      [
+        446,
+        71,
+        -1041
+      ],
+      [
+        454,
+        71,
+        -1041
+      ],
+      [
+        445,
+        72,
+        -1041
+      ],
+      [
+        446,
+        72,
+        -1041
+      ],
+      [
+        447,
+        72,
+        -1041
+      ],
+      [
+        448,
+        72,
+        -1041
+      ],
+      [
+        449,
+        72,
+        -1041
+      ],
+      [
+        450,
+        72,
+        -1041
+      ],
+      [
+        451,
+        72,
+        -1041
+      ],
+      [
+        452,
+        72,
+        -1041
+      ],
+      [
+        453,
+        72,
+        -1041
+      ],
+      [
+        454,
+        72,
+        -1041
+      ],
+      [
+        455,
+        72,
+        -1041
+      ],
+      [
+        452,
+        71,
+        -1037
+      ],
+      [
+        453,
+        71,
+        -1037
+      ],
+      [
+        454,
+        71,
+        -1037
+      ],
+      [
+        455,
+        71,
+        -1037
+      ],
+      [
+        445,
+        71,
+        -1037
+      ],
+      [
+        446,
+        71,
+        -1037
+      ],
+      [
+        447,
+        71,
+        -1037
+      ],
+      [
+        448,
+        71,
+        -1037
+      ],
+      [
+        449,
+        71,
+        -1037
+      ],
+      [
+        450,
+        71,
+        -1037
+      ],
+      [
+        451,
+        71,
+        -1037
+      ],
+      [
+        446,
+        71,
+        -1042
+      ],
+      [
+        454,
+        71,
+        -1042
+      ]
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "id": "guggenheim_museum",
+  "name": "古根海姆博物馆",
+  "nameEn": "Guggenheim Museum",
+  "aliases": [
+    "古根海姆",
+    "古根海姆博物馆",
+    "guggenheim",
+    "guggenheim museum",
+    "螺旋博物馆",
+    "圆形博物馆"
+  ],
+  "category": "LANDMARK",
+  "architect": "Frank Lloyd Wright",
+  "style": "Organic Modern",
+  "styleId": "Modern_International",
+  
+  "features": {
+    "shape": "spiral_cone",
+    "form": "continuous_spiral",
+    "structuralType": "concrete_spiral",
+    "materials": ["concrete", "glass"],
+    "scale": "medium",
+    "distinctiveElements": [
+      "spiral ramp",
+      "circular form",
+      "continuous interior space",
+      "organic curves",
+      "central atrium",
+      "tapered profile",
+      "white concrete",
+      "rotunda design"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 30,
+    "typicalDepth": 30,
+    "typicalHeight": 24,
+    "footprintShape": "circle",
+    "aspectRatio": "1:0.8"
+  },
+  
+  "assemblyHints": {
+    "type": "TOWER",
+    "macro": {
+      "style": {
+        "styleId": "Modern_International",
+        "structureExposure": 0.2,
+        "density": 0.4,
+        "symmetry": 0.95,
+        "verticality": 0.6,
+        "transparency": 0.3
+      },
+      "twist": {
+        "twistTurns": 1.0
+      },
+      "verticalProfile": [
+        {"height": 8, "scaleTop": 0.95},
+        {"height": 8, "scaleTop": 0.85},
+        {"height": 8, "scaleTop": 0.75}
+      ]
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "SMOOTH",
+            "density": 0.4
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "The Guggenheim Museum features a distinctive spiral ramp design within a circular, tapered building. The continuous interior space creates a unique museum experience with organic curves and a central atrium.",
+  "descriptionZh": "古根海姆博物馆采用圆形锥形建筑内的独特螺旋坡道设计。连续的内部空间创造了独特的博物馆体验，具有有机曲线和中央中庭。",
+  
+  "keywords": [
+    "古根海姆",
+    "博物馆",
+    "螺旋",
+    "圆形",
+    "曲线",
+    "现代",
+    "有机",
+    "中庭"
+  ],
+  "exampleRefs": []
+}
+

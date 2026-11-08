@@ -1,0 +1,34 @@
+{
+  "id": "japanese_rural_inn",
+  "typology": "timber_gable_house",
+  "matchKeywords": [
+    "和风乡村旅馆",
+    "japanese timber inn"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 0.2,
+      "ideal": 0.3,
+      "max": 0.5,
+      "desc": "Authored default envelope ratio, not a measured historical reference."
+    },
+    "depth_to_width": {
+      "min": 0.5,
+      "ideal": 0.7,
+      "max": 1.0
+    },
+    "window_wall_ratio": {
+      "min": 0.18,
+      "ideal": 0.28,
+      "max": 0.38
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": [
+      "rectangular"
+    ],
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.35
+  },
+  "aiInstruction": "Use the 和风乡村旅馆 envelope examples; these are exterior proportions, not verified interiors."
+}

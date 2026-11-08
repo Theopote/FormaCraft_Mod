@@ -1,0 +1,339 @@
+{
+  "mode": "build",
+  "style_profile": "Gothic",
+  "style_attributes": {
+    "wall_color": null,
+    "roof_color": null,
+    "accent_color": null,
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": null,
+    "floor_material": "minecraft:stone_bricks",
+    "decorative_elements": []
+  },
+  "distinguishing_features": [
+    "closed rectangular stone brick shell",
+    "no roof, windows, entrance, or ornamentation",
+    "gothic-style massing without openings"
+  ],
+  "anchor": {
+    "x": -413,
+    "y": 73,
+    "z": -792
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "gothic_shell",
+      "confidence": 1.0
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "single"
+    },
+    "structure": {
+      "type": "load_bearing",
+      "massiveness": 0.95,
+      "voidRatio": 0.0,
+      "supports": "walls"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [],
+    "materials": {
+      "primary": "stone",
+      "secondary": null,
+      "accent": null,
+      "textureBias": "rough",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "europe",
+      "era": "medieval",
+      "keywords": [
+        "gothic",
+        "stone",
+        "closed"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 11,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "closed_shell",
+        "stone_brick"
+      ],
+      "avoid": [
+        "roof",
+        "window",
+        "door",
+        "decoration",
+        "glass",
+        "spire",
+        "dormer",
+        "crown"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "ENCLOSURE",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 11
+      },
+      "features": [],
+      "params": {
+        "component_id": "mass_main_gothic_shell_1",
+        "requirement_scope": "all_main_masses",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:stone_bricks",
+        "material": "stone_brick",
+        "style": "Gothic",
+        "void_ratio": 0.0,
+        "floor_height": 3,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "building_id": "mass_main_gothic_shell_1",
+        "window_ratio": 0.35
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "enclosure_box",
+    "width_to_depth": 1.15,
+    "height_to_width": 0.73,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width",
+          "property": "width",
+          "value": 15,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽15格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "mass_main_gothic_shell_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_depth",
+          "property": "depth",
+          "value": 13,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "深13格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "mass_main_gothic_shell_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_disable_roof_type",
+          "property": "roof_type",
+          "value": "none",
+          "source": "user_explicit",
+          "source_text": [
+            "不要屋顶"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_gothic_shell_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_disable_window_style",
+          "property": "window_style",
+          "value": "none",
+          "source": "user_explicit",
+          "source_text": [
+            "不开窗"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_gothic_shell_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_disable_entrance_type",
+          "property": "entrance_type",
+          "value": "none",
+          "source": "user_explicit",
+          "source_text": [
+            "不要入口"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_gothic_shell_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_no_complex_decor",
+          "property": "no_complex_decor",
+          "value": true,
+          "source": "user_explicit",
+          "source_text": [
+            "不要复杂装饰"
+          ],
+          "scope": "plan",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_gothic_shell_1"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "all_main_masses": [
+          "mass_main_gothic_shell_1"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "mass_main_gothic_shell_1",
+          "slot_id": null,
+          "local_origin": {
+            "x": -7,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -7,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 15,
+            "depth": 13,
+            "height": 11
+          },
+          "floor_ys_local": [],
+          "roof_y_local": 10,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_main_gothic_shell_1",
+                "local_origin": {
+                  "x": -7,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 15,
+                  "depth": 13,
+                  "height": 11
+                },
+                "roof_y_local": 10
+              }
+            ],
+            "envelope_local": {
+              "min_x": -7,
+              "min_z": -6,
+              "max_x": 8,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 11
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": -7,
+                "start": -6,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    }
+  },
+  "kind": "llmplan"
+}

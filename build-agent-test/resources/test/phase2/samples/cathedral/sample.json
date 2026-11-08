@@ -1,0 +1,18 @@
+{
+  "id": "cathedral",
+  "labelZh": "大型教堂",
+  "labelEn": "Large Cathedral",
+  "prompt": "一座大型哥特风格教堂，立面重复尖窗与复杂石材细部。",
+  "focus": ["repetition", "complex_facade"],
+  "planFile": "plan.json",
+  "checks": {
+    "minSolidBlocks": 120,
+    "requireRoofLike": true,
+    "requireOpeningLike": true,
+    "requireStairLike": false,
+    "minDistinctBlockIds": 2,
+    "minHeightSpan": 10,
+    "minOpeningCells": 8
+  },
+  "goldenPreviewDigest": "ad87fbc4b8e21000"
+}

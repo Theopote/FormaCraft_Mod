@@ -1,0 +1,896 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#9E3B2E",
+    "roof_color": "#4A4F52",
+    "accent_color": "#C9A227",
+    "wall_material": "red_terracotta",
+    "roof_material": "deepslate_tiles",
+    "floor_material": "stone_bricks",
+    "decorative_elements": [
+      "dougong bracket band",
+      "stone door frames",
+      "vertical plaque",
+      "stone lion pair",
+      "upturned eave corners"
+    ]
+  },
+  "distinguishing_features": [
+    "三开间山门，中门高阔、两侧门稍低",
+    "歇山顶 (xieshan) 深出檐，檐角起翘",
+    "红色墙身配青灰瓦顶",
+    "石砌高台基与前三级踏跺",
+    "斗拱装饰带与山门匾额",
+    "门前一对石狮"
+  ],
+  "anchor": {
+    "x": 704,
+    "y": 73,
+    "z": -823
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "chinese_buddhist_temple_gate",
+      "confidence": 0.62
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "axial",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.55,
+      "voidRatio": 0.12,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "door",
+      "bracket",
+      "plaque",
+      "steps"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "ming_qing",
+      "keywords": [
+        "山门",
+        "歇山顶",
+        "斗拱",
+        "红墙青瓦",
+        "三开间",
+        "佛教寺院"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 18,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "bilateral symmetry",
+        "wide overhanging xieshan roof",
+        "three doorways"
+      ],
+      "avoid": [
+        "gothic arches",
+        "flat roof",
+        "glass curtain wall"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "temple_gate",
+    "target_width": 22,
+    "target_depth": 27,
+    "target_body_height": 13,
+    "target_roof_height": 3,
+    "height_to_width": 0.58,
+    "depth_to_width": 0.45,
+    "roof_to_body_height": 0.5,
+    "window_aspect": "vertical_bay",
+    "max_void_ratio": 0.15,
+    "plinth_to_body_height": 0.375,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "gate_body"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "gate_body",
+          "slot_id": "slot_main_gate",
+          "local_origin": {
+            "x": -11,
+            "y": 7,
+            "z": -13
+          },
+          "plan_origin": {
+            "x": -11,
+            "y": 7,
+            "z": -13
+          },
+          "dimensions": {
+            "width": 22,
+            "depth": 27,
+            "height": 13
+          },
+          "floor_ys_local": [
+            7,
+            11
+          ],
+          "roof_y_local": 19,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "gate_body",
+                "local_origin": {
+                  "x": -11,
+                  "y": 7,
+                  "z": -13
+                },
+                "dimensions": {
+                  "width": 22,
+                  "depth": 27,
+                  "height": 13
+                },
+                "roof_y_local": 19
+              }
+            ],
+            "envelope_local": {
+              "min_x": -11,
+              "min_z": -13,
+              "max_x": 11,
+              "max_z": 14,
+              "min_y": 7,
+              "max_y": 20
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 11,
+                "start": -13,
+                "end": 14
+              },
+              {
+                "direction": "NORTH",
+                "plane": -13,
+                "start": -11,
+                "end": 11
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 14,
+                "start": -11,
+                "end": 11
+              },
+              {
+                "direction": "WEST",
+                "plane": -11,
+                "start": -13,
+                "end": 14
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成少林寺山门",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成少林寺山门",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "floor_cornice": true,
+    "base_plinth_detail": true,
+    "detail_rules": [
+      {
+        "id": "floor_cornice",
+        "when": {
+          "region": "perimeter",
+          "y": "floor_boundary",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "block",
+          "part": "WALL_ACCENT",
+          "facing": "outward"
+        }
+      },
+      {
+        "id": "base_plinth_top",
+        "when": {
+          "region": "perimeter",
+          "y": "base_top",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "block",
+          "part": "FOUNDATION"
+        }
+      }
+    ],
+    "window_order": "full",
+    "repeating_pattern": {
+      "unit_width_z": 5,
+      "elements": [
+        {
+          "type": "pillar",
+          "width": 1
+        },
+        {
+          "type": "window",
+          "width": 3
+        },
+        {
+          "type": "pillar",
+          "width": 1
+        }
+      ]
+    },
+    "alignment_and_symmetry": {
+      "symmetry_type": "bilateral_x",
+      "center_axis_x": 0,
+      "rhythm_x": {
+        "side_bays": [
+          {
+            "width": 4,
+            "role": "wing"
+          },
+          {
+            "width": 7,
+            "role": "center"
+          },
+          {
+            "width": 4,
+            "role": "wing"
+          }
+        ]
+      },
+      "rhythm_z": {
+        "side_bays": [
+          {
+            "width": 6,
+            "role": "service"
+          },
+          {
+            "width": 13,
+            "role": "hall"
+          },
+          {
+            "width": 6,
+            "role": "service"
+          }
+        ]
+      }
+    },
+    "crown_assembly": true,
+    "crown_template": "CLASSICAL_CUPOLA",
+    "floor_height": 4,
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "alignment_and_symmetry": {
+    "axis": "X",
+    "mirror_plane": "XZ",
+    "symmetry_mode": "MIRROR_X",
+    "notes": "以山门中轴线（南北向）为镜面对称，中门居中，两侧门与石狮镜像布置"
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "slot_main_gate",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "program": "CIVIC",
+        "component_preset_id": "chinese_temple_shanmen",
+        "component_preset": "三开间歇山顶佛教寺院山门：石台基 + 红墙门殿 + 三券门 + 出檐歇山瓦顶 + 斗拱与匾额"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 16,
+        "height": 3
+      },
+      "features": [
+        "stone plinth",
+        "raised terrace base",
+        "stepped edge"
+      ],
+      "params": {
+        "component_id": "gate_plinth",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "foundation_type": "plinth",
+        "detail_level": "medium",
+        "material": "stone_bricks",
+        "building_id": "gate_plinth"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 7,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 27,
+        "height": 13
+      },
+      "features": [
+        "three-bay gate hall",
+        "red plaster walls",
+        "timber post-and-beam facade",
+        "pilasters",
+        "base_plinth",
+        "cornice"
+      ],
+      "params": {
+        "component_id": "gate_body",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.12,
+        "window_ratio": 0.1,
+        "window_aspect": "punch_window",
+        "roof_type": "xuanshan",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "floor_height": 4,
+        "floor_count": 2,
+        "detail_level": "high",
+        "material": "stone",
+        "building_id": "gate_body",
+        "floor_cornice": true
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": -2,
+        "y": 13,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 26,
+        "depth": 31,
+        "height": 3
+      },
+      "features": [
+        "xieshan hip-and-gable roof",
+        "deep overhanging eaves",
+        "upturned corner ridges",
+        "grey tile courses",
+        "overhang",
+        "eaves"
+      ],
+      "params": {
+        "roof_height": 4,
+        "overhang": 2,
+        "roof_type": "xuanshan",
+        "component_id": "gate_roof",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "detail_level": "high",
+        "material": "deepslate_tiles",
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "central main doorway",
+        "stone door frame",
+        "timber double doors"
+      ],
+      "params": {
+        "component_id": "gate_door_main",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "entrance_type": "double_door",
+        "facing": "NORTH",
+        "detail_level": "high",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": -7,
+        "y": 5,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "west side doorway",
+        "stone door frame"
+      ],
+      "params": {
+        "component_id": "gate_door_west",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "entrance_type": "single_door",
+        "facing": "NORTH",
+        "detail_level": "medium",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 7,
+        "y": 5,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "east side doorway",
+        "stone door frame"
+      ],
+      "params": {
+        "component_id": "gate_door_east",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "entrance_type": "single_door",
+        "facing": "NORTH",
+        "detail_level": "medium",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": -7,
+        "y": 9,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "lattice window above west bay",
+        "timber lattice"
+      ],
+      "params": {
+        "component_id": "gate_window_west",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "window_ratio": 0.08,
+        "window_aspect": "punch_window",
+        "facade_cutout": "lattice",
+        "detail_level": "medium",
+        "material": "wood",
+        "window_style": "lattice",
+        "rhythm": "regular",
+        "building_id": "gate_body",
+        "rhythm_preset": "CLASSICAL_PILASTER_BAY",
+        "repeating_pattern": {
+          "unit_width_z": 5,
+          "elements": [
+            {
+              "type": "pillar",
+              "width": 1
+            },
+            {
+              "type": "window",
+              "width": 3
+            },
+            {
+              "type": "pillar",
+              "width": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 7,
+        "y": 9,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "lattice window above east bay",
+        "timber lattice"
+      ],
+      "params": {
+        "component_id": "gate_window_east",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "window_ratio": 0.08,
+        "window_aspect": "punch_window",
+        "facade_cutout": "lattice",
+        "detail_level": "medium",
+        "material": "wood",
+        "window_style": "lattice",
+        "rhythm": "regular",
+        "building_id": "gate_body",
+        "rhythm_preset": "CLASSICAL_PILASTER_BAY",
+        "repeating_pattern": {
+          "unit_width_z": 5,
+          "elements": [
+            {
+              "type": "pillar",
+              "width": 1
+            },
+            {
+              "type": "window",
+              "width": 3
+            },
+            {
+              "type": "pillar",
+              "width": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 9,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "vertical plaque reading 少林寺",
+        "gold characters on dark board"
+      ],
+      "params": {
+        "component_id": "gate_plaque",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "detail_level": "high",
+        "material": "wood",
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 10,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "dougong bracket band under eaves",
+        "painted beam cornice"
+      ],
+      "params": {
+        "component_id": "gate_dougong_band",
+        "host_id": "gate_body",
+        "anchor_mode": "center",
+        "detail_level": "high",
+        "material": "wood",
+        "building_id": "gate_body"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": -8,
+        "y": 4,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "west guardian stone lion on pedestal"
+      ],
+      "params": {
+        "component_id": "gate_lion_west",
+        "host_id": "gate_plinth",
+        "anchor_mode": "center",
+        "detail_level": "medium",
+        "material": "stone",
+        "building_id": "gate_plinth"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 8,
+        "y": 4,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "east guardian stone lion on pedestal"
+      ],
+      "params": {
+        "component_id": "gate_lion_east",
+        "host_id": "gate_plinth",
+        "anchor_mode": "center",
+        "detail_level": "medium",
+        "material": "stone",
+        "building_id": "gate_plinth"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_main_gate",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 6,
+        "height": 3
+      },
+      "features": [
+        "three-tier stone approach steps",
+        "central ramp"
+      ],
+      "params": {
+        "component_id": "gate_front_steps",
+        "host_id": "gate_plinth",
+        "anchor_mode": "center",
+        "detail_level": "medium",
+        "material": "stone_bricks",
+        "building_id": "gate_plinth"
+      }
+    },
+    {
+      "component_type": "CROWN",
+      "relative_position": {
+        "x": 6,
+        "y": 16,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 11,
+        "height": 10
+      },
+      "features": [
+        "crown",
+        "revolve_surface"
+      ],
+      "params": {
+        "generation_method": "revolved_surface_around_axis",
+        "crown_template": "CLASSICAL_CUPOLA",
+        "crown_radius": 5,
+        "crown_height": 10,
+        "revolve_segments": 32,
+        "host_id": "gate_body",
+        "component_id": "component_14",
+        "building_id": "gate_body"
+      },
+      "slot_id": "slot_main_gate"
+    }
+  ],
+  "plan_program": {
+    "schema": "1.0",
+    "intent": {
+      "building_type": "buddhist_temple_gate",
+      "style_hint": "ming_qing_chinese_temple",
+      "scale": "medium"
+    },
+    "zones": [
+      {
+        "id": "gate_hall",
+        "role": "core",
+        "importance": 1.0
+      },
+      {
+        "id": "plinth_terrace",
+        "role": "base",
+        "importance": 0.7
+      },
+      {
+        "id": "approach_steps",
+        "role": "entry",
+        "importance": 0.5
+      }
+    ],
+    "adjacency": [
+      [
+        "gate_hall",
+        "plinth_terrace"
+      ],
+      [
+        "plinth_terrace",
+        "approach_steps"
+      ]
+    ],
+    "massing": {
+      "strategy": "bar",
+      "max_floors": 2
+    },
+    "circulation": {
+      "primary_axis": "N-S",
+      "entrances": 3
+    },
+    "constraints": {
+      "symmetry": "bilateral",
+      "min_courtyard_ratio": 0.0
+    }
+  },
+  "player_fidelity_notice_zh": "组合式生成「少林寺山门」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

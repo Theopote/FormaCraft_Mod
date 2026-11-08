@@ -1,0 +1,40 @@
+{
+  "id": "setback_tower",
+  "typology": "setback_tower",
+  "matchKeywords": [
+    "摩天楼", "现代摩天大楼", "高层塔楼", "玻璃幕墙大楼",
+    "skyscraper", "modern skyscraper", "highrise", "high rise", "tower block"
+  ],
+  "ratios": {
+    "slenderness": {
+      "min": 2.5,
+      "ideal": 4.5,
+      "max": 8.0,
+      "desc": "高度/底边宽"
+    },
+    "setback_ratio": {
+      "min": 0.04,
+      "ideal": 0.12,
+      "max": 0.22,
+      "desc": "逐层退台幅度"
+    },
+    "window_wall_ratio": {
+      "min": 0.35,
+      "ideal": 0.55,
+      "max": 0.75,
+      "desc": "幕墙窗墙比"
+    },
+    "floor_height_to_width": {
+      "min": 0.18,
+      "ideal": 0.28,
+      "max": 0.4,
+      "desc": "层高/平面宽"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["vertical_panel", "curtain_wall_grid"],
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.35
+  },
+  "aiInstruction": "Research width, depth, height, floors, setbackEveryFloors before STRUCTURE typology:setback_tower. layout.skeleton_type=VERTICAL_STACK; global_constraints.symmetry=RADIAL. 指名摩天楼 preset 时 reference_landmark=modern_skyscraper。写字楼/办公大楼走 office_block；扎哈/解构参数化走 compositional 或 parametric_deconstructivism，勿混用。"
+}

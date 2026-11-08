@@ -1,0 +1,686 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "warm_yellow",
+    "roof_color": "sand",
+    "accent_color": "brown",
+    "wall_material": "packed_mud",
+    "roof_material": "packed_mud",
+    "floor_material": "smooth_sandstone",
+    "decorative_elements": [
+      "thick adobe wall base",
+      "small punched windows",
+      "timber lintel over central door",
+      "low parapet at roof edge"
+    ]
+  },
+  "distinguishing_features": [
+    "13x13 two-storey desert adobe house",
+    "warm yellow earth walls, one block thick",
+    "flat roof with slight overhang",
+    "small punched windows on both floors",
+    "central north entrance",
+    "interior straight stair with headroom above",
+    "upper floor floor plate with stair opening and railing"
+  ],
+  "anchor": {
+    "x": 497,
+    "y": 69,
+    "z": -1000
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "desert_adobe_house",
+      "confidence": 0.85
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "centered",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "solid",
+      "massiveness": 0.82,
+      "voidRatio": 0.12,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "interior_stair",
+      "railing"
+    ],
+    "materials": {
+      "primary": "earth",
+      "secondary": "wood",
+      "accent": "stone",
+      "textureBias": "rough",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "desert",
+      "era": "traditional",
+      "keywords": [
+        "adobe",
+        "mud_brick",
+        "flat_roof",
+        "small_windows"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 12,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "hollow_two_storey_shell",
+        "usable_both_floors",
+        "stair_headroom"
+      ],
+      "avoid": [
+        "solid_filled_mass",
+        "landmark_module"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "desert_adobe_two_storey_house",
+    "height_to_width": 0.62,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.12,
+    "floor_height_to_width": 0.31,
+    "window_wall_ratio": 0.1,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 2,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "两层",
+            "两层的",
+            "二层"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "adobe_house"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_type",
+          "property": "roof_type",
+          "value": "flat",
+          "source": "user_explicit",
+          "source_text": [
+            "平屋顶"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "adobe_house"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "adobe_house"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "adobe_house",
+          "slot_id": "main",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 13,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "adobe_house",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 13,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 13,
+              "max_z": 13,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 13,
+                "start": 0,
+                "end": 13
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 13
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 13,
+                "start": 0,
+                "end": 13
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 13
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建一座13×13格的两层沙漠土坯住宅，暖黄色土墙、平屋顶、 小窗、中央入口。 设置连接上下两层的室内楼梯， 楼梯上方留足通行高度， 二层楼梯口设置护栏， 两个楼层都能实际进入使用。",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "住宅",
+              "start": 16,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "建一座13×13格的两层沙漠土坯住宅，暖黄色土墙、平屋顶、\n小窗、中央入口。\n设置连接上下两层的室内楼梯，\n楼梯上方留足通行高度，\n二层楼梯口设置护栏，\n两个楼层都能实际进入使用。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [
+        "residential"
+      ],
+      "scope_status": "bound",
+      "bindings": [
+        {
+          "scope": "single_main_building",
+          "uses": [
+            "residential"
+          ],
+          "status": "bound",
+          "target_components": [
+            "adobe_house"
+          ]
+        }
+      ],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": [
+        {
+          "building_id": "adobe_house",
+          "uses": [
+            "residential"
+          ],
+          "status": "plan_review",
+          "checks": {
+            "entrance_component": "declared",
+            "interfloor_circulation": "declared_not_verified",
+            "interior_clearance": "not_assessed",
+            "final_block_traversability": "not_assessed"
+          },
+          "entrance_components": [
+            "adobe_house_door"
+          ],
+          "stair_components": [
+            "adobe_house_stairs"
+          ],
+          "notes": [
+            "An entrance may also be generated inline by the main mass; missing ENTRANCE is not proof of a missing door.",
+            "Declared stairs do not prove connection to every floor or final clearance."
+          ]
+        }
+      ]
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "desert_adobe_house",
+        "component_preset": "13x13 two-storey adobe house shell with flat roof, central entrance, small windows and interior stair"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 8
+      },
+      "features": [
+        "hollow_shell",
+        "two_storeys",
+        "adobe_walls",
+        "flat_roof_body"
+      ],
+      "params": {
+        "component_id": "adobe_house",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 2,
+        "floor_height": 4,
+        "height": 8,
+        "roof_type": "flat",
+        "window_style": "small",
+        "window_ratio": 0.1,
+        "window_aspect": "punch_window",
+        "void_ratio": 0.12,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "none",
+        "hollow": true,
+        "wall_block": "minecraft:packed_mud",
+        "floor_block": "minecraft:smooth_sandstone",
+        "roof_block": "minecraft:packed_mud",
+        "material": "earth",
+        "detail_level": "medium",
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 1
+      },
+      "features": [
+        "stone_plinth",
+        "terrain_adaptive_base"
+      ],
+      "params": {
+        "component_id": "adobe_house_foundation",
+        "anchor_mode": "min_corner",
+        "host_id": "adobe_house",
+        "foundation_type": "plinth",
+        "material": "stone",
+        "block": "minecraft:smooth_sandstone",
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -1,
+        "y": 8,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "flat_roof",
+        "one_block_overhang",
+        "low_parapet_edge"
+      ],
+      "params": {
+        "component_id": "adobe_house_roof",
+        "anchor_mode": "min_corner",
+        "host_id": "adobe_house",
+        "roof_type": "flat",
+        "overhang": 1,
+        "parapet_height": 1,
+        "material": "earth",
+        "roof_block": "minecraft:packed_mud",
+        "detail_level": "medium",
+        "roof_height": 2,
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 8
+      },
+      "features": [
+        "punch_window",
+        "two_window_rows",
+        "small_openings",
+        "deep_reveals"
+      ],
+      "params": {
+        "component_id": "adobe_house_windows",
+        "anchor_mode": "min_corner",
+        "host_id": "adobe_house",
+        "window_style": "small",
+        "window_aspect": "punch_window",
+        "window_ratio": 0.1,
+        "floor_count": 2,
+        "floor_height": 4,
+        "rhythm": "regular",
+        "material": "wood",
+        "block": "minecraft:glass_pane",
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "central_entrance",
+        "timber_lintel",
+        "recessed_doorway"
+      ],
+      "params": {
+        "component_id": "adobe_house_door",
+        "anchor_mode": "min_corner",
+        "host_id": "adobe_house",
+        "entrance_type": "door",
+        "facing": "NORTH",
+        "door_width": 2,
+        "door_height": 3,
+        "material": "wood",
+        "block": "minecraft:dark_oak_door",
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [
+        "upper_floor_plate",
+        "walkable_second_storey",
+        "stair_opening_carved"
+      ],
+      "params": {
+        "component_id": "adobe_house_floor2",
+        "anchor_mode": "min_corner",
+        "host_id": "adobe_house",
+        "extrude_mode": "plate",
+        "plate_role": "floor",
+        "floor_block": "minecraft:smooth_sandstone",
+        "material": "earth",
+        "stair_opening": {
+          "x": 8,
+          "z": 2,
+          "width": 3,
+          "depth": 6
+        },
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.12,
+        "floor_height": 3,
+        "floor_count": 2,
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 6,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run",
+        "interior_stair",
+        "headroom_above_flight",
+        "carves_floor_opening"
+      ],
+      "params": {
+        "component_id": "adobe_house_stairs",
+        "host_id": "adobe_house",
+        "anchor_mode": "min_corner",
+        "exterior": false,
+        "width": 3,
+        "clearHeight": 2,
+        "landing_length": 3,
+        "stairs": "minecraft:smooth_sandstone_stairs",
+        "floor": "minecraft:smooth_sandstone",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 0,
+          "y": 4,
+          "z": 5
+        },
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 7,
+        "y": 4,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "railing",
+        "stair_opening_guard",
+        "upper_floor_safety"
+      ],
+      "params": {
+        "component_id": "adobe_house_stair_rail_side",
+        "host_id": "adobe_house",
+        "anchor_mode": "min_corner",
+        "role": "railing",
+        "material": "wood",
+        "block": "minecraft:dark_oak_fence",
+        "building_id": "adobe_house"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 8,
+        "y": 4,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "railing",
+        "stair_opening_guard",
+        "upper_floor_safety"
+      ],
+      "params": {
+        "component_id": "adobe_house_stair_rail_head",
+        "host_id": "adobe_house",
+        "anchor_mode": "min_corner",
+        "role": "railing",
+        "material": "wood",
+        "block": "minecraft:dark_oak_fence",
+        "building_id": "adobe_house"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「建一座13×13格的两层沙漠土坯\n住宅，暖黄色土墙、平屋顶、\n小窗、中央入口。\n设置连接上下两层的室内楼梯，\n楼梯上方留」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

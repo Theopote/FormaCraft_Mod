@@ -53,15 +53,19 @@ public class FoundationGenerator implements ComponentGenerator {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // Discrete load-bearing posts aligned to open-frame / octagon vertices.
+                    // Discrete load-bearing posts: 3×3 on rectangular pads; angular rim only
+                    // when the footprint itself is non-rectangular (octagon / cut-corner).
+                    // Do not trust sides=8 copied from an open-frame host onto a square pad —
+                    // that collapsed stilts to 4 corners and failed the nine-post contract.
                     if (stilts) {
-                        boolean post = footprint != null
-                                && com.formacraft.common.generation.component.util.OpenFramePolicy
+                        boolean rectangular = footprint == null
+                                || com.formacraft.common.generation.component.util.OpenFramePolicy
+                                .isRectangularFootprint(footprint, width, depth);
+                        boolean post = rectangular
+                                ? com.formacraft.common.generation.component.util.OpenFramePolicy
+                                .isStiltPost(x, z, width, depth)
+                                : com.formacraft.common.generation.component.util.OpenFramePolicy
                                 .isPost(footprint, x, z, width, depth, c.params());
-                        if (!post && footprint == null) {
-                            post = (x == 0 || x == width / 2 || x == width - 1)
-                                    && (z == 0 || z == depth / 2 || z == depth - 1);
-                        }
                         if (!post) continue;
                     }
                     SemanticPart part = SemanticPart.FOUNDATION;

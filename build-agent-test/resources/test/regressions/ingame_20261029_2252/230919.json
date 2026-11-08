@@ -1,0 +1,654 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Vernacular_Huizhou",
+  "style_attributes": {
+    "wall_color": "white_plaster",
+    "roof_color": "dark_grey_tiles",
+    "accent_color": "dark_wood",
+    "wall_material": "whitewashed_brick",
+    "roof_material": "dark_grey_tile",
+    "floor_material": "dark_oak_planks",
+    "decorative_elements": [
+      "horse-head gable walls",
+      "wood lattice windows",
+      "carved eaves",
+      "stone lintels",
+      "tile ridge ornaments"
+    ]
+  },
+  "distinguishing_features": [
+    "whitewashed walls with dark tiled roofs",
+    "horse-head stepped gables",
+    "central skywell courtyard",
+    "symmetrical axial layout",
+    "two-story timber-brick structure",
+    "small high windows",
+    "carved wood and stone details"
+  ],
+  "anchor": {
+    "x": 586,
+    "y": 65,
+    "z": -806
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "hui_dwelling",
+      "confidence": 0.8
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "axial",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.55,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "balcony"
+    ],
+    "materials": {
+      "primary": "brick",
+      "secondary": "wood",
+      "accent": "stone",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "huizhou",
+        "whitewashed walls",
+        "horse-head gable",
+        "tianjing",
+        "wood carving"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 12,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "horse-head gable walls",
+        "whitewashed walls",
+        "dark tiled roof",
+        "central courtyard",
+        "symmetrical layout"
+      ],
+      "avoid": [
+        "modern glass",
+        "flat roof",
+        "asymmetrical massing"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "main_house",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -6
+        },
+        "facing": "SOUTH",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "hui_main_hall",
+        "component_preset": "Two-story Huizhou main hall with central bay, whitewashed walls, dark tiled roof, horse-head gables and skywell courtyard"
+      },
+      {
+        "slot_id": "courtyard",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 6
+        },
+        "facing": "SOUTH",
+        "program": "PLAZA",
+        "component_preset_id": "hui_courtyard",
+        "component_preset": "Enclosed stone-paved forecourt and skywell courtyard"
+      },
+      {
+        "slot_id": "gatehouse",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 16
+        },
+        "facing": "SOUTH",
+        "program": "CIVIC",
+        "component_preset_id": "hui_gatehouse",
+        "component_preset": "Huizhou entrance gatehouse with stone threshold, wooden doors and small tiled roof"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 8
+      },
+      "features": [
+        "whitewashed walls",
+        "two-story",
+        "central hall",
+        "wood lattice windows",
+        "horse-head gable walls",
+        "stone foundation"
+      ],
+      "params": {
+        "component_id": "hui_main_house",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "cut_corners",
+        "void_ratio": 0.18,
+        "floor_count": 2,
+        "floor_height": 4,
+        "roof_type": "xuanshan",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "gradient",
+        "facade_cutout": "none",
+        "window_ratio": 0.12,
+        "window_aspect": "punch_window",
+        "material": "brick",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "detail_level": "high",
+        "assembly_facade": false,
+        "hollow": true,
+        "building_id": "hui_main_house"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [
+        "stone plinth",
+        "raised floor",
+        "drainage edge"
+      ],
+      "params": {
+        "component_id": "hui_foundation",
+        "host_id": "hui_main_house",
+        "anchor_mode": "min_corner",
+        "foundation_type": "plinth",
+        "material": "stone_bricks",
+        "detail_level": "medium",
+        "building_id": "hui_main_house"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": -10,
+        "y": 8,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 22,
+        "depth": 16,
+        "height": 3
+      },
+      "features": [
+        "dark grey tiled roof",
+        "overhanging eaves",
+        "horse-head gable ends",
+        "upturned ridge corners"
+      ],
+      "params": {
+        "component_id": "hui_roof",
+        "host_id": "hui_main_house",
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "plan_type": "courtyard",
+        "courtyard_ratio": 0.18,
+        "void_ratio": 0.0,
+        "material": "dark_grey_tile",
+        "roof_block": "minecraft:deepslate_tiles",
+        "detail_level": "high",
+        "roof_height": 3,
+        "overhang": 2,
+        "building_id": "hui_main_house"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 8
+      },
+      "features": [
+        "small wooden lattice windows",
+        "stone window frames",
+        "high ventilation openings",
+        "dark timber lintels"
+      ],
+      "params": {
+        "component_id": "hui_windows",
+        "host_id": "hui_main_house",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.12,
+        "window_aspect": "punch_window",
+        "floor_count": 2,
+        "floor_height": 4,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "gradient",
+        "facade_cutout": "none",
+        "material": "wood",
+        "detail_level": "high",
+        "window_style": "lattice",
+        "rhythm": "regular",
+        "building_id": "hui_main_house"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "central wooden double door",
+        "stone threshold",
+        "dark timber frame",
+        "lintel with carved details"
+      ],
+      "params": {
+        "component_id": "hui_main_entrance",
+        "host_id": "hui_main_house",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "material": "dark_oak_wood",
+        "detail_level": "high",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "hui_main_house"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "wooden balcony railing",
+        "second floor gallery",
+        "lattice balustrade"
+      ],
+      "params": {
+        "component_id": "hui_balcony",
+        "host_id": "hui_main_house",
+        "anchor_mode": "min_corner",
+        "material": "dark_oak_wood",
+        "detail_level": "medium",
+        "building_id": "hui_main_house"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": -9,
+        "y": 7,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [
+        "carved wood eaves",
+        "horse-head gable caps",
+        "stone lintels",
+        "whitewashed wall bands",
+        "tile ridge ornaments"
+      ],
+      "params": {
+        "component_id": "hui_decor",
+        "host_id": "hui_main_house",
+        "anchor_mode": "min_corner",
+        "material": "dark_oak_wood",
+        "detail_level": "high",
+        "building_id": "hui_main_house"
+      }
+    },
+    {
+      "component_type": "COURTYARD_SPACE",
+      "slot_id": "courtyard",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [
+        "stone-paved skywell",
+        "drainage channels",
+        "central light well",
+        "edge planting strip"
+      ],
+      "params": {
+        "component_id": "hui_courtyard_space",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "material": "stone_bricks",
+        "floor_block": "minecraft:stone_bricks",
+        "detail_level": "medium",
+        "building_id": "hui_courtyard_space"
+      }
+    },
+    {
+      "component_type": "GATE",
+      "slot_id": "gatehouse",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 4,
+        "height": 5
+      },
+      "features": [
+        "brick gatehouse",
+        "small tiled roof",
+        "stone threshold",
+        "wooden double doors",
+        "whitewashed side walls"
+      ],
+      "params": {
+        "component_id": "hui_gatehouse",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "roof_type": "gable",
+        "material": "brick",
+        "wall_block": "minecraft:white_terracotta",
+        "roof_block": "minecraft:deepslate_tiles",
+        "detail_level": "high"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main_house",
+      "relative_position": {
+        "x": -1,
+        "y": 5,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "hui_balcony#platform_door",
+        "host_id": "hui_main_house",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "hui_main_house",
+        "facing": "NORTH",
+        "anchor_mode": "min_corner",
+        "platform_connection": "hui_balcony"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "hui_dwelling",
+    "height_to_width": 0.44,
+    "depth_to_width": 0.67,
+    "roof_to_body_height": 0.375,
+    "courtyard_ratio": 0.18,
+    "floor_height": 4,
+    "floor_count": 2,
+    "window_wall_ratio": 0.12,
+    "void_ratio": 0.18,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "hui_main_house"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "hui_main_house",
+          "slot_id": "main_house",
+          "local_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -9,
+            "y": 0,
+            "z": -12
+          },
+          "dimensions": {
+            "width": 18,
+            "depth": 12,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "hui_main_house",
+                "local_origin": {
+                  "x": -9,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 18,
+                  "depth": 12,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -9,
+              "min_z": -6,
+              "max_x": 9,
+              "max_z": 6,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "bounds_only",
+            "outline_local": [],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Chinese_Vernacular_Huizhou",
+          "identity_id": "Chinese_Vernacular_Huizhou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Huizhou"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一栋徽派民居。",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "民居",
+              "start": 6,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Chinese_Vernacular_Huizhou",
+              "phrase": "徽派",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一栋徽派民居。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "alignment_and_symmetry": {
+    "primary_axis": "N-S",
+    "symmetry": "MIRROR_X",
+    "entrance_alignment": "centered",
+    "courtyard_alignment": "axial"
+  },
+  "player_fidelity_notice_zh": "组合式生成「徽派民居」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

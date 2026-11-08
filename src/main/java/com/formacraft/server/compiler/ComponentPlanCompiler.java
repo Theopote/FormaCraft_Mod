@@ -132,6 +132,8 @@ public final class ComponentPlanCompiler {
         plan = DuplicateComponentIdRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        // Circular Roman cella must not stay pavilion-clamped (height 12→5) before separation.
+        plan = RomanTempleProportionRepair.apply(plan);
         // Clamp garden blobs / force enclosure walls before footprint separation.
         plan = GardenCompositionRepair.apply(plan);
         // 四合院 compositional dumps → native courtyard_compound before separation can scramble halls.
@@ -153,6 +155,10 @@ public final class ComponentPlanCompiler {
         plan = NarrowTowerStairRepair.apply(plan);
         plan = ChurchEntranceRepair.apply(plan);
         plan = LandmarkMisrouteRepair.apply(plan);
+        // Baroque mansion / villa must not stay locked to Bird's Nest stadium_bowl.
+        plan = StadiumMisrouteRepair.apply(plan);
+        // 楼阁/废土 composition ≠ dense_eaves octagon; 四角塔 → footprint=square.
+        plan = DenseEavesPagodaMisrouteRepair.apply(plan);
         // Non-suspension bridge prompts must not stay locked to twin-tower suspension typology.
         plan = BridgeMisrouteRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);

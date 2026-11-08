@@ -1,0 +1,1162 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Vernacular_Jiangnan_WaterTown",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "dark_gray",
+    "accent_color": "dark_wood",
+    "wall_material": "white_plaster",
+    "roof_material": "gray_tiles",
+    "floor_material": "stone_paving",
+    "decorative_elements": [
+      "lattice windows",
+      "moon gate",
+      "taihu rockery",
+      "stone bridge",
+      "willow trees"
+    ]
+  },
+  "distinguishing_features": [
+    "white walls with dark tile roofs",
+    "water pond and rockery",
+    "covered corridor",
+    "garden pavilion",
+    "moon gate entrance"
+  ],
+  "anchor": {
+    "x": 653,
+    "y": 72,
+    "z": -780
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "jiangnan_garden",
+      "confidence": 0.85
+    },
+    "topology": {
+      "layout": "compound",
+      "composition": "cluster",
+      "axis": "none",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.3,
+      "voidRatio": 0.6,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "mixed",
+      "rhythm": "irregular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "water",
+      "rockery",
+      "corridor",
+      "pavilion",
+      "gate"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "stone",
+      "accent": "mixed",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "jiangnan",
+        "garden",
+        "water town",
+        "classical"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "asymmetry",
+        "water feature",
+        "borrowed scenery"
+      ],
+      "avoid": [
+        "rigid symmetry",
+        "large solid mass"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "slot_main_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "CIVIC",
+        "component_preset_id": "main_hall_preset",
+        "component_preset": "Main hall with xieshan roof, wood lattice windows, stone plinth"
+      },
+      {
+        "slot_id": "slot_pavilion",
+        "anchor": {
+          "x": 10,
+          "y": 0,
+          "z": -10
+        },
+        "facing": "EAST",
+        "program": "CIVIC",
+        "component_preset_id": "pavilion_preset",
+        "component_preset": "Open pavilion with pyramidal roof and stone base"
+      },
+      {
+        "slot_id": "slot_corridor",
+        "anchor": {
+          "x": -10,
+          "y": 0,
+          "z": -6
+        },
+        "facing": "NORTH",
+        "program": "CIVIC",
+        "component_preset_id": "corridor_preset",
+        "component_preset": "Covered corridor with gable roof and lattice railings"
+      },
+      {
+        "slot_id": "slot_pond",
+        "anchor": {
+          "x": 2,
+          "y": 0,
+          "z": -8
+        },
+        "facing": "EAST",
+        "program": "PLAZA",
+        "component_preset_id": "pond_preset",
+        "component_preset": "Water pond with rockery and wooden viewing terrace"
+      },
+      {
+        "slot_id": "slot_gate",
+        "anchor": {
+          "x": 18,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "CIVIC",
+        "component_preset_id": "gate_preset",
+        "component_preset": "Garden entrance gate with moon gate and tiled roof"
+      },
+      {
+        "slot_id": "slot_wall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "program": "DEFENSIVE",
+        "component_preset_id": "perimeter_wall",
+        "component_preset": "White perimeter walls with dark tile coping"
+      },
+      {
+        "slot_id": "slot_path",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "PLAZA",
+        "component_preset_id": "path_preset",
+        "component_preset": "Winding stone paths connecting garden structures"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 7
+      },
+      "features": [
+        "main hall",
+        "classical Jiangnan hall"
+      ],
+      "params": {
+        "component_id": "main_hall",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "xuanshan",
+        "floor_height": 4,
+        "floor_count": 1,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "none",
+        "void_ratio": 0.3,
+        "window_ratio": 0.35,
+        "material": "wood",
+        "wall_block": "minecraft:white_terracotta",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_block": "minecraft:oak_planks",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -8,
+        "y": 7,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 12,
+        "height": 3
+      },
+      "features": [
+        "xieshan roof",
+        "upturned eaves"
+      ],
+      "params": {
+        "component_id": "main_hall_roof",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "material": "deepslate_tiles",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": 7,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "main entrance door",
+        "wooden double door"
+      ],
+      "params": {
+        "component_id": "main_hall_entrance",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "facing": "EAST",
+        "material": "dark_wood",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 10,
+        "height": 7
+      },
+      "features": [
+        "lattice windows",
+        "vertical strip openings"
+      ],
+      "params": {
+        "component_id": "main_hall_windows",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.35,
+        "window_aspect": "vertical_strip",
+        "window_style": "lattice",
+        "floor_height": 4,
+        "material": "wood",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "irregular",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_main_hall",
+      "relative_position": {
+        "x": -8,
+        "y": -1,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [
+        "stone plinth"
+      ],
+      "params": {
+        "component_id": "main_hall_foundation",
+        "host_id": "main_hall",
+        "anchor_mode": "min_corner",
+        "foundation_type": "plinth",
+        "material": "stone_bricks",
+        "building_id": "main_hall"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_pavilion",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 4
+      },
+      "features": [
+        "garden pavilion",
+        "open sides",
+        "wooden posts"
+      ],
+      "params": {
+        "component_id": "pavilion",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "xuanshan",
+        "floor_height": 4,
+        "floor_count": 1,
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "void_ratio": 0.8,
+        "window_ratio": 0.5,
+        "material": "wood",
+        "wall_block": "minecraft:white_terracotta",
+        "roof_block": "minecraft:deepslate_tiles",
+        "floor_block": "minecraft:oak_planks",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "building_id": "pavilion"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_pavilion",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 3
+      },
+      "features": [
+        "pyramidal roof",
+        "upturned corners"
+      ],
+      "params": {
+        "component_id": "pavilion_roof",
+        "host_id": "pavilion",
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "material": "deepslate_tiles",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 3,
+        "building_id": "pavilion"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_pavilion",
+      "relative_position": {
+        "x": 2,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "pavilion opening"
+      ],
+      "params": {
+        "component_id": "pavilion_entrance",
+        "host_id": "pavilion",
+        "anchor_mode": "min_corner",
+        "entrance_type": "open_frame",
+        "facing": "EAST",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 2,
+        "building_id": "pavilion"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_pavilion",
+      "relative_position": {
+        "x": -3,
+        "y": -1,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 1
+      },
+      "features": [
+        "stone base"
+      ],
+      "params": {
+        "component_id": "pavilion_foundation",
+        "host_id": "pavilion",
+        "anchor_mode": "min_corner",
+        "foundation_type": "plinth",
+        "material": "stone_bricks",
+        "building_id": "pavilion"
+      }
+    },
+    {
+      "component_type": "MASS_ANCILLARY",
+      "slot_id": "slot_corridor",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 16,
+        "height": 3
+      },
+      "features": [
+        "covered walkway",
+        "lattice railings",
+        "wooden posts"
+      ],
+      "params": {
+        "component_id": "corridor",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "gable",
+        "floor_height": 3,
+        "floor_count": 1,
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "void_ratio": 0.9,
+        "window_ratio": 0.4,
+        "material": "wood",
+        "building_id": "corridor"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_corridor",
+      "relative_position": {
+        "x": -2,
+        "y": 3,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 17,
+        "height": 2
+      },
+      "features": [
+        "gable roof",
+        "tiled covering"
+      ],
+      "params": {
+        "component_id": "corridor_roof",
+        "host_id": "corridor",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "overhang": 1,
+        "material": "deepslate_tiles",
+        "roof_block": "minecraft:deepslate_tiles",
+        "roof_height": 2,
+        "building_id": "corridor"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_corridor",
+      "relative_position": {
+        "x": -2,
+        "y": -1,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [
+        "stone footing"
+      ],
+      "params": {
+        "component_id": "corridor_foundation",
+        "host_id": "corridor",
+        "anchor_mode": "min_corner",
+        "foundation_type": "strip",
+        "material": "stone_bricks",
+        "building_id": "corridor"
+      }
+    },
+    {
+      "component_type": "COURTYARD_SPACE",
+      "slot_id": "slot_pond",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 10,
+        "height": 1
+      },
+      "features": [
+        "water pond",
+        "lily pads",
+        "reflecting pool"
+      ],
+      "params": {
+        "component_id": "pond",
+        "anchor_mode": "center",
+        "shape": "rounded_rect",
+        "corner_radius": 2,
+        "material": "water",
+        "void_ratio": 1.0,
+        "building_id": "pond"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_pond",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 5,
+        "depth": 5,
+        "height": 4
+      },
+      "features": [
+        "taihu rockery",
+        "layered stones"
+      ],
+      "params": {
+        "component_id": "rockery",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_pond",
+      "relative_position": {
+        "x": -3,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "wooden viewing deck"
+      ],
+      "params": {
+        "component_id": "pond_terrace",
+        "anchor_mode": "min_corner",
+        "terrace_type": "wood_deck",
+        "material": "wood",
+        "building_id": "pond_terrace"
+      }
+    },
+    {
+      "component_type": "GATE",
+      "slot_id": "slot_gate",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 3,
+        "height": 5
+      },
+      "features": [
+        "moon gate",
+        "tiled roof",
+        "wooden doors"
+      ],
+      "params": {
+        "component_id": "garden_gate",
+        "anchor_mode": "min_corner",
+        "facing": "EAST",
+        "entrance_type": "moon_gate",
+        "roof_type": "gable",
+        "material": "wood"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall",
+      "relative_position": {
+        "x": -20,
+        "y": 0,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 40,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "white perimeter wall",
+        "tiled coping"
+      ],
+      "params": {
+        "component_id": "wall_north",
+        "anchor_mode": "min_corner",
+        "wall_type": "plaster",
+        "coping": "tiles",
+        "material": "white_plaster"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall",
+      "relative_position": {
+        "x": -20,
+        "y": 0,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 40,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "white perimeter wall",
+        "tiled coping"
+      ],
+      "params": {
+        "component_id": "wall_south",
+        "anchor_mode": "min_corner",
+        "wall_type": "plaster",
+        "coping": "tiles",
+        "material": "white_plaster"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall",
+      "relative_position": {
+        "x": -20,
+        "y": 0,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 30,
+        "height": 4
+      },
+      "features": [
+        "white perimeter wall",
+        "tiled coping"
+      ],
+      "params": {
+        "component_id": "wall_west",
+        "anchor_mode": "min_corner",
+        "wall_type": "plaster",
+        "coping": "tiles",
+        "material": "white_plaster"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall",
+      "relative_position": {
+        "x": 19,
+        "y": 0,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 13,
+        "height": 4
+      },
+      "features": [
+        "white perimeter wall",
+        "tiled coping"
+      ],
+      "params": {
+        "component_id": "wall_east_north",
+        "anchor_mode": "min_corner",
+        "wall_type": "plaster",
+        "coping": "tiles",
+        "material": "white_plaster"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_wall",
+      "relative_position": {
+        "x": 19,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 13,
+        "height": 4
+      },
+      "features": [
+        "white perimeter wall",
+        "tiled coping"
+      ],
+      "params": {
+        "component_id": "wall_east_south",
+        "anchor_mode": "min_corner",
+        "wall_type": "plaster",
+        "coping": "tiles",
+        "material": "white_plaster"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_path",
+      "relative_position": {
+        "x": 7,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "stone paved entrance path"
+      ],
+      "params": {
+        "component_id": "path_entrance",
+        "anchor_mode": "min_corner",
+        "path_type": "stone_paving",
+        "material": "stone_bricks"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_path",
+      "relative_position": {
+        "x": 2,
+        "y": 0,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "winding garden path to pavilion"
+      ],
+      "params": {
+        "component_id": "path_pavilion",
+        "anchor_mode": "min_corner",
+        "path_type": "stone_paving",
+        "material": "stone_bricks"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_path",
+      "relative_position": {
+        "x": -10,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "path to corridor"
+      ],
+      "params": {
+        "component_id": "path_corridor",
+        "anchor_mode": "min_corner",
+        "path_type": "stone_paving",
+        "material": "stone_bricks"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_pond",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "stone bridge over pond"
+      ],
+      "params": {
+        "component_id": "stone_bridge",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "stone_bricks"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "jiangnan_garden",
+    "height_to_width": 0.5,
+    "depth_to_width": 0.7,
+    "roof_to_body_height": 0.43,
+    "courtyard_ratio": 0.4,
+    "water_ratio": 0.25,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_hall": [
+          "main_hall"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_hall",
+          "slot_id": "slot_main_hall",
+          "local_origin": {
+            "x": -7,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -7,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 14,
+            "depth": 10,
+            "height": 7
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 6,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_hall",
+                "local_origin": {
+                  "x": -7,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 14,
+                  "depth": 10,
+                  "height": 7
+                },
+                "roof_y_local": 6
+              }
+            ],
+            "envelope_local": {
+              "min_x": -7,
+              "min_z": -5,
+              "max_x": 7,
+              "max_z": 5,
+              "min_y": 0,
+              "max_y": 7
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -5,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -7,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -7,
+                "start": -5,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "pavilion",
+          "slot_id": "slot_pavilion",
+          "local_origin": {
+            "x": -2,
+            "y": 0,
+            "z": -2
+          },
+          "plan_origin": {
+            "x": 8,
+            "y": 0,
+            "z": -12
+          },
+          "dimensions": {
+            "width": 5,
+            "depth": 5,
+            "height": 4
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 3,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "pavilion",
+                "local_origin": {
+                  "x": -2,
+                  "y": 0,
+                  "z": -2
+                },
+                "dimensions": {
+                  "width": 5,
+                  "depth": 5,
+                  "height": 4
+                },
+                "roof_y_local": 3
+              }
+            ],
+            "envelope_local": {
+              "min_x": -2,
+              "min_z": -2,
+              "max_x": 3,
+              "max_z": 3,
+              "min_y": 0,
+              "max_y": 4
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 3,
+                "start": -2,
+                "end": 3
+              },
+              {
+                "direction": "NORTH",
+                "plane": -2,
+                "start": -2,
+                "end": 3
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 3,
+                "start": -2,
+                "end": 3
+              },
+              {
+                "direction": "WEST",
+                "plane": -2,
+                "start": -2,
+                "end": 3
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座江南园林。",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座江南园林。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "main_hall",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+          "status": "processed"
+        },
+        {
+          "host_id": "pavilion",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+          "status": "processed"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "player_fidelity_notice_zh": "组合式生成「江南园林」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

@@ -1,0 +1,38 @@
+{
+  "dialect": "fbd/0",
+  "seed": 1,
+  "functions": [
+    {
+      "name": "east",
+      "params": [],
+      "body": [
+        {
+          "stmt": "call",
+          "id": "x1",
+          "fn": "west",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "west",
+      "params": [],
+      "body": [
+        {
+          "stmt": "call",
+          "id": "x2",
+          "fn": "east",
+          "args": {}
+        }
+      ]
+    }
+  ],
+  "main": [
+    {
+      "stmt": "call",
+      "id": "x3",
+      "fn": "east",
+      "args": {}
+    }
+  ]
+}

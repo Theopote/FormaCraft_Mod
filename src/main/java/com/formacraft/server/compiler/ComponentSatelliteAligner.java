@@ -99,8 +99,10 @@ final class ComponentSatelliteAligner {
                     // Explicit ownership cannot equate different real slot coordinate frames.
                     if (ComponentPlanTypes.slotKey(candidate).equals(slotKey)
                             || (slotMap != null && !slotMap.containsKey(candidate.slotId())
-                                && !slotMap.containsKey(c.slotId()))) mass = candidate;
-                    break;
+                                && !slotMap.containsKey(c.slotId()))) {
+                        mass = candidate;
+                        break;
+                    }
                 }
             }
             if (mass == null) {
@@ -543,16 +545,26 @@ final class ComponentSatelliteAligner {
         int openingHeight = ComponentParamParsers.intParam(llmFacade.params(),"window_height","windowHeight");
         int authoredCount = ComponentParamParsers.intParam(llmFacade.params(),"window_count");
         boolean authoredSingleRow = ComponentParamParsers.intParam(llmFacade.params(),"rows") == 1 || authoredCount > 0;
-        if (llmDims != null && llmFacade.relativePosition() != null && openingWidth > 0 && openingHeight > 0
+        // Authored thin strips with an explicit face= but offset off the host wall (museum ribbons
+        // at x=-12 for a mass at x=0) must snap onto the named face before localized early-return.
+        Vec3i snappedStripPos = snapOffsetFacadeStrip(llmFacade, massOrigin, massDims);
+        Component stripSource = llmFacade;
+        if (snappedStripPos != null && llmFacade.relativePosition() != null
+                && !snappedStripPos.equals(llmFacade.relativePosition())) {
+            stripSource = new Component(
+                    llmFacade.componentType(), llmFacade.slotId(), snappedStripPos,
+                    llmFacade.dimensions(), llmFacade.features(), llmFacade.params());
+        }
+        if (llmDims != null && stripSource.relativePosition() != null && openingWidth > 0 && openingHeight > 0
                 && (llmDims.width() == 1 || llmDims.depth() == 1)
                 && (authoredSingleRow || (llmDims.width() == 1 ? llmDims.depth() : llmDims.width()) <= openingWidth+2)
                 && llmDims.height() <= openingHeight+2
-                && llmFacade.relativePosition().y()+openingHeight <= massOrigin.y()+massDims.height()
-                && isFacadeStripOnHost(llmFacade,massOrigin,massDims)) {
+                && stripSource.relativePosition().y()+openingHeight <= massOrigin.y()+massDims.height()
+                && isFacadeStripOnHost(stripSource,massOrigin,massDims)) {
             params.put("localized_window",authoredCount > 0 || (llmDims.width() == 1 ? llmDims.depth() : llmDims.width()) <= openingWidth+2);
             params.put("floor_count",1);
             params.put("floor_height",llmDims.height());
-            var pos = llmFacade.relativePosition();
+            var pos = stripSource.relativePosition();
             params.put("localized_face",llmDims.width()==1 && llmDims.depth()>1
                     ? (pos.x() <= massOrigin.x() ? "EAST" : "WEST")
                     : (pos.z() <= massOrigin.z() ? "SOUTH" : "NORTH"));
@@ -676,9 +688,85 @@ final class ComponentSatelliteAligner {
 
     private static boolean isFacadeStripOnHost(Component facade, Vec3i origin, Dimensions dims) {
         var p = facade.relativePosition();
+        if (facade.dimensions() == null || p == null || origin == null || dims == null) return false;
         if (facade.dimensions().width() == 1 && facade.dimensions().depth() > 1)
             return Math.min(Math.abs(p.x()-origin.x()), Math.abs(p.x()-(origin.x()+dims.width()-1))) <= 1;
         return Math.min(Math.abs(p.z()-origin.z()), Math.abs(p.z()-(origin.z()+dims.depth()-1))) <= 1;
+    }
+
+    /**
+     * Snap a thin facade ribbon that named a face (west/east/north/south) but sits far off the
+     * host wall — common museum LLM error (ribbon at x=-12 for mass origin x=0, width 24).
+     */
+    private static Vec3i snapOffsetFacadeStrip(Component facade, Vec3i origin, Dimensions massDims) {
+        if (facade == null || facade.relativePosition() == null || facade.dimensions() == null
+                || origin == null || massDims == null) {
+            return null;
+        }
+        Dimensions d = facade.dimensions();
+        if (!(d.width() == 1 || d.depth() == 1)) return null;
+        if (isFacadeStripOnHost(facade, origin, massDims)) {
+            return facade.relativePosition();
+        }
+        String face = explicitFacadeFace(facade);
+        Vec3i p = facade.relativePosition();
+        if (face == null) {
+            // Infer from strip axis + which side is farther outside the host.
+            if (d.width() == 1 && d.depth() > 1) {
+                face = p.x() + d.width() <= origin.x() ? "WEST" : "EAST";
+            } else if (d.depth() == 1 && d.width() > 1) {
+                face = p.z() + d.depth() <= origin.z() ? "SOUTH" : "NORTH";
+            } else {
+                return null;
+            }
+        }
+        int x = p.x();
+        int z = p.z();
+        switch (face) {
+            case "WEST", "EAST" -> {
+                if (d.width() != 1) return null;
+                x = "WEST".equals(face) ? origin.x() : origin.x() + massDims.width() - 1;
+                // Keep strip length centered on host when it overruns.
+                if (d.depth() > 0) {
+                    int maxZ = origin.z() + Math.max(0, massDims.depth() - d.depth());
+                    z = Math.max(origin.z(), Math.min(maxZ, z));
+                }
+            }
+            case "SOUTH", "NORTH" -> {
+                if (d.depth() != 1) return null;
+                z = "SOUTH".equals(face) ? origin.z() : origin.z() + massDims.depth() - 1;
+                if (d.width() > 0) {
+                    int maxX = origin.x() + Math.max(0, massDims.width() - d.width());
+                    x = Math.max(origin.x(), Math.min(maxX, x));
+                }
+            }
+            default -> {
+                return null;
+            }
+        }
+        return new Vec3i(x, p.y(), z);
+    }
+
+    private static String explicitFacadeFace(Component facade) {
+        if (facade.params() == null) return null;
+        for (String key : List.of("face", "localized_face", "wall", "side")) {
+            Object v = facade.params().get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).trim().toUpperCase(Locale.ROOT);
+            if (s.equals("W") || s.equals("WEST") || s.contains("WEST") || s.contains("西")) return "WEST";
+            if (s.equals("E") || s.equals("EAST") || s.contains("EAST") || s.contains("东")) return "EAST";
+            if (s.equals("N") || s.equals("NORTH") || s.contains("NORTH") || s.contains("北")) return "NORTH";
+            if (s.equals("S") || s.equals("SOUTH") || s.contains("SOUTH") || s.contains("南")) return "SOUTH";
+        }
+        Object faces = facade.params().get("faces");
+        if (faces instanceof List<?> list && !list.isEmpty() && list.get(0) != null) {
+            String s = String.valueOf(list.get(0)).trim().toUpperCase(Locale.ROOT);
+            if (s.startsWith("W") || s.contains("西")) return "WEST";
+            if (s.startsWith("E") || s.contains("东")) return "EAST";
+            if (s.startsWith("N") || s.contains("北")) return "NORTH";
+            if (s.startsWith("S") || s.contains("南")) return "SOUTH";
+        }
+        return null;
     }
 
     private static boolean hasWrapFeature(List<String> features) {

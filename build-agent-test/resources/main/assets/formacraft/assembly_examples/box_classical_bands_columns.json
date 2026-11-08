@@ -1,0 +1,32 @@
+{
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "Hall",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 25,
+        "d": 17,
+        "h": 16,
+        "wall": "minecraft:smooth_sandstone",
+        "floor": "minecraft:smooth_stone",
+        "facade": {
+          "surfaceBands": {
+            "faces": "ALL",
+            "horizontalBands": [
+              { "y": 1, "height": 1, "material": "minecraft:cut_sandstone" },
+              { "y": 8, "height": 1, "material": "minecraft:cut_sandstone" },
+              { "y": 14, "height": 2, "material": "minecraft:chiseled_sandstone", "outset": 1, "depth": 1 }
+            ],
+            "verticalBands": [
+              { "step": 4, "width": 1, "offset": 0, "y0": 2, "y1": 13, "material": "minecraft:quartz_pillar", "outset": 1 }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+
+

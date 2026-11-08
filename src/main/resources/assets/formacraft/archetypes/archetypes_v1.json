@@ -471,7 +471,7 @@
     },
     {
       "id": "modern_bauhaus_rowhouse",
-      "aliases": ["包豪斯", "包豪斯联排", "bauhaus rowhouse", "bauhaus terrace"],
+      "aliases": ["包豪斯联排", "bauhaus rowhouse", "bauhaus terrace", "包豪斯联排别墅", "bauhaus townhouse"],
       "category": "LANDMARK",
       "generatorId": "modern_bauhaus_rowhouse",
       "defaults": { "width": 28, "depth": 10, "height": 8, "units": 3 },

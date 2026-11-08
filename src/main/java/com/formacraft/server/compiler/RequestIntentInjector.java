@@ -389,6 +389,8 @@ public final class RequestIntentInjector {
             JsonObject subtypes = RequestIntentVocab.root().getAsJsonObject("tower_subtypes");
             List<String> tibetan = subtypes == null ? List.of()
                     : RequestIntentVocab.stringList(subtypes.getAsJsonArray("tibetan_stupa"));
+            List<String> denseEaves = subtypes == null ? List.of()
+                    : RequestIntentVocab.stringList(subtypes.getAsJsonArray("dense_eaves_pagoda"));
             boolean isTibetan = false;
             for (String t : tibetan) {
                 if (containsIgnoreCase(text, lower, t)) {
@@ -396,7 +398,21 @@ public final class RequestIntentInjector {
                     break;
                 }
             }
-            towerSubtype = isTibetan ? "tibetan_stupa" : "dense_eaves_pagoda";
+            if (isTibetan) {
+                towerSubtype = "tibetan_stupa";
+            } else {
+                boolean isDenseEaves = false;
+                for (String t : denseEaves) {
+                    if (containsIgnoreCase(text, lower, t)) {
+                        isDenseEaves = true;
+                        break;
+                    }
+                }
+                // 楼阁 / bare 塔楼 are tower_like but must NOT default to dense_eaves octagon.
+                if (isDenseEaves) {
+                    towerSubtype = "dense_eaves_pagoda";
+                }
+            }
         }
 
         double scaffoldMin = RequestIntentVocab.conf("scaffold_min", 0.75);
@@ -860,6 +876,40 @@ public final class RequestIntentInjector {
                 intent.put("scaffold_eligible", false);
             }
         }
+        // LLM often labels 高密住宅 / apartment as tower_like+dense_eaves — demote when the
+        // user text is clearly residential and lacks pagoda/stupa markers.
+        if ("tower_like".equals(String.valueOf(cls))
+                && looksResidentialWithoutPagoda(text)) {
+            intent.put("building_class", "generic");
+            intent.put("tower_subtype", null);
+            intent.put("confidence", keyword.getOrDefault("confidence", 0.0));
+            intent.put("refuse_residential_autofill", false);
+            intent.put("scaffold_eligible", false);
+            intent.put("building_class_source", "residential_override");
+        }
+    }
+
+    /** True for 住宅/apartment prompts that are not 密檐/宝塔/佛塔. */
+    private static boolean looksResidentialWithoutPagoda(String text) {
+        if (text == null || text.isBlank()) return false;
+        String lower = text.toLowerCase(Locale.ROOT);
+        boolean residential = containsIgnoreCase(text, lower, "住宅")
+                || containsIgnoreCase(text, lower, "公寓")
+                || containsIgnoreCase(text, lower, "residence")
+                || containsIgnoreCase(text, lower, "apartment")
+                || containsIgnoreCase(text, lower, "apartment block")
+                || containsIgnoreCase(text, lower, "高密住宅")
+                || containsIgnoreCase(text, lower, "别墅")
+                || containsIgnoreCase(text, lower, "villa")
+                || containsIgnoreCase(text, lower, "house");
+        if (!residential) return false;
+        return !(containsIgnoreCase(text, lower, "密檐")
+                || containsIgnoreCase(text, lower, "宝塔")
+                || containsIgnoreCase(text, lower, "古塔")
+                || containsIgnoreCase(text, lower, "佛塔")
+                || containsIgnoreCase(text, lower, "pagoda")
+                || containsIgnoreCase(text, lower, "stupa")
+                || containsIgnoreCase(text, lower, "舍利塔"));
     }
 
     private static boolean roofForbidden(String roofType, List<?> forbids) {

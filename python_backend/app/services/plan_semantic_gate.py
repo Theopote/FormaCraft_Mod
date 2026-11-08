@@ -34,6 +34,9 @@ _HOUSE_ROOF_TYPES = frozenset({"gable", "xuanshan", "hip", ""})
 
 def _authoritative_building_class(user_text: str, plan: Optional[Dict[str, Any]]) -> Optional[str]:
     """Prefer merged request_intent (keyword + LLM declared) over raw plan feature strings."""
+    from .request_intent import _looks_residential_without_pagoda, resolve_request_intent
+
+    corpus = user_text or ""
     if isinstance(plan, dict):
         meta = plan.get("plan_meta")
         if isinstance(meta, dict):
@@ -41,25 +44,36 @@ def _authoritative_building_class(user_text: str, plan: Optional[Dict[str, Any]]
             if isinstance(ri, dict):
                 cls = str(ri.get("building_class") or "").strip().lower()
                 conf = float(ri.get("confidence") or 0.0)
+                ri_text = str(ri.get("original_text") or "").strip()
+                if ri_text:
+                    corpus = ri_text
+                # Stale LLM tower_like on residential prompts must not force the tower gate.
+                if cls == "tower_like" and _looks_residential_without_pagoda(corpus or user_text or ""):
+                    cls = "generic"
                 # Low-confidence keyword guesses must not force specialized gates.
                 if cls and cls != "generic" and conf >= 0.5:
                     return cls
             cls = str(meta.get("building_class") or "").strip().lower()
+            if cls == "tower_like" and _looks_residential_without_pagoda(corpus or user_text or ""):
+                cls = "generic"
             if cls and cls != "generic":
                 return cls
             text = str(meta.get("request_intent_text") or "").strip()
             if text:
+                corpus = text
                 user_text = text
         hints = plan.get("proportion_hints")
         if isinstance(hints, dict):
             arch = hints.get("architecture_intent")
             if isinstance(arch, dict) and str(arch.get("original_text") or "").strip():
                 user_text = str(arch.get("original_text"))
+                corpus = user_text
     if user_text or plan:
-        from .request_intent import resolve_request_intent
         intent = resolve_request_intent(user_text or "", plan)
         cls = str(intent.get("building_class") or "").strip().lower()
         conf = float(intent.get("confidence") or 0.0)
+        if cls == "tower_like" and _looks_residential_without_pagoda(corpus or user_text or ""):
+            return None
         if cls and cls != "generic" and conf >= 0.5:
             return cls
     return None

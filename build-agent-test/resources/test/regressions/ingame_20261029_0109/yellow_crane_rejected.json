@@ -1,0 +1,835 @@
+{
+  "mode": "build",
+  "style_profile": "CHINESE_TRADITIONAL_PAGODA",
+  "style_attributes": {
+    "wall_color": "#B23A2A",
+    "roof_color": "#E0B12F",
+    "accent_color": "#2F5D50",
+    "wall_material": "dark_oak_wood",
+    "roof_material": "yellow_glazed_terracotta",
+    "floor_material": "stone_bricks",
+    "decorative_elements": [
+      "upturned eaves",
+      "red pillars",
+      "yellow glazed tiles",
+      "carved bracket sets",
+      "crane motif",
+      "stone plinth"
+    ]
+  },
+  "distinguishing_features": [
+    "five-story multi-eave tower",
+    "yellow glazed tile roofs",
+    "red wooden pillars and lattice windows",
+    "stone base platform and forecourt",
+    "wraparound observation balconies",
+    "upturned eave corners"
+  ],
+  "anchor": {
+    "x": 704,
+    "y": 73,
+    "z": -823
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "chinese_pagoda_tower",
+      "confidence": 0.85
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "centered",
+      "levels": "vertical"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.65,
+      "voidRatio": 0.25,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "vertical",
+      "progression": "upward",
+      "curvature": "straight",
+      "rhythm": "segmented"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "balcony",
+      "terrace"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "stone",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "yellow crane tower",
+        "wuhan",
+        "multi-eave",
+        "pagoda",
+        "yangtze river"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 45,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "multi-eave roofs",
+        "red pillars",
+        "yellow glazed tiles",
+        "stone base",
+        "symmetry"
+      ],
+      "avoid": [
+        "modern glass curtain wall",
+        "gothic arches",
+        "brutalist concrete"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "slot_main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "program": "LANDMARK",
+        "component_preset_id": "yellow_crane_tower",
+        "component_preset": "Five-story Chinese multi-eave tower with yellow glazed roofs, red pillars, stone base, and observation balconies."
+      },
+      {
+        "slot_id": "slot_front_plaza",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 10
+        },
+        "facing": "SOUTH",
+        "program": "PLAZA",
+        "component_preset_id": "front_terrace",
+        "component_preset": "Stone forecourt and approach terrace in front of the tower entrance."
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -8,
+        "y": 3,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 10
+      },
+      "features": [
+        "five_story_tower",
+        "red_pillars",
+        "multi_eave",
+        "centered_plan",
+        "pilasters",
+        "base_plinth",
+        "cornice"
+      ],
+      "params": {
+        "component_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_height": 5,
+        "floor_count": 5,
+        "window_ratio": 0.25,
+        "window_aspect": "vertical_strip",
+        "roof_type": "xuanshan",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "void_ratio": 0.2,
+        "hollow": true,
+        "material": "wood",
+        "building_id": "main_tower",
+        "floor_cornice": true
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -12
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 24,
+        "height": 3
+      },
+      "features": [
+        "stone_plinth",
+        "approach_steps",
+        "raised_base"
+      ],
+      "params": {
+        "component_id": "base_platform",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "foundation_type": "plinth",
+        "material": "stone",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "slot_id": "slot_front_plaza",
+      "relative_position": {
+        "x": -12,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [
+        "forecourt",
+        "stone_paving",
+        "entrance_approach"
+      ],
+      "params": {
+        "component_id": "front_terrace",
+        "anchor_mode": "min_corner",
+        "material": "stone",
+        "building_id": "front_terrace"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -2,
+        "y": 3,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 6
+      },
+      "features": [
+        "double_door",
+        "red_lattice",
+        "south_facing"
+      ],
+      "params": {
+        "component_id": "main_entrance",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "entrance_type": "double_door",
+        "facing": "NORTH",
+        "material": "wood",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -8,
+        "y": 3,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 30
+      },
+      "features": [
+        "vertical_strip_windows",
+        "red_lattice",
+        "five_level_rhythm"
+      ],
+      "params": {
+        "component_id": "tower_windows",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "window_style": "vertical_strip",
+        "window_ratio": 0.25,
+        "window_aspect": "vertical_strip",
+        "floor_count": 5,
+        "material": "wood",
+        "rhythm": "segmented",
+        "building_id": "main_tower",
+        "rhythm_preset": "CLASSICAL_PILASTER_BAY",
+        "repeating_pattern": {
+          "unit_width_z": 5,
+          "elements": [
+            {
+              "type": "pillar",
+              "width": 1
+            },
+            {
+              "type": "window",
+              "width": 3
+            },
+            {
+              "type": "pillar",
+              "width": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -10,
+        "y": 8,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "wraparound_balcony",
+        "red_railing"
+      ],
+      "params": {
+        "component_id": "balcony_lower",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -10,
+        "y": 14,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "wraparound_balcony",
+        "red_railing"
+      ],
+      "params": {
+        "component_id": "balcony_mid",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -10,
+        "y": 20,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "wraparound_balcony",
+        "red_railing"
+      ],
+      "params": {
+        "component_id": "balcony_upper",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -1,
+        "y": 10,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 3
+      },
+      "features": [
+        "yellow_glazed_tiles",
+        "upturned_eaves",
+        "xieshan_roof",
+        "overhang",
+        "eaves"
+      ],
+      "params": {
+        "roof_height": 5,
+        "overhang": 2,
+        "roof_type": "xuanshan",
+        "component_id": "top_roof",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "glazed_tile",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -10,
+        "y": 9,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "upturned_eaves",
+        "bracket_set"
+      ],
+      "params": {
+        "component_id": "eave_band_lower",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -10,
+        "y": 15,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "upturned_eaves",
+        "bracket_set"
+      ],
+      "params": {
+        "component_id": "eave_band_mid",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -10,
+        "y": 21,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "upturned_eaves",
+        "bracket_set"
+      ],
+      "params": {
+        "component_id": "eave_band_upper",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -3,
+        "y": 9,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "plaque",
+        "calligraphy",
+        "yellow_crane_motif"
+      ],
+      "params": {
+        "component_id": "entrance_plaque",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "wood",
+        "building_id": "main_tower"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_main",
+      "relative_position": {
+        "x": -1,
+        "y": 38,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 2,
+        "height": 2
+      },
+      "features": [
+        "yellow_crane_finial",
+        "roof_ornament"
+      ],
+      "params": {
+        "component_id": "crane_finial",
+        "host_id": "main_tower",
+        "anchor_mode": "min_corner",
+        "material": "metal",
+        "building_id": "main_tower"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "chinese_pagoda_tower",
+    "target_width": 16,
+    "target_depth": 16,
+    "target_body_height": 10,
+    "target_roof_height": 3,
+    "height_to_width": 1.875,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.17,
+    "window_aspect": "square",
+    "max_void_ratio": 0.18,
+    "tier_count": 5,
+    "base_platform_to_tower_width": 1.5,
+    "balcony_overhang_ratio": 0.25,
+    "window_wall_ratio": 0.25,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [
+        {
+          "code": "E_FLOOR_ENVELOPE",
+          "component_id": "main_tower"
+        }
+      ],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_tower": [
+          "main_tower"
+        ],
+        "named_main_body": [
+          "main_tower"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_tower",
+          "slot_id": "slot_main",
+          "local_origin": {
+            "x": -8,
+            "y": 3,
+            "z": -8
+          },
+          "plan_origin": {
+            "x": -8,
+            "y": 3,
+            "z": -8
+          },
+          "dimensions": {
+            "width": 16,
+            "depth": 16,
+            "height": 10
+          },
+          "floor_ys_local": [
+            3,
+            8
+          ],
+          "roof_y_local": 12,
+          "floor_layout_fits": false,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_tower",
+                "local_origin": {
+                  "x": -8,
+                  "y": 3,
+                  "z": -8
+                },
+                "dimensions": {
+                  "width": 16,
+                  "depth": 16,
+                  "height": 10
+                },
+                "roof_y_local": 12
+              }
+            ],
+            "envelope_local": {
+              "min_x": -8,
+              "min_z": -8,
+              "max_x": 8,
+              "max_z": 8,
+              "min_y": 3,
+              "max_y": 13
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": -8,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": -8,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": -8,
+                "start": -8,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成黄鹤楼",
+          "purposes": [],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成黄鹤楼",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "floor_cornice": true,
+    "base_plinth_detail": true,
+    "detail_rules": [
+      {
+        "id": "floor_cornice",
+        "when": {
+          "region": "perimeter",
+          "y": "floor_boundary",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "block",
+          "part": "WALL_ACCENT",
+          "facing": "outward"
+        }
+      },
+      {
+        "id": "base_plinth_top",
+        "when": {
+          "region": "perimeter",
+          "y": "base_top",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "block",
+          "part": "FOUNDATION"
+        }
+      }
+    ],
+    "window_order": "full",
+    "repeating_pattern": {
+      "unit_width_z": 5,
+      "elements": [
+        {
+          "type": "pillar",
+          "width": 1
+        },
+        {
+          "type": "window",
+          "width": 3
+        },
+        {
+          "type": "pillar",
+          "width": 1
+        }
+      ]
+    },
+    "alignment_and_symmetry": {
+      "symmetry_type": "bilateral_x",
+      "center_axis_x": 0,
+      "rhythm_x": {
+        "side_bays": [
+          {
+            "width": 3,
+            "role": "wing"
+          },
+          {
+            "width": 5,
+            "role": "center"
+          },
+          {
+            "width": 3,
+            "role": "wing"
+          }
+        ]
+      },
+      "rhythm_z": {
+        "side_bays": [
+          {
+            "width": 4,
+            "role": "service"
+          },
+          {
+            "width": 8,
+            "role": "hall"
+          },
+          {
+            "width": 4,
+            "role": "service"
+          }
+        ]
+      }
+    },
+    "floor_height": 5,
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "alignment_and_symmetry": {
+    "axis": "Z",
+    "mirror": true,
+    "notes": "Bilateral symmetry across the north-south central axis."
+  },
+  "player_fidelity_notice_zh": "组合式生成「黄鹤楼」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "plan_status": "capability_gap",
+  "capability_gap": {
+    "code": "E_BUILDING_CONTRACT",
+    "message": "建筑方案未满足明确要求或主体引用无效",
+    "path": "proportion_hints.building_contract",
+    "suggestions": [
+      "{'code': 'E_FLOOR_ENVELOPE', 'component_id': 'main_tower'}"
+    ]
+  },
+  "kind": "llmplan"
+}

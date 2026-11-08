@@ -1,0 +1,46 @@
+{
+  "id": "scandinavian_timber_house",
+  "styleId": "Scandinavian_Timber",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "北欧木屋",
+    "北欧木构",
+    "斯堪的纳维亚木屋",
+    "scandinavian timber",
+    "nordic timber",
+    "scandinavian_timber"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "北欧木屋": 12,
+    "北欧木构": 12,
+    "斯堪的纳维亚木屋": 12,
+    "scandinavian timber": 12,
+    "nordic timber": 12,
+    "scandinavian_timber": 12
+  },
+  "negativeKeywords": [
+    "不要北欧木屋",
+    "not scandinavian timber"
+  ],
+  "proportionCardId": "scandinavian_timber_house",
+  "llmPlanExampleRefs": [
+    "scandinavian_timber_compact.json",
+    "scandinavian_timber_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "scandinavian_timber",
+      "constraints": [
+        "Use style_profile=Scandinavian_Timber; original style request, not a named landmark.",
+        "Use a single timber mass, gable roof, overhang=1, window_ratio=0.25.",
+        "Preserve explicit user geometry and materials. Use only existing component vocabulary.",
+        "This preset approximates material and envelope language; do not claim verified shoji or historical ornament geometry."
+      ]
+    }
+  ],
+  "structuralTypologyId": "timber_gable_house"
+}

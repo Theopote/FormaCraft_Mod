@@ -1,0 +1,1939 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Vernacular_Jiangnan_WaterTown",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "dark_grey",
+    "accent_color": "dark_oak_brown",
+    "wall_material": "minecraft:white_terracotta",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:stone_bricks",
+    "decorative_elements": [
+      "阶梯式马头墙",
+      "砖雕门罩",
+      "木格窗（朝天井）",
+      "青石板天井",
+      "走马廊木栏杆",
+      "白粉墙深灰瓦"
+    ]
+  },
+  "distinguishing_features": [
+    "四面房屋（东、西、南、北四翼）围合中央露天天井",
+    "天井上方不封顶，直接对天开敞",
+    "白色粉墙 + 深灰瓦双坡顶",
+    "阶梯式马头墙高出屋面",
+    "各房间经门洞与天井连通",
+    "朝向天井开设木格窗"
+  ],
+  "anchor": {
+    "x": 521,
+    "y": 68,
+    "z": -952
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "huizhou_courtyard_house",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "centered",
+      "levels": "horizontal"
+    },
+    "structure": {
+      "type": "solid",
+      "massiveness": 0.68,
+      "voidRatio": 0.25,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "courtyard",
+      "balcony"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "wood",
+      "accent": "earth",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "traditional",
+      "keywords": [
+        "huizhou",
+        "matou_wall",
+        "tianjing",
+        "white_plaster_wall",
+        "grey_tile_roof",
+        "wooden_lattice_window"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 14,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "courtyard open to sky",
+        "four wings enclosing courtyard",
+        "stepped horse-head gable walls",
+        "white wall dark grey roof",
+        "lattice windows facing courtyard"
+      ],
+      "avoid": [
+        "roofing over the courtyard",
+        "modern glass curtain wall",
+        "solid unroofed box without courtyard",
+        "sealing courtyard-facing windows"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "courtyard_compound",
+    "height_to_width": 0.46,
+    "depth_to_width": 0.83,
+    "roof_to_body_height": 0.375,
+    "courtyard_ratio": 0.13,
+    "wall_height_to_thickness": 8.0,
+    "window_wall_ratio": 0.3,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_wing": [
+          "mass_east_wing",
+          "mass_west_wing",
+          "mass_north_wing",
+          "mass_south_wing"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "mass_east_wing",
+          "slot_id": "slot_courtyard_house",
+          "local_origin": {
+            "x": 4,
+            "y": 0,
+            "z": -10
+          },
+          "plan_origin": {
+            "x": 4,
+            "y": 0,
+            "z": -10
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 20,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_east_wing",
+                "local_origin": {
+                  "x": 4,
+                  "y": 0,
+                  "z": -10
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 20,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": 4,
+              "min_z": -10,
+              "max_x": 12,
+              "max_z": 10,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 12,
+                "start": -10,
+                "end": 10
+              },
+              {
+                "direction": "NORTH",
+                "plane": -10,
+                "start": 4,
+                "end": 12
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 10,
+                "start": 4,
+                "end": 12
+              },
+              {
+                "direction": "WEST",
+                "plane": 4,
+                "start": -10,
+                "end": 10
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "mass_west_wing",
+          "slot_id": "slot_courtyard_house",
+          "local_origin": {
+            "x": -12,
+            "y": 0,
+            "z": -10
+          },
+          "plan_origin": {
+            "x": -12,
+            "y": 0,
+            "z": -10
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 20,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_west_wing",
+                "local_origin": {
+                  "x": -12,
+                  "y": 0,
+                  "z": -10
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 20,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -12,
+              "min_z": -10,
+              "max_x": -4,
+              "max_z": 10,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": -4,
+                "start": -10,
+                "end": 10
+              },
+              {
+                "direction": "NORTH",
+                "plane": -10,
+                "start": -12,
+                "end": -4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 10,
+                "start": -12,
+                "end": -4
+              },
+              {
+                "direction": "WEST",
+                "plane": -12,
+                "start": -10,
+                "end": 10
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "mass_north_wing",
+          "slot_id": "slot_courtyard_house",
+          "local_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -10
+          },
+          "plan_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -10
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 6,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_north_wing",
+                "local_origin": {
+                  "x": -4,
+                  "y": 0,
+                  "z": -10
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 6,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": -10,
+              "max_x": 4,
+              "max_z": -4,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": -10,
+                "end": -4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -10,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": -4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": -10,
+                "end": -4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "mass_south_wing",
+          "slot_id": "slot_courtyard_house",
+          "local_origin": {
+            "x": -4,
+            "y": 0,
+            "z": 4
+          },
+          "plan_origin": {
+            "x": -4,
+            "y": 0,
+            "z": 4
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 6,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_south_wing",
+                "local_origin": {
+                  "x": -4,
+                  "y": 0,
+                  "z": 4
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 6,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -4,
+              "min_z": 4,
+              "max_x": 4,
+              "max_z": 10,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 4,
+                "start": 4,
+                "end": 10
+              },
+              {
+                "direction": "NORTH",
+                "plane": 4,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 10,
+                "start": -4,
+                "end": 4
+              },
+              {
+                "direction": "WEST",
+                "plane": -4,
+                "start": 4,
+                "end": 10
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Chinese_Vernacular_Huizhou",
+          "identity_id": "Chinese_Vernacular_Huizhou",
+          "status": "canonical",
+          "profile_id": "Chinese_Vernacular_Huizhou"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建一座徽派四合天井民居， 白色粉墙、深灰瓦顶、 阶梯式马头墙。 四面房屋围合中央露天天井， 天井上方不要封顶， 各房间与天井之间可以通行， 朝向天井设置木格窗。",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "民居",
+              "start": 9,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Chinese_Vernacular_Huizhou",
+              "phrase": "徽派",
+              "start": 3,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "建一座徽派四合天井民居，\n白色粉墙、深灰瓦顶、\n阶梯式马头墙。\n四面房屋围合中央露天天井，\n天井上方不要封顶，\n各房间与天井之间可以通行，\n朝向天井设置木格窗。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "mass_east_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+          "status": "processed"
+        },
+        {
+          "host_id": "mass_west_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+          "status": "processed"
+        },
+        {
+          "host_id": "mass_north_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+          "status": "processed"
+        },
+        {
+          "host_id": "mass_south_wing",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Chinese_Vernacular_Jiangnan_WaterTown",
+          "status": "processed"
+        }
+      ]
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "slot_courtyard_house",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "huizhou_tianjing_courtyard_house",
+        "component_preset": "徽派四合天井民居：东西南北四翼两层房屋围合8x8中央露天天井；白色粉墙、深灰双坡瓦顶、阶梯式马头墙；各翼经门洞通天井，天井一侧开木格窗；外墙面开小窗，东外墙设主门。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -12,
+        "y": -1,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 20,
+        "height": 1
+      },
+      "features": [
+        "青石板台基",
+        "石砌勒脚"
+      ],
+      "params": {
+        "component_id": "foundation_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "foundation_type": "plinth",
+        "material": "stone",
+        "material_block": "minecraft:stone_bricks",
+        "detail_level": "medium",
+        "building_id": "mass_north_wing",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "mass_north_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 8,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 20,
+        "height": 8
+      },
+      "features": [
+        "东翼·门厅正屋",
+        "白粉墙",
+        "深灰瓦顶",
+        "木格窗朝天井"
+      ],
+      "params": {
+        "component_id": "mass_east_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "void_ratio": 0.22,
+        "window_ratio": 0.3,
+        "window_aspect": "vertical_strip",
+        "roof_type": "gable",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "mixed",
+        "detail_level": "high",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -8,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 20,
+        "height": 8
+      },
+      "features": [
+        "西翼·正堂",
+        "白粉墙",
+        "深灰瓦顶",
+        "木格窗朝天井"
+      ],
+      "params": {
+        "component_id": "mass_west_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "void_ratio": 0.24,
+        "window_ratio": 0.32,
+        "window_aspect": "vertical_strip",
+        "roof_type": "gable",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "gradient",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "mixed",
+        "detail_level": "high",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [
+        "北翼·厢房",
+        "白粉墙",
+        "深灰瓦顶"
+      ],
+      "params": {
+        "component_id": "mass_north_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "void_ratio": 0.26,
+        "window_ratio": 0.28,
+        "window_aspect": "vertical_strip",
+        "roof_type": "gable",
+        "facade_profile": "module_grid",
+        "wall_pattern": "none",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "mixed",
+        "detail_level": "high",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "building_id": "mass_north_wing"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [
+        "南翼·厢房",
+        "白粉墙",
+        "深灰瓦顶"
+      ],
+      "params": {
+        "component_id": "mass_south_wing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "void_ratio": 0.26,
+        "window_ratio": 0.28,
+        "window_aspect": "vertical_strip",
+        "roof_type": "gable",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "wall_block": "minecraft:white_terracotta",
+        "floor_block": "minecraft:dark_oak_planks",
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "mixed",
+        "detail_level": "high",
+        "window_block": "minecraft:glass_pane",
+        "foundation_block": "minecraft:cobblestone",
+        "trim_block": "minecraft:dark_oak_log",
+        "pillar_block": "minecraft:dark_oak_log",
+        "window_style": "pane",
+        "building_id": "mass_south_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 3,
+        "y": 8,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 22,
+        "height": 3
+      },
+      "features": [
+        "东翼双坡顶",
+        "深灰瓦",
+        "出檐1格"
+      ],
+      "params": {
+        "component_id": "roof_east_wing",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "Z",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "detail_level": "medium",
+        "roof_height": 3,
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -13,
+        "y": 8,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 22,
+        "height": 3
+      },
+      "features": [
+        "西翼双坡顶",
+        "深灰瓦",
+        "出檐1格"
+      ],
+      "params": {
+        "component_id": "roof_west_wing",
+        "host_id": "mass_west_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "Z",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "detail_level": "medium",
+        "roof_height": 3,
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -3,
+        "y": 8,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 8,
+        "height": 3
+      },
+      "features": [
+        "北翼双坡顶",
+        "深灰瓦"
+      ],
+      "params": {
+        "component_id": "roof_north_wing",
+        "host_id": "mass_north_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "X",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "detail_level": "medium",
+        "roof_height": 3,
+        "building_id": "mass_north_wing"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -3,
+        "y": 8,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 8,
+        "height": 3
+      },
+      "features": [
+        "南翼双坡顶",
+        "深灰瓦"
+      ],
+      "params": {
+        "component_id": "roof_south_wing",
+        "host_id": "mass_south_wing",
+        "anchor_mode": "min_corner",
+        "roof_type": "gable",
+        "ridge_axis": "X",
+        "overhang": 1,
+        "roof_block": "minecraft:deepslate_tiles",
+        "material": "stone",
+        "detail_level": "medium",
+        "roof_height": 3,
+        "building_id": "mass_south_wing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 3,
+        "y": 8,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "阶梯式马头墙（东翼北端）",
+        "白粉墙压顶",
+        "深灰瓦压边"
+      ],
+      "params": {
+        "component_id": "matou_east_north",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "wall_block": "minecraft:white_terracotta",
+        "cap_block": "minecraft:deepslate_tiles",
+        "masses": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 2,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 4,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 4
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 6,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 8,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          }
+        ],
+        "detail_level": "high",
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 3,
+        "y": 8,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "阶梯式马头墙（东翼南端）",
+        "白粉墙压顶",
+        "深灰瓦压边"
+      ],
+      "params": {
+        "component_id": "matou_east_south",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "wall_block": "minecraft:white_terracotta",
+        "cap_block": "minecraft:deepslate_tiles",
+        "masses": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 2,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 4,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 4
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 6,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 8,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          }
+        ],
+        "detail_level": "high",
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -13,
+        "y": 8,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "阶梯式马头墙（西翼北端）",
+        "白粉墙压顶",
+        "深灰瓦压边"
+      ],
+      "params": {
+        "component_id": "matou_west_north",
+        "host_id": "mass_west_wing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "wall_block": "minecraft:white_terracotta",
+        "cap_block": "minecraft:deepslate_tiles",
+        "masses": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 2,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 4,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 4
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 6,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 8,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          }
+        ],
+        "detail_level": "high",
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -13,
+        "y": 8,
+        "z": 10
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 5
+      },
+      "features": [
+        "阶梯式马头墙（西翼南端）",
+        "白粉墙压顶",
+        "深灰瓦压边"
+      ],
+      "params": {
+        "component_id": "matou_west_south",
+        "host_id": "mass_west_wing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "wall_block": "minecraft:white_terracotta",
+        "cap_block": "minecraft:deepslate_tiles",
+        "masses": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 2,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 4,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 4
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 6,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 3
+            },
+            "shape": "rectangle"
+          },
+          {
+            "offset": {
+              "x": 8,
+              "y": 0,
+              "z": 0
+            },
+            "dimensions": {
+              "width": 2,
+              "depth": 1,
+              "height": 2
+            },
+            "shape": "rectangle"
+          }
+        ],
+        "detail_level": "high",
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 11,
+        "y": 0,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "东外墙主门（朝天井外的巷道）",
+        "石门框",
+        "木质门扇"
+      ],
+      "params": {
+        "component_id": "entrance_main_gate",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "entrance_type": "gate",
+        "facing": "WEST",
+        "door_block": "minecraft:dark_oak_door",
+        "frame_block": "minecraft:stone_bricks",
+        "detail_level": "high",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "东翼→天井门洞",
+        "木格门"
+      ],
+      "params": {
+        "component_id": "door_east_courtyard",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "facing": "EAST",
+        "door_block": "minecraft:dark_oak_door",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -5,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [
+        "西翼→天井门洞",
+        "木格门"
+      ],
+      "params": {
+        "component_id": "door_west_courtyard",
+        "host_id": "mass_west_wing",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "facing": "WEST",
+        "door_block": "minecraft:dark_oak_door",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "北翼→天井门洞",
+        "木格门"
+      ],
+      "params": {
+        "component_id": "door_north_courtyard",
+        "host_id": "mass_north_wing",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "facing": "NORTH",
+        "door_block": "minecraft:dark_oak_door",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mass_north_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "南翼→天井门洞",
+        "木格门"
+      ],
+      "params": {
+        "component_id": "door_south_courtyard",
+        "host_id": "mass_south_wing",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "facing": "SOUTH",
+        "door_block": "minecraft:dark_oak_door",
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mass_south_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 4,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 18,
+        "height": 4
+      },
+      "features": [
+        "东翼内立面木格窗（朝天井）",
+        "竖向格心窗"
+      ],
+      "params": {
+        "component_id": "facade_inner_east",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.4,
+        "window_aspect": "vertical_strip",
+        "facade_cutout": "lattice",
+        "facade_profile": "mullion_grid",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass_pane",
+        "detail_level": "high",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -5,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 18,
+        "height": 4
+      },
+      "features": [
+        "西翼内立面木格窗（朝天井）",
+        "竖向格心窗"
+      ],
+      "params": {
+        "component_id": "facade_inner_west",
+        "host_id": "mass_west_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.4,
+        "window_aspect": "vertical_strip",
+        "facade_cutout": "lattice",
+        "facade_profile": "mullion_grid",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass_pane",
+        "detail_level": "high",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "北翼内立面木格窗（朝天井）"
+      ],
+      "params": {
+        "component_id": "facade_inner_north",
+        "host_id": "mass_north_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.38,
+        "window_aspect": "vertical_strip",
+        "facade_cutout": "lattice",
+        "facade_profile": "mullion_grid",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass_pane",
+        "detail_level": "high",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_north_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "南翼内立面木格窗（朝天井）"
+      ],
+      "params": {
+        "component_id": "facade_inner_south",
+        "host_id": "mass_south_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.38,
+        "window_aspect": "vertical_strip",
+        "facade_cutout": "lattice",
+        "facade_profile": "mullion_grid",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "glass_block": "minecraft:glass_pane",
+        "detail_level": "high",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_south_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 11,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 18,
+        "height": 4
+      },
+      "features": [
+        "东外墙小窗（防盗窄窗）"
+      ],
+      "params": {
+        "component_id": "facade_outer_east",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.12,
+        "window_aspect": "square",
+        "facade_cutout": "none",
+        "facade_profile": "none",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "detail_level": "medium",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -12,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 18,
+        "height": 4
+      },
+      "features": [
+        "西外墙小窗（防盗窄窗）"
+      ],
+      "params": {
+        "component_id": "facade_outer_west",
+        "host_id": "mass_west_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.12,
+        "window_aspect": "square",
+        "facade_cutout": "none",
+        "facade_profile": "none",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "detail_level": "medium",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "北外墙小窗"
+      ],
+      "params": {
+        "component_id": "facade_outer_north",
+        "host_id": "mass_north_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.12,
+        "window_aspect": "square",
+        "facade_cutout": "none",
+        "facade_profile": "none",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "detail_level": "medium",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_north_wing"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -3,
+        "y": 4,
+        "z": 9
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "南外墙小窗"
+      ],
+      "params": {
+        "component_id": "facade_outer_south",
+        "host_id": "mass_south_wing",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.12,
+        "window_aspect": "square",
+        "facade_cutout": "none",
+        "facade_profile": "none",
+        "placement": "wall",
+        "side": "exterior",
+        "frame_block": "minecraft:dark_oak_planks",
+        "detail_level": "medium",
+        "window_style": "pane",
+        "window_block": "minecraft:glass_pane",
+        "rhythm": "regular",
+        "building_id": "mass_south_wing"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 2,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "东侧走马廊（二层环天井廊道）",
+        "木栏杆"
+      ],
+      "params": {
+        "component_id": "balcony_east_gallery",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_block": "minecraft:dark_oak_fence",
+        "floor_block": "minecraft:dark_oak_planks",
+        "detail_level": "high",
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -4,
+        "y": 4,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 18,
+        "height": 1
+      },
+      "features": [
+        "西侧走马廊（二层环天井廊道）",
+        "木栏杆"
+      ],
+      "params": {
+        "component_id": "balcony_west_gallery",
+        "host_id": "mass_west_wing",
+        "anchor_mode": "min_corner",
+        "railing": true,
+        "railing_block": "minecraft:dark_oak_fence",
+        "floor_block": "minecraft:dark_oak_planks",
+        "detail_level": "high",
+        "building_id": "mass_west_wing"
+      }
+    },
+    {
+      "component_type": "COURTYARD_SPACE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "features": [
+        "中央露天天井（不封顶）",
+        "青石板铺地",
+        "四水归堂排水沟"
+      ],
+      "params": {
+        "component_id": "courtyard_tianjing",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "open": true,
+        "sky_open": true,
+        "no_roof": true,
+        "paving_block": "minecraft:stone_bricks",
+        "drain_block": "minecraft:gravel",
+        "detail_level": "medium",
+        "building_id": "courtyard_tianjing"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 11,
+        "y": 4,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 6,
+        "height": 2
+      },
+      "features": [
+        "砖雕门罩（主门上方）",
+        "深灰瓦小披檐"
+      ],
+      "params": {
+        "component_id": "decor_gate_hood",
+        "host_id": "mass_east_wing",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "material": "stone",
+        "block": "minecraft:deepslate_tiles",
+        "overhang": 1,
+        "detail_level": "high",
+        "building_id": "mass_east_wing"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": 4,
+        "y": 5,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "balcony_east_gallery#platform_door",
+        "host_id": "mass_east_wing",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "mass_east_wing",
+        "facing": "EAST",
+        "anchor_mode": "min_corner",
+        "platform_connection": "balcony_east_gallery"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_courtyard_house",
+      "relative_position": {
+        "x": -5,
+        "y": 5,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 2,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "balcony_west_gallery#platform_door",
+        "host_id": "mass_west_wing",
+        "door_width": 2,
+        "door_height": 3,
+        "entrance_type": "door",
+        "building_id": "mass_west_wing",
+        "facing": "WEST",
+        "anchor_mode": "min_corner",
+        "platform_connection": "balcony_west_gallery"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「徽派四合天井民居」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

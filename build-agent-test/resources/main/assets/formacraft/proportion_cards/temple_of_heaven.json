@@ -1,0 +1,34 @@
+{
+  "id": "temple_of_heaven",
+  "typology": "radial_terrace_hall",
+  "matchKeywords": [
+    "天坛", "祈年殿", "temple of heaven", "qiniandian", "祭天", "三层台基", "三重檐",
+    "heaven temple", "imperial temple"
+  ],
+  "ratios": {
+    "base_radius_to_height": {
+      "min": 0.35,
+      "ideal": 0.53,
+      "max": 0.75,
+      "desc": "台基半径/总高（祈年殿典型约 18:34）"
+    },
+    "diameter_to_height": {
+      "min": 0.7,
+      "ideal": 1.06,
+      "max": 1.6,
+      "desc": "底径/总高"
+    },
+    "tier_count": {
+      "min": 2,
+      "ideal": 3,
+      "max": 5,
+      "desc": "台基/屋顶层级（默认三重）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["square", "horizontal_strip"],
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.22
+  },
+  "aiInstruction": "Radial ceremonial hall (structural_typology=radial_terrace_hall). PREFERRED: STRUCTURE + typology:radial_terrace_hall with reference_landmark=temple_of_heaven when user names Temple of Heaven. Params: baseRadius=18, tiers=3, height≈34, hallRadius≈10, facing=SOUTH. Compositional fallback: skeleton_type=RADIAL_RING, circular MASS or tiered ROOF/DOME, PAVING terrace rings. Output proportion_hints: typology=radial_terrace_hall, tier_count=3, base_radius_to_height≈0.53. symmetry=RADIAL. Do NOT use a plain rectangular box."
+}

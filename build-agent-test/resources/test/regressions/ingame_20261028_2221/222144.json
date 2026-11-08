@@ -1,0 +1,1426 @@
+{
+  "mode": "build",
+  "style_profile": "MEDIEVAL_CASTLE",
+  "style_attributes": {
+    "wall_color": "#1b1b1b",
+    "roof_color": "#0e0e0e",
+    "accent_color": "#3a2a1a",
+    "wall_material": "minecraft:polished_blackstone_bricks",
+    "roof_material": "minecraft:blackstone",
+    "floor_material": "minecraft:polished_blackstone",
+    "decorative_elements": [
+      "arrow_slit_windows",
+      "crenellations",
+      "iron_bars",
+      "blackstone_brick_trim"
+    ]
+  },
+  "distinguishing_features": [
+    "blackstone small dark fortress",
+    "central great hall with flat crenellated roof",
+    "two hollow defense towers flanking the hall",
+    "ground-floor passages connect hall and towers",
+    "switchback stairs inside each tower",
+    "tower-top platforms with perimeter railings"
+  ],
+  "anchor": {
+    "x": 562,
+    "y": 67,
+    "z": -934
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "fortress",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "centered",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.75,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": true
+    },
+    "modules": [
+      "tower",
+      "roof",
+      "windows"
+    ],
+    "materials": {
+      "primary": "stone",
+      "secondary": "stone",
+      "accent": "metal",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "dark_fortress",
+        "blackstone",
+        "defensive_tower"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 20,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "hollow defense towers",
+        "internal switchback stairs",
+        "top platform railings"
+      ],
+      "avoid": [
+        "solid column towers",
+        "sealed tower interiors"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "radial_fortress",
+    "wall_height_to_thickness": 6.0,
+    "tower_height_to_wall": 3.5,
+    "tower_height_to_base": 4.0,
+    "curtain_wall_to_tower": 0.55,
+    "enclosure_coverage": 0.92,
+    "window_wall_ratio": 0.1,
+    "opening_grammar": {
+      "window_aspect": [
+        "vertical_strip",
+        "arrow_slit"
+      ],
+      "min_enclosure_coverage": 0.88,
+      "max_void_ratio": 0.25
+    },
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_hall": [
+          "main_hall_shell"
+        ],
+        "named_tower": [
+          "tower_south_shell",
+          "tower_north_shell"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "main_hall_shell",
+          "slot_id": "main_hall",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": -8,
+            "y": 0,
+            "z": -10
+          },
+          "dimensions": {
+            "width": 16,
+            "depth": 20,
+            "height": 12
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "main_hall_shell",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 16,
+                  "depth": 20,
+                  "height": 12
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 16,
+              "max_z": 20,
+              "min_y": 0,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 16,
+                "start": 0,
+                "end": 20
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 16
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 20,
+                "start": 0,
+                "end": 16
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 20
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "tower_south_shell",
+          "slot_id": "tower_south",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": -4,
+            "y": 0,
+            "z": 10
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 8,
+            "height": 16
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "roof_y_local": 15,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "tower_south_shell",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 8,
+                  "height": 16
+                },
+                "roof_y_local": 15
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 8,
+              "max_z": 8,
+              "min_y": 0,
+              "max_y": 16
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": 0,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": 0,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "tower_north_shell",
+          "slot_id": "tower_north",
+          "local_origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "plan_origin": {
+            "x": -4,
+            "y": 0,
+            "z": -18
+          },
+          "dimensions": {
+            "width": 8,
+            "depth": 8,
+            "height": 16
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "roof_y_local": 15,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "tower_north_shell",
+                "local_origin": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "dimensions": {
+                  "width": 8,
+                  "depth": 8,
+                  "height": 16
+                },
+                "roof_y_local": 15
+              }
+            ],
+            "envelope_local": {
+              "min_x": 0,
+              "min_z": 0,
+              "max_x": 8,
+              "max_z": 8,
+              "min_y": 0,
+              "max_y": 16
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": 0,
+                "end": 8
+              },
+              {
+                "direction": "NORTH",
+                "plane": 0,
+                "start": 0,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 8,
+                "start": 0,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": 0,
+                "start": 0,
+                "end": 8
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "建一座黑石风格的小型暗黑堡垒 ， 主厅左右各有一座空心防御塔。 主厅与两座塔的底层连通， 每座塔内部都有可步行到塔顶的楼梯，塔顶有平台和护栏。 不要用实心柱子代替塔楼。",
+          "purposes": [
+            {
+              "id": "fortification",
+              "phrase": "堡垒",
+              "start": 12,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": [
+            {
+              "id": "tower",
+              "phrase": "塔楼",
+              "start": 81,
+              "status": "requested",
+              "part": "building"
+            }
+          ]
+        }
+      ],
+      "original_text": "建一座黑石风格的小型暗黑堡垒\n，\n主厅左右各有一座空心防御塔。\n主厅与两座塔的底层连通，\n每座塔内部都有可步行到塔顶的楼梯，塔顶有平台和护栏。\n不要用实心柱子代替塔楼。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "hosted_style_enrichment": {
+      "schema": "formacraft.hosted_style_enrichment.v1",
+      "geometry_changed": false,
+      "hosts": [
+        {
+          "host_id": "main_hall_shell",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Castle",
+          "status": "processed"
+        },
+        {
+          "host_id": "tower_south_shell",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Castle",
+          "status": "processed"
+        },
+        {
+          "host_id": "tower_north_shell",
+          "changes": [],
+          "skipped": [],
+          "style_id": "Medieval_Castle",
+          "status": "processed"
+        }
+      ]
+    }
+  },
+  "global_constraints": {
+    "facing": "WEST",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main_hall",
+        "anchor": {
+          "x": -8,
+          "y": 0,
+          "z": -10
+        },
+        "facing": "WEST",
+        "component_preset": "MASS_MAIN",
+        "dimensions": {
+          "width": 16,
+          "depth": 20,
+          "height": 12
+        }
+      },
+      {
+        "slot_id": "tower_south",
+        "anchor": {
+          "x": -4,
+          "y": 0,
+          "z": 10
+        },
+        "facing": "WEST",
+        "component_preset": "MASS_MAIN",
+        "dimensions": {
+          "width": 8,
+          "depth": 8,
+          "height": 16
+        }
+      },
+      {
+        "slot_id": "tower_north",
+        "anchor": {
+          "x": -4,
+          "y": 0,
+          "z": -18
+        },
+        "facing": "WEST",
+        "component_preset": "MASS_MAIN",
+        "dimensions": {
+          "width": 8,
+          "depth": 8,
+          "height": 16
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 20,
+        "height": 12
+      },
+      "params": {
+        "component_id": "main_hall_shell",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 3,
+        "wall_block": "minecraft:polished_blackstone_bricks",
+        "floor_block": "minecraft:polished_blackstone",
+        "roof_block": "minecraft:blackstone",
+        "roof_type": "flat",
+        "window_style": "arrow_slit",
+        "window_aspect": "arrow_slit",
+        "entrance_type": "gate",
+        "entrance_width": 3,
+        "entrance_height": 4,
+        "void_ratio": 0.16,
+        "material": "stone",
+        "internal_openings": [
+          {
+            "side": "NORTH",
+            "width": 3,
+            "height": 4
+          },
+          {
+            "side": "SOUTH",
+            "width": 3,
+            "height": 4
+          }
+        ],
+        "window_ratio": 0.35,
+        "building_id": "main_hall_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": -1,
+        "y": 12,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 24,
+        "height": 1
+      },
+      "params": {
+        "component_id": "main_roof",
+        "host_id": "main_hall_shell",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "material": "minecraft:blackstone",
+        "roof_block": "minecraft:blackstone",
+        "crenellations": true,
+        "detail_level": "medium",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "main_hall_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 20,
+        "height": 1
+      },
+      "params": {
+        "component_id": "main_floor_1",
+        "host_id": "main_hall_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 1,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "main_hall_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 20,
+        "height": 1
+      },
+      "params": {
+        "component_id": "main_floor_2",
+        "host_id": "main_hall_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 2,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "main_hall_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 16
+      },
+      "params": {
+        "component_id": "tower_south_shell",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 4,
+        "wall_block": "minecraft:polished_blackstone_bricks",
+        "floor_block": "minecraft:polished_blackstone",
+        "roof_block": "minecraft:blackstone",
+        "roof_type": "flat",
+        "window_style": "arrow_slit",
+        "window_aspect": "arrow_slit",
+        "entrance_type": "none",
+        "void_ratio": 0.12,
+        "material": "stone",
+        "internal_openings": [
+          {
+            "side": "NORTH",
+            "width": 3,
+            "height": 4
+          }
+        ],
+        "window_ratio": 0.35,
+        "building_id": "tower_south_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_south_floor_1",
+        "host_id": "tower_south_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 1,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "tower_south_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_south_floor_2",
+        "host_id": "tower_south_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 2,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "tower_south_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_south_floor_3",
+        "host_id": "tower_south_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 3,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "tower_south_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 0,
+        "y": 16,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_south_platform",
+        "host_id": "tower_south_shell",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "material": "minecraft:blackstone",
+        "roof_block": "minecraft:blackstone",
+        "platform": true,
+        "detail_level": "medium",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "tower_south_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_south_stair_1",
+        "host_id": "tower_south_shell",
+        "from": {
+          "x": 1,
+          "y": 0,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 4,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_south_shell"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_south_stair_2",
+        "host_id": "tower_south_shell",
+        "from": {
+          "x": 1,
+          "y": 4,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 8,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_south_shell"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_south_stair_3",
+        "host_id": "tower_south_shell",
+        "from": {
+          "x": 1,
+          "y": 8,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 12,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_south_shell"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_south_stair_4",
+        "host_id": "tower_south_shell",
+        "from": {
+          "x": 1,
+          "y": 12,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 16,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_south_shell"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "tower_south",
+      "relative_position": {
+        "x": 0,
+        "y": 17,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_south_railing",
+        "host_id": "tower_south_shell",
+        "anchor_mode": "min_corner",
+        "detail_type": "railing",
+        "railing_type": "perimeter",
+        "material": "minecraft:blackstone_brick_wall",
+        "height": 1,
+        "perimeter": true,
+        "building_id": "tower_south_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 16
+      },
+      "params": {
+        "component_id": "tower_north_shell",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_height": 4,
+        "floor_count": 4,
+        "wall_block": "minecraft:polished_blackstone_bricks",
+        "floor_block": "minecraft:polished_blackstone",
+        "roof_block": "minecraft:blackstone",
+        "roof_type": "flat",
+        "window_style": "arrow_slit",
+        "window_aspect": "arrow_slit",
+        "entrance_type": "none",
+        "void_ratio": 0.12,
+        "material": "stone",
+        "internal_openings": [
+          {
+            "side": "SOUTH",
+            "width": 3,
+            "height": 4
+          }
+        ],
+        "window_ratio": 0.35,
+        "building_id": "tower_north_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_north_floor_1",
+        "host_id": "tower_north_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 1,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "tower_north_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_north_floor_2",
+        "host_id": "tower_north_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 2,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "tower_north_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 0,
+        "y": 12,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_north_floor_3",
+        "host_id": "tower_north_shell",
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "floor_block": "minecraft:polished_blackstone",
+        "tier_index": 3,
+        "material": "stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "floor_height": 3,
+        "building_id": "tower_north_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 0,
+        "y": 16,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_north_platform",
+        "host_id": "tower_north_shell",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "material": "minecraft:blackstone",
+        "roof_block": "minecraft:blackstone",
+        "platform": true,
+        "detail_level": "medium",
+        "roof_height": 2,
+        "overhang": 2,
+        "building_id": "tower_north_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_north_stair_1",
+        "host_id": "tower_north_shell",
+        "from": {
+          "x": 1,
+          "y": 0,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 4,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_north_shell"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_north_stair_2",
+        "host_id": "tower_north_shell",
+        "from": {
+          "x": 1,
+          "y": 4,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 8,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_north_shell"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_north_stair_3",
+        "host_id": "tower_north_shell",
+        "from": {
+          "x": 1,
+          "y": 8,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 12,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_north_shell"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 4,
+        "height": 4
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "tower_north_stair_4",
+        "host_id": "tower_north_shell",
+        "from": {
+          "x": 1,
+          "y": 12,
+          "z": 1
+        },
+        "to": {
+          "x": 1,
+          "y": 16,
+          "z": 5
+        },
+        "width": 2,
+        "stairs": "minecraft:polished_blackstone_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "clearHeight": 2,
+        "landing_length": 1,
+        "building_id": "tower_north_shell"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "tower_north",
+      "relative_position": {
+        "x": 0,
+        "y": 17,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_north_railing",
+        "host_id": "tower_north_shell",
+        "anchor_mode": "min_corner",
+        "detail_type": "railing",
+        "railing_type": "perimeter",
+        "material": "minecraft:blackstone_brick_wall",
+        "height": 1,
+        "perimeter": true,
+        "building_id": "tower_north_shell"
+      },
+      "features": []
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 2,
+        "y": 0,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 7
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "main_hall_shell#access_1",
+        "host_id": "main_hall_shell",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 4,
+          "y": 4,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "main_hall_shell"
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "main_hall",
+      "relative_position": {
+        "x": 2,
+        "y": 4,
+        "z": 2
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 7
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "component_id": "main_hall_shell#access_2",
+        "host_id": "main_hall_shell",
+        "anchor_mode": "min_corner",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 4,
+          "y": 4,
+          "z": 0
+        },
+        "width": 2,
+        "clearHeight": 2,
+        "landing_length": 1,
+        "support": false,
+        "stairs": "minecraft:stone_brick_stairs",
+        "floor": "minecraft:polished_blackstone",
+        "circulation_source": "missing_requested_stair",
+        "building_id": "main_hall_shell"
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

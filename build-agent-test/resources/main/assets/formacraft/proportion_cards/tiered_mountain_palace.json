@@ -1,0 +1,40 @@
+{
+  "id": "tiered_mountain_palace",
+  "typology": "tiered_mountain_palace",
+  "matchKeywords": [
+    "布达拉宫", "宫城", "退台宫殿", "山地宫殿", "台地宫殿", "逐层退台",
+    "potala", "potala palace", "tiered palace", "mountain palace", "himalayan palace"
+  ],
+  "ratios": {
+    "setback_ratio": {
+      "min": 0.04,
+      "ideal": 0.08,
+      "max": 0.16,
+      "desc": "每层平面内缩相对底层宽度"
+    },
+    "tier_count": {
+      "min": 2,
+      "ideal": 5,
+      "max": 8,
+      "desc": "退台层数"
+    },
+    "base_width_to_height": {
+      "min": 1.0,
+      "ideal": 1.4,
+      "max": 2.2,
+      "desc": "底层宽/总高"
+    },
+    "window_wall_ratio": {
+      "min": 0.05,
+      "ideal": 0.12,
+      "max": 0.25,
+      "desc": "石砌立面窗墙比"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["small_square", "vertical_slit"],
+    "min_enclosure_coverage": 0.85,
+    "max_void_ratio": 0.2
+  },
+  "aiInstruction": "Research baseWidth, baseDepth, tiers, tierInset, tierHeight, platformHeight before STRUCTURE typology:tiered_mountain_palace. layout.skeleton_type=VERTICAL_STACK; global_constraints.symmetry=MIRROR_X. 指名布达拉宫 preset 时 reference_landmark=potala_palace。禁止无退台实心方盒。"
+}

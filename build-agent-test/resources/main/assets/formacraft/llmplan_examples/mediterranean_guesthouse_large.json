@@ -1,0 +1,148 @@
+{
+  "description": "生成一座地中海灰泥客舍",
+  "promptHints": [
+    "生成一座地中海灰泥客舍"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Mediterranean_Stucco",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "stucco_tile_house",
+      "proportion_card_id": "mediterranean_guesthouse",
+      "window_wall_ratio": 0.24,
+      "height_to_width": 0.3870967741935484,
+      "depth_to_width": 0.6774193548387096,
+      "window_aspect": "rectangular"
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:white_concrete",
+      "roof_material": "minecraft:terracotta",
+      "floor_material": "minecraft:smooth_sandstone",
+      "decorative_elements": [
+        "restrained_trim"
+      ]
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 31,
+          "depth": 21,
+          "height": 12
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:white_concrete",
+          "roof_block": "minecraft:terracotta",
+          "floor_block": "minecraft:smooth_sandstone",
+          "window_block": "minecraft:white_stained_glass_pane",
+          "foundation_block": "minecraft:sandstone",
+          "trim_block": "minecraft:smooth_sandstone",
+          "pillar_block": "minecraft:smooth_quartz",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.24,
+          "facade_profile": "base_plinth",
+          "floor_height": 6,
+          "component_id": "mediterranean_stucco",
+          "anchor_mode": "min_corner",
+          "shape": "rectangle",
+          "plan_type": "none",
+          "floor_count": 2,
+          "void_ratio": 0.05
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 11,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 31,
+          "depth": 21,
+          "height": 5
+        },
+        "features": [],
+        "params": {
+          "roof_type": "hip",
+          "overhang": 1,
+          "roof_block": "minecraft:terracotta",
+          "component_id": "mediterranean_stucco_roof",
+          "host_id": "mediterranean_stucco",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 14,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "entry",
+          "host_id": "mediterranean_stucco",
+          "facing": "NORTH",
+          "door_width": 2,
+          "door_height": 3
+        }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": {
+          "x": 1,
+          "y": 2,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 29,
+          "depth": 1,
+          "height": 12
+        },
+        "features": [],
+        "params": {
+          "window_style": "pane",
+          "window_ratio": 0.24,
+          "window_block": "minecraft:white_stained_glass_pane",
+          "component_id": "windows",
+          "host_id": "mediterranean_stucco",
+          "facing": "NORTH",
+          "wall": "front",
+          "floor_count": 2,
+          "floor_height": 6,
+          "window_width": 2,
+          "window_height": 2,
+          "window_per_wall": 6
+        }
+      }
+    ]
+  }
+}

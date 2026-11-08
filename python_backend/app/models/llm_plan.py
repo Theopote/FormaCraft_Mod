@@ -111,6 +111,47 @@ class LayoutModel(BaseModel):
     path_based: Optional[bool] = None
     slots: Optional[List[SlotModel]] = None
 
+    @field_validator("skeleton_type", mode="before")
+    @classmethod
+    def coerce_skeleton_type(cls, value: Any) -> Any:
+        """Map invented LLM labels (TOWER_SHAFT…) onto the closed SkeletonType enum."""
+        if value is None or isinstance(value, str) and not value.strip():
+            return None
+        text = str(value).strip().upper().replace("-", "_").replace(" ", "_")
+        allowed = {
+            "LINEAR_PATH", "RADIAL_RING", "RADIAL_SPOKE", "GRID", "GRID_BAY", "COMPOUND",
+            "COURTYARD", "PATH_POLYLINE", "SPAN_SUSPENSION", "VERTICAL_TAPER",
+            "VERTICAL_STACK", "PERIMETER_LOOP", "ENCLOSURE",
+        }
+        if text in allowed:
+            return text
+        aliases = {
+            "TOWER_SHAFT": "VERTICAL_STACK",
+            "TOWER": "VERTICAL_STACK",
+            "SHAFT": "VERTICAL_STACK",
+            "VERTICAL": "VERTICAL_STACK",
+            "STACK": "VERTICAL_STACK",
+            "TAPER": "VERTICAL_TAPER",
+            "LINEAR": "LINEAR_PATH",
+            "PATH": "LINEAR_PATH",
+            "RADIAL": "RADIAL_RING",
+            "RING": "RADIAL_RING",
+            "SPOKE": "RADIAL_SPOKE",
+            "BRIDGE": "SPAN_SUSPENSION",
+            "SUSPENSION": "SPAN_SUSPENSION",
+            "COURT": "COURTYARD",
+            "YARD": "COURTYARD",
+            "LOOP": "PERIMETER_LOOP",
+            "WALL": "ENCLOSURE",
+            "BAY": "GRID_BAY",
+        }
+        if text in aliases:
+            return aliases[text]
+        for alias, canonical in aliases.items():
+            if alias in text:
+                return canonical
+        return "COMPOUND"
+
     @model_validator(mode="after")
     def validate_slots(self) -> "LayoutModel":
         slots = self.slots

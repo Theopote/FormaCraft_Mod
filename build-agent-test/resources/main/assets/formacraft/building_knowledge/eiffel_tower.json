@@ -1,0 +1,91 @@
+{
+  "id": "eiffel_tower",
+  "name": "埃菲尔铁塔",
+  "nameEn": "Eiffel Tower",
+  "aliases": [
+    "埃菲尔铁塔",
+    "埃菲尔塔",
+    "埃菲尔",
+    "eiffel",
+    "eiffel tower",
+    "tour eiffel",
+    "巴黎铁塔",
+    "巴黎埃菲尔铁塔"
+  ],
+  "category": "LANDMARK",
+  "architect": "Gustave Eiffel",
+  "style": "Industrial",
+  "styleId": "Industrial_Structural",
+  
+  "features": {
+    "shape": "tapered_tower",
+    "form": "vertical_lattice",
+    "structuralType": "wrought_iron_lattice",
+    "materials": ["iron", "steel"],
+    "scale": "tall",
+    "distinctiveElements": [
+      "lattice structure",
+      "tapered profile",
+      "three levels",
+      "arched base",
+      "exposed structural frame",
+      "vertical emphasis",
+      "iron framework",
+      "observation decks"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 27,
+    "typicalDepth": 27,
+    "typicalHeight": 60,
+    "footprintShape": "square",
+    "aspectRatio": "1:2.2"
+  },
+  
+  "assemblyHints": {
+    "type": "TOWER",
+    "macro": {
+      "style": {
+        "styleId": "Industrial_Structural",
+        "structureExposure": 0.95,
+        "density": 0.6,
+        "symmetry": 0.9,
+        "verticality": 0.95,
+        "transparency": 0.7
+      },
+      "verticalProfile": [
+        {"height": 20, "scaleTop": 0.85},
+        {"height": 20, "scaleTop": 0.65},
+        {"height": 20, "scaleTop": 0.45}
+      ]
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "LATTICE",
+            "density": 0.6
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "The Eiffel Tower is an iconic wrought-iron lattice tower in Paris. It features a tapered profile with three observation levels, an arched base, and an exposed structural frame that emphasizes verticality and structural expression.",
+  "descriptionZh": "埃菲尔铁塔是巴黎的标志性锻铁格子塔。它具有三层观景台的锥形轮廓、拱形基座和暴露的结构框架，强调垂直性和结构表达。",
+  
+  "keywords": [
+    "埃菲尔",
+    "铁塔",
+    "巴黎",
+    "格子结构",
+    "锥形",
+    "工业风格",
+    "结构外露",
+    "垂直"
+  ],
+  "exampleRefs": []
+}
+

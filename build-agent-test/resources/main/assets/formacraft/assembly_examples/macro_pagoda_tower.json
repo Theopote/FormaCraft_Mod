@@ -1,0 +1,33 @@
+{
+  "paletteId": "PALETTE_CHINESE_TRADITIONAL_A",
+  "entranceFacing": "SOUTH",
+  "macro": {
+    "primaryComponent": "Main",
+    "verticalProfile": [
+      {"height": 8, "scaleTop": 1.0},
+      {"height": 6, "scaleTop": 0.85},
+      {"height": 5, "scaleTop": 0.7},
+      {"height": 4, "scaleTop": 0.55},
+      {"height": 3, "scaleTop": 0.4}
+    ],
+    "roofType": "GABLE",
+    "roofCurvature": "HIGH",
+    "roofCornerLift": 1.0,
+    "overhang": "MEDIUM"
+  },
+  "graph": {
+    "components": [
+      {
+        "id": "Main",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 16,
+        "d": 16,
+        "h": 26,
+        "wall": "minecraft:red_sandstone",
+        "floor": "minecraft:smooth_stone"
+      }
+    ]
+  }
+}
+

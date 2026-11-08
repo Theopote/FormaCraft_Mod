@@ -1,0 +1,39 @@
+{
+  "id": "steampunk_hall",
+  "styleId": "Steampunk",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "蒸汽朋克",
+    "steampunk hall",
+    "steampunk_hall"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "蒸汽朋克": 12,
+    "steampunk hall": 12,
+    "steampunk_hall": 12
+  },
+  "negativeKeywords": [
+    "不要蒸汽朋克",
+    "not steampunk hall"
+  ],
+  "proportionCardId": "steampunk_hall",
+  "structuralTypologyId": "timber_gable_house",
+  "llmPlanExampleRefs": [
+    "p2_steampunk_hall_13.json",
+    "p2_steampunk_hall_21.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "steampunk_hall",
+      "constraints": [
+        "Use style_profile=Steampunk; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=gambrel, wall_pattern=timber_frame; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

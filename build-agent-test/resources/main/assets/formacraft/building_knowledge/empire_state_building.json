@@ -1,0 +1,91 @@
+{
+  "id": "empire_state_building",
+  "name": "帝国大厦",
+  "nameEn": "Empire State Building",
+  "aliases": [
+    "帝国大厦",
+    "empire state",
+    "empire state building",
+    "纽约帝国大厦",
+    "摩天大楼",
+    "装饰艺术"
+  ],
+  "category": "LANDMARK",
+  "architect": "Shreve, Lamb & Harmon",
+  "style": "Art Deco",
+  "styleId": "Modern_International",
+  
+  "features": {
+    "shape": "setback_tower",
+    "form": "stepped_pyramid",
+    "structuralType": "steel_frame",
+    "materials": ["steel", "limestone", "granite", "aluminum"],
+    "scale": "skyscraper",
+    "distinctiveElements": [
+      "setback design",
+      "art deco styling",
+      "steel frame construction",
+      "limestone facade",
+      "spire at top",
+      "vertical emphasis",
+      "geometric patterns",
+      "observation deck",
+      "tiered setbacks"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 18,
+    "typicalDepth": 18,
+    "typicalHeight": 60,
+    "footprintShape": "square",
+    "aspectRatio": "1:3.3"
+  },
+  
+  "assemblyHints": {
+    "type": "TOWER",
+    "macro": {
+      "style": {
+        "styleId": "Modern_International",
+        "structureExposure": 0.2,
+        "density": 0.6,
+        "symmetry": 0.9,
+        "verticality": 0.95,
+        "transparency": 0.3
+      },
+      "verticalProfile": [
+        {"height": 20, "scaleTop": 0.9},
+        {"height": 20, "scaleTop": 0.7},
+        {"height": 15, "scaleTop": 0.5},
+        {"height": 5, "scaleTop": 0.3}
+      ]
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "VERTICAL_RIBS",
+            "density": 0.6
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "The Empire State Building is a classic Art Deco skyscraper featuring a setback design with tiered levels, a limestone facade, and a distinctive spire at the top. The building emphasizes verticality with geometric patterns typical of Art Deco architecture.",
+  "descriptionZh": "帝国大厦是一座经典的装饰艺术风格摩天大楼，具有分层退台设计、石灰石立面和顶部独特的尖塔。该建筑强调垂直性，具有装饰艺术建筑典型的几何图案。",
+  
+  "keywords": [
+    "帝国大厦",
+    "纽约",
+    "摩天大楼",
+    "装饰艺术",
+    "退台",
+    "垂直",
+    "尖塔",
+    "现代"
+  ],
+  "exampleRefs": []
+}
+

@@ -1,0 +1,26 @@
+{
+  "description": "ShapeLibrary M3 — Voronoi 2D 铺板 few-shot",
+  "promptHints": ["voronoi", "细胞", "蜂窝", "honeycomb", "铺地"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "DEFAULT",
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+    "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+    "components": [
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 16, "depth": 16, "height": 1 },
+        "params": {
+          "kind": "voronoi",
+          "extrude_mode": "plate",
+          "radius": 7,
+          "cell_count": 12,
+          "seed": 42,
+          "material": "stone"
+        }
+      }
+    ]
+  }
+}

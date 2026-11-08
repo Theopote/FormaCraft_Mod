@@ -1,0 +1,17 @@
+{
+  "id": "east_asian_pavilion",
+  "labelZh": "中式或日式楼阁",
+  "labelEn": "East Asian Pavilion",
+  "prompt": "一座中式或日式楼阁，多层屋檐与复杂屋顶，抬高台基。",
+  "focus": ["multi_eave", "complex_roof"],
+  "planFile": "plan.json",
+  "checks": {
+    "minSolidBlocks": 70,
+    "requireRoofLike": true,
+    "requireOpeningLike": true,
+    "requireStairLike": false,
+    "minDistinctBlockIds": 3,
+    "minHeightSpan": 8
+  },
+  "goldenPreviewDigest": "16b056158023ae42"
+}

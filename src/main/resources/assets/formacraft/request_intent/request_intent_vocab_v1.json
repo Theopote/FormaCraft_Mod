@@ -61,7 +61,7 @@
   },
   "tower_subtypes": {
     "tibetan_stupa": ["藏式佛塔", "藏式", "白塔", "覆钵", "相轮", "喇嘛塔", "tibetan", "chorten"],
-    "dense_eaves_pagoda": ["密檐", "古塔", "宝塔", "pagoda"]
+    "dense_eaves_pagoda": ["密檐", "密檐塔", "古塔", "宝塔", "舍利塔", "pagoda", "brick pagoda"]
   },
   "temple_compound_markers": ["建筑群", "院落", "厢房", "配殿", "三进", "两进", "宫观群"],
   "materials": {

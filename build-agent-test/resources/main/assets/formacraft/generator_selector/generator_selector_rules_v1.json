@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "asian_core_circle_tulou",
+      "when": { "cityStyle": "ASIAN", "zoneType": "CORE", "shape": "CIRCLE", "minRadius": 8, "maxRadius": 24 },
+      "then": {
+        "landmark": "tulou",
+        "buildingType": "HOUSE",
+        "floors": 3
+      }
+    },
+    {
+      "id": "asian_core_circle_temple_of_heaven",
+      "when": { "cityStyle": "ASIAN", "zoneType": "CORE", "shape": "CIRCLE", "minRadius": 25 },
+      "then": {
+        "landmark": "temple_of_heaven",
+        "buildingType": "CUSTOM",
+        "height": 36,
+        "extraDefaults": {
+          "typology_id": "radial_terrace_hall",
+          "structural_typology": "radial_terrace_hall",
+          "reference_landmark": "temple_of_heaven",
+          "tiers": 3,
+          "detailLevel": "aesthetic"
+        }
+      }
+    },
+    {
+      "id": "modern_semi_public_office_block",
+      "when": { "cityStyle": "MODERN", "zoneType": "SEMI_PUBLIC", "shape": "RECTANGLE" },
+      "then": {
+        "template": "office_block",
+        "buildingType": "HOUSE",
+        "extraDefaults": {
+          "paletteId": "PALETTE_MODERN_GLASS_B"
+        }
+      }
+    },
+    {
+      "id": "modern_semi_public_office_block_fallback",
+      "when": { "cityStyle": "MODERN", "zoneType": "SEMI_PUBLIC" },
+      "then": {
+        "template": "office_block",
+        "buildingType": "HOUSE",
+        "extraDefaults": {
+          "paletteId": "PALETTE_MODERN_GLASS_B"
+        }
+      }
+    },
+    {
+      "id": "medieval_core_rectangle_keep_small",
+      "when": { "cityStyle": "MEDIEVAL", "zoneType": "CORE", "shape": "RECTANGLE", "minArea": 180, "maxArea": 559 },
+      "then": {
+        "buildingType": "HOUSE",
+        "floors": 4,
+        "extraDefaults": {
+          "styleProfileId": "Medieval_Castle",
+          "paletteId": "PALETTE_STONE_FORTRESS_A",
+          "lighting": true,
+          "lightingType": "lantern",
+          "lightingSpacing": 4
+        }
+      }
+    },
+    {
+      "id": "medieval_core_rectangle_castle_compound",
+      "when": { "cityStyle": "MEDIEVAL", "zoneType": "CORE", "shape": "RECTANGLE", "minArea": 560 },
+      "then": {
+        "template": "castle_compound",
+        "buildingType": "CUSTOM",
+        "extraDefaults": {
+          "styleProfileId": "Medieval_Castle",
+          "paletteId": "PALETTE_STONE_FORTRESS_A"
+        }
+      }
+    }
+  ]
+}
+
+

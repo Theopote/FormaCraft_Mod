@@ -1,0 +1,41 @@
+{
+  "id": "tulou_ring",
+  "styleId": "Chinese_Vernacular_Tulou",
+  "intents": [
+    "TULOU",
+    "COMMUNAL_COURTYARD"
+  ],
+  "keywords": [
+    "土楼",
+    "客家圆形土楼",
+    "tulou",
+    "hakka circular tulou"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "土楼": 12,
+    "客家圆形土楼": 20,
+    "tulou": 12,
+    "hakka circular tulou": 20
+  },
+  "negativeKeywords": [
+    "不要土楼",
+    "without tulou"
+  ],
+  "proportionCardId": "tulou_ring",
+  "llmPlanExampleRefs": [
+    "tulou_ring_10.json",
+    "tulou_ring_14.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "native_tulou_ring",
+      "constraints": [
+        "Use STRUCTURE with the existing tulou blueprint and explicit radius/floors; no new typology interpreter is claimed.",
+        "Keep the central courtyard open, the earthen exterior wall and annular timber floor bands.",
+        "Examples use the native TulouGenerator; live routing, access and historical fidelity require separate evidence."
+      ]
+    }
+  ]
+}

@@ -95,6 +95,19 @@ class PatchOccupancyRound19Test {
         assertEquals("unauthorized_final_overwrite", finding.get().reason());
     }
 
+    @Test
+    void openingGlazingOverSolidIsToleratedInFinalInspect() {
+        // Japanese shoji / window panes may land after an authorized carve while the
+        // occupancy index still holds the pre-window solid (emit clip / order edge).
+        PatchOccupancyIndex idx = new PatchOccupancyIndex();
+        Component mass = component("MASS_MAIN");
+        idx.commit(mass, List.of(new BlockPatch(BlockPatch.PLACE, 2, 5, -3, "minecraft:stone")));
+        List<BlockPatch> finalWithPane = List.of(
+                new BlockPatch(BlockPatch.PLACE, 2, 5, -3, "minecraft:white_stained_glass_pane")
+        );
+        assertTrue(PatchConflictValidator.inspectAuthorized(finalWithPane, idx).isEmpty());
+    }
+
     private static Component component(String type) {
         return new Component(type, null, new Vec3i(0, 0, 0), new Dimensions(1, 1, 1), List.of(), Map.of());
     }

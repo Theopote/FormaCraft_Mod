@@ -13,6 +13,7 @@ import com.formacraft.common.mass.rhythm.FacadeRhythmPreset;
 import com.formacraft.common.mass.rhythm.FacadeRhythmPresetLibrary;
 
 import java.util.BitSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -350,10 +351,32 @@ public final class ComponentFacadeRhythmPlanner {
                 }
             }
             if (genome.form != null && "vertical".equalsIgnoreCase(genome.form.repetition)) {
-                return PRESET_CLASSICAL_PILASTER_BAY;
+                // Japanese / shoji facades must not inherit classical pilaster bays from vertical repetition.
+                if (!looksNonClassicalFacade(c, params)) {
+                    return PRESET_CLASSICAL_PILASTER_BAY;
+                }
             }
         }
         return null;
+    }
+
+    private static boolean looksNonClassicalFacade(Component c, Map<String, Object> params) {
+        String blob = "";
+        if (params != null) {
+            for (String key : List.of("window_style", "windowStyle", "facade_profile", "facadeProfile")) {
+                Object v = params.get(key);
+                if (v != null) blob += " " + v;
+            }
+        }
+        if (c != null && c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null) blob += " " + f;
+            }
+        }
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return lower.contains("shoji") || lower.contains("障子") || lower.contains("japanese")
+                || lower.contains("和風") || lower.contains("日式") || lower.contains("格子")
+                || lower.contains("lattice") || lower.contains("mullion_grid") || lower.contains("curtain");
     }
 
     private static boolean isBilateral(SemanticComponent semantic, FacadeRhythmPreset preset) {

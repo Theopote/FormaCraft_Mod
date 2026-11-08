@@ -1,0 +1,33 @@
+{
+  "paletteId": "PALETTE_MODERN_MINIMAL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "Platform",
+        "type": "SHELL_BOX",
+        "at": { "x": 14, "y": 8, "z": 0 },
+        "w": 10, "d": 10, "h": 3,
+        "wall": "white_concrete",
+        "floor": "smooth_stone",
+        "roof": "smooth_stone_slab"
+      },
+      {
+        "id": "Stairs",
+        "type": "STAIR_SYSTEM",
+        "from": { "x": 0, "y": 0, "z": 0 },
+        "to": { "x": 14, "y": 8, "z": 0 },
+        "width": 2,
+        "clearHeight": 3,
+        "carve": true,
+        "support": true,
+        "stairs": "stone_brick_stairs",
+        "floor": "smooth_stone",
+        "supportMaterial": "stone_bricks"
+      }
+    ],
+    "connections": []
+  }
+}
+
+

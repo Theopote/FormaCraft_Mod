@@ -1,0 +1,38 @@
+{
+  "id": "gothic_shell_box",
+  "displayName": "Gothic shell box",
+  "description": "Vertical gothic SHELL_BOX with style macro; good for civic towers and shells.",
+  "matchKeywords": [
+    "哥特", "gothic", "壳", "shell", "教堂", "cathedral"
+  ],
+  "assembly": {
+    "entranceFacing": "SOUTH",
+    "macro": {
+      "style": {
+        "styleId": "Gothic_Cathedral",
+        "verticality": 0.9,
+        "transparency": 0.35,
+        "structureExposure": 0.65
+      }
+    },
+    "graph": {
+      "components": [
+        {
+          "id": "GothicShell",
+          "type": "SHELL_BOX",
+          "at": { "x": 0, "y": 0, "z": 0 },
+          "w": 16,
+          "d": 12,
+          "h": 24
+        }
+      ],
+      "connections": []
+    }
+  },
+  "parameters": {
+    "height": { "default": 24, "min": 10, "max": 64 },
+    "width": { "default": 16, "min": 8, "max": 40 },
+    "depth": { "default": 12, "min": 8, "max": 32 },
+    "styleId": { "default": "Gothic_Cathedral" }
+  }
+}

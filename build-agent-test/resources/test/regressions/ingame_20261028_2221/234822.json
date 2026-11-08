@@ -1,0 +1,796 @@
+{
+  "mode": "build",
+  "style_profile": "Japanese_Vernacular_Minka",
+  "style_attributes": {
+    "wall_color": "#E9E2D0",
+    "roof_color": "#3E3F42",
+    "accent_color": "#5B3A29",
+    "wall_material": "white_plaster_over_timber_frame",
+    "roof_material": "dark_ceramic_tile",
+    "floor_material": "polished_wood_and_tatami",
+    "decorative_elements": [
+      "deep overhanging eaves",
+      "exposed rafter tails",
+      "shoji lattice screens",
+      "engawa veranda",
+      "noren curtain at entrance",
+      "stone lantern (toro)",
+      "bamboo fence",
+      "raked gravel tsubo-niwa garden"
+    ]
+  },
+  "distinguishing_features": [
+    "single-family timber post-and-beam house with heavy hip roof and deep eaves",
+    "raised engawa veranda along the sunny south side",
+    "shoji / lattice facade rhythm instead of punched masonry windows",
+    "east-facing sliding entrance with stepping stone approach",
+    "detached walled tsubo-niwa garden reached by a stone path"
+  ],
+  "anchor": {
+    "x": 656,
+    "y": 64,
+    "z": -950
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "japanese_minka",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "cluster",
+      "axis": "axial",
+      "levels": "vertical"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.35,
+      "voidRatio": 0.28,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "horizontal",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": 1,
+      "mirror": false
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "balcony",
+      "courtyard"
+    ],
+    "materials": {
+      "primary": "wood",
+      "secondary": "stone",
+      "accent": "wood",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "japanese",
+      "era": "traditional",
+      "keywords": [
+        "minka",
+        "shoji",
+        "engawa",
+        "kawara",
+        "tsubo-niwa",
+        "tatami"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 14,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "deep overhanging eaves",
+        "exposed timber frame",
+        "low horizontal massing"
+      ],
+      "avoid": [
+        "symmetrical palace facade",
+        "concrete tower",
+        "flat parapet roof"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "slot_id": "slot_house",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "RESIDENTIAL",
+        "component_preset_id": "jp_minka_house",
+        "component_preset": "Japanese timber-framed minka house: two storeys, hip tiled roof with deep eaves, engawa veranda, shoji screens, east sliding entrance"
+      },
+      {
+        "slot_id": "slot_garden",
+        "anchor": {
+          "x": 20,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "EAST",
+        "program": "PLAZA",
+        "component_preset_id": "jp_tsubo_niwa",
+        "component_preset": "Japanese tsubo-niwa courtyard garden with raked gravel, stone lantern and low bamboo fence"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 2
+      },
+      "features": [
+        "stone plinth",
+        "kutsunugi-ishi stepping stone at entrance"
+      ],
+      "params": {
+        "component_id": "jp_foundation",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "kind": "box",
+        "hollow": false,
+        "material": "stone",
+        "detail_level": "medium",
+        "building_id": "jp_mass_main",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 8
+      },
+      "features": [
+        "timber post-and-beam frame",
+        "tatami rooms",
+        "tokonoma alcove",
+        "shoji sliding screens",
+        "central stairwell on the west end"
+      ],
+      "params": {
+        "component_id": "jp_mass_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "window_ratio": 0.3,
+        "window_aspect": "horizontal_strip",
+        "roof_type": "hip",
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "striped",
+        "void_ratio": 0.22,
+        "setback_ratio": 0.0,
+        "material": "wood",
+        "detail_level": "high",
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": 0,
+        "y": 4,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [
+        "second floor joist deck",
+        "stair opening on the west end"
+      ],
+      "params": {
+        "component_id": "jp_floor_plate",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "kind": "box",
+        "extrude_mode": "plate",
+        "hollow": false,
+        "material": "wood",
+        "window_ratio": 0.35,
+        "void_ratio": 0.28,
+        "floor_height": 3,
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": -6,
+        "y": 8,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 3
+      },
+      "features": [
+        "deep overhanging eaves",
+        "dark ceramic kawara tiles",
+        "exposed rafter tails",
+        "ridge cap"
+      ],
+      "params": {
+        "component_id": "jp_roof",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "roof_type": "hip",
+        "setback_ratio": 0.0,
+        "material": "ceramic_tile",
+        "detail_level": "high",
+        "roof_height": 3,
+        "overhang": 2,
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": 5,
+        "y": 1,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 8,
+        "height": 2
+      },
+      "features": [
+        "ground floor shoji screens",
+        "wooden lattice grille"
+      ],
+      "params": {
+        "component_id": "jp_facade_east_lower",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.42,
+        "window_aspect": "horizontal_strip",
+        "facade_profile": "mullion_grid",
+        "material": "wood",
+        "window_style": "lattice",
+        "rhythm": "regular",
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": 5,
+        "y": 5,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 8,
+        "height": 2
+      },
+      "features": [
+        "upper floor shoji screens",
+        "rain shutter rail"
+      ],
+      "params": {
+        "component_id": "jp_facade_east_upper",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.35,
+        "window_aspect": "horizontal_strip",
+        "facade_profile": "module_grid",
+        "material": "wood",
+        "rhythm": "regular",
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": -5,
+        "y": 1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "shaded north openings",
+        "timber mullions"
+      ],
+      "params": {
+        "component_id": "jp_facade_north",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "min_corner",
+        "window_ratio": 0.24,
+        "window_aspect": "horizontal_strip",
+        "facade_profile": "vertical_pilasters",
+        "material": "wood",
+        "rhythm": "regular",
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": 5,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [
+        "sliding shoji entrance door",
+        "noren curtain",
+        "raised timber threshold",
+        "stepping stone below"
+      ],
+      "params": {
+        "component_id": "jp_entrance",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "min_corner",
+        "entrance_type": "sliding_door",
+        "facing": "EAST",
+        "material": "wood",
+        "shape": "rectangle",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": -4,
+        "y": 0,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 9,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "wooden engawa veranda",
+        "exposed edge beams",
+        "no railing (traditional open edge)"
+      ],
+      "params": {
+        "component_id": "jp_engawa",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "material": "wood",
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": -5,
+        "y": 7,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 1
+      },
+      "features": [
+        "dark timber frieze band under the eaves",
+        "exposed rafter ends",
+        "ranma transom lattice",
+        "wooden rain gutters"
+      ],
+      "params": {
+        "component_id": "jp_eave_band",
+        "host_id": "jp_mass_main",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "hollow": false,
+        "material": "dark_wood",
+        "building_id": "jp_mass_main"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "slot_id": "slot_house",
+      "relative_position": {
+        "x": 6,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "irregular stepping stones",
+        "gravel edging"
+      ],
+      "params": {
+        "component_id": "jp_approach_path",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "material": "stone"
+      }
+    },
+    {
+      "component_type": "COURTYARD_SPACE",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [
+        "raked gravel",
+        "moss patches",
+        "stepping stones",
+        "tsubo-niwa composition"
+      ],
+      "params": {
+        "component_id": "jp_garden_ground",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "kind": "box",
+        "extrude_mode": "plate",
+        "material": "gravel",
+        "building_id": "jp_garden_ground"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": -3,
+        "y": 2,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "stone lantern (toro)"
+      ],
+      "params": {
+        "component_id": "jp_stone_lantern",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "kind": "box",
+        "hollow": false,
+        "material": "stone"
+      }
+    },
+    {
+      "component_type": "WALL",
+      "slot_id": "slot_garden",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 1,
+        "height": 2
+      },
+      "features": [
+        "low bamboo fence (takegaki)",
+        "bound horizontal culms"
+      ],
+      "params": {
+        "component_id": "jp_garden_fence",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "kind": "box",
+        "hollow": false,
+        "material": "bamboo",
+        "wall_pattern": "striped"
+      }
+    }
+  ],
+  "proportion_hints": {
+    "typology": "japanese_vernacular_house",
+    "height_to_width": 0.73,
+    "depth_to_width": 0.82,
+    "roof_to_body_height": 0.38,
+    "eave_overhang_ratio": 0.12,
+    "window_wall_ratio": 0.3,
+    "floor_height": 4,
+    "floor_count": 2,
+    "notes": "Low horizontal minka massing: body 11x9x8 blocks with a 13x11 hip roof giving ~1 block eaves overhang on every side.",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_main_body": [
+          "jp_mass_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "jp_mass_main",
+          "slot_id": "slot_house",
+          "local_origin": {
+            "x": -5,
+            "y": 4,
+            "z": -4
+          },
+          "plan_origin": {
+            "x": -5,
+            "y": 4,
+            "z": -4
+          },
+          "dimensions": {
+            "width": 11,
+            "depth": 9,
+            "height": 8
+          },
+          "floor_ys_local": [
+            4,
+            8
+          ],
+          "roof_y_local": 11,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "jp_mass_main",
+                "local_origin": {
+                  "x": -5,
+                  "y": 4,
+                  "z": -4
+                },
+                "dimensions": {
+                  "width": 11,
+                  "depth": 9,
+                  "height": 8
+                },
+                "roof_y_local": 11
+              }
+            ],
+            "envelope_local": {
+              "min_x": -5,
+              "min_z": -4,
+              "max_x": 6,
+              "max_z": 5,
+              "min_y": 4,
+              "max_y": 12
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -4,
+                "end": 5
+              },
+              {
+                "direction": "NORTH",
+                "plane": -4,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 5,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -5,
+                "start": -4,
+                "end": 5
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成日本住宅",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "住宅",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [],
+          "structures": []
+        }
+      ],
+      "original_text": "生成日本住宅",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [
+        "residential"
+      ],
+      "scope_status": "bound",
+      "bindings": [
+        {
+          "scope": "single_main_building",
+          "uses": [
+            "residential"
+          ],
+          "status": "bound",
+          "target_components": [
+            "jp_mass_main"
+          ]
+        }
+      ],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": [
+        {
+          "building_id": "jp_mass_main",
+          "uses": [
+            "residential"
+          ],
+          "status": "plan_review",
+          "checks": {
+            "entrance_component": "declared",
+            "interfloor_circulation": "not_declared",
+            "interior_clearance": "not_assessed",
+            "final_block_traversability": "not_assessed"
+          },
+          "entrance_components": [
+            "jp_entrance"
+          ],
+          "stair_components": [],
+          "notes": [
+            "An entrance may also be generated inline by the main mass; missing ENTRANCE is not proof of a missing door.",
+            "Declared stairs do not prove connection to every floor or final clearance."
+          ]
+        }
+      ]
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "alignment_and_symmetry": {
+    "symmetry_type": "none",
+    "primary_axis": "EAST_WEST",
+    "entrance_alignment": "entrance centered on the east facade, approached by a stone path from the east",
+    "mirror_planes": [],
+    "alignment_rules": [
+      "all house components share slot_house coordinate frame",
+      "roof centered over MASS_MAIN footprint with uniform 1-block overhang",
+      "engawa runs parallel to the south wall at ground level",
+      "garden plate is centered on slot_garden; lantern offset to the north-west corner"
+    ],
+    "notes": "Deliberately asymmetric minka composition; the garden and approach path extend east so no mirror axis is used."
+  },
+  "player_fidelity_notice_zh": "组合式生成「日本住宅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

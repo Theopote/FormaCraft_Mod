@@ -1,0 +1,38 @@
+{
+  "id": "scandinavian_timber_house",
+  "typology": "timber_gable_house",
+  "matchKeywords": [
+    "北欧木屋",
+    "北欧木构",
+    "斯堪的纳维亚木屋",
+    "scandinavian timber",
+    "nordic timber",
+    "scandinavian_timber"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 0.4,
+      "ideal": 0.55,
+      "max": 0.8,
+      "desc": "Authored default envelope ratio, not a measured historical reference."
+    },
+    "depth_to_width": {
+      "min": 0.5,
+      "ideal": 0.7,
+      "max": 1.0
+    },
+    "window_wall_ratio": {
+      "min": 0.15,
+      "ideal": 0.25,
+      "max": 0.35
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": [
+      "rectangular"
+    ],
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.35
+  },
+  "aiInstruction": "Use existing MASS_MAIN + ROOF + FACADE_WINDOWS geometry. This is an original style preset; do not force a named landmark."
+}

@@ -270,6 +270,11 @@ final class PlanSemanticValidator {
             IntentClass fromMeta = classFromToken(String.valueOf(ri.getOrDefault("building_class", "")));
             Object confObj = ri.get("confidence");
             double conf = confObj instanceof Number n ? n.doubleValue() : 1.0;
+            // Residential apartment prompts must not inherit a stale LLM tower_like class.
+            String corpus = authoritativeCorpus(plan, originalRequestIntent);
+            if (fromMeta == IntentClass.TOWER_LIKE && looksResidentialWithoutPagoda(corpus)) {
+                fromMeta = IntentClass.GENERIC;
+            }
             // Low-confidence keyword guesses must not force specialized semantic gates.
             if (fromMeta != IntentClass.GENERIC && conf >= 0.5) {
                 return fromMeta;
@@ -320,6 +325,19 @@ final class PlanSemanticValidator {
             case "garden", "courtyard" -> IntentClass.GARDEN;
             default -> IntentClass.GENERIC;
         };
+    }
+
+    /** 住宅/公寓 without pagoda markers — not a tower/pagoda semantic gate. */
+    private static boolean looksResidentialWithoutPagoda(String corpus) {
+        if (corpus == null || corpus.isBlank()) return false;
+        String lower = corpus.toLowerCase(Locale.ROOT);
+        boolean residential = lower.contains("住宅") || lower.contains("公寓") || lower.contains("高密住宅")
+                || lower.contains("别墅") || lower.contains("residence") || lower.contains("apartment")
+                || lower.contains("villa") || (lower.contains("house") && !lower.contains("warehouse"));
+        if (!residential) return false;
+        return !(lower.contains("密檐") || lower.contains("宝塔") || lower.contains("古塔")
+                || lower.contains("佛塔") || lower.contains("pagoda") || lower.contains("stupa")
+                || lower.contains("舍利塔"));
     }
 
     @SuppressWarnings("unchecked")

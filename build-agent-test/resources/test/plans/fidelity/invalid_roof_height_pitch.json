@@ -1,0 +1,42 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "REQUIRED",
+      "crown": "OMITTED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 20, "depth": 20, "height": 10 },
+      "features": [],
+      "params": {
+        "component_id": "body",
+        "roof_type": "none",
+        "entrance_type": "none"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "body",
+      "relative_position": { "x": 0, "y": 9, "z": 0 },
+      "dimensions": { "width": 20, "depth": 20, "height": 2 },
+      "features": [],
+      "params": {
+        "host_id": "body",
+        "roof_type": "gable",
+        "roof_height": -3,
+        "roof_pitch_degrees": 95,
+        "allow_patch_overwrite": true
+      }
+    }
+  ]
+}

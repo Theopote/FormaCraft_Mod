@@ -1,0 +1,43 @@
+{
+  "id": "brutalist_civic",
+  "styleId": "Brutalism",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "粗野主义",
+    "粗野派",
+    "brutalist",
+    "brutalism",
+    "brutalist_concrete"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "粗野主义": 12,
+    "粗野派": 12,
+    "brutalist": 12,
+    "brutalism": 12,
+    "brutalist_concrete": 12
+  },
+  "negativeKeywords": [
+    "不要粗野主义",
+    "not brutalist"
+  ],
+  "proportionCardId": "brutalist_civic",
+  "llmPlanExampleRefs": [
+    "brutalist_concrete_compact.json",
+    "brutalist_concrete_large.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "brutalist_concrete",
+      "constraints": [
+        "Use style_profile=Brutalism; original style request, not a named landmark.",
+        "Use flat roof, module_grid facade, window_ratio=0.16; preserve explicit user geometry and materials.",
+        "Use existing compositional components; do not require new generators."
+      ]
+    }
+  ],
+  "structuralTypologyId": "concrete_civic_block"
+}

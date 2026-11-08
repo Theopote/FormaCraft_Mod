@@ -1,0 +1,107 @@
+{
+  "dialect": "fbd/0",
+  "seed": 7,
+  "functions": [
+    {
+      "name": "pavilion",
+      "params": [
+        {
+          "name": "h",
+          "type": "int"
+        }
+      ],
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "p1",
+          "op": "SHELL_BOX",
+          "params": {
+            "w": 6,
+            "d": 6,
+            "h": "$h",
+            "floorStep": 6,
+            "wall": "wall"
+          }
+        },
+        {
+          "stmt": "emit",
+          "id": "p2",
+          "op": "ROOF_COVER",
+          "params": {
+            "type": "HIP",
+            "w": 6,
+            "d": 6,
+            "y": "$h",
+            "rise": 3,
+            "roof": "roof"
+          }
+        }
+      ]
+    }
+  ],
+  "main": [
+    {
+      "stmt": "let",
+      "id": "t1",
+      "name": "groundDY",
+      "value": {
+        "query": "terrain_height",
+        "x": 0,
+        "z": 0
+      }
+    },
+    {
+      "stmt": "if",
+      "id": "t2",
+      "cond": {
+        "expr": ">",
+        "args": [
+          "$groundDY",
+          10
+        ]
+      },
+      "then": [
+        {
+          "stmt": "with_frame",
+          "id": "t3",
+          "origin": [
+            0,
+            "$groundDY",
+            0
+          ],
+          "body": [
+            {
+              "stmt": "call",
+              "id": "t4",
+              "fn": "pavilion",
+              "args": {
+                "h": 6
+              }
+            }
+          ]
+        }
+      ],
+      "else": [
+        {
+          "stmt": "with_frame",
+          "id": "t5",
+          "origin": [
+            0,
+            "$groundDY",
+            0
+          ],
+          "body": [
+            {
+              "stmt": "call",
+              "id": "t6",
+              "fn": "pavilion",
+              "args": {
+                "h": 8
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

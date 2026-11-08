@@ -1,0 +1,26 @@
+{
+  "description": "ShapeLibrary M2 — CSG 方盒减圆柱 few-shot",
+  "promptHints": ["挖空", "CSG", "subtract", "方盒", "圆柱孔"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "DEFAULT",
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+    "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+    "components": [
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 12, "depth": 12, "height": 12 },
+        "params": {
+          "kind": "box",
+          "material": "stone",
+          "subtract": {
+            "kind": "cylinder",
+            "radius": 3
+          }
+        }
+      }
+    ]
+  }
+}

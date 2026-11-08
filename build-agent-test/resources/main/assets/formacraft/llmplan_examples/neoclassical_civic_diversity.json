@@ -1,0 +1,150 @@
+{
+  "description": "Authored diversity alternative, not a live model sample",
+  "promptHints": [
+    "生成一座新古典风格大楼",
+    "build a neoclassical civic hall"
+  ],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Neoclassical_Civic",
+    "anchor": {
+      "x": 0,
+      "y": 64,
+      "z": 0
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "COMPOUND",
+      "path_based": false,
+      "slots": []
+    },
+    "proportion_hints": {
+      "typology": "masonry_palazzo",
+      "proportion_card_id": "neoclassical_civic_hall",
+      "window_wall_ratio": 0.25,
+      "height_to_width": 0.4,
+      "depth_to_width": 0.76,
+      "window_aspect": "rectangular"
+    },
+    "style_attributes": {
+      "wall_material": "minecraft:smooth_quartz",
+      "roof_material": "minecraft:stone_bricks",
+      "floor_material": "minecraft:polished_diorite",
+      "decorative_elements": [
+        "restrained_frame"
+      ]
+    },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 25,
+          "depth": 19,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "wall_block": "minecraft:smooth_quartz",
+          "roof_block": "minecraft:stone_bricks",
+          "floor_block": "minecraft:polished_diorite",
+          "window_block": "minecraft:glass_pane",
+          "foundation_block": "minecraft:smooth_quartz",
+          "trim_block": "minecraft:quartz_pillar",
+          "pillar_block": "minecraft:quartz_pillar",
+          "roof_type": "none",
+          "window_style": "pane",
+          "window_ratio": 0.25,
+          "facade_profile": "vertical_pilasters",
+          "floor_height": 5,
+          "component_id": "neoclassical_civic",
+          "anchor_mode": "min_corner",
+          "shape": "rectangle",
+          "plan_type": "none",
+          "floor_count": 2,
+          "void_ratio": 0.05,
+          "designSeed": 211
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": {
+          "x": 0,
+          "y": 9,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 25,
+          "depth": 19,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "roof_type": "hip",
+          "overhang": 1,
+          "roof_block": "minecraft:stone_bricks",
+          "component_id": "neoclassical_civic_roof",
+          "host_id": "neoclassical_civic",
+          "anchor_mode": "min_corner"
+        }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": {
+          "x": 11,
+          "y": 0,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 3,
+          "depth": 1,
+          "height": 4
+        },
+        "features": [],
+        "params": {
+          "component_id": "entry",
+          "host_id": "neoclassical_civic",
+          "facing": "NORTH",
+          "door_width": 2,
+          "door_height": 3
+        }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": {
+          "x": 1,
+          "y": 2,
+          "z": 0
+        },
+        "dimensions": {
+          "width": 23,
+          "depth": 1,
+          "height": 10
+        },
+        "features": [],
+        "params": {
+          "window_style": "pane",
+          "window_ratio": 0.25,
+          "window_block": "minecraft:glass_pane",
+          "component_id": "windows",
+          "host_id": "neoclassical_civic",
+          "facing": "NORTH",
+          "wall": "front",
+          "floor_count": 2,
+          "floor_height": 5,
+          "window_width": 2,
+          "window_height": 2,
+          "window_per_wall": 4
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "scandinavian_timber",
+  "name": "北欧木屋",
+  "style": "RUSTIC",
+  "palette": {
+    "wall": "minecraft:stripped_spruce_wood",
+    "roof": "minecraft:spruce_planks",
+    "floor": "minecraft:birch_planks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:cobbled_deepslate",
+    "trim": "minecraft:stripped_oak_log",
+    "pillar": "minecraft:stripped_spruce_log",
+    "cap": "minecraft:spruce_slab",
+    "door": "minecraft:spruce_door",
+    "roof_trim": "minecraft:stripped_oak_log",
+    "stairs": "minecraft:spruce_stairs",
+    "roof_slab": "minecraft:spruce_slab"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.25,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "single",
+    "floorHeight": 7,
+    "preferSymmetry": true
+  }
+}

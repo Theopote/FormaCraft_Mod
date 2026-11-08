@@ -949,12 +949,12 @@ class DesignFidelityTest {
                 () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         assertNotEquals("E_BRIDGE_PATH_BLOCKED", AssemblyCompileDiagnostics.get().code());
         String message = AssemblyCompileDiagnostics.get().message();
-        assertTrue(message.contains("component_id=target"), () -> message);
-        assertTrue(message.contains("storeyY="), () -> message);
-        assertTrue(message.contains("area="), () -> message);
+        assertTrue(message.contains("component_id=target"), message);
+        assertTrue(message.contains("storeyY="), message);
+        assertTrue(message.contains("area="), message);
         assertTrue(message.contains("max="
                         + com.formacraft.common.generation.component.util.StoreyWalkRegions.MAX_CELLS),
-                () -> message);
+                message);
     }
 
     @Test

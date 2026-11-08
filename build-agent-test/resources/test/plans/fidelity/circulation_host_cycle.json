@@ -1,0 +1,58 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "plan_meta": {
+    "allow_compiler_satellites": false,
+    "circulation_scope": "BUILDING_LOCAL",
+    "design_requirements": {
+      "facade": "OMITTED",
+      "entrance": "OMITTED",
+      "roof": "OMITTED",
+      "crown": "OMITTED",
+      "circulation": "REQUIRED"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "alpha",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "alpha",
+        "host_id": "beta",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "beta",
+      "relative_position": { "x": 16, "y": 0, "z": 0 },
+      "dimensions": { "width": 10, "depth": 8, "height": 8 },
+      "features": [],
+      "params": {
+        "component_id": "beta",
+        "host_id": "alpha",
+        "anchor_mode": "min_corner",
+        "wall_thickness": 1,
+        "floor_count": 1,
+        "floor_height": 4,
+        "roof_type": "none",
+        "window_style": "none",
+        "entrance_type": "none",
+        "suppress_windows": true,
+        "suppress_doors": true
+      }
+    }
+  ]
+}

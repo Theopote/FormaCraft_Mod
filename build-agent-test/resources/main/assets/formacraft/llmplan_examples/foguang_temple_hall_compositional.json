@@ -1,0 +1,85 @@
+{
+  "description": "佛光寺东大殿 — 七开间×四间深唐代木构庑殿（组合式 LlmPlan few-shot）",
+  "promptHints": ["佛光寺", "佛光寺大殿", "东大殿", "foguang temple", "tang timber hall"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Tang_Dynasty_Timber",
+    "style_attributes": {
+      "wall_color": "red",
+      "roof_color": "grey",
+      "wall_material": "wood",
+      "roof_material": "grey_tile",
+      "floor_material": "stone",
+      "decorative_elements": ["bracket_sets", "dougong", "eaves", "column_grid"]
+    },
+    "proportion_hints": {
+      "typology": "foguang_temple_hall",
+      "bay_count_x": 7,
+      "bay_count_z": 4,
+      "depth_to_width": 0.57,
+      "height_to_width": 0.52,
+      "roof_to_body_height": 0.45,
+      "window_wall_ratio": 0.15,
+      "min_enclosure_coverage": 0.82
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "genome": {
+      "genomeVersion": "1.0",
+      "archetype": { "id": "foguang_temple_hall", "confidence": 0.9 },
+      "topology": { "layout": "rectangular", "composition": "single", "axis": "longitudinal", "levels": "single" },
+      "form": { "repetition": "bay_grid", "progression": "horizontal", "curvature": "angular", "rhythm": "regular" },
+      "symmetry": { "type": "mirror", "order": 2, "mirror": true },
+      "materials": { "primary": "wood", "secondary": "stone", "accent": "red_lacquer", "textureBias": "natural" },
+      "culturalStyle": { "region": "chinese", "era": "tang", "keywords": ["temple", "timber", "wudian", "dougong"] }
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "GRID_BAY",
+      "path_based": false,
+      "slots": []
+    },
+    "alignment_and_symmetry": {
+      "rhythm_x": { "bays": 7, "equal_spacing": true },
+      "rhythm_z": { "bays": 4, "equal_spacing": true }
+    },
+    "components": [
+      {
+        "component_type": "FOUNDATION",
+        "relative_position": { "x": -10, "y": 0, "z": -7 },
+        "dimensions": { "width": 21, "depth": 15, "height": 2 },
+        "params": { "material": "stone_platform" },
+        "features": ["terrace", "plinth"]
+      },
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": { "x": -10, "y": 2, "z": -7 },
+        "dimensions": { "width": 21, "depth": 15, "height": 7 },
+        "params": {
+          "shape": "rectangle",
+          "facade_profile": "vertical_pilasters",
+          "void_ratio": 0.12,
+          "roof_type": "xuanshan"
+        },
+        "features": ["main_hall", "timber_frame", "column_grid"]
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": { "x": -11, "y": 9, "z": -8 },
+        "dimensions": { "width": 23, "depth": 17, "height": 4 },
+        "params": { "roof_type": "wudian", "overhang": 2 },
+        "features": ["large_eaves", "hip_and_gable"]
+      },
+      {
+        "component_type": "DECOR_DETAIL",
+        "relative_position": { "x": -10, "y": 2, "z": -7 },
+        "dimensions": { "width": 21, "depth": 15, "height": 2 },
+        "params": { "detail_type": "bracket_band", "density": "high" },
+        "features": ["dougong", "bracket_sets"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "gothic_cathedral",
+  "styleId": "Gothic_Cathedral",
+  "intents": ["SACRED", "LANDMARK", "哥特大教堂", "教堂"],
+  "keywords": [
+    "哥特大教堂",
+    "gothic cathedral",
+    "哥特式大教堂",
+    "哥特教堂",
+    "尖塔教堂",
+    "双塔教堂"
+  ],
+  "synonyms": {
+    "哥特大教堂": ["gothic cathedral", "gothic style cathedral"],
+    "哥特教堂": ["gothic church", "gothic sacred building"]
+  },
+  "keywordWeights": {
+    "哥特大教堂": 10.0,
+    "gothic cathedral": 9.0,
+    "哥特式大教堂": 8.5,
+    "哥特教堂": 7.5
+  },
+  "negativeKeywords": [
+    "巴黎圣母院", "notre dame", "科隆", "cologne", "chartres", "sagrada",
+    "圣家族", "现代", "摩天楼", "原创", "不要地标"
+  ],
+  "proportionCardId": "gothic_cathedral_hall",
+  "structuralTypologyId": "gothic_cathedral_hall",
+  "llmPlanExampleRefs": [
+    "gothic_cathedral_hall_typology.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "gothic_cathedral_hall_preset",
+      "constraints": [
+        "MANDATORY: structural_typology=gothic_cathedral_hall + STRUCTURE/typology params（中殿+侧廊+飞扶壁+双塔）",
+        "reference_landmark=gothic_cathedral 作比例锚点；禁止 MODULE/landmark:gothic_cathedral 硬路由",
+        "params: width≈25, depth≈45, wallHeight≈16, towerHeight≈20, spireHeight≈10, facing=SOUTH",
+        "layout.skeleton_type=GRID_BAY；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：typology=gothic_cathedral_hall, nave_length_to_width≈1.8",
+        "OPENINGS 含 ARCH_WINDOW(POINTED) + ROSE_WINDOW；禁止单一 MASS 方盒"
+      ]
+    }
+  ]
+}

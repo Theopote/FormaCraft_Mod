@@ -14,8 +14,10 @@ import java.util.List;
  * (e.g. x=-8). Components are already footprint-centered on plan origin (0,0), so emitting with
  * that slot offset slides the whole building away from the player cursor.
  * <p>
- * When there is only one layout slot, force its XZ anchor to the plan origin (preserve Y).
- * Multi-slot compounds keep relative slot spacing by shifting so the primary (first) slot lands at 0,0.
+ * When there is only one layout slot (or every slot shares that same XZ), force XZ to the plan
+ * origin (preserve Y). Multi-slot compounds with distinct spacing (pavilion rows, courtyard wings)
+ * keep their authored relative anchors — shifting the primary to 0 would move east/west bodies off
+ * the coordinates the plan and regressions assert against.
  */
 final class SlotPrimaryAnchorRepair {
     private SlotPrimaryAnchorRepair() {}
@@ -28,6 +30,19 @@ final class SlotPrimaryAnchorRepair {
         Slot primary = slots.getFirst();
         Vec3i a = primary.anchor();
         if (a.x() == 0 && a.z() == 0) return plan;
+
+        // Distinct XZ among slots ⇒ authored compound layout; do not collapse onto primary.
+        boolean distinctSpacing = false;
+        for (Slot slot : slots) {
+            Vec3i sa = slot.anchor();
+            if (sa.x() != a.x() || sa.z() != a.z()) {
+                distinctSpacing = true;
+                break;
+            }
+        }
+        if (distinctSpacing) {
+            return plan;
+        }
 
         int dx = a.x();
         int dz = a.z();

@@ -1,0 +1,60 @@
+{
+  "description": "精品小石头房子 — MASS+ROOF+门窗组合（P0 高频 few-shot）",
+  "promptHints": ["小房子", "7x7", "石头房子", "带门和窗", "cottage"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Cottage_Rural",
+    "style_attributes": {
+      "wall_color": "gray",
+      "roof_color": "brown",
+      "wall_material": "stone",
+      "roof_material": "wood",
+      "decorative_elements": ["chimney", "flower_box"]
+    },
+    "proportion_hints": {
+      "typology": "cottage",
+      "height_to_width": 0.65,
+      "window_wall_ratio": 0.2,
+      "window_aspect": "square",
+      "min_enclosure_coverage": 0.85
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "MIRROR_X", "terrain_strategy": "ADAPTIVE" },
+    "layout": { "skeleton_type": "VERTICAL_STACK", "path_based": false, "slots": [] },
+    "components": [
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 7, "depth": 7, "height": 5 },
+        "params": {
+          "shape": "rectangle",
+          "facade_profile": "base_plinth",
+          "wall_pattern": "gradient",
+          "void_ratio": 0.0
+        }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": { "x": 0, "y": 5, "z": 0 },
+        "dimensions": { "width": 8, "depth": 8, "height": 3 },
+        "params": { "roof_type": "gable", "overhang": 1 }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": { "x": 3, "y": 0, "z": 0 },
+        "dimensions": { "width": 2, "depth": 1, "height": 3 },
+        "params": { "style": "wood_door" }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": { "x": 0, "y": 1, "z": 0 },
+        "dimensions": { "width": 7, "depth": 7, "height": 4 },
+        "params": {
+          "window_ratio": 0.2,
+          "window_style": "square",
+          "window_aspect": "square"
+        }
+      }
+    ]
+  }
+}

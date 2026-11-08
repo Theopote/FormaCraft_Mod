@@ -1,0 +1,17 @@
+{
+  "dialect": "fbd/0",
+  "seed": 1,
+  "main": [
+    {
+      "stmt": "emit",
+      "id": "h1",
+      "op": "SHELL_BOX",
+      "params": {
+        "w": 6,
+        "d": 6,
+        "h": 6,
+        "type": "HIP"
+      }
+    }
+  ]
+}

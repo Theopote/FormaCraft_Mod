@@ -1,0 +1,42 @@
+{
+  "dialect": "fbd/0",
+  "seed": 1,
+  "functions": [
+    {
+      "name": "wing",
+      "params": [
+        {
+          "name": "w",
+          "type": "int"
+        },
+        {
+          "name": "h",
+          "type": "int"
+        }
+      ],
+      "body": [
+        {
+          "stmt": "emit",
+          "id": "e1",
+          "op": "SHELL_BOX",
+          "params": {
+            "w": "$w",
+            "d": 6,
+            "h": "$h",
+            "wall": "wall"
+          }
+        }
+      ]
+    }
+  ],
+  "main": [
+    {
+      "stmt": "call",
+      "id": "e2",
+      "fn": "wing",
+      "args": {
+        "w": 6
+      }
+    }
+  ]
+}

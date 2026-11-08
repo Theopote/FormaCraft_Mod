@@ -1,0 +1,40 @@
+{
+  "id": "cyberpunk_block",
+  "styleId": "Cyberpunk",
+  "intents": [
+    "STYLE_PRESET"
+  ],
+  "keywords": [
+    "赛博朋克",
+    "cyberpunk block",
+    "cyberpunk_block"
+  ],
+  "synonyms": {},
+  "keywordWeights": {
+    "赛博朋克": 12,
+    "cyberpunk block": 12,
+    "cyberpunk_block": 12
+  },
+  "negativeKeywords": [
+    "不要赛博朋克",
+    "not cyberpunk block"
+  ],
+  "proportionCardId": "cyberpunk_block",
+  "structuralTypologyId": "flat_roof_pavilion",
+  "llmPlanExampleRefs": [
+    "p2_cyberpunk_block_13.json",
+    "p2_cyberpunk_block_21.json",
+    "p2_cyberpunk_block_17.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "cyberpunk_block",
+      "constraints": [
+        "Use style_profile=Cyberpunk; original fictional/vernacular composition, not a named landmark.",
+        "Use roof_type=flat, wall_pattern=neon_bands; explicit user requirements take priority.",
+        "See authored plan examples for supports, raised islands, trunks, chimneys or spikes; these are compositional components."
+      ]
+    }
+  ]
+}

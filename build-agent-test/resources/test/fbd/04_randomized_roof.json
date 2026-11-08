@@ -1,0 +1,64 @@
+{
+  "dialect": "fbd/0",
+  "seed": 99,
+  "main": [
+    {
+      "stmt": "emit",
+      "id": "r1",
+      "op": "SHELL_BOX",
+      "params": {
+        "w": 14,
+        "d": 10,
+        "h": 8,
+        "wall": "wall",
+        "window": "window"
+      }
+    },
+    {
+      "stmt": "emit",
+      "id": "r2",
+      "op": "ROOF_COVER",
+      "params": {
+        "type": "HIP",
+        "w": 14,
+        "d": 10,
+        "y": 8,
+        "rise": {
+          "expr": "+",
+          "args": [
+            4,
+            {
+              "expr": "floor",
+              "args": [
+                {
+                  "expr": "*",
+                  "args": [
+                    {
+                      "rand": "rise"
+                    },
+                    3
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "overhang": {
+          "expr": "floor",
+          "args": [
+            {
+              "expr": "*",
+              "args": [
+                {
+                  "rand": "eave"
+                },
+                3
+              ]
+            }
+          ]
+        },
+        "roof": "roof"
+      }
+    }
+  ]
+}
