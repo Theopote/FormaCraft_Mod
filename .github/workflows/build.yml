@@ -16,6 +16,22 @@ jobs:
           distribution: 'microsoft'
       - name: setup gradle
         uses: gradle/actions/setup-gradle@v4
+      # services.gradle.org currently redirects to GitHub Releases and can 504;
+      # prefetch with retries so the full build does not abort on a transient CDN blip.
+      - name: ensure gradle distribution
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if ./gradlew --version; then
+              exit 0
+            fi
+            echo "Gradle wrapper download attempt ${attempt} failed; retrying in 20s..."
+            sleep 20
+          done
+          echo "Failed to download Gradle distribution after retries"
+          exit 1
+        env:
+          GRADLE_OPTS: -Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000
       - name: build
         run: ./gradlew build
         env:
