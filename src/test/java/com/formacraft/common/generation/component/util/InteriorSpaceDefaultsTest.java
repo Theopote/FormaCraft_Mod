@@ -21,8 +21,11 @@ class InteriorSpaceDefaultsTest {
 
     @Test
     void storeyHeightNeverBelowMinClear() {
-        assertEquals(3, InteriorSpaceDefaults.defaultStoreyHeight(5));
-        assertEquals(4, InteriorSpaceDefaults.defaultStoreyHeight(12));
+        // defaultStoreyHeight returns storey bands (clear + 1).
+        assertEquals(4, InteriorSpaceDefaults.defaultStoreyHeight(5));
+        assertEquals(5, InteriorSpaceDefaults.defaultStoreyHeight(12));
+        assertEquals(4, InteriorSpaceDefaults.minStoreyBand());
+        assertEquals(5, InteriorSpaceDefaults.storeyBandForClear(4));
     }
 
     @Test
@@ -40,6 +43,6 @@ class InteriorSpaceDefaultsTest {
                 new Dimensions(9, 9, 8), List.of(),
                 Map.of("floor_count", 3));
         ResolvedFloorLayout layout = ResolvedFloorLayout.from(mass, 8);
-        assertTrue(layout.floorHeight() >= InteriorSpaceDefaults.MIN_CLEAR_HEIGHT);
+        assertTrue(layout.floorHeight() >= InteriorSpaceDefaults.minStoreyBand());
     }
 }

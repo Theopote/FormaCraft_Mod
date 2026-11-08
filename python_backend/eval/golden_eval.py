@@ -484,11 +484,11 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             detail="ASSEMBLY slot 不应叠加 MASS_SECONDARY + FACADE_WINDOWS + ROOF",
         ))
 
-    is_bridge = _prompt_contains(
+    is_suspension_bridge = _prompt_contains(
         prompt,
-        ("桥", "bridge", "悬索", "suspension", "cable-stayed", "斜拉"),
+        ("悬索", "吊桥", "斜拉", "suspension", "cable-stayed", "金门"),
     )
-    if is_bridge and is_assembly_intent:
+    if is_suspension_bridge and is_assembly_intent:
         has_bridge_preset = any(
             str(c.get("component_type") or "").upper() == "ASSEMBLY"
             and isinstance((c.get("params") or {}).get("assembly"), dict)
@@ -500,7 +500,7 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             "bridge_assembly_preset",
             has_bridge_preset,
             hard=False,
-            detail="桥梁/悬索意图：优先 preset=suspension_bridge_simple",
+            detail="悬索/斜拉意图：优先 preset=suspension_bridge_simple",
         ))
 
     # ---- 四合院 / 围合院落 ----

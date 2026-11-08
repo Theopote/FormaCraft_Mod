@@ -1129,12 +1129,12 @@ class DesignFidelityTest {
     }
 
     @Test
-    void duplicateComponentIdFailsCompile() throws Exception {
+    void duplicateComponentIdIsUniquified() throws Exception {
         LlmPlan plan = loadFidelityPlan("duplicate_component_id.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertTrue(patches.isEmpty());
-        assertTrue(AssemblyCompileDiagnostics.hasGap());
-        assertEquals("E_DUPLICATE_COMPONENT_ID", AssemblyCompileDiagnostics.get().code());
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty(), "duplicate mass ids should uniquify instead of hard-fail");
     }
 
     @Test

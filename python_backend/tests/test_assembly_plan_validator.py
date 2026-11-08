@@ -22,6 +22,9 @@ class AssemblyPlanValidatorTest(unittest.TestCase):
 
     def test_resolve_bridge_preset(self):
         self.assertEqual("suspension_bridge_simple", resolve_preset_for_intent("悬索桥 span 40"))
+        self.assertIsNone(resolve_preset_for_intent("石拱桥跨河"))
+        self.assertIsNone(resolve_preset_for_intent("木桥连廊"))
+        self.assertIsNone(resolve_preset_for_intent("生成一座桥"))
 
     def test_auto_injects_preset_for_empty_assembly(self):
         plan = {

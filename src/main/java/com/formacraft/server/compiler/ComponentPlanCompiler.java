@@ -129,6 +129,7 @@ public final class ComponentPlanCompiler {
         // Hexagon pavilion tokens → native shape=hexagon (never silent octagon substitute).
         plan = FootprintShapeRemapRepair.apply(plan);
         plan = CourtyardRatioRepair.apply(plan);
+        plan = DuplicateComponentIdRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
         // Clamp garden blobs / force enclosure walls before footprint separation.
@@ -149,6 +150,8 @@ public final class ComponentPlanCompiler {
         plan = NarrowTowerStairRepair.apply(plan);
         plan = ChurchEntranceRepair.apply(plan);
         plan = LandmarkMisrouteRepair.apply(plan);
+        // Non-suspension bridge prompts must not stay locked to twin-tower suspension typology.
+        plan = BridgeMisrouteRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);
         plan = FloatingTowerSnapRepair.apply(plan);
         plan = FloatingMassSnapRepair.apply(plan);

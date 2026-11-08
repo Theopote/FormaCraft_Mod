@@ -25,9 +25,9 @@ class ResolvedFloorLayoutTest {
     @Test
     void derivesFromFloorCountHonorsMinClearHeight() {
         Component c = mass(Map.of("floor_count", 4));
-        // 8/4 → 2, but InteriorSpaceDefaults.MIN_CLEAR_HEIGHT clamps to 3.
+        // 8/4 → 2, but min storey band (clear 3 → band 4) clamps upward.
         var layout = ResolvedFloorLayout.from(c, 8);
-        assertEquals(InteriorSpaceDefaults.MIN_CLEAR_HEIGHT, layout.bandHeight());
+        assertEquals(InteriorSpaceDefaults.minStoreyBand(), layout.bandHeight());
     }
 
     @Test

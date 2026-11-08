@@ -26,10 +26,11 @@ public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer>
 
         int floorHeight;
         if (explicitFh > 0) {
-            // Honour authored values even when below the default min clear height.
+            // Honour authored values even when below the default min storey band.
             floorHeight = explicitFh;
         } else if (floorCount > 0) {
-            floorHeight = Math.max(InteriorSpaceDefaults.MIN_CLEAR_HEIGHT, height / floorCount);
+            // floor_height is a storey band (slab spacing); keep ≥ band for MIN_CLEAR air.
+            floorHeight = Math.max(InteriorSpaceDefaults.minStoreyBand(), height / floorCount);
         } else {
             floorHeight = InteriorSpaceDefaults.defaultStoreyHeight(height);
         }

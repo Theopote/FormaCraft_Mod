@@ -18,7 +18,10 @@ KNOWN_PRESETS = known_preset_ids()
 
 ASSEMBLY_INTENT_MARKERS = (
     "assembly", "螺旋", "spiral", "helix", "twist", "瞭望", "watchtower",
-    "自由几何", "freeform", "不要地标", "bridge", "悬索", "suspension", "桥",
+    "自由几何", "freeform", "不要地标",
+    # Suspension-only bridge cues — bare 桥/bridge must NOT force assembly presets
+    # (stone/wood/arch bridges are compositional LLM plans, not suspension_bridge_simple).
+    "悬索", "suspension", "吊桥", "斜拉", "cable-stayed",
 )
 
 BUILTIN_PORTS = frozenset({
@@ -48,7 +51,20 @@ def resolve_preset_for_intent(text: Optional[str]) -> Optional[str]:
     if not text:
         return None
     lower = str(text).lower()
-    if any(k in lower for k in ("桥", "bridge", "悬索", "suspension", "cable-stayed", "斜拉")):
+    # Only explicit suspension / cable-stayed cues map to the hardcoded twin-tower preset.
+    # Generic 桥 / stone arch / wooden bridges stay open for LLM compositional design.
+    _non_suspension = (
+        "石拱", "拱桥", "石桥", "木桥", "廊桥", "梁桥", "拱券", "板桥",
+        "arch bridge", "stone arch", "stone bridge", "wooden bridge",
+        "beam bridge", "covered bridge", "footbridge",
+    )
+    _suspension = (
+        "悬索", "吊桥", "斜拉", "主缆", "桥塔", "金门",
+        "suspension", "cable-stayed", "cable stayed", "golden gate",
+    )
+    if any(k in lower for k in _non_suspension):
+        return None
+    if any(k in lower for k in _suspension):
         return "suspension_bridge_simple"
     if "楼梯" in lower or "stair" in lower:
         return None  # spiral_watchtower twists a shell; it does not generate interior stairs.

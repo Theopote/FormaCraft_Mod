@@ -489,11 +489,13 @@ class InGameAcceptanceRepairTest {
         Component out = repaired.components().getFirst();
         assertEquals("rectangle", String.valueOf(out.params().get("shape")));
         assertEquals(3, ((Number) out.params().get("floor_count")).intValue());
-        assertEquals(4, ((Number) out.params().get("ground_clear_height")).intValue());
-        int needH = 4 + 2 * 3 + 1;
+        // Office ground prefer clear 4 → storey band 5; upper clear 3 → band 4.
+        assertEquals(5, ((Number) out.params().get("ground_clear_height")).intValue());
+        assertEquals(4, ((Number) out.params().get("floor_height")).intValue());
+        int needH = 5 + 2 * 4 + 1;
         assertEquals(needH, out.dimensions().height());
         var layout = com.formacraft.common.generation.component.util.ResolvedFloorLayout
                 .from(out, out.dimensions().height());
-        assertEquals(List.of(0, 4, 7), layout.floorYs());
+        assertEquals(List.of(0, 5, 9), layout.floorYs());
     }
 }

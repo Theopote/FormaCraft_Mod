@@ -470,8 +470,9 @@ final class PlanIntentFidelityRepair {
                 changed = true;
                 if (ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight") <= 0) {
                     int bodyH = component.dimensions() != null ? component.dimensions().height() : 0;
-                    int fh = hints.floorCount() <= 1 ? Math.max(3, bodyH)
-                            : Math.max(3, bodyH > 0 ? bodyH / hints.floorCount() : 4);
+                    int minBand = InteriorSpaceDefaults.minStoreyBand();
+                    int fh = hints.floorCount() <= 1 ? Math.max(minBand, bodyH)
+                            : Math.max(minBand, bodyH > 0 ? bodyH / hints.floorCount() : minBand);
                     params.put("floor_height", fh);
                 }
             }
@@ -606,19 +607,28 @@ final class PlanIntentFidelityRepair {
                     dims = new Dimensions(nw, nd, nh);
                     changed = true;
                 }
-            } else if (floors >= 3 && !officeLike) {
-                // Multi-storey non-office: may normalize height stack, never enlarge W/D.
+            } else if (floors >= 2 && !officeLike) {
+                // Multi-storey non-office: keep ≥3 air clear (storey band ≥4). Honour authored
+                // floor_height when already ≥ min band — do not invent a taller lobby that would
+                // shift connection_level / plate Y for bridges and mid-floor attachments.
                 int nh = dims.height();
-                int ground = Math.max(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT,
-                        ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
-                int upper = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+                int minBand = InteriorSpaceDefaults.minStoreyBand();
+                int authoredFh = ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight");
+                int authoredGround = ComponentParamParsers.intParam(
+                        params, 0, "ground_clear_height", "groundClearHeight");
+                int upperBand = authoredFh > 0 ? Math.max(minBand, authoredFh) : minBand;
+                int groundBand = authoredGround > 0 ? Math.max(minBand, authoredGround) : upperBand;
                 int f = Math.max(2, floors);
-                int needH = ground + Math.max(0, f - 1) * upper + 1;
-                if (nh < needH) {
-                    nh = needH;
+                // +1 roof / top slab deck above the uppermost storey band.
+                int needH = groundBand + Math.max(0, f - 1) * upperBand + 1;
+                boolean tooLowBand = authoredFh > 0 && authoredFh < minBand;
+                if (nh < needH || tooLowBand || authoredFh <= 0) {
+                    nh = Math.max(nh, needH);
                     params.put("floor_count", f);
-                    params.put("floor_height", upper);
-                    params.put("ground_clear_height", ground);
+                    params.put("floor_height", upperBand);
+                    if (authoredGround > 0 || groundBand != upperBand) {
+                        params.put("ground_clear_height", groundBand);
+                    }
                     dims = new Dimensions(dims.width(), dims.depth(), nh);
                     changed = true;
                 }
@@ -1323,20 +1333,26 @@ final class PlanIntentFidelityRepair {
                 }
             }
         }
-        int ground = Math.max(InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT,
-                ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
+        // Office: prefer 4 air clear on ground (≥3), upper ≥3 air → storey bands clear+1.
+        int groundClear = InteriorSpaceDefaults.OFFICE_GROUND_CLEAR_HEIGHT;
         if (corpus.contains("底层") && (corpus.contains("净高") || corpus.contains("明显高于"))) {
-            ground = Math.max(ground, InteriorSpaceDefaults.DEFAULT_GROUND_CLEAR_HEIGHT + 1);
+            groundClear = Math.max(groundClear, InteriorSpaceDefaults.OFFICE_GROUND_CLEAR_HEIGHT + 1);
         }
-        int upper = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+        int upperClear = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
+        int groundBand = Math.max(
+                InteriorSpaceDefaults.storeyBandForClear(groundClear),
+                ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
+        // Never leave an authored office ground band below min clear air.
+        groundBand = Math.max(groundBand, InteriorSpaceDefaults.minStoreyBand());
+        int upperBand = InteriorSpaceDefaults.storeyBandForClear(upperClear);
         int f = Math.max(2, floors > 0 ? floors : 3);
-        int needH = ground + Math.max(0, f - 1) * upper + 1; // +1 roof deck
+        int needH = groundBand + Math.max(0, f - 1) * upperBand + 1; // +1 roof deck
         if (nh < needH || (nh > needH + 2 && floors > 0)) {
             nh = needH;
         }
         params.put("floor_count", f);
-        params.put("floor_height", upper);
-        params.put("ground_clear_height", ground);
+        params.put("floor_height", upperBand);
+        params.put("ground_clear_height", groundBand);
         return nh;
     }
 
