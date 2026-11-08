@@ -469,6 +469,8 @@ final class ComponentSatelliteInference {
         }
 
         ComponentSatelliteAligner.realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
+        // Satellite align / open-frame lifts can leave flat roofs one block off the host top plane.
+        FlatRoofAttachmentRepair.applyInPlace(prepared);
         // Elevated hosts only (see ExteriorDoorAttachmentCompiler): ground-level openings stay authored.
         ExteriorDoorAttachmentCompiler.apply(prepared);
         DoorFloorDatumCompiler.apply(prepared);
@@ -493,6 +495,7 @@ final class ComponentSatelliteInference {
         DeclaredInteriorOpeningCompiler.apply(prepared, slotMap);
         prepared = ExplicitDesignConflictRepair.apply(prepared);
         prepared = FootprintCenterRepair.apply(prepared);
+        FlatRoofAttachmentRepair.applyInPlace(prepared);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
     }

@@ -6,6 +6,7 @@ import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.generation.component.util.ResolvedFloorLayout;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +41,16 @@ final class UpperStoreyEntranceRepair {
                 continue;
             }
             if (ComponentSatelliteAligner.isUpperPlatformDoor(door)) {
-                keep.add(door);
+                Component deckHint = touchingDeck(door, findHost(door, parts), decks);
+                Dimensions dims = deckHint != null ? widenPlatformDoor(door, deckHint) : widenPlatformDoorSpan(door);
+                if (dims != door.dimensions()) {
+                    keep.add(new Component(
+                            door.componentType(), door.slotId(), door.relativePosition(),
+                            dims, door.features(), door.params()));
+                    changed = true;
+                } else {
+                    keep.add(door);
+                }
                 continue;
             }
             Component host = findHost(door, parts);
@@ -65,9 +75,10 @@ final class UpperStoreyEntranceRepair {
                 if (deck.params() != null && deck.params().get("component_id") != null) {
                     params.put("platform_connection", String.valueOf(deck.params().get("component_id")));
                 }
+                Dimensions dims = widenPlatformDoor(door, deck);
                 keep.add(new Component(
                         door.componentType(), door.slotId(), door.relativePosition(),
-                        door.dimensions(), door.features(), params));
+                        dims, door.features(), params));
                 FormacraftMod.LOGGER.info(
                         "UpperStoreyEntranceRepair: keep upper door as platform opening onto {}",
                         deck.componentType());
@@ -187,5 +198,51 @@ final class UpperStoreyEntranceRepair {
         // Legacy door_explicit without width-only provenance still counts as presence.
         return Boolean.TRUE.equals(door.params().get("door_explicit"))
                 && !Boolean.TRUE.equals(door.params().get("door_width_user_explicit"));
+    }
+
+    /**
+     * 1×1 balcony doors abort with {@code E_ENTRANCE_DOOR_WIDTH}. Grow the wall-parallel
+     * span to at least 2 (prefer overlapping balcony width) so EntranceGenerator can emit.
+     */
+    private static Dimensions widenPlatformDoor(Component door, Component deck) {
+        if (deck == null) return widenPlatformDoorSpan(door);
+        Dimensions dims = door.dimensions();
+        if (dims == null) return dims;
+        int w = Math.max(1, dims.width());
+        int d = Math.max(1, dims.depth());
+        int h = Math.max(1, dims.height());
+        // Already a thin opening with span ≥2 along one axis.
+        if (w >= 2 || d >= 2) return dims;
+        int target = 2;
+        if (deck.dimensions() != null) {
+            target = Math.max(2, Math.min(3, Math.max(deck.dimensions().width(), deck.dimensions().depth())));
+        }
+        return growDoorSpan(door, w, d, h, target);
+    }
+
+    private static Dimensions widenPlatformDoorSpan(Component door) {
+        Dimensions dims = door.dimensions();
+        if (dims == null) return dims;
+        int w = Math.max(1, dims.width());
+        int d = Math.max(1, dims.depth());
+        int h = Math.max(1, dims.height());
+        if (w >= 2 || d >= 2) return dims;
+        return growDoorSpan(door, w, d, h, 2);
+    }
+
+    private static Dimensions growDoorSpan(Component door, int w, int d, int h, int target) {
+        String face = door.params() == null ? "SOUTH"
+                : String.valueOf(door.params().getOrDefault("facing", "SOUTH")).toUpperCase(Locale.ROOT);
+        if ("EAST".equals(face) || "WEST".equals(face)) {
+            return new Dimensions(w, Math.max(d, target), h);
+        }
+        // Thin N/S openings are often authored as 1×1 without facing — prefer width growth.
+        if (d == 1 && w == 1) {
+            return new Dimensions(Math.max(w, target), d, h);
+        }
+        if (w == 1 && d > 1) {
+            return new Dimensions(w, Math.max(d, target), h);
+        }
+        return new Dimensions(Math.max(w, target), d, h);
     }
 }

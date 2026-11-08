@@ -75,9 +75,24 @@ final class NarrowTowerStairRepair {
         if (!(ComponentPlanTypes.isMassType(type) || "TOWER".equals(type) || type.startsWith("TOWER_"))) {
             return host;
         }
+        // Bridge / terrace plates are thin by design — not spire shafts.
+        if ("plate".equalsIgnoreCase(String.valueOf(host.params().get("extrude_mode")))) {
+            return host;
+        }
+        Object plateRole = host.params().get("plate_role");
+        if (plateRole == null) plateRole = host.params().get("plateRole");
+        if (plateRole != null) {
+            String role = String.valueOf(plateRole).toLowerCase(Locale.ROOT);
+            if (role.contains("bridge") || role.contains("terrace") || role.contains("deck")) {
+                return host;
+            }
+        }
         String idRaw = host.params().get("component_id") == null ? ""
                 : String.valueOf(host.params().get("component_id"));
         String id = idRaw.toLowerCase(Locale.ROOT);
+        if (id.contains("bridge") || id.contains("deck") || id.contains("span")) {
+            return host;
+        }
         boolean spireLike = "TOWER".equals(type) || type.startsWith("TOWER_")
                 || id.contains("spire") || id.contains("尖塔") || id.contains("belfry")
                 || id.contains("campanile") || looksSpireFeatures(host.features());

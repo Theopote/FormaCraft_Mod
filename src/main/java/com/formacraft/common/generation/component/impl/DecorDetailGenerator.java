@@ -56,6 +56,7 @@ public class DecorDetailGenerator implements ComponentGenerator {
         boolean isCarved = hasFeature(c, "carved", "carving");
         // boolean isOrnate = hasFeature(c, "ornate", "ornament"); // 保留用于未来扩展
         boolean isPattern = hasFeature(c, "pattern", "lattice");
+        boolean cornersOnly = c.params() != null && Boolean.TRUE.equals(c.params().get("railing_corners_only"));
 
         // 生成装饰细节（通常是稀疏的，不是实心的）
         for (int y = 0; y < height; y++) {
@@ -64,7 +65,7 @@ public class DecorDetailGenerator implements ComponentGenerator {
                     Object clear=c.params()==null?null:c.params().get("compiler_clear_railing_cells");
                     if(clear instanceof java.util.Collection<?> cells && cells.contains(x+","+y+","+z))continue;
                     // 装饰通常是稀疏的（只在特定位置）
-                    if (shouldPlaceDecor(x, y, z, width, depth, height, isPattern)) {
+                    if (shouldPlaceDecor(x, y, z, width, depth, height, isPattern, cornersOnly)) {
                         SemanticPart part = SemanticPart.DECOR;
                         String block = explicitMaterial(c);
                         if (block == null || block.isBlank()) block = palette.pick(part);
@@ -95,7 +96,13 @@ public class DecorDetailGenerator implements ComponentGenerator {
     /**
      * 决定是否在特定位置放置装饰
      */
-    private boolean shouldPlaceDecor(int x, int y, int z, int width, int depth, int height, boolean isPattern) {
+    private boolean shouldPlaceDecor(int x, int y, int z, int width, int depth, int height, boolean isPattern,
+                                     boolean cornersOnly) {
+        if (cornersOnly) {
+            boolean cornerX = x == 0 || x == width - 1;
+            boolean cornerZ = z == 0 || z == depth - 1;
+            return cornerX && cornerZ;
+        }
         // 如果是图案，只在边缘或特定位置
         if (isPattern) {
             return (x == 0 || x == width - 1 || z == 0 || z == depth - 1) && (y == 0 || y == height - 1);

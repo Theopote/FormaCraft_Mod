@@ -174,6 +174,8 @@ public final class ComponentPlanCompiler {
         // Office plate grow / storey bands can move hosts after the first bridge stretch —
         // re-close corridor plates before authored bridge contact validation.
         plan = HostedPlateLevelRepair.apply(plan);
+        // Flat roofs drift off host top after open-frame / satellite lifts — snap before emit.
+        plan = FlatRoofAttachmentRepair.apply(plan);
         // Side-hall / temple / intent repairs may reintroduce duplicate host ids after the
         // early uniquify pass — scrub again before authored validation.
         plan = DuplicateComponentIdRepair.apply(plan);

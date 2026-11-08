@@ -96,6 +96,14 @@ final class BridgeCompositionRepair {
             params.put("wall_type", "none");
             params.put("material", "minecraft:oak_fence");
             params.put("block", "minecraft:oak_fence");
+            params.put("role", "railing");
+            params.put("railing", true);
+            // Thin bridge decks (≤2 cells across) place perimeter fences on every walk cell —
+            // keep only corner posts so deck BFS headroom stays clear.
+            if (c.dimensions() != null
+                    && Math.min(c.dimensions().width(), c.dimensions().depth()) <= 2) {
+                params.put("railing_corners_only", true);
+            }
             changed = true;
         }
         if (!changed) return c;

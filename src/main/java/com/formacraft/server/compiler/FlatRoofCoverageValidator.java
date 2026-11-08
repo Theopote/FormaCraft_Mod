@@ -40,7 +40,9 @@ final class FlatRoofCoverageValidator {
             int roofOffsetY = roof.slot() == null || roof.slot().anchor() == null ? 0 : roof.slot().anchor().y();
             String partId = String.valueOf(c.params().getOrDefault("host_part_id", host));
             for (var part : ResolvedMassPart.resolve(body)) if (part.partId().equals(partId)) {
-                int expected = part.bounds().maxY()-1+hostOffsetY;
+                // Open-frame roofs sit fully above post tops (maxY); enclosed shells seal at maxY-1.
+                boolean open = com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(body.params());
+                int expected = (open ? part.bounds().maxY() : part.bounds().maxY() - 1) + hostOffsetY;
                 int actual = c.relativePosition().y()+roofOffsetY;
                 return expected == actual ? Optional.empty() : Optional.of(new Attachment(partId, expected, actual));
             }

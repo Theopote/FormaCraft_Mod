@@ -233,6 +233,11 @@ final class PavilionOpenFrameRepair {
         if (looksEnclosedTempleCella(mass, id)) {
             return mass;
         }
+        // Hanging gardens / ziggurats / stepped terrace monuments are not 凉亭 — a plan cue like
+        // "summit shrine pavilion" must not crush a 35-high body to MAX_POST_HEIGHT.
+        if (looksMonumentalSteppedMass(mass, id)) {
+            return mass;
+        }
         boolean pavilionNamed = idLooksPavilion(id)
                 || looksPavilion(mass.features())
                 || isExplicitPavilionMass(mass, id);
@@ -924,6 +929,38 @@ final class PavilionOpenFrameRepair {
                             c.relativePosition().z() + dz),
                     c.dimensions(), c.features(), c.params()));
         }
+    }
+
+    /**
+     * Stepped terrace monuments (ziggurat / hanging gardens) stay enclosed at authored height.
+     * Nested {@code masses[]} tiers or large multi-storey envelopes are the tell.
+     */
+    private static boolean looksMonumentalSteppedMass(Component mass, String idLower) {
+        if (mass == null) return false;
+        if (idLower != null && (idLower.contains("ziggurat") || idLower.contains("金字塔")
+                || idLower.contains("pyramid") || idLower.contains("hanging_garden")
+                || idLower.contains("空中花园") || idLower.contains("terrace_tower"))) {
+            return true;
+        }
+        if (mass.params() != null && mass.params().get("masses") instanceof java.util.List<?> tiers
+                && tiers.size() >= 3
+                && mass.dimensions() != null
+                && mass.dimensions().height() >= 12
+                && Math.min(mass.dimensions().width(), mass.dimensions().depth()) >= 16) {
+            return true;
+        }
+        if (mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("hanging-garden") || lower.contains("hanging garden")
+                        || lower.contains("stepped terrace") || lower.contains("ziggurat")
+                        || lower.contains("空中花园")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Circular cella / Roman temple body — must keep full authored height and solid walls. */
