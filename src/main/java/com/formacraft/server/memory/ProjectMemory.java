@@ -1,10 +1,13 @@
 package com.formacraft.server.memory;
 
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.genome.BuildingGenome;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -263,9 +266,7 @@ public class ProjectMemory {
         }
         
         // 将 delta 合并到 metadata
-        for (var entry : delta.entrySet()) {
-            metadata.put(entry.getKey(), entry.getValue());
-        }
+        metadata.putAll(delta);
         
         // 更新修改历史（可选：记录变更历史）
         @SuppressWarnings("unchecked")
@@ -285,7 +286,7 @@ public class ProjectMemory {
         
         // 限制历史记录数量（最多保留 50 条）
         if (history.size() > 50) {
-            history.remove(0);
+            history.removeFirst();
         }
     }
     
@@ -317,27 +318,7 @@ public class ProjectMemory {
         // 计算边界
         if (structure != null && !structure.getBlocks().isEmpty()) {
             List<com.formacraft.common.build.PlannedBlock> blocks = structure.getBlocks();
-            BlockPos origin = structure.getOrigin();
-            
-            int minX = origin.getX(), minY = origin.getY(), minZ = origin.getZ();
-            int maxX = origin.getX(), maxY = origin.getY(), maxZ = origin.getZ();
-            
-            for (com.formacraft.common.build.PlannedBlock block : blocks) {
-                BlockPos pos = block.getPos();
-                minX = Math.min(minX, pos.getX());
-                minY = Math.min(minY, pos.getY());
-                minZ = Math.min(minZ, pos.getZ());
-                maxX = Math.max(maxX, pos.getX());
-                maxY = Math.max(maxY, pos.getY());
-                maxZ = Math.max(maxZ, pos.getZ());
-            }
-            
-            SpatialBounds bounds = new SpatialBounds(
-                new BlockPos(minX, minY, minZ),
-                new BlockPos(maxX, maxY, maxZ),
-                dimension
-            );
-            bounds.addAnchor("origin", origin);
+            SpatialBounds bounds = getSpatialBounds(structure, dimension, blocks);
             memory.setBounds(bounds);
         }
         
@@ -354,6 +335,31 @@ public class ProjectMemory {
         }
         
         return memory;
+    }
+
+    private static @NotNull SpatialBounds getSpatialBounds(GeneratedStructure structure, Identifier dimension, List<PlannedBlock> blocks) {
+        BlockPos origin = structure.getOrigin();
+
+        int minX = origin.getX(), minY = origin.getY(), minZ = origin.getZ();
+        int maxX = origin.getX(), maxY = origin.getY(), maxZ = origin.getZ();
+
+        for (PlannedBlock block : blocks) {
+            BlockPos pos = block.getPos();
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+
+        SpatialBounds bounds = new SpatialBounds(
+            new BlockPos(minX, minY, minZ),
+            new BlockPos(maxX, maxY, maxZ),
+                dimension
+        );
+        bounds.addAnchor("origin", origin);
+        return bounds;
     }
 }
 

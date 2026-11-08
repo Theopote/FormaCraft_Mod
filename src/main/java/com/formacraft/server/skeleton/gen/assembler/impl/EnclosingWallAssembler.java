@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * ENCLOSING_WALL 装配器（围墙）
- * 
+ * <p>
  * 适用于：
  * - 城堡城墙
  * - 土楼外墙
@@ -48,20 +48,16 @@ public class EnclosingWallAssembler implements ComponentAssembler {
                 int radius = skeleton.get("radius", 10);
                 ops.addAll(generateRadialRingWall(ctx, origin, radius, height));
             }
-            case PERIMETER_LOOP, ENCLOSURE -> {
-                // 轮廓闭环：沿轮廓生成围墙
-                ops.addAll(generatePerimeterWall(ctx, skeleton, origin, height));
-            }
+            case PERIMETER_LOOP, ENCLOSURE -> // 轮廓闭环：沿轮廓生成围墙
+                    ops.addAll(generatePerimeterWall(ctx, skeleton, origin, height));
             case COURTYARD -> {
                 // 中庭式：生成矩形围墙
                 int width = skeleton.get("width", 16);
                 int depth = skeleton.get("depth", 16);
                 ops.addAll(generateRectangularWall(ctx, origin, width, depth, height));
             }
-            default -> {
-                // 其他类型：尝试生成基础围墙
-                ops.addAll(generateBasicWall(ctx, skeleton, origin, height));
-            }
+            default -> // 其他类型：尝试生成基础围墙
+                    ops.addAll(generateBasicWall(ctx, skeleton, origin, height));
         }
 
         return ops;

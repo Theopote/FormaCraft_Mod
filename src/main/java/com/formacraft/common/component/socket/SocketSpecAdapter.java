@@ -44,16 +44,12 @@ public final class SocketSpecAdapter {
                     socketTypes.add(SocketType.WALL_SURFACE); // 默认
                 }
             }
-            case EDGE -> {
-                socketTypes.add(SocketType.EDGE_OUTER);
-            }
+            case EDGE -> socketTypes.add(SocketType.EDGE_OUTER);
             case POINT -> {
                 socketTypes.add(SocketType.COLUMN_TOP);
                 socketTypes.add(SocketType.FLOOR_SURFACE);
             }
-            case VOLUME -> {
-                socketTypes.add(SocketType.FREE_ATTACH);
-            }
+            case VOLUME -> socketTypes.add(SocketType.FREE_ATTACH);
         }
 
         // 如果 attachment 需要开口（门/窗），添加 WALL_OPENING
@@ -95,32 +91,19 @@ public final class SocketSpecAdapter {
                 spec.allowedSockets.add(SocketType.WALL_OPENING);
                 spec.requiresOpening = true;
             }
-            case WALL_SURFACE -> {
-                spec.allowedSockets.add(SocketType.WALL_SURFACE);
-            }
+            case WALL_SURFACE -> spec.allowedSockets.add(SocketType.WALL_SURFACE);
             case EDGE -> {
                 spec.allowedSockets.add(SocketType.EDGE_OUTER);
                 spec.requireEdge = true;
             }
-            case ROOF_SURFACE -> {
-                spec.allowedSockets.add(SocketType.ROOF_SLOPE);
-            }
-            case ROOF_EDGE -> {
-                spec.allowedSockets.add(SocketType.ROOF_RIDGE);
-            }
-            case ROOF_RIDGE -> {
-                spec.allowedSockets.add(SocketType.ROOF_RIDGE);
-            }
-            case FLOOR -> {
-                spec.allowedSockets.add(SocketType.FLOOR_SURFACE);
-            }
+            case ROOF_SURFACE -> spec.allowedSockets.add(SocketType.ROOF_SLOPE);
+            case ROOF_EDGE, ROOF_RIDGE -> spec.allowedSockets.add(SocketType.ROOF_RIDGE);
+            case FLOOR -> spec.allowedSockets.add(SocketType.FLOOR_SURFACE);
             case CORNER -> {
                 spec.allowedSockets.add(SocketType.EDGE_OUTER);
                 spec.allowMultiAttach = true;
             }
-            case NONE -> {
-                spec.allowedSockets.add(SocketType.FREE_ATTACH);
-            }
+            case NONE -> spec.allowedSockets.add(SocketType.FREE_ATTACH);
         }
 
         // 根据 hasInteriorExterior 和 constraints 设置 requireExterior

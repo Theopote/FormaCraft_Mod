@@ -221,14 +221,11 @@ final class MassDesignValidator {
         Dimensions d = component.dimensions();
         int wallThickness = Math.max(1, ComponentParamParsers.intParam(params, 1, WALL_THICKNESS_KEYS));
         Optional<String> conflict = courtyardGeometryConflict(d.width(), d.depth(), ratio, wallThickness);
-        if (conflict.isPresent()) {
-            return Optional.of(new CapabilityGap(
-                    "E_COURTYARD_GEOMETRY_CONFLICT",
-                    conflict.get(),
-                    "components[]",
-                    List.of("Lower courtyard_ratio, reduce wall_thickness, or enlarge the footprint.")));
-        }
-        return Optional.empty();
+        return conflict.map(s -> new CapabilityGap(
+                "E_COURTYARD_GEOMETRY_CONFLICT",
+                s,
+                "components[]",
+                List.of("Lower courtyard_ratio, reduce wall_thickness, or enlarge the footprint.")));
     }
 
     private static Optional<CapabilityGap> checkPlanPatternSize(Component component) {

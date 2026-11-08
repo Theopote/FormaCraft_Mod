@@ -17,15 +17,16 @@ import com.formacraft.common.geometry.tool.symmetry.SymmetryPlane;
 import com.formacraft.common.geometry.tool.symmetry.SymmetryProcessor;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * ToolConstraintBuilder（工具约束构建器）
- * 
+ * <p>
  * 从 BuildContext 和工具状态构建 GeometryConstraintPipeline 和 SymmetryProcessor
- * 
+ * <p>
  * 仅用于客户端工具状态；服务端约束必须从请求 DTO 或 ToolConstraintSnapshot 构建
  */
 public final class ToolConstraintBuilder {
@@ -78,16 +79,7 @@ public final class ToolConstraintBuilder {
         if (ProtectedZoneContext.hasZones()) {
             for (ProtectedZone zone : ProtectedZoneContext.zones()) {
                 if (zone == null || zone.min() == null || zone.max() == null) continue;
-                ProtectedZone n = zone.normalized();
-                
-                // 创建矩形禁区
-                List<PolygonNoBuildZone.Point2> polygon = List.of(
-                    new PolygonNoBuildZone.Point2(n.min().getX(), n.min().getZ()),
-                    new PolygonNoBuildZone.Point2(n.max().getX(), n.min().getZ()),
-                    new PolygonNoBuildZone.Point2(n.max().getX(), n.max().getZ()),
-                    new PolygonNoBuildZone.Point2(n.min().getX(), n.max().getZ())
-                );
-                NoBuildZone noBuildZone = new PolygonNoBuildZone(polygon);
+                NoBuildZone noBuildZone = getNoBuildZone(zone);
                 pipeline.add(new NoBuildConstraint(noBuildZone));
             }
         }
@@ -120,10 +112,8 @@ public final class ToolConstraintBuilder {
                     case MIRROR_X -> plane = new SymmetryPlane(SymmetryPlane.Axis.X, centerX);
                     case MIRROR_Y -> plane = new SymmetryPlane(SymmetryPlane.Axis.Y, centerY);
                     case MIRROR_Z -> plane = new SymmetryPlane(SymmetryPlane.Axis.Z, centerZ);
-                    case BOTH -> {
-                        // 双向对称：先处理 X 轴，Z 轴在后续处理中处理
-                        plane = new SymmetryPlane(SymmetryPlane.Axis.X, centerX);
-                    }
+                    case BOTH -> // 双向对称：先处理 X 轴，Z 轴在后续处理中处理
+                            plane = new SymmetryPlane(SymmetryPlane.Axis.X, centerX);
                     case CUSTOM_AXIS, NONE -> {
                         // CUSTOM_AXIS 等需要更复杂的处理
                         // NONE 不需要处理
@@ -137,6 +127,19 @@ public final class ToolConstraintBuilder {
         }
 
         return new ConstraintResult(pipeline, symmetry);
+    }
+
+    private static @NotNull NoBuildZone getNoBuildZone(ProtectedZone zone) {
+        ProtectedZone n = zone.normalized();
+
+        // 创建矩形禁区
+        List<PolygonNoBuildZone.Point2> polygon = List.of(
+            new PolygonNoBuildZone.Point2(n.min().getX(), n.min().getZ()),
+            new PolygonNoBuildZone.Point2(n.max().getX(), n.min().getZ()),
+            new PolygonNoBuildZone.Point2(n.max().getX(), n.max().getZ()),
+            new PolygonNoBuildZone.Point2(n.min().getX(), n.max().getZ())
+        );
+        return new PolygonNoBuildZone(polygon);
     }
 
     /**

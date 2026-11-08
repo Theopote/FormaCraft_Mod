@@ -63,12 +63,12 @@ public final class PlacementSolver {
             if (conflicts(bp, placed, gap)) continue;
             placed.add(bp);
             if (solveRecursive(units, candidatesByUnitId, placed, index + 1, backtrackCount, gap, maxBacktrack, cfg)) return true;
-            placed.remove(placed.size() - 1);
+            placed.removeLast();
         }
 
         // soft backtrack: try to re-place previous unit if any
         if (!placed.isEmpty()) {
-            BuildingPlacement last = placed.remove(placed.size() - 1);
+            BuildingPlacement last = placed.removeLast();
             boolean ok = solveRecursive(units, candidatesByUnitId, placed, index - 1, backtrackCount + 1, gap, maxBacktrack, cfg);
             if (ok) return true;
             // restore (best-effort)
@@ -88,7 +88,7 @@ public final class PlacementSolver {
 
     private static List<Candidate> orderByHeuristics(List<Candidate> list, List<BuildingPlacement> placed, ClusterLayoutConfig cfg) {
         if (list == null || list.isEmpty() || placed == null || placed.isEmpty() || cfg == null) return list;
-        BuildingPlacement main = placed.get(0);
+        BuildingPlacement main = placed.getFirst();
         if (main == null) return list;
 
         double w = cfg.compactnessWeight;
@@ -138,9 +138,11 @@ public final class PlacementSolver {
             if (bp == null || bp.unit == null) continue;
             String r = bp.unit.semanticRole != null ? bp.unit.semanticRole : "";
             int[] pt = new int[]{bp.originRel.getX(), bp.originRel.getZ()};
-            if ("PUBLIC".equals(r)) placedPublic.add(pt);
-            else if ("SERVICE".equals(r)) placedService.add(pt);
-            else if ("PRIVATE".equals(r)) placedPrivate.add(pt);
+            switch (r) {
+                case "PUBLIC" -> placedPublic.add(pt);
+                case "SERVICE" -> placedService.add(pt);
+                case "PRIVATE" -> placedPrivate.add(pt);
+            }
         }
 
         // Copy + sort by adjusted score

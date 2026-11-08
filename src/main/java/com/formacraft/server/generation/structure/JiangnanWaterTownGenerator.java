@@ -181,7 +181,7 @@ public class JiangnanWaterTownGenerator implements StructureGenerator {
             zs.add(z);
         }
         // limit count for performance
-        while (zs.size() > 6) zs.remove(zs.size() - 1);
+        while (zs.size() > 6) zs.removeLast();
 
         HouseGenerator houseGen = new HouseGenerator();
         for (int z : zs) {

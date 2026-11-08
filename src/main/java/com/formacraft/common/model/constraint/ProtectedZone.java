@@ -8,9 +8,7 @@ import net.minecraft.util.math.BlockPos;
  * 约定：min/max 为世界坐标；contains 使用闭区间判断。
  */
 public record ProtectedZone(BlockPos min, BlockPos max) {
-    public ProtectedZone {
-        // 允许 null（防御式），但工具/网络层应尽量不传 null
-    }
+    // 允许 null（防御式），但工具/网络层应尽量不传 null
 
     public ProtectedZone normalized() {
         if (min == null || max == null) return this;

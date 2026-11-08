@@ -43,7 +43,7 @@ public class PatchDiffAnalyzer {
             
             // 查找这个位置属于哪个建筑
             List<ProjectMemory> memories = memoryManager.findAtPosition(dimension, worldPos);
-            ProjectMemory memory = memories.isEmpty() ? null : memories.get(0);
+            ProjectMemory memory = memories.isEmpty() ? null : memories.getFirst();
             
             // Removing an unregistered block does not create a building memory.
             if (memory == null && BlockPatch.REMOVE.equals(patch.action())) continue;

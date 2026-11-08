@@ -19,7 +19,6 @@ public final class AssemblyPresetApplier {
 
     public record ApplyResult(Object applied, List<AssemblyValidationIssue> issues) {}
 
-    @SuppressWarnings("unchecked")
     public static ApplyResult apply(Object assemblyObj) {
         List<AssemblyValidationIssue> issues = new ArrayList<>();
         if (!(assemblyObj instanceof Map<?, ?> root)) {
@@ -80,7 +79,6 @@ public final class AssemblyPresetApplier {
         return "";
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> readPresetParams(Map<String, Object> m) {
         Object pp = m.get("presetParams");
         if (pp instanceof Map<?, ?> map) {
@@ -93,7 +91,6 @@ public final class AssemblyPresetApplier {
         return Map.of();
     }
 
-    @SuppressWarnings("unchecked")
     private static void applyPresetParameters(
             Map<String, Object> assembly,
             AssemblyPresetDefinition preset,
@@ -136,7 +133,6 @@ public final class AssemblyPresetApplier {
         applyStyleId(assembly, params);
     }
 
-    @SuppressWarnings("unchecked")
     private static void applySuspensionBridgeParams(
             Map<String, Object> assembly,
             AssemblyPresetDefinition preset,
@@ -239,7 +235,7 @@ public final class AssemblyPresetApplier {
         if (!(compsObj instanceof List<?> comps) || comps.isEmpty()) {
             return null;
         }
-        Object first = comps.get(0);
+        Object first = comps.getFirst();
         if (first instanceof Map<?, ?> fm) {
             return (Map<String, Object>) fm;
         }
@@ -272,7 +268,6 @@ public final class AssemblyPresetApplier {
         return v != null ? v.intValue() : defaultValue;
     }
 
-    @SuppressWarnings("unchecked")
     private static void putAt(Map<String, Object> comp, int x, int y, int z) {
         Object at = comp.get("at");
         Map<String, Object> am;
@@ -358,7 +353,6 @@ public final class AssemblyPresetApplier {
         return (Map<String, Object>) sm;
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> shallowCopyMap(Map<?, ?> source) {
         Map<String, Object> out = new LinkedHashMap<>();
         for (Map.Entry<?, ?> e : source.entrySet()) {
@@ -369,7 +363,6 @@ public final class AssemblyPresetApplier {
         return out;
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> deepCopyMap(Map<String, Object> source) {
         Map<String, Object> out = new LinkedHashMap<>();
         for (Map.Entry<String, Object> e : source.entrySet()) {
@@ -378,7 +371,6 @@ public final class AssemblyPresetApplier {
         return out;
     }
 
-    @SuppressWarnings("unchecked")
     private static Object deepCopyValue(Object v) {
         if (v instanceof Map<?, ?> m) {
             Map<String, Object> out = new LinkedHashMap<>();

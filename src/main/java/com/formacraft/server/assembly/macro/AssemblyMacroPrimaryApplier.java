@@ -139,12 +139,12 @@ final class AssemblyMacroPrimaryApplier {
             currentD = nextD;
         }
 
-        comps.set(primaryIndex, segmentComps.get(0));
+        comps.set(primaryIndex, segmentComps.getFirst());
         for (int i = 1; i < segmentComps.size(); i++) {
             comps.add(primaryIndex + i, segmentComps.get(i));
         }
 
-        Map<String, Object> newPrimary = (Map<String, Object>) segmentComps.get(0);
+        Map<String, Object> newPrimary = (Map<String, Object>) segmentComps.getFirst();
 
         issues.add(AssemblyMacroSupport.warn("$.macro.verticalProfile", "W_MACRO_VERTICAL_PROFILE",
             "verticalProfile 将主组件分解为 " + segments.size() + " 个分段 SHELL_BOX"));

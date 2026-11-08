@@ -7,6 +7,7 @@ import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.server.preview.GenerationRequestContext;
 import net.minecraft.server.network.ServerPlayerEntity;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -383,7 +384,7 @@ public final class IntentFidelityMetrics {
         public long buildFail() { return geometryFail; }
 
         @Override
-        public String toString() {
+        public @NotNull String toString() {
             return String.format(
                     Locale.ROOT,
                     "plan_valid_ok=%d plan_valid_fail=%d geometry_ok=%d geometry_fail=%d "

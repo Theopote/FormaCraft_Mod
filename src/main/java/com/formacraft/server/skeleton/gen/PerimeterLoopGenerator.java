@@ -37,8 +37,8 @@ public class PerimeterLoopGenerator implements ISkeletonGenerator {
         if (abs.size() < 3) return List.of();
 
         // 确保闭合：如果最后一个点不等于第一个点，添加第一个点
-        if (!abs.get(abs.size() - 1).equals(abs.get(0))) {
-            abs.add(abs.get(0));
+        if (!abs.getLast().equals(abs.getFirst())) {
+            abs.add(abs.getFirst());
         }
 
         List<BlockPatch> patches = new ArrayList<>();

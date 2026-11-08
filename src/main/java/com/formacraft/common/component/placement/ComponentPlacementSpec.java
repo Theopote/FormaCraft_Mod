@@ -67,32 +67,19 @@ public class ComponentPlacementSpec {
                 allowedSockets.add(SocketType.WALL_OPENING);
                 requiresOpening = true;
             }
-            case WALL_SURFACE -> {
-                allowedSockets.add(SocketType.WALL_SURFACE);
-            }
+            case WALL_SURFACE -> allowedSockets.add(SocketType.WALL_SURFACE);
             case EDGE -> {
                 allowedSockets.add(SocketType.EDGE_OUTER);
                 requireEdge = true;
             }
-            case ROOF_SURFACE -> {
-                allowedSockets.add(SocketType.ROOF_SLOPE);
-            }
-            case ROOF_EDGE -> {
-                allowedSockets.add(SocketType.ROOF_RIDGE);
-            }
-            case ROOF_RIDGE -> {
-                allowedSockets.add(SocketType.ROOF_RIDGE);
-            }
-            case FLOOR -> {
-                allowedSockets.add(SocketType.FLOOR_SURFACE);
-            }
+            case ROOF_SURFACE -> allowedSockets.add(SocketType.ROOF_SLOPE);
+            case ROOF_EDGE, ROOF_RIDGE -> allowedSockets.add(SocketType.ROOF_RIDGE);
+            case FLOOR -> allowedSockets.add(SocketType.FLOOR_SURFACE);
             case CORNER -> {
                 allowedSockets.add(SocketType.EDGE_OUTER);
                 allowMultiAttach = true; // 转角可能需要多个 socket
             }
-            case NONE -> {
-                allowedSockets.add(SocketType.FREE_ATTACH);
-            }
+            case NONE -> allowedSockets.add(SocketType.FREE_ATTACH);
         }
 
         // 根据 hasInteriorExterior 设置 requireExterior

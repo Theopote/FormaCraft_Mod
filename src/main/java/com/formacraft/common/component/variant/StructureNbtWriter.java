@@ -112,9 +112,7 @@ public final class StructureNbtWriter {
         root.put("size", size);
 
         NbtList palette = new NbtList();
-        for (NbtCompound entry : paletteEntries) {
-            palette.add(entry);
-        }
+        palette.addAll(paletteEntries);
         root.put("palette", palette);
         root.put("blocks", blocks);
 

@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * BasePathGenerator（路径生成器基类）
- * 
+ * <p>
  * 提供通用的路径生成逻辑：
  * - 地形采样
  * - 高度调整（根据 TerrainStrategy）
@@ -20,7 +20,7 @@ public abstract class BasePathGenerator {
 
     /**
      * 生成路径段的目标高度
-     * 
+     * <p>
      * 强制规则（非常重要）：
      * - PRESERVE: 路径贴地，允许台阶
      * - ADAPTIVE: 局部垫高/削低
@@ -36,20 +36,16 @@ public abstract class BasePathGenerator {
         int nodeY = node.getY();
 
         return switch (terrainPolicy.strategy) {
-            case PRESERVE -> {
-                // 路径贴地，允许台阶
-                yield groundY;
-            }
+            case PRESERVE -> // 路径贴地，允许台阶
+                    groundY;
             case ADAPTIVE -> {
                 // 局部垫高/削低（限制在 maxCutDepth 和 maxFillHeight 内）
                 int minY = groundY - terrainPolicy.maxCutDepth;
                 int maxY = groundY + terrainPolicy.maxFillHeight;
                 yield Math.max(minY, Math.min(maxY, nodeY));
             }
-            case TERRACE -> {
-                // 分段平台 + 台阶（简化：使用最近的平台高度）
-                yield snapToTerraceLevel(ctx, node, groundY);
-            }
+            case TERRACE -> // 分段平台 + 台阶（简化：使用最近的平台高度）
+                    snapToTerraceLevel(ctx, node, groundY);
             case FLATTEN -> {
                 // ❌ 禁止（除非用户明确）
                 // 如果用户明确要求 FLATTEN，使用全局基准高度

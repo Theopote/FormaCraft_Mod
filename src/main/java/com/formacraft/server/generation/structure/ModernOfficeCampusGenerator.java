@@ -95,7 +95,7 @@ public class ModernOfficeCampusGenerator implements StructureGenerator {
             anchors.add(new BlockPos(-half - spacing, 0, 0));
             if (towers > 5) anchors.add(new BlockPos(half + spacing, 0, 0));
         }
-        while (anchors.size() > towers) anchors.remove(anchors.size() - 1);
+        while (anchors.size() > towers) anchors.removeLast();
 
         // Compute podium bounds in local space
         int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;

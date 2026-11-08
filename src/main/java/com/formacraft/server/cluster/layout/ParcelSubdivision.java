@@ -94,7 +94,7 @@ public final class ParcelSubdivision {
         if (one.isEmpty()) {
             return null;
         }
-        Parcel p = one.get(0);
+        Parcel p = one.getFirst();
         int m = Math.max(0, margin);
         Parcel shrunk = new Parcel(p.minX() + m, p.minZ() + m, p.maxX() - m, p.maxZ() - m);
         return (shrunk.width() >= 1 && shrunk.depth() >= 1) ? shrunk : p;

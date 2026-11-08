@@ -31,10 +31,10 @@ public record BlockSnapshot(BlockState state, @Nullable NbtCompound blockEntityN
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof BlockSnapshot other)) return false;
-        if (!state.equals(other.state)) return false;
-        if (blockEntityNbt == null) return other.blockEntityNbt == null;
-        return other.blockEntityNbt != null && blockEntityNbt.equals(other.blockEntityNbt);
+        if (!(o instanceof BlockSnapshot(BlockState state1, NbtCompound entityNbt))) return false;
+        if (!state.equals(state1)) return false;
+        if (blockEntityNbt == null) return entityNbt == null;
+        return blockEntityNbt.equals(entityNbt);
     }
 
     @Override

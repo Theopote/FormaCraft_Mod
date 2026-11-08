@@ -160,6 +160,6 @@ public final class OfflineCommunityIndex {
     private static boolean matches(Query query, Entry entry) {
         var def = entry.inspected.component();
         return (query.exactTypeKey == null || query.exactTypeKey.equals(ComponentTypes.effective(def.type, def.category).key()))
-                && (query.hardTags.isEmpty() || def.tags != null && def.tags.containsAll(query.hardTags));
+                && (query.hardTags.isEmpty() || def.tags != null && new HashSet<>(def.tags).containsAll(query.hardTags));
     }
 }

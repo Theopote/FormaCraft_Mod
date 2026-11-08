@@ -69,9 +69,7 @@ public final class MutationBuilder {
                 delta.put("extended", true);
                 delta.put("last_extension", System.currentTimeMillis());
             }
-            case REMOVE -> {
-                delta.put("partially_removed", true);
-            }
+            case REMOVE -> delta.put("partially_removed", true);
             case MODIFY -> {
                 delta.put("modified", true);
                 delta.put("last_modification", System.currentTimeMillis());

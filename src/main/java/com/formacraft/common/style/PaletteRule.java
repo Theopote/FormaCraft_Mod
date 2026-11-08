@@ -51,7 +51,7 @@ public class PaletteRule {
             acc += e.weight;
             if (r < acc) return e.state;
         }
-        return entries.get(0).state; // 兜底
+        return entries.getFirst().state; // 兜底
     }
 
     /**

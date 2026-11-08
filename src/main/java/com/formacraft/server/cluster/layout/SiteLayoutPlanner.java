@@ -86,7 +86,7 @@ public final class SiteLayoutPlanner {
             return null;
         }
         List<BuildingPlacement> one = plan(outline, clusterOrigin, List.of(unit), 0);
-        return one.isEmpty() ? null : one.get(0);
+        return one.isEmpty() ? null : one.getFirst();
     }
 
     /** 让单体长边贴合地块长边，减少旋转造成的浪费。 */
