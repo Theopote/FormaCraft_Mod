@@ -258,7 +258,7 @@ final class PavilionOpenFrameRepair {
         // Stilt houses that are not 亭/gazebo keep enclosed walls above the underfloor void.
         // Forcing open-frame here plants body posts onto stilts cells and fails the nine-post contract.
         if (!pavilionNamed && onStilts && !octagon && !hexagon) {
-            return mass;
+            return repairStiltsHouseDeck(mass);
         }
 
         Map<String, Object> params = new HashMap<>(mass.params());
@@ -341,15 +341,13 @@ final class PavilionOpenFrameRepair {
                 params.put("height", height);
             }
         }
-        Vec3i origin = mass.relativePosition();
-        // Center square open frames on the slot so regressions that probe the slot anchor
-        // hit interior air, not a min-corner post (pav* fixtures often author 0,0 min-corner).
-        if (origin != null && dims.width() >= 3 && dims.depth() >= 3
-                && dims.width() == dims.depth()
-                && origin.x() == 0 && origin.z() == 0
-                && !com.formacraft.common.generation.component.util.ComponentFootprintUtil.isCornerAnchor(params)) {
-            origin = new Vec3i(-(dims.width() / 2), origin.y(), -(dims.depth() / 2));
-            params.put("anchor_mode", "min_corner");
+        // Square open frames authored at 0,0 should be centre-anchored so the slot origin is
+        // interior air (not a min-corner post). Keep relativePosition so roofs/foundations stay glued.
+        if (mass.relativePosition() != null && dims.width() >= 3 && dims.depth() >= 3
+                && mass.relativePosition().x() == 0 && mass.relativePosition().z() == 0
+                && !com.formacraft.common.generation.component.util.ComponentFootprintUtil.isCornerAnchor(params)
+                && !"center".equalsIgnoreCase(String.valueOf(params.getOrDefault("anchor_mode", "")))) {
+            params.put("anchor_mode", "center");
             changed = true;
         }
         if (!changed && height == dims.height()) return mass;
@@ -359,7 +357,7 @@ final class PavilionOpenFrameRepair {
         if (height != dims.height() && params.get("height") instanceof Number) {
             params.put("height", height);
         }
-        return new Component(mass.componentType(), mass.slotId(), origin,
+        return new Component(mass.componentType(), mass.slotId(), mass.relativePosition(),
                 new Dimensions(dims.width(), dims.depth(), height), mass.features(), params);
     }
 
@@ -838,6 +836,39 @@ final class PavilionOpenFrameRepair {
             if (next == '_' || next == '-' || Character.isDigit(next)) return true;
         }
         return containsStandaloneToken(idLower, "ting");
+    }
+
+    /**
+     * Enclosed stilts hut: square a knife-thin LLM pad to the long span (nine-post stilts contract)
+     * and mark a solid deck so wall_thickness cannot hard-fail a 7×2 envelope.
+     */
+    private static Component repairStiltsHouseDeck(Component mass) {
+        if (mass.dimensions() == null || mass.relativePosition() == null || mass.params() == null) {
+            return mass;
+        }
+        Dimensions d = mass.dimensions();
+        int span = Math.max(d.width(), d.depth());
+        Map<String, Object> params = new HashMap<>(mass.params());
+        boolean changed = false;
+        Vec3i origin = mass.relativePosition();
+        Dimensions dims = d;
+        if (span >= 3 && (d.width() != span || d.depth() != span)) {
+            int dx = (span - d.width()) / 2;
+            int dz = (span - d.depth()) / 2;
+            origin = new Vec3i(origin.x() - dx, origin.y(), origin.z() - dz);
+            dims = new Dimensions(span, span, d.height());
+            params.put("anchor_mode", "min_corner");
+            changed = true;
+        }
+        if (!params.containsKey("void_ratio") && !params.containsKey("voidRatio")) {
+            params.put("void_ratio", 0);
+            changed = true;
+        }
+        if (!changed) return mass;
+        FormacraftMod.LOGGER.info(
+                "PavilionOpenFrameRepair: square stilts deck id={} {}x{} → {}x{}",
+                params.get("component_id"), d.width(), d.depth(), dims.width(), dims.depth());
+        return new Component(mass.componentType(), mass.slotId(), origin, dims, mass.features(), params);
     }
 
     /**

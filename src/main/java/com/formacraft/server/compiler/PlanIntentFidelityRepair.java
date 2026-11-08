@@ -859,6 +859,10 @@ final class PlanIntentFidelityRepair {
         if (lower.contains("双坡") || lower.contains("人字顶") || lower.contains("double_gable")) {
             return "gable";
         }
+        if (lower.contains("马萨") || lower.contains("mansard") || lower.contains("折线屋顶")
+                || lower.contains("折线形屋顶") || lower.contains("mansard_roof")) {
+            return "mansard";
+        }
         return null;
     }
 

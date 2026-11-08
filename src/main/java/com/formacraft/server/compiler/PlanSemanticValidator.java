@@ -186,6 +186,10 @@ final class PlanSemanticValidator {
         if (corpus.contains("悬山") && !negatedRoofMention(rawCorpus, "悬山")) return "xuanshan";
         if (corpus.contains("硬山") && !negatedRoofMention(rawCorpus, "硬山")) return "yingshan";
         if (corpus.contains("穹顶") || corpus.contains("dome")) return "dome";
+        if (corpus.contains("马萨") || corpus.contains("mansard") || corpus.contains("折线屋顶")
+                || corpus.contains("折线形屋顶")) {
+            return "mansard";
+        }
         if (corpus.contains("平顶") || corpus.contains("flat roof")) return "flat";
         return null;
     }

@@ -148,13 +148,63 @@ def _has_native_pagoda_typology(plan: Dict[str, Any]) -> bool:
     return False
 
 
+_TOWER_TYPOLOGY_TOKENS = (
+    "dense_eaves_pagoda", "tibetan_stupa", "pagoda", "stupa",
+    "gothic_bell_tower", "bell_tower", "clock_tower", "clocktower",
+    "watchtower", "keep_tower", "tower",
+)
+
+
+def _structure_tower_typology(plan: Dict[str, Any]) -> bool:
+    """True for STRUCTURE/TOWER bound to a tower/pagoda/bell typology (not residential MASS)."""
+    comps = plan.get("components") or []
+    if not isinstance(comps, list):
+        return False
+    for c in comps:
+        if not isinstance(c, dict):
+            continue
+        ctype = str(c.get("component_type") or "").upper()
+        if not (ctype.startswith("STRUCTURE") or ctype.startswith("TOWER")):
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        typology = str(
+            params.get("typology_id")
+            or params.get("typology")
+            or params.get("structural_typology")
+            or ""
+        ).lower()
+        feat_blob = " ".join(str(f) for f in (c.get("features") or []) if f).lower()
+        blob = f"{typology} {feat_blob}"
+        if any(tok in blob for tok in _TOWER_TYPOLOGY_TOKENS):
+            return True
+        if any(
+            tok in blob
+            for tok in ("layered_tower", "stacked_masses", "vertical_stack", "tower_shaft", "spire")
+        ):
+            return True
+        # Tall narrow STRUCTURE without a house kit is tower-like.
+        dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
+        try:
+            w = int(dims.get("width") or 0)
+            d = int(dims.get("depth") or 0)
+            h = int(dims.get("height") or 0)
+        except (TypeError, ValueError):
+            w = d = h = 0
+        footprint = max(w, d)
+        if footprint > 0 and h >= max(20, footprint * 2):
+            return True
+    return False
+
+
 def _has_tower_morphology(plan: Dict[str, Any]) -> bool:
-    """Pagoda/stupa must use native typology STRUCTURE — stacked residential MASS kits are not towers."""
+    """Tower/pagoda intent needs STRUCTURE/tower typology — residential MASS kits are not towers."""
     types = set(_component_types(plan))
     # Residential kit with windows/doors is never a pagoda, even if LLM tags features "pagoda".
     if {"FACADE_WINDOWS", "ENTRANCE"} <= types and any(t.startswith("MASS") for t in types):
-        if not _has_native_pagoda_typology(plan):
+        if not _structure_tower_typology(plan):
             return False
+    if _structure_tower_typology(plan):
+        return True
     if _has_native_pagoda_typology(plan):
         return True
     comps = plan.get("components") or []

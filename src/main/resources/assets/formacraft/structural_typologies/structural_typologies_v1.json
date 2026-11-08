@@ -643,7 +643,7 @@
       "cultureCardIds": [
         "modern_stadium_elliptical"
       ],
-      "llmPlanGuidance": "Use structural_typology=stadium_bowl with layout.skeleton_type=RADIAL_RING. Output proportion_hints.typology=stadium_bowl, bowl_depth_to_width≈0.38, height_to_major_axis≈0.48. Prefer STRUCTURE + typology:stadium_bowl; set reference_landmark=birds_nest_stadium when user names Bird's Nest. Params: width, depth, height, meshStructure, bowlSteepness, designSeed, facing. global_constraints.symmetry=RADIAL. FORBID plain rectangular MASS box for elliptical stadium requests."
+      "llmPlanGuidance": "Use structural_typology=stadium_bowl with layout.skeleton_type=RADIAL_RING. Output proportion_hints.typology=stadium_bowl, bowl_depth_to_width≈0.38, height_to_major_axis≈0.48. Prefer STRUCTURE + typology:stadium_bowl; set reference_landmark=birds_nest_stadium when user names Bird's Nest. Params: width, depth, height, meshStructure, bowlSteepness, designSeed, facing. global_constraints.symmetry=RADIAL. FORBID plain rectangular MASS box for elliptical stadium requests. CRITICAL: 巴洛克/大宅/马萨折线屋顶/椭圆山花老虎窗 are NOT stadium — never route those to stadium_bowl or Modern_Stadium_Elliptical; use residential MASS + mansard roof instead. 「椭圆山花」means oval pediment on a dormer, not an elliptical bowl."
     },
     {
       "id": "suspension_bridge",

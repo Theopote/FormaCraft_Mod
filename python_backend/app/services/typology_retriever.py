@@ -31,11 +31,14 @@ def _score_keywords(text: str, keywords: tuple[str, ...], negatives: tuple[str, 
     q = (text or "").strip().lower()
     if not q:
         return 0.0, []
+    # 「椭圆山花」on baroque dormers must not count as stadium elliptical.
+    q_for_ellipse = q.replace("椭圆山花", " ").replace("oval pediment", " ")
     score = 0.0
     matched: List[str] = []
     for kw in keywords:
         kl = kw.lower()
-        if kl in q:
+        probe = q_for_ellipse if kl in ("椭圆", "椭圆形", "elliptical", "oval") else q
+        if kl in probe:
             matched.append(kw)
             score += max(2.0, len(kw) * 0.5)
     for nk in negatives:
