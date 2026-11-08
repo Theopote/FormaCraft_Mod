@@ -126,10 +126,8 @@ final class UpperStoreyEntranceAudit {
             if (role == null) role = c.params().get("circulation_role");
             if (role != null) {
                 String r = String.valueOf(role).toLowerCase(Locale.ROOT);
-                if (r.contains("stair") || r.contains("balcony") || r.contains("bridge")
-                        || r.contains("access")) {
-                    return true;
-                }
+                return r.contains("stair") || r.contains("balcony") || r.contains("bridge")
+                        || r.contains("access");
             }
         }
         return false;

@@ -1,11 +1,13 @@
 # gradle
 
 .gradle/
+.gradle-component-verification/
 # Anchor to the Gradle output dir only, so a future source package named
 # .../server/build/
 /build-ci-fix/ is not accidentally ignored (see blueprint Track C housekeeping).
 /build/
 /build-ci-fix/
+/build-component-assets/
 out/
 classes/
 
@@ -70,4 +72,24 @@ config/formacraft_server.properties
 # local scratch / tooling
 tmp*
 .tmp*
+_tmp*
 .codegraph/
+
+# local diagnostic / test dump outputs (repo root; never commit)
+/circ_*.txt
+/cluster_*.txt
+/wing_*.txt
+/tier_*.txt
+/build_*_out.txt
+/build_compile_out.txt
+/build_test_out.txt
+/p0_verify.txt
+/complex_retest_out.txt
+/*_diag.txt
+/*_diag[0-9].txt
+/*_diag[0-9][0-9].txt
+/*_diag_out.txt
+/*_fix.txt
+/*_fix_out.txt
+/cluster_run_*.txt
+/cluster_out*.txt

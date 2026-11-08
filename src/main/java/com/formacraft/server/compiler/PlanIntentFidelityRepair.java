@@ -586,19 +586,20 @@ final class PlanIntentFidelityRepair {
             // Explicit player footprints (e.g. 7×7) are hard constraints for every building class.
             // Footprint force/grow binds to the primary host so top-tier asides and factory halls are
             // not recentered. Office annexes still receive vertical storey-band repair for bridges.
-            boolean officeAnnex = looksOfficeAnnexMass(component);
-            if (officeLike && !explicitFootprint && (inPrimaryMassScope || officeAnnex)) {
-                int nw = dims.width();
-                int nd = dims.depth();
-                if (inPrimaryMassScope) {
-                    int minW = floors >= 3 ? 14 : 12;
-                    int minD = floors >= 3 ? 12 : 10;
-                    nw = Math.max(dims.width(), minW);
-                    nd = Math.max(dims.depth(), minD);
-                    if (nw * nd < 14 * 12) {
-                        nw = Math.max(nw, 14);
-                        nd = Math.max(nd, 12);
-                    }
+            // Office plate-grow binds to office-named MASS_MAIN bodies — never to workshop/factory
+            // primaries (corpus「三层」must not office-stack a sawtooth hall) and never to secondary
+            // floor plates / corridor bridges (that recenters campuses and orphans exterior stairs).
+            // Exact W×D stays primary-host only so top-tier asides (13×13) cannot crush stepped homes.
+            boolean officeBody = looksOfficeBodyMass(component);
+            boolean workshopBody = looksWorkshopBodyMass(component);
+            if (officeLike && !explicitFootprint && officeBody && !workshopBody) {
+                int minW = floors >= 3 ? 14 : 12;
+                int minD = floors >= 3 ? 12 : 10;
+                int nw = Math.max(dims.width(), minW);
+                int nd = Math.max(dims.depth(), minD);
+                if (nw * nd < 14 * 12) {
+                    nw = Math.max(nw, 14);
+                    nd = Math.max(nd, 12);
                 }
                 int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
                 changed = true;
@@ -611,7 +612,7 @@ final class PlanIntentFidelityRepair {
                     dims = new Dimensions(nw, nd, nh);
                     changed = true;
                 }
-            } else if (officeLike && explicitFootprint && inPrimaryMassScope) {
+            } else if (officeLike && explicitFootprint && inPrimaryMassScope && !workshopBody) {
                 // Honour explicit W×D on the primary host; only repair the vertical storey stack.
                 int nw = hints.footprintWidth();
                 int nd = hints.footprintDepth();
@@ -725,14 +726,23 @@ final class PlanIntentFidelityRepair {
                 || lower.contains("商业") || lower.contains("commercial");
     }
 
-    /** Annex office / workshop corridor hosts that need storey bands even when not primary. */
-    private static boolean looksOfficeAnnexMass(Component component) {
+    private static boolean looksOfficeBodyMass(Component component) {
+        if (component == null || component.componentType() == null) return false;
+        String type = component.componentType().trim().toUpperCase(Locale.ROOT);
+        if (!("MASS_MAIN".equals(type) || "MAIN_MASS".equals(type))) return false;
+        String id = BuildingHostResolver.massId(component);
+        if (id == null) return false;
+        String lower = id.toLowerCase(Locale.ROOT);
+        return lower.contains("office") || lower.contains("办公");
+    }
+
+    private static boolean looksWorkshopBodyMass(Component component) {
         if (component == null) return false;
         String id = BuildingHostResolver.massId(component);
         if (id == null) return false;
         String lower = id.toLowerCase(Locale.ROOT);
-        return lower.contains("office") || lower.contains("办公")
-                || lower.contains("annex") || lower.contains("wing");
+        return lower.contains("workshop") || lower.contains("factory") || lower.contains("boiler")
+                || lower.contains("车间") || lower.contains("厂房") || lower.contains("sawtooth");
     }
 
     static String intentCorpus(LlmPlan plan) {

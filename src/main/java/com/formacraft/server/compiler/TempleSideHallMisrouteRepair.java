@@ -102,7 +102,7 @@ final class TempleSideHallMisrouteRepair {
                 params.put("eave_tiers", 2);
             }
             params.remove("facade_profile");
-            out.add(0, new Component(
+            out.addFirst(new Component(
                     "MASS_MAIN", main.slotId() == null ? "hall" : main.slotId(),
                     new Vec3i(mp.x(), mp.y(), mp.z()),
                     new Dimensions(hallW, hallD, hallH),

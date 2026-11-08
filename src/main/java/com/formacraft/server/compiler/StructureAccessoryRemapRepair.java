@@ -552,10 +552,7 @@ final class StructureAccessoryRemapRepair {
         String lower = id.toLowerCase(Locale.ROOT);
         if (lower.contains("steps") || lower.contains("step") || id.contains("台阶")
                 || lower.contains("stair") || id.contains("踏步")) {
-            if (lower.contains("plinth") && !lower.contains("step") && !id.contains("台阶")) {
-                return false;
-            }
-            return true;
+            return !lower.contains("plinth") || lower.contains("step") || id.contains("台阶");
         }
         if (c.features() != null) {
             for (String f : c.features()) {

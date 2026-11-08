@@ -1,3 +1,0 @@
-﻿
-> Configure project :
-Fabric Loom: 1.11.8
