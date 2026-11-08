@@ -507,7 +507,8 @@ public final class PatchOccupancyIndex {
                 ? "" : writer.componentType().toUpperCase(Locale.ROOT);
         // Host-bound roofs/terraces often live on a dedicated *_roof slot while the mass
         // stays on the building slot — host_id is the authority, not slot equality.
-        boolean hostBoundAccessory = Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE")
+        boolean hostBoundAccessory = Set.of("ROOF", "ROOF_STRUCTURE", "CROWN", "CUPOLA", "DOME",
+                        "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE")
                 .contains(writerTypeEarly);
         // Bridges may join either endpoint mass even when slot_id differs across dual masses.
         if (!bridge && !hostBoundAccessory
@@ -527,7 +528,8 @@ public final class PatchOccupancyIndex {
         // ledger still protects roofs and openings from decoration; REMOVE uses
         // the separate stair/carve rules.
         String writerType = writer.componentType().toUpperCase(Locale.ROOT);
-        if (Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY", "GATE")
+        if (Set.of("ROOF", "ROOF_STRUCTURE", "CROWN", "CUPOLA", "DOME",
+                "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY", "GATE")
                 .contains(writerType)) {
             return true;
         }

@@ -370,6 +370,9 @@ public class RoofGenerator implements ComponentGenerator {
         String glass = getParamString(params, "glazing_block");
         if (glass == null) glass = "minecraft:glass";
         else if (!glass.contains(":")) glass = "minecraft:" + glass;
+        // Factory sawtooth decks are authored full cubes (roof_block), not stair skins.
+        String roof = resolveFullRoofBlock(semantic, palette);
+        String wall = getBlockForPart(semantic, palette, SemanticPart.WALL);
         for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++) {
             if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
             int axis = acrossX ? x : z;
@@ -377,13 +380,11 @@ public class RoofGenerator implements ComponentGenerator {
             int start = (index * span + count - 1) / count;
             int end = ((index + 1) * span + count - 1) / count - 1;
             int rise = (axis-start) * Math.max(1, height-1) / Math.max(1,end-start);
-            out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+rise, baseZ+z,
-                    getBlockForPart(semantic, palette, SemanticPart.ROOF)));
+            out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+rise, baseZ+z, roof));
             // Close the rising step as well as the vertical north-light return.
             int previous = (axis-start-1) * Math.max(1,height-1) / Math.max(1,end-start);
             if (axis > start) for (int y=Math.max(0,previous);y<rise;y++)
-                out.add(new BlockPatch(BlockPatch.PLACE,baseX+x,baseY+y,baseZ+z,
-                        getBlockForPart(semantic,palette,SemanticPart.ROOF)));
+                out.add(new BlockPatch(BlockPatch.PLACE,baseX+x,baseY+y,baseZ+z, roof));
             if (axis == start || axis == span - 1) {
                 for (int y = rise+1; y < height; y++)
                     out.add(new BlockPatch(BlockPatch.PLACE, baseX+x, baseY+y, baseZ+z, glass));
@@ -391,8 +392,7 @@ public class RoofGenerator implements ComponentGenerator {
             // Seal the two gable-end profiles above the supporting wall.
             if (acrossX ? (z == overhang || z == depth-overhang-1) : (x == overhang || x == width-overhang-1))
                 for (int y=0;y<rise;y++)
-                    out.add(new BlockPatch(BlockPatch.PLACE,baseX+x,baseY+y,baseZ+z,
-                            getBlockForPart(semantic,palette,SemanticPart.WALL)));
+                    out.add(new BlockPatch(BlockPatch.PLACE,baseX+x,baseY+y,baseZ+z, wall));
         }
     }
 

@@ -102,7 +102,9 @@ final class CastleTowerEnrichmentRepair {
         int crownH = Math.max(4, Math.min(8, dims.height() / 2));
         int x = origin.x() + Math.max(0, (dims.width() - crownW) / 2);
         int z = origin.z() + Math.max(0, (dims.depth() - crownW) / 2);
-        int y = origin.y() + dims.height() - 1;
+        // Sit on the roof plane above the shaft — sharing the top ring with TOWER
+        // triggers E_PATCH_CONFLICT (unauthorized_place_overwrite).
+        int y = origin.y() + dims.height();
         Map<String, Object> params = new HashMap<>();
         params.put("component_id", towerId + "#spire");
         params.put("host_id", towerId);
