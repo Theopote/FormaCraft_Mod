@@ -108,12 +108,6 @@ public final class TieredMountainPalaceBuilder {
             this(status, structure, diagnostics, terrainContentHash, buildContextHash, null);
         }
 
-        /** @deprecated use {@link #terrainContentHash()} */
-        @Deprecated
-        public String terrainFingerprint() {
-            return terrainContentHash;
-        }
-
         /** Blocks were produced (SUCCESS or SCHEMATIC_ONLY). */
         public boolean hasGeometry() {
             return status == GenerateStatus.SUCCESS || status == GenerateStatus.SCHEMATIC_ONLY;
@@ -126,12 +120,6 @@ public final class TieredMountainPalaceBuilder {
 
         public boolean failed() {
             return status == GenerateStatus.FAILED;
-        }
-
-        /** @deprecated use {@link #executable()} / {@link #hasGeometry()} */
-        @Deprecated
-        public boolean success() {
-            return hasGeometry();
         }
     }
 

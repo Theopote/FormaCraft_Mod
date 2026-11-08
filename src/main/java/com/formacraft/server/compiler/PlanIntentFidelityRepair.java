@@ -240,20 +240,40 @@ final class PlanIntentFidelityRepair {
     }
 
     /**
-     * @return {@code [width, depth]} from the first plausible WxD token; zeros when absent.
+     * @return {@code [width, depth]} for the building base footprint; zeros when absent.
+     * Prefers tokens near 占地/底层/footprint cues. Otherwise picks the largest area so an
+     * upper-tier aside like「四层 13×13」cannot outrank「底层占地 25×19」from distinguishing features.
      */
     static int[] parseFootprint(String corpus) {
         if (corpus == null || corpus.isBlank()) return new int[]{0, 0};
         Matcher m = FOOTPRINT_PATTERN.matcher(corpus);
+        int bestW = 0;
+        int bestD = 0;
+        int bestScore = Integer.MIN_VALUE;
         while (m.find()) {
             int a = Integer.parseInt(m.group(1));
             int b = Integer.parseInt(m.group(2));
             // Building footprints in prompts are typically 4–48; skip tiny ratios like 1x2 stairs.
-            if (a >= 4 && b >= 4 && a <= 48 && b <= 48) {
-                return new int[]{a, b};
+            if (a < 4 || b < 4 || a > 48 || b > 48) continue;
+            int score = a * b;
+            int from = Math.max(0, m.start() - 12);
+            int to = Math.min(corpus.length(), m.end() + 12);
+            String window = corpus.substring(from, to).toLowerCase(Locale.ROOT);
+            if (window.contains("占地") || window.contains("底层") || window.contains("footprint")
+                    || window.contains("平面") || window.contains("基地")) {
+                score += 10_000;
+            }
+            if (window.contains("顶层") || window.contains("四层") || window.contains("上层")
+                    || window.contains("一半") || window.contains("top tier") || window.contains("upper")) {
+                score -= 1_000;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                bestW = a;
+                bestD = b;
             }
         }
-        return new int[]{0, 0};
+        return new int[]{bestW, bestD};
     }
 
     /** Stamp intent onto authored components before design validation can hard-fail. */
@@ -558,24 +578,29 @@ final class PlanIntentFidelityRepair {
                     ? Math.max(hints.floorCount(), ownFloors)
                     : ownFloors;
             String corpus = intentCorpus(plan).toLowerCase(Locale.ROOT);
-            boolean officeLike = corpus.contains("办公") || corpus.contains("office")
-                    || corpus.contains("curtain") || corpus.contains("幕墙")
-                    || corpus.contains("international") || corpus.contains("玻璃幕")
-                    || corpus.contains("商业") || corpus.contains("commercial");
+            // Residential "glass curtain wall" facade language is not an office plate cue.
+            // Require 办公/office/commercial (or international) — bare 幕墙/curtain alone is too broad.
+            boolean officeLike = corpusContainsOffice(corpus);
             boolean explicitFootprint = hints.footprintWidth() > 0 && hints.footprintDepth() > 0;
             // Plate-size optimization is office/commercial only — never force 14×12 on towers/halls.
             // Explicit player footprints (e.g. 7×7) are hard constraints for every building class.
-            if (officeLike && !explicitFootprint) {
-                int minW = floors >= 3 ? 14 : 12;
-                int minD = floors >= 3 ? 12 : 10;
-                int nw = Math.max(dims.width(), minW);
-                int nd = Math.max(dims.depth(), minD);
-                if (nw * nd < 14 * 12) {
-                    nw = Math.max(nw, 14);
-                    nd = Math.max(nd, 12);
+            // Footprint force/grow binds to the primary host so top-tier asides and factory halls are
+            // not recentered. Office annexes still receive vertical storey-band repair for bridges.
+            boolean officeAnnex = looksOfficeAnnexMass(component);
+            if (officeLike && !explicitFootprint && (inPrimaryMassScope || officeAnnex)) {
+                int nw = dims.width();
+                int nd = dims.depth();
+                if (inPrimaryMassScope) {
+                    int minW = floors >= 3 ? 14 : 12;
+                    int minD = floors >= 3 ? 12 : 10;
+                    nw = Math.max(dims.width(), minW);
+                    nd = Math.max(dims.depth(), minD);
+                    if (nw * nd < 14 * 12) {
+                        nw = Math.max(nw, 14);
+                        nd = Math.max(nd, 12);
+                    }
                 }
-                int nh = dims.height();
-                nh = applyOfficeStoreyStack(params, corpus, floors, nh);
+                int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
                 changed = true;
                 if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
                     if (position != null && (nw != dims.width() || nd != dims.depth())) {
@@ -586,8 +611,8 @@ final class PlanIntentFidelityRepair {
                     dims = new Dimensions(nw, nd, nh);
                     changed = true;
                 }
-            } else if (officeLike && explicitFootprint) {
-                // Honour explicit W×D; only repair the vertical storey stack.
+            } else if (officeLike && explicitFootprint && inPrimaryMassScope) {
+                // Honour explicit W×D on the primary host; only repair the vertical storey stack.
                 int nw = hints.footprintWidth();
                 int nd = hints.footprintDepth();
                 int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
@@ -695,8 +720,19 @@ final class PlanIntentFidelityRepair {
     private static boolean corpusContainsOffice(String corpus) {
         if (corpus == null || corpus.isBlank()) return false;
         String lower = corpus.toLowerCase(Locale.ROOT);
-        return lower.contains("办公") || lower.contains("office") || lower.contains("curtain")
-                || lower.contains("幕墙") || lower.contains("玻璃幕");
+        // Do not treat style_profile Modern_International / curtain-wall facade copy as office plates.
+        return lower.contains("办公") || lower.contains("office")
+                || lower.contains("商业") || lower.contains("commercial");
+    }
+
+    /** Annex office / workshop corridor hosts that need storey bands even when not primary. */
+    private static boolean looksOfficeAnnexMass(Component component) {
+        if (component == null) return false;
+        String id = BuildingHostResolver.massId(component);
+        if (id == null) return false;
+        String lower = id.toLowerCase(Locale.ROOT);
+        return lower.contains("office") || lower.contains("办公")
+                || lower.contains("annex") || lower.contains("wing");
     }
 
     static String intentCorpus(LlmPlan plan) {

@@ -50,16 +50,6 @@ final class UpperStoreyEntranceAudit {
         return Optional.empty();
     }
 
-    /** @deprecated use {@link #hasExternalAccessLinkFor} — global any-stair checks are too weak. */
-    @Deprecated
-    static boolean hasExternalAccessLink(LlmPlan plan) {
-        if (plan == null || plan.components() == null) return false;
-        for (Component c : plan.components()) {
-            if (isAccessComponent(c)) return true;
-        }
-        return false;
-    }
-
     static boolean hasExternalAccessLinkFor(LlmPlan plan, Component upperDoor) {
         if (plan == null || plan.components() == null || upperDoor == null) return false;
         String doorHost = hostIdOf(upperDoor);

@@ -54,7 +54,7 @@ class FloorCornicePostProcessorTest {
         );
 
         PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN);
-        List<BlockPatch> out = new FloorCornicePostProcessor().process(input, ctx);
+        List<BlockPatch> out = new DetailRulePostProcessor().process(input, ctx);
 
         boolean hasCornice = out.stream()
                 .anyMatch(p -> p.targetBlock() != null

@@ -69,12 +69,4 @@ public final class GenerationRequestContext {
     public static void clear() {
         CURRENT.remove();
     }
-
-    /** @deprecated use {@link #currentRequestId()} / {@link #current()} */
-    @Deprecated
-    public static UUID currentOrCreate() {
-        Scope s = CURRENT.get();
-        if (s != null) return s.requestId();
-        return begin();
-    }
 }

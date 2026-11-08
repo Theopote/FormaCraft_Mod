@@ -48,18 +48,6 @@ public final class PlayerMutationLedger {
         clearRedo(playerId);
     }
 
-    /** @deprecated use {@link #record(UUID, UUID, Kind)} */
-    @Deprecated
-    public void recordBuild(UUID playerId) {
-        record(UUID.randomUUID(), playerId, Kind.BUILD);
-    }
-
-    /** @deprecated use {@link #record(UUID, UUID, Kind)} */
-    @Deprecated
-    public void recordPatch(UUID playerId) {
-        record(UUID.randomUUID(), playerId, Kind.PATCH);
-    }
-
     /** 底层栈淘汰或幽灵条目清理时移除对应 ID（undo/redo 两侧）。 */
     public void remove(UUID transactionId) {
         if (transactionId == null) return;

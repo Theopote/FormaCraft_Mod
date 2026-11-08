@@ -80,12 +80,6 @@ public final class PreviewStructureShifter {
         return GradedQualityChecker.checkStructure(structure, spec, world, false);
     }
 
-    /** @deprecated prefer {@link #recheckAtWorld(GeneratedStructure, BuildingSpec, ServerWorld)} */
-    @Deprecated
-    public static BuildQualityReport recheckAtWorld(GeneratedStructure structure, ServerWorld world) {
-        return recheckAtWorld(structure, null, world);
-    }
-
     /** FATAL → 拒绝移动；其余允许（ERROR 时确认需 force）。 */
     public static boolean shouldRejectAdjust(BuildQualityReport report) {
         return BuildQualityGate.decide(report, false) == BuildQualityGate.Decision.DENY_FATAL;

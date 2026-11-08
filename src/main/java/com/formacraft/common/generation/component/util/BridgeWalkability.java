@@ -83,13 +83,6 @@ public final class BridgeWalkability {
 
     private BridgeWalkability() {}
 
-    /** @deprecated Prefer {@link PlannedOccupancy#isBodyClear}. */
-    @Deprecated
-    public static boolean isPassable(Map<Vec3i, String> blocks, int x, int y, int z) {
-        String id = blocks == null ? null : blocks.get(new Vec3i(x, y, z));
-        return id == null || isAir(id);
-    }
-
     public static boolean isAir(String blockId) {
         return PlannedOccupancy.isAirId(blockId);
     }
@@ -126,13 +119,6 @@ public final class BridgeWalkability {
         return new Vec3i(x, plateY, z);
     }
 
-    /** @deprecated Use {@link #interiorFloorCell}. */
-    @Deprecated
-    public static Vec3i interiorStandingCell(Component mass, int plateY) {
-        Vec3i floor = interiorFloorCell(mass, plateY);
-        return floor == null ? null : new Vec3i(floor.x(), floor.y() + 1, floor.z());
-    }
-
     public static Vec3i deckFloorCell(Component plate) {
         var bounds = ComponentFootprintUtil.bounds(plate);
         if (bounds == null || plate.relativePosition() == null) {
@@ -141,13 +127,6 @@ public final class BridgeWalkability {
         int x = (bounds.minX() + bounds.maxX()) / 2;
         int z = (bounds.minZ() + bounds.maxZ()) / 2;
         return new Vec3i(x, plate.relativePosition().y(), z);
-    }
-
-    /** @deprecated Use {@link #deckFloorCell}. */
-    @Deprecated
-    public static Vec3i deckStandingCell(Component plate) {
-        Vec3i floor = deckFloorCell(plate);
-        return floor == null ? null : new Vec3i(floor.x(), floor.y() + 1, floor.z());
     }
 
     public static boolean bridgeConnectsInteriors(

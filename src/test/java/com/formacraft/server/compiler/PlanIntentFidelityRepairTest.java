@@ -596,6 +596,47 @@ class PlanIntentFidelityRepairTest {
         assertEquals(2, ((Number) outRoof.params().get("roof_height")).intValue());
     }
 
+    @Test
+    void glassCurtainSteppedHouseKeepsBaseFootprintNotTopTierSize() {
+        // distinguishing_features often mention the top tier (13×13) before architecture_intent's
+        // 「底层占地25×19」; residential "glass curtain wall" must not office-plate-shrink the base.
+        Component house = new Component(
+                "MASS_MAIN", "house_main", new Vec3i(0, 0, 0),
+                new Dimensions(25, 19, 5), List.of(),
+                Map.of("component_id", "house_main", "floor_count", 1, "floor_height", 5,
+                        "anchor_mode", "min_corner"));
+        Component tier4 = new Component(
+                "MASS_SECONDARY", "house_main", new Vec3i(6, 15, 6),
+                new Dimensions(13, 13, 5), List.of(),
+                Map.of("component_id", "tier_4", "host_id", "house_main", "tier_index", 3,
+                        "floor_count", 1, "floor_height", 5, "anchor_mode", "min_corner"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(house, tier4))
+                .distinguishingFeatures(List.of(
+                        "四层仅占三层面积的一半（13x13），四周留出回形露台",
+                        "明显的体块退台：二层后退3格、三层再后退3格"))
+                .styleAttributes(new com.formacraft.common.llm.dto.StyleAttributes(
+                        null, null, null, null, null, null,
+                        List.of("stepped tier massing", "glass curtain wall", "terrace railings"),
+                        null))
+                .proportionHints(Map.of(
+                        "architecture_intent", Map.of(
+                                "original_text", "在锚点生成一栋四层现代阶梯住宅，底层占地25×19格，每层层高5格。"),
+                        "typology", "modern_stepped_house"))
+                .build();
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outHouse = findById(repaired, "house_main");
+        Component outTier = findById(repaired, "tier_4");
+        assertEquals(25, outHouse.dimensions().width(), "base width must stay 25");
+        assertEquals(19, outHouse.dimensions().depth(), "base depth must stay 19");
+        assertEquals(0, outHouse.relativePosition().x());
+        assertEquals(0, outHouse.relativePosition().z());
+        assertEquals(13, outTier.dimensions().width(), "top tier keeps authored 13");
+        assertEquals(13, outTier.dimensions().depth());
+        assertArrayEquals(new int[]{25, 19}, PlanIntentFidelityRepair.parseFootprint(
+                PlanIntentFidelityRepair.intentCorpus(plan)));
+    }
+
     private static Component findByHost(LlmPlan plan, String hostId) {
         return plan.components().stream()
                 .filter(c -> c.params() != null && hostId.equals(String.valueOf(c.params().get("host_id"))))

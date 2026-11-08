@@ -202,10 +202,4 @@ public final class BuildingEditPendingRegistry {
     public static int sizeForTest() {
         return BY_TICKET.size();
     }
-
-    /** @deprecated Use {@link #dropOwned} or {@link #dropVerified}. */
-    @Deprecated
-    public static void drop(UUID ticketId) {
-        dropVerified(ticketId);
-    }
 }

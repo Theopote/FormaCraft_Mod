@@ -1,0 +1,104 @@
+Initialized native services in: C:\Users\OOPS\.gradle\native
+Initialized jansi services in: C:\Users\OOPS\.gradle\native
+The client will now receive all logging from the daemon (pid: 2872). The daemon log file: C:\Users\OOPS\.gradle\daemon\9.1.0\daemon-2872.out.log
+Starting 13th build in daemon [uptime: 38 mins 43.733 secs, performance: 100%, GC rate: 0.00/s, heap usage: 0% of 4 GiB]
+Using 8 worker leases.
+Now considering [F:\development\formacraft-1.21.10] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Settings evaluated using settings file 'F:\development\formacraft-1.21.10\settings.gradle'.
+Projects loaded. Root project using build file 'F:\development\formacraft-1.21.10\build.gradle'.
+Included projects: [root project 'formacraft-1.21.10']
+
+> Configure project :
+Evaluating root project 'formacraft-1.21.10' using build file 'F:\development\formacraft-1.21.10\build.gradle'.
+Resolved plugin [id: 'fabric-loom', version: '1.11.8']
+Resolved plugin [id: 'maven-publish']
+Fabric Loom: 1.11.8
+(kotlin.metadata.jvm.KotlinClassMetadata) with version (2.0.21-release-482) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-metadata-jvm/2.0.21/dd8294df485f71ba735d14173a286e3f3eef44f9/kotlin-metadata-jvm-2.0.21.jar)
+(org.objectweb.asm.ClassVisitor) with version (9.8) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm/9.8/dc19ecb3f7889b7860697215cae99c0f9b6f6b4b/asm-9.8.jar)
+(org.objectweb.asm.tree.analysis.Analyzer) with version (9.8) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-analysis/9.8/b9747a320844b6cb1eacd90d8ecfd260a16c01d3/asm-analysis-9.8.jar)
+(org.objectweb.asm.commons.ClassRemapper) with version (9.8) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-commons/9.8/36e4d212970388e5bd2c5180292012502df461bb/asm-commons-9.8.jar)
+(org.objectweb.asm.tree.ClassNode) with version (9.8) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-tree/9.8/18419ca5b77a2f81097c741e7872e6ab8d2f40d/asm-tree-9.8.jar)
+(org.objectweb.asm.util.ASMifier) with version (9.8) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-util/9.8/395f1c1f035258511f27bc9b2583d76e4b143f59/asm-util-9.8.jar)
+(com.google.gson.Gson) with version (null) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.10.1/b3add478d4382b78ea20b1671390a858002feb6c/gson-2.10.1.jar)
+(com.google.common.base.Preconditions) with version (null) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/33.0.0-jre/161ba27964a62f241533807a46b8711b13c1d94b/guava-33.0.0-jre.jar)
+(org.apache.commons.io.FileUtils) with version (2.15.1) was loaded from (/C:/Users/OOPS/.gradle/caches/modules-2/files-2.1/commons-io/commons-io/2.15.1/f11560da189ab563a5c8e351941415430e9304ea/commons-io-2.15.1.jar)
+Using cached Minecraft jars
+:Extracting server jar from bootstrap
+file or directory 'F:\development\formacraft-1.21.10\src\main\generated', not found
+:setting up loom dependencies
+Mod dependency options: {"__inlineRefmap__":false,"__mappings__":"net.fabricmc.yarn.1_21_10.1.21.10+build.2-v2"}
+Applying installer data from C:\Users\OOPS\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.17.3\deafaba5de4d9bbd76105783ff4e21ce0773874f\fabric-loader-0.17.3.jar
+Found another installer JSON in (C:\Users\OOPS\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.17.3\deafaba5de4d9bbd76105783ff4e21ce0773874f\fabric-loader-0.17.3.jar), ignoring
+Configuring compiler arguments for Java
+Adding mixin to classpath of AP config: annotationProcessor
+Adding mixin to classpath of AP config: testAnnotationProcessor
+All projects evaluated.
+Task name matched 'test'
+Selected primary task 'test' from project :
+Could not find refmap definition, will be using default name: formacraft-refmap.json
+Tasks to be executed: [task ':compileJava', task ':processResources', task ':classes', task ':compileTestJava', task ':processTestResources', task ':testClasses', task ':test']
+Tasks that were excluded: []
+Resolve mutations for :compileJava (Thread[#1412,Execution worker,5,main]) started.
+:compileJava (Thread[#1412,Execution worker,5,main]) started.
+
+> Task :compileJava UP-TO-DATE
+Caching disabled for task ':compileJava' because:
+  Build cache is disabled
+Skipping task ':compileJava' as it is up-to-date.
+Resolve mutations for :processResources (Thread[#1414,Execution worker Thread 3,5,main]) started.
+:processResources (Thread[#1414,Execution worker Thread 3,5,main]) started.
+
+> Task :processResources UP-TO-DATE
+Caching disabled for task ':processResources' because:
+  Build cache is disabled
+  Not worth caching
+Skipping task ':processResources' as it is up-to-date.
+Resolve mutations for :classes (Thread[#1414,Execution worker Thread 3,5,main]) started.
+:classes (Thread[#1414,Execution worker Thread 3,5,main]) started.
+
+> Task :classes UP-TO-DATE
+Skipping task ':classes' as it has no actions.
+Resolve mutations for :compileTestJava (Thread[#1414,Execution worker Thread 3,5,main]) started.
+:compileTestJava (Thread[#1414,Execution worker Thread 3,5,main]) started.
+
+> Task :compileTestJava FAILED
+Caching disabled for task ':compileTestJava' because:
+  Build cache is disabled
+Task ':compileTestJava' is not up-to-date because:
+  Input property 'stableSources' file F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\TierSetbackDiagTest.java has changed.
+Compilation mode: in-process compilation
+Created classpath snapshot for incremental compilation in 0.037 secs.
+Compiling with toolchain 'C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot'.
+Compiling with JDK Java compiler API.
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\TierSetbackDiagTest.java:32: 错误: 找不到符号
+        plan = NonClassicalEnrichmentGuard.sanitize(plan);
+               ^
+  符号:   变量 NonClassicalEnrichmentGuard
+  位置: 类 TierSetbackDiagTest
+1 个错误
+Incremental compilation of 1 classes completed in 1.417 secs.
+
+[Incubating] Problems report is available at: file:///F:/development/formacraft-1.21.10/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileTestJava'.
+> Compilation failed; see the compiler output below.
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\TierSetbackDiagTest.java:32: 错误: 找不到符号
+          plan = NonClassicalEnrichmentGuard.sanitize(plan);
+                 ^
+    符号:   变量 NonClassicalEnrichmentGuard
+    位置: 类 TierSetbackDiagTest
+  1 个错误
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+
+BUILD FAILED in 5s
+3 actionable tasks: 1 executed, 2 up-to-date
+Watched directory hierarchies: [F:\development\formacraft-1.21.10]

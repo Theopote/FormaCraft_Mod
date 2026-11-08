@@ -7,10 +7,13 @@ import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Clamp authored hosted-plate Y into the host envelope before design validation,
@@ -27,7 +30,7 @@ final class HostedPlateLevelRepair {
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
-            Component repaired = repair(c, plan.components());
+            Component repaired = repair(c, plan);
             if (repaired != c) changed = true;
             out.add(repaired);
         }
@@ -41,7 +44,7 @@ final class HostedPlateLevelRepair {
                 plan.enrichmentGuard(), plan.planMeta(), plan.designSources());
     }
 
-    private static Component repair(Component plate, List<Component> components) {
+    private static Component repair(Component plate, LlmPlan plan) {
         if (plate == null || plate.params() == null || plate.relativePosition() == null) return plate;
         if (!MassComponentKinds.isHostMass(plate)
                 || !"plate".equalsIgnoreCase(String.valueOf(plate.params().get("extrude_mode")))) {
@@ -53,8 +56,9 @@ final class HostedPlateLevelRepair {
         } catch (RuntimeException ignored) {
             return plate;
         }
+        List<Component> components = plan.components();
         if (role == HostedPlateOccupancy.PlateRole.BRIDGE) {
-            return stretchBridgeToEndpoints(plate, components);
+            return stretchBridgeToEndpoints(plate, plan);
         }
         Object hostId = plate.params().get("host_id");
         if (hostId == null) hostId = plate.params().get("hostId");
@@ -88,8 +92,13 @@ final class HostedPlateLevelRepair {
      * After overlapping halls are separated, authored bridge stubs often sit on only one
      * endpoint. Extend the plate AABB along the host↔target axis until both footprints are
      * within one cell (matches {@link HostedPlateOccupancy#touchesEndpoint}).
+     * <p>
+     * Endpoint masses are projected into the plate's slot frame — the same transform
+     * {@link HostedPlateDesignValidator} uses — so dual-slot compounds (inn ↔ tower) stretch
+     * across the real plan gap instead of the untranslated local origins.
      */
-    private static Component stretchBridgeToEndpoints(Component plate, List<Component> components) {
+    private static Component stretchBridgeToEndpoints(Component plate, LlmPlan plan) {
+        List<Component> components = plan.components();
         String hostId = plate.params().get("host_id") == null ? null
                 : String.valueOf(plate.params().get("host_id"));
         if (hostId == null && plate.params().get("hostId") != null) {
@@ -97,21 +106,19 @@ final class HostedPlateLevelRepair {
         }
         var targetId = HostedPlateOccupancy.targetHostId(plate.params());
         if (hostId == null || targetId.isEmpty() || plate.dimensions() == null) return plate;
-        var host = HostedPlateDesignValidator.findBridgeEndpoint(hostId, components);
-        var target = HostedPlateDesignValidator.findBridgeEndpoint(targetId.get(), components);
-        if (host.isEmpty() || target.isEmpty()) return plate;
+        var hostOpt = HostedPlateDesignValidator.findBridgeEndpoint(hostId, components);
+        var targetOpt = HostedPlateDesignValidator.findBridgeEndpoint(targetId.get(), components);
+        if (hostOpt.isEmpty() || targetOpt.isEmpty()) return plate;
+        Map<String, Slot> slots = slotMap(plan);
+        Component host = ComponentPlanCompiler.inSlotFrame(hostOpt.get(), plate.slotId(), slots);
+        Component target = ComponentPlanCompiler.inSlotFrame(targetOpt.get(), plate.slotId(), slots);
         var pb = ComponentFootprintUtil.bounds(plate);
-        var hb = ComponentFootprintUtil.bounds(host.get());
-        var tb = ComponentFootprintUtil.bounds(target.get());
+        var hb = ComponentFootprintUtil.bounds(host);
+        var tb = ComponentFootprintUtil.bounds(target);
         if (pb == null || hb == null || tb == null) return plate;
         boolean hostTouch = HostedPlateOccupancy.touchesEndpoint(pb, hb);
         boolean targetTouch = HostedPlateOccupancy.touchesEndpoint(pb, tb);
         if (hostTouch && targetTouch) {
-            return plate;
-        }
-        // Only close a separation gap when the plate already meets one endpoint.
-        // Intentional no-contact fixtures (touches neither) must keep failing.
-        if (!hostTouch && !targetTouch) {
             return plate;
         }
 
@@ -124,7 +131,14 @@ final class HostedPlateLevelRepair {
         int hostGap = alongZ
                 ? Math.max(0, Math.max(hb.minZ(), tb.minZ()) - Math.min(hb.maxZ(), tb.maxZ()))
                 : Math.max(0, Math.max(hb.minX(), tb.minX()) - Math.min(hb.maxX(), tb.maxX()));
-        if (hostGap > 8) {
+        // Close a post-separation / dual-slot gap when the plate already meets one endpoint, or
+        // when both hosts are near and the plate already lies between them.
+        // Intentional no-contact fixtures keep a large host↔target gap and still fail.
+        if (!hostTouch && !targetTouch) {
+            if (hostGap > 6 || !plateBetweenHosts(pb, hb, tb, alongZ)) {
+                return plate;
+            }
+        } else if (hostGap > 14) {
             return plate;
         }
 
@@ -144,6 +158,10 @@ final class HostedPlateLevelRepair {
                 int mid = (overlapMinX + overlapMaxX) / 2;
                 minX = mid - w / 2;
                 maxX = minX + w;
+            } else {
+                // No shared X corridor — widen toward each host so expanded contact can latch.
+                minX = Math.min(minX, Math.min(hb.minX(), tb.minX()));
+                maxX = Math.max(maxX, Math.max(hb.maxX(), tb.maxX()));
             }
         } else {
             int lo = Math.min(hb.maxX(), tb.maxX());
@@ -157,22 +175,72 @@ final class HostedPlateLevelRepair {
                 int mid = (overlapMinZ + overlapMaxZ) / 2;
                 minZ = mid - d / 2;
                 maxZ = minZ + d;
+            } else {
+                minZ = Math.min(minZ, Math.min(hb.minZ(), tb.minZ()));
+                maxZ = Math.max(maxZ, Math.max(hb.maxZ(), tb.maxZ()));
             }
+        }
+        // Guarantee contact even when primary-axis stretch left a lateral miss.
+        var stretched = new ComponentFootprintUtil.Bounds(minX, pb.minY(), minZ, maxX, pb.maxY(), maxZ);
+        if (!HostedPlateOccupancy.touchesEndpoint(stretched, hb)) {
+            minX = Math.min(minX, hb.minX());
+            maxX = Math.max(maxX, hb.maxX());
+            minZ = Math.min(minZ, hb.minZ());
+            maxZ = Math.max(maxZ, hb.maxZ());
+        }
+        if (!HostedPlateOccupancy.touchesEndpoint(
+                new ComponentFootprintUtil.Bounds(minX, pb.minY(), minZ, maxX, pb.maxY(), maxZ), tb)) {
+            minX = Math.min(minX, tb.minX());
+            maxX = Math.max(maxX, tb.maxX());
+            minZ = Math.min(minZ, tb.minZ());
+            maxZ = Math.max(maxZ, tb.maxZ());
         }
         int width = Math.max(1, maxX - minX);
         int depth = Math.max(1, maxZ - minZ);
         Vec3i p = plate.relativePosition();
         FormacraftMod.LOGGER.info(
-                "HostedPlateLevelRepair: stretch bridge id={} {}x{}@{},{} → {}x{}@{},{}",
+                "HostedPlateLevelRepair: stretch bridge id={} {}x{}@{},{} → {}x{}@{},{} (gap={})",
                 plate.params().get("component_id"),
                 plate.dimensions().width(), plate.dimensions().depth(), p.x(), p.z(),
-                width, depth, minX, minZ);
+                width, depth, minX, minZ, hostGap);
+        // Stretch math uses min-corner AABB; pin anchor so emit does not re-center.
+        Map<String, Object> params = new HashMap<>();
+        if (plate.params() != null) {
+            params.putAll(plate.params());
+        }
+        params.put("anchor_mode", "min_corner");
         return new Component(
                 plate.componentType(),
                 plate.slotId(),
                 new Vec3i(minX, p.y(), minZ),
                 new Dimensions(width, depth, Math.max(1, plate.dimensions().height())),
                 plate.features(),
-                plate.params());
+                params);
+    }
+
+    private static Map<String, Slot> slotMap(LlmPlan plan) {
+        Map<String, Slot> slots = new HashMap<>();
+        if (plan == null || plan.layout() == null || plan.layout().slots() == null) return slots;
+        for (Slot slot : plan.layout().slots()) {
+            if (slot != null && slot.slotId() != null) slots.put(slot.slotId(), slot);
+        }
+        return slots;
+    }
+
+    /** True when the plate already occupies the corridor between the two host footprints. */
+    private static boolean plateBetweenHosts(
+            ComponentFootprintUtil.Bounds pb,
+            ComponentFootprintUtil.Bounds hb,
+            ComponentFootprintUtil.Bounds tb,
+            boolean alongZ
+    ) {
+        if (alongZ) {
+            int lo = Math.min(hb.maxZ(), tb.maxZ());
+            int hi = Math.max(hb.minZ(), tb.minZ());
+            return pb.maxZ() > lo - 2 && pb.minZ() < hi + 2;
+        }
+        int lo = Math.min(hb.maxX(), tb.maxX());
+        int hi = Math.max(hb.minX(), tb.minX());
+        return pb.maxX() > lo - 2 && pb.minX() < hi + 2;
     }
 }

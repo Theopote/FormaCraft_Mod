@@ -1081,12 +1081,6 @@ public final class LlmPlanPreviewBuilder {
         return true;
     }
 
-    /** @deprecated use {@link #isCoercibleFullBuildPlan} */
-    @Deprecated
-    static boolean isTypologyStructureBuildPlan(LlmPlan plan) {
-        return isCoercibleFullBuildPlan(plan);
-    }
-
     /**
      * Full building compositions mis-tagged as mode=patch (twin pagodas, typology STRUCTURE,
      * MASS_MAIN compounds). Safe to land via the normal build compile path.

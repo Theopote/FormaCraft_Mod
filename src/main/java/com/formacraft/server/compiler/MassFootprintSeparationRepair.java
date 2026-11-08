@@ -42,6 +42,9 @@ final class MassFootprintSeparationRepair {
                 Component b = out.get(j);
                 if (!isAnchorMass(b)) continue;
                 if (!overlaps(plan, a, b)) continue;
+                // Stepped towers / pagoda tiers intentionally nest in XZ at different Y.
+                // Separating them flattens the stack onto the ground and causes E_PATCH_CONFLICT.
+                if (isAuthoredVerticalStack(plan, a, b)) continue;
                 // Prefer moving the pavilion / smaller body away from the hall / larger body.
                 if (priority(a) >= priority(b)) continue;
                 var before = planBounds(plan, a);
@@ -153,10 +156,8 @@ final class MassFootprintSeparationRepair {
     /** Foundations, platforms, and porch posts that must stay co-located with the hall. */
     private static boolean isFoundationLike(Component c) {
         String id = idOf(c).toLowerCase(Locale.ROOT);
-        if (id.contains("plinth") || id.contains("foundation") || id.contains("台基")
-                || id.contains("steps") || id.contains("台阶") || id.contains("stair_approach")
-                || id.contains("approach_stair") || id.contains("kouhai") || id.contains("向拝")
-                || id.contains("porch")) {
+        // Id tokens only — feature strings often mention plaza "steps" / paths without being a plinth.
+        if (idContainsFoundationToken(id)) {
             return true;
         }
         // Free-standing "pillars" accessory under a shrine porch — not a hall mass.
@@ -167,13 +168,22 @@ final class MassFootprintSeparationRepair {
             for (String f : c.features()) {
                 if (f == null) continue;
                 String lower = f.toLowerCase(Locale.ROOT);
+                // Strong foundation cues only — never match loose "steps" inside plaza descriptions.
                 if (lower.contains("plinth") || f.contains("台基") || lower.contains("foundation")
-                        || lower.contains("steps") || f.contains("台阶")) {
+                        || f.contains("台阶") || lower.contains("stair_approach")
+                        || lower.contains("approach_stair")) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    private static boolean idContainsFoundationToken(String id) {
+        return id.contains("plinth") || id.contains("foundation") || id.contains("台基")
+                || id.contains("steps") || id.contains("台阶") || id.contains("stair_approach")
+                || id.contains("approach_stair") || id.contains("kouhai") || id.contains("向拝")
+                || id.contains("porch");
     }
 
     private static boolean isAnchorMass(Component c) {
@@ -243,6 +253,53 @@ final class MassFootprintSeparationRepair {
         // Bounds max is exclusive.
         return ab.minX() < bb.maxX() && bb.minX() < ab.maxX()
                 && ab.minZ() < bb.maxZ() && bb.minZ() < ab.maxZ();
+    }
+
+    /**
+     * Nested footprints at different Y (or explicit tier/host binding) are a vertical stack,
+     * not a courtyard collision. Horizontal annexes (wing/side/pavilion) still separate unless
+     * they also carry a tier cue or host_id link.
+     */
+    private static boolean isAuthoredVerticalStack(LlmPlan plan, Component a, Component b) {
+        var ab = planBounds(plan, a);
+        var bb = planBounds(plan, b);
+        if (ab == null || bb == null) return false;
+        if (!xzNested(ab, bb) && !xzNested(bb, ab)) return false;
+        String idA = idOf(a).toLowerCase(Locale.ROOT);
+        String idB = idOf(b).toLowerCase(Locale.ROOT);
+        // Wings/corridors often carry host_id for roofs/stairs — that alone must not skip separation.
+        if (looksHorizontalAnnex(idA) || looksHorizontalAnnex(idB)) {
+            return looksTierToken(idA) || looksTierToken(idB);
+        }
+        int dy = Math.abs(ab.minY() - bb.minY());
+        if (dy >= 2) return true;
+        return looksTierToken(idA) || looksTierToken(idB) || linkedByHost(a, b);
+    }
+
+    private static boolean xzNested(
+            ComponentFootprintUtil.Bounds inner, ComponentFootprintUtil.Bounds outer) {
+        return inner.minX() >= outer.minX() - 1 && inner.maxX() <= outer.maxX() + 1
+                && inner.minZ() >= outer.minZ() - 1 && inner.maxZ() <= outer.maxZ() + 1;
+    }
+
+    private static boolean looksHorizontalAnnex(String id) {
+        return id.contains("wing") || id.contains("side") || id.contains("配") || id.contains("厢")
+                || id.contains("pavilion") || id.contains("gazebo") || id.contains("ting")
+                || id.contains("corridor") || id.contains("廊") || id.contains("annex");
+    }
+
+    private static boolean looksTierToken(String id) {
+        return id.contains("tier") || id.contains("pagoda") || id.contains("layer")
+                || id.contains("storey") || id.contains("story") || id.contains("level_")
+                || id.matches(".*[_-]l\\d+.*") || id.contains("层") || id.contains("檐");
+    }
+
+    private static boolean linkedByHost(Component a, Component b) {
+        String aId = idOf(a);
+        String bId = idOf(b);
+        String aHost = explicitHostId(a);
+        String bHost = explicitHostId(b);
+        return (aHost != null && aHost.equals(bId)) || (bHost != null && bHost.equals(aId));
     }
 
     private static ComponentFootprintUtil.Bounds planBounds(LlmPlan plan, Component c) {

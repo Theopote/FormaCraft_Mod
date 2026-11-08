@@ -113,27 +113,58 @@ final class ExteriorCirculationValidator {
         }
         Object stairBuilding = stair.params().get("building_id");
         if (stairBuilding == null) stairBuilding = stair.params().get("host_id");
-        // A source doorway can receive the first tread and its support. Bound
-        // this permission to the authored portal and the first approach row.
-        for (var door:components) {
-            if (!"ENTRANCE".equals(door.componentType()) || door.params()==null
-                    || !Objects.equals(stair.params().get("component_id"),door.params().get("stair_connection"))
-                    || !Objects.equals(stair.params().get("host_id"),door.params().get("host_id"))) continue;
-            var db=ComponentFootprintUtil.bounds(door);
-            var ds=slots.get(door.slotId()); var da=ds==null?null:ds.anchor();
-            int ox=da==null?0:da.x(),oy=da==null?0:da.y(),oz=da==null?0:da.z();
-            if(db==null) continue;
-            for(int side=-width/2;side<width-width/2;side++) for(int y=-1;y<=clear;y++) {
-                var pos=new BlockPos(offset.getX()+rp.x()+number(from.get("x"))+(dz!=0?side:0),
-                        offset.getY()+rp.y()+number(from.get("y"))+y,
-                        offset.getZ()+rp.z()+number(from.get("z"))+(dx!=0?side:0));
-                var previous=occupancy.placeAt(pos);
-                if(pos.getX()>=db.minX()+ox && pos.getX()<db.maxX()+ox
-                        && pos.getZ()>=db.minZ()+oz && pos.getZ()<db.maxZ()+oz
-                        && pos.getY()>=db.minY()+oy-1 && pos.getY()<db.maxY()+oy
-                        && previous!=null && previous.owner()!=null && previous.owner().params()!=null
-                        && (Objects.equals(stair.params().get("host_id"),previous.owner().params().get("component_id"))
-                            || Objects.equals(stair.params().get("host_id"),previous.owner().params().get("host_id")))) result.add(pos);
+        // Source doorway: stair_connection link, or spatial when the low landing sits on/next to
+        // an authored ENTRANCE on the stair host (fixtures often omit stair_connection).
+        BlockPos fromLanding = new BlockPos(
+                offset.getX() + rp.x() + number(from.get("x")),
+                offset.getY() + rp.y() + number(from.get("y")),
+                offset.getZ() + rp.z() + number(from.get("z")));
+        Object sourceHost = stair.params().get("host_id");
+        for (var door : components) {
+            if (!"ENTRANCE".equals(door.componentType()) || door.params() == null) continue;
+            Object doorHost = door.params().get("host_id");
+            boolean linked = Objects.equals(stair.params().get("component_id"), door.params().get("stair_connection"))
+                    && Objects.equals(sourceHost, doorHost);
+            var db = ComponentFootprintUtil.bounds(door);
+            var ds = slots.get(door.slotId());
+            var da = ds == null ? null : ds.anchor();
+            int ox = da == null ? 0 : da.x(), oy = da == null ? 0 : da.y(), oz = da == null ? 0 : da.z();
+            if (db == null) continue;
+            // ±1 cell: exclusive door max often sits one cell shy of the exterior tread.
+            boolean spatial = !linked
+                    && Objects.equals(sourceHost, doorHost)
+                    && fromLanding.getX() >= db.minX() + ox - 1 && fromLanding.getX() < db.maxX() + ox + 1
+                    && fromLanding.getZ() >= db.minZ() + oz - 1 && fromLanding.getZ() < db.maxZ() + oz + 1
+                    && fromLanding.getY() >= db.minY() + oy - 1 && fromLanding.getY() < db.maxY() + oy + 1;
+            if (!linked && !spatial) continue;
+            int doorClear = Math.max(clear, Math.max(1, db.maxY() - db.minY()));
+            // Source portal is the first approach row only — never walk mid-run into the host.
+            for (int side = -width / 2; side < width - width / 2; side++) {
+                for (int y = -1; y <= doorClear; y++) {
+                    var pos = new BlockPos(
+                            offset.getX() + rp.x() + number(from.get("x")) + (dz != 0 ? side : 0),
+                            offset.getY() + rp.y() + number(from.get("y")) + y,
+                            offset.getZ() + rp.z() + number(from.get("z")) + (dx != 0 ? side : 0));
+                    var previous = occupancy.placeAt(pos);
+                    if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
+                    boolean inPortalBand = pos.getX() >= db.minX() + ox - 1
+                            && pos.getX() < db.maxX() + ox + 1
+                            && pos.getZ() >= db.minZ() + oz - 1
+                            && pos.getZ() < db.maxZ() + oz + 1
+                            && pos.getY() >= db.minY() + oy - 1
+                            && pos.getY() < db.maxY() + oy + clear;
+                    boolean hostOwned = Objects.equals(doorHost, previous.owner().params().get("host_id"))
+                            || Objects.equals(doorHost, previous.owner().params().get("component_id"));
+                    if (!hostOwned || !inPortalBand) continue;
+                    if (y == -1 && "FOUNDATION".equals(previous.writerType())) {
+                        result.add(pos);
+                        continue;
+                    }
+                    if (isHostShellWriter(previous.writerType())
+                            || "ENTRANCE".equals(previous.writerType())) {
+                        result.add(pos);
+                    }
+                }
             }
         }
         // Optional eaves outside another building's core yield to an explicit
@@ -180,14 +211,16 @@ final class ExteriorCirculationValidator {
             var da = ds == null ? null : ds.anchor();
             int ox = da == null ? 0 : da.x(), oy = da == null ? 0 : da.y(), oz = da == null ? 0 : da.z();
             if (db == null) continue;
+            // ±1: exclusive door max often sits one cell shy of the exterior landing tread.
             boolean spatial = !linked
                     && Objects.equals(destHost, doorHost)
-                    && toLanding.getX() >= db.minX() + ox && toLanding.getX() < db.maxX() + ox
-                    && toLanding.getZ() >= db.minZ() + oz && toLanding.getZ() < db.maxZ() + oz
-                    && toLanding.getY() >= db.minY() + oy - 1 && toLanding.getY() < db.maxY() + oy;
+                    && toLanding.getX() >= db.minX() + ox - 1 && toLanding.getX() < db.maxX() + ox + 1
+                    && toLanding.getZ() >= db.minZ() + oz - 1 && toLanding.getZ() < db.maxZ() + oz + 1
+                    && toLanding.getY() >= db.minY() + oy - 1 && toLanding.getY() < db.maxY() + oy + 1;
             if (!linked && !spatial) continue;
             int doorClear = Math.max(clear, Math.max(1, db.maxY() - db.minY()));
-            for (int step = 0; step <= (landing > 1 ? landing : 0); step++) {
+            // landing_length defaults to 1 — always allow that one-cell portal/outward band.
+            for (int step = 0; step <= Math.max(0, landing); step++) {
                 for (int side = -width / 2; side < width - width / 2; side++) {
                     for (int y = -1; y <= doorClear; y++) {
                         var pos = new BlockPos(offset.getX() + rp.x() + number(to.get("x")) + dx * step + (dz != 0 ? side : 0),
@@ -195,10 +228,12 @@ final class ExteriorCirculationValidator {
                                 offset.getZ() + rp.z() + number(to.get("z")) + dz * step + (dx != 0 ? side : 0));
                         var previous = occupancy.placeAt(pos);
                         if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
-                        boolean inPortalBand = pos.getX() >= db.minX() + ox - Math.abs(dx) * landing
-                                && pos.getX() < db.maxX() + ox + Math.abs(dx) * landing
-                                && pos.getZ() >= db.minZ() + oz - Math.abs(dz) * landing
-                                && pos.getZ() < db.maxZ() + oz + Math.abs(dz) * landing;
+                        // +1 on exclusive max: door width often equals stair width and the edge
+                        // lane (x == maxX) is the facade cell the landing must clear.
+                        boolean inPortalBand = pos.getX() >= db.minX() + ox - Math.abs(dx) * landing - 1
+                                && pos.getX() < db.maxX() + ox + Math.abs(dx) * landing + 1
+                                && pos.getZ() >= db.minZ() + oz - Math.abs(dz) * landing - 1
+                                && pos.getZ() < db.maxZ() + oz + Math.abs(dz) * landing + 1;
                         boolean hostOwned = Objects.equals(doorHost, previous.owner().params().get("host_id"))
                                 || Objects.equals(doorHost, previous.owner().params().get("component_id"));
                         if (!hostOwned) continue;
@@ -207,8 +242,8 @@ final class ExteriorCirculationValidator {
                             continue;
                         }
                         // Portal + short inward landing may meet the destination host shell.
-                        if (inPortalBand || Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY",
-                                "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(previous.writerType())) {
+                        // Inferred FACADE_WINDOWS often own the face cells before the stair emits.
+                        if (inPortalBand || isHostShellWriter(previous.writerType())) {
                             if (pos.getY() >= db.minY() + oy - 1 && pos.getY() < db.maxY() + oy + clear) {
                                 result.add(pos);
                             }
@@ -350,5 +385,14 @@ final class ExteriorCirculationValidator {
 
     private static boolean contains(BlockPos p, List<BuildingVolume> volumes) {
         return volumes.stream().anyMatch(v -> v.contains(p.getX(), p.getY(), p.getZ()));
+    }
+
+    /** Mass / facade shell writers a doorway landing is allowed to meet. */
+    private static boolean isHostShellWriter(String writerType) {
+        return writerType != null && Set.of(
+                "MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY", "MASS_ANCILLARY",
+                "FOUNDATION", "ROOF", "ROOF_STRUCTURE",
+                "FACADE_WINDOWS", "FACADE", "FACADE_OPENING", "WINDOW", "WINDOWS"
+        ).contains(writerType);
     }
 }

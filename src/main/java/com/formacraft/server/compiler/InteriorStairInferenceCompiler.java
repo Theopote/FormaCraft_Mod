@@ -58,11 +58,19 @@ final class InteriorStairInferenceCompiler {
                 f.startsWith("typology:") || f.startsWith("landmark:"))) {
             return false;
         }
+        // Hosted tiers / upper plates inherit stairs bound to their root host_id
+        // (inferring again plants duplicate flights that collide with the shell).
+        Object rootHost = host.params().get("host_id");
+        if (rootHost == null) rootHost = host.params().get("hostId");
         for (Component c : parts) {
             if (c == null || c.params() == null || Boolean.TRUE.equals(c.params().get("exterior"))) {
                 continue;
             }
-            if (!id.equals(c.params().get("host_id"))) {
+            Object stairHost = c.params().get("host_id");
+            if (stairHost == null) stairHost = c.params().get("hostId");
+            boolean boundHere = id.equals(stairHost)
+                    || (rootHost != null && rootHost.equals(stairHost));
+            if (!boundHere) {
                 continue;
             }
             // Only a real stair flight owns vertical circulation — rail/guard furniture alone

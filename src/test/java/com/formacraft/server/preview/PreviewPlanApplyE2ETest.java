@@ -62,10 +62,11 @@ class PreviewPlanApplyE2ETest {
         assertTrue(ticket.patchIntegrityOk());
         assertNull(PatchPreviewService.verifyExpectedStates(access, ticket));
 
-        PreviewTicket consumed = PreviewTicketStorage.consume(ticket.id(), player);
+        PreviewTicketStorage.TicketConsumption consumed =
+                PreviewTicketStorage.consumeForApply(ticket.id(), player);
         assertNotNull(consumed);
         WorldPatchTransaction.Result applied =
-                WorldPatchTransaction.execute(access, ORIGIN, consumed.patches());
+                WorldPatchTransaction.execute(access, ORIGIN, consumed.ticket().patches());
         assertEquals(BuildExecutionStatus.SUCCESS, applied.status());
         assertEquals(2, applied.applied());
     }

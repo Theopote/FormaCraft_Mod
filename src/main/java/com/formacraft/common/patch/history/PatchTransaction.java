@@ -61,18 +61,4 @@ public record PatchTransaction(
                 }).toList();
     }
 
-    /** @deprecated use {@link #patchesForSnapshots} */
-    @Deprecated
-    public static List<BlockPatch> patchesForStates(BlockPos origin, Map<BlockPos, ?> statesOrSnapshots) {
-        if (statesOrSnapshots.isEmpty()) return List.of();
-        Object sample = statesOrSnapshots.values().iterator().next();
-        if (sample instanceof BlockSnapshot) {
-            @SuppressWarnings("unchecked")
-            Map<BlockPos, BlockSnapshot> map = (Map<BlockPos, BlockSnapshot>) statesOrSnapshots;
-            return patchesForSnapshots(origin, map);
-        }
-        @SuppressWarnings("unchecked")
-        Map<BlockPos, BlockState> map = (Map<BlockPos, BlockState>) statesOrSnapshots;
-        return patchesForSnapshots(origin, wrapStates(map));
-    }
 }

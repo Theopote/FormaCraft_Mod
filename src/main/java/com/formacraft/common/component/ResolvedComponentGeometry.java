@@ -35,16 +35,6 @@ public record ResolvedComponentGeometry(
         return new ResolvedComponentGeometry(VariantCompileResult.Status.SUCCESS, patches, id, "");
     }
 
-    /** @deprecated prefer {@link #success(ComponentDefinition, List)} so EMPTY policy can apply. */
-    @Deprecated
-    public static ResolvedComponentGeometry success(String sourceId, List<BlockPatch> patches) {
-        if (patches == null || patches.isEmpty()) {
-            return new ResolvedComponentGeometry(
-                    VariantCompileResult.Status.TEMPLATE_MISSING, List.of(), sourceId, "empty_geometry_rejected");
-        }
-        return new ResolvedComponentGeometry(VariantCompileResult.Status.SUCCESS, patches, sourceId, "");
-    }
-
     public static ResolvedComponentGeometry failure(VariantCompileResult.Status status, String sourceId, String message) {
         return new ResolvedComponentGeometry(status, List.of(), sourceId, message);
     }

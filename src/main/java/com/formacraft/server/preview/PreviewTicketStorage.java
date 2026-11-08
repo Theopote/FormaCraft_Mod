@@ -191,15 +191,6 @@ public final class PreviewTicketStorage {
     }
 
     /**
-     * @deprecated prefer {@link #consumeForApply}; still releases bound plan.
-     */
-    @Deprecated
-    public static PreviewTicket consume(UUID ticketId, UUID playerId) {
-        TicketConsumption c = consumeForApply(ticketId, playerId);
-        return c == null ? null : c.ticket();
-    }
-
-    /**
      * Cancel / discard a ticket without applying; clears bound plan + building-edit Pending.
      * Ownership is verified first via {@link #consumeForApply}; unauthorized callers cannot drop Pending.
      */

@@ -316,6 +316,7 @@ public final class PatchOccupancyIndex {
                 if (existing != null && !carveOk && !isHostedStairJoin(writer, existing, pos)
                         && !isBoundUpperMassSeam(writer, existing, pos)
                         && !isHostedMassSecondaryCarve(writer, existing)
+                        && !isHostedStructuralJoin(writer, existing)
                         && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
                             type, p.targetBlock(), "unauthorized_remove"));
@@ -344,7 +345,13 @@ public final class PatchOccupancyIndex {
                                             : String.valueOf(prev.owner().params().get("component_id")).trim(),
                                     prev.owner().params().get("host_id") == null ? null
                                             : String.valueOf(prev.owner().params().get("host_id")).trim())
-                                && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "TOWER",
+                                && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_ANCILLARY", "TOWER",
+                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType()))
+                            // Unbound industrial stacks still need to pierce adjacent masses/roofs.
+                            || (writer.params() != null
+                                && writer.params().get("host_id") == null
+                                && writer.params().get("hostId") == null
+                                && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_ANCILLARY", "TOWER",
                                         "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())));
                 boolean gateOnPath = "GATE".equals(type)
                         && prev.writerType() != null
@@ -372,28 +379,53 @@ public final class PatchOccupancyIndex {
 
     private static boolean isBoundUpperMassSeam(Component writer, PlaceRecord previous, BlockPos pos) {
         if (writer == null || writer.params() == null || previous.owner() == null || previous.owner().params() == null
-                || !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())
                 || writer.componentType() == null || !writer.componentType().startsWith("MASS")
-                || previous.owner().componentType() == null || !previous.owner().componentType().startsWith("MASS")) return false;
-        var owner=previous.owner();
-        if (!bindsToOwner(writer, String.valueOf(owner.params().get("component_id")),
-                String.valueOf(owner.params().get("host_id")))) return false;
-        var upper=com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
-        var lower=com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(owner);
+                || previous.owner().componentType() == null || !previous.owner().componentType().startsWith("MASS")) {
+            return false;
+        }
+        var owner = previous.owner();
+        String ownerId = owner.params().get("component_id") == null ? null
+                : String.valueOf(owner.params().get("component_id")).trim();
+        String ownerHost = owner.params().get("host_id") == null ? null
+                : String.valueOf(owner.params().get("host_id")).trim();
+        if (!bindsToOwner(writer, ownerId, ownerHost)) return false;
+        // Host-bound setbacks may span distinct slot labels in one compound frame.
+        boolean sameSlot = java.util.Objects.equals(writer.slotId(), owner.slotId());
+        var upper = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
+        var lower = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(owner);
         if (upper == null || lower == null) return false;
-        if (pos.getX()<upper.minX() || pos.getX()>=upper.maxX()
-                || pos.getZ()<upper.minZ() || pos.getZ()>=upper.maxZ()
-                || pos.getY()<upper.minY() || pos.getY()>=upper.maxY()) return false;
+        if (pos.getX() < upper.minX() || pos.getX() >= upper.maxX()
+                || pos.getZ() < upper.minZ() || pos.getZ() >= upper.maxZ()
+                || pos.getY() < upper.minY() || pos.getY() >= upper.maxY()) {
+            return false;
+        }
+        boolean nested = upper.minX() >= lower.minX() && upper.maxX() <= lower.maxX()
+                && upper.minZ() >= lower.minZ() && upper.maxZ() <= lower.maxZ();
+        // Satellite eaves / overflow repair can overhang the host by 1–2 cells while still
+        // being an authored setback tier — allow a small nest tolerance for that path only.
+        boolean nestedLoose = upper.minX() >= lower.minX() - 2 && upper.maxX() <= lower.maxX() + 2
+                && upper.minZ() >= lower.minZ() - 2 && upper.maxZ() <= lower.maxZ() + 2;
         // A bound cap may inset into the upper half of a solid sculptural body, never a habitable shell.
         boolean solidCap = Boolean.FALSE.equals(owner.params().get("hollow"))
                 && !owner.params().containsKey("floor_count")
                 && Set.of("circle", "sphere").contains(String.valueOf(owner.params().get("shape")))
-                && upper.minY() >= lower.minY()+(lower.maxY()-lower.minY())/2;
-        return (solidCap || upper.minY() >= lower.maxY()-1
-                && pos.getY() >= lower.maxY()-1 && pos.getY() <= lower.maxY()
-                )
-                && upper.minX() >= lower.minX() && upper.maxX() <= lower.maxX()
-                && upper.minZ() >= lower.minZ() && upper.maxZ() <= lower.maxZ();
+                && upper.minY() >= lower.minY() + (lower.maxY() - lower.minY()) / 2;
+        // Top seam: upper sits on the host crown.
+        boolean seam = upper.minY() >= lower.maxY() - 1
+                && pos.getY() >= lower.maxY() - 1 && pos.getY() <= lower.maxY();
+        // Nested setback / stacked tier: hosted mass starts above the prior mass floor and may
+        // replace cells only inside its own AABB (pos already gated above). Same-root tier plates
+        // can overhang after eaves expansion — XZ overlap + host bind is enough.
+        boolean stackCue = writer.params().containsKey("tier_index")
+                || owner.params().containsKey("tier_index")
+                || "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode")))
+                || "plate".equalsIgnoreCase(String.valueOf(owner.params().get("extrude_mode")));
+        boolean xzOverlap = upper.minX() < lower.maxX() && upper.maxX() > lower.minX()
+                && upper.minZ() < lower.maxZ() && upper.maxZ() > lower.minZ();
+        boolean nestedSetback = upper.minY() > lower.minY()
+                && (nestedLoose || (stackCue && xzOverlap));
+        if (!sameSlot && !nestedSetback) return false;
+        return ((solidCap || seam) && nested) || nestedSetback;
     }
 
     /**
@@ -423,7 +455,8 @@ public final class PatchOccupancyIndex {
         Object ownerHost = previous.owner().params().get("host_id");
         String ownerHostStr = ownerHost == null ? null : String.valueOf(ownerHost).trim();
         if (!bindsToOwner(writer, ownerIdStr, ownerHostStr)) {
-            return false;
+            // Same-slot pier/leg into a coplanar podium (no host_id on the leg).
+            return sameSlotPierJoin(writer, previous);
         }
         boolean bridge = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                 .isBridgePlate(writer.params());
@@ -434,30 +467,76 @@ public final class PatchOccupancyIndex {
         if ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType()) && writer.params().containsKey("tier_index")) {
             var tier = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
             var base = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(previous.owner());
-            if (tier != null && base != null && tier.minY() >= base.maxY()-1) return true;
+            // Top-crown only here — mid-body setbacks go through isBoundUpperMassSeam (pos-gated).
+            if (tier != null && base != null && tier.minY() >= base.maxY() - 1) return true;
         }
-        if (!Set.of("MASS_MAIN", "MAIN_MASS", "MASS_WING", "SIDE_WING", "MASS_SECONDARY", "TOWER", "FOUNDATION", "BALCONY", "TERRACE", "DECOR_DETAIL", "ROOF")
+        if (!Set.of("MASS_MAIN", "MAIN_MASS", "MASS_WING", "SIDE_WING", "MASS_SECONDARY", "MASS_ANCILLARY",
+                "TOWER", "FOUNDATION", "BALCONY", "TERRACE", "DECOR_DETAIL", "ROOF")
                 .contains(previous.writerType())) return false;
         // Bound structural/detail parts may join their own building. The surface
         // ledger still protects roofs and openings from decoration; REMOVE uses
         // the separate stair/carve rules.
-        return Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY", "GATE")
-                .contains(writer.componentType().toUpperCase(Locale.ROOT))
-                || ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType())
-                    && "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode"))));
+        String writerType = writer.componentType().toUpperCase(Locale.ROOT);
+        if (Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY", "GATE")
+                .contains(writerType)) {
+            return true;
+        }
+        if ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType())
+                && "plate".equalsIgnoreCase(String.valueOf(writer.params().get("extrude_mode")))) {
+            return true;
+        }
+        // Dual-host corridors / enclosed connectors may overwrite either endpoint mass
+        // (generator often extrudes a few cells past the declared AABB toward target_host).
+        boolean dualHost = writer.params().containsKey("target_host_id")
+                || writer.params().containsKey("targetHostId");
+        return dualHost && writerType.startsWith("MASS");
+    }
+
+    /**
+     * Landmark piers / tower legs often omit host_id but sit in the same slot as the podium
+     * and overlap its footprint at the shared floor band.
+     */
+    private static boolean sameSlotPierJoin(Component writer, PlaceRecord previous) {
+        if (writer.params().containsKey("host_id") || writer.params().containsKey("hostId")) {
+            return false;
+        }
+        if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) {
+            return false;
+        }
+        String wt = writer.componentType() == null ? "" : writer.componentType().toUpperCase(Locale.ROOT);
+        String pt = previous.writerType() == null ? "" : previous.writerType();
+        if (!wt.startsWith("MASS") || !Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "FOUNDATION")
+                .contains(pt)) {
+            return false;
+        }
+        var upper = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
+        var lower = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(previous.owner());
+        if (upper == null || lower == null) return false;
+        boolean xzOverlap = upper.minX() < lower.maxX() && upper.maxX() > lower.minX()
+                && upper.minZ() < lower.maxZ() && upper.maxZ() > lower.minZ();
+        // Shared floor band (pier rising from the podium deck).
+        boolean sharedFloor = upper.minY() <= lower.maxY() && upper.minY() >= lower.minY() - 1;
+        return xzOverlap && sharedFloor;
     }
 
     private static boolean bindsToOwner(Component writer, String ownerId, String ownerHost) {
+        // Params may carry non-String scalars after JSON/repair rewrites — compare via String.valueOf.
         Object host = writer.params().get("host_id");
-        if (host instanceof String id && !id.isBlank()
-                && (id.equals(ownerId) || id.equals(ownerHost))) {
-            return true;
+        if (host == null) host = writer.params().get("hostId");
+        if (host != null) {
+            String id = String.valueOf(host).trim();
+            if (!id.isEmpty() && !"null".equalsIgnoreCase(id)
+                    && (id.equals(ownerId) || id.equals(ownerHost))) {
+                return true;
+            }
         }
         Object target = writer.params().get("target_host_id");
         if (target == null) {
             target = writer.params().get("targetHostId");
         }
-        return target instanceof String tid && !tid.isBlank()
+        if (target == null) return false;
+        String tid = String.valueOf(target).trim();
+        return !tid.isEmpty() && !"null".equalsIgnoreCase(tid)
                 && (tid.equals(ownerId) || tid.equals(ownerHost));
     }
 

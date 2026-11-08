@@ -182,12 +182,6 @@ public final class AssemblyCirculationConstraints {
         return new Flight(occupied, clearance);
     }
 
-    /** @deprecated Use {@link #union}; name historically implied contract cancellation. */
-    @Deprecated
-    public static Flight collapse(List<Flight> flights) {
-        return union(flights);
-    }
-
     private static Conflict conflict(int flight, BlockPos pos, String reason) {
         return new Conflict("STAIR_SYSTEM flight " + (flight + 1) + " " + reason
             + " at assembly/plan coordinate " + pos.toShortString() + "; separate flights/landings or fix operation order");

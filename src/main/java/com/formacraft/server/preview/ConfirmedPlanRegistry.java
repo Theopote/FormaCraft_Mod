@@ -79,14 +79,6 @@ public final class ConfirmedPlanRegistry {
     }
 
     /**
-     * @deprecated use overload with playerId
-     */
-    @Deprecated
-    public static void putPending(UUID requestId, String worldKey, BlockPos origin, PalacePreviewPlan plan) {
-        putPending(requestId, null, worldKey, origin, plan);
-    }
-
-    /**
      * Claim pending for this request. Validates player ownership when the pending
      * entry recorded a non-null playerId.
      */
@@ -214,27 +206,5 @@ public final class ConfirmedPlanRegistry {
     public static int boundTicketCountForTest() {
         purgeExpired();
         return BY_TICKET_ID.size();
-    }
-
-    // --- deprecated planId-keyed API (removed behavior; kept to catch call sites) ---
-
-    /** @deprecated use {@link #putForTicket} */
-    @Deprecated
-    public static void put(UUID playerId, UUID requestId, String worldKey, BlockPos origin,
-                           PalacePreviewPlan plan, long ttlMs) {
-        // No-op without ticketId — callers must migrate.
-        throw new UnsupportedOperationException("use putForTicket(ticketId, ...)");
-    }
-
-    /** @deprecated use {@link #getByTicket} */
-    @Deprecated
-    public static PalacePreviewPlan get(String planId, UUID playerId) {
-        throw new UnsupportedOperationException("use getByTicket(ticketId, playerId)");
-    }
-
-    /** @deprecated use {@link #removeByTicket} */
-    @Deprecated
-    public static PalacePreviewPlan remove(String planId, UUID playerId) {
-        throw new UnsupportedOperationException("use removeByTicket(ticketId, playerId)");
     }
 }

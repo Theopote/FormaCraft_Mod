@@ -201,6 +201,28 @@ class TempleGardenAlignmentRepairTest {
     }
 
     @Test
+    void stackedTiersStayNestedOnMainMass() {
+        // LLM stepped towers nest smaller tiers above the base — must not flatten to ground.
+        Component base = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(24, 24, 10), List.of(),
+                Map.of("component_id", "res_main", "anchor_mode", "min_corner"));
+        Component tier = new Component(
+                "MASS_SECONDARY", "main", new Vec3i(4, 5, 4),
+                new Dimensions(16, 16, 8), List.of(),
+                Map.of("component_id", "tier_l2", "host_id", "res_main",
+                        "tier_index", 1, "anchor_mode", "min_corner"));
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(base, tier))
+                .build());
+        Component kept = repaired.components().stream()
+                .filter(c -> "tier_l2".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(tier.relativePosition(), kept.relativePosition(),
+                "stacked tier must not be nudged off the main footprint");
+    }
+
+    @Test
     void overlappingPavilionIsNudgedOffHallFootprint() {
         Component hall = new Component(
                 "MASS_MAIN", "hall", new Vec3i(0, 0, -8),

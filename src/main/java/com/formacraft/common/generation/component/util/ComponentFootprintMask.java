@@ -10,24 +10,6 @@ import java.util.Map;
  */
 public final class ComponentFootprintMask {
 
-    /** @deprecated use {@link ResolvedFootprint.FootprintShape} */
-    @Deprecated
-    public enum FootprintShape {
-        RECTANGLE,
-        CIRCLE,
-        ROUNDED_RECT
-    }
-
-    /** @deprecated use {@link ResolvedFootprint.PlanPattern} */
-    @Deprecated
-    public enum PlanPattern {
-        NONE,
-        CROSS,
-        CUT_CORNERS,
-        L_SHAPE,
-        COURTYARD
-    }
-
     private final ResolvedFootprint footprint;
 
     private ComponentFootprintMask(ResolvedFootprint footprint) {

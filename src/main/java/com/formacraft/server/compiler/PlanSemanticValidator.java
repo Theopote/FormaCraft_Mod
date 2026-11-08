@@ -725,12 +725,6 @@ final class PlanSemanticValidator {
         return n;
     }
 
-    /** @deprecated tests / callers should prefer {@link BuildingHostResolver#primaryMassId} */
-    @Deprecated
-    static String primaryMassId(List<Component> components) {
-        return BuildingHostResolver.primaryMassId(null, components);
-    }
-
     private static boolean isRoofDeclaringComponent(Component c) {
         if (c == null) return false;
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);

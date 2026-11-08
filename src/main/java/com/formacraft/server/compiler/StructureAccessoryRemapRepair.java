@@ -50,10 +50,11 @@ final class StructureAccessoryRemapRepair {
             return component;
         }
         if (looksApproachSteps(component)) {
-            // Interior flights already carry lawful from/to — remapping them as exterior
-            // approach (facing=SOUTH …) plants treads on the host facade → E_CIRCULATION_EXTERIOR_CONFLICT.
-            if (isAuthoredInteriorFlight(component)) {
-                return promoteInteriorStair(component);
+            // Authored flights with from/to (incl. exterior building-to-building connectors) must
+            // keep placement. Remapping them as entrance approach plants treads on the host
+            // facade → E_CIRCULATION_EXTERIOR_CONFLICT.
+            if (isAuthoredFlight(component)) {
+                return promoteAuthoredStair(component);
             }
             return remapToStair(component, plan);
         }
@@ -73,23 +74,55 @@ final class StructureAccessoryRemapRepair {
     }
 
     /**
-     * Authored interior stair: explicit from/to, not marked exterior/approach.
-     * Ids like {@code hall_stair} / features {@code stair:*} match {@link #looksApproachSteps}
-     * but must not be rewritten as entrance approach flights.
+     * Authored stair flight with lawful from/to — not an entrance-approach remap candidate.
+     * Covers interior shafts and exterior connectors ({@code stair_a_to_b}); ids like
+     * {@code approach_steps} still go through {@link #remapToStair}.
      */
-    private static boolean isAuthoredInteriorFlight(Component c) {
+    private static boolean isAuthoredFlight(Component c) {
         if (c == null || c.params() == null) return false;
-        if (Boolean.TRUE.equals(c.params().get("exterior"))
-                || Boolean.TRUE.equals(c.params().get("approach_stair"))
+        if (Boolean.TRUE.equals(c.params().get("approach_stair"))
                 || Boolean.TRUE.equals(c.params().get("compiler_approach_remap"))) {
             return false;
         }
-        return c.params().get("from") instanceof Map<?, ?>
-                && c.params().get("to") instanceof Map<?, ?>;
+        if (!(c.params().get("from") instanceof Map<?, ?>)
+                || !(c.params().get("to") instanceof Map<?, ?>)) {
+            return false;
+        }
+        String id = identity(c).toLowerCase(Locale.ROOT);
+        // Authored exterior flights already declare endpoints — rewriting them as entrance
+        // approach snaps treads onto the host facade (E_CIRCULATION_EXTERIOR_CONFLICT).
+        // Service/escape/fire stairs still use approach snap (often mis-authored into a wall).
+        boolean serviceEscape = id.contains("service_stair")
+                || id.contains("escape") || id.contains("fire_stair");
+        if (Boolean.TRUE.equals(c.params().get("exterior"))
+                && !serviceEscape
+                && (id.contains("stair") || id.contains("external") || hasStairFeature(c))) {
+            return true;
+        }
+        // True entrance-approach / facade-service tokens keep the approach remap path.
+        if (id.contains("approach") || id.contains("haiden_steps")
+                || id.contains("台阶") || id.contains("踏步")
+                || (id.contains("steps") && !id.contains("stair"))
+                || serviceEscape) {
+            return false;
+        }
+        return id.contains("stair") || hasStairFeature(c);
+    }
+
+    private static boolean hasStairFeature(Component c) {
+        if (c == null || c.features() == null) return false;
+        for (String f : c.features()) {
+            if (f == null) continue;
+            String fl = f.toLowerCase(Locale.ROOT);
+            if (fl.startsWith("stair:") || fl.contains("straight_single_run") || fl.contains("stair")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Promote STRUCTURE → STAIR_SYSTEM while preserving endpoints and placement. */
-    private static Component promoteInteriorStair(Component component) {
+    private static Component promoteAuthoredStair(Component component) {
         if ("STAIR_SYSTEM".equalsIgnoreCase(component.componentType())) {
             return component;
         }
@@ -97,7 +130,10 @@ final class StructureAccessoryRemapRepair {
         if (component.params() != null) {
             params.putAll(component.params());
         }
-        params.put("exterior", false);
+        // Keep authored exterior=true for building-to-building connectors.
+        if (!Boolean.TRUE.equals(params.get("exterior"))) {
+            params.put("exterior", false);
+        }
         params.remove("approach_stair");
         params.remove("compiler_approach_remap");
         if (!(params.get("stairs") instanceof String s) || !s.endsWith("_stairs")) {
@@ -106,8 +142,8 @@ final class StructureAccessoryRemapRepair {
             params.put("stairs", resolveStairsBlock(floor));
         }
         FormacraftMod.LOGGER.info(
-                "StructureAccessoryRemapRepair: STRUCTURE → STAIR_SYSTEM (preserve interior) id={}",
-                params.get("component_id"));
+                "StructureAccessoryRemapRepair: STRUCTURE → STAIR_SYSTEM (preserve authored flight) id={} exterior={}",
+                params.get("component_id"), params.get("exterior"));
         return new Component(
                 "STAIR_SYSTEM",
                 component.slotId(),
@@ -122,9 +158,9 @@ final class StructureAccessoryRemapRepair {
         if (component.params() != null) {
             params.putAll(component.params());
         }
-        // Never overwrite an interior from/to flight as an exterior approach.
-        if (isAuthoredInteriorFlight(component)) {
-            return promoteInteriorStair(component);
+        // Never overwrite an authored from/to flight as an entrance approach.
+        if (isAuthoredFlight(component)) {
+            return promoteAuthoredStair(component);
         }
         params.putIfAbsent("exterior", true);
         params.put("compiler_approach_remap", true);

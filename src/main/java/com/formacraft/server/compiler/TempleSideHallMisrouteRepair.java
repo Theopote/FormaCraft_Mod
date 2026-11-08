@@ -360,10 +360,12 @@ final class TempleSideHallMisrouteRepair {
     }
 
     private static boolean looksChineseHall(String blob) {
+        // Require temple/hall compound cues — bare 歇山/xieshan also appears on courtyard 正房
+        // and must not trigger peidian/yuetai rewrite (duplicate component_id / wrong layout).
         return blob.contains("大雄宝殿") || blob.contains("宝殿") || blob.contains("重檐歇山")
-                || blob.contains("歇山") || blob.contains("庑殿") || blob.contains("道观")
-                || blob.contains("寺庙") || blob.contains("配殿") || blob.contains("xieshan")
-                || blob.contains("mahavira");
+                || blob.contains("道观") || blob.contains("寺庙") || blob.contains("配殿")
+                || blob.contains("mahavira") || blob.contains("temple")
+                || (blob.contains("庑殿") && (blob.contains("殿") || blob.contains("寺") || blob.contains("观")));
     }
 
     private static boolean asksForSideHalls(String blob) {

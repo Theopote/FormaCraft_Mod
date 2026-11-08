@@ -100,14 +100,6 @@ public final class PlannedOccupancy {
         return fromState.supportTopEighths();
     }
 
-    /** @deprecated Use {@link CollisionProfile}; SOLID maps to FULL. */
-    @Deprecated
-    public enum Cell {
-        SOLID,
-        PLANNED_AIR,
-        UNTOUCHED
-    }
-
     private final Map<Vec3i, CollisionProfile> cells;
     private final WalkabilityPrecision precision;
 
@@ -194,25 +186,6 @@ public final class PlannedOccupancy {
         return new PlannedOccupancy(cells == null ? Map.of() : new HashMap<>(cells), WalkabilityPrecision.FAST);
     }
 
-    /** @deprecated Prefer {@link #ofProfiles}. */
-    @Deprecated
-    public static PlannedOccupancy of(Map<Vec3i, Cell> cells) {
-        Map<Vec3i, CollisionProfile> mapped = new HashMap<>();
-        if (cells != null) {
-            for (var e : cells.entrySet()) {
-                if (e.getKey() == null || e.getValue() == null) {
-                    continue;
-                }
-                mapped.put(e.getKey(), switch (e.getValue()) {
-                    case SOLID -> CollisionProfile.FULL;
-                    case PLANNED_AIR -> CollisionProfile.AIR;
-                    case UNTOUCHED -> CollisionProfile.UNTOUCHED;
-                });
-            }
-        }
-        return new PlannedOccupancy(mapped, WalkabilityPrecision.FAST);
-    }
-
     public CollisionProfile profileAt(int x, int y, int z) {
         CollisionProfile c = cells.get(new Vec3i(x, y, z));
         return c == null ? CollisionProfile.UNTOUCHED : c;
@@ -223,26 +196,6 @@ public final class PlannedOccupancy {
             return CollisionProfile.UNTOUCHED;
         }
         return profileAt(pos.x(), pos.y(), pos.z());
-    }
-
-    /** @deprecated Prefer {@link #profileAt(int, int, int)}. */
-    @Deprecated
-    public Cell get(int x, int y, int z) {
-        CollisionProfile p = profileAt(x, y, z);
-        return switch (p) {
-            case AIR -> Cell.PLANNED_AIR;
-            case UNTOUCHED -> Cell.UNTOUCHED;
-            default -> Cell.SOLID;
-        };
-    }
-
-    /** @deprecated Prefer {@link #profileAt(Vec3i)}. */
-    @Deprecated
-    public Cell get(Vec3i pos) {
-        if (pos == null) {
-            return Cell.UNTOUCHED;
-        }
-        return get(pos.x(), pos.y(), pos.z());
     }
 
     public boolean isSolid(int x, int y, int z) {

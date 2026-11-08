@@ -26,9 +26,11 @@ class PreviewTicketStorageTest {
         PreviewTicket ticket = PreviewTicketStorage.create(player, origin, patches);
         assertNotNull(ticket);
 
-        PreviewTicket first = PreviewTicketStorage.consume(ticket.id(), player);
+        PreviewTicketStorage.TicketConsumption first =
+                PreviewTicketStorage.consumeForApply(ticket.id(), player);
         assertNotNull(first);
-        assertNull(PreviewTicketStorage.consume(ticket.id(), player));
+        assertNotNull(first.ticket());
+        assertNull(PreviewTicketStorage.consumeForApply(ticket.id(), player));
     }
 
     @Test
@@ -39,8 +41,8 @@ class PreviewTicketStorageTest {
                 owner, new BlockPos(0, 64, 0),
                 List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:dirt")));
         assertNotNull(ticket);
-        assertNull(PreviewTicketStorage.consume(ticket.id(), other));
-        assertNotNull(PreviewTicketStorage.consume(ticket.id(), owner));
+        assertNull(PreviewTicketStorage.consumeForApply(ticket.id(), other));
+        assertNotNull(PreviewTicketStorage.consumeForApply(ticket.id(), owner));
     }
 
     @Test
@@ -58,7 +60,7 @@ class PreviewTicketStorageTest {
         PreviewTicket peeked = PreviewTicketStorage.get(ticket.id());
         assertNotNull(peeked);
         assertNotNull(PreviewTicketStorage.get(ticket.id()), "门禁失败后票据应仍可确认");
-        assertNotNull(PreviewTicketStorage.consume(ticket.id(), player));
+        assertNotNull(PreviewTicketStorage.consumeForApply(ticket.id(), player));
     }
 
     @Test
@@ -71,7 +73,7 @@ class PreviewTicketStorageTest {
 
         java.util.concurrent.atomic.AtomicInteger wins = new java.util.concurrent.atomic.AtomicInteger();
         Runnable r = () -> {
-            if (PreviewTicketStorage.consume(ticket.id(), player) != null) {
+            if (PreviewTicketStorage.consumeForApply(ticket.id(), player) != null) {
                 wins.incrementAndGet();
             }
         };

@@ -37,16 +37,23 @@ class HostedStructuralJoinTest {
                 Map.of("component_id","tower","host_id","hall"));
         assertTrue(index.validate(foreignFrame,patch).isPresent());
     }
-    @Test void tierCanJoinHostTopButCannotOverwriteItsInterior() {
+    @Test void tierCanJoinHostTopAndNestedSetbackWithinEnvelope() {
         var index = new PatchOccupancyIndex();
-        index.commit(component("MASS_MAIN", Map.of("component_id", "house")),
-                List.of(new BlockPatch(BlockPatch.PLACE, 1,7,1,"minecraft:stone_bricks")));
+        // Min-corner hosts so footprint math matches setback envelopes exactly.
+        var house = new Component("MASS_MAIN", "main", new Vec3i(0,0,0), new Dimensions(10,10,8), List.of(),
+                Map.of("component_id", "house", "anchor_mode", "min_corner"));
+        index.commit(house, List.of(
+                new BlockPatch(BlockPatch.PLACE, 1,7,1,"minecraft:stone_bricks"),
+                new BlockPatch(BlockPatch.PLACE, 2,5,2,"minecraft:stone_bricks"),
+                new BlockPatch(BlockPatch.PLACE, 0,5,0,"minecraft:stone_bricks")));
         var params = Map.<String,Object>of("component_id", "tier", "host_id", "house", "tier_index", 1, "anchor_mode", "min_corner");
         var tier = new Component("MASS_SECONDARY", "main", new Vec3i(0,7,0), new Dimensions(10,10,5), List.of(), params);
-        var patch = List.of(new BlockPatch(BlockPatch.PLACE,1,7,1,"minecraft:oak_planks"));
-        assertTrue(index.validate(tier, patch).isEmpty());
-        var intersecting = new Component("MASS_SECONDARY", "main", new Vec3i(0,2,0), tier.dimensions(), List.of(), params);
-        assertTrue(index.validate(intersecting, patch).isPresent());
+        assertTrue(index.validate(tier, List.of(new BlockPatch(BlockPatch.PLACE,1,7,1,"minecraft:oak_planks"))).isEmpty());
+        // Nested setback may replace host cells inside its own AABB.
+        var setback = new Component("MASS_SECONDARY", "main", new Vec3i(1,5,1), new Dimensions(8,8,5), List.of(), params);
+        assertTrue(index.validate(setback, List.of(new BlockPatch(BlockPatch.PLACE,2,5,2,"minecraft:oak_planks"))).isEmpty());
+        // Host cell outside the setback XZ stays forbidden.
+        assertTrue(index.validate(setback, List.of(new BlockPatch(BlockPatch.PLACE,0,5,0,"minecraft:oak_planks"))).isPresent());
     }
     @Test void optionalAttachmentClipsConflictWithoutChangingPrimaryOrLedger() {
         var index = new PatchOccupancyIndex();
