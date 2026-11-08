@@ -202,6 +202,14 @@ final class ComponentSatelliteAligner {
         String idLower = identity == null ? "" : identity.toLowerCase(Locale.ROOT);
         boolean chimney = "CHIMNEY".equals(ComponentPlanTypes.normalizeType(detail.componentType()))
                 || idLower.contains("chimney");
+        // Balcony / stair / bridge rails stay where authored — never re-center as roof cresting.
+        boolean railing = idLower.contains("rail") || idLower.contains("parapet") || idLower.contains("护栏")
+                || idLower.contains("battlement") || idLower.contains("guard")
+                || Boolean.TRUE.equals(detail.params() == null ? null : detail.params().get("railing"))
+                || "railing".equals(detail.params() == null ? null : detail.params().get("role"));
+        if (railing) {
+            return detail;
+        }
         boolean ridgeOrSpire = idLower.contains("ridge") || idLower.contains("crest")
                 || idLower.contains("spire") || idLower.contains("finial") || idLower.contains("cupola")
                 || idLower.contains("peak") || idLower.contains("pagoda") || idLower.contains("baota")

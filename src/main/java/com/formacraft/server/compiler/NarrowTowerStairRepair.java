@@ -135,7 +135,11 @@ final class NarrowTowerStairRepair {
             int wall = Math.max(1, ComponentParamParsers.intParam(host.params(), 1,
                     "wall_thickness", "wallThickness"));
             int clear = Math.min(host.dimensions().width(), host.dimensions().depth()) - 2 * wall;
-            if (clear <= 5 || Math.min(host.dimensions().width(), host.dimensions().depth()) <= 9) {
+            String hostType = host.componentType() == null ? "" : host.componentType().toUpperCase(Locale.ROOT);
+            boolean spireHost = "TOWER".equals(hostType) || hostType.startsWith("TOWER_")
+                    || looksSpireFeatures(host.features());
+            // Ordinary houses (clear 6–8) keep width-2/3; only tight shafts / spires force width-1.
+            if (clear <= 5 || spireHost) {
                 maxWidth = 1;
             } else if (clear <= 7) {
                 maxWidth = 2;

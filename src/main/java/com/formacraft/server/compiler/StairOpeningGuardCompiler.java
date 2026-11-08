@@ -10,9 +10,16 @@ final class StairOpeningGuardCompiler {
             var rail=it.next();
             if(rail==null || rail.params()==null || rail.relativePosition()==null
                     || rail.params().get("host_id")==null
-                    || !(Boolean.TRUE.equals(rail.params().get("railing")) || "railing".equals(rail.params().get("role")))
-                    || !("stair_opening".equals(rail.params().get("placement"))
-                         || rail.features()!=null && rail.features().contains("stair_opening_guard"))) continue;
+                    || !(Boolean.TRUE.equals(rail.params().get("railing")) || "railing".equals(rail.params().get("role")))) continue;
+            // Explicit stair_opening placement wins; otherwise a thin rail strip next to an
+            // interior flight is treated as the authored guard seed (adobe / townhouse plans).
+            boolean explicitGuard = "stair_opening".equals(rail.params().get("placement"))
+                    || (rail.features()!=null && rail.features().contains("stair_opening_guard"));
+            boolean thinSeed = !explicitGuard
+                    && rail.dimensions()!=null
+                    && Math.min(rail.dimensions().width(), rail.dimensions().depth()) <= 2
+                    && Math.max(rail.dimensions().width(), rail.dimensions().depth()) <= 6;
+            if(!explicitGuard && !thinSeed) continue;
             for(var stair:parts) {
                 if(stair==null || stair.params()==null || stair.relativePosition()==null
                         || !Objects.equals(stair.slotId(),rail.slotId())

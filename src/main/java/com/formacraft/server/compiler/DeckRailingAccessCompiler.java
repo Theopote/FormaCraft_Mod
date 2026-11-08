@@ -90,26 +90,23 @@ final class DeckRailingAccessCompiler {
                 }
             }
         }
+        // Only bridge-hosted rail carpets — never carve ordinary balcony / adobe guards.
+        if (deck == null) return;
         Dimensions d = rail.dimensions();
-        Vec3i r = rail.relativePosition();
-        if (d == null || r == null) return;
-        // Always clear the railing footprint centreline when thin (≤3 across).
-        int span = Math.min(d.width(), d.depth());
-        if (span <= 3 || deck != null) {
-            int midX = d.width() / 2;
-            int midZ = d.depth() / 2;
-            for (int y = 0; y < Math.max(1, d.height()); y++) {
-                if (d.width() <= d.depth()) {
-                    // Corridor along depth (long axis).
-                    for (int z = 0; z < d.depth(); z++) {
-                        clear.add(midX + "," + y + "," + z);
-                        if (d.width() >= 2) clear.add((midX + (midX == 0 ? 1 : -1)) + "," + y + "," + z);
-                    }
-                } else {
-                    for (int x = 0; x < d.width(); x++) {
-                        clear.add(x + "," + y + "," + midZ);
-                        if (d.depth() >= 2) clear.add(x + "," + y + "," + (midZ + (midZ == 0 ? 1 : -1)));
-                    }
+        if (d == null) return;
+        int midX = d.width() / 2;
+        int midZ = d.depth() / 2;
+        for (int y = 0; y < Math.max(1, d.height()); y++) {
+            if (d.width() <= d.depth()) {
+                // Corridor along depth (long axis).
+                for (int z = 0; z < d.depth(); z++) {
+                    clear.add(midX + "," + y + "," + z);
+                    if (d.width() >= 2) clear.add((midX + (midX == 0 ? 1 : -1)) + "," + y + "," + z);
+                }
+            } else {
+                for (int x = 0; x < d.width(); x++) {
+                    clear.add(x + "," + y + "," + midZ);
+                    if (d.depth() >= 2) clear.add(x + "," + y + "," + (midZ + (midZ == 0 ? 1 : -1)));
                 }
             }
         }

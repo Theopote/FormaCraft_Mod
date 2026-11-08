@@ -70,6 +70,13 @@ final class InteriorStairInferenceCompiler {
             if (stairHost == null) stairHost = c.params().get("hostId");
             boolean boundHere = id.equals(stairHost)
                     || (rootHost != null && rootHost.equals(stairHost));
+            // Plans without component_id / host_id still share a slot — treat same-slot
+            // authored flights as owning circulation so we do not double-infer.
+            if (!boundHere && stairHost == null
+                    && Objects.equals(c.slotId(), host.slotId())
+                    && StraightStairComponentGenerator.accepts(c)) {
+                boundHere = true;
+            }
             if (!boundHere) {
                 continue;
             }

@@ -98,11 +98,19 @@ final class BridgeCompositionRepair {
             params.put("block", "minecraft:oak_fence");
             params.put("role", "railing");
             params.put("railing", true);
-            // Thin bridge decks (≤2 cells across) place perimeter fences on every walk cell —
-            // keep only corner posts so deck BFS headroom stays clear.
-            if (c.dimensions() != null
-                    && Math.min(c.dimensions().width(), c.dimensions().depth()) <= 2) {
-                params.put("railing_corners_only", true);
+            // Thin bridge-deck rail carpets place perimeter fences on every walk cell —
+            // keep only corner posts so deck BFS headroom stays clear. Never apply to
+            // ordinary balcony / adobe guards just because the plan mentions a bridge.
+            Object railHost = params.get("host_id");
+            if (railHost == null) railHost = params.get("hostId");
+            boolean bridgeHosted = railHost != null
+                    && hostedEndpoints.contains(String.valueOf(railHost).toLowerCase(Locale.ROOT));
+            String hostToken = railHost == null ? "" : String.valueOf(railHost).toLowerCase(Locale.ROOT);
+            if (bridgeHosted || hostToken.contains("bridge") || hostToken.contains("span")) {
+                if (c.dimensions() != null
+                        && Math.min(c.dimensions().width(), c.dimensions().depth()) <= 2) {
+                    params.put("railing_corners_only", true);
+                }
             }
             changed = true;
         }
