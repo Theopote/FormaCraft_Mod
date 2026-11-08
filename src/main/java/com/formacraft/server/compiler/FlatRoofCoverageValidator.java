@@ -32,7 +32,8 @@ final class FlatRoofCoverageValidator {
         Object host = c.params().get("host_id");
         if (host == null) return Optional.empty(); // Legacy geometry inference remains in the compiler.
         for (var body : components) {
-            if (!"MASS_MAIN".equalsIgnoreCase(body.componentType()) || body.params() == null
+            if (body == null || body.params() == null
+                    || !com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(body)
                     || !host.equals(body.params().get("component_id"))) continue;
             var hostSlot = slots.get(body.slotId());
             if (hostSlot == null) hostSlot = fallback;

@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -169,6 +170,48 @@ class TempleSideHallMisrouteRepairTest {
             return cx >= hall.relativePosition().x() + hall.dimensions().width();
         });
         assertTrue(hasEast, "same-side pair must trigger opposite-side 配殿 recovery");
+    }
+
+    @Test
+    void eastFacingHallRequiresNorthSouthSideHallPair() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        // World E-W pair looks opposite, but with facing=EAST left/right are N-S — inject.
+        Component west = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(-12, 0, 2),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "west_peidian", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        Component east = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(22, 0, 2),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "east_peidian", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .styleProfile("chinese_temple_imperial")
+                .globalConstraints(new GlobalConstraints(
+                        GlobalConstraints.Facing.EAST,
+                        GlobalConstraints.Symmetry.NONE,
+                        GlobalConstraints.TerrainStrategy.ADAPTIVE))
+                .components(List.of(hall, west, east))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        boolean hasNorthOrSouth = repaired.components().stream().anyMatch(c -> {
+            if (c.params() == null || c.relativePosition() == null || c.dimensions() == null) return false;
+            String id = String.valueOf(c.params().get("component_id"));
+            if (!id.contains("peidian") && !id.contains("side")) return false;
+            if (!c.componentType().startsWith("MASS")) return false;
+            int cz = c.relativePosition().z() + c.dimensions().depth() / 2;
+            return cz < hall.relativePosition().z()
+                    || cz >= hall.relativePosition().z() + hall.dimensions().depth();
+        });
+        assertTrue(hasNorthOrSouth,
+                "east-facing hall must treat N/S as left/right, not accept world E-W alone");
     }
 
     @Test

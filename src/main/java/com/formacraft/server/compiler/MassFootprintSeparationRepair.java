@@ -327,9 +327,17 @@ final class MassFootprintSeparationRepair {
         if (looksHorizontalAnnex(idA) || looksHorizontalAnnex(idB)) {
             return looksTierToken(idA) || looksTierToken(idB);
         }
+        // Different floor datums alone do not prove a stack — A at Y=0..20 and B at Y=2..18
+        // still collide in 3D even though |minY| differs by ≥2.
         int dy = Math.abs(ab.minY() - bb.minY());
-        if (dy >= 2) return true;
+        if (dy >= 2 && !yRangesOverlap(ab, bb)) return true;
         return looksTierToken(idA) || looksTierToken(idB) || linkedByHost(a, b);
+    }
+
+    /** Exclusive maxY bounds — true when the vertical intervals share any cell. */
+    private static boolean yRangesOverlap(
+            ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
+        return a.minY() < b.maxY() && b.minY() < a.maxY();
     }
 
     private static boolean xzNested(
@@ -342,6 +350,68 @@ final class MassFootprintSeparationRepair {
         return id.contains("wing") || id.contains("side") || id.contains("配") || id.contains("厢")
                 || id.contains("pavilion") || id.contains("gazebo") || id.contains("ting")
                 || id.contains("corridor") || id.contains("廊") || id.contains("annex");
+    }
+
+    /**
+     * Ordinary left/right 配殿 / side halls should share the main hall floor. Raised or
+     * cantilevered annexes keep their authored Y.
+     */
+    private static boolean shouldAlignFloorDatum(Component mover) {
+        if (mover == null) return false;
+        if (looksRaisedOrCantilevered(mover)) return false;
+        return looksSideHallRole(mover);
+    }
+
+    private static boolean looksSideHallRole(Component c) {
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        String role = "";
+        if (c.params() != null) {
+            Object raw = c.params().get("building_role");
+            if (raw == null) raw = c.params().get("buildingRole");
+            if (raw != null) role = String.valueOf(raw).toLowerCase(Locale.ROOT);
+        }
+        if (role.contains("side") || role.contains("peidian") || role.contains("配殿") || role.contains("厢")) {
+            return true;
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("side_hall") || f.contains("配殿") || f.contains("厢房")
+                        || lower.contains("peidian")) {
+                    return true;
+                }
+            }
+        }
+        return id.contains("peidian") || id.contains("side_hall") || id.contains("sidehall")
+                || id.contains("配殿") || id.contains("厢房")
+                || ((id.contains("side") || id.contains("wing"))
+                && (id.contains("hall") || id.contains("殿") || id.contains("厢")));
+    }
+
+    private static boolean looksRaisedOrCantilevered(Component c) {
+        String blob = idOf(c).toLowerCase(Locale.ROOT);
+        if (c.params() != null) {
+            for (String key : List.of("building_role", "buildingRole", "elevation_role", "support")) {
+                Object v = c.params().get(key);
+                if (v != null) blob += " " + v;
+            }
+            if (Boolean.TRUE.equals(c.params().get("stilts"))
+                    || Boolean.TRUE.equals(c.params().get("cantilevered"))
+                    || Boolean.TRUE.equals(c.params().get("raised"))) {
+                return true;
+            }
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null) blob += " " + f;
+            }
+        }
+        String lower = blob.toLowerCase(Locale.ROOT);
+        return lower.contains("stilt") || lower.contains("cantilever") || lower.contains("raised")
+                || lower.contains("floating") || lower.contains("suspended") || lower.contains("split_level")
+                || lower.contains("split-level") || blob.contains("架空") || blob.contains("悬挑")
+                || blob.contains("错层");
     }
 
     private static boolean looksTierToken(String id) {
@@ -501,12 +571,16 @@ final class MassFootprintSeparationRepair {
         }
         if (dx == 0 && dz == 0) return mover;
 
-        // Keep coplanar side halls on the same floor datum as the main body (avoid sinking
-        // underground while the main sits on a 月台). Do NOT flatten cantilevered / raised wings.
+        // Align ordinary side halls / peidian to the host floor datum (even when LLM sank them
+        // several blocks). Preserve stilts, cantilevers, and explicit split-level offsets.
         Vec3i anchorOrigin = ComponentFootprintUtil.resolveMinCornerOrigin(anchor);
         int targetY = mo.y();
-        if (anchorOrigin != null && Math.abs(mo.y() - anchorOrigin.y()) <= 1) {
-            targetY = anchorOrigin.y();
+        if (anchorOrigin != null) {
+            if (shouldAlignFloorDatum(mover)) {
+                targetY = anchorOrigin.y();
+            } else if (Math.abs(mo.y() - anchorOrigin.y()) <= 1) {
+                targetY = anchorOrigin.y();
+            }
         }
 
         Map<String, Object> params = new HashMap<>();

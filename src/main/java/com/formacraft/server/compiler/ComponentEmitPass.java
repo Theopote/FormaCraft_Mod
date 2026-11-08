@@ -557,10 +557,7 @@ final class ComponentEmitPass {
         }
         // Porch pillars often have no native generator — keep the hall.
         // Plinth / steps are remapped or hard-fail; never soft-skip them as "accessory".
-        if ("STRUCTURE".equals(type) && isOptionalColumnAccessory(c)) {
-            return true;
-        }
-        return false;
+        return "STRUCTURE".equals(type) && isOptionalColumnAccessory(c);
     }
 
     /** Explicit player / sealed constraint — failure must surface as a capability gap. */

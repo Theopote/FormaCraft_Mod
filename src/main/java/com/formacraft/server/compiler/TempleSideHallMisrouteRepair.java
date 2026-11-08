@@ -4,6 +4,7 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
 
@@ -149,13 +150,45 @@ final class TempleSideHallMisrouteRepair {
             int sideD = Math.max(7, hallD - 2);
             int sideH = Math.max(6, hallH - 2);
             int gap = 3;
-            int leftX = mp.x() - gap - sideW;
-            int rightX = mp.x() + hallW + gap;
-            int sideZ = mp.z() + Math.max(0, (hallD - sideD) / 2);
-            out.add(sideHall("left_peidian", leftX, mp.y(), sideZ, sideW, sideD, sideH, sideRoof));
-            out.add(sideRoofComp("left_peidian", leftX, mp.y() + sideH, sideZ, sideW, sideD, sideRoof));
-            out.add(sideHall("right_peidian", rightX, mp.y(), sideZ, sideW, sideD, sideH, sideRoof));
-            out.add(sideRoofComp("right_peidian", rightX, mp.y() + sideH, sideZ, sideW, sideD, sideRoof));
+            GlobalConstraints.Facing facing = GlobalConstraints.Facing.SOUTH;
+            if (plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
+                facing = plan.globalConstraints().facing();
+            }
+            // Left/right relative to the hall front — not always world east/west.
+            int leftX;
+            int leftZ;
+            int rightX;
+            int rightZ;
+            switch (facing) {
+                case NORTH -> {
+                    // Front north → left=west, right=east
+                    leftX = mp.x() - gap - sideW;
+                    rightX = mp.x() + hallW + gap;
+                    leftZ = rightZ = mp.z() + Math.max(0, (hallD - sideD) / 2);
+                }
+                case EAST -> {
+                    // Front east → left=south, right=north
+                    leftX = rightX = mp.x() + Math.max(0, (hallW - sideW) / 2);
+                    leftZ = mp.z() + hallD + gap;
+                    rightZ = mp.z() - gap - sideD;
+                }
+                case WEST -> {
+                    // Front west → left=north, right=south
+                    leftX = rightX = mp.x() + Math.max(0, (hallW - sideW) / 2);
+                    leftZ = mp.z() - gap - sideD;
+                    rightZ = mp.z() + hallD + gap;
+                }
+                default -> {
+                    // Front south → left=east, right=west
+                    leftX = mp.x() + hallW + gap;
+                    rightX = mp.x() - gap - sideW;
+                    leftZ = rightZ = mp.z() + Math.max(0, (hallD - sideD) / 2);
+                }
+            }
+            out.add(sideHall("left_peidian", leftX, mp.y(), leftZ, sideW, sideD, sideH, sideRoof));
+            out.add(sideRoofComp("left_peidian", leftX, mp.y() + sideH, leftZ, sideW, sideD, sideRoof));
+            out.add(sideHall("right_peidian", rightX, mp.y(), rightZ, sideW, sideD, sideH, sideRoof));
+            out.add(sideRoofComp("right_peidian", rightX, mp.y() + sideH, rightZ, sideW, sideD, sideRoof));
         }
 
         // Ensure a readable central door exists after classical door_width=30 envelopes are sanitized.
@@ -428,8 +461,9 @@ final class TempleSideHallMisrouteRepair {
     }
 
     /**
-     * True only when at least two side halls sit on opposite sides of the primary mass.
-     * Two halls both on the left do not satisfy 「左右配殿」.
+     * True only when at least two side halls sit on the building-local left and right of the
+     * primary mass. 「左右」is relative to the main hall front (globalConstraints.facing), not
+     * an arbitrary world E-W or N-S pair. Two halls both on the left do not satisfy 「左右配殿」.
      */
     private static boolean hasSideHalls(LlmPlan plan) {
         List<Component> sides = new ArrayList<>();
@@ -447,19 +481,39 @@ final class TempleSideHallMisrouteRepair {
         int maxX = minX + main.dimensions().width();
         int minZ = main.relativePosition().z();
         int maxZ = minZ + main.dimensions().depth();
-        boolean west = false;
-        boolean east = false;
-        boolean north = false;
-        boolean south = false;
+        GlobalConstraints.Facing facing = GlobalConstraints.Facing.SOUTH;
+        if (plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
+            facing = plan.globalConstraints().facing();
+        }
+        boolean left = false;
+        boolean right = false;
         for (Component c : sides) {
             int cx = c.relativePosition().x() + c.dimensions().width() / 2;
             int cz = c.relativePosition().z() + c.dimensions().depth() / 2;
-            if (cx < minX) west = true;
-            if (cx >= maxX) east = true;
-            if (cz < minZ) north = true;
-            if (cz >= maxZ) south = true;
+            switch (facing) {
+                case NORTH -> {
+                    // Front north → left=west, right=east
+                    if (cx < minX) left = true;
+                    if (cx >= maxX) right = true;
+                }
+                case EAST -> {
+                    // Front east → left=south, right=north
+                    if (cz >= maxZ) left = true;
+                    if (cz < minZ) right = true;
+                }
+                case WEST -> {
+                    // Front west → left=north, right=south
+                    if (cz < minZ) left = true;
+                    if (cz >= maxZ) right = true;
+                }
+                default -> {
+                    // Front south (default) → left=east, right=west
+                    if (cx >= maxX) left = true;
+                    if (cx < minX) right = true;
+                }
+            }
         }
-        return (west && east) || (north && south);
+        return left && right;
     }
 
     private static boolean hasMoonPlatform(LlmPlan plan) {
