@@ -1,5 +1,6 @@
 package com.formacraft.server.generation.typology.builder;
 
+import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyParams;
 
 import java.util.Locale;
@@ -48,10 +49,15 @@ public record PagodaVerticalSemantics(
         int minFloors = floorsExplicit ? 1 : implicitMin;
         floorCount = clamp(floorCount, minFloors, maxFloors);
 
-        boolean wantsDoubleEaves = truthy(raw.get("double_eaves")) || truthy(raw.get("doubleEaves"))
-                || containsCue(raw, "重檐", "double_eave", "double-eave");
+        // Explicit false must win — fixtures author double_eaves=false with eaves_per_level=1.
+        boolean doubleEavesDenied = isExplicitFalse(raw.get("double_eaves"))
+                || isExplicitFalse(raw.get("doubleEaves"));
+        boolean wantsDoubleEaves = !doubleEavesDenied
+                && (truthy(raw.get("double_eaves")) || truthy(raw.get("doubleEaves"))
+                || containsCue(raw, "重檐", "double_eave", "double-eave"));
+        boolean eavesPerLevelAuthored = has(raw, "eaves_per_level", "eavesPerLevel");
         int eavesPerLevel = 1;
-        if (has(raw, "eaves_per_level", "eavesPerLevel")) {
+        if (eavesPerLevelAuthored) {
             eavesPerLevel = p.intVal("eaves_per_level", 1, 1, 3);
         } else if (wantsDoubleEaves) {
             eavesPerLevel = 2;
@@ -61,8 +67,8 @@ public record PagodaVerticalSemantics(
             eavesPerLevel = Math.max(1, Math.min(3, Math.round(authoredEaves / (float) Math.max(1, floorCount))));
         }
         // Registry defaults often inject eaves_per_level=1; an explicit double_eaves /
-        // 重檐 request must still win (TypologyParamResolver also upgrades, belt-and-suspenders).
-        if (wantsDoubleEaves) {
+        // 重檐 request must still win — but never override an authored eaves_per_level.
+        if (wantsDoubleEaves && !eavesPerLevelAuthored) {
             eavesPerLevel = Math.max(eavesPerLevel, 2);
         }
 
@@ -92,13 +98,41 @@ public record PagodaVerticalSemantics(
         return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "重檐".equals(s);
     }
 
+    private static boolean isExplicitFalse(Object v) {
+        if (v instanceof Boolean b) return !b;
+        if (v == null) return false;
+        String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+        return "false".equals(s) || "0".equals(s) || "no".equals(s);
+    }
+
+    /**
+     * Scan scalar / string-list param values only. Nested maps (e.g. {@code _param_sources})
+     * must not be stringified — {@code {double_eaves=LLM_INFERRED}} falsely contains
+     * the cue {@code double_eave} even when the authored flag is false.
+     */
     private static boolean containsCue(Map<String, Object> raw, String... cues) {
         if (raw == null) return false;
-        for (Object v : raw.values()) {
-            if (v == null) continue;
-            String s = String.valueOf(v).toLowerCase(Locale.ROOT);
-            for (String cue : cues) {
-                if (cue != null && s.contains(cue.toLowerCase(Locale.ROOT))) return true;
+        for (Map.Entry<String, Object> e : raw.entrySet()) {
+            if (e.getKey() != null && TypologyParamResolver.PARAM_SOURCES_KEY.equals(e.getKey())) {
+                continue;
+            }
+            if (valueContainsCue(e.getValue(), cues)) return true;
+        }
+        return false;
+    }
+
+    private static boolean valueContainsCue(Object v, String... cues) {
+        if (v == null || v instanceof Map<?, ?>) return false;
+        if (v instanceof Iterable<?> it && !(v instanceof CharSequence)) {
+            for (Object item : it) {
+                if (valueContainsCue(item, cues)) return true;
+            }
+            return false;
+        }
+        String s = String.valueOf(v).toLowerCase(Locale.ROOT);
+        for (String cue : cues) {
+            if (cue != null && !cue.isEmpty() && s.contains(cue.toLowerCase(Locale.ROOT))) {
+                return true;
             }
         }
         return false;

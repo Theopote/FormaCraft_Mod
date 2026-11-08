@@ -337,6 +337,12 @@ public final class PatchOccupancyIndex {
                     removeSet.remove(pos);
                     continue;
                 }
+                // Same component emit: later patches win (MASS may place footing then wall at one cell).
+                if (sameComponentIdentity(writer, prev.owner())) {
+                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
+                    removeSet.remove(pos);
+                    continue;
+                }
                 boolean chimneyFooting = "CHIMNEY".equals(type)
                         && (Set.of("FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())
                             || (prev.owner() != null && prev.owner().params() != null
@@ -460,8 +466,15 @@ public final class PatchOccupancyIndex {
         }
         boolean bridge = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                 .isBridgePlate(writer.params());
+        String writerTypeEarly = writer.componentType() == null
+                ? "" : writer.componentType().toUpperCase(Locale.ROOT);
+        // Host-bound roofs/terraces often live on a dedicated *_roof slot while the mass
+        // stays on the building slot — host_id is the authority, not slot equality.
+        boolean hostBoundAccessory = Set.of("ROOF", "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE")
+                .contains(writerTypeEarly);
         // Bridges may join either endpoint mass even when slot_id differs across dual masses.
-        if (!bridge && !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) {
+        if (!bridge && !hostBoundAccessory
+                && !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) {
             return false;
         }
         if ("MASS_SECONDARY".equalsIgnoreCase(writer.componentType()) && writer.params().containsKey("tier_index")) {
@@ -505,8 +518,12 @@ public final class PatchOccupancyIndex {
         }
         String wt = writer.componentType() == null ? "" : writer.componentType().toUpperCase(Locale.ROOT);
         String pt = previous.writerType() == null ? "" : previous.writerType();
-        if (!wt.startsWith("MASS") || !Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "FOUNDATION")
-                .contains(pt)) {
+        // Peer MASS_MAIN bodies must still conflict — pier join is for legs/supports only.
+        if (Set.of("MASS_MAIN", "MAIN_MASS").contains(wt)) {
+            return false;
+        }
+        boolean pierWriter = wt.startsWith("MASS") || "TOWER".equals(wt);
+        if (!pierWriter || !Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "FOUNDATION").contains(pt)) {
             return false;
         }
         var upper = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
@@ -517,6 +534,21 @@ public final class PatchOccupancyIndex {
         // Shared floor band (pier rising from the podium deck).
         boolean sharedFloor = upper.minY() <= lower.maxY() && upper.minY() >= lower.minY() - 1;
         return xzOverlap && sharedFloor;
+    }
+
+    /** True when both sides are the same authored component (id match or identical instance). */
+    private static boolean sameComponentIdentity(Component a, Component b) {
+        if (a == null || b == null) return false;
+        if (a == b) return true;
+        if (a.params() == null || b.params() == null) return false;
+        Object aid = a.params().get("component_id");
+        if (aid == null) aid = a.params().get("componentId");
+        Object bid = b.params().get("component_id");
+        if (bid == null) bid = b.params().get("componentId");
+        if (aid == null || bid == null) return false;
+        String as = String.valueOf(aid).trim();
+        String bs = String.valueOf(bid).trim();
+        return !as.isEmpty() && as.equals(bs);
     }
 
     private static boolean bindsToOwner(Component writer, String ownerId, String ownerHost) {

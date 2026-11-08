@@ -140,6 +140,9 @@ public final class ComponentPlanCompiler {
         plan = TempleSideHallMisrouteRepair.apply(plan);
         // STRUCTURE plinth → FOUNDATION; approach steps → STAIR_SYSTEM (not solid pads).
         plan = StructureAccessoryRemapRepair.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
         plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.

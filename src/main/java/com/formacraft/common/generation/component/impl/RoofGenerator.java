@@ -1216,11 +1216,14 @@ public class RoofGenerator implements ComponentGenerator {
     static String coerceRoofShape(String id, SemanticPart part, Map<String, Object> params) {
         if (id == null || id.isBlank()) return id;
         String base = id.split("\\[", 2)[0].toLowerCase(java.util.Locale.ROOT);
+        String roofType = params == null ? ""
+                : String.valueOf(params.getOrDefault("roof_type", "")).toLowerCase(java.util.Locale.ROOT);
+        boolean flatRoof = roofType.contains("flat") || roofType.equals("none");
         boolean preferStairs = getParamBoolean(params, "prefer_stairs", "preferStairs", "stair_roof")
                 || base.endsWith("_stairs")
-                || (params != null && String.valueOf(params.getOrDefault("roof_type", ""))
-                .toLowerCase(java.util.Locale.ROOT)
-                .matches(".*(gable|hip|xieshan|xuanshan|yingshan|mansard|wudian|wu_dian).*"));
+                || roofType.matches(".*(gable|hip|xieshan|xuanshan|yingshan|mansard|wudian|wu_dian).*")
+                // Pitched ROOF slopes default to stairs when the family exists (planks → stairs).
+                || (part == SemanticPart.ROOF && !flatRoof);
         if (part == SemanticPart.ROOF_SURFACE) {
             if (base.endsWith("_slab")) return id;
             String slab = com.formacraft.common.palette.component.MaterialBlockFamily.slab(base);

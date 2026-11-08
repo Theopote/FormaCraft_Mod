@@ -50,6 +50,17 @@ final class StructureAccessoryRemapRepair {
             return component;
         }
         if (looksApproachSteps(component)) {
+            // Spiral / curved narrative stairs are not executable as straight approach flights.
+            if (unsupportedNarrativeStair(component)) {
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(
+                        new com.formacraft.common.llm.dto.CapabilityGap(
+                                "E_STAIR_COMPONENT_INVALID",
+                                "Unsupported stair form (spiral/curved); use stair:straight_single_run with from/to.",
+                                "components[].features",
+                                List.of("Use stair:straight_single_run with integer from/to endpoints.",
+                                        "Spiral and curved flights are not supported by StraightStairComponentGenerator.")));
+                return component;
+            }
             // Authored flights with from/to (incl. exterior building-to-building connectors) must
             // keep placement. Remapping them as entrance approach plants treads on the host
             // facade → E_CIRCULATION_EXTERIOR_CONFLICT.
@@ -563,6 +574,42 @@ final class StructureAccessoryRemapRepair {
                 String fl = f.toLowerCase(Locale.ROOT);
                 if (fl.contains("steps") || f.contains("台阶") || fl.contains("stair")
                         || fl.startsWith("stair:")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Spiral / helical / curved narrative stairs cannot become straight approach flights.
+     * Detected from features ({@code stair:spiral}) and id/params wording.
+     */
+    private static boolean unsupportedNarrativeStair(Component c) {
+        if (c == null) return false;
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String fl = f.toLowerCase(Locale.ROOT);
+                if (fl.contains("spiral") || fl.contains("helical") || fl.contains("winder")
+                        || fl.contains("curved_stair") || fl.contains("stair:curve")
+                        || fl.contains("stair:spiral") || fl.contains("stair:helix")) {
+                    return true;
+                }
+            }
+        }
+        String id = identity(c).toLowerCase(Locale.ROOT);
+        if (id.contains("spiral") || id.contains("helical") || id.contains("winder")) {
+            return true;
+        }
+        if (c.params() != null) {
+            Object form = c.params().get("stair_form");
+            if (form == null) form = c.params().get("stair_type");
+            if (form == null) form = c.params().get("form");
+            if (form != null) {
+                String fl = String.valueOf(form).toLowerCase(Locale.ROOT);
+                if (fl.contains("spiral") || fl.contains("helical") || fl.contains("curved")
+                        || fl.contains("winder")) {
                     return true;
                 }
             }
