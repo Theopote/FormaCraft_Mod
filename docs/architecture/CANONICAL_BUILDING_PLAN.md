@@ -159,7 +159,8 @@ Implemented in [DesignParamSource.java](../../src/main/java/com/formacraft/commo
 | `outputFormat=buildingspec` | Adapter until converted to LlmPlan or explicit module |
 | `extra.landmark` / `template` / `assembly` | Explicit TemplateExecutor — OK |
 | Unmatched `BuildingType` | **NEEDS_REPLAN**, not silent `house` |
-| `extra.allow_legacy_fallback=true` | Dev/test only: old house/tower fallback |
+| Null type / null spec | **UNSUPPORTED** (no tower/house substitute) |
+| Catalog-mapped types (e.g. `CUSTOM` → `house`) | Explicit `building_type_catalog` hit, not silent fallback |
 
 ## Python schema
 

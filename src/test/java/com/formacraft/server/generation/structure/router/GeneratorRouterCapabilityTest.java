@@ -9,14 +9,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GeneratorRouterCapabilityTest {
 
     @Test
-    void nullTypeUnsupportedWithoutLegacyFlag() {
+    void nullTypeUnsupportedWithoutSilentFallback() {
         BuildingSpec spec = new BuildingSpec();
         var decision = GeneratorRouter.routeDecision(spec);
         assertEquals(GenerationCapability.UNSUPPORTED, decision.capability());
@@ -25,16 +24,14 @@ class GeneratorRouterCapabilityTest {
     }
 
     @Test
-    void legacyFallbackAllowsHouseWhenFlagSet() {
+    void allowLegacyFallbackFlagIsIgnored() {
         BuildingSpec spec = new BuildingSpec();
-        spec.setType(BuildingType.CUSTOM);
         Map<String, Object> extra = new HashMap<>();
         extra.put("allow_legacy_fallback", true);
         spec.setExtra(extra);
         var decision = GeneratorRouter.routeDecision(spec);
-        assertEquals(GenerationCapability.SUPPORTED, decision.capability());
-        assertNotNull(decision.generatorRegistryKey());
-        assertNotNull(GeneratorRouter.route(spec));
+        assertEquals(GenerationCapability.UNSUPPORTED, decision.capability());
+        assertNull(GeneratorRouter.route(spec));
     }
 
     @Test

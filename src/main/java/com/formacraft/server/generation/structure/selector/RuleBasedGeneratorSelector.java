@@ -26,7 +26,7 @@ import java.util.Map;
  * - Never overwrite explicit values set by user/LLM.
  * - Output should align with existing GeneratorRouter keys:
  *   - extra.template -> deterministic generators (office_block/office_district/courtyard_compound/radial_fortress...)
- *   - extra.landmark -> legacy landmark routing (tulou/temple_of_heaven/eiffel_tower/...)
+ *   - extra.landmark -> landmark / typology migration routing (tulou/temple_of_heaven/...)
  */
 public final class RuleBasedGeneratorSelector {
 

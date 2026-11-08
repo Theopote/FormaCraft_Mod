@@ -136,10 +136,11 @@ public class HouseGeneratorUtils {
             return doorSide == null || !isNearDoor(doorSide, x, z, width, depth) || !plan.isEntranceBayAxis(axis);
         }
 
-        return isShouldPlaceWindowLegacy(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
+        return isShouldPlaceWindowByRatio(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
     }
 
-    private static boolean isShouldPlaceWindowLegacy(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
+    /** Rhythm-plan inactive: place windows from windowRatio spacing heuristics. */
+    private static boolean isShouldPlaceWindowByRatio(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
                                                int x, int z, int width, int depth) {
         // Only meaningful on exterior ring; caller already checks edges.
         // Derive spacing from density suggestion (still respects explicit windowRatio values).

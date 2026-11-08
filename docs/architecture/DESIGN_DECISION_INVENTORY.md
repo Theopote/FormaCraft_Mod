@@ -31,8 +31,8 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 
 | Location | Trigger | Effect | Tag | Migration |
 |----------|---------|--------|-----|-----------|
-| `GeneratorRouter.routeByBuildingType` | unmatched type | was `house` | AUTHORITY_SUBSTITUTE | `GenerationCapabilityResolver` → NEEDS_REPLAN |
-| `GeneratorRouter.route` | null spec/type | was `tower` | AUTHORITY_SUBSTITUTE | UNSUPPORTED unless `allow_legacy_fallback` |
+| `GeneratorRouter.routeDecision` | unmatched type | was silent `house` | AUTHORITY_SUBSTITUTE | **NEEDS_REPLAN** (no flag override) |
+| `GeneratorRouter.routeDecision` | null spec/type | was silent `tower` | AUTHORITY_SUBSTITUTE | **UNSUPPORTED** (no flag override) |
 | `UnifiedGeneratorRouter` | empty registry + hints | structure adaptor | AUTHORITY_SUBSTITUTE | Explicit landmark/module only |
 
 ## Prompt routing (Java / Python)
@@ -58,7 +58,7 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 |----------|------|-------|
 | Component | GeometryExecutor when plan complete | `ComponentGeneratorRegistry` |
 | Structure | TemplateExecutor when explicit | `StructureGeneratorRegistry` |
-| Legacy fallback keys `house`, `tower` | LegacyFallback | Only with `allow_legacy_fallback` |
+| Catalog keys `house`, `tower`, … | Structure | Only via `StructureRouteCatalog` / explicit route — silent fallback removed |
 
 ## Test / CI coverage
 

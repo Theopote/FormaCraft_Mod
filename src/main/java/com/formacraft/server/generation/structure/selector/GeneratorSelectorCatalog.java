@@ -34,7 +34,7 @@ public final class GeneratorSelectorCatalog {
 
     public static final class Then {
         public String template;      // maps to GeneratorRouter.template routing
-        public String landmark;      // maps to GeneratorRouter.legacy landmark routing
+        public String landmark;      // maps to GeneratorRouter landmark routing
         public String buildingType;  // HOUSE/TOWER/...
         public Integer floors;
         public Integer height;
