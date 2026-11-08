@@ -28,8 +28,9 @@ final class DenseEavesPagodaMisrouteRepair {
             "楼阁", "废土", "非对称", "错落", "悬空", "水幕",
             "asymmetric", "wasteland", "pavilion tower", "louge");
 
+    // Bare「四角」matches 四角亭 / 四角木柱 — require tower cues, not pavilion posts.
     private static final List<String> SQUARE_FOOTPRINT_CUES = List.of(
-            "四角", "方塔", "方形塔", "四角塔", "方正", "square tower", "four-corner", "four corner");
+            "方塔", "方形塔", "四角塔", "四角塔楼", "square tower", "four-corner tower", "four corner tower");
 
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) {

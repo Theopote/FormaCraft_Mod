@@ -241,6 +241,11 @@ final class PavilionOpenFrameRepair {
         if (planWantsPavilion && !pavilionNamed && looksPavilionToken(id)) {
             pavilionNamed = true;
         }
+        // Connecting walkways / 廊 in a pavilion compound stay open colonnades (not solid halls).
+        boolean galleryNamed = looksOpenGallery(mass, id);
+        if (planWantsPavilion && galleryNamed) {
+            pavilionNamed = true;
+        }
         boolean hexagon = looksHexagon(mass);
         // Primary halls keep enclosed walls — but never over explicit pavilion / hex-oct footprints.
         if (isHallLikeMass(mass, id) && !pavilionNamed && !hexagon && !looksOctagon(mass)) {
@@ -748,12 +753,27 @@ final class PavilionOpenFrameRepair {
                 || "亭".equals(raw.trim());
     }
 
+    /** Covered walkway / 廊 connecting open pavilions — not an enclosed hall. */
+    private static boolean looksOpenGallery(Component mass, String idLower) {
+        if (idLower != null && (idLower.contains("walk") || idLower.contains("gallery")
+                || idLower.contains("corridor") || idLower.contains("colonnade")
+                || idLower.contains("cloister") || idLower.contains("廊"))) {
+            return true;
+        }
+        String slot = mass == null || mass.slotId() == null ? "" : mass.slotId().toLowerCase(Locale.ROOT);
+        return slot.contains("walk") || slot.contains("gallery") || slot.contains("corridor")
+                || slot.contains("colonnade") || slot.contains("cloister") || slot.contains("廊");
+    }
+
     /**
      * Primary halls keep enclosed walls. Explicit pavilion role / 亭 tokens win over
      * weak name cues like {@code main} in {@code main_pavilion} or {@code slotId=main}.
      */
     private static boolean isHallLikeMass(Component mass, String idLower) {
         if (isExplicitPavilionMass(mass, idLower)) {
+            return false;
+        }
+        if (looksOpenGallery(mass, idLower)) {
             return false;
         }
         if (mass.params() != null) {

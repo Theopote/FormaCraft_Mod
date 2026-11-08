@@ -38,7 +38,7 @@ class StadiumMisrouteRepairTest {
                 .build();
 
         LlmPlan out = StadiumMisrouteRepair.apply(plan);
-        Component c = out.components().get(0);
+        Component c = out.components().getFirst();
         assertEquals("MASS_MAIN", c.componentType());
         assertFalse(String.valueOf(c.params().get("typology_id")).contains("stadium"));
         assertTrue(c.features() == null || c.features().stream().noneMatch(f -> f.contains("stadium")));

@@ -80,7 +80,11 @@ final class FloatingMassSnapRepair {
             return true;
         }
         // Authored pier posts / trunks under a raised deck (stilts, treehouses, water platforms).
-        if ("PRIMITIVE".equals(t) || "STRUCTURE".equals(t)) {
+        if ("PRIMITIVE".equals(t) || "STRUCTURE".equals(t) || "DECOR_DETAIL".equals(t)
+                || "DECOR".equals(t) || "DETAIL".equals(t)) {
+            if (com.formacraft.common.generation.component.util.StructuralSupportPolicy.isColumn(c.params())) {
+                return true;
+            }
             String id = componentId(c).toLowerCase(Locale.ROOT);
             if (id.startsWith("post_") || id.startsWith("access_post")
                     || id.contains("stilt") || id.contains("piling") || id.contains("_pile")

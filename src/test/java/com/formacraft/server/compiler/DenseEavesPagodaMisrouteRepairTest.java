@@ -61,4 +61,23 @@ class DenseEavesPagodaMisrouteRepairTest {
         assertTrue(c.dimensions().height() >= 23);
         assertEquals("dense_eaves_pagoda", c.params().get("typology_id"));
     }
+
+    @Test
+    void fourCornerWoodPostsDoNotForcePagodaStoreyHeight() {
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion_1",
+                new Vec3i(0, 0, 0),
+                new Dimensions(5, 5, 3),
+                List.of("column"),
+                Map.of("component_id", "pav1_main", "open", true, "wall_type", "none"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(pavilion))
+                .planMeta(Map.of(
+                        "request_intent_text", "建三座开敞木亭，每座四角木柱支撑双坡屋顶。"))
+                .playerFidelityNoticeZh("组合式生成「建三座…四角木柱…」")
+                .build();
+
+        LlmPlan out = DenseEavesPagodaMisrouteRepair.apply(plan);
+        assertEquals(3, out.components().get(0).dimensions().height());
+    }
 }

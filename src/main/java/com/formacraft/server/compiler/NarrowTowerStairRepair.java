@@ -52,7 +52,10 @@ final class NarrowTowerStairRepair {
         for (Component c : plan.components()) {
             Component next = repairHostShell(c, hostsWithExplicitFacade);
             if (next != c) changed = true;
-            if (StraightStairComponentGenerator.accepts(next)) {
+            // Exterior approach flights keep authored width (stilts shore stairs, etc.).
+            // Narrow-tower clamp is for interior shafts only.
+            if (StraightStairComponentGenerator.accepts(next)
+                    && (next.params() == null || !Boolean.TRUE.equals(next.params().get("exterior")))) {
                 Component stair = clampStairWidth(next, hosts);
                 if (stair != next) {
                     next = stair;
