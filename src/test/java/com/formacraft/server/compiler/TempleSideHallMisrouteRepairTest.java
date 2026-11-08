@@ -107,4 +107,102 @@ class TempleSideHallMisrouteRepairTest {
         assertEquals("double_eave_xieshan", intent.get("roof_type"));
         assertTrue(((Number) intent.get("confidence")).doubleValue() >= 0.8);
     }
+
+    @Test
+    void interiorFloorDoesNotSatisfyMoonPlatform() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        Component floor = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(1, 4, 1),
+                new Dimensions(18, 14, 1), List.of("floor_plate"),
+                Map.of("component_id", "main_floor_plate", "host_id", "temple_hall",
+                        "extrude_mode", "plate", "plate_role", "floor",
+                        "anchor_mode", "min_corner"));
+        String prompt = "生成一座大雄宝殿，前有月台，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .styleProfile("DEFAULT")
+                .components(List.of(hall, floor))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                c.params() != null && "main_floor_plate".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                c.params() != null && "temple_yuetai".equals(String.valueOf(c.params().get("component_id")))),
+                "interior floor plate must not suppress 月台 injection");
+    }
+
+    @Test
+    void sideHallsMustOccupyOppositeSides() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        // Both "配殿" stacked on the west — must not count as 左右配殿.
+        Component leftA = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(-12, 0, 2),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "left_peidian_a", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        Component leftB = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(-12, 0, 4),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "left_peidian_b", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .styleProfile("chinese_temple_imperial")
+                .components(List.of(hall, leftA, leftB))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        boolean hasEast = repaired.components().stream().anyMatch(c -> {
+            if (c.params() == null || c.relativePosition() == null || c.dimensions() == null) return false;
+            String id = String.valueOf(c.params().get("component_id"));
+            if (!id.contains("peidian") && !id.contains("side")) return false;
+            if (!c.componentType().startsWith("MASS")) return false;
+            int cx = c.relativePosition().x() + c.dimensions().width() / 2;
+            return cx >= hall.relativePosition().x() + hall.dimensions().width();
+        });
+        assertTrue(hasEast, "same-side pair must trigger opposite-side 配殿 recovery");
+    }
+
+    @Test
+    void chineseCarvedDecorSurvivesRepair() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        Component beam = new Component(
+                "DECOR_DETAIL", "body", new Vec3i(2, 10, 2),
+                new Dimensions(16, 1, 1), List.of("carved_beam", "雕梁"),
+                Map.of("component_id", "carved_beam_main", "host_id", "temple_hall"));
+        Component dougong = new Component(
+                "DECOR_DETAIL", "body", new Vec3i(1, 11, 1),
+                new Dimensions(18, 14, 2), List.of("dougong", "斗拱"),
+                Map.of("component_id", "dougong_main", "host_id", "temple_hall"));
+        Component cornice = new Component(
+                "DECOR_DETAIL", "body", new Vec3i(0, 11, 0),
+                new Dimensions(20, 16, 1), List.of("cornice", "classical"),
+                Map.of("component_id", "classical_cornice", "host_id", "temple_hall"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿，保留雕梁斗拱。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .styleProfile("DEFAULT")
+                .components(List.of(hall, beam, dougong, cornice))
+                .proportionHints(Map.of("typology", "classical_monument"))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                "carved_beam_main".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                "dougong_main".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(repaired.components().stream().noneMatch(c ->
+                "classical_cornice".equals(String.valueOf(c.params().get("component_id")))));
+    }
 }

@@ -5,6 +5,7 @@ import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.ArrayList;
@@ -40,13 +41,13 @@ final class MassFootprintSeparationRepair {
                 if (i == j) continue;
                 Component b = out.get(j);
                 if (!isAnchorMass(b)) continue;
-                if (!overlaps(a, b)) continue;
+                if (!overlaps(plan, a, b)) continue;
                 // Prefer moving the pavilion / smaller body away from the hall / larger body.
                 if (priority(a) >= priority(b)) continue;
-                var before = ComponentFootprintUtil.bounds(a);
-                Component nudged = nudgeAway(a, b);
+                var before = planBounds(plan, a);
+                Component nudged = nudgeAway(plan, a, b);
                 if (nudged == a) continue;
-                var after = ComponentFootprintUtil.bounds(nudged);
+                var after = planBounds(plan, nudged);
                 // Delta from resolved footprints — not raw relativePosition (centre anchors differ).
                 int dx;
                 int dy;
@@ -76,21 +77,19 @@ final class MassFootprintSeparationRepair {
     private static void shiftHostedSatellites(List<Component> parts, Component host, int dx, int dy, int dz) {
         if (dx == 0 && dy == 0 && dz == 0) return;
         String hostId = idOf(host);
-        String slot = host.slotId();
         for (int i = 0; i < parts.size(); i++) {
             Component c = parts.get(i);
             if (c == null || c == host || c.relativePosition() == null) continue;
             if (isMovableMass(c) && priority(c) >= priority(host)) continue;
-            boolean hosted = hostId != null && !hostId.isBlank() && c.params() != null
-                    && (hostId.equals(String.valueOf(c.params().get("host_id")))
-                    || hostId.equals(String.valueOf(c.params().get("hostId")))
-                    || hostId.equals(String.valueOf(c.params().get("building_id"))));
-            boolean sameSlotSatellite = slot != null && slot.equals(c.slotId())
-                    && !isMovableMass(c);
-            // Side-hall foundations / roofs often share the side hall's component_id prefix
-            // without an explicit host_id — shift when ids share the mover stem.
-            boolean idFamily = sharesIdFamily(hostId, idOf(c));
-            if (!hosted && !sameSlotSatellite && !idFamily) continue;
+            // Explicit host_id / hostId is authoritative — never drag a foreign building's roof/door.
+            String boundHost = explicitHostId(c);
+            boolean hosted = hostId != null && !hostId.isBlank() && hostId.equals(boundHost);
+            if (boundHost != null && !boundHost.isBlank() && !hosted) {
+                continue;
+            }
+            // No explicit host: only follow by clear id-family belonging (not mere same slot).
+            boolean idFamily = boundHost == null && sharesIdFamily(hostId, idOf(c));
+            if (!hosted && !idFamily) continue;
             if (isMovableMass(c) && !idFamily) continue;
             Vec3i p = c.relativePosition();
             parts.set(i, new Component(
@@ -98,6 +97,16 @@ final class MassFootprintSeparationRepair {
                     new Vec3i(p.x() + dx, p.y() + dy, p.z() + dz),
                     c.dimensions(), c.features(), c.params()));
         }
+    }
+
+    /** {@code host_id} / {@code hostId} only — building_id is not a host binding. */
+    private static String explicitHostId(Component c) {
+        if (c == null || c.params() == null) return null;
+        Object host = c.params().get("host_id");
+        if (host == null) host = c.params().get("hostId");
+        if (host == null) return null;
+        String s = String.valueOf(host).trim();
+        return s.isEmpty() || "null".equalsIgnoreCase(s) ? null : s;
     }
 
     private static boolean sharesIdFamily(String hostId, String otherId) {
@@ -222,41 +231,58 @@ final class MassFootprintSeparationRepair {
     }
 
     /**
-     * Relative footprints only collide when they share a slot frame. Multi-slot compounds
-     * (bridges between slot_lobby / slot_mid / …) use independent local origins — treating
-     * them as overlapping falsely separates halls and breaks bridge contact.
+     * Compare footprints in plan space. Different {@code slotId} values alone do not prove
+     * non-collision — hall vs pavilion often use distinct slot labels in one shared frame.
+     * When {@code layout.slots} defines anchors, local relative positions are offset into plan
+     * space; undefined slots keep relative coords as plan-space (never skip as "incomparable").
      */
-    private static boolean sameSlotSpace(Component a, Component b) {
-        String sa = a == null ? null : a.slotId();
-        String sb = b == null ? null : b.slotId();
-        if (sa == null && sb == null) return true;
-        return sa != null && sa.equals(sb);
-    }
-
-    private static boolean overlaps(Component a, Component b) {
-        if (!sameSlotSpace(a, b)) return false;
-        var ab = ComponentFootprintUtil.bounds(a);
-        var bb = ComponentFootprintUtil.bounds(b);
-        if (ab == null || bb == null) {
-            // Fallback for unresolved geometry — treat relativePosition as min corner.
-            Vec3i ao = a.relativePosition();
-            Vec3i bo = b.relativePosition();
-            Dimensions ad = a.dimensions();
-            Dimensions bd = b.dimensions();
-            int aMaxX = ao.x() + ad.width() - 1;
-            int aMaxZ = ao.z() + ad.depth() - 1;
-            int bMaxX = bo.x() + bd.width() - 1;
-            int bMaxZ = bo.z() + bd.depth() - 1;
-            return ao.x() <= bMaxX && aMaxX >= bo.x() && ao.z() <= bMaxZ && aMaxZ >= bo.z();
-        }
+    private static boolean overlaps(LlmPlan plan, Component a, Component b) {
+        var ab = planBounds(plan, a);
+        var bb = planBounds(plan, b);
+        if (ab == null || bb == null) return false;
         // Bounds max is exclusive.
         return ab.minX() < bb.maxX() && bb.minX() < ab.maxX()
                 && ab.minZ() < bb.maxZ() && bb.minZ() < ab.maxZ();
     }
 
-    private static Component nudgeAway(Component mover, Component anchor) {
-        var mb = ComponentFootprintUtil.bounds(mover);
-        var ab = ComponentFootprintUtil.bounds(anchor);
+    private static ComponentFootprintUtil.Bounds planBounds(LlmPlan plan, Component c) {
+        if (c == null) return null;
+        Vec3i origin = slotOrigin(plan, c.slotId());
+        int ox = origin.x();
+        int oy = origin.y();
+        int oz = origin.z();
+        var local = ComponentFootprintUtil.bounds(c);
+        if (local != null) {
+            if (ox == 0 && oy == 0 && oz == 0) return local;
+            return new ComponentFootprintUtil.Bounds(
+                    local.minX() + ox, local.minY() + oy, local.minZ() + oz,
+                    local.maxX() + ox, local.maxY() + oy, local.maxZ() + oz);
+        }
+        if (c.relativePosition() == null || c.dimensions() == null) return null;
+        Vec3i p = c.relativePosition();
+        Dimensions d = c.dimensions();
+        return new ComponentFootprintUtil.Bounds(
+                p.x() + ox, p.y() + oy, p.z() + oz,
+                p.x() + ox + d.width(), p.y() + oy + d.height(), p.z() + oz + d.depth());
+    }
+
+    private static Vec3i slotOrigin(LlmPlan plan, String slotId) {
+        if (slotId == null || slotId.isBlank() || plan == null || plan.layout() == null
+                || plan.layout().slots() == null) {
+            return new Vec3i(0, 0, 0);
+        }
+        for (Slot slot : plan.layout().slots()) {
+            if (slot != null && slotId.equals(slot.slotId()) && slot.anchor() != null) {
+                return slot.anchor();
+            }
+        }
+        // Authored slot label without a layout anchor — relative coords stay plan-space.
+        return new Vec3i(0, 0, 0);
+    }
+
+    private static Component nudgeAway(LlmPlan plan, Component mover, Component anchor) {
+        var mb = planBounds(plan, mover);
+        var ab = planBounds(plan, anchor);
         Vec3i mo = mover.relativePosition();
         if (mb == null || ab == null || mo == null || mover.dimensions() == null) {
             return nudgeAwayRaw(mover, anchor);
@@ -327,9 +353,10 @@ final class MassFootprintSeparationRepair {
         if (mover.params() != null) params.putAll(mover.params());
         params.put("anchor_mode", "min_corner");
         params.put("footprint_separated", true);
-        // Emit min-corner position so later generators match the resolved bounds we just used.
-        int newMinX = mMinX + dx;
-        int newMinZ = mMinZ + dz;
+        // Emit min-corner in the mover's slot-local frame (subtract slot anchor from plan bounds).
+        Vec3i slotOx = slotOrigin(plan, mover.slotId());
+        int newMinX = mMinX + dx - slotOx.x();
+        int newMinZ = mMinZ + dz - slotOx.z();
         return new Component(
                 mover.componentType(),
                 mover.slotId(),

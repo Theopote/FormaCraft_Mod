@@ -389,6 +389,72 @@ class TempleGardenAlignmentRepairTest {
     }
 
     @Test
+    void differentSlotsWithSharedFrameMustSeparate() {
+        // Distinct slot labels in one plan frame still collide in world/plan space.
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, -8),
+                new Dimensions(16, 12, 8), List.of("main_hall"),
+                Map.of("component_id", "hall_main", "building_role", "hall_main",
+                        "anchor_mode", "min_corner"));
+        Component pavilion = new Component(
+                "MASS_MAIN", "pavilion", new Vec3i(11, 0, 3),
+                new Dimensions(6, 6, 5), List.of("pavilion"),
+                Map.of("component_id", "pavilion_water", "building_role", "pavilion",
+                        "anchor_mode", "min_corner"));
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(hall, pavilion))
+                .build());
+        Component moved = repaired.components().stream()
+                .filter(c -> "pavilion_water".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component stay = repaired.components().stream()
+                .filter(c -> "hall_main".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertFalse(
+                moved.relativePosition().x() < stay.relativePosition().x() + stay.dimensions().width()
+                        && moved.relativePosition().x() + moved.dimensions().width() > stay.relativePosition().x()
+                        && moved.relativePosition().z() < stay.relativePosition().z() + stay.dimensions().depth()
+                        && moved.relativePosition().z() + moved.dimensions().depth() > stay.relativePosition().z(),
+                () -> "cross-slot footprints still overlap: pavilion=" + moved.relativePosition()
+                        + " hall=" + stay.relativePosition());
+    }
+
+    @Test
+    void foreignHostedRoofMustNotMove() {
+        Component hall = new Component(
+                "MASS_MAIN", "shared", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "hall_main", "building_role", "hall_main",
+                        "anchor_mode", "min_corner"));
+        Component pavilion = new Component(
+                "MASS_MAIN", "shared", new Vec3i(8, 0, 2),
+                new Dimensions(6, 6, 5), List.of(),
+                Map.of("component_id", "pavilion_a", "building_role", "pavilion",
+                        "anchor_mode", "min_corner"));
+        Component pavilionRoof = new Component(
+                "ROOF", "shared", new Vec3i(7, 5, 1),
+                new Dimensions(8, 8, 3), List.of(),
+                Map.of("component_id", "pavilion_a_roof", "host_id", "pavilion_a",
+                        "anchor_mode", "min_corner"));
+        Vec3i roofBefore = pavilionRoof.relativePosition();
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(hall, pavilion, pavilionRoof))
+                .build());
+        Component movedPavilion = repaired.components().stream()
+                .filter(c -> "pavilion_a".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component roof = repaired.components().stream()
+                .filter(c -> "pavilion_a_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        // Pavilion should move off the hall; its explicitly hosted roof follows pavilion, not hall.
+        assertNotEquals(pavilion.relativePosition(), movedPavilion.relativePosition());
+        int dx = movedPavilion.relativePosition().x() - pavilion.relativePosition().x();
+        int dz = movedPavilion.relativePosition().z() - pavilion.relativePosition().z();
+        assertEquals(roofBefore.x() + dx, roof.relativePosition().x());
+        assertEquals(roofBefore.z() + dz, roof.relativePosition().z());
+    }
+
+    @Test
     void sideHallsSeparateOnOppositeSidesAndLiftSatellites() {
         Component hall = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 2, 0),

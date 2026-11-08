@@ -318,12 +318,6 @@ final class PlanIntentFidelityRepair {
         return enrich(plan, component, hints, primary, multi);
     }
 
-    static Component enrich(LlmPlan plan, Component component, IntentHints hints, String primaryHost) {
-        boolean multi = plan != null && plan.components() != null
-                && plan.components().stream().filter(BuildingHostResolver::isHostMass).count() > 1;
-        return enrich(plan, component, hints, primaryHost, multi);
-    }
-
     static Component enrich(
             LlmPlan plan, Component component, IntentHints hints, String primaryHost, boolean multiBuilding
     ) {

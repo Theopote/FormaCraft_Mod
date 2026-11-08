@@ -407,16 +407,57 @@ final class TempleSideHallMisrouteRepair {
         if (c == null) return false;
         if (!"DECOR_DETAIL".equals(typeOf(c))) return false;
         String feat = featuresOf(c).toLowerCase(Locale.ROOT);
-        return feat.contains("cornice") || feat.contains("pilaster") || feat.contains("column")
-                || feat.contains("carved");
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        // East-asian timber ornament must survive temple recovery.
+        if (feat.contains("dougong") || feat.contains("斗拱") || feat.contains("carved_beam")
+                || feat.contains("雕梁") || feat.contains("花窗") || feat.contains("雀替")
+                || id.contains("dougong") || id.contains("carved_beam") || id.contains("雕梁")
+                || id.contains("斗拱")) {
+            return false;
+        }
+        if (feat.contains("cornice") || feat.contains("pilaster") || feat.contains("cupola")
+                || feat.contains("classical")) {
+            return true;
+        }
+        // Bare "column"/"carved" are too broad — require western classical cues.
+        return (feat.contains("column") || feat.contains("carved"))
+                && (feat.contains("ionic") || feat.contains("doric") || feat.contains("corinthian")
+                || feat.contains("classical") || feat.contains("pilaster") || feat.contains("western"));
     }
 
+    /**
+     * True only when at least two side halls sit on opposite sides of the primary mass.
+     * Two halls both on the left do not satisfy 「左右配殿」.
+     */
     private static boolean hasSideHalls(LlmPlan plan) {
-        int sides = 0;
+        List<Component> sides = new ArrayList<>();
         for (Component c : plan.components()) {
-            if (looksLikeSideHall(c)) sides++;
+            if (looksLikeSideHall(c) && c.relativePosition() != null && c.dimensions() != null) {
+                sides.add(c);
+            }
         }
-        return sides >= 2;
+        if (sides.size() < 2) return false;
+        Component main = findPrimaryMass(plan);
+        if (main == null || main.relativePosition() == null || main.dimensions() == null) {
+            return true;
+        }
+        int minX = main.relativePosition().x();
+        int maxX = minX + main.dimensions().width();
+        int minZ = main.relativePosition().z();
+        int maxZ = minZ + main.dimensions().depth();
+        boolean west = false;
+        boolean east = false;
+        boolean north = false;
+        boolean south = false;
+        for (Component c : sides) {
+            int cx = c.relativePosition().x() + c.dimensions().width() / 2;
+            int cz = c.relativePosition().z() + c.dimensions().depth() / 2;
+            if (cx < minX) west = true;
+            if (cx >= maxX) east = true;
+            if (cz < minZ) north = true;
+            if (cz >= maxZ) south = true;
+        }
+        return (west && east) || (north && south);
     }
 
     private static boolean hasMoonPlatform(LlmPlan plan) {
@@ -442,12 +483,34 @@ final class TempleSideHallMisrouteRepair {
         if (c == null) return false;
         String id = idOf(c).toLowerCase(Locale.ROOT);
         String feat = featuresOf(c).toLowerCase(Locale.ROOT);
-        if (id.contains("yuetai") || id.contains("月台") || id.contains("platform") || id.contains("moon")
+        if (id.contains("yuetai") || id.contains("月台") || id.contains("moon_platform")
                 || feat.contains("月台") || feat.contains("moon_platform")) {
             return true;
         }
-        return c.params() != null && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))
-                && (id.contains("floor") || id.contains("plat") || id.contains("terrace"));
+        String role = "";
+        if (c.params() != null) {
+            Object plateRole = c.params().get("plate_role");
+            if (plateRole == null) plateRole = c.params().get("plateRole");
+            if (plateRole != null) role = String.valueOf(plateRole).trim().toLowerCase(Locale.ROOT);
+        }
+        // Interior FLOOR plates (main_floor_plate) must not satisfy outdoor 月台.
+        boolean interiorFloor = id.contains("floor") || role.contains("floor") || role.contains("interior")
+                || role.contains("storey") || feat.contains("floor_plate");
+        if (interiorFloor) {
+            return false;
+        }
+        if (role.contains("yuetai") || role.contains("moon") || role.contains("forecourt")
+                || "moon_platform".equals(role)) {
+            return true;
+        }
+        // Generic terrace/platform roles need an outdoor cue (月台 features / id).
+        if ("terrace".equals(role) || "platform".equals(role)) {
+            return feat.contains("月台") || feat.contains("moon") || feat.contains("forecourt")
+                    || id.contains("yuetai") || id.contains("platform") || id.contains("terrace");
+        }
+        return (id.contains("platform") || id.contains("terrace"))
+                && (id.contains("moon") || id.contains("forecourt") || feat.contains("月台")
+                || feat.contains("moon") || feat.contains("forecourt"));
     }
 
     private static Component findPrimaryMass(LlmPlan plan) {
