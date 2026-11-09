@@ -151,8 +151,10 @@ public class RoofGenerator implements ComponentGenerator {
             sealSlopeRisers(out);
         }
         List<BlockPatch> roofShell = List.copyOf(out);
-        if (ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c)
-                && width >= 7) {
+        boolean wantsDormers = ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c);
+        Integer mansardDormerCount = wantsDormers && mansardProfile != null
+                ? ComponentRoofSpecialtyDecorator.mansardDormerCount(params) : null;
+        if (wantsDormers && (width >= 7 || mansardDormerCount != null)) {
             String trim = getBlockForPart(semantic, palette, SemanticPart.WALL_ACCENT);
             String glass = "minecraft:glass_pane";
             String roofBlock = getBlockForPart(semantic, palette, SemanticPart.ROOF);
@@ -161,7 +163,8 @@ public class RoofGenerator implements ComponentGenerator {
                         out, out, baseX, rp.y(), baseZ, width, depth, height, trim, glass, roofBlock);
             } else {
                 ComponentRoofSpecialtyDecorator.emitDormers(
-                        out, roofShell, baseX, rp.y(), baseZ, width, depth, mansardProfile, trim, glass, roofBlock);
+                        out, roofShell, baseX, rp.y(), baseZ, width, depth, mansardProfile,
+                        mansardDormerCount, trim, glass, roofBlock);
             }
         }
 

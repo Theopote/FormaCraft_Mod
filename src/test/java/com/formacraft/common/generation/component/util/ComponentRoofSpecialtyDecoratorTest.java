@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ComponentRoofSpecialtyDecoratorTest {
@@ -61,5 +62,26 @@ class ComponentRoofSpecialtyDecoratorTest {
         assertTrue(out.size() > roof.size());
         assertTrue(out.stream().anyMatch(p -> p.targetBlock() != null && p.targetBlock().contains("glass")));
         assertTrue(out.stream().anyMatch(p -> p.targetBlock() != null && p.targetBlock().contains("stairs")));
+    }
+
+    @Test
+    void requestedDormersCannotSpanAGapInTheFoldStrip() {
+        var profile = ComponentRoofSpecialtyDecorator.resolveMansardProfile(13, 17, 11,
+                Map.of("mansard_break_run", 3, "mansard_break_rise", 7));
+        List<BlockPatch> roof = new ArrayList<>();
+        for (int x = 3; x <= 9; x++) {
+            roof.add(new BlockPatch(BlockPatch.PLACE, x, 7, 3, "minecraft:bricks"));
+            if (x != 6) roof.add(new BlockPatch(BlockPatch.PLACE, x, 5, 2, "minecraft:bricks"));
+        }
+        List<BlockPatch> out = new ArrayList<>();
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> ComponentRoofSpecialtyDecorator.emitDormers(out, roof, 0, 0, 0,
+                        13, 17, profile, 2, "minecraft:stone_bricks", "minecraft:glass_pane", "minecraft:bricks"));
+        assertTrue(error.getMessage().contains("capacity of 1"));
+        assertTrue(out.isEmpty());
+        ComponentRoofSpecialtyDecorator.emitDormers(out, roof, 0, 0, 0,
+                13, 17, profile, 1, "minecraft:stone_bricks", "minecraft:glass_pane", "minecraft:bricks");
+        assertEquals(List.of(4), out.stream().filter(p -> p.dy() == 8 && "minecraft:glass_pane".equals(p.targetBlock()))
+                .map(BlockPatch::dx).toList());
     }
 }

@@ -949,12 +949,32 @@ final class ComponentEmitPass {
                         && z>=b.minZ() && z<b.maxZ() && other.footprint().contains(x-b.minX(),z-b.minZ())) return true;
             }
             var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
-            return existing != null && existing.owner() != null
-                    && !host.equals(ComponentPlanTypes.getParamString(existing.owner().params(), "component_id"))
-                    && !host.equals(ComponentPlanTypes.getParamString(existing.owner().params(), "host_id"));
+            if (existing == null || existing.owner() == null) return false;
+            // Root mass (tier_1) owns cells that a child-hosted roof (tier_5) must reseal —
+            // do not treat the parent/ancestor host tree as a foreign occluder.
+            return !roofHostOwnedByOccupancy(host, existing.owner(), components);
         });
         if (before != patches.size()) AssemblyCompileDiagnostics.addSoftWarning("ROOF_OVERHANG_TRIMMED",
                 "屋檐已避让相邻建筑，跳过 " + (before - patches.size()) + " 条操作", roof.componentType(), ComponentPlanTypes.paramIdentity(roof));
+    }
+
+    /** True when occupancy owner is the roof host, its parent host, or a mass nesting that host. */
+    private static boolean roofHostOwnedByOccupancy(String roofHostId, Component owner, List<Component> components) {
+        if (roofHostId == null || owner == null || owner.params() == null) return false;
+        String ownerId = ComponentPlanTypes.getParamString(owner.params(), "component_id");
+        String ownerHost = ComponentPlanTypes.getParamString(owner.params(), "host_id");
+        if (roofHostId.equals(ownerId) || roofHostId.equals(ownerHost)) return true;
+        for (Component c : components) {
+            if (c == null || c.params() == null) continue;
+            if (!roofHostId.equals(ComponentPlanTypes.getParamString(c.params(), "component_id"))) continue;
+            String parent = ComponentPlanTypes.getParamString(c.params(), "host_id");
+            if (ownerId != null && ownerId.equals(parent)) return true;
+            break;
+        }
+        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(owner)) {
+            if (roofHostId.equals(part.partId())) return true;
+        }
+        return false;
     }
 
     static String geometryConstraintCode(String message) {

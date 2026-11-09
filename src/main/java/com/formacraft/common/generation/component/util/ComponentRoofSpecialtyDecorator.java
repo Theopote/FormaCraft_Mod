@@ -85,6 +85,11 @@ public final class ComponentRoofSpecialtyDecorator {
         if (isEnabled(getParam(params, "roof_dormers", "roofDormers", "dormers"))) {
             return true;
         }
+        if (getParam(params, "mansard_dormer_count") != null
+                && RoofTypeCatalog.extractExplicitType(component, params)
+                .flatMap(RoofTypeCatalog::parseExplicit).orElse(null) == RoofTypeKind.MANSARD) {
+            return true;
+        }
         if (component != null && component.features() != null) {
             for (String f : component.features()) {
                 if (f != null) {
@@ -133,8 +138,8 @@ public final class ComponentRoofSpecialtyDecorator {
             return new MansardProfile(setback, lowerHeight - 1, Math.max(1, center - setback),
                     Math.max(1, height - lowerHeight));
         }
-        int run = runParam == null ? setback : mansardBreakValue(runParam, "mansard_break_run");
-        int rise = riseParam == null ? lowerHeight - 1 : mansardBreakValue(riseParam, "mansard_break_rise");
+        int run = runParam == null ? setback : positiveMansardInteger(runParam, "mansard_break_run");
+        int rise = riseParam == null ? lowerHeight - 1 : positiveMansardInteger(riseParam, "mansard_break_rise");
         int maxRise = height - 1;
         if (run < 1 || run >= center || rise < 1 || rise >= maxRise
                 || (long) rise * center <= (long) run * maxRise) {
@@ -144,8 +149,13 @@ public final class ComponentRoofSpecialtyDecorator {
         return new MansardProfile(run, rise, center - run, maxRise - rise);
     }
 
-    private static int mansardBreakValue(String raw, String key) {
-        String error = "E_ROOF_GEOMETRY_INVALID: " + key + " must be a whole number of blocks";
+    public static Integer mansardDormerCount(Map<String, Object> params) {
+        String raw = getParam(params, "mansard_dormer_count");
+        return raw == null ? null : positiveMansardInteger(raw, "mansard_dormer_count");
+    }
+
+    private static int positiveMansardInteger(String raw, String key) {
+        String error = "E_ROOF_GEOMETRY_INVALID: " + key + " must be a positive whole number";
         try {
             double value = Double.parseDouble(raw);
             if (value == Math.rint(value) && value >= 1 && value <= Integer.MAX_VALUE) return (int) value;
@@ -206,13 +216,21 @@ public final class ComponentRoofSpecialtyDecorator {
             List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
             int width, int depth, MansardProfile profile, String trimBlock, String glassBlock, String roofBlock
     ) {
-        if (out == null || width < 7) {
+        emitDormers(out, roofPatches, baseX, baseY, baseZ, width, depth, profile, null, trimBlock, glassBlock, roofBlock);
+    }
+
+    public static void emitDormers(
+            List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
+            int width, int depth, MansardProfile profile, Integer count, String trimBlock, String glassBlock, String roofBlock
+    ) {
+        if (out == null || (count == null && width < 7)) {
             return;
         }
         int setback = profile.setback();
         int faceZ = baseZ + setback;
         int protrude = 2;
-        List<Integer> centers = dormerCenterXs(baseX, width);
+        List<Integer> centers = count == null ? dormerCenterXs(baseX, width)
+                : fittedDormerCenters(roofPatches, baseX, width, faceZ, setback, count);
         for (int cx : centers) {
             int surfaceY = findRoofSurfaceY(roofPatches, cx, faceZ);
             if (surfaceY == Integer.MIN_VALUE) {
@@ -222,6 +240,46 @@ public final class ComponentRoofSpecialtyDecorator {
             }
             emitSingleDormer(out, cx, surfaceY, faceZ, protrude, trimBlock, glassBlock, roofBlock);
         }
+    }
+
+    private static List<Integer> fittedDormerCenters(List<BlockPatch> roofPatches, int baseX, int width,
+                                                     int faceZ, int setback, int count) {
+        if (count < 1) {
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_count must be a positive whole number");
+        }
+        boolean[] face = new boolean[width];
+        boolean[] front = new boolean[width];
+        for (BlockPatch patch : roofPatches == null ? List.<BlockPatch>of() : roofPatches) {
+            if (!GeneratedSurfaceCapture.occupied(patch)) continue;
+            int x = patch.dx() - baseX;
+            if (x < 0 || x >= width) continue;
+            if (patch.dz() == faceZ) face[x] = true;
+            if (patch.dz() == faceZ - 1) front[x] = true;
+        }
+        int bestStart = 0;
+        int bestLength = 0;
+        int length = 0;
+        // A dormer is three cells wide and must stay on the front slope.
+        for (int x = setback; x < width - setback; x++) {
+            length = face[x] && front[x] ? length + 1 : 0;
+            if (length > bestLength) {
+                bestStart = x - length + 1;
+                bestLength = length;
+            }
+        }
+        int capacity = (bestLength + 1) / 4;
+        if (count > capacity) {
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_count=" + count
+                    + " exceeds the available fold strip capacity of " + capacity);
+        }
+        int first = baseX + bestStart + 1;
+        int centerSpan = bestLength - 3;
+        List<Integer> centers = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            centers.add(first + (count == 1 ? centerSpan / 2
+                    : (int) Math.round(i * (double) centerSpan / (count - 1))));
+        }
+        return centers;
     }
 
     static void emitSingleDormer(
