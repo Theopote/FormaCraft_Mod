@@ -319,7 +319,8 @@ class P2RoofGeometryTest {
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         int[][] tops = new int[13][17];
         for (var patch : patches) {
-            if ("minecraft:stone_bricks".equals(patch.targetBlock()) && patch.dx() >= 0 && patch.dx() < 13
+            if (patch.targetBlock() != null && patch.targetBlock().startsWith("minecraft:stone_brick")
+                    && patch.dx() >= 0 && patch.dx() < 13
                     && patch.dz() >= 0 && patch.dz() < 17) {
                 tops[patch.dx()][patch.dz()] = Math.max(tops[patch.dx()][patch.dz()], patch.dy());
             }
@@ -333,11 +334,32 @@ class P2RoofGeometryTest {
         }
         assertTrue(patches.stream().anyMatch(p -> p.dx() == 4 && p.dz() == 4 && p.dy() == 14
                 && "minecraft:stone_bricks".equals(p.targetBlock())));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 1 && p.dz() == 5 && p.dy() == 15
+                && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
+                && p.targetBlock().contains("facing=south")));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 5 && p.dz() == 1 && p.dy() == 17
+                && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
+                && p.targetBlock().contains("facing=east")));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 14
+                && "minecraft:stone_bricks".equals(p.targetBlock())));
         assertTrue(patches.stream().anyMatch(p -> p.dx() == 0 && p.dz() == 8 && p.dy() == 17
                 && "minecraft:spruce_planks".equals(p.targetBlock())));
         // Check the attic above the host attachment plane and below the valley.
         assertFalse(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 12
                 && BlockPatch.PLACE.equals(p.action())));
+    }
+
+    @Test void shallowCrossGableUsesSlabsAwayFromTheSolidValley() {
+        var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, 5), List.of(),
+                Map.of("roof_type", "cross_gable", "roof_block", "minecraft:stone_bricks",
+                        "roof_slope_profile", "linear", "gable_walls", false));
+        var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, component));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 1 && p.dz() == 4 && p.dy() == 22
+                && "minecraft:stone_brick_slab[type=bottom]".equals(p.targetBlock())));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 22
+                && "minecraft:stone_bricks".equals(p.targetBlock())));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 4 && p.dy() == 24
+                && "minecraft:stone_bricks".equals(p.targetBlock())));
     }
 
     @Test void hostedButterflyKeepsItsGutterAtTheAttachmentPlane() throws Exception {

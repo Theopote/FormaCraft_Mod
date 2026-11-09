@@ -485,20 +485,46 @@ public class RoofGenerator implements ComponentGenerator {
 
     private static void generateCrossGableRoof(List<BlockPatch> out, SemanticComponent semantic,
                                                int baseX, int baseY, int baseZ, int width, int depth, int height,
-                                               String block, ComponentFootprintMask footprint, int overhang) {
+                                               String fullBlock, ComponentFootprintMask footprint, int overhang) {
         int runX = Math.max(1, (width - 1) / 2);
         int runZ = Math.max(1, (depth - 1) / 2);
+        int maxRise = height - 1;
+        int valleyBuffer = Math.max(runX, runZ);
+        double[] risesX = sampleRoofProfile(semantic, runX, maxRise);
+        double[] risesZ = sampleRoofProfile(semantic, runZ, maxRise);
+        String stairs = MaterialBlockFamily.stairs(fullBlock);
+        String slab = MaterialBlockFamily.slab(fullBlock);
+        String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
         for (int x = 0; x < width; x++) {
-            double progressX = Math.min(x, width - 1 - x) / (double) runX;
+            int distanceX = Math.min(x, width - 1 - x);
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
-                double progressZ = Math.min(z, depth - 1 - z) / (double) runZ;
-                // Take the outer shell of the two gables. Equal profiles meet at the valleys.
-                double progress = Math.max(progressX, progressZ);
-                int rise = (int) Math.round(StyleRoofGeometry.profile(semantic, progress) * (height - 1));
-                out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + rise, baseZ + z, block));
+                int distanceZ = Math.min(z, depth - 1 - z);
+                // Compare the normalized runs without rounding. An adjacent cell can
+                // change the difference by one run, so keep that band solid.
+                long separation = (long) distanceX * runZ - (long) distanceZ * runX;
+                boolean slopeX = separation >= 0;
+                int distance = slopeX ? distanceX : distanceZ;
+                double[] profile = slopeX ? risesX : risesZ;
+                double rise = profile[distance];
+                int blockRise = (int) Math.round(rise);
+                String surface = fullBlock;
+                if (blockRise < maxRise && Math.abs(separation) > valleyBuffer) {
+                    String facing = slopeX ? (x < width / 2 ? "east" : "west")
+                            : (z < depth / 2 ? "south" : "north");
+                    surface = slopeSurface(fullBlock, lowerSlab, stairs, rise, profile[distance + 1], facing);
+                }
+                out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + blockRise, baseZ + z, surface));
             }
         }
+    }
+
+    private static double[] sampleRoofProfile(SemanticComponent semantic, int run, int maxRise) {
+        double[] rises = new double[run + 1];
+        for (int distance = 0; distance <= run; distance++) {
+            rises[distance] = StyleRoofGeometry.profile(semantic, distance / (double) run) * maxRise;
+        }
+        return rises;
     }
 
     private static void generateProfiledGable(List<BlockPatch> out, RoofTypeKind kind, int baseX, int baseY,
@@ -642,10 +668,7 @@ public class RoofGenerator implements ComponentGenerator {
         String stairs = MaterialBlockFamily.stairs(fullBlock);
         String slab = MaterialBlockFamily.slab(fullBlock);
         String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
-        double[] rises = new double[maxRun + 1];
-        for (int run = 0; run <= maxRun; run++) {
-            rises[run] = StyleRoofGeometry.profile(semantic, run / (double) maxRun) * (height - 1);
-        }
+        double[] rises = sampleRoofProfile(semantic, maxRun, height - 1);
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
