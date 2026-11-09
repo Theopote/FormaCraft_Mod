@@ -271,6 +271,21 @@ public final class ComponentPlanCompiler {
         var roofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofClearance);
         if (roofMissing.isPresent()) {
             var missing = roofMissing.get();
+            // TEMP diag: last writers at missing roof core cells.
+            for (var roof : flatRoofs) {
+                if (!missing.source().equals(roof.source())) continue;
+                int logged = 0;
+                for (var pos : roof.core()) {
+                    if (roofClearance.contains(pos)) continue;
+                    BlockPatch last = null;
+                    for (var p : result) {
+                        if (p != null && p.dx() == pos.getX() && p.dy() == pos.getY() && p.dz() == pos.getZ()) last = p;
+                    }
+                    if (com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.occupied(last)) continue;
+                    FormacraftMod.LOGGER.warn("Flat roof miss {} last={} clearance={}", pos, last, roofClearance.contains(pos));
+                    if (++logged >= 8) break;
+                }
+            }
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",
                     "平屋顶核心覆盖不完整：" + missing.source() + ", plan=" + missing.position().toShortString()
                             + ", missing=" + missing.count(), "components[]",

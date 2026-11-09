@@ -98,8 +98,8 @@ public final class BuildingAssetLocks {
         }
     }
 
-    /** Publish a block-only material edit, retaining the original installation provenance. */
-    public static String saveMaterialRevision(Path world, UUID owner, String dimension, Revision revision,
+    /** Publish a block-only edit, retaining the original installation provenance. */
+    public static String saveBlockRevision(Path world, UUID owner, String dimension, Revision revision,
                                               int x, int y, int z, List<BlockPatch> committed) throws IOException {
         Path root = vault(world, owner, false);
         var parent = load(world, owner, revision.parentId(), dimension);

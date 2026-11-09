@@ -655,32 +655,16 @@ public final class BuildingEditService {
                 }
             }
         }
-        String newLock = null;
-        String parentLock = BuildingMemoryKeys.currentAssetLock(memory);
-        var binding = BuildingMemoryKeys.initialAssetLockBinding(memory);
-        if (worldRoot != null && parentLock != null && binding != null) {
-            var txn = BuildingEditTransactionStore.findOpenByBuilding(buildingId);
-            if (txn == null || txn.status() == BuildingEditTransaction.Status.PREPARED
-                    || txn.baseRevision() != current || !dimension.equals(txn.dimension())
-                    || txn.operation().toEditOperation() != BuildingEditOperation.REPLACE_ROOF_MATERIAL
-                    || newRoofStates == null || !txn.targetWorldStates().keySet().equals(newRoofStates.keySet())
-                    || !statesEqual(txn.targetWorldStates(), newRoofStates)
-                    || !index.roof().cells().containsAll(newRoofStates.keySet())) return false;
-            BlockPos origin = binding.buildOrigin();
-            List<BlockPatch> writes = newRoofStates.entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey())
-                    .map(entry -> {
-                        BlockPos relative = entry.getKey().subtract(origin);
-                        return new BlockPatch(BlockPatch.PLACE, relative.getX(), relative.getY(), relative.getZ(), entry.getValue());
-                    }).toList();
-            try {
-                var revision = new BuildingAssetLocks.Revision(parentLock, buildingId, txn.transactionId(), current + 1);
-                newLock = BuildingAssetLocks.saveMaterialRevision(worldRoot, binding.owner(), dimension.toString(),
-                        revision, origin.getX(), origin.getY(), origin.getZ(), writes);
-            } catch (IOException ex) {
-                FormacraftMod.LOGGER.warn("Could not archive roof edit {}", txn.transactionId(), ex);
+        String newLock;
+        try {
+            if (tracksAssetLock(memory) && (newRoofStates == null || !index.roof().cells().containsAll(newRoofStates.keySet()))) {
                 return false;
             }
+            newLock = archiveBlockEdit(memory, buildingId, dimension, current,
+                    BuildingEditOperation.REPLACE_ROOF_MATERIAL, newRoofStates);
+        } catch (IOException ex) {
+            FormacraftMod.LOGGER.warn("Could not archive roof edit for {}", buildingId, ex);
+            return false;
         }
         new BuildingPartIndex(
                 new BuildingPartIndex.RoofPart("roof", index.roof().cells(), states),
@@ -738,9 +722,17 @@ public final class BuildingEditService {
         }
         if (current != expectedBaseRevision) return false;
 
+        String newLock;
+        try {
+            newLock = archiveBlockEdit(memory, buildingId, dimension, current, operation, targetStates);
+        } catch (IOException ex) {
+            FormacraftMod.LOGGER.warn("Could not archive window edit for {}", buildingId, ex);
+            return false;
+        }
         Map<String, Object> previousMetadata = new LinkedHashMap<>(memory.getMetadata());
         BuildingPartIndex.fromMemory(memory).withWindowTargets(operation, targetStates, targetPart).persistTo(memory);
         BuildingMemoryKeys.bumpRevision(memory);
+        if (newLock != null) BuildingMemoryKeys.storeRevisionAssetLock(memory, newLock);
         BuildingMemoryKeys.clearMemorySyncFailed(memory);
         MemoryUpdateResult result = memoryManager.updateMemoryStrict(memory);
         if (!result.ok()) {
@@ -748,6 +740,36 @@ public final class BuildingEditService {
             return false;
         }
         return true;
+    }
+
+    private boolean tracksAssetLock(ProjectMemory memory) {
+        return worldRoot != null && BuildingMemoryKeys.currentAssetLock(memory) != null
+                && BuildingMemoryKeys.initialAssetLockBinding(memory) != null;
+    }
+
+    private String archiveBlockEdit(ProjectMemory memory, UUID buildingId, Identifier dimension, long current,
+                                    BuildingEditOperation operation, Map<BlockPos, String> targets) throws IOException {
+        if (!tracksAssetLock(memory)) return null;
+        var txn = BuildingEditTransactionStore.findOpenByBuilding(buildingId);
+        if (txn == null || txn.status() == BuildingEditTransaction.Status.PREPARED
+                || txn.baseRevision() != current || !dimension.equals(txn.dimension())
+                || txn.operation().toEditOperation() != operation
+                || targets == null || !txn.targetWorldStates().keySet().equals(targets.keySet())
+                || !statesEqual(txn.targetWorldStates(), targets)) {
+            throw new IOException("建筑编辑事务与构件锁写入不一致");
+        }
+        var binding = BuildingMemoryKeys.initialAssetLockBinding(memory);
+        BlockPos origin = binding.buildOrigin();
+        List<BlockPatch> writes = txn.targetWorldStates().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+                    BlockPos relative = entry.getKey().subtract(origin);
+                    return new BlockPatch(BlockPatch.PLACE, relative.getX(), relative.getY(), relative.getZ(), entry.getValue());
+                }).toList();
+        var revision = new BuildingAssetLocks.Revision(BuildingMemoryKeys.currentAssetLock(memory),
+                buildingId, txn.transactionId(), current + 1);
+        return BuildingAssetLocks.saveBlockRevision(worldRoot, binding.owner(), dimension.toString(),
+                revision, origin.getX(), origin.getY(), origin.getZ(), writes);
     }
 
     /**

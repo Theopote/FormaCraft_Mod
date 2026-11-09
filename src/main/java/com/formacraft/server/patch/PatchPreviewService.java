@@ -497,9 +497,8 @@ public final class PatchPreviewService {
                     com.formacraft.server.edit.BuildingEditPendingRegistry.takeFbdSourcePlan(ticket.id());
                 }
             } else {
-                boolean roofVerified = pendingEdit.operation() != com.formacraft.server.edit.BuildingEditOperation.REPLACE_ROOF_MATERIAL
-                        || com.formacraft.server.edit.BuildingEditService.transactionTargetsMatch(sw, txnId);
-                committed = roofVerified && editService.commitSuccessfulBuildingEdit(
+                committed = com.formacraft.server.edit.BuildingEditService.transactionTargetsMatch(sw, txnId)
+                        && editService.commitSuccessfulBuildingEdit(
                         pendingEdit.buildingId(),
                         pendingEdit.dimension(),
                         pendingEdit.baseRevision(),

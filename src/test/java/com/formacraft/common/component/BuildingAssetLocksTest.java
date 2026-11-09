@@ -7,6 +7,7 @@ import com.formacraft.common.component.variant.CaptureAdaptationSettings;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.edit.BuildingEditPendingRegistry;
+import com.formacraft.server.edit.BuildingEditOperation;
 import com.formacraft.server.edit.BuildingEditService;
 import com.formacraft.server.edit.BuildingEditTransactionStore;
 import com.formacraft.server.edit.BuildingMemoryKeys;
@@ -25,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BuildingAssetLocksTest {
     @Test
-    void roofRecoveryReusesArchiveAfterMemoryWriteFailure() throws Exception {
+    void roofRecoveryAndWindowEditsKeepOneRevisionChain() throws Exception {
         var sample = sample();
         String parent = save(sample);
         var dimension = Identifier.of("minecraft:overworld");
@@ -66,6 +67,28 @@ class BuildingAssetLocksTest {
             assertEquals(parent, child.manifest().revision().parentId());
             assertTrue(child.patches().contains(new BlockPatch(BlockPatch.PLACE, 2, 3, 4, "minecraft:glass")));
             assertEquals(2, BuildingAssetLocks.list(world, alice, 0).size());
+            BlockPos window = origin.add(0, 2, 1);
+            String previousId = child.manifest().id();
+            String oldState = "minecraft:stone";
+            long baseRevision = 1;
+            for (var operation : List.of(BuildingEditOperation.INSERT_WINDOW, BuildingEditOperation.SEAL_WINDOW)) {
+                String newState = operation == BuildingEditOperation.INSERT_WINDOW ? "minecraft:glass" : "minecraft:stone";
+                var windowTarget = Map.of(window, newState);
+                var edit = service.beginTransaction(new BuildingEditPendingRegistry.Pending(
+                        UUID.randomUUID(), alice, building, dimension, baseRevision, operation, Set.of(window),
+                        Map.of(window, oldState), windowTarget, System.currentTimeMillis() + 60_000));
+                assertTrue(edit.ok(), edit.message());
+                assertTrue(service.markWorldApplied(edit.transaction().transactionId()));
+                var windowRepair = service.repairMemorySyncWithLiveWorld(building, dimension, windowTarget);
+                assertTrue(windowRepair.ok(), windowRepair.message());
+                var updated = BuildingAssetLocks.load(world, alice, BuildingMemoryKeys.currentAssetLock(memory), dimension.toString());
+                assertEquals(previousId, updated.manifest().revision().parentId());
+                assertEquals(++baseRevision, updated.manifest().revision().number());
+                assertTrue(updated.patches().contains(new BlockPatch(BlockPatch.PLACE, 0, 2, 1, newState)));
+                assertEquals(child.manifest().uses(), updated.manifest().uses());
+                previousId = updated.manifest().id();
+                oldState = newState;
+            }
         } finally {
             BuildingEditTransactionStore.clearForTest();
         }
