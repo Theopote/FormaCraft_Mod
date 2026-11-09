@@ -23,7 +23,7 @@ class P2RoofGeometryTest {
                 int height=span;
                 var patches=new RoofGenerator().generate(new SemanticComponent("ROOF",null,roof(type,span,height)));
                 assertFalse(patches.isEmpty(),type);
-                assertEquals(20+height-1,patches.stream().mapToInt(p->p.dy()).max().orElseThrow(),type);
+                assertEquals(20+height-1,patches.stream().mapToInt(BlockPatch::dy).max().orElseThrow(),type);
                 assertFalse(patches.stream().anyMatch(p->p.dx()==span/2 && p.dz()==(span+4)/2 && p.dy()==20),type);
                 assertTrue(patches.stream().allMatch(p->p.dx()>=0 && p.dx()<span && p.dz()>=0 && p.dz()<span+4),type);
             }
@@ -36,8 +36,8 @@ class P2RoofGeometryTest {
             profiles.add(new HashSet<>(new RoofGenerator().generate(new SemanticComponent("ROOF",null,roof(type,21,21)))));
         assertEquals(4,profiles.size());
         var onion=SpecialtyRoofSurfaces.generate(RoofTypeKind.ONION_DOME,0,0,0,21,21,21,"minecraft:hay_block",null,0);
-        int neck=onion.stream().filter(p->p.dy()==0).mapToInt(p->p.dx()).max().orElseThrow();
-        assertTrue(onion.stream().filter(p->p.dy()>0).mapToInt(p->p.dx()).max().orElseThrow()>neck);
+        int neck=onion.stream().filter(p->p.dy()==0).mapToInt(BlockPatch::dx).max().orElseThrow();
+        assertTrue(onion.stream().filter(p->p.dy()>0).mapToInt(BlockPatch::dx).max().orElseThrow()>neck);
     }
 
     @Test void steepThatchRejectsShallowGeometryAndAliasesRemainExecutable() {
@@ -60,6 +60,61 @@ class P2RoofGeometryTest {
             assertTrue(patches.stream().allMatch(p -> "minecraft:hay_block".equals(p.targetBlock())));
             assertTrue(patches.stream().anyMatch(p -> p.dx() == 1 && p.dy() == 20 && p.dz() == 8));
             assertFalse(patches.stream().anyMatch(p -> p.dx() == 4 && p.dy() == 20 && p.dz() == 8));
+        }
+    }
+
+    @Test void lShapedHipFollowsTheInnerEavesAndSealsTheValley() {
+        for (String corner : List.of("NW", "NE", "SW", "SE")) {
+            var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(17, 17, 9),
+                    List.of(), Map.of("roof_type", "hip", "roof_block", "minecraft:stone_bricks",
+                            "plan_type", "l_shape", "l_cut", 7, "l_corner", corner, "overhang", 1,
+                            "roof_slope_profile", "linear"));
+            var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, component));
+            int[][] tops = new int[19][19];
+            boolean joined = false;
+            for (var patch : patches) {
+                int x = corner.endsWith("E") ? 17 - patch.dx() : patch.dx() + 1;
+                int z = corner.startsWith("S") ? 17 - patch.dz() : patch.dz() + 1;
+                tops[x][z] = Math.max(tops[x][z], patch.dy());
+                if (x == 8 && z == 7 && patch.dy() == 20) joined = true;
+            }
+            for (int x = 0; x < 19; x++) {
+                for (int z = 0; z < 19; z++) {
+                    assertEquals(x >= 7 || z >= 7, tops[x][z] > 0, corner + " " + x + "," + z);
+                }
+            }
+            assertEquals(20, tops[7][7], corner);
+            assertEquals(22, tops[8][8], corner);
+            assertEquals(23, tops[8][9], corner);
+            assertEquals(28, Arrays.stream(tops).flatMapToInt(Arrays::stream).max().orElseThrow(), corner);
+            assertTrue(joined, corner);
+        }
+    }
+
+    @Test void lShapedHipTilesItsSlopesButKeepsTheValleySolid() {
+        for (String corner : List.of("NW", "NE", "SW", "SE")) {
+            boolean east = corner.endsWith("E");
+            boolean south = corner.startsWith("S");
+            for (int height : List.of(3, 6)) {
+                var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(17, 17, height),
+                        List.of(), Map.of("roof_type", "hip", "roof_block", "minecraft:stone_bricks",
+                                "plan_type", "l_shape", "l_cut", 7, "l_corner", corner, "overhang", 1,
+                                "roof_height", height, "roof_slope_profile", "linear"));
+                var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, component));
+                int x = east ? 9 : 7;
+                int valleyZ = south ? 9 : 7;
+                var slope = patches.stream().filter(p -> p.dx() == x && p.dz() == 8)
+                        .max(Comparator.comparingInt(BlockPatch::dy)).orElseThrow();
+                var valley = patches.stream().filter(p -> p.dx() == x && p.dz() == valleyZ)
+                        .max(Comparator.comparingInt(BlockPatch::dy)).orElseThrow();
+                assertEquals("minecraft:stone_bricks", valley.targetBlock(), corner);
+                if (height == 3) {
+                    assertEquals("minecraft:stone_brick_slab[type=bottom]", slope.targetBlock(), corner);
+                } else {
+                    assertTrue(slope.targetBlock().startsWith("minecraft:stone_brick_stairs["), corner);
+                    assertTrue(slope.targetBlock().contains(south ? "facing=north" : "facing=south"), corner);
+                }
+            }
         }
     }
 

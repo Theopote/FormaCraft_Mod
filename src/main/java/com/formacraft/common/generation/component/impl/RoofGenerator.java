@@ -4,6 +4,8 @@ import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.ResolvedFootprint;
+import com.formacraft.common.generation.component.util.StyleRoofGeometry;
 import com.formacraft.common.generation.component.util.RoofTypeCatalog;
 import com.formacraft.common.generation.component.util.RoofTypeKind;
 import com.formacraft.common.generation.component.util.ComponentRoofSpecialtyDecorator;
@@ -18,6 +20,7 @@ import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -404,13 +407,6 @@ public class RoofGenerator implements ComponentGenerator {
 
     private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                    int width, int depth, int height, Palette palette,
-                                   ComponentFootprintMask footprint, int overhang) {
-        generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0,
-                depth >= width);
-    }
-
-    private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
-                                   int width, int depth, int height, Palette palette,
                                    ComponentFootprintMask footprint, int overhang, boolean alongDepth) {
         generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0,
                 alongDepth);
@@ -476,18 +472,10 @@ public class RoofGenerator implements ComponentGenerator {
             if (span >= 3 && blockRise < maxRise) {
                 int towardRidge = across < ridgeStart ? 1 : -1;
                 double nextRise = profiledGableRise(across + towardRidge, last, ridgeStart, kind, maxRise);
-                double slope = nextRise - rise;
-                long step = Math.round(nextRise) - blockRise;
-                if (slope < 0.75 || step == 0) {
-                    // Lower slabs and upright stairs share a solid lower half at equal elevations.
-                    surface = lowerSlab;
-                } else if (slope < 1.5 && step == 1 && stairs != null) {
-                    String facing = alongDepth
-                            ? (towardRidge > 0 ? "east" : "west")
-                            : (towardRidge > 0 ? "south" : "north");
-                    // Both slopes run along one axis, so adjacent roof stairs cannot form a corner.
-                    surface = withStairsFacing(stairs, facing, "straight");
-                }
+                String facing = alongDepth
+                        ? (towardRidge > 0 ? "east" : "west")
+                        : (towardRidge > 0 ? "south" : "north");
+                surface = slopeSurface(fullBlock, lowerSlab, stairs, rise, nextRise, facing);
             }
             int y = baseY + blockRise;
             for (int along = 0; along < length; along++) {
@@ -498,6 +486,16 @@ public class RoofGenerator implements ComponentGenerator {
                 }
             }
         }
+    }
+
+    private static String slopeSurface(String fullBlock, String lowerSlab, String stairs,
+                                       double rise, double nextRise, String facing) {
+        double slope = nextRise - rise;
+        long step = Math.round(nextRise) - Math.round(rise);
+        // Lower slabs and upright stairs share a solid lower half at equal elevations.
+        if (slope < 0.75 || step == 0) return lowerSlab;
+        if (slope < 1.5 && step == 1 && stairs != null) return withStairsFacing(stairs, facing, "straight");
+        return fullBlock;
     }
 
     private static double profiledGableRise(int across, int last, int ridgeStart, RoofTypeKind kind, int maxRise) {
@@ -534,7 +532,70 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateHipRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                  int width, int depth, int height, Palette palette,
                                  ComponentFootprintMask footprint, int overhang) {
+        ResolvedFootprint plan = footprint == null ? null : footprint.footprint();
+        if (plan != null && plan.shape() == ResolvedFootprint.FootprintShape.RECTANGLE
+                && plan.pattern() == ResolvedFootprint.PlanPattern.L_SHAPE && plan.patternSize() > 0
+                && Math.min(plan.width(), plan.depth()) > 1) {
+            generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            return;
+        }
         generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
+    }
+
+    private static void generateLShapedHip(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY,
+                                          int baseZ, int width, int depth, int height, Palette palette,
+                                          ComponentFootprintMask footprint, int overhang) {
+        var plan = footprint.footprint();
+        // Both the inner and outer eaves shift by the same overhang, so the
+        // missing corner keeps its dimensions in expanded roof coordinates.
+        int cut = Math.min(plan.patternSize(), Math.min(plan.width(), plan.depth()) - 1);
+        String corner = plan.lCorner() == null ? "NE" : plan.lCorner();
+        boolean cutOnEast = corner.endsWith("E");
+        boolean cutOnSouth = corner.startsWith("S");
+        int maxRun = Math.max(Math.min(width - cut, depth), Math.min(width, depth - cut)) - 1;
+        maxRun = Math.max(1, maxRun / 2);
+        String fullBlock = resolveFullRoofBlock(semantic, palette);
+        String stairs = MaterialBlockFamily.stairs(fullBlock);
+        String slab = MaterialBlockFamily.slab(fullBlock);
+        String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
+        double[] rises = new double[maxRun + 1];
+        for (int run = 0; run <= maxRun; run++) {
+            rises[run] = StyleRoofGeometry.profile(semantic, run / (double) maxRun) * (height - 1);
+        }
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
+                int fromCornerX = cutOnEast ? width - 1 - x : x;
+                int fromCornerZ = cutOnSouth ? depth - 1 - z : z;
+                int run = Math.clamp(lHipRun(fromCornerX, fromCornerZ, width, depth, cut), 0, maxRun);
+                int rise = (int) Math.round(rises[run]);
+                String surface = fullBlock;
+                if (run < maxRun && rise < height - 1) {
+                    Direction uphill = null;
+                    for (Direction direction : Direction.Type.HORIZONTAL) {
+                        int nx = fromCornerX + (cutOnEast ? -direction.getOffsetX() : direction.getOffsetX());
+                        int nz = fromCornerZ + (cutOnSouth ? -direction.getOffsetZ() : direction.getOffsetZ());
+                        if (lHipRun(nx, nz, width, depth, cut) <= run) continue;
+                        if (uphill != null) {
+                            // Two rising neighbors meet at the valley, which needs a solid join.
+                            uphill = null;
+                            break;
+                        }
+                        uphill = direction;
+                    }
+                    if (uphill != null) {
+                        surface = slopeSurface(fullBlock, lowerSlab, stairs, rises[run], rises[run + 1], uphill.asString());
+                    }
+                }
+                out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + rise, baseZ + z, surface));
+            }
+        }
+    }
+
+    private static int lHipRun(int x, int z, int width, int depth, int cut) {
+        int outerRun = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
+        // The two inner-eave wavefronts meet where their runs to the cutout are equal.
+        return Math.min(outerRun, Math.max(x, z) - cut);
     }
 
     private void generateHipRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
