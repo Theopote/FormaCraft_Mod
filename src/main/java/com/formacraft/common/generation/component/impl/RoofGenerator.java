@@ -59,6 +59,8 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofTypeKind roofType = resolveRoofType(c, semantic, params);
+        Direction saltboxLongSlope = roofType == RoofTypeKind.SALTBOX ? saltboxLongSlope(params) : null;
+        double saltboxRidgeFraction = roofType == RoofTypeKind.SALTBOX ? saltboxRidgeFraction(params) : 1.0 / 3;
         // Prefer explicit roof_height / roof_pitch_degrees over span/3 technical default (cap 8).
         try {
             height = com.formacraft.common.generation.component.util.RoofPitchGeometry.resolveRise(
@@ -66,11 +68,12 @@ public class RoofGenerator implements ComponentGenerator {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: " + e.getMessage(), e);
         }
-        boolean alongDepthHint = resolveGableAlongDepth(params, width, depth);
+        boolean alongDepthHint = saltboxLongSlope == null ? resolveGableAlongDepth(params, width, depth)
+                : saltboxLongSlope.getAxis() == Direction.Axis.X;
         height = normalizeStairRoofRise(height, width, depth, roofType, params, alongDepthHint);
 
         int overhang = ComponentParamParsers.intParam(params, ComponentParamParsers.keysFor("overhang"));
-        if (roofType == RoofTypeKind.XUANSHAN && overhang <= 0) {
+        if ((roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.JUANPENG_XUANSHAN) && overhang <= 0) {
             overhang = 2;
         } else if (roofType == RoofTypeKind.XIESHAN && overhang <= 0) {
             overhang = 1;
@@ -93,7 +96,7 @@ public class RoofGenerator implements ComponentGenerator {
             depth = Math.max(1, coreDepth + overhang * 2);
         }
 
-        boolean profiledGable = roofType == RoofTypeKind.JUANPENG || roofType == RoofTypeKind.SALTBOX;
+        boolean profiledGable = roofType.isProfiledGable();
         boolean doubleEave = !profiledGable && isDoubleEave(params, c.features());
         if (doubleEave && (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.GABLE
                 || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.HIP)) {
@@ -105,9 +108,9 @@ public class RoofGenerator implements ComponentGenerator {
                         com.formacraft.common.generation.component.util.SpecialtyRoofSurfaces.generate(
                                 roofType, baseX, rp.y(), baseZ, width, depth, height,
                                 resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang));
-                case JUANPENG, SALTBOX -> generateProfiledGable(out, roofType, baseX, rp.y(), baseZ,
+                case JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX -> generateProfiledGable(out, roofType, baseX, rp.y(), baseZ,
                         width, depth, height, resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang,
-                        alongDepthHint);
+                        alongDepthHint, saltboxLongSlope, saltboxRidgeFraction);
                 case SHED -> generateShedRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         palette, footprint, appliedOverhang);
                 case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
@@ -156,6 +159,15 @@ public class RoofGenerator implements ComponentGenerator {
             addEaveLayer(out, semantic, baseX, eaveY, baseZ, width, depth, palette, eaveOutset, footprint, appliedOverhang);
         }
 
+        if (roofType == RoofTypeKind.JUANPENG_YINGSHAN) {
+            // Clip the roof and its trim at the gable walls, keeping the side eaves.
+            int endStart = alongDepthHint ? rp.z() : rp.x();
+            int endLimit = endStart + (alongDepthHint ? coreDepth : coreWidth);
+            out.removeIf(patch -> {
+                int along = alongDepthHint ? patch.dz() : patch.dx();
+                return along < endStart || along >= endLimit;
+            });
+        }
         if (GeneratedSurfaceCapture.isCapturing()) for (var patch : out) {
             if (GeneratedSurfaceCapture.occupied(patch))
                 GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
@@ -220,7 +232,8 @@ public class RoofGenerator implements ComponentGenerator {
         int across = switch (roofType) {
             case HIP, XIESHAN, PYRAMID, CONE, DOME -> Math.min(width, depth);
             // Full-block roof profiles and flats keep their resolved rise.
-            case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH, JUANPENG, SALTBOX -> 0;
+            case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH,
+                    JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX -> 0;
             default -> alongDepth ? width : depth;
         };
         if (across <= 0) return Math.max(1, height);
@@ -454,14 +467,16 @@ public class RoofGenerator implements ComponentGenerator {
 
     private static void generateProfiledGable(List<BlockPatch> out, RoofTypeKind kind, int baseX, int baseY,
                                               int baseZ, int width, int depth, int height, String fullBlock,
-                                              ComponentFootprintMask footprint, int overhang, boolean alongDepth) {
+                                              ComponentFootprintMask footprint, int overhang, boolean alongDepth,
+                                              Direction saltboxLongSlope, double saltboxRidgeFraction) {
         int span = alongDepth ? width : depth;
         int length = alongDepth ? depth : width;
         int last = span - 1;
         int maxRise = height - 1;
-        // Keep the saltbox's shorter slope on the low-coordinate side.
-        int saltboxRidge = Math.max(1, (int) Math.round(last / 3.0));
+        // Measure from the short eave. Keep unequal runs whenever the span allows it.
+        int saltboxRidge = Math.clamp((int) Math.round(last * saltboxRidgeFraction), 1, Math.max(1, (last - 1) / 2));
         int ridgeStart = kind == RoofTypeKind.SALTBOX ? saltboxRidge : last / 2;
+        boolean mirrored = saltboxLongSlope == Direction.WEST || saltboxLongSlope == Direction.NORTH;
         String stairs = MaterialBlockFamily.stairs(fullBlock);
         String slab = MaterialBlockFamily.slab(fullBlock);
         String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
@@ -472,20 +487,48 @@ public class RoofGenerator implements ComponentGenerator {
             if (span >= 3 && blockRise < maxRise) {
                 int towardRidge = across < ridgeStart ? 1 : -1;
                 double nextRise = profiledGableRise(across + towardRidge, last, ridgeStart, kind, maxRise);
+                boolean towardPositive = mirrored ? towardRidge < 0 : towardRidge > 0;
                 String facing = alongDepth
-                        ? (towardRidge > 0 ? "east" : "west")
-                        : (towardRidge > 0 ? "south" : "north");
+                        ? (towardPositive ? "east" : "west")
+                        : (towardPositive ? "south" : "north");
                 surface = slopeSurface(fullBlock, lowerSlab, stairs, rise, nextRise, facing);
             }
             int y = baseY + blockRise;
+            int column = mirrored ? last - across : across;
             for (int along = 0; along < length; along++) {
-                int x = alongDepth ? across : along;
-                int z = alongDepth ? along : across;
+                int x = alongDepth ? column : along;
+                int z = alongDepth ? along : column;
                 if (allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
                     out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ + z, surface));
                 }
             }
         }
+    }
+
+    private static Direction saltboxLongSlope(Map<String, Object> params) {
+        String raw = getParamString(params, "saltbox_long_slope");
+        if (raw == null) return null;
+        return switch (raw.toLowerCase(java.util.Locale.ROOT)) {
+            case "north" -> Direction.NORTH;
+            case "south" -> Direction.SOUTH;
+            case "east" -> Direction.EAST;
+            case "west" -> Direction.WEST;
+            default -> throw new IllegalArgumentException(
+                    "E_ROOF_GEOMETRY_INVALID: saltbox_long_slope must be north, south, east or west");
+        };
+    }
+
+    private static double saltboxRidgeFraction(Map<String, Object> params) {
+        String raw = getParamString(params, "saltbox_ridge_fraction");
+        if (raw == null) return 1.0 / 3;
+        String error = "E_ROOF_GEOMETRY_INVALID: saltbox_ridge_fraction must be a number between 0 and 0.5 (exclusive)";
+        try {
+            double fraction = Double.parseDouble(raw);
+            if (fraction > 0 && fraction < 0.5) return fraction;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(error, e);
+        }
+        throw new IllegalArgumentException(error);
     }
 
     private static String slopeSurface(String fullBlock, String lowerSlab, String stairs,
@@ -501,7 +544,8 @@ public class RoofGenerator implements ComponentGenerator {
     private static double profiledGableRise(int across, int last, int ridgeStart, RoofTypeKind kind, int maxRise) {
         if (last < 2) return 0;
         double fraction = switch (kind) {
-            case JUANPENG -> Math.sin(Math.PI / 2 * Math.min(across, last - across) / ridgeStart);
+            case JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN ->
+                    Math.sin(Math.PI / 2 * Math.min(across, last - across) / ridgeStart);
             case SALTBOX -> across <= ridgeStart ? across / (double) ridgeStart
                     : (last - across) / (double) (last - ridgeStart);
             default -> throw new IllegalArgumentException("Unsupported gable profile: " + kind);

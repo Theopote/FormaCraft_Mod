@@ -31,6 +31,8 @@ public final class RoofTypeCatalog {
             "onion_dome", "onion dome", "洋葱穹顶",
             "steep_thatch", "steep thatch", "陡坡茅草顶",
             "juanpeng", "juan_peng", "卷棚顶", "卷棚",
+            "juanpeng_yingshan", "硬山卷棚", "硬山卷棚顶",
+            "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶",
             "saltbox", "saltbox_roof", "盐盒顶",
             "none"
     );
@@ -87,6 +89,7 @@ public final class RoofTypeCatalog {
                     "barrel_vault", "barrel vault", "筒拱屋顶", "筒拱顶",
                     "onion_dome", "onion dome", "洋葱穹顶",
                     "steep_thatch", "steep thatch", "陡坡茅草顶",
+                    "juanpeng_yingshan", "硬山卷棚", "juanpeng_xuanshan", "悬山卷棚",
                     "juanpeng", "juan_peng", "卷棚", "saltbox", "盐盒顶")) {
                 if (lower.contains(token)) return Optional.of(token);
             }
@@ -180,6 +183,8 @@ public final class RoofTypeCatalog {
             case "onion_dome", "onion dome", "洋葱穹顶" -> RoofTypeKind.ONION_DOME;
             case "steep_thatch", "steep thatch", "陡坡茅草顶" -> RoofTypeKind.STEEP_THATCH;
             case "juanpeng", "juan_peng", "卷棚顶", "卷棚" -> RoofTypeKind.JUANPENG;
+            case "juanpeng_yingshan", "硬山卷棚", "硬山卷棚顶" -> RoofTypeKind.JUANPENG_YINGSHAN;
+            case "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶" -> RoofTypeKind.JUANPENG_XUANSHAN;
             case "saltbox", "saltbox_roof", "盐盒顶" -> RoofTypeKind.SALTBOX;
             case "shed", "lean_to", "single_slope" -> RoofTypeKind.SHED;
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;

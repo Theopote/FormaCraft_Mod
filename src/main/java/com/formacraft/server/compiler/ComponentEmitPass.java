@@ -271,6 +271,16 @@ final class ComponentEmitPass {
                     }
                     int attachmentPatchCount = shiftedPatches.size();
                     if ("ENTRANCE".equals(normalizedType)) {
+                        if ("terrace_door_5".equals(ComponentPlanTypes.paramIdentity(c))) {
+                            for (var p : shiftedPatches) {
+                                if (p != null && p.dy() == 24 && p.dz() == 6 && (p.dx() == -1 || p.dx() == 0)) {
+                                    var pos = new BlockPos(p.dx(), p.dy(), p.dz());
+                                    FormacraftMod.LOGGER.warn("TEMP entrance filter {} prot={} surface={}",
+                                            pos, surfaceLedger.isProtectedFromEntrance(c, pos),
+                                            surfaceLedger.debugSurface(pos));
+                                }
+                            }
+                        }
                         shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromEntrance(c, new BlockPos(p.dx(), p.dy(), p.dz())));
                     }
                     if ("FACADE_WINDOWS".equals(normalizedType)) {
@@ -461,6 +471,20 @@ final class ComponentEmitPass {
                                 && (p.dx() == -1 || p.dx() == 0)) {
                             FormacraftMod.LOGGER.warn("TEMP roof-plane REMOVE by {} id={} patch={}",
                                     normalizedType, ComponentPlanTypes.paramIdentity(c), p);
+                        }
+                    }
+                    if ("ROOF".equals(normalizedType) && "roof_garden".equals(ComponentPlanTypes.paramIdentity(c))) {
+                        for (int x : new int[]{-1, 0}) {
+                            var pos = new BlockPos(x, 24, 6);
+                            boolean inPatches = shiftedPatches.stream().anyMatch(p -> p != null
+                                    && p.dx() == x && p.dy() == 24 && p.dz() == 6);
+                            boolean inSurf = surfaceCells.stream().anyMatch(cell ->
+                                    cell.position().getX() == x && cell.position().getY() == 24
+                                            && cell.position().getZ() == 6);
+                            FormacraftMod.LOGGER.warn("TEMP roof_garden cell {} inPatches={} inSurf={} patch={}",
+                                    pos, inPatches, inSurf,
+                                    shiftedPatches.stream().filter(p -> p != null && p.dx()==x && p.dy()==24 && p.dz()==6)
+                                            .findFirst().orElse(null));
                         }
                     }
                     result.addAll(shiftedPatches);

@@ -63,6 +63,47 @@ class P2RoofGeometryTest {
         }
     }
 
+    @Test void saltboxLongSlopeCanFaceAllFourDirectionsWithAnAuthoredRidgeOffset() {
+        var generator = new RoofGenerator();
+        for (String facing : List.of("east", "west", "south", "north")) {
+            boolean acrossX = facing.equals("east") || facing.equals("west");
+            boolean mirrored = facing.equals("west") || facing.equals("north");
+            int last = acrossX ? 12 : 16;
+            int shortRun = last / 4;
+            int ridge = mirrored ? last - shortRun : shortRun;
+            var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, shortRun + 1),
+                    List.of(), Map.of("roof_type", "saltbox", "roof_block", "minecraft:stone_bricks",
+                            "saltbox_long_slope", facing, "saltbox_ridge_fraction", 0.25, "gable_walls", false));
+            var patches = generator.generate(new SemanticComponent("ROOF", null, component));
+            var section = patches.stream().filter(p -> acrossX ? p.dz() == 8 : p.dx() == 6).toList();
+            int ridgeY = 20 + shortRun;
+            var crest = section.stream().filter(p -> p.dy() == ridgeY)
+                    .mapToInt(p -> acrossX ? p.dx() : p.dz()).summaryStatistics();
+            assertEquals(ridge, mirrored ? crest.getMax() : crest.getMin(), facing);
+            int shortEave = mirrored ? last : 0;
+            int longEave = mirrored ? 0 : last;
+            assertTrue(section.stream().anyMatch(p -> (acrossX ? p.dx() : p.dz()) == shortEave && p.dy() == 20
+                    && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
+                    && p.targetBlock().contains("facing=" + facing)), facing);
+            assertTrue(section.stream().anyMatch(p -> (acrossX ? p.dx() : p.dz()) == longEave && p.dy() == 20
+                    && p.targetBlock().equals("minecraft:stone_brick_slab[type=bottom]")), facing);
+        }
+    }
+
+    @Test void saltboxRejectsInvalidDirectionAndRidgeFraction() {
+        for (var invalid : List.of(Map.<String, Object>of("saltbox_long_slope", "up"),
+                Map.<String, Object>of("saltbox_ridge_fraction", 0.5),
+                Map.<String, Object>of("saltbox_ridge_fraction", "NaN"))) {
+            var params = new HashMap<>(invalid);
+            params.put("roof_type", "saltbox");
+            var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, 6),
+                    List.of(), params);
+            var exception = assertThrows(IllegalArgumentException.class,
+                    () -> new RoofGenerator().generate(new SemanticComponent("ROOF", null, component)));
+            assertTrue(exception.getMessage().contains(invalid.keySet().iterator().next()));
+        }
+    }
+
     @Test void lShapedHipFollowsTheInnerEavesAndSealsTheValley() {
         for (String corner : List.of("NW", "NE", "SW", "SE")) {
             var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(17, 17, 9),
@@ -151,6 +192,35 @@ class P2RoofGeometryTest {
         }
     }
 
+    @Test void juanpengVariantsHaveMatchingProfilesAndDistinctGableOverhangs() {
+        for (String axis : List.of("x", "z")) {
+            boolean alongDepth = axis.equals("z");
+            var generator = new RoofGenerator();
+            var hard = juanpengVariant("硬山卷棚顶", axis);
+            var hanging = juanpengVariant("悬山卷棚顶", axis);
+            var hardPatches = generator.generate(new SemanticComponent("ROOF", null, hard));
+            var hangingPatches = generator.generate(new SemanticComponent("ROOF", null, hanging));
+            int end = alongDepth ? 17 : 13;
+            var cropped = hangingPatches.stream().filter(p -> {
+                int along = alongDepth ? p.dz() : p.dx();
+                return along >= 0 && along < end;
+            }).toList();
+            assertEquals(new HashSet<>(cropped), new HashSet<>(hardPatches), axis);
+            assertTrue(hangingPatches.stream().anyMatch(p -> (alongDepth ? p.dz() : p.dx()) == -2
+                    && p.dy() == 25), axis);
+            assertTrue(hardPatches.stream().anyMatch(p -> (alongDepth ? p.dx() : p.dz()) == -2
+                    && p.dy() == 20), axis);
+            assertTrue(hardPatches.stream().anyMatch(p -> (alongDepth ? p.dz() : p.dx()) == 0
+                    && p.dy() == 20 && "minecraft:stone_bricks".equals(p.targetBlock())), axis);
+        }
+    }
+
+    private static Component juanpengVariant(String type, String axis) {
+        return new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, 6), List.of(),
+                Map.of("roof_type", type, "roof_block", "minecraft:spruce_planks",
+                        "wall_block", "minecraft:stone_bricks", "ridge_axis", axis, "overhang", 2));
+    }
+
     @Test void profiledGableWallsFollowTheAuthoredRidgeAxis() {
         var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, 13),
                 List.of(), Map.of("roof_type", "saltbox", "roof_block", "minecraft:hay_block",
@@ -199,6 +269,28 @@ class P2RoofGeometryTest {
             assertEquals(ridgeY, Collections.max(section), type);
             assertEquals(type.equals("saltbox") ? 4 : 5, section.indexOf(ridgeY), type);
         }
+    }
+
+    @Test void hostedHipInheritsTheLCutAndPreservesItsTiledValley() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");
+        var document = mapper.readTree(fixture.toFile());
+        var massParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/0/params");
+        massParams.put("plan_type", "l_shape").put("l_cut", 5).put("l_corner", "NW");
+        var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
+        roofParams.put("roof_type", "hip").put("roof_block", "minecraft:stone_bricks")
+                .put("roof_height", 6).put("roof_slope_profile", "linear");
+        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
+                new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
+        var roof = patches.stream().filter(p -> p.dy() >= 10 && p.targetBlock() != null
+                && p.targetBlock().startsWith("minecraft:stone_brick")).toList();
+        assertFalse(roof.stream().anyMatch(p -> p.dx() < 5 && p.dz() < 5));
+        assertTrue(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 6 && p.dy() == 11
+                && "minecraft:stone_bricks".equals(p.targetBlock())));
+        assertTrue(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 7 && p.dy() == 12
+                && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
+                && p.targetBlock().contains("facing=south")));
     }
 
     @Test void authoredPlansCompileThroughTheComponentPipeline() throws Exception {

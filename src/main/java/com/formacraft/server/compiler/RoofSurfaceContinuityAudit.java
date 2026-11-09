@@ -4,7 +4,6 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.RoofTypeCatalog;
-import com.formacraft.common.generation.component.util.RoofTypeKind;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
@@ -18,7 +17,7 @@ final class RoofSurfaceContinuityAudit {
         if (c == null || c.params() == null || c.dimensions() == null || c.relativePosition() == null) return Optional.empty();
         String type = String.valueOf(c.params().getOrDefault("roof_type", "")).toLowerCase(Locale.ROOT);
         var kind = RoofTypeCatalog.extractExplicitType(c, c.params()).flatMap(RoofTypeCatalog::parseExplicit).orElse(null);
-        boolean profiledGable = kind == RoofTypeKind.JUANPENG || kind == RoofTypeKind.SALTBOX;
+        boolean profiledGable = kind != null && kind.isProfiledGable();
         if (!profiledGable && (!Set.of("gable", "double_gable", "shed", "sawtooth").contains(type)
                 || Boolean.TRUE.equals(c.params().get("double_eave")))) return Optional.empty();
         int width = c.dimensions().width(), depth = c.dimensions().depth();

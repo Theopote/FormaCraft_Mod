@@ -31,6 +31,8 @@
       "onion_dome", "onion dome", "洋葱穹顶",
       "steep_thatch", "steep thatch", "陡坡茅草顶",
       "juanpeng", "juan_peng", "卷棚顶", "卷棚",
+      "juanpeng_yingshan", "硬山卷棚", "硬山卷棚顶",
+      "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶",
       "saltbox", "saltbox_roof", "盐盒顶",
       "none"
     ],
