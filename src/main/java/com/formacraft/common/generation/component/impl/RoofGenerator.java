@@ -89,7 +89,8 @@ public class RoofGenerator implements ComponentGenerator {
             depth = Math.max(1, coreDepth + overhang * 2);
         }
 
-        boolean doubleEave = isDoubleEave(params, c.features());
+        boolean profiledGable = roofType == RoofTypeKind.JUANPENG || roofType == RoofTypeKind.SALTBOX;
+        boolean doubleEave = !profiledGable && isDoubleEave(params, c.features());
         if (doubleEave && (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.GABLE
                 || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.HIP)) {
             generateDoubleEaveRoof(out, semantic, roofType, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -100,6 +101,9 @@ public class RoofGenerator implements ComponentGenerator {
                         com.formacraft.common.generation.component.util.SpecialtyRoofSurfaces.generate(
                                 roofType, baseX, rp.y(), baseZ, width, depth, height,
                                 resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang));
+                case JUANPENG, SALTBOX -> generateProfiledGable(out, roofType, baseX, rp.y(), baseZ,
+                        width, depth, height, resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang,
+                        alongDepthHint);
                 case SHED -> generateShedRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         palette, footprint, appliedOverhang);
                 case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
@@ -153,13 +157,14 @@ public class RoofGenerator implements ComponentGenerator {
                 GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
                         GeneratedSurfaceCapture.Role.ROOF);
         }
-        if (!doubleEave && (roofType == RoofTypeKind.GABLE || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.XUANSHAN
+        if (!doubleEave && (profiledGable || roofType == RoofTypeKind.GABLE || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.XUANSHAN
                 || roofType == RoofTypeKind.GAMBREL || roofType == RoofTypeKind.BARREL_VAULT || roofType == RoofTypeKind.STEEP_THATCH)
                 && !"false".equalsIgnoreCase(getParamString(params, "gable_walls"))) {
-            sealRectangularGables(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette);
+            boolean ridgeAlongDepth = profiledGable ? alongDepthHint : coreDepth >= coreWidth;
+            sealRectangularGables(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette, ridgeAlongDepth);
             if (getParamBoolean(params, "horse_head_walls", "horseHeadWalls")
                     && !com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params))
-                emitHorseHeadWalls(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette);
+                emitHorseHeadWalls(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette, ridgeAlongDepth);
         }
         return out;
     }
@@ -210,8 +215,8 @@ public class RoofGenerator implements ComponentGenerator {
                                       Map<String, Object> params, boolean alongDepth) {
         int across = switch (roofType) {
             case HIP, XIESHAN, PYRAMID, CONE, DOME -> Math.min(width, depth);
-            // Hollow specialty shells / flats keep authored rise — never promote to ~45° stairs.
-            case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH -> 0;
+            // Full-block roof profiles and flats keep their resolved rise.
+            case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH, JUANPENG, SALTBOX -> 0;
             default -> alongDepth ? width : depth;
         };
         if (across <= 0) return Math.max(1, height);
@@ -274,7 +279,8 @@ public class RoofGenerator implements ComponentGenerator {
 
     /** Close the two body-end planes, leaving overhangs and the attic interior hollow. */
     private void sealRectangularGables(List<BlockPatch> out, List<BlockPatch> roofShell, SemanticComponent semantic,
-                                      ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette) {
+                                      ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette,
+                                      boolean ridgeAlongDepth) {
         if (!footprint.isFullyRectangular()) {
             com.formacraft.FormacraftMod.LOGGER.warn(
                     "[RoofGableSeal] skipped irregular footprint width={} depth={} component={}",
@@ -291,7 +297,6 @@ public class RoofGenerator implements ComponentGenerator {
         String block = getParamString(semantic.source().params(), "wall_block");
         if (block == null) block = getBlockForPart(semantic, palette, SemanticPart.WALL);
         else if (!block.contains(":")) block = "minecraft:" + block;
-        boolean ridgeAlongDepth = depth >= width;
         int span = ridgeAlongDepth ? width : depth;
         int length = ridgeAlongDepth ? depth : width;
         for (int end : new int[]{0, length - 1}) for (int across = 0; across < span; across++) {
@@ -308,7 +313,8 @@ public class RoofGenerator implements ComponentGenerator {
 
     /** Stepped fire walls remain on the body end planes and leave the attic hollow. */
     private void emitHorseHeadWalls(List<BlockPatch> out, List<BlockPatch> roofShell, SemanticComponent semantic,
-                                    ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette) {
+                                    ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette,
+                                    boolean alongDepth) {
         if (Math.min(width, depth) < 5) return;
         for (int x=0;x<width;x++) for(int z=0;z<depth;z++) if(!footprint.contains(x,z)) return;
         var heights=new java.util.HashMap<net.minecraft.util.math.BlockPos,Integer>();
@@ -318,7 +324,6 @@ public class RoofGenerator implements ComponentGenerator {
         if(wall==null) wall=getBlockForPart(semantic,palette,SemanticPart.WALL);
         else if(!wall.contains(":")) wall="minecraft:"+wall;
         String cap=resolveFullRoofBlock(semantic,palette);
-        boolean alongDepth=depth>=width;
         int span=alongDepth?width:depth, length=alongDepth?depth:width;
         for(int end:new int[]{0,length-1}) for(int across=0;across<span;across++) {
             int x=origin.x()+(alongDepth?across:end), z=origin.z()+(alongDepth?end:across);
@@ -446,6 +451,36 @@ public class RoofGenerator implements ComponentGenerator {
                     block = withStairsFacing(block, gableRidgeFacing(alongDepth, x, z, width, depth));
                 }
                 emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block, fillUnder && part == SemanticPart.ROOF);
+            }
+        }
+    }
+
+    private static void generateProfiledGable(List<BlockPatch> out, RoofTypeKind kind, int baseX, int baseY,
+                                              int baseZ, int width, int depth, int height, String block,
+                                              ComponentFootprintMask footprint, int overhang, boolean alongDepth) {
+        int span = alongDepth ? width : depth;
+        int length = alongDepth ? depth : width;
+        int last = span - 1;
+        int halfSpan = Math.max(1, last / 2);
+        // Keep the saltbox's shorter slope on the low-coordinate side.
+        int saltboxRidge = Math.max(1, (int) Math.round(last / 3.0));
+        for (int across = 0; across < span; across++) {
+            double fraction = 0.0;
+            if (span >= 3) {
+                fraction = switch (kind) {
+                    case JUANPENG -> Math.sin(Math.PI / 2 * Math.min(across, last - across) / halfSpan);
+                    case SALTBOX -> across <= saltboxRidge ? across / (double) saltboxRidge
+                            : (last - across) / (double) (last - saltboxRidge);
+                    default -> throw new IllegalArgumentException("Unsupported gable profile: " + kind);
+                };
+            }
+            int y = baseY + (int) Math.round(fraction * (height - 1));
+            for (int along = 0; along < length; along++) {
+                int x = alongDepth ? across : along;
+                int z = alongDepth ? along : across;
+                if (allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                    out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ + z, block));
+                }
             }
         }
     }

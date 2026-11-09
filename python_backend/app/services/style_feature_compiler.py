@@ -5,7 +5,8 @@ from copy import deepcopy
 from ..models.building_profile import BuildingProfile, ProfileSource
 
 SUPPORTED_ROOF_DEFAULTS = frozenset({'flat', 'gable', 'hip', 'mansard', 'shed', 'cone', 'dome',
-    'pyramid', 'xieshan', 'xuanshan', 'gambrel', 'barrel_vault', 'onion_dome', 'steep_thatch'})
+    'pyramid', 'xieshan', 'xuanshan', 'gambrel', 'barrel_vault', 'onion_dome', 'steep_thatch',
+    'juanpeng', 'saltbox'})
 
 
 def component_style_defaults(style_id: str, component_type: str) -> dict:
@@ -48,7 +49,9 @@ def compile_style_feature_defaults(profile: BuildingProfile) -> list[dict]:
                 "gambrel roof": "gambrel", "折线双坡顶": "gambrel",
                 "barrel vault": "barrel_vault", "筒拱顶": "barrel_vault", "筒拱屋顶": "barrel_vault",
                 "onion dome": "onion_dome", "洋葱穹顶": "onion_dome",
-                "steep thatch": "steep_thatch", "陡坡茅草顶": "steep_thatch"}
+                "steep thatch": "steep_thatch", "陡坡茅草顶": "steep_thatch",
+                "juanpeng": "juanpeng", "juan_peng": "juanpeng", "卷棚": "juanpeng",
+                "saltbox": "saltbox", "盐盒顶": "saltbox"}
     result = []
     for spec in sorted(profile.style_specs, key=lambda spec: spec.weight if spec.weight is not None else 1.0, reverse=True):
         weight = spec.weight if spec.weight is not None else 1.0

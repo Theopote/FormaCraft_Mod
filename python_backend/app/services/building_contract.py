@@ -114,6 +114,8 @@ def _extract_global_requirements(text: str) -> list[dict]:
         'barrel_vault': r'筒拱(?:屋)?顶|\bbarrel[ _]vault\b',
         'onion_dome': r'洋葱穹顶|\bonion[ _]dome\b',
         'steep_thatch': r'陡坡茅草顶|\bsteep[ _]thatch\b',
+        'juanpeng': r'卷棚(?:屋?顶)?|\bjuan_?peng\b',
+        'saltbox': r'盐盒顶|\bsaltbox(?:[ _]roof)?\b',
     }
     for roof_type, pattern in specialty_roofs.items():
         hits = [match for match in re.finditer(pattern, text, re.I) if _positive_match(text, match)]

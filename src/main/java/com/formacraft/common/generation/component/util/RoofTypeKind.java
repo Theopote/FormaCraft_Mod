@@ -17,5 +17,7 @@ public enum RoofTypeKind {
     GAMBREL,
     BARREL_VAULT,
     ONION_DOME,
-    STEEP_THATCH
+    STEEP_THATCH,
+    JUANPENG,
+    SALTBOX
 }

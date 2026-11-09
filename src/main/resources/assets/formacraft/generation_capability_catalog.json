@@ -30,6 +30,8 @@
       "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶",
       "onion_dome", "onion dome", "洋葱穹顶",
       "steep_thatch", "steep thatch", "陡坡茅草顶",
+      "juanpeng", "juan_peng", "卷棚顶", "卷棚",
+      "saltbox", "saltbox_roof", "盐盒顶",
       "none"
     ],
     "aliases": {
