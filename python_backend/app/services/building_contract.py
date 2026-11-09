@@ -118,6 +118,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
         'juanpeng_xuanshan': r'悬山卷棚(?:屋?顶)?|\bjuanpeng_xuanshan\b',
         'juanpeng': r'(?<!硬山)(?<!悬山)卷棚(?:屋?顶)?|\bjuan_?peng\b',
         'saltbox': r'盐盒顶|\bsaltbox(?:[ _]roof)?\b',
+        'butterfly': r'蝶形(?:屋)?顶|\bbutterfly[ _]roof\b|^butterfly$',
     }
     for roof_type, pattern in specialty_roofs.items():
         hits = [match for match in re.finditer(pattern, text, re.I) if _positive_match(text, match)]

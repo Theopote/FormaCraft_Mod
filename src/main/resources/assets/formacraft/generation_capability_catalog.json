@@ -34,6 +34,7 @@
       "juanpeng_yingshan", "硬山卷棚", "硬山卷棚顶",
       "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶",
       "saltbox", "saltbox_roof", "盐盒顶",
+      "butterfly", "butterfly_roof", "butterfly roof", "蝶形顶", "蝶形屋顶",
       "none"
     ],
     "aliases": {

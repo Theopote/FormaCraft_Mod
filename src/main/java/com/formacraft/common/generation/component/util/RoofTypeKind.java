@@ -21,9 +21,11 @@ public enum RoofTypeKind {
     JUANPENG,
     SALTBOX,
     JUANPENG_YINGSHAN,
-    JUANPENG_XUANSHAN;
+    JUANPENG_XUANSHAN,
+    BUTTERFLY;
 
     public boolean isProfiledGable() {
-        return this == JUANPENG || this == JUANPENG_YINGSHAN || this == JUANPENG_XUANSHAN || this == SALTBOX;
+        return this == JUANPENG || this == JUANPENG_YINGSHAN || this == JUANPENG_XUANSHAN
+                || this == SALTBOX || this == BUTTERFLY;
     }
 }

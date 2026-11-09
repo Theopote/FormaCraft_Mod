@@ -104,6 +104,41 @@ class P2RoofGeometryTest {
         }
     }
 
+    @Test void butterflyRoofHasASolidGutterAndClosesTheRaisedWallPerimeter() {
+        for (String axis : List.of("x", "z")) {
+            boolean alongDepth = axis.equals("z");
+            int span = alongDepth ? 13 : 16;
+            int last = span - 1;
+            int run = last / 2;
+            var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 16, run + 1),
+                    List.of(), Map.of("roof_type", "蝶形顶", "roof_block", "minecraft:spruce_planks",
+                            "wall_block", "minecraft:stone_bricks", "ridge_axis", axis));
+            var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, component));
+            for (int across = 0; across < span; across++) {
+                int x = alongDepth ? across : 6;
+                int z = alongDepth ? 6 : across;
+                var top = patches.stream().filter(p -> p.dx() == x && p.dz() == z)
+                        .max(Comparator.comparingInt(BlockPatch::dy)).orElseThrow();
+                int distanceToEdge = Math.min(across, last - across);
+                assertEquals(20 + run - distanceToEdge, top.dy(), axis);
+                if (distanceToEdge == run) assertEquals("minecraft:spruce_planks", top.targetBlock(), axis);
+                if (distanceToEdge == 1) {
+                    String facing = alongDepth ? (across == 1 ? "west" : "east")
+                            : (across == 1 ? "north" : "south");
+                    assertTrue(top.targetBlock().contains("facing=" + facing), axis);
+                }
+            }
+            assertTrue(patches.stream().anyMatch(p -> p.dx() == (alongDepth ? 0 : 6)
+                    && p.dz() == (alongDepth ? 6 : 0) && p.dy() == 20
+                    && "minecraft:stone_bricks".equals(p.targetBlock())), axis);
+            assertTrue(patches.stream().anyMatch(p -> p.dx() == (alongDepth ? 1 : 0)
+                    && p.dz() == (alongDepth ? 0 : 1) && p.dy() == 20
+                    && "minecraft:stone_bricks".equals(p.targetBlock())), axis);
+            assertFalse(patches.stream().anyMatch(p -> p.dx() == (alongDepth ? 1 : 6)
+                    && p.dz() == (alongDepth ? 6 : 1) && p.dy() == 20), axis);
+        }
+    }
+
     @Test void lShapedHipFollowsTheInnerEavesAndSealsTheValley() {
         for (String corner : List.of("NW", "NE", "SW", "SE")) {
             var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(17, 17, 9),
@@ -269,6 +304,21 @@ class P2RoofGeometryTest {
             assertEquals(ridgeY, Collections.max(section), type);
             assertEquals(type.equals("saltbox") ? 4 : 5, section.indexOf(ridgeY), type);
         }
+    }
+
+    @Test void hostedButterflyKeepsItsGutterAtTheAttachmentPlane() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");
+        var document = mapper.readTree(fixture.toFile());
+        var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
+        roofParams.put("roof_type", "butterfly").put("roof_block", "minecraft:stone_bricks")
+                .put("roof_height", 7).put("ridge_axis", "z");
+        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
+                new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
+        var roof = patches.stream().filter(p -> p.targetBlock() != null
+                && p.targetBlock().startsWith("minecraft:stone_brick")).toList();
+        assertEquals(List.of(16, 15, 14, 13, 12, 11, 10, 11, 12, 13, 14, 15, 16), section(roof, 13));
     }
 
     @Test void hostedHipInheritsTheLCutAndPreservesItsTiledValley() throws Exception {
