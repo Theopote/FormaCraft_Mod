@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.formacraft.server.compiler.StadiumMisrouteRepairTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-08T13:01:10.939Z" hostname="DESKTOP-55APIDI" time="0.023">
-  <properties/>
-  <testcase name="keepsStadiumWhenPromptAsksForArena()" classname="com.formacraft.server.compiler.StadiumMisrouteRepairTest" time="0.016"/>
-  <testcase name="stripsStadiumBowlFromBaroqueMansion()" classname="com.formacraft.server.compiler.StadiumMisrouteRepairTest" time="0.007"/>
-  <system-out><![CDATA[[21:01:10] [Test worker/INFO]: StadiumMisrouteRepair: demoted stadium_bowl → residential/baroque mansion (style=Legacy_Classical_Facade, mansard=true, clear ribbon_glazing)
-]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

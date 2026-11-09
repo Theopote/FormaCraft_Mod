@@ -1,9 +1,0 @@
-{
-  "schema":"formacraft.ornament_contract.v1",
-  "id":"emissive",
-  "application":"standalone",
-  "target":{"component_type":"MASS_MAIN","style_ids":["Cyberpunk"]},
-  "unresolved_scope_pattern":"左栋|右栋|第.+?栋|东侧建筑|西侧建筑|left building|right building",
-  "report":{"key":"emissive_contract","schema":"formacraft.emissive_contract.v1"},
-  "toggles":[{"property":"emissive_enabled","negative":"(?:不要|不设|取消|关闭)(?:霓虹|发光|灯带)|\\b(?:no|without|disable) (?:neon|emission|light bands)\\b","positive":"(?:设置|开启|增加)(?:霓虹|发光|灯带)|\\b(?:enable|include) (?:neon|emission|light bands)\\b","positive_verification_level":"plan_parameters_only"}]
-}
