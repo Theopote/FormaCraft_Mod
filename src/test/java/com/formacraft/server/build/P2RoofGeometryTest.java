@@ -349,6 +349,44 @@ class P2RoofGeometryTest {
                 && BlockPatch.PLACE.equals(p.action())));
     }
 
+    @Test void lowerCrossGableWingMeetsTheMainSlopeOnEitherAxis() {
+        for (String axis : List.of("x", "z")) {
+            boolean mainAlongDepth = axis.equals("z");
+            var dimensions = mainAlongDepth ? new Dimensions(13, 17, 9) : new Dimensions(17, 13, 9);
+            var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), dimensions, List.of(),
+                    Map.of("roof_type", "cross_gable", "roof_block", "minecraft:stone_bricks",
+                            "roof_slope_profile", "linear", "ridge_axis", axis,
+                            "cross_gable_secondary_height", 5, "gable_walls", false));
+            var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, component));
+            var tops = new HashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
+            for (var patch : patches) {
+                int x = mainAlongDepth ? patch.dx() : patch.dz();
+                int z = mainAlongDepth ? patch.dz() : patch.dx();
+                var column = new net.minecraft.util.math.BlockPos(x, 0, z);
+                tops.merge(column, patch, (old, next) -> old.dy() >= next.dy() ? old : next);
+            }
+            assertEquals(28, tops.get(new net.minecraft.util.math.BlockPos(6, 0, 0)).dy(), axis);
+            var wing = tops.get(new net.minecraft.util.math.BlockPos(0, 0, 8));
+            assertEquals(24, wing.dy(), axis);
+            assertEquals("minecraft:stone_bricks", wing.targetBlock(), axis);
+            assertEquals(24, tops.get(new net.minecraft.util.math.BlockPos(3, 0, 8)).dy(), axis);
+            assertEquals(25, tops.get(new net.minecraft.util.math.BlockPos(4, 0, 8)).dy(), axis);
+            var valley = tops.get(new net.minecraft.util.math.BlockPos(2, 0, 5));
+            assertEquals(23, valley.dy(), axis);
+            assertEquals("minecraft:stone_bricks", valley.targetBlock(), axis);
+            assertEquals("minecraft:stone_brick_slab[type=bottom]",
+                    tops.get(new net.minecraft.util.math.BlockPos(1, 0, 6)).targetBlock(), axis);
+        }
+    }
+
+    @Test void crossGableRejectsSecondaryHeightAboveTheMainRoof() {
+        var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, 9), List.of(),
+                Map.of("roof_type", "cross_gable", "cross_gable_secondary_height", 10));
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> new RoofGenerator().generate(new SemanticComponent("ROOF", null, component)));
+        assertTrue(error.getMessage().contains("cross_gable_secondary_height"));
+    }
+
     @Test void shallowCrossGableUsesSlabsAwayFromTheSolidValley() {
         var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, 5), List.of(),
                 Map.of("roof_type", "cross_gable", "roof_block", "minecraft:stone_bricks",

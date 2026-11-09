@@ -120,7 +120,7 @@ public class RoofGenerator implements ComponentGenerator {
                 case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang, resolveGableAlongDepth(params, width, depth));
                 case CROSS_GABLE -> generateCrossGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
-                        resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang);
+                        resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang, alongDepthHint);
                 case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
                 case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -485,13 +485,17 @@ public class RoofGenerator implements ComponentGenerator {
 
     private static void generateCrossGableRoof(List<BlockPatch> out, SemanticComponent semantic,
                                                int baseX, int baseY, int baseZ, int width, int depth, int height,
-                                               String fullBlock, ComponentFootprintMask footprint, int overhang) {
+                                               String fullBlock, ComponentFootprintMask footprint, int overhang,
+                                               boolean mainRidgeAlongDepth) {
         int runX = Math.max(1, (width - 1) / 2);
         int runZ = Math.max(1, (depth - 1) / 2);
-        int maxRise = height - 1;
+        int secondaryHeight = crossGableSecondaryHeight(semantic.source().params(), height);
+        boolean equalRidges = secondaryHeight == height;
+        int maxRiseX = (mainRidgeAlongDepth ? height : secondaryHeight) - 1;
+        int maxRiseZ = (mainRidgeAlongDepth ? secondaryHeight : height) - 1;
         int valleyBuffer = Math.max(runX, runZ);
-        double[] risesX = sampleRoofProfile(semantic, runX, maxRise);
-        double[] risesZ = sampleRoofProfile(semantic, runZ, maxRise);
+        double[] risesX = sampleRoofProfile(semantic, runX, maxRiseX);
+        double[] risesZ = sampleRoofProfile(semantic, runZ, maxRiseZ);
         String stairs = MaterialBlockFamily.stairs(fullBlock);
         String slab = MaterialBlockFamily.slab(fullBlock);
         String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
@@ -500,16 +504,19 @@ public class RoofGenerator implements ComponentGenerator {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
                 int distanceZ = Math.min(z, depth - 1 - z);
-                // Compare the normalized runs without rounding. An adjacent cell can
-                // change the difference by one run, so keep that band solid.
-                long separation = (long) distanceX * runZ - (long) distanceZ * runX;
-                boolean slopeX = separation >= 0;
+                long normalizedRunDifference = (long) distanceX * runZ - (long) distanceZ * runX;
+                double riseX = risesX[distanceX];
+                double riseZ = risesZ[distanceZ];
+                boolean slopeX = equalRidges ? normalizedRunDifference >= 0 : riseX >= riseZ;
+                boolean valley = equalRidges ? Math.abs(normalizedRunDifference) <= valleyBuffer
+                        : crossGableValley(risesX, distanceX, risesZ, distanceZ, slopeX);
                 int distance = slopeX ? distanceX : distanceZ;
                 double[] profile = slopeX ? risesX : risesZ;
-                double rise = profile[distance];
+                double rise = slopeX ? riseX : riseZ;
                 int blockRise = (int) Math.round(rise);
                 String surface = fullBlock;
-                if (blockRise < maxRise && Math.abs(separation) > valleyBuffer) {
+                int maxRise = slopeX ? maxRiseX : maxRiseZ;
+                if (blockRise < maxRise && !valley) {
                     String facing = slopeX ? (x < width / 2 ? "east" : "west")
                             : (z < depth / 2 ? "south" : "north");
                     surface = slopeSurface(fullBlock, lowerSlab, stairs, rise, profile[distance + 1], facing);
@@ -517,6 +524,30 @@ public class RoofGenerator implements ComponentGenerator {
                 out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + blockRise, baseZ + z, surface));
             }
         }
+    }
+
+    private static boolean crossGableValley(double[] risesX, int x, double[] risesZ, int z, boolean slopeX) {
+        // Keep both sides of a face transition solid, including ties between cells.
+        if (slopeX) {
+            return risesX[Math.max(0, x - 1)] <= risesZ[z]
+                    || risesX[x] <= risesZ[Math.min(risesZ.length - 1, z + 1)];
+        }
+        return risesZ[Math.max(0, z - 1)] <= risesX[x]
+                || risesZ[z] <= risesX[Math.min(risesX.length - 1, x + 1)];
+    }
+
+    private static int crossGableSecondaryHeight(Map<String, Object> params, int mainHeight) {
+        String raw = getParamString(params, "cross_gable_secondary_height");
+        if (raw == null) return mainHeight;
+        String error = "E_ROOF_GEOMETRY_INVALID: cross_gable_secondary_height must be a whole number "
+                + "from 2 through the main roof height";
+        try {
+            double height = Double.parseDouble(raw);
+            if (height >= 2 && height <= mainHeight && height == Math.rint(height)) return (int) height;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(error, e);
+        }
+        throw new IllegalArgumentException(error);
     }
 
     private static double[] sampleRoofProfile(SemanticComponent semantic, int run, int maxRise) {
