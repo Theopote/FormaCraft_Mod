@@ -85,7 +85,10 @@ public class EntranceGenerator implements ComponentGenerator {
             throw new IllegalArgumentException(
                     "E_ENTRANCE_DOOR_WIDTH: openingSpan=" + openingSpan + " too narrow for entrance");
         }
-        int maxDoor = Math.max(1, openingSpan - 1);
+        // Thin 1×N / N×1 strips are the aperture itself — jambs live on the host wall, not
+        // inside the strip. A 2-wide terrace door with door_width=2 must open both cells.
+        boolean thinShellOpening = (width == 1 && depth > 1) || (depth == 1 && width > 1);
+        int maxDoor = thinShellOpening ? openingSpan : Math.max(1, openingSpan - 1);
         if (explicitDoorWidth) {
             // Soft-clamp oversize: keep the entrance rather than aborting the whole building.
             if (requestedDoorWidth > maxDoor) {
@@ -105,7 +108,10 @@ public class EntranceGenerator implements ComponentGenerator {
             }
         } else {
             // Default: center the door; pick 1/2/3 so the bay is symmetric on the facade span.
-            int auto = symmetricDoorWidth(openingSpan);
+            // Small thin-shell strips (span≤3) are the door bay — open the full aperture.
+            int auto = thinShellOpening && openingSpan <= 3
+                    ? openingSpan
+                    : symmetricDoorWidth(openingSpan);
             if (hasArch) auto = Math.max(3, auto % 2 == 0 ? auto + 1 : auto);
             if (auto > maxDoor) {
                 if (hasArch && maxDoor >= 2) {

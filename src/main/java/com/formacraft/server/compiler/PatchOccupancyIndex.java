@@ -503,13 +503,7 @@ public final class PatchOccupancyIndex {
         }
         boolean bridge = com.formacraft.common.generation.component.util.HostedPlateOccupancy
                 .isBridgePlate(writer.params());
-        String writerTypeEarly = writer.componentType() == null
-                ? "" : writer.componentType().toUpperCase(Locale.ROOT);
-        // Host-bound roofs/terraces often live on a dedicated *_roof slot while the mass
-        // stays on the building slot — host_id is the authority, not slot equality.
-        boolean hostBoundAccessory = Set.of("ROOF", "ROOF_STRUCTURE", "CROWN", "CUPOLA", "DOME",
-                        "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE")
-                .contains(writerTypeEarly);
+        boolean hostBoundAccessory = isHostBoundAccessory(writer);
         // Bridges may join either endpoint mass even when slot_id differs across dual masses.
         if (!bridge && !hostBoundAccessory
                 && !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) {
@@ -542,6 +536,17 @@ public final class PatchOccupancyIndex {
         boolean dualHost = writer.params().containsKey("target_host_id")
                 || writer.params().containsKey("targetHostId");
         return dualHost && writerType.startsWith("MASS");
+    }
+
+    private static boolean isHostBoundAccessory(Component writer) {
+        String writerTypeEarly = writer.componentType() == null
+                ? "" : writer.componentType().toUpperCase(Locale.ROOT);
+        // Host-bound roofs/terraces often live on a dedicated *_roof slot while the mass
+        // stays on the building slot — host_id is the authority, not slot equality.
+        boolean hostBoundAccessory = Set.of("ROOF", "ROOF_STRUCTURE", "CROWN", "CUPOLA", "DOME",
+                        "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE")
+                .contains(writerTypeEarly);
+        return hostBoundAccessory;
     }
 
     /**
