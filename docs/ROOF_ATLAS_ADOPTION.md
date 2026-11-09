@@ -14,6 +14,8 @@
 
 ## 落地时的取舍
 
+复折双坡顶（`gambrel`）可用 `gambrel_break_run_fraction` 和 `gambrel_break_rise_fraction` 调整折点。前者从檐口量取半跨中的水平比例，后者是折点占总起坡高度的比例。默认值分别为 0.35 和 0.65。两者都必须大于 0 且小于 1，且高度比例必须大于水平比例，以保持下陡上缓。坡面高度跳变处补齐竖缝。
+
 十字双坡顶（`cross_gable`）合并互相垂直的两个双坡剖面，默认等高。可用 `ridge_axis` 指定主脊轴，再用 `cross_gable_secondary_height` 指定侧翼屋高，取值为 2 到主屋屋高之间的整数。降低侧翼后，侧脊在主屋坡面终止，谷线随两组坡面的交线移动。坡面按取整前的坡度使用楼梯或下半砖，屋脊和谷线交接带用整块收口，四个山墙沿足迹边界封闭。
 
 工业锯齿顶（`sawtooth`）可用 `sawtooth_glazing_facing` 指定高侧窗朝向（`north`、`south`、`east`、`west`），朝向同时决定重复轴。用 `sawtooth_count` 指定齿数，跨度均匀分配给各齿，每齿至少占两格。省略朝向时沿用 `sawtooth_axis`。

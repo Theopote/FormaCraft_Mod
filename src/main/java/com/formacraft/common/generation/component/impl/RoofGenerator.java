@@ -108,7 +108,7 @@ public class RoofGenerator implements ComponentGenerator {
                 case GAMBREL, BARREL_VAULT, ONION_DOME, STEEP_THATCH -> out.addAll(
                         com.formacraft.common.generation.component.util.SpecialtyRoofSurfaces.generate(
                                 roofType, baseX, rp.y(), baseZ, width, depth, height,
-                                resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang));
+                                resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang, params));
                 case JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY ->
                     generateProfiledGable(out, roofType, baseX, rp.y(), baseZ,
                         width, depth, height, resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang,
@@ -141,7 +141,7 @@ public class RoofGenerator implements ComponentGenerator {
         // Specialty hollow shells keep authored full blocks — slope-riser fill is for pitched skins.
         if (!doubleEave && roofType != RoofTypeKind.FLAT && roofType != RoofTypeKind.SAWTOOTH
                 && roofType != RoofTypeKind.ONION_DOME && roofType != RoofTypeKind.BARREL_VAULT
-                && roofType != RoofTypeKind.GAMBREL && roofType != RoofTypeKind.STEEP_THATCH) {
+                && roofType != RoofTypeKind.STEEP_THATCH) {
             sealSlopeRisers(out);
         }
         List<BlockPatch> roofShell = List.copyOf(out);

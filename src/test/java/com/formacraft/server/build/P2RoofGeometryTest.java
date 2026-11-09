@@ -47,6 +47,36 @@ class P2RoofGeometryTest {
             assertTrue(RoofTypeCatalog.parseExplicit(alias).isPresent(),alias);
     }
 
+    @Test void hostedGambrelUsesItsAuthoredFoldAndSealsTheSteepLowerSlope() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");
+        var document = mapper.readTree(fixture.toFile());
+        var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
+        roofParams.put("gambrel_break_run_fraction", 0.5).put("gambrel_break_rise_fraction", 0.75);
+        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
+                new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
+        var roof = patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList();
+        assertEquals(List.of(10, 13, 16, 19, 20, 21, 22, 21, 20, 19, 16, 13, 10), section(roof, 13));
+        for (int y = 13; y < 16; y++) {
+            int level = y;
+            assertTrue(roof.stream().anyMatch(p -> p.dx() == 2 && p.dz() == 8 && p.dy() == level));
+        }
+        assertFalse(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 10));
+    }
+
+    @Test void gambrelDefaultsPreserveTheOldSectionAndRejectAReversedFold() {
+        var generator = new RoofGenerator();
+        var defaultRoof = generator.generate(new SemanticComponent("ROOF", null, roof("gambrel", 13, 13)));
+        assertEquals(List.of(20, 24, 27, 29, 30, 31, 32, 31, 30, 29, 27, 24, 20), section(defaultRoof, 13));
+        var invalid = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, 13), List.of(),
+                Map.of("roof_type", "gambrel", "gambrel_break_run_fraction", 0.7,
+                        "gambrel_break_rise_fraction", 0.6));
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> generator.generate(new SemanticComponent("ROOF", null, invalid)));
+        assertTrue(error.getMessage().contains("gambrel_break_rise_fraction"));
+    }
+
     @Test void profiledGablesPreserveRiseAndSealSteepRisers() {
         var generator = new RoofGenerator();
         var rounded = generator.generate(new SemanticComponent("ROOF", null, roof("卷棚顶", 13, 13)));
