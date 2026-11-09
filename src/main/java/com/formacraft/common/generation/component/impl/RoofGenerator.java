@@ -59,6 +59,7 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofTypeKind roofType = resolveRoofType(c, semantic, params);
+        int domeDrumHeight = roofType == RoofTypeKind.DOME ? domeDrumHeight(params) : 0;
         Direction saltboxLongSlope = roofType == RoofTypeKind.SALTBOX
                 ? roofCardinalDirection(params, "saltbox_long_slope") : null;
         double saltboxRidgeFraction = roofType == RoofTypeKind.SALTBOX ? saltboxRidgeFraction(params) : 1.0 / 3;
@@ -73,7 +74,7 @@ public class RoofGenerator implements ComponentGenerator {
                 : saltboxLongSlope.getAxis() == Direction.Axis.X;
         boolean authoredMansardFold = roofType == RoofTypeKind.MANSARD
                 && getParamString(params, "mansard_break_run", "mansard_break_rise") != null;
-        if (!authoredMansardFold) {
+        if (!authoredMansardFold && domeDrumHeight == 0) {
             height = normalizeStairRoofRise(height, width, depth, roofType, params, alongDepthHint);
         }
 
@@ -134,9 +135,9 @@ public class RoofGenerator implements ComponentGenerator {
                 case PYRAMID -> generatePyramidRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
                 case CONE -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, false,
-                        footprint, appliedOverhang);
+                        footprint, appliedOverhang, 0);
                 case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true,
-                        footprint, appliedOverhang);
+                        footprint, appliedOverhang, domeDrumHeight);
                 case MANSARD -> generateMansardRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang, mansardProfile);
                 default -> generateFlatRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -1099,19 +1100,17 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateConeRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                   int width, int depth, int height,
                                   Palette palette, boolean dome,
-                                  ComponentFootprintMask footprint, int overhang) {
-        generateConeRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, dome, footprint, overhang, 0, 0);
-    }
-
-    private void generateConeRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
-                                  int width, int depth, int height,
-                                  Palette palette, boolean dome,
-                                  ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
+                                  ComponentFootprintMask footprint, int overhang, int drumHeight) {
+        if (drumHeight > 0 && (Math.min(width, depth) < 3 || drumHeight > height - 2)) {
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dome_drum_height requires a footprint "
+                    + "of at least 3x3 and must leave at least two layers for the dome cap");
+        }
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
-                    fpOffsetX, fpOffsetZ);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
             return;
         }
+        int capRise = height - drumHeight - 1;
+        int[][] capColumns = drumHeight > 0 ? new int[width][depth] : null;
         double cx = (width - 1) / 2.0;
         double cz = (depth - 1) / 2.0;
         double radius = Math.max(1.0, Math.min(width, depth) / 2.0);
@@ -1121,7 +1120,7 @@ public class RoofGenerator implements ComponentGenerator {
         int facets = Math.max(4,Math.min(32,ComponentParamParsers.intParam(semantic.source().params(),8,"segments","dome_segments")));
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
                     continue;
                 }
                 double dx = x - cx;
@@ -1140,16 +1139,56 @@ public class RoofGenerator implements ComponentGenerator {
                 }
                 double t = Math.max(0.0, 1.0 - (dist / radius));
                 double curve = dome ? Math.sqrt(t) : t;
-                int rise = (int) Math.round(curve * (height - 1));
+                int rise = (int) Math.round(curve * capRise);
+                if (capColumns != null) capColumns[x][z] = rise + 1;
                 SemanticPart part = (dist <= 0.5) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         baseX + x,
-                        baseY + rise,
+                        baseY + drumHeight + rise,
                         baseZ + z,
                         block
                 ));
+            }
+        }
+        if (capColumns != null) {
+            String drumMaterial = getParamString(semantic.source().params(), "dome_drum_block");
+            if (drumMaterial == null) drumMaterial = getBlockForPart(semantic, palette, SemanticPart.WALL);
+            emitDomeDrum(out, baseX, baseY, baseZ, capColumns, drumHeight, slopeFillBlock(drumMaterial),
+                    resolveFullRoofBlock(semantic, palette));
+        }
+    }
+
+    private static int domeDrumHeight(Map<String, Object> params) {
+        String raw = getParamString(params, "dome_drum_height");
+        if (raw == null) return 0;
+        String error = "E_ROOF_GEOMETRY_INVALID: dome_drum_height must be a nonnegative whole number";
+        try {
+            double height = Double.parseDouble(raw);
+            if (height >= 0 && height <= Integer.MAX_VALUE && height == Math.rint(height)) return (int) height;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(error, e);
+        }
+        throw new IllegalArgumentException(error);
+    }
+
+    private static void emitDomeDrum(List<BlockPatch> out, int baseX, int baseY, int baseZ,
+                                     int[][] capColumns, int height, String drumBlock, String roofBlock) {
+        int width = capColumns.length;
+        int depth = capColumns[0].length;
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                int column = capColumns[x][z];
+                if (column == 0) continue;
+                if (x > 0 && x < width - 1 && z > 0 && z < depth - 1
+                        && capColumns[x - 1][z] > 0 && capColumns[x + 1][z] > 0
+                        && capColumns[x][z - 1] > 0 && capColumns[x][z + 1] > 0) continue;
+                // At quantized edges the cap may start above the springing plane.
+                for (int y = 0; y < height + column - 1; y++) {
+                    out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + y, baseZ + z,
+                            y < height ? drumBlock : roofBlock));
+                }
             }
         }
     }
