@@ -22,10 +22,11 @@ public enum RoofTypeKind {
     SALTBOX,
     JUANPENG_YINGSHAN,
     JUANPENG_XUANSHAN,
-    BUTTERFLY;
+    BUTTERFLY,
+    CROSS_GABLE;
 
     public boolean isProfiledGable() {
         return this == JUANPENG || this == JUANPENG_YINGSHAN || this == JUANPENG_XUANSHAN
-                || this == SALTBOX || this == BUTTERFLY;
+                || this == SALTBOX || this == BUTTERFLY || this == CROSS_GABLE;
     }
 }

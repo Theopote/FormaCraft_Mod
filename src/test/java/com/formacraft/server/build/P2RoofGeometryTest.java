@@ -306,6 +306,40 @@ class P2RoofGeometryTest {
         }
     }
 
+    @Test void hostedCrossGableJoinsTwoRidgesAndSealsFourValleys() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");
+        var document = mapper.readTree(fixture.toFile());
+        var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
+        roofParams.put("roof_type", "十字双坡顶").put("roof_block", "minecraft:stone_bricks")
+                .put("wall_block", "minecraft:spruce_planks").put("roof_height", 9)
+                .put("roof_slope_profile", "linear");
+        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
+                new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
+        int[][] tops = new int[13][17];
+        for (var patch : patches) {
+            if ("minecraft:stone_bricks".equals(patch.targetBlock()) && patch.dx() >= 0 && patch.dx() < 13
+                    && patch.dz() >= 0 && patch.dz() < 17) {
+                tops[patch.dx()][patch.dz()] = Math.max(tops[patch.dx()][patch.dz()], patch.dy());
+            }
+        }
+        for (int x = 0; x < 13; x++) assertEquals(18, tops[x][8]);
+        for (int z = 0; z < 17; z++) assertEquals(18, tops[6][z]);
+        for (int x : List.of(3, 9)) for (int z : List.of(4, 12)) {
+            assertEquals(14, tops[x][z]);
+            assertTrue(tops[x == 3 ? 4 : 8][z] > tops[x][z]);
+            assertTrue(tops[x][z == 4 ? 5 : 11] > tops[x][z]);
+        }
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 4 && p.dz() == 4 && p.dy() == 14
+                && "minecraft:stone_bricks".equals(p.targetBlock())));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 0 && p.dz() == 8 && p.dy() == 17
+                && "minecraft:spruce_planks".equals(p.targetBlock())));
+        // Check the attic above the host attachment plane and below the valley.
+        assertFalse(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 12
+                && BlockPatch.PLACE.equals(p.action())));
+    }
+
     @Test void hostedButterflyKeepsItsGutterAtTheAttachmentPlane() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");

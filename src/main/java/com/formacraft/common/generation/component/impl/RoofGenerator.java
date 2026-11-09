@@ -119,6 +119,8 @@ public class RoofGenerator implements ComponentGenerator {
                         palette, footprint, appliedOverhang);
                 case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang, resolveGableAlongDepth(params, width, depth));
+                case CROSS_GABLE -> generateCrossGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
+                        resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang);
                 case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
                 case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -180,7 +182,7 @@ public class RoofGenerator implements ComponentGenerator {
                 && !"false".equalsIgnoreCase(getParamString(params, "gable_walls"))) {
             boolean ridgeAlongDepth = profiledGable ? alongDepthHint : coreDepth >= coreWidth;
             sealRoofWalls(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette,
-                    ridgeAlongDepth, roofType == RoofTypeKind.BUTTERFLY);
+                    ridgeAlongDepth, roofType == RoofTypeKind.BUTTERFLY || roofType == RoofTypeKind.CROSS_GABLE);
             if (getParamBoolean(params, "horse_head_walls", "horseHeadWalls")
                     && !com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params))
                 emitHorseHeadWalls(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette, ridgeAlongDepth);
@@ -236,7 +238,7 @@ public class RoofGenerator implements ComponentGenerator {
             case HIP, XIESHAN, PYRAMID, CONE, DOME -> Math.min(width, depth);
             // Full-block roof profiles and flats keep their resolved rise.
             case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH,
-                    JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY -> 0;
+                    JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY, CROSS_GABLE -> 0;
             default -> alongDepth ? width : depth;
         };
         if (across <= 0) return Math.max(1, height);
@@ -297,7 +299,7 @@ public class RoofGenerator implements ComponentGenerator {
         out.add(new BlockPatch(BlockPatch.PLACE, x, baseY + rise, z, surfaceBlock));
     }
 
-    /** Close the body-end planes, or the entire footprint boundary for roofs with raised eaves. */
+    /** Close the two gable ends, or all footprint boundaries for roofs needing a perimeter closure. */
     private void sealRoofWalls(List<BlockPatch> out, List<BlockPatch> roofShell, SemanticComponent semantic,
                                       ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette,
                                       boolean ridgeAlongDepth, boolean closePerimeter) {
@@ -477,6 +479,24 @@ public class RoofGenerator implements ComponentGenerator {
                     block = withStairsFacing(block, gableRidgeFacing(alongDepth, x, z, width, depth));
                 }
                 emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block, fillUnder && part == SemanticPart.ROOF);
+            }
+        }
+    }
+
+    private static void generateCrossGableRoof(List<BlockPatch> out, SemanticComponent semantic,
+                                               int baseX, int baseY, int baseZ, int width, int depth, int height,
+                                               String block, ComponentFootprintMask footprint, int overhang) {
+        int runX = Math.max(1, (width - 1) / 2);
+        int runZ = Math.max(1, (depth - 1) / 2);
+        for (int x = 0; x < width; x++) {
+            double progressX = Math.min(x, width - 1 - x) / (double) runX;
+            for (int z = 0; z < depth; z++) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
+                double progressZ = Math.min(z, depth - 1 - z) / (double) runZ;
+                // Take the outer shell of the two gables. Equal profiles meet at the valleys.
+                double progress = Math.max(progressX, progressZ);
+                int rise = (int) Math.round(StyleRoofGeometry.profile(semantic, progress) * (height - 1));
+                out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + rise, baseZ + z, block));
             }
         }
     }

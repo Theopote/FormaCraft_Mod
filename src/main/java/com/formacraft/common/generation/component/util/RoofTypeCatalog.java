@@ -35,6 +35,7 @@ public final class RoofTypeCatalog {
             "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶",
             "saltbox", "saltbox_roof", "盐盒顶",
             "butterfly", "butterfly_roof", "butterfly roof", "蝶形顶", "蝶形屋顶",
+            "cross_gable", "cross-gable", "cross gable", "cross-gabled", "十字双坡顶", "十字双坡屋顶",
             "none"
     );
 
@@ -92,7 +93,8 @@ public final class RoofTypeCatalog {
                     "steep_thatch", "steep thatch", "陡坡茅草顶",
                     "juanpeng_yingshan", "硬山卷棚", "juanpeng_xuanshan", "悬山卷棚",
                     "juanpeng", "juan_peng", "卷棚", "saltbox", "盐盒顶",
-                    "butterfly_roof", "butterfly roof", "butterfly", "蝶形屋顶", "蝶形顶")) {
+                    "butterfly_roof", "butterfly roof", "butterfly", "蝶形屋顶", "蝶形顶",
+                    "cross_gable", "cross-gable", "cross gable", "十字双坡屋顶", "十字双坡顶")) {
                 if (lower.contains(token)) return Optional.of(token);
             }
             if (lower.contains("yingshan") || lower.contains("ying_shan") || lower.contains("ying-shan")
@@ -189,6 +191,8 @@ public final class RoofTypeCatalog {
             case "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶" -> RoofTypeKind.JUANPENG_XUANSHAN;
             case "saltbox", "saltbox_roof", "盐盒顶" -> RoofTypeKind.SALTBOX;
             case "butterfly", "butterfly_roof", "butterfly roof", "蝶形顶", "蝶形屋顶" -> RoofTypeKind.BUTTERFLY;
+            case "cross_gable", "cross-gable", "cross gable", "cross-gabled", "十字双坡顶", "十字双坡屋顶" ->
+                    RoofTypeKind.CROSS_GABLE;
             case "shed", "lean_to", "single_slope" -> RoofTypeKind.SHED;
             case "gable", "gabled", "gable_low_pitch", "low_pitch_gable", "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofTypeKind.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofTypeKind.DOUBLE_GABLE;

@@ -474,6 +474,9 @@ final class ComponentEmitPass {
                         }
                     }
                     if ("ROOF".equals(normalizedType) && "roof_garden".equals(ComponentPlanTypes.paramIdentity(c))) {
+                        FormacraftMod.LOGGER.warn("TEMP roof_garden emit pos={} dims={} patches={} y24count={}",
+                                c.relativePosition(), c.dimensions(), shiftedPatches.size(),
+                                shiftedPatches.stream().filter(p -> p != null && p.dy() == 24).count());
                         for (int x : new int[]{-1, 0}) {
                             var pos = new BlockPos(x, 24, 6);
                             boolean inPatches = shiftedPatches.stream().anyMatch(p -> p != null

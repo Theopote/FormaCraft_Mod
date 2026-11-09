@@ -103,7 +103,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
     # 破风 / 三角山墙屋顶 is a Japanese pediment cue — do NOT force western gable
     # (pattern 山墙屋顶 previously false-triggered req_roof_gable).
     # Only explicit 双坡/人字顶 should hard-require roof_type=gable.
-    if any(_positive_match(text, m) for m in re.finditer(r'双坡屋\s*顶|人字顶', text)):
+    if any(_positive_match(text, m) for m in re.finditer(r'(?<!十字)双坡屋\s*顶|人字顶', text)):
         result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
                        'source_text': ['双坡屋顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     if any(_positive_match(text, m) for m in re.finditer(r'平屋顶|平顶', text)):
@@ -119,6 +119,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
         'juanpeng': r'(?<!硬山)(?<!悬山)卷棚(?:屋?顶)?|\bjuan_?peng\b',
         'saltbox': r'盐盒顶|\bsaltbox(?:[ _]roof)?\b',
         'butterfly': r'蝶形(?:屋)?顶|\bbutterfly[ _]roof\b|^butterfly$',
+        'cross_gable': r'十字双坡(?:屋\s*)?顶|\bcross[ _-]gabled?\b',
     }
     for roof_type, pattern in specialty_roofs.items():
         hits = [match for match in re.finditer(pattern, text, re.I) if _positive_match(text, match)]
