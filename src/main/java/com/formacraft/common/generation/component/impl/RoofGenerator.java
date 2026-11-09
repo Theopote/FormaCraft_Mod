@@ -13,6 +13,7 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
@@ -456,33 +457,58 @@ public class RoofGenerator implements ComponentGenerator {
     }
 
     private static void generateProfiledGable(List<BlockPatch> out, RoofTypeKind kind, int baseX, int baseY,
-                                              int baseZ, int width, int depth, int height, String block,
+                                              int baseZ, int width, int depth, int height, String fullBlock,
                                               ComponentFootprintMask footprint, int overhang, boolean alongDepth) {
         int span = alongDepth ? width : depth;
         int length = alongDepth ? depth : width;
         int last = span - 1;
-        int halfSpan = Math.max(1, last / 2);
+        int maxRise = height - 1;
         // Keep the saltbox's shorter slope on the low-coordinate side.
         int saltboxRidge = Math.max(1, (int) Math.round(last / 3.0));
+        int ridgeStart = kind == RoofTypeKind.SALTBOX ? saltboxRidge : last / 2;
+        String stairs = MaterialBlockFamily.stairs(fullBlock);
+        String slab = MaterialBlockFamily.slab(fullBlock);
+        String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
         for (int across = 0; across < span; across++) {
-            double fraction = 0.0;
-            if (span >= 3) {
-                fraction = switch (kind) {
-                    case JUANPENG -> Math.sin(Math.PI / 2 * Math.min(across, last - across) / halfSpan);
-                    case SALTBOX -> across <= saltboxRidge ? across / (double) saltboxRidge
-                            : (last - across) / (double) (last - saltboxRidge);
-                    default -> throw new IllegalArgumentException("Unsupported gable profile: " + kind);
-                };
+            double rise = profiledGableRise(across, last, ridgeStart, kind, maxRise);
+            int blockRise = (int) Math.round(rise);
+            String surface = fullBlock;
+            if (span >= 3 && blockRise < maxRise) {
+                int towardRidge = across < ridgeStart ? 1 : -1;
+                double nextRise = profiledGableRise(across + towardRidge, last, ridgeStart, kind, maxRise);
+                double slope = nextRise - rise;
+                long step = Math.round(nextRise) - blockRise;
+                if (slope < 0.75 || step == 0) {
+                    // Lower slabs and upright stairs share a solid lower half at equal elevations.
+                    surface = lowerSlab;
+                } else if (slope < 1.5 && step == 1 && stairs != null) {
+                    String facing = alongDepth
+                            ? (towardRidge > 0 ? "east" : "west")
+                            : (towardRidge > 0 ? "south" : "north");
+                    // Both slopes run along one axis, so adjacent roof stairs cannot form a corner.
+                    surface = withStairsFacing(stairs, facing, "straight");
+                }
             }
-            int y = baseY + (int) Math.round(fraction * (height - 1));
+            int y = baseY + blockRise;
             for (int along = 0; along < length; along++) {
                 int x = alongDepth ? across : along;
                 int z = alongDepth ? along : across;
                 if (allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
-                    out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ + z, block));
+                    out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ + z, surface));
                 }
             }
         }
+    }
+
+    private static double profiledGableRise(int across, int last, int ridgeStart, RoofTypeKind kind, int maxRise) {
+        if (last < 2) return 0;
+        double fraction = switch (kind) {
+            case JUANPENG -> Math.sin(Math.PI / 2 * Math.min(across, last - across) / ridgeStart);
+            case SALTBOX -> across <= ridgeStart ? across / (double) ridgeStart
+                    : (last - across) / (double) (last - ridgeStart);
+            default -> throw new IllegalArgumentException("Unsupported gable profile: " + kind);
+        };
+        return fraction * maxRise;
     }
 
     /** ridge_axis x ⇒ slopes face N/S (ridge along width); z ⇒ slopes face E/W. */

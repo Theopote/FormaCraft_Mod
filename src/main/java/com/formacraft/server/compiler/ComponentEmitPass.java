@@ -454,6 +454,15 @@ final class ComponentEmitPass {
                     }
 
                     // Commit boundary: patches + ledgers + protected sets together.
+                    // TEMP diag: who REMOVEs flat-roof plane cells for oct20_access_1.
+                    for (var p : shiftedPatches) {
+                        if (p != null && BlockPatch.REMOVE.equals(p.action())
+                                && p.dy() == 24 && (p.dz() == 6)
+                                && (p.dx() == -1 || p.dx() == 0)) {
+                            FormacraftMod.LOGGER.warn("TEMP roof-plane REMOVE by {} id={} patch={}",
+                                    normalizedType, ComponentPlanTypes.paramIdentity(c), p);
+                        }
+                    }
                     result.addAll(shiftedPatches);
                     if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)) {
                         // An authorized connector opening supersedes the window cells

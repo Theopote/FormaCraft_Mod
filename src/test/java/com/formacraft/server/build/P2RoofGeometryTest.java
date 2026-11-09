@@ -57,8 +57,42 @@ class P2RoofGeometryTest {
         assertEquals(List.of(20, 23, 26, 28, 30, 32, 32, 32, 30, 28, 26, 23, 20), roundedSection);
         assertEquals(List.of(20, 23, 26, 29, 32, 31, 29, 28, 26, 25, 23, 22, 20), saltboxSection);
         for (var patches : List.of(rounded, saltbox)) {
+            assertTrue(patches.stream().allMatch(p -> "minecraft:hay_block".equals(p.targetBlock())));
             assertTrue(patches.stream().anyMatch(p -> p.dx() == 1 && p.dy() == 20 && p.dz() == 8));
             assertFalse(patches.stream().anyMatch(p -> p.dx() == 4 && p.dy() == 20 && p.dz() == 8));
+        }
+    }
+
+    @Test void profiledGablesSelectMatchingRoofBlocksFromUnroundedSlope() {
+        var generator = new RoofGenerator();
+        for (String type : List.of("juanpeng", "saltbox")) {
+            int height = type.equals("juanpeng") ? 6 : 5;
+            var component = new Component("ROOF", "hall", new Vec3i(0, 20, 0), new Dimensions(13, 17, height),
+                    List.of(), Map.of("roof_type", type, "roof_block", "minecraft:stone_bricks", "gable_walls", false));
+            var patches = generator.generate(new SemanticComponent("ROOF", null, component));
+            var section = section(patches, 13);
+            assertEquals(20 + height - 1, Collections.max(section), type);
+            var surfaces = new ArrayList<String>();
+            for (int x = 0; x < section.size(); x++) {
+                int column = x;
+                surfaces.add(patches.stream()
+                        .filter(p -> p.dx() == column && p.dz() == 8 && p.dy() == section.get(column))
+                        .findFirst().orElseThrow().targetBlock());
+            }
+
+            assertTrue(surfaces.getFirst().startsWith("minecraft:stone_brick_stairs["));
+            assertTrue(surfaces.getFirst().contains("facing=east"));
+            assertTrue(surfaces.getFirst().contains("shape=straight"));
+            assertEquals("minecraft:stone_bricks", surfaces.get(section.indexOf(20 + height - 1)));
+            if (type.equals("juanpeng")) {
+                assertTrue(surfaces.getLast().contains("facing=west"));
+                assertEquals("minecraft:stone_brick_slab[type=bottom]", surfaces.get(4));
+            } else {
+                assertEquals("minecraft:stone_brick_slab[type=bottom]", surfaces.getLast());
+            }
+            // A full block beneath the first raised stair contacts the eave stair's lower half.
+            assertTrue(patches.stream().anyMatch(p -> p.dx() == 1 && p.dz() == 8 && p.dy() == 20
+                    && "minecraft:stone_bricks".equals(p.targetBlock())));
         }
     }
 
@@ -92,13 +126,23 @@ class P2RoofGeometryTest {
             var document = mapper.readTree(fixture.toFile());
             var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
             roofParams.put("roof_type", type);
+            roofParams.put("roof_block", "minecraft:stone_bricks");
+            int height = type.equals("saltbox") ? 5 : 6;
+            var dimensions = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/dimensions");
+            dimensions.put("height", height);
             var plan = mapper.treeToValue(document, LlmPlan.class);
             var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                     new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
-            var section = section(patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList(), 13);
+            var roof = patches.stream()
+                    .filter(p -> p.targetBlock() != null && p.targetBlock().startsWith("minecraft:stone_brick"))
+                    .toList();
+            assertTrue(roof.stream().anyMatch(p -> p.targetBlock().startsWith("minecraft:stone_brick_stairs[")), type);
+            assertTrue(roof.stream().anyMatch(p -> p.targetBlock().startsWith("minecraft:stone_brick_slab[")), type);
+            var section = section(roof, 13);
             // Host attachment places the eaves at the top of the ten-block mass.
-            assertEquals(22, Collections.max(section), type);
-            assertEquals(type.equals("saltbox") ? 4 : 5, section.indexOf(22), type);
+            int ridgeY = 10 + height - 1;
+            assertEquals(ridgeY, Collections.max(section), type);
+            assertEquals(type.equals("saltbox") ? 4 : 5, section.indexOf(ridgeY), type);
         }
     }
 
