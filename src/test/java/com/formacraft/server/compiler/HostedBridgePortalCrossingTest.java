@@ -15,10 +15,11 @@ class HostedBridgePortalCrossingTest {
             var bridge=new Component("MASS_SECONDARY","s",new Vec3i(rotate?17:12,5,rotate?12:17),
                     new Dimensions(rotate?10:3,rotate?3:10,1),List.of(),Map.of("anchor_mode","min_corner","extrude_mode","plate","plate_role","bridge"));
             var patches=HostedPlateOccupancy.bridgePortalRemovals(bridge,mass);
-            assertEquals(6,patches.size());
-            assertTrue(patches.stream().allMatch(p->(rotate?p.dx():p.dz())==23));
+            // 3-wide × 2-high × depth-2 (wall + one interior step-in cell).
+            assertEquals(12,patches.size());
             assertTrue(patches.stream().allMatch(p->p.dy()==6 || p.dy()==7));
             assertEquals(3,patches.stream().map(p->rotate?p.dz():p.dx()).distinct().count());
+            assertEquals(2,patches.stream().map(p->rotate?p.dx():p.dz()).distinct().count());
         }
     }
 }

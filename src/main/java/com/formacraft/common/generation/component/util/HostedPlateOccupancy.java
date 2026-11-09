@@ -146,7 +146,9 @@ public final class HostedPlateOccupancy {
 
     /**
      * Carve a portal where the plate meets {@code mass}: up to 3 wide, clear height plateY+1/+2,
-     * depth = mass {@code wall_thickness} inward along the contact normal.
+     * depth = max(2, wall_thickness) inward along the contact normal.
+     * Depth ≥2 clears the shell face plus one interior cell so hosted railings /
+     * partial platforms cannot leave a fence-blocked step-in right inside the portal.
      */
     public static List<BlockPatch> bridgePortalRemovals(Component plate, Component mass) {
         List<BlockPatch> out = new ArrayList<>();
@@ -158,7 +160,7 @@ public final class HostedPlateOccupancy {
         int plateY = plate.relativePosition().y();
         int clearY0 = plateY + 1;
         int clearY1 = plateY + 2;
-        int depth = Math.max(1, ComponentParamParsers.intParam(
+        int depth = Math.max(2, ComponentParamParsers.intParam(
                 mass.params(), 1, "wall_thickness", "wallThickness"));
 
         boolean plateWestOfMass = pb.maxX() <= mb.minX() + 1 || (pb.maxX() <= mb.minX() + 2 && pb.minX() < mb.minX());

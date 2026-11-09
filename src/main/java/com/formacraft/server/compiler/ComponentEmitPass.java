@@ -802,6 +802,17 @@ final class ComponentEmitPass {
                         occ.profileAt(new Vec3i(deckWorld.x(), deckWorld.y()+2, deckWorld.z())),
                         com.formacraft.common.generation.component.util.BridgeWalkability.storeyGoalsPreferringInterior(occ, host.get(), deckWorld.y()-hostOff.y(), hostOff),
                         com.formacraft.common.generation.component.util.BridgeWalkability.storeyGoalsPreferringInterior(occ, target.get(), deckWorld.y()-targetOff.y(), targetOff));
+                // TEMP diag: portal contact column profiles (host east / target west for oct18_access_3).
+                for (int x : new int[]{12, 13, 14, 19, 20, 21}) {
+                    for (int z = -1; z <= 1; z++) {
+                        var f = new Vec3i(x, deckWorld.y(), z);
+                        FormacraftMod.LOGGER.warn("Bridge portal col {}: floor={} head1={} head2={} stand={}",
+                                f, occ.profileAt(f),
+                                occ.profileAt(new Vec3i(x, deckWorld.y()+1, z)),
+                                occ.profileAt(new Vec3i(x, deckWorld.y()+2, z)),
+                                com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, f));
+                    }
+                }
             }
             return false;
         }
