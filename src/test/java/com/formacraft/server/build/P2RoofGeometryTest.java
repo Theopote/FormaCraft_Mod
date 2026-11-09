@@ -47,6 +47,24 @@ class P2RoofGeometryTest {
             assertTrue(RoofTypeCatalog.parseExplicit(alias).isPresent(),alias);
     }
 
+    @Test void hostedMansardPlacesDormersAtTheAuthoredFold() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");
+        var document = mapper.readTree(fixture.toFile());
+        var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
+        roofParams.put("roof_type", "mansard").put("roof_block", "minecraft:stone_bricks")
+                .put("roof_height", 11).put("mansard_break_run", 3).put("mansard_break_rise", 7)
+                .put("roof_dormers", true);
+        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
+                new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
+        var roof = patches.stream().filter(p -> p.targetBlock() != null
+                && p.targetBlock().startsWith("minecraft:stone_brick")).toList();
+        assertEquals(List.of(10, 12, 15, 17, 18, 19, 20, 19, 18, 17, 15, 12, 10), section(roof, 13));
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 2 && p.dy() == 18
+                && "minecraft:glass_pane".equals(p.targetBlock())));
+    }
+
     @Test void hostedGambrelUsesItsAuthoredFoldAndSealsTheSteepLowerSlope() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");

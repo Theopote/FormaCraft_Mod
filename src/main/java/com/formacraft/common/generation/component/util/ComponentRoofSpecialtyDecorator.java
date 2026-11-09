@@ -108,21 +108,51 @@ public final class ComponentRoofSpecialtyDecorator {
 
     /** Mansard 折坡：周边陡、内圈缓，返回 0..totalHeight-1 */
     public static int computeMansardRise(int x, int z, int width, int depth, int totalHeight) {
-        if (width < 2 || depth < 2 || totalHeight < 2) {
-            return 0;
+        return resolveMansardProfile(width, depth, totalHeight, null)
+                .riseAt(Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z)));
+    }
+
+    public record MansardProfile(int setback, int breakRise, int upperRun, int upperRise) {
+        public int riseAt(int distance) {
+            if (distance < setback) {
+                return (int) Math.round(distance / (double) setback * breakRise);
+            }
+            double t = Math.min(upperRun, distance - setback) / (double) upperRun;
+            return breakRise + (int) Math.round(t * upperRise);
         }
-        int lowerH = Math.max(2, (totalHeight * 3) / 5);
-        int upperH = Math.max(1, totalHeight - lowerH);
-        int setback = Math.max(1, Math.min(width, depth) / 5);
-        int dist = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
-        if (dist < setback) {
-            return (int) Math.round((dist / (double) setback) * (lowerH - 1));
+    }
+
+    public static MansardProfile resolveMansardProfile(int width, int depth, int height, Map<String, Object> params) {
+        int setback = mansardSetback(width, depth);
+        int center = Math.min(width - 1, depth - 1) / 2;
+        int lowerHeight = Math.max(2, (height * 3) / 5);
+        String runParam = getParam(params, "mansard_break_run");
+        String riseParam = getParam(params, "mansard_break_rise");
+        if (runParam == null && riseParam == null) {
+            if (width < 2 || depth < 2 || height < 2) return new MansardProfile(setback, 0, 1, 0);
+            return new MansardProfile(setback, lowerHeight - 1, Math.max(1, center - setback),
+                    Math.max(1, height - lowerHeight));
         }
-        int centerDist = Math.min(width - 1, depth - 1) / 2;
-        int innerMax = Math.max(1, centerDist - setback);
-        int innerDist = Math.min(innerMax, dist - setback);
-        double t = innerDist / (double) innerMax;
-        return (lowerH - 1) + (int) Math.round(t * upperH);
+        int run = runParam == null ? setback : mansardBreakValue(runParam, "mansard_break_run");
+        int rise = riseParam == null ? lowerHeight - 1 : mansardBreakValue(riseParam, "mansard_break_rise");
+        int maxRise = height - 1;
+        if (run < 1 || run >= center || rise < 1 || rise >= maxRise
+                || (long) rise * center <= (long) run * maxRise) {
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_break_run and mansard_break_rise "
+                    + "must put the fold inside the roof and keep the lower slope steeper than the upper slope");
+        }
+        return new MansardProfile(run, rise, center - run, maxRise - rise);
+    }
+
+    private static int mansardBreakValue(String raw, String key) {
+        String error = "E_ROOF_GEOMETRY_INVALID: " + key + " must be a whole number of blocks";
+        try {
+            double value = Double.parseDouble(raw);
+            if (value == Math.rint(value) && value >= 1 && value <= Integer.MAX_VALUE) return (int) value;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(error, e);
+        }
+        throw new IllegalArgumentException(error);
     }
 
     public static int mansardSetback(int width, int depth) {
@@ -168,17 +198,27 @@ public final class ComponentRoofSpecialtyDecorator {
             String glassBlock,
             String roofBlock
     ) {
+        emitDormers(out, roofPatches, baseX, baseY, baseZ, width, depth,
+                resolveMansardProfile(width, depth, height, null), trimBlock, glassBlock, roofBlock);
+    }
+
+    public static void emitDormers(
+            List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
+            int width, int depth, MansardProfile profile, String trimBlock, String glassBlock, String roofBlock
+    ) {
         if (out == null || width < 7) {
             return;
         }
-        int setback = mansardSetback(width, depth);
+        int setback = profile.setback();
         int faceZ = baseZ + setback;
         int protrude = 2;
         List<Integer> centers = dormerCenterXs(baseX, width);
         for (int cx : centers) {
             int surfaceY = findRoofSurfaceY(roofPatches, cx, faceZ);
             if (surfaceY == Integer.MIN_VALUE) {
-                surfaceY = baseY + computeMansardRise(cx - baseX, faceZ - baseZ, width, depth, height);
+                int localX = cx - baseX;
+                int distance = Math.min(Math.min(localX, width - 1 - localX), Math.min(setback, depth - 1 - setback));
+                surfaceY = baseY + profile.riseAt(distance);
             }
             emitSingleDormer(out, cx, surfaceY, faceZ, protrude, trimBlock, glassBlock, roofBlock);
         }

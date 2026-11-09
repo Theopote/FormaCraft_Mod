@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ComponentRoofSpecialtyDecoratorTest {
@@ -18,6 +20,16 @@ class ComponentRoofSpecialtyDecoratorTest {
         int center = ComponentRoofSpecialtyDecorator.computeMansardRise(6, 5, 13, 11, 6);
         assertTrue(edge < center);
         assertTrue(center >= 4);
+    }
+
+    @Test
+    void authoredMansardFoldRejectsDegenerateOrReversedSlopes() {
+        assertThrows(IllegalArgumentException.class,
+                () -> ComponentRoofSpecialtyDecorator.resolveMansardProfile(13, 17, 11,
+                        Map.of("mansard_break_run", 6, "mansard_break_rise", 7)));
+        assertThrows(IllegalArgumentException.class,
+                () -> ComponentRoofSpecialtyDecorator.resolveMansardProfile(13, 17, 11,
+                        Map.of("mansard_break_run", 3, "mansard_break_rise", 4)));
     }
 
     @Test

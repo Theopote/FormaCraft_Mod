@@ -71,7 +71,11 @@ public class RoofGenerator implements ComponentGenerator {
         }
         boolean alongDepthHint = saltboxLongSlope == null ? resolveGableAlongDepth(params, width, depth)
                 : saltboxLongSlope.getAxis() == Direction.Axis.X;
-        height = normalizeStairRoofRise(height, width, depth, roofType, params, alongDepthHint);
+        boolean authoredMansardFold = roofType == RoofTypeKind.MANSARD
+                && getParamString(params, "mansard_break_run", "mansard_break_rise") != null;
+        if (!authoredMansardFold) {
+            height = normalizeStairRoofRise(height, width, depth, roofType, params, alongDepthHint);
+        }
 
         int overhang = ComponentParamParsers.intParam(params, ComponentParamParsers.keysFor("overhang"));
         if ((roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.JUANPENG_XUANSHAN) && overhang <= 0) {
@@ -97,6 +101,8 @@ public class RoofGenerator implements ComponentGenerator {
             depth = Math.max(1, coreDepth + overhang * 2);
         }
 
+        var mansardProfile = roofType == RoofTypeKind.MANSARD
+                ? ComponentRoofSpecialtyDecorator.resolveMansardProfile(width, depth, height, params) : null;
         boolean profiledGable = roofType.isProfiledGable();
         boolean doubleEave = !profiledGable && isDoubleEave(params, c.features());
         if (doubleEave && (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.GABLE
@@ -132,7 +138,7 @@ public class RoofGenerator implements ComponentGenerator {
                 case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true,
                         footprint, appliedOverhang);
                 case MANSARD -> generateMansardRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
-                        footprint, appliedOverhang);
+                        footprint, appliedOverhang, mansardProfile);
                 default -> generateFlatRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
             }
@@ -150,8 +156,13 @@ public class RoofGenerator implements ComponentGenerator {
             String trim = getBlockForPart(semantic, palette, SemanticPart.WALL_ACCENT);
             String glass = "minecraft:glass_pane";
             String roofBlock = getBlockForPart(semantic, palette, SemanticPart.ROOF);
-            ComponentRoofSpecialtyDecorator.emitDormers(
-                    out, out, baseX, rp.y(), baseZ, width, depth, height, trim, glass, roofBlock);
+            if (mansardProfile == null) {
+                ComponentRoofSpecialtyDecorator.emitDormers(
+                        out, out, baseX, rp.y(), baseZ, width, depth, height, trim, glass, roofBlock);
+            } else {
+                ComponentRoofSpecialtyDecorator.emitDormers(
+                        out, roofShell, baseX, rp.y(), baseZ, width, depth, mansardProfile, trim, glass, roofBlock);
+            }
         }
 
         boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱", "重檐")
@@ -1142,28 +1153,19 @@ public class RoofGenerator implements ComponentGenerator {
 
     private void generateMansardRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                      int width, int depth, int height, Palette palette,
-                                     ComponentFootprintMask footprint, int overhang) {
-        generateMansardRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
-    }
-
-    private void generateMansardRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
-                                     int width, int depth, int height, Palette palette,
-                                     ComponentFootprintMask footprint, int overhang, int fpOffsetX, int fpOffsetZ) {
+                                     ComponentFootprintMask footprint, int overhang,
+                                     ComponentRoofSpecialtyDecorator.MansardProfile profile) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
-                    fpOffsetX, fpOffsetZ);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
             return;
         }
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang, fpOffsetX, fpOffsetZ)) {
-                    continue;
-                }
-                int rise = ComponentRoofSpecialtyDecorator.computeMansardRise(x, z, width, depth, height);
-                if (rise < 0) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
                     continue;
                 }
                 int dist = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
+                int rise = profile.riseAt(dist);
                 SemanticPart part = (dist <= 1) ? SemanticPart.ROOF : SemanticPart.ROOF_SURFACE;
                 String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
