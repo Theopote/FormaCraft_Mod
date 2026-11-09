@@ -59,7 +59,8 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofTypeKind roofType = resolveRoofType(c, semantic, params);
-        Direction saltboxLongSlope = roofType == RoofTypeKind.SALTBOX ? saltboxLongSlope(params) : null;
+        Direction saltboxLongSlope = roofType == RoofTypeKind.SALTBOX
+                ? roofCardinalDirection(params, "saltbox_long_slope") : null;
         double saltboxRidgeFraction = roofType == RoofTypeKind.SALTBOX ? saltboxRidgeFraction(params) : 1.0 / 3;
         // Prefer explicit roof_height / roof_pitch_degrees over span/3 technical default (cap 8).
         try {
@@ -393,7 +394,10 @@ public class RoofGenerator implements ComponentGenerator {
                                       int width, int depth, int height, Palette palette,
                                       ComponentFootprintMask footprint, int overhang) {
         var params = semantic.source().params();
-        boolean acrossX = "x".equalsIgnoreCase(getParamString(params, "sawtooth_axis"));
+        Direction glazingFacing = roofCardinalDirection(params, "sawtooth_glazing_facing");
+        boolean acrossX = glazingFacing == null ? "x".equalsIgnoreCase(getParamString(params, "sawtooth_axis"))
+                : glazingFacing.getAxis() == Direction.Axis.X;
+        boolean mirrored = glazingFacing == Direction.NORTH || glazingFacing == Direction.WEST;
         int span = acrossX ? width : depth;
         int count = ComponentParamParsers.intParam(params, 0, "sawtooth_count");
         int bay = Math.max(3, Math.min(span, ComponentParamParsers.intParam(params, 5,
@@ -408,6 +412,8 @@ public class RoofGenerator implements ComponentGenerator {
         for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++) {
             if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
             int axis = acrossX ? x : z;
+            // Glazing sits at each bay's low start, exposed toward the rising slope.
+            if (mirrored) axis = span - 1 - axis;
             int index = Math.min(count-1, axis * count / span);
             int start = (index * span + count - 1) / count;
             int end = ((index + 1) * span + count - 1) / count - 1;
@@ -518,8 +524,8 @@ public class RoofGenerator implements ComponentGenerator {
         }
     }
 
-    private static Direction saltboxLongSlope(Map<String, Object> params) {
-        String raw = getParamString(params, "saltbox_long_slope");
+    private static Direction roofCardinalDirection(Map<String, Object> params, String key) {
+        String raw = getParamString(params, key);
         if (raw == null) return null;
         return switch (raw.toLowerCase(java.util.Locale.ROOT)) {
             case "north" -> Direction.NORTH;
@@ -527,7 +533,7 @@ public class RoofGenerator implements ComponentGenerator {
             case "east" -> Direction.EAST;
             case "west" -> Direction.WEST;
             default -> throw new IllegalArgumentException(
-                    "E_ROOF_GEOMETRY_INVALID: saltbox_long_slope must be north, south, east or west");
+                    "E_ROOF_GEOMETRY_INVALID: " + key + " must be north, south, east or west");
         };
     }
 

@@ -14,6 +14,8 @@
 
 ## 落地时的取舍
 
+工业锯齿顶（`sawtooth`）可用 `sawtooth_glazing_facing` 指定高侧窗朝向（`north`、`south`、`east`、`west`），朝向同时决定重复轴。用 `sawtooth_count` 指定齿数，跨度均匀分配给各齿，每齿至少占两格。省略朝向时沿用 `sawtooth_axis`。
+
 蝶形顶（`butterfly`）沿 `ridge_axis` 布置低谷。两侧屋面向中央下降，谷底用整块连续铺设。高檐与端墙沿宿主足迹边界收口，内部保留净空。首版表达天沟几何。
 
 盐盒顶可用 `saltbox_long_slope` 指定长坡面向 `north`、`south`、`east` 或 `west`，屋脊取垂直于该方向的轴线。用 `saltbox_ridge_fraction` 从短坡檐口量取脊线位置，取值大于 0 且小于 0.5，默认 1/3。按格取整时只要跨度允许就保留长短坡差异。
