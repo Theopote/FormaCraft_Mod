@@ -34,6 +34,7 @@ final class TriumphalArchPassageRepair {
             return plan;
         }
         Map<String, Component> hosts = new HashMap<>();
+        boolean namedArchHost = false;
         for (Component c : plan.components()) {
             if (c == null || c.params() == null) continue;
             Object id = c.params().get("component_id");
@@ -41,13 +42,21 @@ final class TriumphalArchPassageRepair {
             if (MassComponentKinds.isHostMass(c) || "GATE".equalsIgnoreCase(c.componentType())
                     || "STRUCTURE".equalsIgnoreCase(c.componentType())) {
                 hosts.put(String.valueOf(id), c);
+                if (isArchHost(c)) {
+                    namedArchHost = true;
+                }
             }
         }
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
             Component next = c;
-            if (isArchHost(c)) {
+            // Named arch/gate hosts always become passage shells; otherwise fall back to every
+            // host mass so a plain MASS_MAIN + thin ENTRANCE still punches through.
+            boolean markHost = isArchHost(c)
+                    || (!namedArchHost && hosts.containsKey(String.valueOf(
+                    c.params() == null ? "" : c.params().get("component_id"))));
+            if (markHost) {
                 next = markPassageHost(c);
             } else if ("ENTRANCE".equalsIgnoreCase(c.componentType())) {
                 next = expandEntranceThroughHost(c, hosts);
@@ -181,7 +190,9 @@ final class TriumphalArchPassageRepair {
         }
         Map<String, Object> params = new HashMap<>(entrance.params());
         params.put("facing", facing);
-        params.put("host_id", String.valueOf(host.params().get("component_id")));
+        if (host.params() != null) {
+            params.put("host_id", String.valueOf(host.params().get("component_id")));
+        }
         params.put("replace_wall_region", true);
         params.putIfAbsent("door_width", span);
         params.putIfAbsent("door_height", rise);
@@ -218,6 +229,13 @@ final class TriumphalArchPassageRepair {
         if (plan.distinguishingFeatures() != null) {
             for (String f : plan.distinguishingFeatures()) {
                 if (f != null) sb.append(f).append(' ');
+            }
+        }
+        if (plan.planMeta() != null) {
+            Object intent = plan.planMeta().get("request_intent");
+            if (intent instanceof Map<?, ?> map) {
+                Object text = map.get("original_text");
+                if (text != null) sb.append(text).append(' ');
             }
         }
         if (plan.components() != null) {

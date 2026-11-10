@@ -233,6 +233,11 @@ final class PavilionOpenFrameRepair {
         if (looksEnclosedTempleCella(mass, id)) {
             return mass;
         }
+        // Glass greenhouses keep glazed walls — never open-frame / post-height clamp even on octagon.
+        // FootprintShapeRemapRepair already owns native polygon shape remapping.
+        if (looksGreenhouse(mass, id)) {
+            return mass;
+        }
         // Hanging gardens / ziggurats / stepped terrace monuments are not 凉亭 — a plan cue like
         // "summit shrine pavilion" must not crush a 35-high body to MAX_POST_HEIGHT.
         if (looksMonumentalSteppedMass(mass, id)) {
@@ -948,6 +953,38 @@ final class PavilionOpenFrameRepair {
                 if (lower.contains("hanging-garden") || lower.contains("hanging garden")
                         || lower.contains("stepped terrace") || lower.contains("ziggurat")
                         || lower.contains("空中花园")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Glazed greenhouse / orangerie — keep walls and authored height (not a 凉亭 open frame). */
+    private static boolean looksGreenhouse(Component mass, String idLower) {
+        if (idLower != null && (idLower.contains("greenhouse") || idLower.contains("glasshouse")
+                || idLower.contains("orangerie") || idLower.contains("conservatory")
+                || idLower.contains("温室") || idLower.contains("玻璃房") || idLower.contains("花房"))) {
+            return true;
+        }
+        if (mass != null && mass.features() != null) {
+            for (String f : mass.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("greenhouse") || lower.contains("glasshouse")
+                        || lower.contains("orangerie") || lower.contains("conservatory")
+                        || lower.contains("温室") || lower.contains("玻璃房") || lower.contains("花房")) {
+                    return true;
+                }
+            }
+        }
+        if (mass != null && mass.params() != null) {
+            Object role = mass.params().get("building_role");
+            if (role == null) role = mass.params().get("buildingRole");
+            if (role != null) {
+                String r = String.valueOf(role).toLowerCase(Locale.ROOT);
+                if (r.contains("greenhouse") || r.contains("温室") || r.contains("orangerie")
+                        || r.contains("conservatory")) {
                     return true;
                 }
             }

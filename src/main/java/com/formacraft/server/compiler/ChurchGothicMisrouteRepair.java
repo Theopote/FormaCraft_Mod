@@ -17,9 +17,10 @@ import java.util.Map;
 final class ChurchGothicMisrouteRepair {
     private ChurchGothicMisrouteRepair() {}
 
+    // Style-only cues — never treat generic nave/aisle vocabulary as Gothic style intent.
     private static final List<String> GOTHIC_CUES = List.of(
             "gothic", "哥特", "pointed arch", "尖拱", "flying buttress", "飞扶壁",
-            "rose window", "玫瑰花窗", "tracery", "花窗棂", "nave", "中殿", "aisle", "侧廊");
+            "rose window", "玫瑰花窗", "tracery", "花窗棂");
 
     private static final List<String> NON_GOTHIC_STYLE_CUES = List.of(
             "brutalist", "野兽派", "brutalism",
@@ -148,6 +149,13 @@ final class ChurchGothicMisrouteRepair {
         if (plan.distinguishingFeatures() != null) {
             for (String f : plan.distinguishingFeatures()) {
                 if (f != null) sb.append(f).append(' ');
+            }
+        }
+        if (plan.planMeta() != null) {
+            Object intent = plan.planMeta().get("request_intent");
+            if (intent instanceof Map<?, ?> map) {
+                Object text = map.get("original_text");
+                if (text != null) sb.append(text).append(' ');
             }
         }
         if (plan.components() != null) {
