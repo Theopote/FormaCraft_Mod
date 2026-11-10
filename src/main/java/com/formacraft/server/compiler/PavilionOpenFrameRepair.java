@@ -273,30 +273,34 @@ final class PavilionOpenFrameRepair {
 
         Map<String, Object> params = new HashMap<>(mass.params());
         boolean changed = false;
-        params.put("open", true);
-        params.put("wall_type", "none");
-        params.put("wall_style", "none");
-        params.put("suppress_windows", true);
-        params.put("window_style", "none");
-        params.put("suppress_doors", true);
-        params.put("open_sides", List.of("N", "E", "S", "W"));
-        params.put("hollow", true);
-        // Open-frame already skips embedded roofs (MassMainGenerator: hasRoof && !openRoof).
-        // Missing roof → soft pyramid default. Verified / hard roof_type=none stays none.
-        String existingRoof = params.get("roof_type") == null ? null
-                : String.valueOf(params.get("roof_type")).trim();
-        if (existingRoof == null || existingRoof.isBlank()) {
-            String preferred = preferredPavilionRoofType(mass, hexagon);
-            params.put("roof_type", preferred);
-            params.put("preferred_roof_type", preferred);
-            params.remove("compiler_suppressed_roof");
-        } else if ("none".equalsIgnoreCase(existingRoof) && !isHardRoofNone(params, mass)) {
-            String preferred = preferredPavilionRoofType(mass, hexagon);
-            params.put("roof_type", preferred);
-            params.put("preferred_roof_type", preferred);
-            params.remove("compiler_suppressed_roof");
+        // Open-frame is for 亭/gazebo stilts only — never force open walls on a glass greenhouse.
+        boolean applyOpenFrame = pavilionNamed || onStilts;
+        if (applyOpenFrame) {
+            params.put("open", true);
+            params.put("wall_type", "none");
+            params.put("wall_style", "none");
+            params.put("suppress_windows", true);
+            params.put("window_style", "none");
+            params.put("suppress_doors", true);
+            params.put("open_sides", List.of("N", "E", "S", "W"));
+            params.put("hollow", true);
+            // Open-frame already skips embedded roofs (MassMainGenerator: hasRoof && !openRoof).
+            // Missing roof → soft pyramid default. Verified / hard roof_type=none stays none.
+            String existingRoof = params.get("roof_type") == null ? null
+                    : String.valueOf(params.get("roof_type")).trim();
+            if (existingRoof == null || existingRoof.isBlank()) {
+                String preferred = preferredPavilionRoofType(mass, hexagon);
+                params.put("roof_type", preferred);
+                params.put("preferred_roof_type", preferred);
+                params.remove("compiler_suppressed_roof");
+            } else if ("none".equalsIgnoreCase(existingRoof) && !isHardRoofNone(params, mass)) {
+                String preferred = preferredPavilionRoofType(mass, hexagon);
+                params.put("roof_type", preferred);
+                params.put("preferred_roof_type", preferred);
+                params.remove("compiler_suppressed_roof");
+            }
+            changed = true;
         }
-        changed = true;
         if (hexagon) {
             params.put("shape", "hexagon");
             params.put("sides", 6);
@@ -307,31 +311,19 @@ final class PavilionOpenFrameRepair {
             }
             changed = true;
         } else if (octagon) {
-            for (String key : com.formacraft.common.generation.component.util.FootprintShapeCatalog.SHAPE_KEYS) {
-                Object cur = params.get(key);
-                if (cur == null && !"shape".equals(key)) continue;
-                String s = cur == null ? "" : String.valueOf(cur).trim().toLowerCase(Locale.ROOT);
-                if (!com.formacraft.common.generation.component.util.FootprintShapeCatalog.RECTANGLE_TOKENS.contains(s)) {
-                    params.put(key, "rectangle");
-                    changed = true;
-                }
-            }
-            if (!params.containsKey("shape")) {
-                params.put("shape", "rectangle");
-                changed = true;
-            }
-            params.put("plan_type", "octagon");
-            int span = Math.min(mass.dimensions().width(), mass.dimensions().depth());
-            int cut = Math.max(3, Math.min(span / 2 - 1, (span * 2) / 5));
-            params.put("corner_cut", cut);
+            // Native regular octagon — do not fake it with rectangular cut-corners.
+            params.put("shape", "octagon");
             params.put("sides", 8);
+            params.put("plan_type", "none");
+            params.remove("corner_cut");
+            params.remove("cornerCut");
             changed = true;
         }
 
         Dimensions dims = mass.dimensions();
         int height = dims.height();
         boolean hardHeight = isHardPostHeight(params);
-        if (pavilionNamed || onStilts || OpenFramePolicy.isOpen(params)) {
+        if (applyOpenFrame || OpenFramePolicy.isOpen(params)) {
             // 3–5 is a soft recommendation — never clamp USER_EXPLICIT / sealed heights.
             if (height > MAX_POST_HEIGHT && !hardHeight) {
                 height = MAX_POST_HEIGHT;

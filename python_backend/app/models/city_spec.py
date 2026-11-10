@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 from .building_spec import BuildingSpec
 from .path_spec import PathSpec
@@ -30,13 +30,12 @@ class StructurePlan(BaseModel):
 
 class BridgePlan(BaseModel):
     """桥梁规划"""
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
+
     id: str  # 唯一标识符，如 "bridge_1", "main_bridge"
     from_pos: Point = Field(alias="from")  # 使用 from_pos 避免 Python 关键字冲突
     to_pos: Point = Field(alias="to")
     bridgeType: str  # flat / arched / suspension
-
-    class Config:
-        populate_by_name = True
 
 
 class CitySpec(BaseModel):

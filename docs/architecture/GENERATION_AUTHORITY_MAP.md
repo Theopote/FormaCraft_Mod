@@ -53,7 +53,7 @@ flowchart TD
 
 | Source | What it decides | Should be |
 |--------|-----------------|-----------|
-| [PromptAssembler.java](../../src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java) | Assembly vs landmark prompt blocks | Hints only (hard ASSEMBLY rule behind `formacraft.prompt.assemblyHardMandate`) |
+| [prompt_assembly.py](../../python_backend/app/services/prompt_assembly.py) | `resolve_llm_plan_prompts` assembles the system and user prompts from structured request fields | Python owns prompt assembly for LlmPlan |
 | [build.py](../../python_backend/app/routes/build.py) | llmplan vs buildingspec | Primary discriminator (`outputFormat`) |
 | [BuildingSpecRoutingPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/BuildingSpecRoutingPolicy.java) | Client-side skip LlmPlan | Adapter-only scenarios |
 | [GeneratorRouter.java](../../src/main/java/com/formacraft/server/generation/structure/router/GeneratorRouter.java) | Structure generator | `routeDecision()` — catalog / explicit routes only; never silent house/tower |

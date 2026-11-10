@@ -32,7 +32,9 @@ public record ResolvedFootprint(
         CIRCLE,
         ROUNDED_RECT,
         /** Flat-top hexagon inscribed in the AABB (six major façades). */
-        HEXAGON
+        HEXAGON,
+        /** Regular octagon inscribed in the AABB (eight major façades). */
+        OCTAGON
     }
 
     public enum PlanPattern {
@@ -118,6 +120,9 @@ public record ResolvedFootprint(
         if (shape == FootprintShape.HEXAGON) {
             return isInsideHexagon(x, z, width, depth, 0);
         }
+        if (shape == FootprintShape.OCTAGON) {
+            return isInsideRegularOctagon(x, z, width, depth, 0);
+        }
         int r = Math.max(0, Math.min(cornerRadius, Math.min(width, depth) / 2));
         if (r == 0) {
             return true;
@@ -143,6 +148,26 @@ public record ResolvedFootprint(
      */
     public static boolean isInsideHexagon(int x, int z, int width, int depth, int inset) {
         return hexagonFillFactor(x, z, width, depth, inset) <= 1.0;
+    }
+
+    /**
+     * Regular octagon inscribed in the AABB: {@code max(|x|,|z|) ≤ 1} and {@code |x|+|z| ≤ √2}
+     * in normalized space (equal flat and diagonal sides on a square pad).
+     */
+    public static boolean isInsideRegularOctagon(int x, int z, int width, int depth, int inset) {
+        return octagonFillFactor(x, z, width, depth, inset) <= 1.0;
+    }
+
+    /** Regular-octagon radial fill: 0 at center, 1 on the boundary, &gt;1 outside. */
+    public static double octagonFillFactor(int x, int z, int width, int depth, int inset) {
+        double cx = (width - 1) / 2.0;
+        double cz = (depth - 1) / 2.0;
+        double rx = Math.max(0.5, width / 2.0 - Math.max(0, inset));
+        double rz = Math.max(0.5, depth / 2.0 - Math.max(0, inset));
+        double ax = Math.abs(x - cx) / rx;
+        double az = Math.abs(z - cz) / rz;
+        // Boundary is the outer envelope of the axis box and the diagonal cut |x|+|z|=√2.
+        return Math.max(Math.max(ax, az), (ax + az) / Math.sqrt(2.0));
     }
 
     /**

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 SemanticZoneType = Literal[
@@ -42,13 +42,12 @@ class SemanticZone(BaseModel):
 
 
 class SemanticRelation(BaseModel):
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
+
     from_zone: str = Field(alias="from")
     to_zone: str = Field(alias="to")
     relation: RelationType
     notes: str = ""
-
-    class Config:
-        populate_by_name = True
 
 
 class CirculationPlan(BaseModel):

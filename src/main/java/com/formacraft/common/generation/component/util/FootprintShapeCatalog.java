@@ -27,12 +27,9 @@ public final class FootprintShapeCatalog {
             "rounded_rect", "rounded", "roundrect", "round_rect"
     );
 
-    /**
-     * Octagon is authored as a rectangular AABB + {@code plan_type=octagon} cut-corners.
-     * Accept the shape token so validators do not reject LLM plans that say shape=octagon.
-     */
+    /** Native regular octagon inscribed in the AABB (eight major façades). */
     public static final Set<String> OCTAGON_TOKENS = Set.of(
-            "octagon", "octagonal", "regular_octagon", "8gon"
+            "octagon", "octagonal", "regular_octagon", "8gon", "八角", "八角形"
     );
 
     /** Native hexagon footprint (six major façades) — not remapped to octagon. */
@@ -96,7 +93,9 @@ public final class FootprintShapeCatalog {
         if (HEXAGON_TOKENS.contains(v)) {
             return Optional.of(ResolvedFootprint.FootprintShape.HEXAGON);
         }
-        // Octagon footprint is cut from a rectangle AABB (see PavilionOpenFrameRepair / plan_type).
+        if (OCTAGON_TOKENS.contains(v)) {
+            return Optional.of(ResolvedFootprint.FootprintShape.OCTAGON);
+        }
         return Optional.of(ResolvedFootprint.FootprintShape.RECTANGLE);
     }
 }

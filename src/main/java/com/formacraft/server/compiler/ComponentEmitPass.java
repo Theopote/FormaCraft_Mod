@@ -941,19 +941,41 @@ final class ComponentEmitPass {
         if (body == null || !java.util.Objects.equals(body.slotId(), roof.slotId())) return;
         int before = patches.size();
         var foreignBodies = roofOccluders(roof, components, slotMap);
+        final int[] byForeign = {0};
+        final int[] byOccupancy = {0};
+        final String[] sampleOcc = {null};
+        final String[] sampleForeign = {null};
         patches.removeIf(p -> {
             for (var other : foreignBodies) {
                 var b = other.bounds();
                 int x=p.dx()-offset.getX(), y=p.dy()-offset.getY(), z=p.dz()-offset.getZ();
                 if (b != null && x>=b.minX() && x<b.maxX() && y>=b.minY() && y<b.maxY()
-                        && z>=b.minZ() && z<b.maxZ() && other.footprint().contains(x-b.minX(),z-b.minZ())) return true;
+                        && z>=b.minZ() && z<b.maxZ() && other.footprint().contains(x-b.minX(),z-b.minZ())) {
+                    byForeign[0]++;
+                    if (sampleForeign[0] == null) sampleForeign[0] = "bounds=" + b + " at=" + x + "," + y + "," + z;
+                    return true;
+                }
             }
             var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
             if (existing == null || existing.owner() == null) return false;
             // Root mass (tier_1) owns cells that a child-hosted roof (tier_5) must reseal —
             // do not treat the parent/ancestor host tree as a foreign occluder.
-            return !roofHostOwnedByOccupancy(host, existing.owner(), components);
+            if (!roofHostOwnedByOccupancy(host, existing.owner(), components)) {
+                byOccupancy[0]++;
+                if (sampleOcc[0] == null) {
+                    sampleOcc[0] = "owner=" + ComponentPlanTypes.paramIdentity(existing.owner())
+                            + " host=" + ComponentPlanTypes.getParamString(existing.owner().params(), "host_id")
+                            + " bid=" + ComponentPlanTypes.getParamString(existing.owner().params(), "building_id")
+                            + " type=" + existing.owner().componentType();
+                }
+                return true;
+            }
+            return false;
         });
+        if ("roof_garden".equals(ComponentPlanTypes.paramIdentity(roof))) {
+            FormacraftMod.LOGGER.warn("TEMP roof trim host={} before={} after={} foreign={} occ={} sampleForeign={} sampleOcc={} occluders={}",
+                    host, before, patches.size(), byForeign[0], byOccupancy[0], sampleForeign[0], sampleOcc[0], foreignBodies.size());
+        }
         if (before != patches.size()) AssemblyCompileDiagnostics.addSoftWarning("ROOF_OVERHANG_TRIMMED",
                 "屋檐已避让相邻建筑，跳过 " + (before - patches.size()) + " 条操作", roof.componentType(), ComponentPlanTypes.paramIdentity(roof));
     }

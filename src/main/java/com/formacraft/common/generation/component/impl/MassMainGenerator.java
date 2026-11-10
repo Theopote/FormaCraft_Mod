@@ -32,7 +32,8 @@ public class MassMainGenerator implements ComponentGenerator {
         RECTANGLE,
         CIRCLE,
         ROUNDED_RECT,
-        HEXAGON
+        HEXAGON,
+        OCTAGON
     }
 
     private enum PlanPattern {
@@ -1193,6 +1194,7 @@ public class MassMainGenerator implements ComponentGenerator {
             case CIRCLE -> FootprintShape.CIRCLE;
             case ROUNDED_RECT -> FootprintShape.ROUNDED_RECT;
             case HEXAGON -> FootprintShape.HEXAGON;
+            case OCTAGON -> FootprintShape.OCTAGON;
             default -> FootprintShape.RECTANGLE;
         };
     }
@@ -1472,6 +1474,10 @@ public class MassMainGenerator implements ComponentGenerator {
             return com.formacraft.common.generation.component.util.ResolvedFootprint
                     .isInsideHexagon(x, z, width, depth, 0);
         }
+        if (shape == FootprintShape.OCTAGON) {
+            return com.formacraft.common.generation.component.util.ResolvedFootprint
+                    .isInsideRegularOctagon(x, z, width, depth, 0);
+        }
         int r = Math.max(0, Math.min(cornerRadius, Math.min(width, depth) / 2));
         if (r == 0) {
             return true;
@@ -1536,6 +1542,8 @@ public class MassMainGenerator implements ComponentGenerator {
             }
             case HEXAGON -> com.formacraft.common.generation.component.util.ResolvedFootprint
                     .isInsideHexagon(x, z, width, depth, wallThickness);
+            case OCTAGON -> com.formacraft.common.generation.component.util.ResolvedFootprint
+                    .isInsideRegularOctagon(x, z, width, depth, wallThickness);
             case ROUNDED_RECT -> {
                 int r = Math.max(0, footprint.cornerRadius() - wallThickness);
                 int iw = width - wallThickness * 2;
@@ -1584,6 +1592,10 @@ public class MassMainGenerator implements ComponentGenerator {
         if (shape == FootprintShape.HEXAGON) {
             return com.formacraft.common.generation.component.util.ResolvedFootprint
                     .isInsideHexagon(x, z, width, depth, wallThickness);
+        }
+        if (shape == FootprintShape.OCTAGON) {
+            return com.formacraft.common.generation.component.util.ResolvedFootprint
+                    .isInsideRegularOctagon(x, z, width, depth, wallThickness);
         }
         int innerWidth = width - wallThickness * 2;
         int innerDepth = depth - wallThickness * 2;

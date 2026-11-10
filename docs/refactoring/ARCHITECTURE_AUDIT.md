@@ -18,7 +18,7 @@
 ## 未决项（优先）
 
 - ThreadLocal 全面改为显式参数传参；世界只读快照后，计划编译可完全离开主线程
-- `ai_planner.py` 继续按阶段拆分；删除已停用的 `_generate_*` 地标模板函数体
+- `ai_planner.py` 继续按阶段拆分
 - Panel 超 400 行拆分（Settings / Chat / ComponentCapture）
 - 双 JSON 库收敛（新代码优先 `common.json.JsonUtil` / Gson）；服务端硬编码中文文案迁语言文件（建造门控文案已走 lang）
 - Memory 落盘与世界修改原子性；Undo 双轨统一（见 WORLD_MUTATION_CONTRACT）
@@ -29,7 +29,7 @@
 - 后端默认 `127.0.0.1` + `FORMACRAFT_ORCHESTRATOR_SECRET` / `X-FormaCraft-Secret`
 - `/models` 走 `url_safety`；日志打码 `searchApiKey`；健康检查缓存
 - 聊天建造权限 / 限流 / 并发；`GenerationCompileContext` + `PlanCompileWorkers`
-- 提示词所有权迁后端；Python 地标 BuildingSpec 模板调度已停用
+- 提示词组装迁至 Python 后端，已删除 Java `PromptAssembler` 和旧地标 BuildingSpec 模板生成函数
 - 能力矩阵见 [GENERATION_CAPABILITY_MATRIX.md](GENERATION_CAPABILITY_MATRIX.md)；边界见 [PYTHON_JAVA_PLANNING_BOUNDARY.md](../PYTHON_JAVA_PLANNING_BOUNDARY.md)
 
 ## 原则

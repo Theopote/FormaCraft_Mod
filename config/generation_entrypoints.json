@@ -48,11 +48,6 @@
       "role": "component route chain"
     },
     {
-      "id": "prompt_assembler",
-      "class": "com.formacraft.client.ai.prompt.PromptAssembler",
-      "role": "Java-side prompt / routing hints"
-    },
-    {
       "id": "orchestrator_client",
       "class": "com.formacraft.server.orchestrator.OrchestratorClient",
       "role": "Python /build client"
@@ -75,6 +70,12 @@
       "module": "app.services.ai_planner",
       "symbol": "generate_llm_plan",
       "role": "primary BUILD planner"
+    },
+    {
+      "id": "prompt_assembler",
+      "module": "app.services.prompt_assembly",
+      "symbol": "resolve_llm_plan_prompts",
+      "role": "backend LlmPlan prompt assembly"
     },
     {
       "id": "generate_building_spec",
