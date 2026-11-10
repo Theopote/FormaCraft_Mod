@@ -271,16 +271,6 @@ final class ComponentEmitPass {
                     }
                     int attachmentPatchCount = shiftedPatches.size();
                     if ("ENTRANCE".equals(normalizedType)) {
-                        if ("terrace_door_5".equals(ComponentPlanTypes.paramIdentity(c))) {
-                            for (var p : shiftedPatches) {
-                                if (p != null && p.dy() == 24 && p.dz() == 6 && (p.dx() == -1 || p.dx() == 0)) {
-                                    var pos = new BlockPos(p.dx(), p.dy(), p.dz());
-                                    FormacraftMod.LOGGER.warn("TEMP entrance filter {} prot={} surface={}",
-                                            pos, surfaceLedger.isProtectedFromEntrance(c, pos),
-                                            surfaceLedger.debugSurface(pos));
-                                }
-                            }
-                        }
                         shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromEntrance(c, new BlockPos(p.dx(), p.dy(), p.dz())));
                     }
                     if ("FACADE_WINDOWS".equals(normalizedType)) {
@@ -464,32 +454,6 @@ final class ComponentEmitPass {
                     }
 
                     // Commit boundary: patches + ledgers + protected sets together.
-                    // TEMP diag: who REMOVEs flat-roof plane cells for oct20_access_1.
-                    for (var p : shiftedPatches) {
-                        if (p != null && BlockPatch.REMOVE.equals(p.action())
-                                && p.dy() == 24 && (p.dz() == 6)
-                                && (p.dx() == -1 || p.dx() == 0)) {
-                            FormacraftMod.LOGGER.warn("TEMP roof-plane REMOVE by {} id={} patch={}",
-                                    normalizedType, ComponentPlanTypes.paramIdentity(c), p);
-                        }
-                    }
-                    if ("ROOF".equals(normalizedType) && "roof_garden".equals(ComponentPlanTypes.paramIdentity(c))) {
-                        FormacraftMod.LOGGER.warn("TEMP roof_garden emit pos={} dims={} patches={} y24count={}",
-                                c.relativePosition(), c.dimensions(), shiftedPatches.size(),
-                                shiftedPatches.stream().filter(p -> p != null && p.dy() == 24).count());
-                        for (int x : new int[]{-1, 0}) {
-                            var pos = new BlockPos(x, 24, 6);
-                            boolean inPatches = shiftedPatches.stream().anyMatch(p -> p != null
-                                    && p.dx() == x && p.dy() == 24 && p.dz() == 6);
-                            boolean inSurf = surfaceCells.stream().anyMatch(cell ->
-                                    cell.position().getX() == x && cell.position().getY() == 24
-                                            && cell.position().getZ() == 6);
-                            FormacraftMod.LOGGER.warn("TEMP roof_garden cell {} inPatches={} inSurf={} patch={}",
-                                    pos, inPatches, inSurf,
-                                    shiftedPatches.stream().filter(p -> p != null && p.dx()==x && p.dy()==24 && p.dz()==6)
-                                            .findFirst().orElse(null));
-                        }
-                    }
                     result.addAll(shiftedPatches);
                     if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)) {
                         // An authorized connector opening supersedes the window cells
@@ -922,11 +886,20 @@ final class ComponentEmitPass {
     static List<RoofOccluder> roofOccluders(Component roof, List<Component> components, Map<String, Slot> slotMap) {
         String host = ComponentPlanTypes.getParamString(roof.params(), "host_id");
         if (host == null) return List.of();
-        return components.stream().filter(c ->
-                com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(c)
-                        && !host.equals(ComponentPlanTypes.getParamString(c.params(), "component_id"))
-                        && (!host.equals(ComponentPlanTypes.getParamString(c.params(), "host_id"))
-                            || "TOWER".equalsIgnoreCase(c.componentType())))
+        // Parent/sibling stacked masses share the roof host's building tree; their envelope
+        // AABB (often inflated by total_height) must not erase a child-hosted flat roof.
+        // Same-host TOWER volumes still occlude so turrets can punch the deck.
+        return components.stream().filter(c -> {
+                    if (!com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(c)) {
+                        return false;
+                    }
+                    boolean tower = "TOWER".equalsIgnoreCase(c.componentType());
+                    if (roofHostOwnedByOccupancy(host, c, components) && !tower) {
+                        return false;
+                    }
+                    String attachedTo = ComponentPlanTypes.getParamString(c.params(), "host_id");
+                    return !host.equals(attachedTo) || tower;
+                })
                 .map(c -> ComponentPlanCompiler.inSlotFrame(c, roof.slotId(), slotMap))
                 .map(c -> new RoofOccluder(ComponentFootprintUtil.bounds(c),
                         com.formacraft.common.generation.component.util.ResolvedBuildingGeometry.resolve(c).footprint())).toList();
@@ -941,57 +914,55 @@ final class ComponentEmitPass {
         if (body == null || !java.util.Objects.equals(body.slotId(), roof.slotId())) return;
         int before = patches.size();
         var foreignBodies = roofOccluders(roof, components, slotMap);
-        final int[] byForeign = {0};
-        final int[] byOccupancy = {0};
-        final String[] sampleOcc = {null};
-        final String[] sampleForeign = {null};
         patches.removeIf(p -> {
             for (var other : foreignBodies) {
                 var b = other.bounds();
                 int x=p.dx()-offset.getX(), y=p.dy()-offset.getY(), z=p.dz()-offset.getZ();
                 if (b != null && x>=b.minX() && x<b.maxX() && y>=b.minY() && y<b.maxY()
-                        && z>=b.minZ() && z<b.maxZ() && other.footprint().contains(x-b.minX(),z-b.minZ())) {
-                    byForeign[0]++;
-                    if (sampleForeign[0] == null) sampleForeign[0] = "bounds=" + b + " at=" + x + "," + y + "," + z;
-                    return true;
-                }
+                        && z>=b.minZ() && z<b.maxZ() && other.footprint().contains(x-b.minX(),z-b.minZ())) return true;
             }
             var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
             if (existing == null || existing.owner() == null) return false;
-            // Root mass (tier_1) owns cells that a child-hosted roof (tier_5) must reseal —
-            // do not treat the parent/ancestor host tree as a foreign occluder.
-            if (!roofHostOwnedByOccupancy(host, existing.owner(), components)) {
-                byOccupancy[0]++;
-                if (sampleOcc[0] == null) {
-                    sampleOcc[0] = "owner=" + ComponentPlanTypes.paramIdentity(existing.owner())
-                            + " host=" + ComponentPlanTypes.getParamString(existing.owner().params(), "host_id")
-                            + " bid=" + ComponentPlanTypes.getParamString(existing.owner().params(), "building_id")
-                            + " type=" + existing.owner().componentType();
-                }
-                return true;
-            }
-            return false;
+            // Root mass owns cells that a child-hosted roof must reseal — not a foreign occluder.
+            return !roofHostOwnedByOccupancy(host, existing.owner(), components);
         });
-        if ("roof_garden".equals(ComponentPlanTypes.paramIdentity(roof))) {
-            FormacraftMod.LOGGER.warn("TEMP roof trim host={} before={} after={} foreign={} occ={} sampleForeign={} sampleOcc={} occluders={}",
-                    host, before, patches.size(), byForeign[0], byOccupancy[0], sampleForeign[0], sampleOcc[0], foreignBodies.size());
-        }
         if (before != patches.size()) AssemblyCompileDiagnostics.addSoftWarning("ROOF_OVERHANG_TRIMMED",
                 "屋檐已避让相邻建筑，跳过 " + (before - patches.size()) + " 条操作", roof.componentType(), ComponentPlanTypes.paramIdentity(roof));
     }
 
-    /** True when occupancy owner is the roof host, its parent host, or a mass nesting that host. */
+    /** True when occupancy/occluder owner is the roof host, an ancestor, same building, or nests that host. */
     private static boolean roofHostOwnedByOccupancy(String roofHostId, Component owner, List<Component> components) {
         if (roofHostId == null || owner == null || owner.params() == null) return false;
         String ownerId = ComponentPlanTypes.getParamString(owner.params(), "component_id");
         String ownerHost = ComponentPlanTypes.getParamString(owner.params(), "host_id");
+        String ownerBuilding = ComponentPlanTypes.getParamString(owner.params(), "building_id");
         if (roofHostId.equals(ownerId) || roofHostId.equals(ownerHost)) return true;
+        Component roofHost = null;
         for (Component c : components) {
             if (c == null || c.params() == null) continue;
             if (!roofHostId.equals(ComponentPlanTypes.getParamString(c.params(), "component_id"))) continue;
-            String parent = ComponentPlanTypes.getParamString(c.params(), "host_id");
-            if (ownerId != null && ownerId.equals(parent)) return true;
+            roofHost = c;
             break;
+        }
+        if (roofHost != null) {
+            String parent = ComponentPlanTypes.getParamString(roofHost.params(), "host_id");
+            String building = ComponentPlanTypes.getParamString(roofHost.params(), "building_id");
+            if (ownerId != null && ownerId.equals(parent)) return true;
+            if (building != null && building.equals(ownerBuilding)) return true;
+            if (building != null && building.equals(ownerId)) return true;
+            // Walk host_id ancestors so multi-hop stacks still own the child roof.
+            String walk = parent;
+            for (int i = 0; i < components.size() && walk != null; i++) {
+                if (walk.equals(ownerId)) return true;
+                String next = null;
+                for (Component c : components) {
+                    if (c == null || c.params() == null) continue;
+                    if (!walk.equals(ComponentPlanTypes.getParamString(c.params(), "component_id"))) continue;
+                    next = ComponentPlanTypes.getParamString(c.params(), "host_id");
+                    break;
+                }
+                walk = next;
+            }
         }
         for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(owner)) {
             if (roofHostId.equals(part.partId())) return true;

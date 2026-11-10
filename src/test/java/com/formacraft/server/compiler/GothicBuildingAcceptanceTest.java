@@ -300,7 +300,9 @@ class GothicBuildingAcceptanceTest {
                     "includeButtresses",false),BlockPos.ORIGIN,null,null);
             var states=new HashMap<BlockPos,BlockState>();
             for(var b:result.getBlocks()) states.put(b.getPos(),b.getTargetState());
-            int left=4,right=30,z=39,base=28;
+            // Corner-parked twin towers: aisleBudget=naveX0=5 → tw=5, left cx=2, right cx=32.
+            // Front façade z=d-1=44, towerDepth≈5 → cz≈42.
+            int left=2,right=32,z=42,base=28;
             for(int y=base;y<=base+spire;y++) {
                 assertEquals(!arrangement.equals("none"),!states.get(new BlockPos(left,y,z)).isAir(),"left spire reaches requested height continuously");
                 assertEquals(arrangement.equals("twin"),!states.get(new BlockPos(right,y,z)).isAir(),"right spire only exists for twin arrangement");

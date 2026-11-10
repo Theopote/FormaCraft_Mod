@@ -138,6 +138,21 @@ class ResolvedFootprintTest {
     }
 
     @Test
+    void octagonShapeIsRegularNotRectangularCutCorners() {
+        ResolvedFootprint fp = ResolvedFootprint.resolve(
+                new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                        new Dimensions(15, 15, 8), List.of(),
+                        Map.of("shape", "octagon")),
+                15, 15);
+        assertEquals(ResolvedFootprint.FootprintShape.OCTAGON, fp.shape());
+        assertTrue(fp.contains(7, 7));
+        assertTrue(fp.contains(7, 0));
+        assertTrue(fp.contains(0, 7));
+        assertFalse(fp.contains(0, 0));
+        assertFalse(fp.contains(1, 1));
+    }
+
+    @Test
     void circleCrossCombinationThrows() {
         Map<String, Object> params = Map.of("shape", "circle", "plan_type", "cross");
         try {

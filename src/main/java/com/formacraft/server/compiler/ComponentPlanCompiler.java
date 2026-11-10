@@ -132,6 +132,12 @@ public final class ComponentPlanCompiler {
         plan = DuplicateComponentIdRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        // Soft-drop conflicting window_aspect before facade validation hard-fails.
+        plan = WindowAspectConflictRepair.apply(plan);
+        // Non-Gothic church styles must not stay locked to gothic_cathedral_hall.
+        plan = ChurchGothicMisrouteRepair.apply(plan);
+        // Triumphal / multi-bay arches need through-depth ENTRANCE openings.
+        plan = TriumphalArchPassageRepair.apply(plan);
         // Circular Roman cella must not stay pavilion-clamped (height 12→5) before separation.
         plan = RomanTempleProportionRepair.apply(plan);
         // Clamp garden blobs / force enclosure walls before footprint separation.
@@ -271,21 +277,6 @@ public final class ComponentPlanCompiler {
         var roofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofClearance);
         if (roofMissing.isPresent()) {
             var missing = roofMissing.get();
-            // TEMP diag: last writers at missing roof core cells.
-            for (var roof : flatRoofs) {
-                if (!missing.source().equals(roof.source())) continue;
-                int logged = 0;
-                for (var pos : roof.core()) {
-                    if (roofClearance.contains(pos)) continue;
-                    BlockPatch last = null;
-                    for (var p : result) {
-                        if (p != null && p.dx() == pos.getX() && p.dy() == pos.getY() && p.dz() == pos.getZ()) last = p;
-                    }
-                    if (com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.occupied(last)) continue;
-                    FormacraftMod.LOGGER.warn("Flat roof miss {} last={} clearance={}", pos, last, roofClearance.contains(pos));
-                    if (++logged >= 8) break;
-                }
-            }
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",
                     "平屋顶核心覆盖不完整：" + missing.source() + ", plan=" + missing.position().toShortString()
                             + ", missing=" + missing.count(), "components[]",

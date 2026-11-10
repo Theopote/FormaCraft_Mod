@@ -30,13 +30,6 @@ final class SurfaceOwnershipLedger {
         circulationClearance.add(position.toImmutable());
     }
 
-    /** Test/diag only: surface provenance at a cell. */
-    String debugSurface(BlockPos position) {
-        Surface surface = surfaces.get(position);
-        return surface == null ? "null" : surface.role() + "/" + surface.owner() + "/" + surface.source()
-                + "/carvable=" + surface.openingCarvable();
-    }
-
     boolean isProtectedFromWindows(Component writer, BlockPos position) {
         if (circulationClearance.contains(position)) return true;
         Surface surface = surfaces.get(position);

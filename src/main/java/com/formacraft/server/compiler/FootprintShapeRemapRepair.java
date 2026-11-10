@@ -16,14 +16,16 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Normalize hexagon plan tokens onto native {@code shape=hexagon}.
- * Never substitutes octagon — six- and eight-sided pavilions are different forms.
- * When only {@code plan_type} carries a hexagon token, clear it to {@code none} so the
- * pattern catalog does not hard-fail while {@link ResolvedFootprint} cuts a hex base.
+ * Normalize hexagon / octagon plan tokens onto native footprint shapes.
+ * Hexagon and octagon are never substituted for each other.
+ * When only {@code plan_type} carries a polygon token, clear it to {@code none} so the
+ * pattern catalog does not double-cut while {@link ResolvedFootprint} owns the silhouette.
  */
 final class FootprintShapeRemapRepair {
     private static final Set<String> HEXAGON_TOKENS = Set.of(
             "hexagon", "hexagonal", "hex", "6gon", "六角", "六角形");
+    private static final Set<String> OCTAGON_TOKENS = Set.of(
+            "octagon", "octagonal", "regular_octagon", "8gon", "八角", "八角形");
 
     private FootprintShapeRemapRepair() {}
 
@@ -52,10 +54,13 @@ final class FootprintShapeRemapRepair {
         Optional<String> planRaw = PlanPatternCatalog.extractExplicit(params);
         boolean shapeHex = shapeRaw.isPresent() && isHexagonToken(shapeRaw.get());
         boolean planHex = planRaw.isPresent() && isHexagonToken(planRaw.get());
+        boolean shapeOct = shapeRaw.isPresent() && isOctagonToken(shapeRaw.get());
+        boolean planOct = planRaw.isPresent() && isOctagonToken(planRaw.get());
         boolean shapeRing = shapeRaw.isPresent() && isColonnadeRingToken(shapeRaw.get());
         boolean shapeSteps = shapeRaw.isPresent() && isStepsToken(shapeRaw.get());
         boolean shapeDome = shapeRaw.isPresent() && isDomeToken(shapeRaw.get());
-        if (!shapeHex && !planHex && !shapeRing && !shapeSteps && !shapeDome) {
+        if (!shapeHex && !planHex && !shapeOct && !planOct
+                && !shapeRing && !shapeSteps && !shapeDome) {
             return component;
         }
         Map<String, Object> next = new HashMap<>(params);
@@ -99,7 +104,6 @@ final class FootprintShapeRemapRepair {
                     next.put(key, "circle");
                 }
             }
-            // Hollow the annulus so peristyle rings are not solid cylinders.
             boolean hasPlan = false;
             for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
                 if (next.containsKey(key)) {
@@ -121,26 +125,48 @@ final class FootprintShapeRemapRepair {
                     component.features(),
                     next);
         }
+        // Prefer hexagon when both tokens appear — never silently map hex → octagon.
+        if (shapeHex || planHex) {
+            return normalizePolygon(component, next, "hexagon", shapeRaw, planRaw, planHex, true);
+        }
+        return normalizePolygon(component, next, "octagon", shapeRaw, planRaw, planOct, false);
+    }
+
+    private static Component normalizePolygon(
+            Component component,
+            Map<String, Object> next,
+            String shapeToken,
+            Optional<String> shapeRaw,
+            Optional<String> planRaw,
+            boolean clearPlanToken,
+            boolean hexagon
+    ) {
         boolean wroteShape = false;
         for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
             if (next.containsKey(key)) {
-                next.put(key, "hexagon");
+                next.put(key, shapeToken);
                 wroteShape = true;
             }
         }
         if (!wroteShape) {
-            next.put("shape", "hexagon");
+            next.put("shape", shapeToken);
         }
-        // plan_type=hexagon is not a cut-corners pattern — clear to none so native HEXAGON shape owns the cut.
-        if (planHex) {
+        if (clearPlanToken) {
             for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
-                if (next.containsKey(key) && isHexagonToken(String.valueOf(next.get(key)))) {
+                if (!next.containsKey(key)) continue;
+                String v = String.valueOf(next.get(key));
+                if ((hexagon && isHexagonToken(v)) || (!hexagon && isOctagonToken(v))) {
                     next.put(key, "none");
                 }
             }
         }
+        // Drop legacy corner_cut when native polygon owns the silhouette.
+        next.remove("corner_cut");
+        next.remove("cornerCut");
         FormacraftMod.LOGGER.info(
-                "FootprintShapeRemapRepair: normalize hexagon → shape=hexagon (component={} shape={} plan_type={})",
+                "FootprintShapeRemapRepair: normalize {} → shape={} (component={} shape={} plan_type={})",
+                shapeToken,
+                shapeToken,
                 component.componentType(),
                 shapeRaw.orElse("-"),
                 planRaw.orElse("-"));
@@ -160,7 +186,6 @@ final class FootprintShapeRemapRepair {
                 || v.equals("annulus") || v.equals("ring");
     }
 
-    /** Processional stair / crepidoma — not a footprint cut; keep rectangular AABB. */
     private static boolean isStepsToken(String raw) {
         if (raw == null || raw.isBlank()) return false;
         String v = raw.trim().toLowerCase(Locale.ROOT);
@@ -181,5 +206,12 @@ final class FootprintShapeRemapRepair {
         String v = raw.trim().toLowerCase(Locale.ROOT);
         if (HEXAGON_TOKENS.contains(v)) return true;
         return v.contains("hexagon") || v.contains("hexagonal") || raw.contains("六角");
+    }
+
+    private static boolean isOctagonToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String v = raw.trim().toLowerCase(Locale.ROOT);
+        if (OCTAGON_TOKENS.contains(v)) return true;
+        return v.contains("octagon") || v.contains("octagonal") || raw.contains("八角");
     }
 }

@@ -157,8 +157,12 @@ public final class GothicCathedralHallBuilder {
         // One bay grid: supports occupy bay boundaries, openings occupy bay centers.
         if (getBooleanExtra(spec, "includeWindows", true)) {
             boolean tracery = getBooleanExtra(spec, "includeWindowTracery", true);
+            // Stop window rhythm short of the front twin-tower depth.
+            int aisleBudget = Math.max(5, naveX0);
+            int twHint = clampOdd(Math.min(Math.max(5, w / 5), aisleBudget), 5, 15);
+            int towerDepthHint = Math.max(5, Math.min(twHint, Math.max(5, twHint - 2)));
             int end = !"none".equals(towerArrangement(spec))
-                    ? d - clampOdd(Math.max(7, w/5),7,15) - 3 : d-4;
+                    ? d - towerDepthHint - 2 : d - 4;
             for (int boundary=4;boundary+buttressStep<=end;boundary+=buttressStep) {
                 int center=boundary+buttressStep/2;
                 int halfWindow=buttressStep>=7?2:1;

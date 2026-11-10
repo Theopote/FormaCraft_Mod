@@ -54,7 +54,8 @@ class PavilionHexOctagonIsolationTest {
         assertFalse("octagon".equalsIgnoreCase(String.valueOf(hexOut.params().getOrDefault("plan_type", ""))));
         assertEquals(6, ((Number) hexOut.params().get("sides")).intValue());
 
-        assertEquals("octagon", String.valueOf(octOut.params().get("plan_type")));
+        assertEquals("octagon", String.valueOf(octOut.params().get("shape")));
+        assertEquals("none", String.valueOf(octOut.params().get("plan_type")).toLowerCase());
         assertEquals(8, ((Number) octOut.params().get("sides")).intValue());
 
         assertNotEquals(Boolean.TRUE, hallOut.params().get("open"));
@@ -65,8 +66,10 @@ class PavilionHexOctagonIsolationTest {
         assertFalse(hexFp.contains(0, 0));
 
         ResolvedFootprint octFp = ResolvedFootprint.resolve(octOut, 9, 9);
-        assertEquals(ResolvedFootprint.FootprintShape.RECTANGLE, octFp.shape());
-        assertEquals(ResolvedFootprint.PlanPattern.CUT_CORNERS, octFp.pattern());
+        assertEquals(ResolvedFootprint.FootprintShape.OCTAGON, octFp.shape());
+        assertEquals(ResolvedFootprint.PlanPattern.NONE, octFp.pattern());
+        assertTrue(octFp.contains(4, 4));
+        assertFalse(octFp.contains(0, 0));
     }
 
     @Test

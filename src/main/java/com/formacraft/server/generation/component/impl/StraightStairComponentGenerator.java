@@ -1,5 +1,6 @@
 package com.formacraft.server.generation.component.impl;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.build.PlannedBlock;
@@ -85,8 +86,21 @@ public final class StraightStairComponentGenerator {
                 public BlockState pick(MetaAssemblyEngine.Context ctx, Map<?, ?> values, String key, String semanticKey, long salt, BlockState fallback) {
                     Object value = values.get(key);
                     if (value == null) return fallback;
-                    var state = BlockPatchTargetResolver.resolve(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, value.toString()));
-                    if (state == null) throw new IllegalArgumentException("Invalid stair material: " + value);
+                    String raw = value.toString();
+                    var state = BlockPatchTargetResolver.resolve(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, raw));
+                    if (state == null) {
+                        String remapped = remapInvalidStairMaterial(raw);
+                        if (remapped != null) {
+                            state = BlockPatchTargetResolver.resolve(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, remapped));
+                            if (state != null) {
+                                FormacraftMod.LOGGER.warn(
+                                        "StraightStairComponentGenerator: remap stair material {} → {}",
+                                        raw, remapped);
+                                return state;
+                            }
+                        }
+                        throw new IllegalArgumentException("Invalid stair material: " + value);
+                    }
                     return state;
                 }
                 public int i(Object value, int fallback) { return value == null ? fallback : integer(value); }
@@ -116,6 +130,21 @@ public final class StraightStairComponentGenerator {
     private static BlockPos point(Object value) {
         var map = (Map<?, ?>) value;
         return new BlockPos(integer(map.get("x")), integer(map.get("y")), integer(map.get("z")));
+    }
+
+    /** Soft-remap LLM stair ids that are not real Minecraft stair blocks. */
+    private static String remapInvalidStairMaterial(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String id = raw.trim().toLowerCase(Locale.ROOT);
+        if (!id.contains(":")) id = "minecraft:" + id;
+        return switch (id) {
+            case "minecraft:cracked_stone_brick_stairs" -> "minecraft:stone_brick_stairs";
+            case "minecraft:cracked_deepslate_brick_stairs" -> "minecraft:deepslate_brick_stairs";
+            case "minecraft:cracked_deepslate_tile_stairs" -> "minecraft:deepslate_tile_stairs";
+            case "minecraft:cracked_nether_brick_stairs" -> "minecraft:nether_brick_stairs";
+            case "minecraft:cracked_polished_blackstone_brick_stairs" -> "minecraft:polished_blackstone_brick_stairs";
+            default -> null;
+        };
     }
 
     /** Parse {@code top_landing:3x3} / {@code landing_plate:3x3_...} → landing length along the run. */

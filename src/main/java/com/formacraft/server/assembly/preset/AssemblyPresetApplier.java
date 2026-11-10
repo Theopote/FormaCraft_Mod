@@ -33,6 +33,22 @@ public final class AssemblyPresetApplier {
 
         Optional<AssemblyPresetDefinition> presetOpt = AssemblyPresetRegistry.findById(presetId);
         if (presetOpt.isEmpty()) {
+            // LLM often invents geometry-op names (LOFT_SURFACE / SPLINE_SWEEP). Strip the
+            // unknown preset and continue with the authored assembly graph instead of hard-failing.
+            if (looksInventedGeometryPreset(presetId)) {
+                FormacraftMod.LOGGER.warn(
+                        "AssemblyPresetApplier: ignore unknown geometry preset {} — continue without expansion",
+                        presetId);
+                m.remove("preset");
+                m.remove("presetId");
+                if (m.get("macro") instanceof Map<?, ?> macroRaw) {
+                    Map<String, Object> macro = shallowCopyMap(macroRaw);
+                    macro.remove("preset");
+                    macro.remove("presetId");
+                    m.put("macro", macro);
+                }
+                return new ApplyResult(m, issues);
+            }
             issues.add(new AssemblyValidationIssue(
                     "$.preset",
                     AssemblyValidationIssue.Severity.ERROR,
@@ -417,5 +433,21 @@ public final class AssemblyPresetApplier {
 
     private static String str(Object v) {
         return v == null ? "" : String.valueOf(v).trim();
+    }
+
+    /** Geometry-op names the LLM invents that are not registered assembly presets. */
+    private static boolean looksInventedGeometryPreset(String presetId) {
+        if (presetId == null || presetId.isBlank()) {
+            return false;
+        }
+        String id = presetId.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+        return id.equals("LOFT_SURFACE")
+                || id.equals("SPLINE_SWEEP")
+                || id.equals("LOFT")
+                || id.equals("SWEEP")
+                || id.equals("EXTRUDE")
+                || id.equals("REVOLVE")
+                || id.contains("SPLINE")
+                || id.contains("LOFT_");
     }
 }
