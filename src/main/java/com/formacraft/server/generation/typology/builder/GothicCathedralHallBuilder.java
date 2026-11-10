@@ -232,17 +232,32 @@ public final class GothicCathedralHallBuilder {
         if (getBooleanExtra(spec, "includeButtresses", true))
             addFlyingButtresses(blocks, origin, entrance, w, d, y0 + 2, y1 - 2, buttressStep, wall, trim, roofStairs, naveX0, naveX1);
 
-        // 9) Front twin towers + spires
-        int tw = clampOdd(Math.max(7, w / 5), 7, 15);
-        int tLeftX0 = 1;
+        // 9) Front twin towers + spires — park at outer façade corners, not mid-nave.
+        // Cap width to the aisle so towers do not occupy the nave clear span.
+        int aisleBudget = Math.max(5, naveX0);
+        int tw = clampOdd(Math.min(Math.max(5, w / 5), aisleBudget), 5, 15);
+        int tLeftX0 = 0;
         int tLeftX1 = tLeftX0 + tw - 1;
-        int tRightX1 = w - 2;
+        int tRightX1 = w - 1;
         int tRightX0 = tRightX1 - tw + 1;
-        int tZ0 = d - tw - 2;
-        int tZ1 = d - 2;
+        // Keep most of the tower on the west front; limit how far the shaft eats into the hall.
+        int towerDepth = Math.max(5, Math.min(tw, Math.max(5, tw - 2)));
+        int tZ1 = d - 1;
+        int tZ0 = tZ1 - towerDepth + 1;
         if (!"none".equals(towerArrangement(spec))) {
-        buildTowerWithSpire(blocks, origin, entrance, tLeftX0, tZ0, tLeftX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
-        if ("twin".equals(towerArrangement(spec))) buildTowerWithSpire(blocks, origin, entrance, tRightX0, tZ0, tRightX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
+            buildTowerWithSpire(blocks, origin, entrance, tLeftX0, tZ0, tLeftX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
+            if ("twin".equals(towerArrangement(spec))) {
+                buildTowerWithSpire(blocks, origin, entrance, tRightX0, tZ0, tRightX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
+            }
+            // Clip tower solids that punched into the usable hall (nave + aisle interiors).
+            clipTowerInteriorIntrusion(blocks, origin, entrance,
+                    tLeftX0, tZ0, tLeftX1, tZ1, y0, y0 + towerH,
+                    naveX0, naveX1, w, d);
+            if ("twin".equals(towerArrangement(spec))) {
+                clipTowerInteriorIntrusion(blocks, origin, entrance,
+                        tRightX0, tZ0, tRightX1, tZ1, y0, y0 + towerH,
+                        naveX0, naveX1, w, d);
+            }
         }
 
         // Opt-in interior skeleton; the cruciform crossing clears these local bays.
@@ -423,6 +438,25 @@ public final class GothicCathedralHallBuilder {
             put(blocks,origin,entrance,cx,yBase+i,cz,trim,null);
         }
         put(blocks,origin,entrance,cx,yBase+spireH,cz,slab,null);
+    }
+
+    /**
+     * Keep corner massing on the façade, but remove tower solids that occupy the nave clear span.
+     * Exterior faces (building perimeter) stay so the twin-tower silhouette remains.
+     */
+    private static void clipTowerInteriorIntrusion(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                                   int tx0, int tz0, int tx1, int tz1, int y0, int y1,
+                                                   int naveX0, int naveX1, int w, int d) {
+        BlockState air = Blocks.AIR.getDefaultState();
+        for (int x = Math.max(tx0, naveX0 + 1); x <= Math.min(tx1, naveX1 - 1); x++) {
+            for (int z = tz0; z <= tz1; z++) {
+                if (z >= d - 1) continue; // keep front façade plane
+                if (x <= 0 || x >= w - 1) continue;
+                for (int y = y0; y <= y1; y++) {
+                    put(blocks, origin, entrance, x, y, z, air, null);
+                }
+            }
+        }
     }
 
     private static BlockState requireWallMaterial(BlockState material, String part) {

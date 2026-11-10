@@ -59,7 +59,8 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofTypeKind roofType = resolveRoofType(c, semantic, params);
-        int domeDrumHeight = roofType == RoofTypeKind.DOME ? domeDrumHeight(params) : 0;
+        int domeDrumHeight = roofType == RoofTypeKind.DOME
+                ? domeDetailInteger(params, "dome_drum_height", Integer.MAX_VALUE) : 0;
         Direction saltboxLongSlope = roofType == RoofTypeKind.SALTBOX
                 ? roofCardinalDirection(params, "saltbox_long_slope") : null;
         double saltboxRidgeFraction = roofType == RoofTypeKind.SALTBOX ? saltboxRidgeFraction(params) : 1.0 / 3;
@@ -1101,16 +1102,29 @@ public class RoofGenerator implements ComponentGenerator {
                                   int width, int depth, int height,
                                   Palette palette, boolean dome,
                                   ComponentFootprintMask footprint, int overhang, int drumHeight) {
+        var params = semantic.source().params();
+        int openingRadius = dome ? domeDetailInteger(params, "dome_oculus_radius", Integer.MAX_VALUE) : 0;
+        String openingError = "E_ROOF_GEOMETRY_INVALID: dome_oculus_radius must leave a complete roof rim";
         if (drumHeight > 0 && (Math.min(width, depth) < 3 || drumHeight > height - 2)) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dome_drum_height requires a footprint "
                     + "of at least 3x3 and must leave at least two layers for the dome cap");
         }
         if (width < 2 || depth < 2 || height < 2) {
+            if (openingRadius > 0) throw new IllegalArgumentException(openingError);
             generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
             return;
         }
         int capRise = height - drumHeight - 1;
-        int[][] capColumns = drumHeight > 0 ? new int[width][depth] : null;
+        int[][] capColumns = drumHeight > 0 || openingRadius > 0 ? new int[width][depth] : null;
+        double openingRadiusSquared = (double) openingRadius * openingRadius;
+        int ribCount = dome ? domeDetailInteger(params, "dome_rib_count", 32) : 0;
+        double ribSpacing = ribCount > 0 ? 2 * Math.PI / ribCount : 0;
+        String ribBlock = null;
+        if (ribCount > 0) {
+            String ribMaterial = getParamString(params, "dome_rib_block");
+            if (ribMaterial == null) ribMaterial = getBlockForPart(semantic, palette, SemanticPart.WALL_ACCENT);
+            ribBlock = slopeFillBlock(ribMaterial);
+        }
         double cx = (width - 1) / 2.0;
         double cz = (depth - 1) / 2.0;
         double radius = Math.max(1.0, Math.min(width, depth) / 2.0);
@@ -1140,9 +1154,12 @@ public class RoofGenerator implements ComponentGenerator {
                 double t = Math.max(0.0, 1.0 - (dist / radius));
                 double curve = dome ? Math.sqrt(t) : t;
                 int rise = (int) Math.round(curve * capRise);
+                // Record the original cap footprint so the oculus never becomes an inner drum wall.
                 if (capColumns != null) capColumns[x][z] = rise + 1;
+                if (openingRadius > 0 && dx * dx + dz * dz <= openingRadiusSquared) continue;
                 SemanticPart part = (dist <= 0.5) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
-                String block = getBlockForPart(semantic, palette, part);
+                String block = ribBlock != null && part != SemanticPart.ROOF_SURFACE && intersectsDomeRib(dx, dz, ribSpacing)
+                        ? ribBlock : getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         baseX + x,
@@ -1152,7 +1169,10 @@ public class RoofGenerator implements ComponentGenerator {
                 ));
             }
         }
-        if (capColumns != null) {
+        if (openingRadius > 0 && !hasDomeOculusRim(capColumns, cx, cz, openingRadiusSquared)) {
+            throw new IllegalArgumentException(openingError);
+        }
+        if (drumHeight > 0) {
             String drumMaterial = getParamString(semantic.source().params(), "dome_drum_block");
             if (drumMaterial == null) drumMaterial = getBlockForPart(semantic, palette, SemanticPart.WALL);
             emitDomeDrum(out, baseX, baseY, baseZ, capColumns, drumHeight, slopeFillBlock(drumMaterial),
@@ -1160,13 +1180,42 @@ public class RoofGenerator implements ComponentGenerator {
         }
     }
 
-    private static int domeDrumHeight(Map<String, Object> params) {
-        String raw = getParamString(params, "dome_drum_height");
+    private static boolean hasDomeOculusRim(int[][] capColumns, double cx, double cz, double radiusSquared) {
+        int width = capColumns.length;
+        int depth = capColumns[0].length;
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                double dx = x - cx;
+                double dz = z - cz;
+                if (dx * dx + dz * dz > radiusSquared) continue;
+                if (x == 0 || x == width - 1 || z == 0 || z == depth - 1) return false;
+                for (int nx = x - 1; nx <= x + 1; nx++) {
+                    for (int nz = z - 1; nz <= z + 1; nz++) {
+                        if (capColumns[nx][nz] == 0) return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private static boolean intersectsDomeRib(double dx, double dz, double spacing) {
+        double ray = Math.round(Math.atan2(dz, dx) / spacing) * spacing;
+        double cos = Math.cos(ray);
+        double sin = Math.sin(ray);
+        double halfCell = 0.5 * (Math.abs(cos) + Math.abs(sin)) + 1e-9;
+        double distance = Math.abs(dx * sin - dz * cos);
+        // Include a cell when the rib crosses its unit square, including diagonal joins.
+        return distance <= halfCell && dx * cos + dz * sin >= -halfCell;
+    }
+
+    private static int domeDetailInteger(Map<String, Object> params, String key, int max) {
+        String raw = getParamString(params, key);
         if (raw == null) return 0;
-        String error = "E_ROOF_GEOMETRY_INVALID: dome_drum_height must be a nonnegative whole number";
+        String error = "E_ROOF_GEOMETRY_INVALID: " + key + " must be a whole number from 0 through " + max;
         try {
-            double height = Double.parseDouble(raw);
-            if (height >= 0 && height <= Integer.MAX_VALUE && height == Math.rint(height)) return (int) height;
+            double value = Double.parseDouble(raw);
+            if (value >= 0 && value <= max && value == Math.rint(value)) return (int) value;
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(error, e);
         }
