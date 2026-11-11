@@ -70,6 +70,7 @@ class FacetedDomeRoofTest {
         var document = mapper.readTree(fixture.toFile());
         var params = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
         params.put("roof_type", "dome").put("roof_block", "minecraft:black_concrete")
+                .put("dome_profile", "hemisphere")
                 .put("roof_height", 9).put("dome_drum_height", 3).put("wall_block", "minecraft:stone_bricks")
                 .put("dome_rib_count", 4).put("dome_rib_block", "minecraft:quartz_block");
         var plan = mapper.treeToValue(document, LlmPlan.class);
@@ -90,6 +91,16 @@ class FacetedDomeRoofTest {
                 && Math.pow(p.dx() - 6, 2) + Math.pow(p.dz() - 8, 2) <= 4));
         assertTrue(openPatches.stream().anyMatch(p -> p.dx() == 9 && p.dz() == 8 && p.dy() > 13
                 && "minecraft:quartz_block".equals(p.targetBlock())));
+        params.put("dome_oculus_glass_block", "blue_stained_glass");
+        var glazedPlan = mapper.treeToValue(document, LlmPlan.class);
+        var glazed = ComponentPlanCompiler.compile(glazedPlan, new BlockPos(0, 64, 0), null, null, false);
+        assertTrue(glazed.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 18
+                && "minecraft:blue_stained_glass".equals(p.targetBlock())));
+        assertTrue(glazed.stream().filter(p -> p.dy() > 10
+                        && Math.pow(p.dx() - 6, 2) + Math.pow(p.dz() - 8, 2) <= 4)
+                .allMatch(p -> "minecraft:blue_stained_glass".equals(p.targetBlock())));
+        assertEquals(13, glazed.stream().filter(p -> "minecraft:blue_stained_glass".equals(p.targetBlock()))
+                .map(p -> new BlockPos(p.dx(), 0, p.dz())).distinct().count());
     }
 
     @Test void drumCannotConsumeTheCapHeightBudget() {
@@ -164,5 +175,32 @@ class FacetedDomeRoofTest {
         var error = assertThrows(IllegalArgumentException.class,
                 () -> new RoofGenerator().generate(new SemanticComponent("ROOF", null, component)));
         assertTrue(error.getMessage().contains("dome_oculus_radius"));
+    }
+
+    @Test void oculusRejectsGlassPanesThatWouldLeaveGaps() {
+        var component = new Component("ROOF", "tower", new Vec3i(0, 20, 0), new Dimensions(17, 17, 9), List.of(),
+                Map.of("roof_type", "dome", "dome_oculus_radius", 2, "dome_oculus_glass_block", "glass_pane"));
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> new RoofGenerator().generate(new SemanticComponent("ROOF", null, component)));
+        assertTrue(error.getMessage().contains("dome_oculus_glass_block"));
+    }
+
+    @Test void domeProfilesHaveDistinctSectionsAndTheSameEaveFootprint() {
+        var sections = new HashMap<String, Integer>();
+        Set<BlockPos> referenceFootprint = null;
+        for (String profile : List.of("legacy", "pointed", "hemisphere")) {
+            var component = new Component("ROOF", "tower", new Vec3i(0, 20, 0), new Dimensions(17, 17, 13), List.of(),
+                    Map.of("roof_type", "dome", "roof_block", "minecraft:black_concrete", "dome_profile", profile));
+            var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, component));
+            assertEquals(32, patches.stream().mapToInt(p -> p.dy()).max().orElseThrow(), profile);
+            sections.put(profile, patches.stream().filter(p -> p.dx() == 12 && p.dz() == 8)
+                    .mapToInt(p -> p.dy()).max().orElseThrow());
+            Set<BlockPos> footprint = new HashSet<>();
+            for (var patch : patches) footprint.add(new BlockPos(patch.dx(), 0, patch.dz()));
+            if (referenceFootprint == null) referenceFootprint = footprint;
+            else assertEquals(referenceFootprint, footprint, profile);
+            assertFalse(patches.stream().anyMatch(p -> p.dx() == 8 && p.dz() == 8 && p.dy() == 20), profile);
+        }
+        assertEquals(Map.of("legacy", 29, "pointed", 30, "hemisphere", 31), sections);
     }
 }

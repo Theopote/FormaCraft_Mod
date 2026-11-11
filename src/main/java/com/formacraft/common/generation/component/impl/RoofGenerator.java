@@ -33,6 +33,8 @@ import java.util.Map;
  */
 public class RoofGenerator implements ComponentGenerator {
 
+    private enum DomeProfile { LEGACY, HEMISPHERE, POINTED }
+
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
         if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(semantic.source())) return List.of();
@@ -1103,7 +1105,9 @@ public class RoofGenerator implements ComponentGenerator {
                                   Palette palette, boolean dome,
                                   ComponentFootprintMask footprint, int overhang, int drumHeight) {
         var params = semantic.source().params();
+        DomeProfile domeProfile = dome ? resolveDomeProfile(params) : DomeProfile.LEGACY;
         int openingRadius = dome ? domeDetailInteger(params, "dome_oculus_radius", Integer.MAX_VALUE) : 0;
+        String openingGlass = dome ? domeOculusGlass(params, openingRadius) : null;
         String openingError = "E_ROOF_GEOMETRY_INVALID: dome_oculus_radius must leave a complete roof rim";
         if (drumHeight > 0 && (Math.min(width, depth) < 3 || drumHeight > height - 2)) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dome_drum_height requires a footprint "
@@ -1152,14 +1156,29 @@ public class RoofGenerator implements ComponentGenerator {
                     continue;
                 }
                 double t = Math.max(0.0, 1.0 - (dist / radius));
-                double curve = dome ? Math.sqrt(t) : t;
+                double normalizedRadius = Math.clamp(dist / radius, 0.0, 1.0);
+                double curve = t;
+                if (dome) {
+                    curve = switch (domeProfile) {
+                        case LEGACY -> Math.sqrt(t);
+                        case HEMISPHERE -> Math.sqrt(Math.max(0, 1 - normalizedRadius * normalizedRadius));
+                        // Two circular arcs meet with a finite slope at the apex.
+                        case POINTED -> Math.sqrt((1 - normalizedRadius) * (2 + normalizedRadius) / 2);
+                    };
+                }
                 int rise = (int) Math.round(curve * capRise);
                 // Record the original cap footprint so the oculus never becomes an inner drum wall.
                 if (capColumns != null) capColumns[x][z] = rise + 1;
-                if (openingRadius > 0 && dx * dx + dz * dz <= openingRadiusSquared) continue;
+                boolean opening = openingRadius > 0 && dx * dx + dz * dz <= openingRadiusSquared;
+                if (opening && openingGlass == null) continue;
                 SemanticPart part = (dist <= 0.5) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
-                String block = ribBlock != null && part != SemanticPart.ROOF_SURFACE && intersectsDomeRib(dx, dz, ribSpacing)
-                        ? ribBlock : getBlockForPart(semantic, palette, part);
+                String block;
+                if (opening) {
+                    block = openingGlass;
+                } else {
+                    block = ribBlock != null && part != SemanticPart.ROOF_SURFACE && intersectsDomeRib(dx, dz, ribSpacing)
+                            ? ribBlock : getBlockForPart(semantic, palette, part);
+                }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         baseX + x,
@@ -1178,6 +1197,31 @@ public class RoofGenerator implements ComponentGenerator {
             emitDomeDrum(out, baseX, baseY, baseZ, capColumns, drumHeight, slopeFillBlock(drumMaterial),
                     resolveFullRoofBlock(semantic, palette));
         }
+    }
+
+    private static DomeProfile resolveDomeProfile(Map<String, Object> params) {
+        String raw = getParamString(params, "dome_profile");
+        if (raw == null) return DomeProfile.LEGACY;
+        try {
+            return DomeProfile.valueOf(raw.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "E_ROOF_GEOMETRY_INVALID: dome_profile must be legacy, hemisphere or pointed", e);
+        }
+    }
+
+    private static String domeOculusGlass(Map<String, Object> params, int radius) {
+        String raw = getParamString(params, "dome_oculus_glass_block");
+        if (raw == null) return null;
+        String block = raw.contains(":") ? raw : "minecraft:" + raw;
+        var id = net.minecraft.util.Identifier.tryParse(block);
+        if (radius < 1 || id == null || !net.minecraft.registry.Registries.BLOCK.containsId(id)
+                || !(id.getPath().equals("glass") || id.getPath().equals("tinted_glass")
+                || id.getPath().endsWith("_stained_glass"))) {
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dome_oculus_glass_block requires "
+                    + "a positive dome_oculus_radius and a registered glass block");
+        }
+        return id.toString();
     }
 
     private static boolean hasDomeOculusRim(int[][] capColumns, double cx, double cz, double radiusSquared) {

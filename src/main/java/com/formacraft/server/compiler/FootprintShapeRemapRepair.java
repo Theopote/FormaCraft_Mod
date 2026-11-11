@@ -127,9 +127,9 @@ final class FootprintShapeRemapRepair {
         }
         // Prefer hexagon when both tokens appear — never silently map hex → octagon.
         if (shapeHex || planHex) {
-            return normalizePolygon(component, next, "hexagon", shapeRaw, planRaw, planHex, true);
+            return normalizePolygon(component, next, "hexagon", shapeRaw, planRaw, true);
         }
-        return normalizePolygon(component, next, "octagon", shapeRaw, planRaw, planOct, false);
+        return normalizePolygon(component, next, "octagon", shapeRaw, planRaw, false);
     }
 
     private static Component normalizePolygon(
@@ -138,7 +138,6 @@ final class FootprintShapeRemapRepair {
             String shapeToken,
             Optional<String> shapeRaw,
             Optional<String> planRaw,
-            boolean clearPlanToken,
             boolean hexagon
     ) {
         boolean wroteShape = false;
@@ -151,13 +150,13 @@ final class FootprintShapeRemapRepair {
         if (!wroteShape) {
             next.put("shape", shapeToken);
         }
-        if (clearPlanToken) {
-            for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
-                if (!next.containsKey(key)) continue;
-                String v = String.valueOf(next.get(key));
-                if ((hexagon && isHexagonToken(v)) || (!hexagon && isOctagonToken(v))) {
-                    next.put(key, "none");
-                }
+        next.put("sides", hexagon ? 6 : 8);
+        // Always clear polygon tokens from plan_type so ResolvedFootprint owns the silhouette.
+        for (String key : PlanPatternCatalog.PLAN_TYPE_KEYS) {
+            if (!next.containsKey(key)) continue;
+            String v = String.valueOf(next.get(key));
+            if (isHexagonToken(v) || isOctagonToken(v)) {
+                next.put(key, "none");
             }
         }
         // Drop legacy corner_cut when native polygon owns the silhouette.

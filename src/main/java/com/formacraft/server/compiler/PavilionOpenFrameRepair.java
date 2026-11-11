@@ -236,7 +236,7 @@ final class PavilionOpenFrameRepair {
         // Glass greenhouses keep glazed walls — never open-frame / post-height clamp even on octagon.
         // FootprintShapeRemapRepair already owns native polygon shape remapping.
         if (looksGreenhouse(mass, id)) {
-            return mass;
+            return clearLeakedOpenFrame(mass);
         }
         // Hanging gardens / ziggurats / stepped terrace monuments are not 凉亭 — a plan cue like
         // "summit shrine pavilion" must not crush a 35-high body to MAX_POST_HEIGHT.
@@ -958,6 +958,46 @@ final class PavilionOpenFrameRepair {
             }
         }
         return false;
+    }
+
+    /**
+     * Drop accidental open-pavilion params on greenhouses without clamping height.
+     * LLM often emits open=true / wall_type=none for glazed shells.
+     */
+    private static Component clearLeakedOpenFrame(Component mass) {
+        if (mass == null || mass.params() == null) {
+            return mass;
+        }
+        Map<String, Object> params = mass.params();
+        boolean leaked = Boolean.TRUE.equals(params.get("open"))
+                || Boolean.TRUE.equals(params.get("open_pavilion"))
+                || "none".equalsIgnoreCase(String.valueOf(params.getOrDefault("wall_type", "")))
+                || "none".equalsIgnoreCase(String.valueOf(params.getOrDefault("wall_style", "")))
+                || Boolean.TRUE.equals(params.get("suppress_windows"))
+                || params.get("open_sides") instanceof java.util.Collection<?>;
+        if (!leaked) {
+            return mass;
+        }
+        Map<String, Object> next = new HashMap<>(params);
+        next.remove("open");
+        next.remove("open_pavilion");
+        next.remove("open_sides");
+        next.remove("suppress_windows");
+        next.remove("suppress_doors");
+        if ("none".equalsIgnoreCase(String.valueOf(next.getOrDefault("wall_type", "")))) {
+            next.remove("wall_type");
+        }
+        if ("none".equalsIgnoreCase(String.valueOf(next.getOrDefault("wall_style", "")))) {
+            next.remove("wall_style");
+        }
+        if ("none".equalsIgnoreCase(String.valueOf(next.getOrDefault("window_style", "")))) {
+            next.remove("window_style");
+        }
+        FormacraftMod.LOGGER.info(
+                "PavilionOpenFrameRepair: clear leaked open-frame on greenhouse id={}",
+                next.get("component_id"));
+        return new Component(mass.componentType(), mass.slotId(), mass.relativePosition(),
+                mass.dimensions(), mass.features(), next);
     }
 
     /** Glazed greenhouse / orangerie — keep walls and authored height (not a 凉亭 open frame). */

@@ -68,6 +68,7 @@ class ChurchAndArchRepairTest {
                 mutable(
                         "component_id", "arch_body",
                         "facing", "SOUTH",
+                        "anchor_mode", "min_corner",
                         "typology_id", "triumphal_arch"));
         Component door = new Component(
                 "ENTRANCE", "portal", new Vec3i(7, 0, 7),
@@ -75,7 +76,8 @@ class ChurchAndArchRepairTest {
                 mutable(
                         "component_id", "central_bay",
                         "host_id", "arch_body",
-                        "facing", "SOUTH"));
+                        "facing", "SOUTH",
+                        "anchor_mode", "min_corner"));
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .playerFidelityNoticeZh("巴洛克凯旋门")
                 .distinguishingFeatures(List.of("baroque", "凯旋门"))
@@ -120,7 +122,9 @@ class ChurchAndArchRepairTest {
         assertEquals(8, ((Number) out.params().get("sides")).intValue());
         assertEquals("none", String.valueOf(out.params().get("plan_type")).toLowerCase());
         assertEquals(10, out.dimensions().height());
+        assertNotEquals(Boolean.TRUE, out.params().get("open"));
         assertNotEquals(Boolean.TRUE, out.params().get("suppress_windows"));
+        assertNull(out.params().get("wall_type"));
 
         ResolvedFootprint fp = ResolvedFootprint.resolve(out, 15, 15);
         assertEquals(ResolvedFootprint.FootprintShape.OCTAGON, fp.shape());
