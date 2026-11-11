@@ -86,7 +86,8 @@ public final class GothicCathedralHallBuilder {
         int towerH = clamp(getIntExtra(spec, "towerHeight", (int) Math.round(wallH * 1.25)), wallH + 4, 80);
         int spireH = clamp(getIntExtra(spec, "spireHeight", 10), 6, 26);
         int buttressStep = clamp(getIntExtra(spec, "buttressStep", 5), 4, 8);
-        int naveW = Math.max(9, w - 10);
+        // Compact halls (user 11–15) keep thin side aisles; showcase widths keep the classic 5-block aisle budget.
+        int naveW = w <= 15 ? Math.max(5, w - 2) : Math.max(9, w - 10);
         int naveX0 = (w - naveW) / 2;
         int naveX1 = naveX0 + naveW - 1;
 
@@ -154,6 +155,19 @@ public final class GothicCathedralHallBuilder {
             ringRect(blocks, origin, entrance, 0, y, 0, w - 1, y, d - 1, wall);
         }
         fillRect(blocks, origin, entrance, 1, y0, 1, w - 2, aisleY1, d - 2, Blocks.AIR.getDefaultState());
+        // Re-seal both end walls after aisle carve — compact footprints otherwise read as open gables.
+        for (int y = y0; y <= aisleY1; y++) {
+            for (int x = 0; x < w; x++) {
+                put(blocks, origin, entrance, x, y, 0, wall, null);
+                put(blocks, origin, entrance, x, y, d - 1, wall, null);
+            }
+        }
+        for (int y = aisleY1 + 1; y <= y1; y++) {
+            for (int x = naveX0; x <= naveX1; x++) {
+                put(blocks, origin, entrance, x, y, 0, wall, null);
+                put(blocks, origin, entrance, x, y, d - 1, wall, null);
+            }
+        }
 
         // One bay grid: supports occupy bay boundaries, openings occupy bay centers.
         if (getBooleanExtra(spec, "includeWindows", true)) {
