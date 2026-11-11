@@ -714,6 +714,11 @@ final class ComponentEmitPass {
                 || "COURTYARD".equals(normalizedType)
                 || "DECOR_DETAIL".equals(normalizedType)
                 || normalizedType.startsWith("DECOR")
+                || "ROOF".equals(normalizedType)
+                || "ROOF_STRUCTURE".equals(normalizedType)
+                || "CROWN".equals(normalizedType)
+                || "CUPOLA".equals(normalizedType)
+                || "DOME".equals(normalizedType)
                 || ComponentPlanTypes.isMassType(normalizedType);
     }
 

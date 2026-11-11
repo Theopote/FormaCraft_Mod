@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.generation.design.DesignProvenance;
@@ -348,7 +349,8 @@ final class PlanIntentFidelityRepair {
         boolean facade = "FACADE_WINDOWS".equals(type);
         boolean entrance = "ENTRANCE".equals(type);
         boolean structure = "STRUCTURE".equals(type);
-        if (!mass && !roof && !facade && !entrance && !structure) {
+        boolean platform = "FOUNDATION".equals(type) || "TERRACE".equals(type) || "BASE".equals(type);
+        if (!mass && !roof && !facade && !entrance && !structure && !platform) {
             return component;
         }
 
@@ -571,6 +573,26 @@ final class PlanIntentFidelityRepair {
 
         Dimensions dims = dimsOverride != null ? dimsOverride : component.dimensions();
         Vec3i position = component.relativePosition();
+        // Platform / high base under an explicit W×D primary must not stay a tiny 4×4 pad.
+        if (platform && dims != null && hints.footprintWidth() > 0 && hints.footprintDepth() > 0) {
+            int nw = hints.footprintWidth();
+            int nd = hints.footprintDepth();
+            if ("TERRACE".equals(type)) {
+                nw = Math.max(3, nw - 2);
+                nd = Math.max(3, nd - 2);
+            }
+            if (dims.width() < nw - 1 || dims.depth() < nd - 1) {
+                if (position != null
+                        && !com.formacraft.common.generation.component.util.ComponentFootprintUtil
+                        .isCornerAnchor(params)) {
+                    int dx = (nw - dims.width()) / 2;
+                    int dz = (nd - dims.depth()) / 2;
+                    position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
+                }
+                dims = new Dimensions(nw, nd, dims.height());
+                changed = true;
+            }
+        }
         if (mass && dims != null) {
             int ownFloors = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
             // Global floor hints inflate only the primary host — accessory pavilions keep own storeys.
@@ -619,6 +641,23 @@ final class PlanIntentFidelityRepair {
                     dims = new Dimensions(nw, nd, nh);
                     changed = true;
                 }
+            } else if (explicitFootprint && inPrimaryMassScope
+                    && (dims.width() != hints.footprintWidth() || dims.depth() != hints.footprintDepth())) {
+                // Non-office buildings (日式 18×18, halls, etc.) still honour explicit W×D.
+                int nw = hints.footprintWidth();
+                int nd = hints.footprintDepth();
+                if (position != null
+                        && !com.formacraft.common.generation.component.util.ComponentFootprintUtil
+                        .isCornerAnchor(params)) {
+                    int dx = (nw - dims.width()) / 2;
+                    int dz = (nd - dims.depth()) / 2;
+                    position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
+                }
+                FormacraftMod.LOGGER.info(
+                        "PlanIntentFidelityRepair: force primary footprint {}x{} → {}x{}",
+                        dims.width(), dims.depth(), nw, nd);
+                dims = new Dimensions(nw, nd, dims.height());
+                changed = true;
             } else if (floors >= 2 && !officeLike) {
                 // Multi-storey non-office: keep ≥3 air clear (storey band ≥4). Honour authored
                 // floor_height when already ≥ min band — do not invent a taller lobby that would

@@ -6,6 +6,7 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -99,27 +100,59 @@ final class StiltShelterMisrouteRepair {
         roofParams.put("roof_dormers", false);
         roofParams.put("anchor_mode", "min_corner");
 
-        List<Component> rebuilt = List.of(
-                new Component("MASS_MAIN", "main", new Vec3i(0, stiltsParams.get("height") instanceof Number n
-                        ? n.intValue() : 5, 0),
-                        new Dimensions(width, depth, height),
-                        List.of("asymmetric_stilt_shelter", "stilts", "refuge"),
-                        massParams),
-                new Component("FOUNDATION", "main", new Vec3i(0, 0, 0),
-                        new Dimensions(width, depth, stiltsParams.get("height") instanceof Number n
-                                ? n.intValue() : 5),
-                        List.of("uneven_stilts", "wood_posts"),
-                        stiltsParams),
-                new Component("ROOF", "main",
-                        new Vec3i(-1, (stiltsParams.get("height") instanceof Number n ? n.intValue() : 5) + height,
-                                -1),
-                        new Dimensions(width + 2, depth + 2, 3),
-                        List.of("gable"),
-                        roofParams)
-        );
+        int stiltH = stiltsParams.get("height") instanceof Number n ? n.intValue() : 5;
+        int bridgeLen = Math.max(4, Math.min(8, depth / 2 + 2));
+        int bridgeW = Math.max(2, Math.min(4, width / 3));
+        Map<String, Object> accessParams = new HashMap<>();
+        accessParams.put("component_id", "stilt_access_bridge");
+        accessParams.put("host_id", "stilt_shelter_main");
+        accessParams.put("anchor_mode", "min_corner");
+        accessParams.put("extrude_mode", "plate");
+        accessParams.put("plate_role", "bridge");
+        accessParams.put("floor_block", wall);
+        accessParams.put("railing_block", posts);
+        accessParams.put("railing", true);
+        accessParams.put("allow_patch_overwrite", true);
+
+        int craneH = stiltH + Math.max(3, height - 2);
+        Map<String, Object> craneParams = new HashMap<>();
+        craneParams.put("component_id", "stilt_crane_frame");
+        craneParams.put("host_id", "stilt_shelter_main");
+        craneParams.put("anchor_mode", "min_corner");
+        craneParams.put("kind", "crane_gantry");
+        craneParams.put("detail_type", "crane_frame");
+        craneParams.put("wall_block", scrap);
+        craneParams.put("frame_block", scrap);
+        craneParams.put("beam_block", scrap);
+        craneParams.put("allow_patch_overwrite", true);
+
+        List<Component> rebuilt = new ArrayList<>();
+        rebuilt.add(new Component("MASS_MAIN", "main", new Vec3i(0, stiltH, 0),
+                new Dimensions(width, depth, height),
+                List.of("asymmetric_stilt_shelter", "stilts", "refuge"),
+                massParams));
+        rebuilt.add(new Component("FOUNDATION", "main", new Vec3i(0, 0, 0),
+                new Dimensions(width, depth, stiltH),
+                List.of("uneven_stilts", "wood_posts"),
+                stiltsParams));
+        rebuilt.add(new Component("ROOF", "main",
+                new Vec3i(-1, stiltH + height, -1),
+                new Dimensions(width + 2, depth + 2, 3),
+                List.of("gable"),
+                roofParams));
+        rebuilt.add(new Component("MASS_SECONDARY", "main",
+                new Vec3i(-(bridgeW / 2), Math.max(0, stiltH - 1), -(depth / 2 + bridgeLen)),
+                new Dimensions(bridgeW, bridgeLen, Math.max(1, stiltH)),
+                List.of("access_drawbridge", "吊桥", "wood_deck_bridge"),
+                accessParams));
+        rebuilt.add(new Component("STRUCTURE", "main",
+                new Vec3i(width / 2 + 1, 0, -(Math.max(2, depth / 4))),
+                new Dimensions(3, 4, craneH),
+                List.of("crane_gantry", "吊车支架", "scrap_metal_frame"),
+                craneParams));
 
         FormacraftMod.LOGGER.info(
-                "StiltShelterMisrouteRepair: rewrite suspension_bridge → stilts shelter {}x{}x{}",
+                "StiltShelterMisrouteRepair: rewrite suspension_bridge → stilts shelter {}x{}x{} + bridge + crane",
                 width, depth, height);
         Map<String, Object> hints = plan.proportionHints() == null
                 ? new HashMap<>()
@@ -147,7 +180,7 @@ final class StiltShelterMisrouteRepair {
                 plan.error(),
                 plan.capabilityGap(),
                 plan.playerFidelityNoticeZh(),
-                List.of("asymmetric_stilt_shelter", "uneven_wood_stilts"),
+                List.of("asymmetric_stilt_shelter", "uneven_wood_stilts", "access_drawbridge", "crane_gantry"),
                 plan.enrichmentGuard(),
                 plan.planMeta(),
                 plan.designSources());

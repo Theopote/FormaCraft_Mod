@@ -97,6 +97,82 @@ class ChurchAndArchRepairTest {
     }
 
     @Test
+    void westFacingTriumphalArchKeepsBayWidthNotFullHostWidth() {
+        Component plinth = new Component(
+                "FOUNDATION", "arch", new Vec3i(-11, 0, -5),
+                new Dimensions(23, 11, 2), List.of("plinth"),
+                mutable("component_id", "arch_plinth", "anchor_mode", "min_corner", "host_id", "arch_body"));
+        Component host = new Component(
+                "MASS_MAIN", "arch", new Vec3i(0, 2, 0),
+                new Dimensions(21, 9, 12), List.of("凯旋门", "three_bay"),
+                mutable(
+                        "component_id", "arch_body",
+                        "facing", "WEST",
+                        "typology_id", "triumphal_arch"));
+        Component door = new Component(
+                "ENTRANCE", "arch", new Vec3i(-2, 2, -4),
+                new Dimensions(5, 1, 8), List.of("central_arched_passage"),
+                mutable(
+                        "component_id", "entrance_central",
+                        "host_id", "arch_body",
+                        "facing", "WEST",
+                        "clear_width", 5));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .playerFidelityNoticeZh("三跨双向对称的巴洛克凯旋门")
+                .distinguishingFeatures(List.of("三跨", "凯旋门"))
+                .components(List.of(plinth, host, door))
+                .build();
+
+        LlmPlan repaired = TriumphalArchPassageRepair.apply(plan);
+        Component hostOut = byId(repaired, "arch_body");
+        Component doorOut = byId(repaired, "entrance_central");
+
+        assertEquals(-10, hostOut.relativePosition().x());
+        assertEquals(-4, hostOut.relativePosition().z());
+        assertEquals("min_corner", String.valueOf(hostOut.params().get("anchor_mode")));
+        assertEquals(5, doorOut.dimensions().width());
+        assertEquals(9, doorOut.dimensions().depth());
+        assertTrue(doorOut.dimensions().width() < hostOut.dimensions().width());
+    }
+
+    @Test
+    void octagonGreenhouseForcesSquareCentreAlignedBody() {
+        Component body = new Component(
+                "MASS_MAIN", "greenhouse_main", new Vec3i(0, 1, 0),
+                new Dimensions(8, 6, 8), List.of("正八角形平面", "玻璃表皮"),
+                mutable(
+                        "component_id", "gh_body",
+                        "anchor_mode", "center",
+                        "shape", "octagon",
+                        "radius", 7,
+                        "wall_block", "minecraft:glass",
+                        "glazing_ratio", 0.85));
+        Component columns = new Component(
+                "DECOR_DETAIL", "greenhouse_main", new Vec3i(-4, 1, -3),
+                new Dimensions(8, 6, 8), List.of("角柱"),
+                mutable(
+                        "component_id", "gh_frame_columns",
+                        "host_id", "gh_body",
+                        "anchor_mode", "min_corner",
+                        "kind", "column_ring"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .playerFidelityNoticeZh("边长为 5 的正八角形双层植物温室")
+                .distinguishingFeatures(List.of("正八角", "温室"))
+                .components(List.of(body, columns))
+                .build();
+
+        LlmPlan repaired = OctagonGreenhouseRepair.apply(plan);
+        Component bodyOut = byId(repaired, "gh_body");
+        Component colOut = byId(repaired, "gh_frame_columns");
+
+        assertEquals(bodyOut.dimensions().width(), bodyOut.dimensions().depth());
+        assertTrue(bodyOut.dimensions().width() >= 13);
+        assertEquals(0, colOut.relativePosition().x());
+        assertEquals(0, colOut.relativePosition().z());
+        assertEquals("center", String.valueOf(colOut.params().get("anchor_mode")));
+    }
+
+    @Test
     void octagonGreenhouseKeepsGlazedShellAndNativeOctagon() {
         Component greenhouse = new Component(
                 "MASS_MAIN", "gh", new Vec3i(0, 0, 0),

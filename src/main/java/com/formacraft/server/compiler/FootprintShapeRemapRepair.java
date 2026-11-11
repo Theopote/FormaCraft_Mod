@@ -59,11 +59,36 @@ final class FootprintShapeRemapRepair {
         boolean shapeRing = shapeRaw.isPresent() && isColonnadeRingToken(shapeRaw.get());
         boolean shapeSteps = shapeRaw.isPresent() && isStepsToken(shapeRaw.get());
         boolean shapeDome = shapeRaw.isPresent() && isDomeToken(shapeRaw.get());
+        boolean shapeTrapezoid = shapeRaw.isPresent() && isTrapezoidToken(shapeRaw.get());
         if (!shapeHex && !planHex && !shapeOct && !planOct
-                && !shapeRing && !shapeSteps && !shapeDome) {
+                && !shapeRing && !shapeSteps && !shapeDome && !shapeTrapezoid) {
             return component;
         }
         Map<String, Object> next = new HashMap<>(params);
+        if (shapeTrapezoid) {
+            for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
+                if (next.containsKey(key) && isTrapezoidToken(String.valueOf(next.get(key)))) {
+                    next.put(key, "rectangle");
+                }
+            }
+            Object planType = next.get("plan_type");
+            if (planType == null) planType = next.get("planType");
+            if (planType == null || String.valueOf(planType).isBlank()
+                    || "none".equalsIgnoreCase(String.valueOf(planType))) {
+                next.put("plan_type", "cut_corners");
+                next.putIfAbsent("corner_cut", 2);
+            }
+            FormacraftMod.LOGGER.info(
+                    "FootprintShapeRemapRepair: normalize trapezoid → shape=rectangle plan_type={} (component={})",
+                    next.get("plan_type"), component.componentType());
+            return new Component(
+                    component.componentType(),
+                    component.slotId(),
+                    component.relativePosition(),
+                    component.dimensions(),
+                    component.features(),
+                    next);
+        }
         if (shapeSteps) {
             for (String key : FootprintShapeCatalog.SHAPE_KEYS) {
                 if (next.containsKey(key) && isStepsToken(String.valueOf(next.get(key)))) {
@@ -198,6 +223,13 @@ final class FootprintShapeRemapRepair {
         String v = raw.trim().toLowerCase(Locale.ROOT);
         return v.equals("hemisphere") || v.equals("hemispherical") || v.equals("dome")
                 || v.equals("半圆") || v.equals("半球");
+    }
+
+    private static boolean isTrapezoidToken(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String v = raw.trim().toLowerCase(Locale.ROOT);
+        return v.equals("trapezoid") || v.equals("trapezium") || v.equals("trapezoidal")
+                || v.equals("梯形") || v.contains("trapezoid") || v.contains("trapezium");
     }
 
     private static boolean isHexagonToken(String raw) {

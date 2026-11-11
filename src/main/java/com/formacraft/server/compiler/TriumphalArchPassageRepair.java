@@ -47,6 +47,7 @@ final class TriumphalArchPassageRepair {
                 }
             }
         }
+        Component plinth = findPlinth(plan);
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
@@ -57,7 +58,7 @@ final class TriumphalArchPassageRepair {
                     || (!namedArchHost && hosts.containsKey(String.valueOf(
                     c.params() == null ? "" : c.params().get("component_id"))));
             if (markHost) {
-                next = markPassageHost(c);
+                next = markPassageHost(c, plinth);
             } else if ("ENTRANCE".equalsIgnoreCase(c.componentType())) {
                 next = expandEntranceThroughHost(c, hosts);
             }
@@ -104,7 +105,22 @@ final class TriumphalArchPassageRepair {
         return "GATE".equalsIgnoreCase(c.componentType());
     }
 
-    private static Component markPassageHost(Component host) {
+    private static Component findPlinth(LlmPlan plan) {
+        Component best = null;
+        int bestArea = 0;
+        for (Component c : plan.components()) {
+            if (c == null || c.dimensions() == null || c.relativePosition() == null) continue;
+            if (!"FOUNDATION".equalsIgnoreCase(c.componentType())) continue;
+            int area = Math.max(1, c.dimensions().width()) * Math.max(1, c.dimensions().depth());
+            if (area > bestArea) {
+                bestArea = area;
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    private static Component markPassageHost(Component host, Component plinth) {
         Map<String, Object> params = new HashMap<>();
         if (host.params() != null) {
             params.putAll(host.params());
@@ -134,11 +150,32 @@ final class TriumphalArchPassageRepair {
                 changed = true;
             }
         }
+        Vec3i position = host.relativePosition();
+        Dimensions dims = host.dimensions();
+        if (plinth != null && plinth.dimensions() != null && plinth.relativePosition() != null
+                && dims != null && position != null
+                && position.x() == 0 && position.z() == 0
+                && plinth.dimensions().width() >= dims.width()
+                && plinth.dimensions().depth() >= dims.depth()) {
+            Vec3i plinthOrigin = ComponentFootprintUtil.resolveMinCornerOrigin(plinth);
+            int insetX = Math.max(0, (plinth.dimensions().width() - dims.width()) / 2);
+            int insetZ = Math.max(0, (plinth.dimensions().depth() - dims.depth()) / 2);
+            Vec3i snapped = new Vec3i(plinthOrigin.x() + insetX, position.y(), plinthOrigin.z() + insetZ);
+            if (!snapped.equals(position)
+                    || !"min_corner".equalsIgnoreCase(String.valueOf(params.getOrDefault("anchor_mode", "")))) {
+                params.put("anchor_mode", "min_corner");
+                position = snapped;
+                changed = true;
+                FormacraftMod.LOGGER.info(
+                        "TriumphalArchPassageRepair: snap arch host {} → min_corner {}",
+                        params.get("component_id"), snapped);
+            }
+        }
         if (!changed) {
             return host;
         }
-        return new Component(host.componentType(), host.slotId(), host.relativePosition(),
-                host.dimensions(), host.features(), params);
+        return new Component(host.componentType(), host.slotId(), position,
+                dims, host.features(), params);
     }
 
     private static Component expandEntranceThroughHost(Component entrance, Map<String, Component> hosts) {
@@ -159,33 +196,37 @@ final class TriumphalArchPassageRepair {
         String facing = String.valueOf(entrance.params().getOrDefault("facing",
                 host.params() == null ? "SOUTH" : host.params().getOrDefault("facing", "SOUTH")))
                 .trim().toUpperCase(Locale.ROOT);
-        boolean eastWest = facing.equals("EAST") || facing.equals("WEST");
         Dimensions hostDims = host.dimensions();
         Dimensions doorDims = entrance.dimensions();
-        int span = Math.max(1, eastWest ? doorDims.depth() : doorDims.width());
+        // Expand the thin authored door axis through the host — never flip W/E openings into a
+        // full-width × 1 slab (that erased the three bays and made the monument look like a room).
+        boolean throughAlongDepth = doorDims.depth() <= doorDims.width();
+        int clearW = Math.max(1, Math.max(doorDims.width(), intParam(entrance.params(),
+                "clear_width", "door_width", "doorWidth")));
+        int clearD = Math.max(1, Math.max(doorDims.depth(), intParam(entrance.params(),
+                "clear_depth", "door_depth", "doorDepth")));
+        int span = Math.max(1, throughAlongDepth ? clearW : clearD);
         int rise = Math.max(doorDims.height(), Math.min(hostDims.height() - 1,
                 Math.max(3, doorDims.height())));
-        int through = Math.max(1, eastWest ? hostDims.width() : hostDims.depth());
-        int newW = eastWest ? through : span;
-        int newD = eastWest ? span : through;
+        int newW = throughAlongDepth ? Math.min(span, hostDims.width()) : hostDims.width();
+        int newD = throughAlongDepth ? hostDims.depth() : Math.min(span, hostDims.depth());
         Vec3i hostOrigin = ComponentFootprintUtil.resolveMinCornerOrigin(host);
         Vec3i doorOrigin = entrance.relativePosition();
         int x;
         int z;
-        if (eastWest) {
-            x = hostOrigin.x();
-            z = doorOrigin.z();
-            // Keep door bay centred on host when possible.
-            if (doorDims.depth() < hostDims.depth()) {
-                z = Math.max(hostOrigin.z(), Math.min(doorOrigin.z(),
-                        hostOrigin.z() + hostDims.depth() - newD));
-            }
-        } else {
+        if (throughAlongDepth) {
             x = doorOrigin.x();
             z = hostOrigin.z();
-            if (doorDims.width() < hostDims.width()) {
+            if (newW < hostDims.width()) {
                 x = Math.max(hostOrigin.x(), Math.min(doorOrigin.x(),
                         hostOrigin.x() + hostDims.width() - newW));
+            }
+        } else {
+            x = hostOrigin.x();
+            z = doorOrigin.z();
+            if (newD < hostDims.depth()) {
+                z = Math.max(hostOrigin.z(), Math.min(doorOrigin.z(),
+                        hostOrigin.z() + hostDims.depth() - newD));
             }
         }
         Map<String, Object> params = new HashMap<>(entrance.params());
@@ -194,7 +235,7 @@ final class TriumphalArchPassageRepair {
             params.put("host_id", String.valueOf(host.params().get("component_id")));
         }
         params.put("replace_wall_region", true);
-        params.putIfAbsent("door_width", span);
+        params.putIfAbsent("door_width", throughAlongDepth ? newW : newD);
         params.putIfAbsent("door_height", rise);
         List<String> features = entrance.features() == null
                 ? new ArrayList<>()
@@ -220,6 +261,22 @@ final class TriumphalArchPassageRepair {
                 new Dimensions(newW, newD, rise),
                 features,
                 params);
+    }
+
+    private static int intParam(Map<String, Object> params, String... keys) {
+        if (params == null) return 0;
+        for (String key : keys) {
+            Object v = params.get(key);
+            if (v instanceof Number n) return n.intValue();
+            if (v != null) {
+                try {
+                    return Integer.parseInt(String.valueOf(v).trim());
+                } catch (NumberFormatException ignored) {
+                    // keep scanning
+                }
+            }
+        }
+        return 0;
     }
 
     private static String intentCorpus(LlmPlan plan) {

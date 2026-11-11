@@ -69,23 +69,38 @@ final class FlatRoofAttachmentRepair {
         if (hostId == null) return roof;
         Component body = masses.get(String.valueOf(hostId));
         if (body == null) return roof;
-        String partId = String.valueOf(roof.params().getOrDefault("host_part_id", hostId));
-        int hostOffsetY = slotOffsetY(slots, body.slotId());
+        // Attic flat roofs are often host_id'd to the primary arch body while authored Y sits on
+        // MASS_SECONDARY attic — prefer that storey instead of snapping the roof down.
+        Component snapHost = preferAtticHost(roof, body, masses);
+        String snapHostId = String.valueOf(snapHost.params() == null
+                ? hostId : snapHost.params().getOrDefault("component_id", hostId));
+        String partId = String.valueOf(roof.params().getOrDefault("host_part_id",
+                snapHost == body ? hostId : snapHostId));
+        int hostOffsetY = slotOffsetY(slots, snapHost.slotId());
         int roofOffsetY = slotOffsetY(slots, roof.slotId());
-        for (var part : ResolvedMassPart.resolve(body)) {
-            if (!part.partId().equals(partId)) continue;
-            boolean open = OpenFramePolicy.isOpen(body.params());
+        var parts = ResolvedMassPart.resolve(snapHost);
+        for (var part : parts) {
+            boolean partMatch = part.partId().equals(partId)
+                    || (snapHost != body && parts.size() == 1);
+            if (!partMatch) continue;
+            boolean open = OpenFramePolicy.isOpen(snapHost.params());
             int hostTop = open ? part.bounds().maxY() : part.bounds().maxY() - 1;
             // Match FlatRoofCoverageValidator: compare in plan space, write back local Y.
             int expected = hostTop + hostOffsetY - roofOffsetY;
             int actual = roof.relativePosition().y();
             if (actual == expected) return roof;
+            if (actual > expected + 1 && snapHost == body && hasUpperStoreyAbove(body, masses, expected)) {
+                return roof;
+            }
             FormacraftMod.LOGGER.info(
                     "FlatRoofAttachmentRepair: snap {} Y {}→{} host={} open={} hostSlotY={} roofSlotY={}",
-                    roof.params().get("component_id"), actual, expected, hostId, open,
+                    roof.params().get("component_id"), actual, expected, snapHostId, open,
                     hostOffsetY, roofOffsetY);
             Map<String, Object> params = new HashMap<>(roof.params());
             params.put("anchor_mode", "min_corner");
+            if (snapHost != body) {
+                params.put("host_id", snapHostId);
+            }
             return new Component(
                     roof.componentType(),
                     roof.slotId(),
@@ -95,6 +110,52 @@ final class FlatRoofAttachmentRepair {
                     params);
         }
         return roof;
+    }
+
+    private static Component preferAtticHost(
+            Component roof, Component body, Map<String, Component> masses) {
+        int roofY = roof.relativePosition().y();
+        Component best = body;
+        int bestTop = Integer.MIN_VALUE;
+        String bodyId = body.params() == null ? ""
+                : String.valueOf(body.params().getOrDefault("component_id", ""));
+        for (Component m : masses.values()) {
+            if (m == null || m == body || m.dimensions() == null || m.relativePosition() == null) continue;
+            if (!"MASS_SECONDARY".equalsIgnoreCase(m.componentType())
+                    && !"MASS_ANCILLARY".equalsIgnoreCase(m.componentType())) {
+                continue;
+            }
+            String role = String.valueOf(m.params() == null ? "" : m.params().getOrDefault("role", ""));
+            String id = String.valueOf(m.params() == null ? "" : m.params().getOrDefault("component_id", ""));
+            String idLower = id.toLowerCase(java.util.Locale.ROOT);
+            boolean atticCue = "attic".equalsIgnoreCase(role)
+                    || idLower.contains("attic")
+                    || idLower.contains("storey");
+            Object host = m.params() == null ? null : m.params().get("host_id");
+            if (host == null && m.params() != null) host = m.params().get("hostId");
+            boolean bound = host != null && String.valueOf(host).equals(bodyId);
+            if (!atticCue && !bound) continue;
+            int top = m.relativePosition().y() + Math.max(1, m.dimensions().height()) - 1;
+            if (top < roofY && top > bestTop) {
+                bestTop = top;
+                best = m;
+            }
+        }
+        return best;
+    }
+
+    private static boolean hasUpperStoreyAbove(
+            Component body, Map<String, Component> masses, int bodyTop) {
+        String bodyId = body.params() == null ? ""
+                : String.valueOf(body.params().getOrDefault("component_id", ""));
+        for (Component m : masses.values()) {
+            if (m == null || m == body || m.relativePosition() == null) continue;
+            Object host = m.params() == null ? null : m.params().get("host_id");
+            if (host == null && m.params() != null) host = m.params().get("hostId");
+            if (host == null || !String.valueOf(host).equals(bodyId)) continue;
+            if (m.relativePosition().y() >= bodyTop) return true;
+        }
+        return false;
     }
 
     private static int slotOffsetY(Map<String, Slot> slots, String slotId) {

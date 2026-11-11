@@ -129,9 +129,11 @@ public final class ComponentPlanCompiler {
         // Hexagon pavilion tokens → native shape=hexagon (never silent octagon substitute).
         plan = FootprintShapeRemapRepair.apply(plan);
         plan = CourtyardRatioRepair.apply(plan);
+        plan = WallThicknessFitRepair.apply(plan);
         plan = DuplicateComponentIdRepair.apply(plan);
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
+        plan = OctagonGreenhouseRepair.apply(plan);
         // Soft-drop conflicting window_aspect before facade validation hard-fails.
         plan = WindowAspectConflictRepair.apply(plan);
         // Non-Gothic church styles must not stay locked to gothic_cathedral_hall.
@@ -151,6 +153,7 @@ public final class ComponentPlanCompiler {
         if (AssemblyCompileDiagnostics.hasGap()) {
             return List.of();
         }
+        plan = StackedMassHostBindRepair.apply(plan);
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
         plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.

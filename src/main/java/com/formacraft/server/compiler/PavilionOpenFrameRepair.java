@@ -1004,7 +1004,8 @@ final class PavilionOpenFrameRepair {
     private static boolean looksGreenhouse(Component mass, String idLower) {
         if (idLower != null && (idLower.contains("greenhouse") || idLower.contains("glasshouse")
                 || idLower.contains("orangerie") || idLower.contains("conservatory")
-                || idLower.contains("温室") || idLower.contains("玻璃房") || idLower.contains("花房"))) {
+                || idLower.contains("温室") || idLower.contains("玻璃房") || idLower.contains("花房")
+                || idLower.startsWith("gh_") || idLower.equals("gh_body"))) {
             return true;
         }
         if (mass != null && mass.features() != null) {
@@ -1013,7 +1014,9 @@ final class PavilionOpenFrameRepair {
                 String lower = f.toLowerCase(Locale.ROOT);
                 if (lower.contains("greenhouse") || lower.contains("glasshouse")
                         || lower.contains("orangerie") || lower.contains("conservatory")
-                        || lower.contains("温室") || lower.contains("玻璃房") || lower.contains("花房")) {
+                        || lower.contains("温室") || lower.contains("玻璃房") || lower.contains("花房")
+                        || lower.contains("玻璃表皮") || lower.contains("glazing")
+                        || lower.contains("curtain_glass")) {
                     return true;
                 }
             }
@@ -1027,6 +1030,13 @@ final class PavilionOpenFrameRepair {
                         || r.contains("conservatory")) {
                     return true;
                 }
+            }
+            Object wall = mass.params().get("wall_block");
+            if (wall != null && String.valueOf(wall).toLowerCase(Locale.ROOT).contains("glass")) {
+                return true;
+            }
+            if (mass.params().containsKey("glazing_ratio")) {
+                return true;
             }
         }
         return false;

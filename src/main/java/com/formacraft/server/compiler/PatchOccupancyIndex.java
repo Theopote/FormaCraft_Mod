@@ -354,6 +354,11 @@ public final class PatchOccupancyIndex {
                                             : String.valueOf(prev.owner().params().get("host_id")).trim())
                                 && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_ANCILLARY", "TOWER",
                                         "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType()))
+                            || (prev.owner() != null
+                                && java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
+                                && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_ANCILLARY", "TOWER",
+                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(
+                                        prev.writerType() == null ? "" : prev.writerType()))
                             // Unbound industrial stacks still need to pierce adjacent masses/roofs.
                             || (writer.params() != null
                                 && writer.params().get("host_id") == null
@@ -363,10 +368,15 @@ public final class PatchOccupancyIndex {
                 boolean gateOnPath = "GATE".equals(type)
                         && prev.writerType() != null
                         && GATE_PATH_SURFACES.contains(prev.writerType());
+                boolean sameSlotRoofJoin = Set.of("ROOF", "ROOF_STRUCTURE").contains(type)
+                        && prev.owner() != null
+                        && java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
+                        && prev.writerType() != null
+                        && prev.writerType().startsWith("MASS");
                 // MASS_SECONDARY may REMOVE (carve) host cells via isHostedMassSecondaryCarve,
                 // but PLACE overwrite still requires a seam/plate/tier join — otherwise interior
                 // tiers and unrelated secondary masses punch through the host body.
-                if (!overwriteOk && !chimneyFooting && !gateOnPath
+                if (!overwriteOk && !chimneyFooting && !gateOnPath && !sameSlotRoofJoin
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
@@ -396,9 +406,10 @@ public final class PatchOccupancyIndex {
                 : String.valueOf(owner.params().get("component_id")).trim();
         String ownerHost = owner.params().get("host_id") == null ? null
                 : String.valueOf(owner.params().get("host_id")).trim();
-        if (!bindsToOwner(writer, ownerId, ownerHost)) return false;
-        // Host-bound setbacks may span distinct slot labels in one compound frame.
         boolean sameSlot = java.util.Objects.equals(writer.slotId(), owner.slotId());
+        // Stacked villa_upper / tower_belfry may omit host_id; same-slot Y seam is enough.
+        if (!bindsToOwner(writer, ownerId, ownerHost) && !sameSlot) return false;
+        // Host-bound setbacks may span distinct slot labels in one compound frame.
         var upper = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
         var lower = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(owner);
         if (upper == null || lower == null) return false;
