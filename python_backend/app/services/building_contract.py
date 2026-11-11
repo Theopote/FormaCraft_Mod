@@ -113,12 +113,15 @@ def _extract_global_requirements(text: str) -> list[dict]:
         'gambrel': r'折线双坡顶|\bgambrel(?:[ _]roof)?\b',
         'barrel_vault': r'筒拱(?:屋)?顶|\bbarrel[ _]vault\b',
         'onion_dome': r'洋葱穹顶|\bonion[ _]dome\b',
+        'hemispherical_dome': r'半球穹顶|\bhemispherical[ _]dome\b',
+        'pointed_dome': r'尖拱穹顶|\bpointed[ _]dome\b',
         'steep_thatch': r'陡坡茅草顶|\bsteep[ _]thatch\b',
         'juanpeng_yingshan': r'硬山卷棚(?:屋?顶)?|\bjuanpeng_yingshan\b',
         'juanpeng_xuanshan': r'悬山卷棚(?:屋?顶)?|\bjuanpeng_xuanshan\b',
         'juanpeng': r'(?<!硬山)(?<!悬山)卷棚(?:屋?顶)?|\bjuan_?peng\b',
         'saltbox': r'盐盒顶|\bsaltbox(?:[ _]roof)?\b',
         'butterfly': r'蝶形(?:屋)?顶|\bbutterfly[ _]roof\b|^butterfly$',
+        'bellcast': r'钟形(?:双坡)?顶|\bbell_?cast\b',
         'cross_gable': r'十字双坡(?:屋\s*)?顶|\bcross[ _-]gabled?\b',
     }
     for roof_type, pattern in specialty_roofs.items():

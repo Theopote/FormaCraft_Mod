@@ -69,8 +69,7 @@ class FacetedDomeRoofTest {
         var fixture = java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json");
         var document = mapper.readTree(fixture.toFile());
         var params = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
-        params.put("roof_type", "dome").put("roof_block", "minecraft:black_concrete")
-                .put("dome_profile", "hemisphere")
+        params.put("roof_type", "半球穹顶").put("roof_block", "minecraft:black_concrete")
                 .put("roof_height", 9).put("dome_drum_height", 3).put("wall_block", "minecraft:stone_bricks")
                 .put("dome_rib_count", 4).put("dome_rib_block", "minecraft:quartz_block");
         var plan = mapper.treeToValue(document, LlmPlan.class);
@@ -202,5 +201,23 @@ class FacetedDomeRoofTest {
             assertFalse(patches.stream().anyMatch(p -> p.dx() == 8 && p.dz() == 8 && p.dy() == 20), profile);
         }
         assertEquals(Map.of("legacy", 29, "pointed", 30, "hemisphere", 31), sections);
+    }
+
+    @Test void namedDomeFormsChooseTheirProfileAndRejectConflictingOverrides() {
+        for (String type : List.of("尖拱穹顶", "pointed_dome", "半球穹顶", "hemispherical_dome")) {
+            boolean pointed = type.equals("尖拱穹顶") || type.equals("pointed_dome");
+            assertEquals(pointed ? RoofTypeKind.POINTED_DOME : RoofTypeKind.HEMISPHERICAL_DOME,
+                    RoofTypeCatalog.parseExplicit(type).orElseThrow());
+            var params = new HashMap<String, Object>(Map.of("roof_type", type, "roof_block", "minecraft:black_concrete"));
+            var component = new Component("ROOF", "tower", new Vec3i(0, 20, 0), new Dimensions(17, 17, 13),
+                    List.of(), params);
+            var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, component));
+            assertEquals(pointed ? 30 : 31, patches.stream().filter(p -> p.dx() == 12 && p.dz() == 8)
+                    .mapToInt(p -> p.dy()).max().orElseThrow(), type);
+            params.put("dome_profile", pointed ? "hemisphere" : "pointed");
+            var error = assertThrows(IllegalArgumentException.class,
+                    () -> new RoofGenerator().generate(new SemanticComponent("ROOF", null, component)));
+            assertTrue(error.getMessage().contains("conflicts"));
+        }
     }
 }

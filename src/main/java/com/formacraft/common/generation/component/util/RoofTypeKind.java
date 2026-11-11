@@ -23,10 +23,17 @@ public enum RoofTypeKind {
     JUANPENG_YINGSHAN,
     JUANPENG_XUANSHAN,
     BUTTERFLY,
-    CROSS_GABLE;
+    CROSS_GABLE,
+    HEMISPHERICAL_DOME,
+    POINTED_DOME,
+    BELLCAST;
+
+    public boolean isDome() {
+        return this == DOME || this == HEMISPHERICAL_DOME || this == POINTED_DOME;
+    }
 
     public boolean isProfiledGable() {
         return this == JUANPENG || this == JUANPENG_YINGSHAN || this == JUANPENG_XUANSHAN
-                || this == SALTBOX || this == BUTTERFLY || this == CROSS_GABLE;
+                || this == SALTBOX || this == BUTTERFLY || this == CROSS_GABLE || this == BELLCAST;
     }
 }

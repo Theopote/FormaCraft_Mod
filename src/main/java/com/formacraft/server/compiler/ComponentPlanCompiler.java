@@ -482,27 +482,6 @@ public final class ComponentPlanCompiler {
             // capture; hard-failing the whole typology building is worse than a soft warning.
             // Ordinary compositional plans still hard-fail so circulation contracts stay binding.
             String msg = conflict.getMessage() == null ? "" : conflict.getMessage();
-            // TEMP diag for oct20 plan5 clearance conflicts.
-            if (msg.contains("6, 5, 1") || msg.contains("clearance blocked")) {
-                BlockPos hit = new BlockPos(6, 5, 1);
-                BlockPatch last = null;
-                for (BlockPatch p : result) {
-                    if (p != null && p.dx() == hit.getX() && p.dy() == hit.getY() && p.dz() == hit.getZ()) last = p;
-                }
-                FormacraftMod.LOGGER.warn("TEMP circ conflict msg={} last@6,5,1={} flights={}", msg, last, circulation.size());
-                for (int fi = 0; fi < circulation.size(); fi++) {
-                    var f = circulation.get(fi);
-                    if (f == null) continue;
-                    boolean inClear = f.clearance().contains(hit);
-                    boolean inOcc = f.occupied().contains(hit);
-                    if (inClear || inOcc || f.occupied().isEmpty() && f.clearance().stream().anyMatch(
-                            p -> Math.abs(p.getX() - 6) <= 1 && p.getY() == 5 && Math.abs(p.getZ() - 1) <= 1)) {
-                        FormacraftMod.LOGGER.warn("TEMP flight {} occ={} clear={} inClear={} inOcc={} emptyOcc={} sampleClear={}",
-                                fi, f.occupied().size(), f.clearance().size(), inClear, inOcc, f.occupied().isEmpty(),
-                                f.clearance().stream().limit(16).toList());
-                    }
-                }
-            }
             if (typologyExclusivePlan) {
                 FormacraftMod.LOGGER.warn(
                         "E_PLAN_CIRCULATION_CONFLICT softened (typology): {}", msg);

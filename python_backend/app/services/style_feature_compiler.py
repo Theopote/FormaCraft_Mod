@@ -6,7 +6,7 @@ from ..models.building_profile import BuildingProfile, ProfileSource
 
 SUPPORTED_ROOF_DEFAULTS = frozenset({'flat', 'gable', 'hip', 'mansard', 'shed', 'cone', 'dome',
     'pyramid', 'xieshan', 'xuanshan', 'gambrel', 'barrel_vault', 'onion_dome', 'steep_thatch',
-    'juanpeng', 'saltbox'})
+    'juanpeng', 'saltbox', 'bellcast'})
 
 
 def component_style_defaults(style_id: str, component_type: str) -> dict:

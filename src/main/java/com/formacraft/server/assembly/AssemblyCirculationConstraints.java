@@ -138,8 +138,16 @@ public final class AssemblyCirculationConstraints {
                 if (state == null || state.isAir()) throw conflict(i, pos, "tread/support removed");
             }
             if (flight.occupied().isEmpty()) {
-                // Clearance-only contracts (e.g. portal openings) stay fully binding.
+                // Clearance-only contracts (e.g. bridge portals) must stay open unless a later
+                // flight explicitly claims the cell as tread/support — stairs may step through
+                // a portal threshold without cancelling the opening contract elsewhere.
+                Set<BlockPos> claimedByOtherFlights = new HashSet<>();
+                for (int j = 0; j < flights.size(); j++) {
+                    if (j == i || flights.get(j) == null) continue;
+                    claimedByOtherFlights.addAll(flights.get(j).occupied());
+                }
                 for (BlockPos pos : flight.clearance()) {
+                    if (claimedByOtherFlights.contains(pos)) continue;
                     BlockState state = finalStates.get(pos);
                     if (state == null || !state.isAir()) throw conflict(i, pos, "clearance blocked");
                 }

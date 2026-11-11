@@ -61,7 +61,7 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofTypeKind roofType = resolveRoofType(c, semantic, params);
-        int domeDrumHeight = roofType == RoofTypeKind.DOME
+        int domeDrumHeight = roofType.isDome()
                 ? domeDetailInteger(params, "dome_drum_height", Integer.MAX_VALUE) : 0;
         Direction saltboxLongSlope = roofType == RoofTypeKind.SALTBOX
                 ? roofCardinalDirection(params, "saltbox_long_slope") : null;
@@ -119,10 +119,10 @@ public class RoofGenerator implements ComponentGenerator {
                         com.formacraft.common.generation.component.util.SpecialtyRoofSurfaces.generate(
                                 roofType, baseX, rp.y(), baseZ, width, depth, height,
                                 resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang, params));
-                case JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY ->
+                case JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY, BELLCAST ->
                     generateProfiledGable(out, roofType, baseX, rp.y(), baseZ,
                         width, depth, height, resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang,
-                        alongDepthHint, saltboxLongSlope, saltboxRidgeFraction);
+                        alongDepthHint, saltboxLongSlope, saltboxRidgeFraction, params);
                 case SHED -> generateShedRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         palette, footprint, appliedOverhang);
                 case SAWTOOTH -> generateSawtoothRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
@@ -139,7 +139,8 @@ public class RoofGenerator implements ComponentGenerator {
                         footprint, appliedOverhang);
                 case CONE -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, false,
                         footprint, appliedOverhang, 0);
-                case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true,
+                case DOME, HEMISPHERICAL_DOME, POINTED_DOME ->
+                    generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true,
                         footprint, appliedOverhang, domeDrumHeight);
                 case MANSARD -> generateMansardRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang, mansardProfile);
@@ -253,10 +254,10 @@ public class RoofGenerator implements ComponentGenerator {
     static int normalizeStairRoofRise(int height, int width, int depth, RoofTypeKind roofType,
                                       Map<String, Object> params, boolean alongDepth) {
         int across = switch (roofType) {
-            case HIP, XIESHAN, PYRAMID, CONE, DOME -> Math.min(width, depth);
+            case HIP, XIESHAN, PYRAMID, CONE, DOME, HEMISPHERICAL_DOME, POINTED_DOME -> Math.min(width, depth);
             // Full-block roof profiles and flats keep their resolved rise.
             case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH,
-                    JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY, CROSS_GABLE -> 0;
+                    JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY, CROSS_GABLE, BELLCAST -> 0;
             default -> alongDepth ? width : depth;
         };
         if (across <= 0) return Math.max(1, height);
@@ -579,7 +580,8 @@ public class RoofGenerator implements ComponentGenerator {
     private static void generateProfiledGable(List<BlockPatch> out, RoofTypeKind kind, int baseX, int baseY,
                                               int baseZ, int width, int depth, int height, String fullBlock,
                                               ComponentFootprintMask footprint, int overhang, boolean alongDepth,
-                                              Direction saltboxLongSlope, double saltboxRidgeFraction) {
+                                              Direction saltboxLongSlope, double saltboxRidgeFraction, Map<String, Object> params) {
+        BellcastProfile bellcast = kind == RoofTypeKind.BELLCAST ? BellcastProfile.resolve(params) : null;
         int span = alongDepth ? width : depth;
         int length = alongDepth ? depth : width;
         int last = span - 1;
@@ -592,7 +594,7 @@ public class RoofGenerator implements ComponentGenerator {
         String slab = MaterialBlockFamily.slab(fullBlock);
         String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
         for (int across = 0; across < span; across++) {
-            double rise = profiledGableRise(across, last, ridgeStart, kind, maxRise);
+            double rise = profiledGableRise(across, last, ridgeStart, kind, maxRise, bellcast);
             int blockRise = (int) Math.round(rise);
             String surface = fullBlock;
             boolean butterfly = kind == RoofTypeKind.BUTTERFLY;
@@ -600,7 +602,7 @@ public class RoofGenerator implements ComponentGenerator {
             if (span >= 3 && blockRise < maxRise && !valley) {
                 int towardPeak = across < ridgeStart ? 1 : -1;
                 if (butterfly) towardPeak = -towardPeak;
-                double nextRise = profiledGableRise(across + towardPeak, last, ridgeStart, kind, maxRise);
+                double nextRise = profiledGableRise(across + towardPeak, last, ridgeStart, kind, maxRise, bellcast);
                 boolean towardPositive = mirrored ? towardPeak < 0 : towardPeak > 0;
                 String facing = alongDepth
                         ? (towardPositive ? "east" : "west")
@@ -632,6 +634,31 @@ public class RoofGenerator implements ComponentGenerator {
         };
     }
 
+    private record BellcastProfile(double run, double rise) {
+        double fractionAt(double u) {
+            return u <= run ? u * rise / run : rise + (u - run) * (1 - rise) / (1 - run);
+        }
+
+        static BellcastProfile resolve(Map<String, Object> params) {
+            double run = fraction(params, "bellcast_break_run_fraction", 0.25);
+            double rise = fraction(params, "bellcast_break_rise_fraction", 0.1);
+            if (rise >= run) throw new IllegalArgumentException(
+                    "E_ROOF_GEOMETRY_INVALID: bellcast_break_rise_fraction must be less than bellcast_break_run_fraction");
+            return new BellcastProfile(run, rise);
+        }
+
+        private static double fraction(Map<String, Object> params, String key, double fallback) {
+            String raw = getParamString(params, key);
+            if (raw == null) return fallback;
+            try {
+                double value = Double.parseDouble(raw);
+                if (value > 0 && value < 1) return value;
+            } catch (NumberFormatException ignored) { }
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: " + key
+                    + " must be a number between 0 and 1 (exclusive)");
+        }
+    }
+
     private static double saltboxRidgeFraction(Map<String, Object> params) {
         String raw = getParamString(params, "saltbox_ridge_fraction");
         if (raw == null) return 1.0 / 3;
@@ -655,13 +682,14 @@ public class RoofGenerator implements ComponentGenerator {
         return fullBlock;
     }
 
-    private static double profiledGableRise(int across, int last, int ridgeStart, RoofTypeKind kind, int maxRise) {
+    private static double profiledGableRise(int across, int last, int ridgeStart, RoofTypeKind kind, int maxRise, BellcastProfile bellcast) {
         if (last < 2) return 0;
         double fraction = switch (kind) {
             case JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN ->
                     Math.sin(Math.PI / 2 * Math.min(across, last - across) / ridgeStart);
             case SALTBOX -> across <= ridgeStart ? across / (double) ridgeStart
                     : (last - across) / (double) (last - ridgeStart);
+            case BELLCAST -> bellcast.fractionAt(Math.min(across, last - across) / (double) ridgeStart);
             case BUTTERFLY -> 1 - Math.min(across, last - across) / (double) ridgeStart;
             default -> throw new IllegalArgumentException("Unsupported gable profile: " + kind);
         };
@@ -1105,7 +1133,7 @@ public class RoofGenerator implements ComponentGenerator {
                                   Palette palette, boolean dome,
                                   ComponentFootprintMask footprint, int overhang, int drumHeight) {
         var params = semantic.source().params();
-        DomeProfile domeProfile = dome ? resolveDomeProfile(params) : DomeProfile.LEGACY;
+        DomeProfile domeProfile = dome ? resolveDomeProfile(semantic.source(), params) : DomeProfile.LEGACY;
         int openingRadius = dome ? domeDetailInteger(params, "dome_oculus_radius", Integer.MAX_VALUE) : 0;
         String openingGlass = dome ? domeOculusGlass(params, openingRadius) : null;
         String openingError = "E_ROOF_GEOMETRY_INVALID: dome_oculus_radius must leave a complete roof rim";
@@ -1199,15 +1227,27 @@ public class RoofGenerator implements ComponentGenerator {
         }
     }
 
-    private static DomeProfile resolveDomeProfile(Map<String, Object> params) {
+    private static DomeProfile resolveDomeProfile(Component component, Map<String, Object> params) {
+        RoofTypeKind kind = RoofTypeCatalog.extractExplicitType(component, params)
+                .flatMap(RoofTypeCatalog::parseExplicit).orElse(RoofTypeKind.DOME);
+        DomeProfile required = switch (kind) {
+            case HEMISPHERICAL_DOME -> DomeProfile.HEMISPHERE;
+            case POINTED_DOME -> DomeProfile.POINTED;
+            default -> DomeProfile.LEGACY;
+        };
         String raw = getParamString(params, "dome_profile");
-        if (raw == null) return DomeProfile.LEGACY;
+        if (raw == null) return required;
+        DomeProfile profile;
         try {
-            return DomeProfile.valueOf(raw.toUpperCase(java.util.Locale.ROOT));
+            profile = DomeProfile.valueOf(raw.toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(
                     "E_ROOF_GEOMETRY_INVALID: dome_profile must be legacy, hemisphere or pointed", e);
         }
+        if (required != DomeProfile.LEGACY && profile != required) {
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dome_profile conflicts with the explicit roof_type");
+        }
+        return profile;
     }
 
     private static String domeOculusGlass(Map<String, Object> params, int radius) {

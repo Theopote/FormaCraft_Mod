@@ -8,7 +8,7 @@ class P2RoofContractTests(unittest.TestCase):
     def test_bilingual_explicit_roofs(self):
         for canonical, alias in [('gambrel', '折线双坡顶'), ('barrel_vault', '筒拱屋顶'),
                                  ('onion_dome', '洋葱穹顶'), ('steep_thatch', '陡坡茅草顶'),
-                                 ('juanpeng', '卷棚顶'), ('saltbox', '盐盒顶')]:
+                                 ('juanpeng', '卷棚顶'), ('saltbox', '盐盒顶'), ('bellcast', '钟形顶')]:
             for text in (alias, canonical.replace('_', ' ')):
                 with self.subTest(text=text):
                     roofs = [r for r in extract_requirements(text) if r.get('property') == 'roof_type']
@@ -17,10 +17,10 @@ class P2RoofContractTests(unittest.TestCase):
 
     def test_negation_does_not_enable_specialty_roofs(self):
         for text in ('不要洋葱穹顶', '不用筒拱顶', 'without onion dome', 'no barrel vault',
-                     'avoid gambrel roof', 'not steep thatch', '不要卷棚顶', 'without saltbox roof'):
+                     '不要钟形顶', 'without bellcast roof', 'avoid gambrel roof', 'not steep thatch', '不要卷棚顶', 'without saltbox roof'):
             with self.subTest(text=text):
                 self.assertFalse(any(r.get('value') in {'gambrel', 'barrel_vault', 'onion_dome', 'steep_thatch',
-                                                       'juanpeng', 'saltbox'}
+                                                       'juanpeng', 'saltbox', 'bellcast'}
                                      for r in extract_requirements(text)))
 
     def test_incompatible_roofs_remain_unresolved(self):

@@ -133,6 +133,25 @@ class AssemblyCirculationConstraintsTest {
         assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(earlier, later)));
     }
 
+    @Test void laterStairFlightMayClaimPortalClearanceThreshold() {
+        // Bridge portal contracts are clearance-only; an exterior stair may step through the opening.
+        var portal = new AssemblyCirculationConstraints.Flight(
+                Set.of(), Set.of(new BlockPos(6, 5, 1), new BlockPos(6, 6, 1), new BlockPos(5, 5, 1)));
+        var stair = new AssemblyCirculationConstraints.Flight(
+                Set.of(new BlockPos(6, 5, 1), new BlockPos(5, 4, 1)),
+                Set.of(new BlockPos(6, 6, 1), new BlockPos(5, 5, 1)));
+        var patches = List.of(
+                place(6, 5, 1, "minecraft:stone_brick_stairs"),
+                place(5, 4, 1, "minecraft:stone_brick_stairs"),
+                remove(6, 6, 1),
+                remove(5, 5, 1));
+        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validatePatches(patches, List.of(portal, stair)));
+        assertThrows(AssemblyCirculationConstraints.Conflict.class,
+                () -> AssemblyCirculationConstraints.validatePatches(
+                        List.of(place(6, 5, 1, "minecraft:iron_bars"), remove(6, 6, 1), remove(5, 5, 1)),
+                        List.of(portal)));
+    }
+
     @Test void sharedLandingOccupiedByBothFlightsIsAllowed() {
         var platform = new BlockPos(2, 4, 0);
         var first = new AssemblyCirculationConstraints.Flight(

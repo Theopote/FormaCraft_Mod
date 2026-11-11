@@ -25,6 +25,8 @@ public final class RoofTypeCatalog {
             "pyramid", "pyramidal",
             "cone", "conical",
             "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome",
+            "hemispherical_dome", "hemispherical dome", "半球穹顶",
+            "pointed_dome", "pointed dome", "尖拱穹顶",
             "mansard", "mansard_roof", "baroque_roof",
             "gambrel", "gambrel_roof", "折线双坡顶",
             "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶",
@@ -35,6 +37,7 @@ public final class RoofTypeCatalog {
             "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶",
             "saltbox", "saltbox_roof", "盐盒顶",
             "butterfly", "butterfly_roof", "butterfly roof", "蝶形顶", "蝶形屋顶",
+            "bellcast", "bell_cast", "钟形顶", "钟形双坡顶",
             "cross_gable", "cross-gable", "cross gable", "cross-gabled", "十字双坡顶", "十字双坡屋顶",
             "none"
     );
@@ -87,13 +90,15 @@ public final class RoofTypeCatalog {
                 continue;
             }
             String lower = feature.toLowerCase(Locale.ROOT);
-            for (String token : java.util.List.of("gambrel_roof", "gambrel", "折线双坡顶",
+            for (String token : java.util.List.of("hemispherical_dome", "hemispherical dome", "半球穹顶",
+                    "pointed_dome", "pointed dome", "尖拱穹顶", "gambrel_roof", "gambrel", "折线双坡顶",
                     "barrel_vault", "barrel vault", "筒拱屋顶", "筒拱顶",
                     "onion_dome", "onion dome", "洋葱穹顶",
                     "steep_thatch", "steep thatch", "陡坡茅草顶",
                     "juanpeng_yingshan", "硬山卷棚", "juanpeng_xuanshan", "悬山卷棚",
                     "juanpeng", "juan_peng", "卷棚", "saltbox", "盐盒顶",
                     "butterfly_roof", "butterfly roof", "butterfly", "蝶形屋顶", "蝶形顶",
+                    "bellcast", "bell_cast", "钟形双坡顶", "钟形顶",
                     "cross_gable", "cross-gable", "cross gable", "十字双坡屋顶", "十字双坡顶")) {
                 if (lower.contains(token)) return Optional.of(token);
             }
@@ -182,6 +187,7 @@ public final class RoofTypeCatalog {
 
     private static RoofTypeKind mapToken(String normalized) {
         return switch (normalized) {
+            case "bellcast", "bell_cast", "钟形顶", "钟形双坡顶" -> RoofTypeKind.BELLCAST;
             case "gambrel", "gambrel_roof", "折线双坡顶" -> RoofTypeKind.GAMBREL;
             case "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶" -> RoofTypeKind.BARREL_VAULT;
             case "onion_dome", "onion dome", "洋葱穹顶" -> RoofTypeKind.ONION_DOME;
@@ -203,6 +209,8 @@ public final class RoofTypeCatalog {
             case "pyramid", "pyramidal" -> RoofTypeKind.PYRAMID;
             case "cone", "conical" -> RoofTypeKind.CONE;
             case "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome" -> RoofTypeKind.DOME;
+            case "hemispherical_dome", "hemispherical dome", "半球穹顶" -> RoofTypeKind.HEMISPHERICAL_DOME;
+            case "pointed_dome", "pointed dome", "尖拱穹顶" -> RoofTypeKind.POINTED_DOME;
             case "mansard", "mansard_roof", "baroque_roof" -> RoofTypeKind.MANSARD;
             case "sawtooth", "saw_tooth", "sawtooth_skylight", "northlight", "锯齿形", "锯齿" -> RoofTypeKind.SAWTOOTH;
             default -> RoofTypeKind.FLAT;

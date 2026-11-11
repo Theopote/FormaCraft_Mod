@@ -25,6 +25,8 @@
       "pyramid", "pyramidal",
       "cone", "conical",
       "dome", "domed", "curved", "polyhedral_dome", "faceted_dome", "polygonal_dome",
+      "hemispherical_dome", "hemispherical dome", "半球穹顶",
+      "pointed_dome", "pointed dome", "尖拱穹顶",
       "mansard", "mansard_roof", "baroque_roof",
       "gambrel", "gambrel_roof", "折线双坡顶",
       "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶",
@@ -35,7 +37,8 @@
       "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶",
       "saltbox", "saltbox_roof", "盐盒顶",
       "butterfly", "butterfly_roof", "butterfly roof", "蝶形顶", "蝶形屋顶",
-      "cross_gable", "cross-gable", "cross gable", "cross-gabled", "十字双坡顶", "十字双坡屋顶",
+      "bellcast", "bell_cast", "钟形顶", "钟形双坡顶",
+            "cross_gable", "cross-gable", "cross gable", "cross-gabled", "十字双坡顶", "十字双坡屋顶",
       "none"
     ],
     "aliases": {

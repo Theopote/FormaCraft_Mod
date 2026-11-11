@@ -17,6 +17,30 @@ class P2RoofGeometryTest {
                 List.of(), Map.of("roof_type",type,"roof_block","minecraft:hay_block","gable_walls",false));
     }
 
+    @Test void bellcastHasShallowEavesSteepUpperSlopesAndHollowInterior() {
+        var generator = new RoofGenerator();
+        var patches = generator.generate(new SemanticComponent("ROOF", null, roof("钟形双坡顶", 13, 13)));
+        assertEquals(List.of(20,21,22,25,27,30,32,30,27,25,22,21,20), section(patches,13));
+        assertFalse(patches.stream().anyMatch(p -> p.dx()==6 && p.dz()==8 && p.dy()==20));
+        for (int y=22; y<25; y++) {
+            int level=y;
+            assertTrue(patches.stream().anyMatch(p -> p.dx()==3 && p.dz()==8 && p.dy()==level));
+        }
+        var custom = new Component("ROOF", "hall", new Vec3i(0,20,0), new Dimensions(17,21,9), List.of(),
+                Map.of("roof_type","bellcast", "roof_block","minecraft:hay_block", "gable_walls",false,
+                        "ridge_axis","z", "bellcast_break_run_fraction",0.5, "bellcast_break_rise_fraction",0.2));
+        var adjusted=generator.generate(new SemanticComponent("ROOF",null,custom));
+        assertEquals(22,adjusted.stream().filter(p -> p.dx()==4 && p.dz()==8).mapToInt(BlockPatch::dy).max().orElseThrow());
+        assertEquals(28,adjusted.stream().mapToInt(BlockPatch::dy).max().orElseThrow());
+        for (double rise : List.of(0.5, Double.NaN, -0.1, 1.0)) {
+            var invalid = new Component("ROOF", "hall", new Vec3i(0,20,0), new Dimensions(17,21,9), List.of(),
+                    Map.of("roof_type","bellcast", "bellcast_break_run_fraction",0.5,
+                            "bellcast_break_rise_fraction",rise));
+            assertThrows(IllegalArgumentException.class, () -> generator.generate(new SemanticComponent("ROOF",null,invalid)));
+        }
+        assertEquals(RoofTypeKind.BELLCAST, RoofTypeCatalog.parseExplicit("bell_cast").orElseThrow());
+    }
+
     @Test void allSpecialtyRoofsExecuteAtTwoScalesWithoutFillingInterior() {
         for (String type : List.of("gambrel","barrel_vault","onion_dome","steep_thatch")) {
             for (int span : List.of(13,21)) {
