@@ -111,6 +111,10 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
             throw new IllegalArgumentException(
                     "E_FACADE_SCOPE_INVALID: faces explicitly empty (refuse fullMass fallback)");
         }
+        // Orchestrator shorthand: faces=ALL / EVERY → full-mass glazing, not an unknown token.
+        if (faces.stream().anyMatch(FacadeScope::isAllFacesToken)) {
+            return full();
+        }
         for (String f : faces) {
             if (!VALID_FACES.contains(f)) {
                 throw new IllegalArgumentException(
@@ -123,6 +127,13 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
             regions.add(new Region(f, minFloor, maxFloor));
         }
         return new FacadeScope(false, regions);
+    }
+
+    private static boolean isAllFacesToken(String face) {
+        if (face == null || face.isBlank()) return false;
+        String v = face.trim().toUpperCase(Locale.ROOT);
+        return "ALL".equals(v) || "EVERY".equals(v) || "ALL_FACES".equals(v)
+                || "四周".equals(face) || "四面".equals(face);
     }
 
     enum FacePresence { ABSENT, EXPLICIT_EMPTY, PRESENT }
@@ -185,13 +196,29 @@ public record FacadeScope(boolean fullMass, Set<Region> regions) {
         var out = new LinkedHashSet<String>();
         if (raw instanceof List<?> list) {
             for (Object o : list) {
-                if (o != null && !o.toString().isBlank()) out.add(o.toString().trim().toUpperCase(Locale.ROOT));
+                if (o != null && !o.toString().isBlank()) {
+                    String token = o.toString().trim();
+                    if (isAllFacesToken(token)) {
+                        out.add("ALL");
+                    } else {
+                        out.add(token.toUpperCase(Locale.ROOT));
+                    }
+                }
             }
         } else {
             String s = raw.toString().trim();
             if (!s.isEmpty()) {
-                for (String part : s.split("[,|;\\s]+")) {
-                    if (!part.isBlank()) out.add(part.trim().toUpperCase(Locale.ROOT));
+                if (isAllFacesToken(s)) {
+                    out.add("ALL");
+                } else {
+                    for (String part : s.split("[,|;\\s]+")) {
+                        if (part.isBlank()) continue;
+                        if (isAllFacesToken(part)) {
+                            out.add("ALL");
+                        } else {
+                            out.add(part.trim().toUpperCase(Locale.ROOT));
+                        }
+                    }
                 }
             }
         }

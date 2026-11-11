@@ -35,6 +35,11 @@ final class BridgeMisrouteRepair {
         if (corpus.isBlank()) {
             return plan;
         }
+        // 吊脚楼 mentions 吊* but is a stilt house, not a suspension bridge — leave for
+        // StiltShelterMisrouteRepair (runs earlier).
+        if (containsAny(corpus, List.of("吊脚楼", "吊脚", "干栏", "stilt house", "stilted", "pile dwelling"))) {
+            return plan;
+        }
         // Keep suspension / Golden Gate plans alone.
         if (containsAny(corpus, SUSPENSION_CUES)) {
             return plan;

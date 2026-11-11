@@ -156,21 +156,18 @@ public class RoofGenerator implements ComponentGenerator {
             sealSlopeRisers(out);
         }
         List<BlockPatch> roofShell = List.copyOf(out);
-        boolean wantsDormers = ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c);
-        Integer mansardDormerCount = wantsDormers && mansardProfile != null
+        // Dormers are a mansard specialty — never stamp three floating dormers onto every pitched roof.
+        boolean wantsDormers = mansardProfile != null
+                && ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c);
+        Integer mansardDormerCount = wantsDormers
                 ? ComponentRoofSpecialtyDecorator.mansardDormerCount(params) : null;
-        if (wantsDormers && (width >= 7 || mansardDormerCount != null)) {
+        if (wantsDormers && (Math.max(width, depth) >= 7 || mansardDormerCount != null)) {
             String trim = getBlockForPart(semantic, palette, SemanticPart.WALL_ACCENT);
             String glass = "minecraft:glass_pane";
             String roofBlock = getBlockForPart(semantic, palette, SemanticPart.ROOF);
-            if (mansardProfile == null) {
-                ComponentRoofSpecialtyDecorator.emitDormers(
-                        out, out, baseX, rp.y(), baseZ, width, depth, height, trim, glass, roofBlock);
-            } else {
-                ComponentRoofSpecialtyDecorator.emitDormers(
-                        out, roofShell, baseX, rp.y(), baseZ, width, depth, mansardProfile,
-                        mansardDormerCount, trim, glass, roofBlock);
-            }
+            ComponentRoofSpecialtyDecorator.emitDormers(
+                    out, roofShell, baseX, rp.y(), baseZ, width, depth, mansardProfile,
+                    mansardDormerCount, trim, glass, roofBlock);
         }
 
         boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱", "重檐")
@@ -1588,7 +1585,7 @@ public class RoofGenerator implements ComponentGenerator {
         Map<String, Object> params = semantic != null && semantic.source() != null
                 ? semantic.source().params() : null;
         // Prefer the authored cube id before coerceRoofShape turns gables into stairs/slabs.
-        String resolved = getParamString(params, "roof_block", "roof_material");
+        String resolved = getParamString(params, "roof_block", "roof_material", "material");
         if (resolved == null || resolved.isBlank()) {
             resolved = getBlockForPart(semantic, palette, SemanticPart.ROOF);
         } else if (!resolved.contains(":")) {

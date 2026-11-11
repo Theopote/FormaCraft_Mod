@@ -45,18 +45,26 @@ public final class ComponentRoofSpecialtyDecorator {
             if (hint != null) {
                 SpecialtyLevel parsed = parseLevel(String.valueOf(hint));
                 if (parsed != SpecialtyLevel.OFF) {
+                    // Typology/hint mansard_dormer only applies when the roof itself is mansard
+                    // or the component/params explicitly request dormers — never every pitched roof.
+                    if (parsed == SpecialtyLevel.MANSARD_DORMER
+                            && !isMansardRoofType(params, component)
+                            && !shouldApplyDormers(plan, params, component)) {
+                        return SpecialtyLevel.MANSARD;
+                    }
                     return parsed;
                 }
             }
             String typology = String.valueOf(hints.getOrDefault("typology", "")).toLowerCase(Locale.ROOT);
-            if (typology.contains("baroque") || typology.contains("townhouse") || typology.contains("paris")) {
-                return SpecialtyLevel.MANSARD_DORMER;
-            }
-            if (typology.contains("classical") || typology.contains("monument") || typology.contains("palace")) {
+            // Mansard silhouette only — dormers require an explicit cue (屋顶 specialty / roof_dormers /
+            // feature tokens). Auto-adding three dormers to every baroque/townhouse roof was wrong.
+            if (typology.contains("baroque") || typology.contains("townhouse") || typology.contains("paris")
+                    || typology.contains("classical") || typology.contains("monument")
+                    || typology.contains("palace")) {
                 return SpecialtyLevel.MANSARD;
             }
         }
-        if (shouldApplyDormers(plan, params, component)) {
+        if (shouldApplyDormers(plan, params, component) && isMansardRoofType(params, component)) {
             return SpecialtyLevel.MANSARD_DORMER;
         }
         return SpecialtyLevel.OFF;
@@ -223,56 +231,76 @@ public final class ComponentRoofSpecialtyDecorator {
             List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
             int width, int depth, MansardProfile profile, Integer count, String trimBlock, String glassBlock, String roofBlock
     ) {
-        if (out == null || (count == null && width < 7)) {
+        if (out == null || (count == null && Math.max(width, depth) < 7)) {
             return;
         }
         int setback = profile.setback();
-        int faceZ = baseZ + setback;
+        // Place dormers on the major (longer) facade slope, not the short gable end.
+        boolean alongWidth = width >= depth;
+        int majorSpan = alongWidth ? width : depth;
+        int minorSpan = alongWidth ? depth : width;
+        if (count == null && majorSpan < 7) {
+            return;
+        }
+        int faceMinor = setback;
         int protrude = 2;
-        List<Integer> centers = count == null ? dormerCenterXs(baseX, width)
-                : fittedDormerCenters(roofPatches, baseX, width, faceZ, setback, count);
-        for (int cx : centers) {
-            int surfaceY = findRoofSurfaceY(roofPatches, cx, faceZ);
+        List<Integer> centers = count == null
+                ? dormerCenterXs(alongWidth ? baseX : baseZ, majorSpan)
+                : fittedDormerCenters(roofPatches, alongWidth ? baseX : baseZ, majorSpan,
+                alongWidth ? baseZ + faceMinor : baseX + faceMinor, setback, count, alongWidth);
+        for (int cMajor : centers) {
+            int sampleX = alongWidth ? cMajor : baseX + faceMinor;
+            int sampleZ = alongWidth ? baseZ + faceMinor : cMajor;
+            int surfaceY = findRoofSurfaceY(roofPatches, sampleX, sampleZ);
             if (surfaceY == Integer.MIN_VALUE) {
-                int localX = cx - baseX;
-                int distance = Math.min(Math.min(localX, width - 1 - localX), Math.min(setback, depth - 1 - setback));
+                int localMajor = alongWidth ? (sampleX - baseX) : (sampleZ - baseZ);
+                int distance = Math.min(Math.min(localMajor, majorSpan - 1 - localMajor),
+                        Math.min(setback, minorSpan - 1 - setback));
                 surfaceY = baseY + profile.riseAt(distance);
             }
-            emitSingleDormer(out, cx, surfaceY, faceZ, protrude, trimBlock, glassBlock, roofBlock);
+            // cMajor is along the long facade; faceMinor is the setback into the slope.
+            emitSingleDormer(out, roofPatches, cMajor, surfaceY, alongWidth ? baseZ + faceMinor : baseX + faceMinor,
+                    protrude, setback, alongWidth, trimBlock, glassBlock, roofBlock);
         }
     }
 
-    private static List<Integer> fittedDormerCenters(List<BlockPatch> roofPatches, int baseX, int width,
-                                                     int faceZ, int setback, int count) {
+    private static List<Integer> fittedDormerCenters(List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
+                                                     int faceMinorCoord, int setback, int count) {
+        return fittedDormerCenters(roofPatches, baseMajor, majorSpan, faceMinorCoord, setback, count, true);
+    }
+
+    private static List<Integer> fittedDormerCenters(List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
+                                                     int faceMinorCoord, int setback, int count, boolean alongWidth) {
         if (count < 1) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_count must be a positive whole number");
         }
-        boolean[] face = new boolean[width];
-        boolean[] front = new boolean[width];
+        boolean[] face = new boolean[majorSpan];
+        boolean[] front = new boolean[majorSpan];
         for (BlockPatch patch : roofPatches == null ? List.<BlockPatch>of() : roofPatches) {
             if (!GeneratedSurfaceCapture.occupied(patch)) continue;
-            int x = patch.dx() - baseX;
-            if (x < 0 || x >= width) continue;
-            if (patch.dz() == faceZ) face[x] = true;
-            if (patch.dz() == faceZ - 1) front[x] = true;
+            int major = alongWidth ? patch.dx() - baseMajor : patch.dz() - baseMajor;
+            int minor = alongWidth ? patch.dz() : patch.dx();
+            if (major < 0 || major >= majorSpan) continue;
+            if (minor == faceMinorCoord) face[major] = true;
+            if (minor == faceMinorCoord - 1) front[major] = true;
         }
         int bestStart = 0;
         int bestLength = 0;
         int length = 0;
-        // A dormer is three cells wide and must stay on the front slope.
-        for (int x = setback; x < width - setback; x++) {
+        // A dormer is three cells wide and must stay on the major-face slope.
+        for (int x = setback; x < majorSpan - setback; x++) {
             length = face[x] && front[x] ? length + 1 : 0;
             if (length > bestLength) {
                 bestStart = x - length + 1;
                 bestLength = length;
             }
         }
-        int capacity = (bestLength + 1) / 4;
+        int capacity = bestLength < 3 ? 0 : (bestLength + 1) / 4;
         if (count > capacity) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_count=" + count
                     + " exceeds the available fold strip capacity of " + capacity);
         }
-        int first = baseX + bestStart + 1;
+        int first = baseMajor + bestStart + 1;
         int centerSpan = bestLength - 3;
         List<Integer> centers = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -292,32 +320,88 @@ public final class ComponentRoofSpecialtyDecorator {
             String glassBlock,
             String roofBlock
     ) {
+        emitSingleDormer(out, null, cx, surfaceY, faceZ, protrude, 1, true,
+                trimBlock, glassBlock, roofBlock);
+    }
+
+    /**
+     * @param majorCenter center along the long facade axis (X when alongWidth, else Z)
+     * @param faceMinor   setback coordinate on the short axis (Z when alongWidth, else X)
+     */
+    static void emitSingleDormer(
+            List<BlockPatch> out,
+            List<BlockPatch> roofPatches,
+            int majorCenter,
+            int surfaceY,
+            int faceMinor,
+            int protrude,
+            int embedDepth,
+            boolean alongWidth,
+            String trimBlock,
+            String glassBlock,
+            String roofBlock
+    ) {
+        // Shell sits one block above the roof skin; carve the host slope at surfaceY.
         int baseY = surfaceY + 1;
+        String stairs = ComponentFloorCorniceDecorator.inferStairsBlock(roofBlock);
+        // Embed one cell into the slope so the dormer sits in the roof, not floating outside.
+        int embed = Math.max(1, embedDepth);
         for (int dy = 0; dy <= 2; dy++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int d = 0; d < protrude; d++) {
-                    int z = faceZ - d;
-                    boolean isFront = d == protrude - 1;
+            for (int across = -1; across <= 1; across++) {
+                for (int d = 0; d < protrude + embed; d++) {
+                    int outward = d - embed;
+                    boolean inRoof = outward < 0;
+                    boolean isFront = outward == protrude - 1;
+                    int x = alongWidth ? majorCenter + across : faceMinor - outward;
+                    int z = alongWidth ? faceMinor - outward : majorCenter + across;
+                    // Carve a pocket into the host slope before placing the dormer shell.
+                    if (inRoof && roofPatches != null) {
+                        out.add(new BlockPatch(BlockPatch.REMOVE, x, surfaceY + dy, z, "minecraft:air"));
+                    }
                     String block;
-                    if (isFront && dx == 0) {
+                    if (isFront && across == 0) {
                         block = glassBlock;
-                    } else if (isFront || Math.abs(dx) == 1) {
+                    } else if (isFront || Math.abs(across) == 1) {
                         block = trimBlock;
                     } else {
                         continue;
                     }
-                    out.add(new BlockPatch(BlockPatch.PLACE, cx + dx, baseY + dy, z, block));
+                    out.add(new BlockPatch(BlockPatch.PLACE, x, baseY + dy, z, block));
                 }
             }
         }
-        int capZ = faceZ - protrude + 1;
-        for (int dx = -1; dx <= 1; dx++) {
-            out.add(new BlockPatch(BlockPatch.PLACE, cx + dx, baseY + 3, capZ, roofBlock));
+        // Dormer roof: continue the slope back into the host roof with stairs facing the ridge.
+        String ridgeFacing = alongWidth ? "south" : "east";
+        for (int run = 0; run <= protrude + embed; run++) {
+            int outward = run - embed;
+            int roofY = baseY + 3 + Math.max(0, (protrude - Math.max(0, outward)) / 2);
+            for (int across = -1; across <= 1; across++) {
+                int x = alongWidth ? majorCenter + across : faceMinor - outward;
+                int z = alongWidth ? faceMinor - outward : majorCenter + across;
+                boolean ridgeCell = across == 0 && run == protrude + embed;
+                String block;
+                if (ridgeCell) {
+                    block = roofBlock;
+                } else if (stairs != null && !stairs.isBlank()) {
+                    block = stairs + "[facing=" + ridgeFacing + ",half=bottom]";
+                } else {
+                    block = roofBlock;
+                }
+                out.add(new BlockPatch(BlockPatch.PLACE, x, roofY, z, block));
+            }
         }
-        out.add(new BlockPatch(BlockPatch.PLACE, cx, baseY + 4, capZ, roofBlock));
+        out.add(new BlockPatch(BlockPatch.PLACE,
+                alongWidth ? majorCenter : faceMinor - protrude,
+                baseY + 4,
+                alongWidth ? faceMinor - protrude : majorCenter,
+                roofBlock));
         String lintel = ComponentFloorCorniceDecorator.inferStairsBlock(trimBlock);
-        out.add(new BlockPatch(BlockPatch.PLACE, cx, baseY + 2, capZ,
-                lintel + "[facing=south,half=top]"));
+        String lintelFacing = alongWidth ? "south" : "east";
+        out.add(new BlockPatch(BlockPatch.PLACE,
+                alongWidth ? majorCenter : faceMinor - protrude + 1,
+                baseY + 2,
+                alongWidth ? faceMinor - protrude + 1 : majorCenter,
+                lintel + "[facing=" + lintelFacing + ",half=top]"));
     }
 
     private static SpecialtyLevel parseLevel(String raw) {

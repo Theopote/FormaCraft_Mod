@@ -930,12 +930,16 @@ final class ComponentEmitPass {
                 "屋檐已避让相邻建筑，跳过 " + (before - patches.size()) + " 条操作", roof.componentType(), ComponentPlanTypes.paramIdentity(roof));
     }
 
-    /** True when occupancy/occluder owner is the roof host, an ancestor, same building, or nests that host. */
+    /**
+     * True when occupancy/occluder owner is the roof host, an ancestor on the host_id chain,
+     * or a mass that nests that host as a ResolvedMassPart.
+     * Sibling masses that only share building_id stay foreign so a lower roof yields to an
+     * upper terrace volume in the same compound.
+     */
     private static boolean roofHostOwnedByOccupancy(String roofHostId, Component owner, List<Component> components) {
         if (roofHostId == null || owner == null || owner.params() == null) return false;
         String ownerId = ComponentPlanTypes.getParamString(owner.params(), "component_id");
         String ownerHost = ComponentPlanTypes.getParamString(owner.params(), "host_id");
-        String ownerBuilding = ComponentPlanTypes.getParamString(owner.params(), "building_id");
         if (roofHostId.equals(ownerId) || roofHostId.equals(ownerHost)) return true;
         Component roofHost = null;
         for (Component c : components) {
@@ -946,10 +950,7 @@ final class ComponentEmitPass {
         }
         if (roofHost != null) {
             String parent = ComponentPlanTypes.getParamString(roofHost.params(), "host_id");
-            String building = ComponentPlanTypes.getParamString(roofHost.params(), "building_id");
             if (ownerId != null && ownerId.equals(parent)) return true;
-            if (building != null && building.equals(ownerBuilding)) return true;
-            if (building != null && building.equals(ownerId)) return true;
             // Walk host_id ancestors so multi-hop stacks still own the child roof.
             String walk = parent;
             for (int i = 0; i < components.size() && walk != null; i++) {

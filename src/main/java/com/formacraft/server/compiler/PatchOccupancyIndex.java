@@ -562,19 +562,26 @@ public final class PatchOccupancyIndex {
         }
         String wt = writer.componentType() == null ? "" : writer.componentType().toUpperCase(Locale.ROOT);
         String pt = previous.writerType() == null ? "" : previous.writerType();
-        // Peer MASS_MAIN bodies must still conflict — pier join is for legs/supports only.
-        if (Set.of("MASS_MAIN", "MAIN_MASS").contains(wt)) {
-            return false;
-        }
-        boolean pierWriter = wt.startsWith("MASS") || "TOWER".equals(wt);
-        if (!pierWriter || !Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "FOUNDATION").contains(pt)) {
-            return false;
-        }
         var upper = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
         var lower = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(previous.owner());
         if (upper == null || lower == null) return false;
         boolean xzOverlap = upper.minX() < lower.maxX() && upper.maxX() > lower.minX()
                 && upper.minZ() < lower.maxZ() && upper.maxZ() > lower.minZ();
+        // Pagoda / stacked keeps: inset upper MASS_MAIN on the same slot may reseal the lower
+        // crown without host_id (tiers are peers with distinct building_id values).
+        if (Set.of("MASS_MAIN", "MAIN_MASS").contains(wt)
+                && Set.of("MASS_MAIN", "MAIN_MASS").contains(pt)) {
+            boolean nestedInset = upper.minX() >= lower.minX() && upper.maxX() <= lower.maxX()
+                    && upper.minZ() >= lower.minZ() && upper.maxZ() <= lower.maxZ();
+            boolean stacked = upper.minY() >= lower.minY() + (lower.maxY() - lower.minY()) / 2
+                    && upper.minY() <= lower.maxY() + 2;
+            return nestedInset && stacked && xzOverlap;
+        }
+        // Peer MASS_MAIN bodies must still conflict — pier join is for legs/supports only.
+        boolean pierWriter = wt.startsWith("MASS") || "TOWER".equals(wt);
+        if (!pierWriter || !Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "FOUNDATION").contains(pt)) {
+            return false;
+        }
         // Shared floor band (pier rising from the podium deck).
         boolean sharedFloor = upper.minY() <= lower.maxY() && upper.minY() >= lower.minY() - 1;
         return xzOverlap && sharedFloor;

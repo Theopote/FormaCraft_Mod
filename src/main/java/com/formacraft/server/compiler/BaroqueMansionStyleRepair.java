@@ -23,12 +23,31 @@ final class BaroqueMansionStyleRepair {
             "巴洛克", "baroque", "大宅", "宅邸", "府邸", "公馆", "庄园", "马萨", "mansard",
             "折线屋顶", "折线形屋顶", "老虎窗", "mansion");
 
+    private static final List<String> MONUMENT_GATE_CUES = List.of(
+            "凯旋", "凯旋门", "triumphal", "victory arch", "门楼", "牌楼", "arch of");
+
+    private static final List<String> DORMER_CUES = List.of(
+            "老虎窗", "dormer", "mansard_dormer", "椭圆山花");
+
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) {
             return plan;
         }
         String corpus = requestCorpus(plan);
+        // Baroque + 凯旋门 is a monument gate, not a mansard mansion with dormers.
+        if (containsAny(corpus, MONUMENT_GATE_CUES) || looksMonumentGatePlan(plan)) {
+            return plan;
+        }
+        // Victorian / Gothic / etc. often say 大宅 — do not force mansard + dormers onto them.
+        if (looksNonBaroqueResidential(plan, corpus)) {
+            return plan;
+        }
         if (!containsAny(corpus, BAROQUE_CUES) && !hasBaroqueMarkers(plan)) {
+            return plan;
+        }
+        // Bare "大宅/mansion" without baroque/mansard cues is not enough.
+        if (!containsAny(corpus, List.of("巴洛克", "baroque", "马萨", "mansard", "折线屋顶", "折线形屋顶", "老虎窗"))
+                && !hasBaroqueMarkers(plan)) {
             return plan;
         }
 
@@ -57,8 +76,9 @@ final class BaroqueMansionStyleRepair {
             hints.put("typology", "baroque_mansion");
             changed = true;
         }
+        boolean wantsDormers = containsAny(corpus, DORMER_CUES);
         if (!hints.containsKey("roof_specialty")) {
-            hints.put("roof_specialty", "mansard_dormer");
+            hints.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
             changed = true;
         }
 
@@ -96,6 +116,36 @@ final class BaroqueMansionStyleRepair {
                         return true;
                     }
                 }
+            }
+        }
+        return false;
+    }
+
+    private static boolean looksNonBaroqueResidential(LlmPlan plan, String corpus) {
+        String style = plan.styleProfile() == null ? "" : plan.styleProfile().toLowerCase(Locale.ROOT);
+        if (style.contains("victorian") || style.contains("gothic") || style.contains("tudor")
+                || style.contains("craftsman") || style.contains("japanese")
+                || style.contains("chinese") || style.contains("industrial")
+                || style.contains("cyberpunk") || style.contains("art_deco")
+                || style.contains("art-deco")) {
+            return true;
+        }
+        return containsAny(corpus, List.of(
+                "维多利亚", "victorian", "哥特", "gothic", "都铎", "tudor",
+                "葱头", "onion", "日式", "中式", "废土"));
+    }
+
+    private static boolean looksMonumentGatePlan(LlmPlan plan) {
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            String id = String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
+            if (id.contains("arch") || id.contains("凯旋") || id.contains("triumphal")
+                    || id.contains("gate_body") || id.contains("arch_body")) {
+                return true;
+            }
+            Object buildingClass = plan.planMeta() == null ? null : plan.planMeta().get("building_class");
+            if (buildingClass != null && "gate".equalsIgnoreCase(String.valueOf(buildingClass))) {
+                return true;
             }
         }
         return false;
@@ -140,10 +190,20 @@ final class BaroqueMansionStyleRepair {
         if (type.startsWith("ROOF")) {
             Object rt = params.get("roof_type");
             if (rt == null) rt = params.get("roofType");
+            boolean wantsDormers = containsAny(corpus, DORMER_CUES);
             if (rt == null || !String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
                 params.put("roof_type", "mansard");
-                params.put("roof_specialty", "mansard_dormer");
-                params.put("roof_dormers", true);
+                params.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
+                if (wantsDormers) {
+                    params.put("roof_dormers", true);
+                } else {
+                    params.putIfAbsent("roof_dormers", false);
+                }
+                changed = true;
+            } else if (!wantsDormers && Boolean.TRUE.equals(params.get("roof_dormers"))
+                    && features.stream().noneMatch(f -> f != null
+                    && (f.toLowerCase(Locale.ROOT).contains("dormer") || f.contains("老虎窗")))) {
+                params.put("roof_dormers", false);
                 changed = true;
             }
             if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("mansard"))) {

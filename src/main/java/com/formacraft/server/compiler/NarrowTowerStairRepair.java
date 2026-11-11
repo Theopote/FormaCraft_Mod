@@ -93,6 +93,12 @@ final class NarrowTowerStairRepair {
         if (id.contains("bridge") || id.contains("deck") || id.contains("span")) {
             return host;
         }
+        // Short oculus / roof lanterns are crowns, not climbable spire shafts.
+        if (id.contains("lantern") || id.contains("oculus") || id.contains("采光")
+                || id.contains("cupola") || id.contains("light_well")
+                || (host.dimensions().height() <= 4 && (id.contains("hex") || looksLanternFeatures(host.features())))) {
+            return host;
+        }
         boolean spireLike = "TOWER".equals(type) || type.startsWith("TOWER_")
                 || id.contains("spire") || id.contains("尖塔") || id.contains("belfry")
                 || id.contains("campanile") || looksSpireFeatures(host.features());
@@ -163,6 +169,20 @@ final class NarrowTowerStairRepair {
             String lower = f.toLowerCase(Locale.ROOT);
             if (lower.contains("spire") || lower.contains("尖塔") || lower.contains("belfry")
                     || lower.contains("tower stair") || lower.contains("市政厅")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean looksLanternFeatures(List<String> features) {
+        if (features == null) return false;
+        for (String f : features) {
+            if (f == null) continue;
+            String lower = f.toLowerCase(Locale.ROOT);
+            if (lower.contains("lantern") || lower.contains("oculus") || lower.contains("采光")
+                    || lower.contains("cupola") || lower.contains("light_well")
+                    || lower.contains("hexagonal_lantern")) {
                 return true;
             }
         }

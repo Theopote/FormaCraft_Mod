@@ -164,7 +164,7 @@ final class StadiumMisrouteRepair {
             }
             Map<String, Object> next = new HashMap<>();
             next.put("typology", "baroque_mansion");
-            next.put("roof_specialty", "mansard_dormer");
+            next.put("roof_specialty", "mansard");
             return next;
         }
         boolean dirty = false;
@@ -181,7 +181,8 @@ final class StadiumMisrouteRepair {
             Object specialty = next.get("roof_specialty");
             if (specialty == null || String.valueOf(specialty).isBlank()
                     || String.valueOf(specialty).toLowerCase(Locale.ROOT).contains("stadium")) {
-                next.put("roof_specialty", "mansard_dormer");
+                boolean wantsDormers = containsAny(corpus, List.of("老虎窗", "dormer", "mansard_dormer"));
+                next.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
                 dirty = true;
             }
         }
@@ -358,8 +359,13 @@ final class StadiumMisrouteRepair {
         if (containsAny(requestCorpus, List.of("马萨", "mansard", "折线", "老虎窗", "dormer", "巴洛克", "baroque"))) {
             params.putIfAbsent("roof_type", "mansard");
             params.putIfAbsent("preferred_roof_type", "mansard");
-            params.putIfAbsent("roof_specialty", "mansard_dormer");
-            params.putIfAbsent("roof_dormers", true);
+            boolean wantsDormers = containsAny(requestCorpus, List.of("老虎窗", "dormer", "mansard_dormer"));
+            params.putIfAbsent("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
+            if (wantsDormers) {
+                params.putIfAbsent("roof_dormers", true);
+            } else {
+                params.putIfAbsent("roof_dormers", false);
+            }
         }
         if (containsAny(requestCorpus, List.of("拱形窗", "拱形", "arched", "石英"))) {
             params.putIfAbsent("window_aspect", "arched");

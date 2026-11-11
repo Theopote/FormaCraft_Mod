@@ -213,7 +213,9 @@ final class InteriorStairInferenceCompiler {
             Object v = host.params().get(key);
             if (v == null) continue;
             String s = String.valueOf(v).toLowerCase(Locale.ROOT);
-            if (s.contains("circle") || s.contains("round") || s.contains("cylinder") || s.contains("圆")) {
+            if (s.contains("circle") || s.contains("round") || s.contains("cylinder") || s.contains("圆")
+                    || s.contains("octagon") || s.contains("hexagon") || s.contains("八角")
+                    || s.contains("六角")) {
                 return true;
             }
         }

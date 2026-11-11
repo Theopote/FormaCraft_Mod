@@ -54,8 +54,9 @@ public final class GothicCathedralHallBuilder {
             merged.putAll(params);
         }
         spec.setExtra(merged);
-        int width=clampOdd(getIntExtra(spec,"width",spec.getFootprint()!=null?spec.getFootprint().getWidth():25),17,101);
-        int depth=clampOdd(getIntExtra(spec,"depth",spec.getFootprint()!=null?spec.getFootprint().getDepth():45),25,151);
+        // Compact user halls (e.g. 12×20) must not be inflated to typology showcase minima 17×25.
+        int width=clampOdd(getIntExtra(spec,"width",spec.getFootprint()!=null?spec.getFootprint().getWidth():25),9,101);
+        int depth=clampOdd(getIntExtra(spec,"depth",spec.getFootprint()!=null?spec.getFootprint().getDepth():45),11,151);
         BlockPos corner=cornerOrigin(origin,resolveEntranceFacing(spec),width,depth,
                 getStringExtra(spec,"anchorMode","center"));
         var generated=generateFromSpec(spec, corner, world);
@@ -79,9 +80,9 @@ public final class GothicCathedralHallBuilder {
 
         Direction entrance = resolveEntranceFacing(spec);
 
-        int w = clampOdd(getIntExtra(spec, "width", spec != null && spec.getFootprint() != null ? spec.getFootprint().getWidth() : 25), 17, 101);
-        int d = clampOdd(getIntExtra(spec, "depth", spec != null && spec.getFootprint() != null ? spec.getFootprint().getDepth() : 45), 25, 151);
-        int wallH = clamp(getIntExtra(spec, "wallHeight", 16), 12, 40);
+        int w = clampOdd(getIntExtra(spec, "width", spec != null && spec.getFootprint() != null ? spec.getFootprint().getWidth() : 25), 9, 101);
+        int d = clampOdd(getIntExtra(spec, "depth", spec != null && spec.getFootprint() != null ? spec.getFootprint().getDepth() : 45), 11, 151);
+        int wallH = clamp(getIntExtra(spec, "wallHeight", Math.max(10, Math.min(16, d / 2 + 4))), 8, 40);
         int towerH = clamp(getIntExtra(spec, "towerHeight", (int) Math.round(wallH * 1.25)), wallH + 4, 80);
         int spireH = clamp(getIntExtra(spec, "spireHeight", 10), 6, 26);
         int buttressStep = clamp(getIntExtra(spec, "buttressStep", 5), 4, 8);

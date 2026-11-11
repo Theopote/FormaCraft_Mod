@@ -167,6 +167,10 @@ public final class ComponentPlanCompiler {
         plan = BaroqueMansionStyleRepair.apply(plan);
         // 楼阁/废土 composition ≠ dense_eaves octagon; 四角塔 → footprint=square.
         plan = DenseEavesPagodaMisrouteRepair.apply(plan);
+        // Gothic hall STRUCTURE must honour user 12×20 envelopes (not typology 25×45 defaults).
+        plan = GothicHallDimensionRepair.apply(plan);
+        // 吊脚楼/干栏避难所 must not stay locked to suspension_bridge (吊桥 keyword collision).
+        plan = StiltShelterMisrouteRepair.apply(plan);
         // Non-suspension bridge prompts must not stay locked to twin-tower suspension typology.
         plan = BridgeMisrouteRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);

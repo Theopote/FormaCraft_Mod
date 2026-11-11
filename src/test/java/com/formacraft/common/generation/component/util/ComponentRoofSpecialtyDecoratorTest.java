@@ -66,12 +66,14 @@ class ComponentRoofSpecialtyDecoratorTest {
 
     @Test
     void requestedDormersCannotSpanAGapInTheFoldStrip() {
+        // Depth > width → dormers sit on the major (long) face, centered along Z at x=setback.
         var profile = ComponentRoofSpecialtyDecorator.resolveMansardProfile(13, 17, 11,
                 Map.of("mansard_break_run", 3, "mansard_break_rise", 7));
+        int setback = profile.setback();
         List<BlockPatch> roof = new ArrayList<>();
-        for (int x = 3; x <= 9; x++) {
-            roof.add(new BlockPatch(BlockPatch.PLACE, x, 7, 3, "minecraft:bricks"));
-            if (x != 6) roof.add(new BlockPatch(BlockPatch.PLACE, x, 5, 2, "minecraft:bricks"));
+        for (int z = 3; z <= 9; z++) {
+            roof.add(new BlockPatch(BlockPatch.PLACE, setback, 7, z, "minecraft:bricks"));
+            if (z != 6) roof.add(new BlockPatch(BlockPatch.PLACE, setback - 1, 5, z, "minecraft:bricks"));
         }
         List<BlockPatch> out = new ArrayList<>();
         var error = assertThrows(IllegalArgumentException.class,
@@ -82,6 +84,6 @@ class ComponentRoofSpecialtyDecoratorTest {
         ComponentRoofSpecialtyDecorator.emitDormers(out, roof, 0, 0, 0,
                 13, 17, profile, 1, "minecraft:stone_bricks", "minecraft:glass_pane", "minecraft:bricks");
         assertEquals(List.of(4), out.stream().filter(p -> p.dy() == 8 && "minecraft:glass_pane".equals(p.targetBlock()))
-                .map(BlockPatch::dx).toList());
+                .map(BlockPatch::dz).toList());
     }
 }

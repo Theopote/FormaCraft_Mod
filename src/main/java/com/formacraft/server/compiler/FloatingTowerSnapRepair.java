@@ -27,6 +27,8 @@ final class FloatingTowerSnapRepair {
             Component tower = components.get(i);
             if (tower == null || tower.relativePosition() == null || tower.dimensions() == null) continue;
             if (!isTower(tower)) continue;
+            // Roof lanterns / oculus crowns sit on the dome apex — never snap them onto the cella top.
+            if (isRoofLantern(tower)) continue;
             int y = tower.relativePosition().y();
             if (y <= 0) continue;
             int supportTop = supportTopY(tower, components);
@@ -82,7 +84,38 @@ final class FloatingTowerSnapRepair {
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
         return "WALL".equals(t) || "MASS_MAIN".equals(t) || "MAIN_MASS".equals(t)
                 || "KEEP".equals(t) || "FOUNDATION".equals(t) || "GATE".equals(t)
-                || "MASS_SECONDARY".equals(t);
+                || "MASS_SECONDARY".equals(t)
+                || "ROOF".equals(t) || t.startsWith("ROOF_");
+    }
+
+    /** Hexagonal / oculus lanterns hosted by a dome must keep their authored apex Y. */
+    private static boolean isRoofLantern(Component c) {
+        String id = componentId(c).toLowerCase(Locale.ROOT);
+        if (id.contains("lantern") || id.contains("oculus") || id.contains("采光")
+                || id.contains("light_well") || id.contains("cupola")) {
+            return true;
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("lantern") || lower.contains("oculus") || lower.contains("采光")
+                        || lower.contains("cupola") || lower.contains("light_well")) {
+                    return true;
+                }
+            }
+        }
+        if (c.params() != null) {
+            Object host = c.params().get("host_id");
+            if (host == null) host = c.params().get("hostId");
+            if (host != null) {
+                String h = String.valueOf(host).toLowerCase(Locale.ROOT);
+                if (h.contains("dome") || h.contains("roof") || h.contains("穹")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean xzOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {

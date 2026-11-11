@@ -219,6 +219,7 @@ final class ComponentSatelliteAligner {
                 || idLower.contains("金顶") || idLower.contains("cross") || idLower.contains("gilded")
                 || idLower.contains("疙瘩") || idLower.contains("宝顶") || idLower.contains("脊刹")
                 || idLower.contains("rooftop") || idLower.contains("roof_ornament")
+                || idLower.contains("lantern") || idLower.contains("oculus") || idLower.contains("采光")
                 || "spire".equalsIgnoreCase(ComponentPlanTypes.getParamString(detail.params(), "detail_kind"))
                 || looksRidgeFeature(detail.features());
         // Small roof-top ornaments (palace gold finials, church crosses) often lack ridge tokens —
