@@ -96,11 +96,18 @@ final class ComponentSatelliteInference {
             }
             normalizedComponent = reconcileDelegatedRoof(plan, normalizedComponent, normalized);
             if (ComponentPlanTypes.isMassType(ComponentPlanTypes.normalizeType(normalizedComponent.componentType()))
-                    && ComponentParamParsers.intOrNull(normalizedComponent.params(), "wall_thickness", "wallThickness") == null) {
-                var params = new HashMap<String, Object>(normalizedComponent.params());
-                params.put("wall_thickness", 1);
-                normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
-                        normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
+                    && ComponentParamParsers.intOrNull(normalizedComponent.params(), "wall_thickness", "wallThickness") == null
+                    && normalizedComponent.dimensions() != null) {
+                int minSpan = Math.min(normalizedComponent.dimensions().width(), normalizedComponent.dimensions().depth());
+                // 2*thickness >= minSpan fills the envelope (E_WALL_THICKNESS_UNFIT); skip thin shafts.
+                if (minSpan > 2) {
+                    var params = new HashMap<String, Object>(normalizedComponent.params() == null
+                            ? Map.of() : normalizedComponent.params());
+                    params.put("wall_thickness", 1);
+                    normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
+                            normalizedComponent.relativePosition(), normalizedComponent.dimensions(),
+                            normalizedComponent.features(), params);
+                }
             }
             normalizedComponent = PlanIntentFidelityRepair.enrich(plan, normalizedComponent);
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);

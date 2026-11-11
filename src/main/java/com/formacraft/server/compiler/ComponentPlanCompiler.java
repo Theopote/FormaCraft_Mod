@@ -134,8 +134,8 @@ public final class ComponentPlanCompiler {
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
         plan = OctagonGreenhouseRepair.apply(plan);
-        // Soft-drop conflicting window_aspect before facade validation hard-fails.
-        plan = WindowAspectConflictRepair.apply(plan);
+        // Authored window_aspect vs window_style conflicts stay hard (E_WINDOW_ASPECT_CONFLICT).
+        // Soft-drop would mask DesignFidelity / facade validation contracts.
         // Non-Gothic church styles must not stay locked to gothic_cathedral_hall.
         plan = ChurchGothicMisrouteRepair.apply(plan);
         // Triumphal / multi-bay arches need through-depth ENTRANCE openings.

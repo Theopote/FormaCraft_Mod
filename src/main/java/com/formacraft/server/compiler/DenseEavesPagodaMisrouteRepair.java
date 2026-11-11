@@ -46,6 +46,8 @@ final class DenseEavesPagodaMisrouteRepair {
 
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
+        boolean injectedPagoda = false;
+        boolean planHasDenseEaves = plan.components().stream().anyMatch(DenseEavesPagodaMisrouteRepair::carriesDenseEaves);
         for (Component c : plan.components()) {
             Component next = c;
             if (pavilionNotPagoda && carriesDenseEaves(c)) {
@@ -63,8 +65,30 @@ final class DenseEavesPagodaMisrouteRepair {
                     next = squared;
                     changed = true;
                 }
+            } else if (hasPagodaCue && !pavilionNotPagoda && !planHasDenseEaves && looksHousePrimary(c)) {
+                next = injectDenseEavesTypology(c, corpus);
+                if (next != c) {
+                    changed = true;
+                    injectedPagoda = true;
+                    planHasDenseEaves = true;
+                }
             }
             out.add(next);
+        }
+        if (injectedPagoda) {
+            // STRUCTURE typology owns the silhouette — drop house-kit satellites that would
+            // reintroduce MASS_MAIN+gable morphology under PlanSemanticValidator.
+            List<Component> cleaned = new ArrayList<>();
+            for (Component c : out) {
+                if (c == null || c.componentType() == null) continue;
+                String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+                if (t.startsWith("ROOF") || "FACADE_WINDOWS".equals(t) || "ENTRANCE".equals(t)
+                        || "CHIMNEY".equals(t) || "CROWN".equals(t)) {
+                    continue;
+                }
+                cleaned.add(c);
+            }
+            out = cleaned;
         }
         if (!changed) {
             return plan;
@@ -72,11 +96,53 @@ final class DenseEavesPagodaMisrouteRepair {
         if (pavilionNotPagoda) {
             FormacraftMod.LOGGER.info(
                     "DenseEavesPagodaMisrouteRepair: stripped dense_eaves_pagoda for non-pagoda 楼阁/composition intent");
+        } else if (injectedPagoda) {
+            FormacraftMod.LOGGER.info(
+                    "DenseEavesPagodaMisrouteRepair: injected dense_eaves_pagoda for pagoda/tower intent");
         } else {
             FormacraftMod.LOGGER.info(
                     "DenseEavesPagodaMisrouteRepair: forced square footprint / storey height for 四角塔 intent");
         }
         return PlanComponentRewrite.withComponents(plan, out);
+    }
+
+    private static boolean looksHousePrimary(Component c) {
+        if (!looksTowerMass(c) || c.params() == null) return false;
+        String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+        if (!("MASS_MAIN".equals(type) || "MAIN_MASS".equals(type) || "STRUCTURE".equals(type))) {
+            return false;
+        }
+        if (carriesDenseEaves(c)) return false;
+        String roof = String.valueOf(c.params().getOrDefault("roof_type",
+                c.params().getOrDefault("roofType", ""))).toLowerCase(Locale.ROOT);
+        return roof.contains("gable") || roof.isBlank() || "default".equals(roof);
+    }
+
+    private static Component injectDenseEavesTypology(Component c, String corpus) {
+        Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
+        List<String> features = c.features() == null ? new ArrayList<>() : new ArrayList<>(c.features());
+        params.put("structural_typology", "dense_eaves_pagoda");
+        params.put("typology_id", "dense_eaves_pagoda");
+        params.put("footprint", "square");
+        int floors = parseFloorCount(corpus);
+        if (floors <= 0) floors = 7;
+        params.put("floor_count", floors);
+        params.putIfAbsent("levels", floors);
+        if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("pagoda"))) {
+            features.add("pagoda");
+        }
+        if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("dense_eaves"))) {
+            features.add("dense_eaves");
+        }
+        String type = "STRUCTURE";
+        Dimensions dims = c.dimensions();
+        if (dims != null) {
+            int span = Math.max(dims.width(), dims.depth());
+            int side = Math.max(8, Math.min(span, 16));
+            int height = Math.max(dims.height(), floors * 4 + 4);
+            dims = new Dimensions(side, side, height);
+        }
+        return new Component(type, c.slotId(), c.relativePosition(), dims, features, params);
     }
 
     private static boolean looksTowerMass(Component c) {

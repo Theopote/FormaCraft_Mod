@@ -72,11 +72,13 @@ final class FootprintCenterRepair {
      */
     private static boolean preservesAuthoredAbsoluteLayout(
             List<Component> components, Component main, Vec3i massOrigin) {
-        if (massOrigin == null || massOrigin.x() != 0 || massOrigin.z() != 0) {
-            return false;
-        }
+        // Explicit min_corner is an absolute authored frame at any origin — recentering
+        // orphaned stepped-roof / stilts fixtures that place the mass away from (0,0).
         if (isMinCornerAnchor(main)) {
             return true;
+        }
+        if (massOrigin == null || massOrigin.x() != 0 || massOrigin.z() != 0) {
+            return false;
         }
         int massY = main.relativePosition() == null ? 0 : main.relativePosition().y();
         int supportPosts = 0;

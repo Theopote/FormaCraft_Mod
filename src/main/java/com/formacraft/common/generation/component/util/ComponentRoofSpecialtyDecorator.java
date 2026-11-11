@@ -235,8 +235,10 @@ public final class ComponentRoofSpecialtyDecorator {
             return;
         }
         int setback = profile.setback();
-        // Place dormers on the major (longer) facade slope, not the short gable end.
-        boolean alongWidth = width >= depth;
+        // Prefer front/back slopes (along width) when that face is wide enough for dormers —
+        // street-facing mansards put lights on the Z-setback eaves even if depth is longer.
+        // Fall back to the depth axis only when the width face is too short.
+        boolean alongWidth = width >= depth || width >= 7;
         int majorSpan = alongWidth ? width : depth;
         int minorSpan = alongWidth ? depth : width;
         if (count == null && majorSpan < 7) {
@@ -355,8 +357,13 @@ public final class ComponentRoofSpecialtyDecorator {
                     int x = alongWidth ? majorCenter + across : faceMinor - outward;
                     int z = alongWidth ? faceMinor - outward : majorCenter + across;
                     // Carve a pocket into the host slope before placing the dormer shell.
+                    // Cheek columns (across=±1) must stay solid wall — never leave empty roof voids.
                     if (inRoof && roofPatches != null) {
-                        out.add(new BlockPatch(BlockPatch.REMOVE, x, surfaceY + dy, z, "minecraft:air"));
+                        if (Math.abs(across) == 1) {
+                            out.add(new BlockPatch(BlockPatch.PLACE, x, surfaceY + dy, z, trimBlock));
+                        } else {
+                            out.add(new BlockPatch(BlockPatch.REMOVE, x, surfaceY + dy, z, "minecraft:air"));
+                        }
                     }
                     String block;
                     if (isFront && across == 0) {

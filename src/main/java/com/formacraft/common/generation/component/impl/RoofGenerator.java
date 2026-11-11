@@ -1203,14 +1203,24 @@ public class RoofGenerator implements ComponentGenerator {
                 } else {
                     block = ribBlock != null && part != SemanticPart.ROOF_SURFACE && intersectsDomeRib(dx, dz, ribSpacing)
                             ? ribBlock : getBlockForPart(semantic, palette, part);
+                    if (part == SemanticPart.ROOF && dist > 0.5) {
+                        // Radial stairs: higher half toward the apex (dome centre).
+                        block = withStairsFacing(block, hexagonInwardFacing(x, z, width, depth));
+                    }
                 }
-                out.add(new BlockPatch(
-                        BlockPatch.PLACE,
-                        baseX + x,
-                        baseY + drumHeight + rise,
-                        baseZ + z,
-                        block
-                ));
+                boolean fillUnder = dome && (wantsStairSurface(params)
+                        || capRise < Math.max(2, (int) (radius * 0.65)));
+                if (fillUnder && part == SemanticPart.ROOF && !opening) {
+                    emitSlopeColumn(out, baseX + x, baseY + drumHeight, baseZ + z, rise, block, true);
+                } else {
+                    out.add(new BlockPatch(
+                            BlockPatch.PLACE,
+                            baseX + x,
+                            baseY + drumHeight + rise,
+                            baseZ + z,
+                            block
+                    ));
+                }
             }
         }
         if (openingRadius > 0 && !hasDomeOculusRim(capColumns, cx, cz, openingRadiusSquared)) {
@@ -1331,6 +1341,11 @@ public class RoofGenerator implements ComponentGenerator {
             generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
             return;
         }
+        int maxSpan = Math.max(1, (Math.min(width, depth) - 1) / 2);
+        // Lower mansard pitch is often <45° — stairs alone look flat/same-facing; fill under + face inward.
+        boolean fillUnder = wantsStairSurface(semantic.source() != null ? semantic.source().params() : null)
+                || profile.breakRise() < Math.max(1, profile.setback())
+                || (height - 1) < maxSpan * 0.9;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
@@ -1340,13 +1355,14 @@ public class RoofGenerator implements ComponentGenerator {
                 int rise = profile.riseAt(dist);
                 SemanticPart part = (dist <= 1) ? SemanticPart.ROOF : SemanticPart.ROOF_SURFACE;
                 String block = getBlockForPart(semantic, palette, part);
-                out.add(new BlockPatch(
-                        BlockPatch.PLACE,
-                        baseX + x,
-                        baseY + rise,
-                        baseZ + z,
-                        block
-                ));
+                if (part == SemanticPart.ROOF) {
+                    String facing = inwardFacingFromEdges(x, z, width, depth);
+                    String shape = isPerimeterCorner(x, z, width, depth)
+                            ? cornerOuterShape(x, z, width, depth, facing) : null;
+                    block = withStairsFacing(block, facing, shape);
+                }
+                emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block,
+                        fillUnder && part == SemanticPart.ROOF);
             }
         }
     }

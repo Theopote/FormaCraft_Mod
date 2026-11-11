@@ -464,17 +464,13 @@ final class ComponentSatelliteAligner {
                     bboxOverhang = existing;
                 }
                 if (bboxOverhang > 0 && existing != bboxOverhang) {
-                    // Prefer the authored roof bbox; soft-correct overhang instead of aborting.
-                    FormacraftMod.LOGGER.info(
-                            "alignRoofToMass: soft overhang {}→{} host={}",
-                            existing, bboxOverhang, ComponentPlanTypes.paramIdentity(mass));
-                    AssemblyCompileDiagnostics.addSoftWarning(
+                    AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(
                             "E_ROOF_OVERHANG_CONFLICT",
-                            "explicit overhang=" + existing + " → " + bboxOverhang
-                                    + " (matched roof bbox) host=" + ComponentPlanTypes.paramIdentity(mass),
-                            llmRoof.componentType(),
-                            ComponentPlanTypes.paramIdentity(llmRoof));
-                    params.put("overhang", bboxOverhang);
+                            "explicit overhang=" + existing + " conflicts with roof bbox overhang="
+                                    + bboxOverhang + " host=" + ComponentPlanTypes.paramIdentity(mass),
+                            "components[].params.overhang",
+                            List.of("Match overhang to roof dimensions", "Or omit overhang and let alignment infer it")));
+                    return null;
                 }
                 // Keep explicit value when it already matches bbox; do not raise via Math.max.
             } else if (bboxOverhang > 0) {
@@ -585,12 +581,8 @@ final class ComponentSatelliteAligner {
                 && (llmDims.width() == 1 || llmDims.depth() == 1)
                 && isFacadeStripOnHost(llmFacade, massOrigin, massDims)) {
             var position = llmFacade.relativePosition();
-            if (!params.containsKey("faces")) {
-                String face = llmDims.width() == 1 && llmDims.depth() > 1
-                        ? (Math.abs(position.x()-massOrigin.x()) <= Math.abs(position.x()-(massOrigin.x()+massDims.width()-1)) ? "EAST" : "WEST")
-                        : (Math.abs(position.z()-massOrigin.z()) <= Math.abs(position.z()-(massOrigin.z()+massDims.depth()-1)) ? "SOUTH" : "NORTH");
-                params.put("faces", List.of(face));
-            }
+            // Do not invent faces when the satellite omitted them — empty faces means full-mass
+            // opening delegation. Injecting a wall face here would downgrade full+partial merges.
             int fh = ComponentParamParsers.intParam(mass.params(), "floor_height", "floorHeight");
             int fc = ComponentParamParsers.intParam(mass.params(), "floor_count", "floorCount");
             if ("clerestory".equalsIgnoreCase(String.valueOf(params.get("height_level"))) && fh > 0) {

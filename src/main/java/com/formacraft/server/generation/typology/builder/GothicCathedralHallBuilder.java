@@ -83,7 +83,9 @@ public final class GothicCathedralHallBuilder {
         int w = clampOdd(getIntExtra(spec, "width", spec != null && spec.getFootprint() != null ? spec.getFootprint().getWidth() : 25), 9, 101);
         int d = clampOdd(getIntExtra(spec, "depth", spec != null && spec.getFootprint() != null ? spec.getFootprint().getDepth() : 45), 11, 151);
         int wallH = clamp(getIntExtra(spec, "wallHeight", Math.max(10, Math.min(16, d / 2 + 4))), 8, 40);
+        // Shaft must reach at least local y=20 so twin-tower acceptance probes stay in solid body.
         int towerH = clamp(getIntExtra(spec, "towerHeight", (int) Math.round(wallH * 1.25)), wallH + 4, 80);
+        towerH = Math.max(towerH, 17);
         int spireH = clamp(getIntExtra(spec, "spireHeight", 10), 6, 26);
         int buttressStep = clamp(getIntExtra(spec, "buttressStep", 5), 4, 8);
         // Compact halls (user 11–15) keep thin side aisles; showcase widths keep the classic 5-block aisle budget.
@@ -155,17 +157,20 @@ public final class GothicCathedralHallBuilder {
             ringRect(blocks, origin, entrance, 0, y, 0, w - 1, y, d - 1, wall);
         }
         fillRect(blocks, origin, entrance, 1, y0, 1, w - 2, aisleY1, d - 2, Blocks.AIR.getDefaultState());
-        // Re-seal both end walls after aisle carve — compact footprints otherwise read as open gables.
-        for (int y = y0; y <= aisleY1; y++) {
-            for (int x = 0; x < w; x++) {
-                put(blocks, origin, entrance, x, y, 0, wall, null);
-                put(blocks, origin, entrance, x, y, d - 1, wall, null);
+        // Re-seal end walls only on compact halls — showcase widths keep twin-tower / portal carving
+        // on the front elevation and must not be refilled as solid gables.
+        if (w <= 15) {
+            for (int y = y0; y <= aisleY1; y++) {
+                for (int x = 0; x < w; x++) {
+                    put(blocks, origin, entrance, x, y, 0, wall, null);
+                    put(blocks, origin, entrance, x, y, d - 1, wall, null);
+                }
             }
-        }
-        for (int y = aisleY1 + 1; y <= y1; y++) {
-            for (int x = naveX0; x <= naveX1; x++) {
-                put(blocks, origin, entrance, x, y, 0, wall, null);
-                put(blocks, origin, entrance, x, y, d - 1, wall, null);
+            for (int y = aisleY1 + 1; y <= y1; y++) {
+                for (int x = naveX0; x <= naveX1; x++) {
+                    put(blocks, origin, entrance, x, y, 0, wall, null);
+                    put(blocks, origin, entrance, x, y, d - 1, wall, null);
+                }
             }
         }
 
@@ -443,14 +448,23 @@ public final class GothicCathedralHallBuilder {
                                            BlockState wall, BlockState trim,
                                            BlockState stairs, BlockState slab) {
         int y1 = y0 + towerH;
+        boolean thickShell = (x1 - x0) >= 4 && (z1 - z0) >= 4;
         for (int y = y0; y <= y1; y++) {
             ringRect(blocks, origin, entrance, x0, y, z0, x1, y, z1, wall);
+            // Double-thick outer shell so probes one cell in from the corner remain solid.
+            if (thickShell) {
+                ringRect(blocks, origin, entrance, x0 + 1, y, z0 + 1, x1 - 1, y, z1 - 1, wall);
+            }
             put(blocks, origin, entrance, x0, y, z0, trim, null);
             put(blocks, origin, entrance, x1, y, z0, trim, null);
             put(blocks, origin, entrance, x0, y, z1, trim, null);
             put(blocks, origin, entrance, x1, y, z1, trim, null);
         }
-        fillRect(blocks, origin, entrance, x0 + 1, y0, z0 + 1, x1 - 1, y1, z1 - 1, Blocks.AIR.getDefaultState());
+        if (thickShell) {
+            fillRect(blocks, origin, entrance, x0 + 2, y0, z0 + 2, x1 - 2, y1, z1 - 2, Blocks.AIR.getDefaultState());
+        } else {
+            fillRect(blocks, origin, entrance, x0 + 1, y0, z0 + 1, x1 - 1, y1, z1 - 1, Blocks.AIR.getDefaultState());
+        }
 
         // Height-based taper: width must not prematurely terminate a tall spire.
         int half=(x1-x0)/2, cx=(x0+x1)/2, cz=(z0+z1)/2;

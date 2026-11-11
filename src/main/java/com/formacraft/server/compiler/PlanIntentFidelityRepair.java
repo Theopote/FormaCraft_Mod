@@ -386,7 +386,9 @@ final class PlanIntentFidelityRepair {
         if ((mass || roof || structure) && hints.roofType() != null && roofStampScope) {
             String current = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
             String want = hints.roofType();
-            if (isBlank(current) || !roofTypesCompatible(want, current)) {
+            // Explicit roof_type=none means delegated / unroofed (e.g. Tudor jetty under a host roof).
+            if (!"none".equalsIgnoreCase(current)
+                    && (isBlank(current) || !roofTypesCompatible(want, current))) {
                 params.put("roof_type", want);
                 if (mass) {
                     params.put("preferred_roof_type", want);
@@ -582,13 +584,7 @@ final class PlanIntentFidelityRepair {
                 nd = Math.max(3, nd - 2);
             }
             if (dims.width() < nw - 1 || dims.depth() < nd - 1) {
-                if (position != null
-                        && !com.formacraft.common.generation.component.util.ComponentFootprintUtil
-                        .isCornerAnchor(params)) {
-                    int dx = (nw - dims.width()) / 2;
-                    int dz = (nd - dims.depth()) / 2;
-                    position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
-                }
+                // Keep authored relativePosition: center anchors stay centered; min_corner stays put.
                 dims = new Dimensions(nw, nd, dims.height());
                 changed = true;
             }
@@ -631,13 +627,8 @@ final class PlanIntentFidelityRepair {
                 int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
                 changed = true;
                 if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
-                    if (position != null && (nw != dims.width() || nd != dims.depth())
-                            && !com.formacraft.common.generation.component.util.ComponentFootprintUtil
-                            .isCornerAnchor(params)) {
-                        int dx = (nw - dims.width()) / 2;
-                        int dz = (nd - dims.depth()) / 2;
-                        position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
-                    }
+                    // Do not shift relativePosition on resize — center-anchored masses would
+                    // move off the authored center (body appears at a corner).
                     dims = new Dimensions(nw, nd, nh);
                     changed = true;
                 }
@@ -646,13 +637,8 @@ final class PlanIntentFidelityRepair {
                 // Non-office buildings (日式 18×18, halls, etc.) still honour explicit W×D.
                 int nw = hints.footprintWidth();
                 int nd = hints.footprintDepth();
-                if (position != null
-                        && !com.formacraft.common.generation.component.util.ComponentFootprintUtil
-                        .isCornerAnchor(params)) {
-                    int dx = (nw - dims.width()) / 2;
-                    int dz = (nd - dims.depth()) / 2;
-                    position = new Vec3i(position.x() - dx, position.y(), position.z() - dz);
-                }
+                // Never adjust relativePosition here: for center anchors the coordinate IS the
+                // center, so subtracting (new-old)/2 slides the whole building off the cursor.
                 FormacraftMod.LOGGER.info(
                         "PlanIntentFidelityRepair: force primary footprint {}x{} → {}x{}",
                         dims.width(), dims.depth(), nw, nd);
@@ -1193,7 +1179,10 @@ final class PlanIntentFidelityRepair {
         return fromFeatures;
     }
 
-    /** Thin 1-deep / 1-wide facade strips often omit faces[]; infer from features or shape. */
+    /**
+     * Thin facade strips may name a face via feature tokens. Do not invent faces from
+     * strip geometry alone — absent faces means full-mass opening delegation.
+     */
     private static boolean applyThinFacadeFace(
             LlmPlan plan, Map<String, Object> params, Component component, List<String> features) {
         if (params.containsKey("faces") || params.containsKey("window_sides")
@@ -1208,12 +1197,6 @@ final class PlanIntentFidelityRepair {
             if (fl.contains("south")) { fromFeature = "SOUTH"; break; }
             if (fl.contains("east") && !fl.contains("west")) { fromFeature = "EAST"; break; }
             if (fl.contains("west") && !fl.contains("east")) { fromFeature = "WEST"; break; }
-        }
-        if (fromFeature == null && component.dimensions() != null) {
-            int w = component.dimensions().width();
-            int d = component.dimensions().depth();
-            if (d == 1 && w > 1) fromFeature = "SOUTH";
-            else if (w == 1 && d > 1) fromFeature = "EAST";
         }
         if (fromFeature == null) return false;
         boolean changed = DesignProvenance.putIfAllowed(plan, params, "faces", List.of(fromFeature));

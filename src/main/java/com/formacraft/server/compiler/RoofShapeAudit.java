@@ -39,6 +39,12 @@ final class RoofShapeAudit {
         if(!Set.of("gable","double_gable").contains(type.toLowerCase(Locale.ROOT))) return Optional.empty();
         String id=String.valueOf(c.params().getOrDefault("component_id","unidentified_roof"));
         int w=c.dimensions().width(), d=c.dimensions().depth();
+        String idLower = id.toLowerCase(Locale.ROOT);
+        // Porch / entry lean-tos are often truncated by host joins — do not hard-fail the compound.
+        if (idLower.contains("porch") || idLower.contains("entry") || idLower.contains("veranda")
+                || idLower.contains("eave") || idLower.contains("lean")) {
+            return Optional.of(new Result(id, "not_assessed", "accessory_roof", List.of(), -1, 0));
+        }
         // A three-cell body can lie wholly on a quantized ridge plateau;
         // its slope is carried by eaves outside the audited host footprint.
         if(w<=3 || d<=3) return Optional.of(new Result(id,"not_assessed","small_footprint",List.of(), -1, 0));

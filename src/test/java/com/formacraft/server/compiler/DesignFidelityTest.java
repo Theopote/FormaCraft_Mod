@@ -242,15 +242,12 @@ class DesignFidelityTest {
     }
 
     @Test
-    void overhangBboxConflictIsSoftCorrected() throws Exception {
+    void overhangBboxConflictIsHardFail() throws Exception {
         LlmPlan plan = loadFidelityPlan("overhang_bbox_conflict.json");
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
-        assertFalse(AssemblyCompileDiagnostics.hasGap(),
-                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
-        assertFalse(patches.isEmpty(), "overhang bbox mismatch should soft-correct instead of aborting");
-        assertTrue(AssemblyCompileDiagnostics.softWarnings().stream()
-                        .anyMatch(w -> "E_ROOF_OVERHANG_CONFLICT".equals(w.code())),
-                "expected soft E_ROOF_OVERHANG_CONFLICT warning");
+        assertTrue(patches.isEmpty(), "overhang bbox mismatch must abort instead of soft-correcting");
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_ROOF_OVERHANG_CONFLICT", AssemblyCompileDiagnostics.get().code());
     }
 
     @Test

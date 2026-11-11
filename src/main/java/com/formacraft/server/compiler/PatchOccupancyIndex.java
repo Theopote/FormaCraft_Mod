@@ -598,10 +598,13 @@ public final class PatchOccupancyIndex {
         return xzOverlap && sharedFloor;
     }
 
-    /** True when both sides are the same authored component (id match or identical instance). */
+    /**
+     * True when both sides share a non-blank authored {@code component_id}.
+     * Reference equality alone must not grant overwrite — same-material ownership transfer
+     * must not inherit privilege across separate validate/accept calls that reuse a Component instance.
+     */
     private static boolean sameComponentIdentity(Component a, Component b) {
         if (a == null || b == null) return false;
-        if (a == b) return true;
         if (a.params() == null || b.params() == null) return false;
         Object aid = a.params().get("component_id");
         if (aid == null) aid = a.params().get("componentId");
