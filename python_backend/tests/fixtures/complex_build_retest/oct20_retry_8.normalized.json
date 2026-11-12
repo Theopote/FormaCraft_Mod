@@ -1179,5 +1179,33 @@
   ],
   "description": "中世纪市镇礼堂：23x15 石砖主楼两层，完整双坡深色橡木屋顶，侧接 9x9、高 24 的钟楼，钟楼顶部四面尖顶，底层门洞贯通礼堂与钟楼，内部直跑楼梯分三段上至钟楼上层及钟室。",
   "player_fidelity_notice_zh": "组合式生成「中世纪市镇礼堂」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座中世纪市镇礼堂，\n主楼约23×15格、两层，\n使用石砖、深色橡木和玻璃窗，\n覆盖完整双坡屋顶。\n侧面连接一座约9×9格、\n高24格的钟楼，\n顶部为四面尖顶。\n钟楼与礼堂之间可以通行，\n内部有楼梯通向钟楼上层。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": "gable",
+      "roof_explicit": true,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 23,
+        "depth": 15
+      },
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks",
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座中世纪市镇礼堂，\n主楼约23×15格、两层，\n使用石砖、深色橡木和玻璃窗，\n覆盖完整双坡屋顶。\n侧面连接一座约9×9格、\n高24格的钟楼，\n顶部为四面尖顶。\n钟楼与礼堂之间可以通行，\n内部有楼梯通向钟楼上层。",
+    "building_class": "generic"
+  }
 }

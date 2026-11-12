@@ -790,9 +790,11 @@
         "entrance_type": "door",
         "facing": "NORTH",
         "door_block": "minecraft:dark_oak_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "mass_workshop"
+        "building_id": "mass_workshop",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -816,9 +818,11 @@
         "entrance_type": "door",
         "facing": "SOUTH",
         "door_block": "minecraft:dark_oak_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "mass_dispatch"
+        "building_id": "mass_dispatch",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -1167,7 +1171,7 @@
       "params": {
         "component_id": "platform_maintenance#platform_door",
         "host_id": "mass_workshop",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "mass_workshop",
@@ -1178,5 +1182,30 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「平台」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一组铁路维修设施：一栋约\n31×19格的单层高大红砖维修车间，\n以及一栋约13×11格的两层调度楼。\n车间采用连续锯齿形采光屋顶，\n锯齿之间要有完整屋面封闭。\n调度楼二层用架空连廊连接车间侧面检修平台，连廊两端开门，\n并设置栏杆和楼梯。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 31,
+        "depth": 19
+      },
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一组铁路维修设施：一栋约\n31×19格的单层高大红砖维修车间，\n以及一栋约13×11格的两层调度楼。\n车间采用连续锯齿形采光屋顶，\n锯齿之间要有完整屋面封闭。\n调度楼二层用架空连廊连接车间侧面检修平台，连廊两端开门，\n并设置栏杆和楼梯。",
+    "building_class": "generic"
+  }
 }

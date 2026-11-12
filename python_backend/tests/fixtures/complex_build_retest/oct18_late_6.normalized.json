@@ -1369,5 +1369,35 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「筑群」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座海崖上的小型修道院建筑群，占地约35×29格。\n主体由一座狭长礼拜堂、\n一栋两层居住楼和两段单层有顶回廊组成，\n围合出一个露天庭院。\n礼拜堂约23×11格，\n墙高12格，采用陡峭双坡屋顶，\n侧墙设置窄而高的彩色玻璃窗；\n入口上方设置一扇较大的装饰窗\n。居住楼约17×9格，\n每层高5格，\n通过内部楼梯连接。\n两段回廊宽4格，\n采用连续立柱和较低屋顶，\n在转角处连通，\n但不得封住礼拜堂和居住楼入口\n。庭院中央设置小型石质水井，\n海崖一侧设置带栏杆的观景平台\n，通过宽3格步道接入庭院。\n使用石砖、苔石、\n深色木屋顶和少量彩色玻璃，\n明确区分礼拜堂高屋顶、\n居住楼中等屋顶和回廊低屋顶。",
+      "building_class": "garden",
+      "confidence": 0.45,
+      "composition": "compound",
+      "tower_subtype": null,
+      "markers": [
+        "庭院"
+      ],
+      "roof_type": "gable",
+      "roof_explicit": true,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 35,
+        "depth": 29
+      },
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks",
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座海崖上的小型修道院建筑群，占地约35×29格。\n主体由一座狭长礼拜堂、\n一栋两层居住楼和两段单层有顶回廊组成，\n围合出一个露天庭院。\n礼拜堂约23×11格，\n墙高12格，采用陡峭双坡屋顶，\n侧墙设置窄而高的彩色玻璃窗；\n入口上方设置一扇较大的装饰窗\n。居住楼约17×9格，\n每层高5格，\n通过内部楼梯连接。\n两段回廊宽4格，\n采用连续立柱和较低屋顶，\n在转角处连通，\n但不得封住礼拜堂和居住楼入口\n。庭院中央设置小型石质水井，\n海崖一侧设置带栏杆的观景平台\n，通过宽3格步道接入庭院。\n使用石砖、苔石、\n深色木屋顶和少量彩色玻璃，\n明确区分礼拜堂高屋顶、\n居住楼中等屋顶和回廊低屋顶。",
+    "building_class": "garden"
+  }
 }

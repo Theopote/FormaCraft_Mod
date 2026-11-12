@@ -649,10 +649,12 @@
         "facing_runtime": "WEST",
         "opening_width": 3,
         "opening_height": 3,
-        "door_width": 3,
+        "door_width": 2,
         "door_height": 4,
         "building_id": "hall_body",
-        "stair_connection": "exterior_stair_to_bridge"
+        "stair_connection": "exterior_stair_to_bridge",
+        "door_width_clamped_from": 3,
+        "door_width_clamp_span": 3
       }
     },
     {
@@ -1197,5 +1199,32 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「车间约27×17格」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座工业风格的铁路维修设施，包含单层高净空维修车间、\n两层调度楼和一条高架检修走道\n。维修车间约27×17格，\n总高12格，\n内部至少保留9格连续净空，\n不设置横跨整个车间的中间楼板\n；\n屋顶采用连续锯齿形采光屋顶。\n车间短边设置两个宽5格、\n高6格的装饰车辆入口。\n调度楼约11×9格，每层高5格，\n放在车间侧面，\n与车间间隔6格。\n调度楼二层地面高度为5格，\n在同一高度通过宽3格的连廊连接到车间侧面的局部检修平台。\n平台只占车间内部一小部分，\n不要扩展为完整楼层。\n设置通往检修平台的室外楼梯，\n栏杆在连廊和楼梯接入口处留缺口。主要使用红砖、\n灰色混凝土、\n深色金属质感方块和玻璃。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 27,
+        "depth": 17
+      },
+      "forbids": [],
+      "materials": {
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座工业风格的铁路维修设施，包含单层高净空维修车间、\n两层调度楼和一条高架检修走道\n。维修车间约27×17格，\n总高12格，\n内部至少保留9格连续净空，\n不设置横跨整个车间的中间楼板\n；\n屋顶采用连续锯齿形采光屋顶。\n车间短边设置两个宽5格、\n高6格的装饰车辆入口。\n调度楼约11×9格，每层高5格，\n放在车间侧面，\n与车间间隔6格。\n调度楼二层地面高度为5格，\n在同一高度通过宽3格的连廊连接到车间侧面的局部检修平台。\n平台只占车间内部一小部分，\n不要扩展为完整楼层。\n设置通往检修平台的室外楼梯，\n栏杆在连廊和楼梯接入口处留缺口。主要使用红砖、\n灰色混凝土、\n深色金属质感方块和玻璃。",
+    "building_class": "generic"
+  }
 }

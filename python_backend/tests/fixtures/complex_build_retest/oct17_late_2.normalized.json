@@ -368,6 +368,16 @@
       "requirements": [],
       "verification_level": "plan_parameters_only"
     },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
     "connection_repairs": [
       {
         "component_id": "north_tower",
@@ -393,17 +403,7 @@
         "component_id": "south_tower_floor_16",
         "reason": "tower_floor_host"
       }
-    ],
-    "emissive_contract": {
-      "schema": "formacraft.emissive_contract.v1",
-      "requirements": [],
-      "verification_level": "plan_parameters_only"
-    },
-    "huizhou_gable_contract": {
-      "schema": "formacraft.huizhou_gable_contract.v1",
-      "requirements": [],
-      "verification_level": "plan_parameters_only"
-    }
+    ]
   },
   "layout": {
     "skeleton_type": "GRID_BAY",
@@ -1162,5 +1162,29 @@
       }
     }
   ],
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "在锚点生成一座哥特式图书馆，\n主体长31格、宽21格，\n中部大厅高16格，\n两侧各有一座高24格的方形塔楼\n。建筑使用灰色石材、\n深色屋顶和彩色玻璃，\n正立面左右对称。\n中央设置尖拱入口、\n入口上方的大型圆形花窗，\n两侧设置连续尖拱窗、\n扶壁和竖向装饰。\n内部大厅保持挑高，\n两侧设置二层阅读回廊，\n通过楼梯连接；\n中央保留至少5格宽的通道。\n补充书架、照明、\n塔楼楼板与屋顶细节。\n彩色玻璃应嵌入真实窗洞，\n扶壁和装饰不要堵住门窗。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "在锚点生成一座哥特式图书馆，\n主体长31格、宽21格，\n中部大厅高16格，\n两侧各有一座高24格的方形塔楼\n。建筑使用灰色石材、\n深色屋顶和彩色玻璃，\n正立面左右对称。\n中央设置尖拱入口、\n入口上方的大型圆形花窗，\n两侧设置连续尖拱窗、\n扶壁和竖向装饰。\n内部大厅保持挑高，\n两侧设置二层阅读回廊，\n通过楼梯连接；\n中央保留至少5格宽的通道。\n补充书架、照明、\n塔楼楼板与屋顶细节。\n彩色玻璃应嵌入真实窗洞，\n扶壁和装饰不要堵住门窗。",
+    "building_class": "generic"
+  }
 }

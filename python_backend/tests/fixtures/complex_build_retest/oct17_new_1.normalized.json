@@ -608,9 +608,11 @@
         "host_id": "warehouse_main",
         "entrance_type": "door",
         "material": "minecraft:spruce_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 2,
-        "building_id": "warehouse_main"
+        "building_id": "warehouse_main",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -1068,12 +1070,6 @@
       "verification_level": "plan_parameters_only",
       "features": []
     },
-    "connection_repairs": [
-      {
-        "component_id": "mill_bridge",
-        "reason": "ground_bridge_floor_datum"
-      }
-    ],
     "emissive_contract": {
       "schema": "formacraft.emissive_contract.v1",
       "requirements": [],
@@ -1083,8 +1079,38 @@
       "schema": "formacraft.huizhou_gable_contract.v1",
       "requirements": [],
       "verification_level": "plan_parameters_only"
-    }
+    },
+    "connection_repairs": [
+      {
+        "component_id": "mill_bridge",
+        "reason": "ground_bridge_floor_datum"
+      }
+    ]
   },
   "player_fidelity_notice_zh": "组合式生成「筑群」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座中世纪风格的水岸磨坊建筑群，\n包含一座两层磨坊和一座独立的小仓库。磨坊约长17格、\n宽13格，每层高5格，\n使用石砖基座、\n云杉木梁柱和浅色墙面，\n覆盖深色双坡屋顶。\n磨坊一层设置工作区，\n二层设置储物区，\n使用内部楼梯连接，\n并为楼梯保留至少2格高净空。\n一侧设置直径约7格的装饰水车\n，水车旁建造浅水渠。\n一层入口通过宽3格的木桥跨过水渠。小仓库放在磨坊另一侧，\n与主楼间隔5格，\n通过地面石板路连接。\n保留水车、\n水渠和木桥的空间关系，\n不要把两个建筑合并成一个体块\n。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": "gable",
+      "roof_explicit": true,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座中世纪风格的水岸磨坊建筑群，\n包含一座两层磨坊和一座独立的小仓库。磨坊约长17格、\n宽13格，每层高5格，\n使用石砖基座、\n云杉木梁柱和浅色墙面，\n覆盖深色双坡屋顶。\n磨坊一层设置工作区，\n二层设置储物区，\n使用内部楼梯连接，\n并为楼梯保留至少2格高净空。\n一侧设置直径约7格的装饰水车\n，水车旁建造浅水渠。\n一层入口通过宽3格的木桥跨过水渠。小仓库放在磨坊另一侧，\n与主楼间隔5格，\n通过地面石板路连接。\n保留水车、\n水渠和木桥的空间关系，\n不要把两个建筑合并成一个体块\n。",
+    "building_class": "generic"
+  }
 }

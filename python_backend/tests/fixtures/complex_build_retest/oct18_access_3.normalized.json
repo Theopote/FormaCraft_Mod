@@ -846,9 +846,11 @@
         "entrance_type": "door",
         "facing": "SOUTH",
         "runtime_facing": "NORTH",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "dispatch_main"
+        "building_id": "dispatch_main",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },

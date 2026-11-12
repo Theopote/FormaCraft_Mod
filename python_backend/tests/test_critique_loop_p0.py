@@ -11,7 +11,11 @@ from app.services import llm_plan_repair as repair
 class CritiqueLoopTests(unittest.TestCase):
     def setUp(self):
         self.profile = BuildingProfile(query="test hall")
-        self.valid = repair.build_minimal_plan_from_profile(self.profile, None, "test hall")
+        # Minimal plans omit anchor when req has no player pos; schema still requires one.
+        self.player_req = SimpleNamespace(
+            player=SimpleNamespace(pos=SimpleNamespace(x=12, y=64, z=-8))
+        )
+        self.valid = repair.build_minimal_plan_from_profile(self.profile, self.player_req, "test hall")
         self.bad = dict(self.valid)
         self.bad.pop("anchor")
         self.options = dict(user_text="test hall", building_profile=None,
@@ -29,14 +33,20 @@ class CritiqueLoopTests(unittest.TestCase):
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(data)))]), 'json_object'
 
     def test_valid_plan_makes_no_remote_call(self):
-        self.assertEqual(repair.repair_llm_plan_validation(self.valid, None, **self.options), self.valid)
+        self.assertEqual(
+            repair.repair_llm_plan_validation(self.valid, self.player_req, **self.options),
+            self.valid,
+        )
         self.call.assert_not_called()
 
     def test_one_round_preserves_design_before_profile_fallback(self):
         self.call.return_value = self.response(self.valid)
         self.options['building_profile'] = self.profile
         with patch.object(repair, 'build_minimal_plan_from_profile') as fallback:
-            self.assertEqual(repair.repair_llm_plan_validation(self.bad, None, **self.options), self.valid)
+            self.assertEqual(
+                repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options),
+                self.valid,
+            )
             fallback.assert_not_called()
         self.assertEqual(self.call.call_count, 1)
         self.assertEqual(self.call.call_args.kwargs['max_tokens'], 4096)
@@ -45,7 +55,10 @@ class CritiqueLoopTests(unittest.TestCase):
     def test_second_round_receives_latest_plan_and_errors(self):
         intermediate = dict(self.valid, mode='invalid')
         self.call.side_effect = [self.response(intermediate), self.response(self.valid)]
-        self.assertEqual(repair.repair_llm_plan_validation(self.bad, None, **self.options), self.valid)
+        self.assertEqual(
+            repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options),
+            self.valid,
+        )
         messages = self.call.call_args.kwargs['messages']
         self.assertEqual(json.loads(messages[-2]['content']), intermediate)
         self.assertIn('mode', messages[-1]['content'])
@@ -53,7 +66,7 @@ class CritiqueLoopTests(unittest.TestCase):
 
     def test_two_round_cap_reports_latest_errors(self):
         self.call.return_value = self.response(dict(self.valid, mode='invalid'))
-        result = repair.repair_llm_plan_validation(self.bad, None, **self.options)
+        result = repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options)
         self.assertEqual(self.call.call_count, 2)
         self.assertEqual(result['plan_status'], 'capability_gap')
         self.assertIn('mode', result['error'])
@@ -63,14 +76,14 @@ class CritiqueLoopTests(unittest.TestCase):
             with self.subTest(raw=raw):
                 self.call.reset_mock()
                 self.call.return_value = (SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=raw))]), 'json_object')
-                result = repair.repair_llm_plan_validation(self.bad, None, **self.options)
+                result = repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options)
                 self.assertEqual(self.call.call_count, 2)
                 self.assertEqual(result['plan_status'], 'capability_gap')
 
     def test_transport_failure_stops_and_falls_back(self):
         self.call.side_effect = TimeoutError('test timeout')
         self.options['building_profile'] = self.profile
-        result = repair.repair_llm_plan_validation(self.bad, None, **self.options)
+        result = repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options)
         self.assertNotEqual(result.get('plan_status'), 'capability_gap')
         self.assertEqual(self.call.call_count, 1)
 
@@ -79,7 +92,7 @@ class CritiqueLoopTests(unittest.TestCase):
         for disabled in (True, False):
             with patch.object(repair, 'LLMPLAN_VALIDATION_REPAIR_LLM', not disabled):
                 self.options['client'] = object() if disabled else None
-                result = repair.repair_llm_plan_validation(self.bad, None, **self.options)
+                result = repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options)
                 self.assertNotEqual(result.get('plan_status'), 'capability_gap')
         self.call.assert_not_called()
 

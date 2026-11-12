@@ -1358,7 +1358,8 @@
         "host_id": "south_portico_body",
         "facing": "NORTH",
         "passage": true,
-        "material": "minecraft:stone_bricks"
+        "material": "minecraft:stone_bricks",
+        "building_id": "south_street_gate"
       }
     },
     {
@@ -1487,7 +1488,7 @@
       "params": {
         "component_id": "main_north_balcony#platform_door",
         "host_id": "main_north_body",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "main_north_body",
@@ -1498,5 +1499,32 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建造一组围绕中央露天庭院布置\n的市政厅建筑，\n北侧为三层主楼，\n东西两侧为两层侧楼，\n南侧为带入口的门廊。\n庭院约17×」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一组围绕中央露天庭院布置的市政厅建筑，\n北侧为三层主楼，\n东西两侧为两层侧楼，\n南侧为带入口的门廊。\n庭院约17×17格，\n各栋主要入口朝向庭院。\n东西侧楼分别通过二层连廊连接主楼，连接处开门，\n庭院与街道之间保留可通行入口\n。",
+      "building_class": "garden",
+      "confidence": 0.45,
+      "composition": "compound",
+      "tower_subtype": null,
+      "markers": [
+        "庭院"
+      ],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 17,
+        "depth": 17
+      },
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一组围绕中央露天庭院布置的市政厅建筑，\n北侧为三层主楼，\n东西两侧为两层侧楼，\n南侧为带入口的门廊。\n庭院约17×17格，\n各栋主要入口朝向庭院。\n东西侧楼分别通过二层连廊连接主楼，连接处开门，\n庭院与街道之间保留可通行入口\n。",
+    "building_class": "garden"
+  }
 }

@@ -306,5 +306,27 @@
     }
   ],
   "player_fidelity_notice_zh": "识别为预置地标「tulou」，使用固定模板生成（保真度：取决于模块与真实建筑吻合度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "生成福建土楼三栋",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "生成福建土楼三栋",
+    "building_class": "generic"
+  }
 }

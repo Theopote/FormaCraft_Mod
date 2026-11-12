@@ -122,7 +122,13 @@ class GenerationCapabilityBatch2Test(unittest.TestCase):
         self.assertEqual(compound["composition"], "compound")
         compound_plan = scaffold_plan_for_intent(compound, anchor={"x": 8, "y": 64, "z": 8})
         ctypes = {c["component_type"] for c in compound_plan["components"]}
-        self.assertTrue({"COURTYARD", "PATH", "MASS_MAIN"} <= ctypes)
+        self.assertTrue({"MASS_MAIN", "MASS_SECONDARY", "ROOF"} <= ctypes)
+        peidian = [
+            c for c in compound_plan["components"]
+            if c.get("component_type") == "MASS_SECONDARY"
+            and (c.get("params") or {}).get("building_role") == "side_hall"
+        ]
+        self.assertGreaterEqual(len(peidian), 2)
 
     def test_evaluate_flags_unmapped_roof(self):
         plan = {

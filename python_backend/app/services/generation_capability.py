@@ -212,15 +212,21 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
                 or params.get("typologyId")
             )
             feats = [str(f) for f in (c.get("features") or []) if f]
+            # Stair/circulation STRUCTURE flights use from/to geometry, not typology_id.
+            joined_feats = " ".join(feats).lower()
+            is_stair_flight = (
+                ("from" in params and "to" in params)
+                or any(tok in joined_feats for tok in ("stair:", "stair_", "stairs"))
+                or str(params.get("extrude_mode") or "").lower() == "stair"
+            )
             if not typology:
                 for f in feats:
                     lower = f.lower()
                     if lower.startswith("typology:"):
                         typology = f.split(":", 1)[1].strip()
                         break
-            if not typology:
-                joined = " ".join(feats).lower()
-                if not any(tok in joined for tok in ("dense_eaves", "pagoda", "stupa", "typology")):
+            if not typology and not is_stair_flight:
+                if not any(tok in joined_feats for tok in ("dense_eaves", "pagoda", "stupa", "typology")):
                     errors.append(
                         f"capability: STRUCTURE {params.get('component_id') or ''} lacks typology_id"
                     )

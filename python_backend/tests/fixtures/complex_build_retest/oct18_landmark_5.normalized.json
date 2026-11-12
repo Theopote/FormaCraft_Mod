@@ -1075,7 +1075,7 @@
       "params": {
         "component_id": "main_hall_balcony#platform_door",
         "host_id": "forbidden_city_main_hall",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "forbidden_city_main_hall",
@@ -1086,5 +1086,27 @@
     }
   ],
   "player_fidelity_notice_zh": "识别为真实建筑「Forbidden City (故宫)」，无专属模板，已依据研究资料组合式重建（保真度：中等；重点特征：meridian gate axial symmetry、yellow glazed tile roofs、red lacquered walls and columns）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "生成故宫",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "生成故宫",
+    "building_class": "generic"
+  }
 }

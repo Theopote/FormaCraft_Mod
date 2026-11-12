@@ -215,6 +215,16 @@
       "verification_level": "plan_parameters_only",
       "features": []
     },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
     "connection_repairs": [
       {
         "component_id": "hotel_lobby",
@@ -268,17 +278,7 @@
         "component_id": "bridge_mid_high",
         "reason": "connection_height_in_blocks"
       }
-    ],
-    "emissive_contract": {
-      "schema": "formacraft.emissive_contract.v1",
-      "requirements": [],
-      "verification_level": "plan_parameters_only"
-    },
-    "huizhou_gable_contract": {
-      "schema": "formacraft.huizhou_gable_contract.v1",
-      "requirements": [],
-      "verification_level": "plan_parameters_only"
-    }
+    ]
   },
   "genome": {
     "genomeVersion": "1.0",
@@ -611,9 +611,11 @@
         "world_facing": "SOUTH",
         "door_block": "minecraft:glass",
         "connects_to": "viewing_terrace",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 2,
-        "building_id": "hotel_lobby"
+        "building_id": "hotel_lobby",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -638,9 +640,11 @@
         "world_facing": "WEST",
         "door_block": "minecraft:spruce_door",
         "connects_to": "west_guest_balcony",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 2,
-        "building_id": "hotel_lobby"
+        "building_id": "hotel_lobby",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -1384,7 +1388,7 @@
       "params": {
         "component_id": "viewing_terrace#platform_door",
         "host_id": "hotel_lobby",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "hotel_lobby",
@@ -1395,5 +1399,30 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「筑由三个错层长方体组成」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "以锚点为主入口，\n生成一栋顺应现有地形的山地旅馆，不要把整片山坡削平。\n建筑由三个错层长方体组成，\n整体占地不超过35×27格，\n总高度不超过22格。\n最低体块两层，中间体块三层，\n最高体块两层，\n通过内部楼梯和短连廊连接。\n底层使用粗石墙，\n上层使用木材和大窗户，\n屋顶采用深灰色石板。\n临坡侧设置支撑柱、\n观景露台和连续栏杆。\n入口连接接待大厅，\n楼上设置客房走廊，\n所有楼层与露台都能步行到达。\n避免悬空墙体、\n被封死的入口和没有出口的楼梯\n。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 35,
+        "depth": 27
+      },
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "以锚点为主入口，\n生成一栋顺应现有地形的山地旅馆，不要把整片山坡削平。\n建筑由三个错层长方体组成，\n整体占地不超过35×27格，\n总高度不超过22格。\n最低体块两层，中间体块三层，\n最高体块两层，\n通过内部楼梯和短连廊连接。\n底层使用粗石墙，\n上层使用木材和大窗户，\n屋顶采用深灰色石板。\n临坡侧设置支撑柱、\n观景露台和连续栏杆。\n入口连接接待大厅，\n楼上设置客房走廊，\n所有楼层与露台都能步行到达。\n避免悬空墙体、\n被封死的入口和没有出口的楼梯\n。",
+    "building_class": "generic"
+  }
 }

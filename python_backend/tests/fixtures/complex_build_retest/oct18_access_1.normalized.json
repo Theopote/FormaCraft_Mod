@@ -993,9 +993,11 @@
         "material": "minecraft:spruce_planks",
         "width": 2,
         "height": 3,
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "warehouse_main"
+        "building_id": "warehouse_main",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {

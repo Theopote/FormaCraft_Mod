@@ -1159,9 +1159,11 @@
         "opening_width": 2,
         "opening_height": 3,
         "material": "minecraft:dark_oak_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "body_office"
+        "building_id": "body_office",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -1499,9 +1501,11 @@
         "opening_width": 2,
         "opening_height": 3,
         "material": "minecraft:iron_bars",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "body_boiler"
+        "building_id": "body_boiler",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -1609,6 +1613,7 @@
       "params": {
         "component_id": "body_boiler#access_1",
         "host_id": "body_boiler",
+        "building_id": "body_boiler",
         "anchor_mode": "min_corner",
         "from": {
           "x": 0,
@@ -1648,6 +1653,7 @@
       "params": {
         "component_id": "body_boiler#access_2",
         "host_id": "body_boiler",
+        "building_id": "body_boiler",
         "anchor_mode": "min_corner",
         "from": {
           "x": 0,
@@ -1685,7 +1691,7 @@
       "params": {
         "component_id": "terrace_workshop_platform#platform_door",
         "host_id": "body_workshop",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "body_workshop",
@@ -1696,5 +1702,27 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「旧工业风工厂」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "在锚点生成一座旧工业风工厂，\n由主车间、附属办公楼、\n锅炉房和烟囱组成。\n主车间长29格、宽17格，\n内部净高10格，\n使用锯齿形屋顶和高位采光窗；\n办公楼位于左前侧，共三层，\n每层高4格；\n锅炉房位于主车间右后侧，\n旁边设置高23格的独立砖烟囱。\n整体使用红砖、\n深色钢结构和灰色屋面。\n办公楼通过二层封闭走廊连接主车间侧面的检修平台。\n主车间设置宽5格、\n高6格的装卸门，\n内部保留宽阔空间。补充管道、\n外部楼梯、\n平台栏杆和屋顶通风设施，\n附属构件不得堵塞主要通道。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "在锚点生成一座旧工业风工厂，\n由主车间、附属办公楼、\n锅炉房和烟囱组成。\n主车间长29格、宽17格，\n内部净高10格，\n使用锯齿形屋顶和高位采光窗；\n办公楼位于左前侧，共三层，\n每层高4格；\n锅炉房位于主车间右后侧，\n旁边设置高23格的独立砖烟囱。\n整体使用红砖、\n深色钢结构和灰色屋面。\n办公楼通过二层封闭走廊连接主车间侧面的检修平台。\n主车间设置宽5格、\n高6格的装卸门，\n内部保留宽阔空间。补充管道、\n外部楼梯、\n平台栏杆和屋顶通风设施，\n附属构件不得堵塞主要通道。",
+    "building_class": "generic"
+  }
 }

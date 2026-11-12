@@ -530,9 +530,11 @@
           "h": 3,
           "d": 1
         },
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "building_id": "inn_body",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2,
         "facing": "SOUTH",
         "platform_connection": "inn_terrace"
       }
@@ -838,5 +840,32 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建造一栋约21×15格的三层山地\n旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一栋约21×15格的三层山地旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层平台的室外楼梯。\n平台与二层室内之间必须开门，\n门前保留落脚空间。\n楼梯全程连贯，平台有栏杆，\n屋顶不能与楼梯冲突。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 21,
+        "depth": 15
+      },
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一栋约21×15格的三层山地旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层平台的室外楼梯。\n平台与二层室内之间必须开门，\n门前保留落脚空间。\n楼梯全程连贯，平台有栏杆，\n屋顶不能与楼梯冲突。",
+    "building_class": "generic"
+  }
 }

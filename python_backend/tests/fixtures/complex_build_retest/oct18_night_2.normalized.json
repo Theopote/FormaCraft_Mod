@@ -884,9 +884,11 @@
         "facing": "EAST",
         "entrance_type": "arched",
         "material": "minecraft:dark_oak_planks",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "west_guest_wing"
+        "building_id": "west_guest_wing",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -1025,9 +1027,11 @@
         "facing": "WEST",
         "entrance_type": "arched",
         "material": "minecraft:dark_oak_planks",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "east_guest_wing"
+        "building_id": "east_guest_wing",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -1140,9 +1144,11 @@
         "facing": "NORTH",
         "entrance_type": "arched",
         "material": "minecraft:dark_oak_planks",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "caravanserai_gatehouse"
+        "building_id": "caravanserai_gatehouse",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -1345,5 +1351,32 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「沙漠风格的商队驿站」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座沙漠风格的商队驿站，\n占地约29×25格，以砂岩、\n平滑砂岩和深色木材为主要材料\n。\n建筑围绕一个露天中央庭院布置\n，包含两层主楼、\n两侧单层客房和一座独立入口门楼。主楼每层高5格，\n使用平屋顶和矮女儿墙；\n客房屋顶作为可到达的露台。\n庭院设置浅水池和四条步道，\n四角布置简洁立柱。\n主楼二层通过一段外部楼梯抵达\n，楼梯宽3格，设置上下平台，\n保证净空。\n入口门楼与主楼之间保持开敞庭院，不用屋顶覆盖。\n二层沿庭院一侧设置带栏杆的走廊，在楼梯落点留出通行缺口。",
+      "building_class": "garden",
+      "confidence": 0.45,
+      "composition": "compound",
+      "tower_subtype": null,
+      "markers": [
+        "庭院"
+      ],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 29,
+        "depth": 25
+      },
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座沙漠风格的商队驿站，\n占地约29×25格，以砂岩、\n平滑砂岩和深色木材为主要材料\n。\n建筑围绕一个露天中央庭院布置\n，包含两层主楼、\n两侧单层客房和一座独立入口门楼。主楼每层高5格，\n使用平屋顶和矮女儿墙；\n客房屋顶作为可到达的露台。\n庭院设置浅水池和四条步道，\n四角布置简洁立柱。\n主楼二层通过一段外部楼梯抵达\n，楼梯宽3格，设置上下平台，\n保证净空。\n入口门楼与主楼之间保持开敞庭院，不用屋顶覆盖。\n二层沿庭院一侧设置带栏杆的走廊，在楼梯落点留出通行缺口。",
+    "building_class": "garden"
+  }
 }

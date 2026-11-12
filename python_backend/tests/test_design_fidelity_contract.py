@@ -169,7 +169,8 @@ class DesignFidelityContractTest(unittest.TestCase):
         self.assertEqual("u_shape", mass["params"]["plan_type"])
         shape = self._load("footprint_shape_unsupported.json")
         shape_mass = next(c for c in shape["components"] if c.get("component_type") == "MASS_MAIN")
-        self.assertEqual("hexagon", shape_mass["params"]["shape"])
+        # hexagon is natively supported; fixture keeps an unsupported silhouette token.
+        self.assertEqual("star", shape_mass["params"]["shape"])
         combo = self._load("circle_cross_combo_unsupported.json")
         combo_mass = next(c for c in combo["components"] if c.get("component_type") == "MASS_MAIN")
         self.assertEqual("circle", combo_mass["params"]["shape"])
@@ -329,7 +330,8 @@ class DesignFidelityContractTest(unittest.TestCase):
         slot_shift = self._load("bridge_slot_anchor_shift.json")
         slot = slot_shift["layout"]["slots"][0]
         self.assertEqual("hall", slot["slot_id"])
-        self.assertEqual({"x": 50, "y": 10, "z": 20}, slot["anchor"])
+        # Typical plans keep primary slot XZ at origin; Y still carries storey datum.
+        self.assertEqual({"x": 0, "y": 10, "z": 0}, slot["anchor"])
         shift_plate = next(
             c for c in slot_shift["components"]
             if c.get("params", {}).get("extrude_mode") == "plate"

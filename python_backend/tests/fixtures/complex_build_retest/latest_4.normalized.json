@@ -1293,5 +1293,32 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「筑应呈现明显的体块退台」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "在锚点生成一栋四层现代阶梯住宅，底层占地25×19格，\n每层层高5格。\n第二层向后退3格，\n第三层再向后退3格，\n第四层只占第三层面积的一半，\n形成三个可使用的屋顶露台。\n使用暖白色清水混凝土、\n浅色石灰岩、\n香槟色金属和通透玻璃；\n无法使用原材料时选择外观接近的方块。首层设置入口大厅，\n二层设置向正面悬挑3格的阳台\n。所有露台设置栏杆，\n楼梯连接全部楼层，\n玻璃立面与楼板正确衔接。\n建筑应呈现明显的体块退台，\n不能只是一个长方体外壳。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 25,
+        "depth": 19
+      },
+      "forbids": [],
+      "materials": {
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "在锚点生成一栋四层现代阶梯住宅，底层占地25×19格，\n每层层高5格。\n第二层向后退3格，\n第三层再向后退3格，\n第四层只占第三层面积的一半，\n形成三个可使用的屋顶露台。\n使用暖白色清水混凝土、\n浅色石灰岩、\n香槟色金属和通透玻璃；\n无法使用原材料时选择外观接近的方块。首层设置入口大厅，\n二层设置向正面悬挑3格的阳台\n。所有露台设置栏杆，\n楼梯连接全部楼层，\n玻璃立面与楼板正确衔接。\n建筑应呈现明显的体块退台，\n不能只是一个长方体外壳。",
+    "building_class": "generic"
+  }
 }

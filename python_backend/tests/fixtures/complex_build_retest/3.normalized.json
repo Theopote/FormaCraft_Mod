@@ -353,7 +353,27 @@
       "FLOORS": "provided:gallery plates + tower plates",
       "STAIRS": "provided:stair_west/stair_east",
       "ROOF": "provided:nave_roof + tower roofs"
-    }
+    },
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "",
+    "building_class": "generic"
   },
   "components": [
     {

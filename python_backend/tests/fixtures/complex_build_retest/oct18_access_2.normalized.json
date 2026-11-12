@@ -1605,7 +1605,7 @@
       "params": {
         "component_id": "townhall_balcony#platform_door",
         "host_id": "townhall_main",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "townhall_main",

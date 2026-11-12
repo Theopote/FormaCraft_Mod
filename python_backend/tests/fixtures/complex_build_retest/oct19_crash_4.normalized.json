@@ -651,9 +651,11 @@
         "host_id": "tower_nw",
         "entrance_type": "wooden_door",
         "facing": "NORTH",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "tower_nw"
+        "building_id": "tower_nw",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -675,9 +677,11 @@
         "host_id": "tower_ne",
         "entrance_type": "wooden_door",
         "facing": "NORTH",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "tower_ne"
+        "building_id": "tower_ne",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -699,9 +703,11 @@
         "host_id": "tower_sw",
         "entrance_type": "wooden_door",
         "facing": "SOUTH",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "tower_sw"
+        "building_id": "tower_sw",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -723,9 +729,11 @@
         "host_id": "tower_se",
         "entrance_type": "wooden_door",
         "facing": "SOUTH",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "tower_se"
+        "building_id": "tower_se",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -802,7 +810,8 @@
         "gate_type": "arched",
         "arch_radius": 3,
         "facing": "NORTH",
-        "wall_block": "minecraft:bricks"
+        "wall_block": "minecraft:bricks",
+        "building_id": "gate_main"
       }
     },
     {
@@ -1226,9 +1235,11 @@
         "host_id": "bell_tower",
         "entrance_type": "arched_door",
         "facing": "NORTH",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 4,
-        "building_id": "bell_tower"
+        "building_id": "bell_tower",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -1276,5 +1287,27 @@
   ],
   "description": "组合式克里姆林宫：红砖城墙+吞尾垛口围合，四角方塔与正面钟楼门塔，内部为白石大教堂（金洋葱顶）、高耸钟塔与带壁柱的宫殿体量，中央铺装广场与门至广场轴线路面。",
   "player_fidelity_notice_zh": "组合式生成「克里姆林宫」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "生成克里姆林宫",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "生成克里姆林宫",
+    "building_class": "generic"
+  }
 }

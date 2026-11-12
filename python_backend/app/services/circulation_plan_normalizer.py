@@ -814,6 +814,10 @@ def normalize_circulation_plan(plan: dict) -> dict:
             out["capability_gap"] = {"code":"E_CIRCULATION_DESCRIPTION_INVALID","message":str(exc),
                                      "path":"components[].params.assembly","suggestions":["Provide explicit flights and adjacent landings."]}
     out.setdefault('components', []).extend(plates)
+    # Platform/target doors are synthesized after building_contract finalize; clamp here
+    # so a second contract+circulation pass does not rewrite door_width again.
+    from .building_contract import _clamp_entrance_door_widths
+    _clamp_entrance_door_widths([c for c in (out.get('components') or []) if isinstance(c, dict)])
     return out
 
 
@@ -916,9 +920,10 @@ def _bind_hosted_platform_doors(plan: dict) -> None:
             if identity in ids:
                 continue
             pos=dict(po); pos[across]=(low+high)//2-1;pos['y']+=1
+            # Thin 2×1 balcony bay: door_width must leave one side block (span-1).
             door={'component_type':'ENTRANCE','slot_id':host.get('slot_id'),'relative_position':pos,
                   'dimensions':{'width':2 if across=='x' else 1,'depth':2 if across=='z' else 1,'height':3},
-                  'features':[],'params':{'component_id':identity,'host_id':p['host_id'],'door_width':2,'door_height':3,
+                  'features':[],'params':{'component_id':identity,'host_id':p['host_id'],'door_width':1,'door_height':3,
                                         'entrance_type':'door','building_id':host['params'].get('building_id',p['host_id'])}}
             additions.append(door)
         door['relative_position'][axis]=plane
@@ -1055,6 +1060,7 @@ def _complete_requested_stairs(plan: dict) -> None:
                               'dimensions': {'width': rise + 2, 'depth': 2, 'height': rise + 3},
                               'features': ['stair:straight_single_run'],
                               'params': {'component_id': f'{identity}#access_{level + 1}', 'host_id': identity,
+                                         'building_id': params.get('building_id', identity),
                                          'anchor_mode': 'min_corner', 'from': _point(0, 0, 0), 'to': _point(rise, rise, 0),
                                          'width': 2, 'clearHeight': 2, 'landing_length': 1, 'support': False,
                                          'stairs': 'minecraft:stone_brick_stairs', 'floor': params.get('floor_block', 'minecraft:oak_planks'),

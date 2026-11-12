@@ -740,5 +740,32 @@
       "features": []
     }
   ],
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座约45×39格的小型石砖城堡，包含四座角塔、\n外围城墙、\n南侧城门塔和中央三层主堡。\n角塔使用四面尖顶，\n主堡使用双坡屋顶。\n城墙与塔楼自然衔接，\n不能封住塔楼入口；\n城门塔底部留出宽5格、\n高6格的贯通门洞，\n并通过道路连接主堡入口。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": "gable",
+      "roof_explicit": true,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 45,
+        "depth": 39
+      },
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座约45×39格的小型石砖城堡，包含四座角塔、\n外围城墙、\n南侧城门塔和中央三层主堡。\n角塔使用四面尖顶，\n主堡使用双坡屋顶。\n城墙与塔楼自然衔接，\n不能封住塔楼入口；\n城门塔底部留出宽5格、\n高6格的贯通门洞，\n并通过道路连接主堡入口。",
+    "building_class": "generic"
+  }
 }

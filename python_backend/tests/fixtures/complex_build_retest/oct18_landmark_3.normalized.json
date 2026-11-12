@@ -538,9 +538,11 @@
         "host_id": "estate_tower",
         "entrance_type": "door",
         "facing": "SOUTH",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "estate_tower"
+        "building_id": "estate_tower",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": []
     },
@@ -972,11 +974,34 @@
         "facing": "NORTH",
         "arch": true,
         "block": "minecraft:smooth_sandstone",
-        "accent_block": "minecraft:quartz_block"
+        "accent_block": "minecraft:quartz_block",
+        "building_id": "estate_gate"
       },
       "features": []
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「海湖庄园」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "生成海湖庄园",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "生成海湖庄园",
+    "building_class": "generic"
+  }
 }

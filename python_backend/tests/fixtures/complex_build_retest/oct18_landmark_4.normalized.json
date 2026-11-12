@@ -237,5 +237,27 @@
   ],
   "description": "天坛（祈年殿式）径向祭坛厅：三重圆台 + 圆形大殿 + 三重蓝琉璃圆顶，正南朝向，RADIAL 对称，由 radial_terrace_hall 参数化解释器生成完整体量。",
   "player_fidelity_notice_zh": "组合式生成「天坛」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "生成天坛",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "生成天坛",
+    "building_class": "generic"
+  }
 }

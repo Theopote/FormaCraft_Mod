@@ -1153,9 +1153,11 @@
         "entrance_type": "doorway",
         "door_block": "minecraft:dark_oak_door",
         "facing": "WEST",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "watch_tower"
+        "building_id": "watch_tower",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": [
         "tower_ground_entrance"
@@ -1380,7 +1382,7 @@
       "params": {
         "component_id": "inn_balcony#platform_door",
         "host_id": "inn_main",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "inn_main",
@@ -1391,5 +1393,29 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「三层海边旅馆」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "在锚点生成一栋三层海边旅馆，\n长21格、宽15格，每层高4格，\n右侧附带一座两层圆形观景塔，\n通过二层连廊相连。\n墙体材料指定为 \npearl_lime_plaster，\n屋顶材料指定为 \nweathered_blue_clay_tile\n，地板材料指定为 \nunknown_coastal_stone，\n装饰使用 \naged_dark_timber，\n窗户使用 \nsea_crystal_glass。\n遇到不存在或无法识别的材料时\n，\n必须使用外观接近或适合该部位的基础材料继续生成。\n设置正门、真实窗洞、\n内部楼梯、二层阳台、\n塔楼观景平台和栏杆，\n保证所有楼层可达。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "在锚点生成一栋三层海边旅馆，\n长21格、宽15格，每层高4格，\n右侧附带一座两层圆形观景塔，\n通过二层连廊相连。\n墙体材料指定为 \npearl_lime_plaster，\n屋顶材料指定为 \nweathered_blue_clay_tile\n，地板材料指定为 \nunknown_coastal_stone，\n装饰使用 \naged_dark_timber，\n窗户使用 \nsea_crystal_glass。\n遇到不存在或无法识别的材料时\n，\n必须使用外观接近或适合该部位的基础材料继续生成。\n设置正门、真实窗洞、\n内部楼梯、二层阳台、\n塔楼观景平台和栏杆，\n保证所有楼层可达。",
+    "building_class": "generic"
+  }
 }

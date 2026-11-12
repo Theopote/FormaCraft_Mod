@@ -736,9 +736,11 @@
         "facing": "EAST",
         "material": "minecraft:dark_oak_planks",
         "anchor_mode": "min_corner",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "main_hall_body"
+        "building_id": "main_hall_body",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       },
       "features": [
         "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"double\", \"wooden\", \"civic\", \"recessed\"], \"importance\": [\"role\", \"style\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 0, \"scalable\": true}, \"style\": {\"styleProfile\": \"Town_Hall\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"double_door\"], \"forbiddenTags\": [\"glass\", \"modern\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
@@ -1463,7 +1465,7 @@
       "params": {
         "component_id": "main_balcony#platform_door",
         "host_id": "main_hall_body",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
         "entrance_type": "door",
         "building_id": "main_hall_body",
@@ -1474,5 +1476,32 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方\n形钟楼。中央大厅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方形钟楼。中央大厅约19×15格，\n每层高6格；侧翼各约9×13格，\n只有一层，高6格；\n钟楼约7×7格，总高22格。\n使用石砖、安山岩和深色木材，\n中央大厅采用双坡屋顶，\n侧翼采用较低的双坡屋顶，\n钟楼采用四坡尖顶。\n主入口朝向广场，\n入口上方设置三格宽的阳台，\n阳台栏杆必须给门留出开口。\n中央大厅内部设置连接二层的楼梯。\n钟楼四面在接近顶部的位置设置简化钟面。\n屋顶在钟楼穿入的位置收口，\n避免穿过钟楼室内。\n广场只设置台阶、\n步道和两处花坛，\n不要添加其他大型建筑。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": "gable",
+      "roof_explicit": true,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 19,
+        "depth": 15
+      },
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座对称布局的小镇市政厅\n，包含两层中央大厅、\n左右两座较低的侧翼，\n以及一座位于中央大厅后方的方形钟楼。中央大厅约19×15格，\n每层高6格；侧翼各约9×13格，\n只有一层，高6格；\n钟楼约7×7格，总高22格。\n使用石砖、安山岩和深色木材，\n中央大厅采用双坡屋顶，\n侧翼采用较低的双坡屋顶，\n钟楼采用四坡尖顶。\n主入口朝向广场，\n入口上方设置三格宽的阳台，\n阳台栏杆必须给门留出开口。\n中央大厅内部设置连接二层的楼梯。\n钟楼四面在接近顶部的位置设置简化钟面。\n屋顶在钟楼穿入的位置收口，\n避免穿过钟楼室内。\n广场只设置台阶、\n步道和两处花坛，\n不要添加其他大型建筑。",
+    "building_class": "generic"
+  }
 }

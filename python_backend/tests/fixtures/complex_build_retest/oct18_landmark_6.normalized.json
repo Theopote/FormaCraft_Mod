@@ -626,5 +626,27 @@
   ],
   "description": "组合式生成「上海东方明珠电视塔」：放射状三腿基座 + 玻璃裙房，中央筒体向上串联大、中、小三座球体舱段，顶部收为针状天线尖顶；纯语义构件组合，不引用地标模块。",
   "player_fidelity_notice_zh": "组合式生成「上海东方明珠电视塔」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "生成上海东方明珠电视塔",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": null,
+      "forbids": [],
+      "materials": {},
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "生成上海东方明珠电视塔",
+    "building_class": "generic"
+  }
 }

@@ -803,8 +803,10 @@
         "facing": "NORTH",
         "entrance_type": "door",
         "door_height": 3,
-        "door_width": 2,
-        "building_id": "reception_main"
+        "door_width": 1,
+        "building_id": "reception_main",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -830,8 +832,10 @@
         "facing": "NORTH",
         "entrance_type": "door",
         "door_height": 3,
-        "door_width": 2,
-        "building_id": "research_main"
+        "door_width": 1,
+        "building_id": "research_main",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -857,8 +861,10 @@
         "facing": "NORTH",
         "entrance_type": "door",
         "door_height": 3,
-        "door_width": 2,
-        "building_id": "tower_main"
+        "door_width": 1,
+        "building_id": "tower_main",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -1170,5 +1176,33 @@
   ],
   "description": "山坡天文观测站：三个错层体块（接待楼 15×13×6 @y0、研究楼 13×11×6 @y4、观测塔 9×9×12 @y8）沿同一方向逐级升高并保持约 4 格间隔，白色混凝土 + 石砖 + 深色玻璃；宽 3 格室外楼梯与落脚平台分别接到研究楼与观测塔入口，研究楼平屋顶，观测塔顶部深色多面体穹顶与装饰观测缝，接待楼入口小雨棚。",
   "player_fidelity_notice_zh": "组合式生成「建造一座由三个错层体块组成的\n山坡天文观测站，\n使用白色混凝土、\n石砖和深色玻璃。\n下层接待楼约15×13格，\n高6格，」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "keyword_hint",
+      "original_text": "建造一座由三个错层体块组成的山坡天文观测站，\n使用白色混凝土、\n石砖和深色玻璃。\n下层接待楼约15×13格，\n高6格，基底高度为0；\n中层研究楼约13×11格，\n高6格，基底比接待楼高4格；\n上层观测塔约9×9格，高12格，\n基底比接待楼高8格。\n三个体块沿同一方向逐级升高，\n彼此保留约4格水平间隔。\n相邻体块使用宽3格的室外楼梯和落脚平台连接，\n所有楼梯都要实际接到入口。\n研究楼使用平屋顶，\n观测塔顶部设置深色多面体穹顶和一条装饰观测缝。\n接待楼入口设置小雨棚。\n保持三个体块及其高差，\n不要把低层屋顶伸进高层室内。",
+      "building_class": "generic",
+      "confidence": 0.0,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": "dome",
+      "roof_explicit": true,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 15,
+        "depth": 13
+      },
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks",
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false
+    },
+    "request_intent_text": "建造一座由三个错层体块组成的山坡天文观测站，\n使用白色混凝土、\n石砖和深色玻璃。\n下层接待楼约15×13格，\n高6格，基底高度为0；\n中层研究楼约13×11格，\n高6格，基底比接待楼高4格；\n上层观测塔约9×9格，高12格，\n基底比接待楼高8格。\n三个体块沿同一方向逐级升高，\n彼此保留约4格水平间隔。\n相邻体块使用宽3格的室外楼梯和落脚平台连接，\n所有楼梯都要实际接到入口。\n研究楼使用平屋顶，\n观测塔顶部设置深色多面体穹顶和一条装饰观测缝。\n接待楼入口设置小雨棚。\n保持三个体块及其高差，\n不要把低层屋顶伸进高层室内。",
+    "building_class": "generic"
+  }
 }
