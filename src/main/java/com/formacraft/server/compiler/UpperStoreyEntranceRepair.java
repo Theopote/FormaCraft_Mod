@@ -31,6 +31,18 @@ final class UpperStoreyEntranceRepair {
             if ("BALCONY".equals(t) || "TERRACE".equals(t) || "DECK".equals(t)
                     || "PLATFORM".equals(t) || "GALLERY".equals(t)) {
                 decks.add(c);
+                continue;
+            }
+            // MASS_* plates with terrace/platform/bridge roles are exterior landings too —
+            // dropping stair/bridge wall openings onto them causes E_CIRCULATION_EXTERIOR_CONFLICT
+            // when clerestory glass refills the face (final_5).
+            if (MassComponentKinds.isPlate(c) && c.params() != null) {
+                String role = String.valueOf(c.params().getOrDefault("plate_role", ""))
+                        .trim().toLowerCase(Locale.ROOT);
+                if (com.formacraft.common.generation.component.util.PlateRoleCatalog.TERRACE_TOKENS.contains(role)
+                        || com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(c.params())) {
+                    decks.add(c);
+                }
             }
         }
         List<Component> keep = new ArrayList<>(parts.size());
@@ -148,19 +160,19 @@ final class UpperStoreyEntranceRepair {
         if (doorBounds == null) return null;
         String face = door.params() == null ? "SOUTH"
                 : String.valueOf(door.params().getOrDefault("facing", "SOUTH")).toUpperCase(Locale.ROOT);
-        // Expand one block outward so a flush balcony still counts as the door's landing.
-        int minX = doorBounds.minX();
-        int maxX = doorBounds.maxX();
-        int minZ = doorBounds.minZ();
-        int maxZ = doorBounds.maxZ();
+        // Expand both the facing side and the opposite side: exterior stairs often open
+        // onto an inward maintenance platform while facing names the outward wall normal
+        // (final_5 south-wall door facing NORTH onto a z+1 plate).
+        int minX = doorBounds.minX() - 2;
+        int maxX = doorBounds.maxX() + 2;
+        int minZ = doorBounds.minZ() - 2;
+        int maxZ = doorBounds.maxZ() + 2;
         int minY = doorBounds.minY() - 1;
         int maxY = doorBounds.maxY() + 1;
         switch (face) {
-            case "NORTH" -> minZ -= 2;
-            case "SOUTH" -> maxZ += 2;
-            case "WEST" -> minX -= 2;
-            case "EAST" -> maxX += 2;
-            default -> maxZ += 2;
+            case "NORTH", "SOUTH" -> { /* already ±2 on Z */ }
+            case "WEST", "EAST" -> { /* already ±2 on X */ }
+            default -> { }
         }
         String doorHost = door.params() == null ? null
                 : String.valueOf(door.params().getOrDefault("host_id",

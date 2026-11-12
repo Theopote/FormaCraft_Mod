@@ -63,6 +63,30 @@ class UpperStoreyEntranceRepairTest {
     }
 
     @Test
+    void keepsUpperDoorWhenTouchingMassPlatformPlate() {
+        Component mass = new Component(
+                "MASS_MAIN", "workshop_slot", new Vec3i(-13, 0, -8),
+                new Dimensions(27, 17, 9), List.of(),
+                Map.of("component_id", "workshop_main", "anchor_mode", "min_corner",
+                        "floor_count", 1, "floor_height", 5));
+        Component door = new Component(
+                "ENTRANCE", "workshop_slot", new Vec3i(2, 5, -8),
+                new Dimensions(3, 1, 3), List.of("stair_access_opening"),
+                Map.of("component_id", "workshop_stair_opening", "host_id", "workshop_main",
+                        "anchor_mode", "min_corner", "facing", "NORTH"));
+        Component platform = new Component(
+                "MASS_SECONDARY", "workshop_slot", new Vec3i(-2, 5, -7),
+                new Dimensions(8, 4, 1), List.of(),
+                Map.of("component_id", "maintenance_platform", "host_id", "workshop_main",
+                        "extrude_mode", "plate", "plate_role", "platform", "anchor_mode", "min_corner"));
+        List<Component> parts = new ArrayList<>(List.of(mass, door, platform));
+        UpperStoreyEntranceRepair.apply(parts);
+        assertTrue(parts.stream().anyMatch(c -> "ENTRANCE".equals(c.componentType())
+                        && "workshop_stair_opening".equals(String.valueOf(c.params().get("component_id")))),
+                "upper stair opening onto a plate_role=platform must survive");
+    }
+
+    @Test
     void keepsUserExplicitUpperDoorWithoutDeck() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),

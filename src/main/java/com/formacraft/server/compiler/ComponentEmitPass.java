@@ -19,12 +19,7 @@ import com.formacraft.server.generation.GenerationHub;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Component emission pass: ordered generation, occupancy commit, bridge walkability,
