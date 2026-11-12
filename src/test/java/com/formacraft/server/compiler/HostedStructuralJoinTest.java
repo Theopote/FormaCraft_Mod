@@ -17,7 +17,11 @@ class HostedStructuralJoinTest {
             var pos = List.of(new BlockPatch(BlockPatch.PLACE, 1,4,1,"minecraft:stone_bricks"));
             index.commit(component("MASS_MAIN", Map.of("component_id","house")), pos);
             var replacement = List.of(new BlockPatch(BlockPatch.PLACE,1,4,1,"minecraft:oak_planks"));
-            assertTrue(index.validate(component(type, Map.of("host_id","other", "extrude_mode","plate")), replacement).isPresent());
+            // Foreign host must use a different slot — same-slot roofs may reseal stacked
+            // tier crowns onto the base MASS_MAIN cells (ComplexBuild terrace roofs).
+            var foreign = new Component(type, "other_slot", new Vec3i(0,0,0), new Dimensions(10,10,8), List.of(),
+                    Map.of("host_id","other", "extrude_mode","plate"));
+            assertTrue(index.validate(foreign, replacement).isPresent());
             assertTrue(index.validate(component("MASS_SECONDARY", Map.of("host_id","house")), replacement).isPresent());
             assertTrue(index.accept(component(type, Map.of("host_id","house", "extrude_mode","plate")), replacement).isEmpty());
         }

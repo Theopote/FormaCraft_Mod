@@ -575,25 +575,50 @@ public final class BuildingLandingPlanner {
     private static Result entranceSteps(List<PlannedBlock> input, LlmPlanTerrainBounds.Bounds b,
                                         GlobalConstraints.Facing facing, Map<BlockPos,BlockState> blocks,
                                         Ground ground, Map<BlockPos,PlannedBlock> prep, BlockState fill) {
-        int dx = facing == GlobalConstraints.Facing.EAST ? 1 : facing == GlobalConstraints.Facing.WEST ? -1 : 0;
-        int dz = facing == GlobalConstraints.Facing.SOUTH ? 1 : facing == GlobalConstraints.Facing.NORTH ? -1 : 0;
-        boolean alongX = dz != 0;
-        int start = alongX ? b.minX()+1 : b.minZ()+1;
-        int end = alongX ? b.maxX()-1 : b.maxZ()-1;
+        // Prefer the site facing, then scan other walls. Authored approach stairs occupy the
+        // threshold with StairsBlock (not air/door) — still a real entrance for access routing.
+        GlobalConstraints.Facing[] order = {
+                facing == null ? GlobalConstraints.Facing.SOUTH : facing,
+                GlobalConstraints.Facing.NORTH, GlobalConstraints.Facing.SOUTH,
+                GlobalConstraints.Facing.EAST, GlobalConstraints.Facing.WEST
+        };
         List<BlockPos> candidates = new ArrayList<>();
-        for (int v=start; v<=end; v++) {
-            int x = alongX ? v : dx>0 ? b.maxX() : b.minX();
-            int z = alongX ? dz>0 ? b.maxZ() : b.minZ() : v;
-            BlockPos feet = new BlockPos(x,b.minY()+1,z);
-            BlockState low = blocks.get(feet), high = blocks.get(feet.up());
-            if (low!=null && (low.isAir() || low.getBlock() instanceof net.minecraft.block.DoorBlock)
-                    && high!=null && (high.isAir() || high.getBlock() instanceof net.minecraft.block.DoorBlock))
-                candidates.add(feet.down());
+        boolean alongX = false;
+        int start = 0, end = 0;
+        for (GlobalConstraints.Facing face : order) {
+            if (face == null) continue;
+            int dx = face == GlobalConstraints.Facing.EAST ? 1 : face == GlobalConstraints.Facing.WEST ? -1 : 0;
+            int dz = face == GlobalConstraints.Facing.SOUTH ? 1 : face == GlobalConstraints.Facing.NORTH ? -1 : 0;
+            alongX = dz != 0;
+            start = alongX ? b.minX()+1 : b.minZ()+1;
+            end = alongX ? b.maxX()-1 : b.maxZ()-1;
+            candidates.clear();
+            for (int v=start; v<=end; v++) {
+                int x = alongX ? v : dx>0 ? b.maxX() : b.minX();
+                int z = alongX ? dz>0 ? b.maxZ() : b.minZ() : v;
+                BlockPos feet = new BlockPos(x,b.minY()+1,z);
+                if (isEntranceOpening(blocks.get(feet), blocks.get(feet.up())))
+                    candidates.add(feet.down());
+            }
+            if (!candidates.isEmpty()) break;
         }
         if (candidates.isEmpty()) return new Result(input,0,null,0,0); // No doorway (e.g. closed box).
+        final boolean axisX = alongX;
         int center = (start+end)/2;
-        BlockPos door = candidates.stream().min(Comparator.comparingInt(p -> Math.abs((alongX?p.getX():p.getZ())-center))).orElseThrow();
+        BlockPos door = candidates.stream().min(Comparator.comparingInt(p -> Math.abs((axisX?p.getX():p.getZ())-center))).orElseThrow();
         return findAccess(input, door, b, blocks, ground, prep, fill);
+    }
+
+    /** Air / door void, or an approach stair tread already planted on the facade threshold. */
+    private static boolean isEntranceOpening(BlockState low, BlockState high) {
+        return isEntranceCell(low) && isEntranceCell(high);
+    }
+
+    private static boolean isEntranceCell(BlockState state) {
+        if (state == null) return false;
+        return state.isAir()
+                || state.getBlock() instanceof net.minecraft.block.DoorBlock
+                || state.getBlock() instanceof net.minecraft.block.StairsBlock;
     }
 
     private record AccessNode(BlockPos pos, double cost, AccessNode previous) {}

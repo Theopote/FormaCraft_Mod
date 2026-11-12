@@ -426,9 +426,16 @@ class BuildingLandingPlannerTest {
                     com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,origin,null,null,false),origin).blocks();
             assertFalse(input.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
             var b=sites.getFirst().body();int center=(b.minX()+b.maxX())/2,base=b.minY();
-            if(id==1) assertEquals((long)b.width()*b.depth(),finalMap(input).entrySet().stream()
-                    .filter(e->e.getKey().getY()==base-1&&!e.getValue().isAir()).count(),
-                    "automatic foundation must not leave a decorative ring outside the house");
+            if(id==1) {
+                // Authored FOUNDATION may skirt outside the mass; the mass footprint itself must
+                // still be a complete deck (no holes), not an automatic decorative ring alone.
+                assertEquals((long)b.width()*b.depth(),finalMap(input).entrySet().stream()
+                        .filter(e->e.getKey().getY()==base-1&&!e.getValue().isAir()
+                                && e.getKey().getX()>=b.minX()&&e.getKey().getX()<=b.maxX()
+                                && e.getKey().getZ()>=b.minZ()&&e.getKey().getZ()<=b.maxZ())
+                        .count(),
+                        "mass footprint foundation deck must be solid");
+            }
             for(int terrain=0;terrain<3;terrain++) {
                 final int scenario=terrain;
                 BuildingLandingPlanner.Ground land=ground((x,z)->scenario==0?base+Math.floorDiv(x-center,3):x<center?base-30:base);
