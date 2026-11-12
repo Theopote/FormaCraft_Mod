@@ -2,8 +2,10 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import org.junit.jupiter.api.Test;
 
@@ -635,6 +637,31 @@ class PlanIntentFidelityRepairTest {
         assertEquals(13, outTier.dimensions().depth());
         assertArrayEquals(new int[]{25, 19}, PlanIntentFidelityRepair.parseFootprint(
                 PlanIntentFidelityRepair.intentCorpus(plan)));
+    }
+
+    @Test
+    void multiSlotCompoundDoesNotSwallowPrimaryIntoSiteScaleFootprint() {
+        Component hall = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(20, 5, 11), List.of(),
+                Map.of("component_id", "main_body", "anchor_mode", "min_corner", "floor_count", 2));
+        Component gate = new Component(
+                "MASS_MAIN", "gate", new Vec3i(0, 0, 0),
+                new Dimensions(8, 4, 8), List.of(),
+                Map.of("component_id", "gate_body", "anchor_mode", "min_corner"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .layout(new Layout(null, false, List.of(
+                        new Slot("main", new Vec3i(-10, 0, -12), null, null, null, null, null),
+                        new Slot("gate", new Vec3i(-4, 0, 8), null, null, null, null, null))))
+                .components(List.of(hall, gate))
+                .proportionHints(Map.of(
+                        "architecture_intent", Map.of(
+                                "original_text", "院落组群总占地约29×25格，正房20×5，南侧设门楼。")))
+                .build();
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outHall = findById(repaired, "main_body");
+        assertEquals(20, outHall.dimensions().width(), "compound primary keeps authored hall width");
+        assertEquals(5, outHall.dimensions().depth(), "compound primary keeps authored hall depth");
     }
 
     private static Component findByHost(LlmPlan plan, String hostId) {

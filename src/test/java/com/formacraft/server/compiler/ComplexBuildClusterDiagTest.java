@@ -21,19 +21,7 @@ class ComplexBuildClusterDiagTest {
     @Test
     void clusterRemaining() throws Exception {
         String[] names = {
-                "4.normalized", "5.normalized", "latest_4.normalized", "latest_6.normalized",
-                "oct16_3.normalized", "oct17_2", "oct17_retry_4", "oct17_retry_5.normalized",
-                "oct17_retry_7.normalized", "oct17_evening_2.normalized", "oct17_evening_4",
-                "oct17_evening_5.normalized", "oct17_evening_7", "oct17_late_1.normalized",
-                "oct17_late_2.normalized", "oct17_late_3", "oct17_late_4.normalized",
-                "oct17_new_1.normalized", "oct17_new_3.normalized", "oct17_new_5.normalized",
-                "oct17_retest_3.normalized", "oct18_3.normalized", "oct18_retry_5.normalized",
-                "oct18_evening_5.normalized", "oct18_night_2.normalized", "oct18_night_3.normalized",
-                "oct18_night_5.normalized", "oct18_late_4.normalized", "oct18_late_5.normalized",
-                "oct18_final_2.normalized", "oct18_final_3.normalized",
-                "oct18_access_1.normalized", "oct18_access_2.normalized", "oct18_access_3.normalized",
-                "oct18_landmark_1.normalized", "oct18_landmark_3.normalized", "oct18_landmark_6.normalized",
-                "oct19_crash_1.normalized"
+                "oct18_night_1.normalized", "oct18_night_5.normalized", "oct18_final_5.normalized"
         };
         var byCode = new TreeMap<String, List<String>>();
         int pass = 0;

@@ -96,4 +96,27 @@ class NarrowTowerStairRepairTest {
         assertEquals("none", String.valueOf(mass.params().get("window_style")));
         assertTrue(Boolean.TRUE.equals(mass.params().get("suppress_windows")));
     }
+
+    @Test
+    void solidifiesTwoByTwoPinnacleInsteadOfUnfitHollowShell() {
+        Component pinnacle = new Component(
+                "MASS_MAIN",
+                "tower",
+                new Vec3i(0, 20, 0),
+                new Dimensions(2, 2, 8),
+                List.of("spire"),
+                Map.of("component_id", "pinnacle_sw", "void_ratio", 0.15)
+        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(pinnacle))
+                .build();
+
+        LlmPlan repaired = NarrowTowerStairRepair.apply(plan);
+        Component mass = repaired.components().getFirst();
+        assertEquals(false, mass.params().get("hollow"));
+        assertEquals(0, ((Number) mass.params().get("void_ratio")).intValue());
+        assertNull(mass.params().get("wall_thickness"));
+        assertTrue(Boolean.TRUE.equals(mass.params().get("suppress_windows")));
+    }
 }

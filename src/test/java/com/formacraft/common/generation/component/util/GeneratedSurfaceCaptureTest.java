@@ -44,6 +44,29 @@ class GeneratedSurfaceCaptureTest {
         assertTrue(cells.stream().anyMatch(cell -> cell.position().getX() < 0));
         assertTrue(GeneratedSurfaceCapture.missing(cells, patches).isEmpty());
     }
+
+    @Test void mansardDormerRemovesDoNotLeaveMissingRoofSurfaces() {
+        MinecraftRegistryTestBootstrap.initialize();
+        var c = new Component("ROOF", null, new Vec3i(3,11,8), new Dimensions(15,25,11), List.of(),
+                Map.of(
+                        "anchor_mode", "min_corner",
+                        "roof_type", "mansard",
+                        "roof_height", 11,
+                        "mansard_break_run", 3,
+                        "mansard_break_rise", 7,
+                        "mansard_dormer_count", 2,
+                        "roof_block", "minecraft:stone_bricks"));
+        var cells = new ArrayList<GeneratedSurfaceCapture.Cell>();
+        List<BlockPatch> patches;
+        try (var scope = GeneratedSurfaceCapture.captureTo(cells::add)) {
+            patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, c));
+        }
+        assertFalse(cells.isEmpty());
+        assertTrue(patches.stream().anyMatch(p -> BlockPatch.REMOVE.equalsIgnoreCase(p.action())),
+                "fixture expects dormer REMOVE carves");
+        assertTrue(GeneratedSurfaceCapture.missing(cells, patches).isEmpty(),
+                "final REMOVE carves must not leave required ROOF cells");
+    }
     @Test void nestedCaptureRestoresPreviousSinkWithoutLeakingAndHonorsOpeningDecision() {
         var outer = new ArrayList<GeneratedSurfaceCapture.Cell>();
         var inner = new ArrayList<GeneratedSurfaceCapture.Cell>();

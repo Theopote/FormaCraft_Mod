@@ -188,10 +188,19 @@ public class RoofGenerator implements ComponentGenerator {
                 return along < endStart || along >= endLimit;
             });
         }
-        if (GeneratedSurfaceCapture.isCapturing()) for (var patch : out) {
-            if (GeneratedSurfaceCapture.occupied(patch))
-                GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
-                        GeneratedSurfaceCapture.Role.ROOF);
+        // Record only final occupancy: dormer / specialty REMOVE carves must not leave
+        // earlier PLACE cells as required ROOF surfaces (E_SURFACE_GENERATION_INCOMPLETE).
+        if (GeneratedSurfaceCapture.isCapturing()) {
+            var finalAt = new java.util.HashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
+            for (var patch : out) {
+                if (patch != null)
+                    finalAt.put(new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz()), patch);
+            }
+            for (var patch : finalAt.values()) {
+                if (GeneratedSurfaceCapture.occupied(patch))
+                    GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
+                            GeneratedSurfaceCapture.Role.ROOF);
+            }
         }
         if (!doubleEave && (profiledGable || roofType == RoofTypeKind.GABLE || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.XUANSHAN
                 || roofType == RoofTypeKind.GAMBREL || roofType == RoofTypeKind.BARREL_VAULT || roofType == RoofTypeKind.STEEP_THATCH)

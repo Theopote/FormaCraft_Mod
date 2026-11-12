@@ -12,7 +12,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Inject host_id for same-slot stacked upper masses missing a bind. */
+/**
+ * Inject host_id for same-slot stacked upper masses missing a bind.
+ * Hosted plates (bridge/terrace/interior decks) keep authored host/target ids —
+ * binding a free bank landing onto a bridge plate falsely creates
+ * {@code E_HOST_ID_UNRESOLVED} because plates are not interior geometry hosts.
+ */
 final class StackedMassHostBindRepair {
     private StackedMassHostBindRepair() {}
 
@@ -20,7 +25,8 @@ final class StackedMassHostBindRepair {
         if (plan == null || plan.components() == null || plan.components().size() < 2) return plan;
         List<Component> masses = new ArrayList<>();
         for (Component c : plan.components()) {
-            if (c != null && MassComponentKinds.isHostMass(c) && c.dimensions() != null
+            // Circulation shells only — never treat plates as stacked tiers or supports.
+            if (c != null && MassComponentKinds.isCirculationMass(c)
                     && c.relativePosition() != null && c.params() != null
                     && c.params().get("component_id") != null) {
                 masses.add(c);

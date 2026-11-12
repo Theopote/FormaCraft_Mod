@@ -162,6 +162,8 @@ public final class ComponentPlanCompiler {
         plan = FootprintCombinationRepair.apply(plan);
         plan = CastleTowerEnrichmentRepair.apply(plan);
         plan = NarrowTowerStairRepair.apply(plan);
+        // NarrowTower may inject wall_thickness after the earlier fit pass — reconcile again.
+        plan = WallThicknessFitRepair.apply(plan);
         plan = ChurchEntranceRepair.apply(plan);
         plan = LandmarkMisrouteRepair.apply(plan);
         // Baroque mansion / villa must not stay locked to Bird's Nest stadium_bowl.

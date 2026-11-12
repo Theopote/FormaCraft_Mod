@@ -106,18 +106,39 @@ final class NarrowTowerStairRepair {
         if (!spireLike && !(span <= 9 && host.dimensions().height() >= span * 2)) return host;
         Map<String, Object> params = new HashMap<>(host.params());
         boolean changed = false;
-        if (!Boolean.TRUE.equals(params.get("hollow"))) {
-            params.put("hollow", true);
-            changed = true;
-        }
-        int wall = ComponentParamParsers.intParam(params, 0, "wall_thickness", "wallThickness");
-        if (wall <= 0) {
-            params.put("wall_thickness", 1);
-            changed = true;
-        }
         // Narrow shafts read incomplete when dense window punch removes the shell —
         // but do not override an authored facade satellite for this host.
         boolean keepAuthoredFacade = !idRaw.isBlank() && hostsWithExplicitFacade.contains(idRaw);
+        if (span <= 2) {
+            // hollow + wall_thickness=1 fills the entire envelope (E_WALL_THICKNESS_UNFIT).
+            // 2×2 pinnacles / tip masses must stay solid.
+            if (!Boolean.FALSE.equals(params.get("hollow"))) {
+                params.put("hollow", false);
+                changed = true;
+            }
+            Object voidRatio = params.get("void_ratio");
+            if (voidRatio == null) voidRatio = params.get("voidRatio");
+            if (!(voidRatio instanceof Number n) || n.doubleValue() > 0) {
+                params.put("void_ratio", 0);
+                params.remove("voidRatio");
+                changed = true;
+            }
+            if (params.containsKey("wall_thickness") || params.containsKey("wallThickness")) {
+                params.remove("wall_thickness");
+                params.remove("wallThickness");
+                changed = true;
+            }
+        } else {
+            if (!Boolean.TRUE.equals(params.get("hollow"))) {
+                params.put("hollow", true);
+                changed = true;
+            }
+            int wall = ComponentParamParsers.intParam(params, 0, "wall_thickness", "wallThickness");
+            if (wall <= 0) {
+                params.put("wall_thickness", 1);
+                changed = true;
+            }
+        }
         if (span <= 7 && !Boolean.TRUE.equals(params.get("suppress_windows")) && !keepAuthoredFacade) {
             params.put("suppress_windows", true);
             params.putIfAbsent("window_style", "none");
@@ -125,8 +146,8 @@ final class NarrowTowerStairRepair {
         }
         if (!changed) return host;
         FormacraftMod.LOGGER.info(
-                "NarrowTowerStairRepair: harden spire shell id={} span={} keepFacade={}",
-                id, span, keepAuthoredFacade);
+                "NarrowTowerStairRepair: harden spire shell id={} span={} keepFacade={} solidTip={}",
+                id, span, keepAuthoredFacade, span <= 2);
         return new Component(host.componentType(), host.slotId(), host.relativePosition(),
                 host.dimensions(), host.features(), params);
     }

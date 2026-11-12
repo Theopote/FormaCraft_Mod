@@ -583,7 +583,9 @@ final class PlanIntentFidelityRepair {
                 nw = Math.max(3, nw - 2);
                 nd = Math.max(3, nd - 2);
             }
-            if (dims.width() < nw - 1 || dims.depth() < nd - 1) {
+            boolean siteScale = compoundLayoutSlots(plan) && dims.width() >= 4 && dims.depth() >= 4
+                    && (long) nw * nd > (long) dims.width() * dims.depth() * 2L;
+            if (!siteScale && (dims.width() < nw - 1 || dims.depth() < nd - 1)) {
                 // Keep authored relativePosition: center anchors stay centered; min_corner stays put.
                 dims = new Dimensions(nw, nd, dims.height());
                 changed = true;
@@ -637,13 +639,23 @@ final class PlanIntentFidelityRepair {
                 // Non-office buildings (日式 18×18, halls, etc.) still honour explicit W×D.
                 int nw = hints.footprintWidth();
                 int nd = hints.footprintDepth();
-                // Never adjust relativePosition here: for center anchors the coordinate IS the
-                // center, so subtracting (new-old)/2 slides the whole building off the cursor.
-                FormacraftMod.LOGGER.info(
-                        "PlanIntentFidelityRepair: force primary footprint {}x{} → {}x{}",
-                        dims.width(), dims.depth(), nw, nd);
-                dims = new Dimensions(nw, nd, dims.height());
-                changed = true;
+                // Multi-slot compounds often mention a site-scale W×D (courtyard+wings). Forcing
+                // that onto the primary hall swallows the court and trips exterior-stair conflicts.
+                // Single-slot stepped homes still accept「底层占地」exact resize.
+                if (compoundLayoutSlots(plan) && dims.width() >= 4 && dims.depth() >= 4
+                        && (long) nw * nd > (long) dims.width() * dims.depth() * 2L) {
+                    FormacraftMod.LOGGER.info(
+                            "PlanIntentFidelityRepair: skip site-scale footprint {}x{} on compound primary {}x{}",
+                            nw, nd, dims.width(), dims.depth());
+                } else {
+                    // Never adjust relativePosition here: for center anchors the coordinate IS the
+                    // center, so subtracting (new-old)/2 slides the whole building off the cursor.
+                    FormacraftMod.LOGGER.info(
+                            "PlanIntentFidelityRepair: force primary footprint {}x{} → {}x{}",
+                            dims.width(), dims.depth(), nw, nd);
+                    dims = new Dimensions(nw, nd, dims.height());
+                    changed = true;
+                }
             } else if (floors >= 2 && !officeLike) {
                 // Multi-storey non-office: keep ≥3 air clear (storey band ≥4). Honour authored
                 // floor_height when already ≥ min band — do not invent a taller lobby that would
@@ -733,6 +745,17 @@ final class PlanIntentFidelityRepair {
                 }
             }
         };
+    }
+
+    /** True when layout declares two+ distinct slot ids (courtyard wings / gate compounds). */
+    private static boolean compoundLayoutSlots(LlmPlan plan) {
+        if (plan == null || plan.layout() == null || plan.layout().slots() == null) return false;
+        long distinct = plan.layout().slots().stream()
+                .filter(s -> s != null && s.slotId() != null && !s.slotId().isBlank())
+                .map(s -> s.slotId().trim())
+                .distinct()
+                .count();
+        return distinct > 1;
     }
 
     private static boolean corpusContainsOffice(String corpus) {

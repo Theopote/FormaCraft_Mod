@@ -44,7 +44,12 @@ final class WallThicknessFitRepair {
         int fit = Math.max(1, (minSpan - 1) / 2);
         if (fit < 1 || 2L * fit >= minSpan) {
             for (String key : WALL_THICKNESS_KEYS) next.remove(key);
-            FormacraftMod.LOGGER.info("WallThicknessFitRepair: drop wall_thickness={} (minSpan={}) id={}",
+            // Dropping thickness alone leaves hollow tips that generators may re-default;
+            // solidify so MassDesignValidator and NarrowTower stay consistent.
+            next.put("hollow", false);
+            next.put("void_ratio", 0);
+            next.remove("voidRatio");
+            FormacraftMod.LOGGER.info("WallThicknessFitRepair: solidify + drop wall_thickness={} (minSpan={}) id={}",
                     thickness, minSpan, next.get("component_id"));
         } else {
             next.put("wall_thickness", fit);
