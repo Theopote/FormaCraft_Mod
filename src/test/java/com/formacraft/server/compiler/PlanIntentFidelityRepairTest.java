@@ -664,6 +664,30 @@ class PlanIntentFidelityRepairTest {
         assertEquals(5, outHall.dimensions().depth(), "compound primary keeps authored hall depth");
     }
 
+    @Test
+    void footprintIntentTransposeKeepsAuthoredHallOrientation() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(-8, 0, -13),
+                new Dimensions(17, 27, 10), List.of(),
+                Map.of("component_id", "hall_body", "anchor_mode", "min_corner", "floor_count", 1));
+        Component dispatch = new Component(
+                "MASS_MAIN", "dispatch", new Vec3i(-6, 0, -4),
+                new Dimensions(11, 9, 10), List.of(),
+                Map.of("component_id", "dispatch_body", "anchor_mode", "min_corner", "floor_count", 2));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .layout(new Layout(null, false, List.of(
+                        new Slot("hall", new Vec3i(0, 0, 0), null, null, null, null, null),
+                        new Slot("dispatch", new Vec3i(20, 0, 0), null, null, null, null, null))))
+                .components(List.of(hall, dispatch))
+                .distinguishingFeatures(List.of(
+                        "continuous sawtooth skylight roof over 27x17 maintenance hall"))
+                .build();
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        Component outHall = findById(repaired, "hall_body");
+        assertEquals(17, outHall.dimensions().width(), "authored long-axis depth must not swap to width");
+        assertEquals(27, outHall.dimensions().depth(), "authored depth stays 27 against intent 27x17 transpose");
+    }
+
     private static Component findByHost(LlmPlan plan, String hostId) {
         return plan.components().stream()
                 .filter(c -> c.params() != null && hostId.equals(String.valueOf(c.params().get("host_id"))))

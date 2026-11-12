@@ -21,7 +21,7 @@ class ComplexBuildClusterDiagTest {
     @Test
     void clusterRemaining() throws Exception {
         String[] names = {
-                "oct18_night_1.normalized", "oct18_night_5.normalized", "oct18_final_5.normalized"
+                "oct18_final_5.normalized"
         };
         var byCode = new TreeMap<String, List<String>>();
         int pass = 0;

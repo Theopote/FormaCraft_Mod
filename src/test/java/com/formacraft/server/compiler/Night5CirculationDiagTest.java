@@ -60,16 +60,21 @@ class Night5CirculationDiagTest {
                         + " stair_connection=" + c.params().get("stair_connection"));
             }
         }
-        AssemblyCompileDiagnostics.clear();
-        var patches = ComponentPlanCompiler.compile(plan);
-        System.out.println("gap=" + AssemblyCompileDiagnostics.get());
-        System.out.println("patches=" + patches.size());
-        Map<String, Integer> writers = new HashMap<>();
-        for (var p : patches) {
-            if (p.dx() == conflict.getX() && p.dy() == conflict.getY() && p.dz() == conflict.getZ()) {
-                writers.merge(p.action() + ":" + p.targetBlock(), 1, Integer::sum);
+        System.setProperty("formacraft.diag.exteriorCirculation", "true");
+        try {
+            AssemblyCompileDiagnostics.clear();
+            var patches = ComponentPlanCompiler.compile(plan);
+            System.out.println("gap=" + AssemblyCompileDiagnostics.get());
+            System.out.println("patches=" + patches.size());
+            Map<String, Integer> writers = new HashMap<>();
+            for (var p : patches) {
+                if (p.dx() == conflict.getX() && p.dy() == conflict.getY() && p.dz() == conflict.getZ()) {
+                    writers.merge(p.action() + ":" + p.targetBlock(), 1, Integer::sum);
+                }
             }
+            System.out.println("shellAtConflict=" + writers);
+        } finally {
+            System.clearProperty("formacraft.diag.exteriorCirculation");
         }
-        System.out.println("shellAtConflict=" + writers);
     }
 }

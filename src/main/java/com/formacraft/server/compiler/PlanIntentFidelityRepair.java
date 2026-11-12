@@ -647,6 +647,13 @@ final class PlanIntentFidelityRepair {
                     FormacraftMod.LOGGER.info(
                             "PlanIntentFidelityRepair: skip site-scale footprint {}x{} on compound primary {}x{}",
                             nw, nd, dims.width(), dims.depth());
+                } else if (isFootprintTranspose(nw, nd, dims.width(), dims.depth())) {
+                    // Corpus「27×17 hall」matched against an authored 17×27 long-axis body is the
+                    // same rectangle transposed. Forcing the swap pivots attached exterior stairs
+                    // into the shell (night_5 E_CIRCULATION_EXTERIOR_CONFLICT).
+                    FormacraftMod.LOGGER.info(
+                            "PlanIntentFidelityRepair: keep authored footprint orientation {}x{} (intent {}x{} is transpose)",
+                            dims.width(), dims.depth(), nw, nd);
                 } else {
                     // Never adjust relativePosition here: for center anchors the coordinate IS the
                     // center, so subtracting (new-old)/2 slides the whole building off the cursor.
@@ -756,6 +763,13 @@ final class PlanIntentFidelityRepair {
                 .distinct()
                 .count();
         return distinct > 1;
+    }
+
+    /** Same rectangle with axes swapped (17×27 vs 27×17); orientation stays with the authored body. */
+    private static boolean isFootprintTranspose(int intentW, int intentD, int authoredW, int authoredD) {
+        return intentW > 0 && intentD > 0 && authoredW > 0 && authoredD > 0
+                && intentW == authoredD && intentD == authoredW
+                && intentW != intentD;
     }
 
     private static boolean corpusContainsOffice(String corpus) {
