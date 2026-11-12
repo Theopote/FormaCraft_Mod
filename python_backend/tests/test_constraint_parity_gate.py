@@ -12,13 +12,29 @@ from eval import ci_gate
 
 class ConstraintParityGateTest(unittest.TestCase):
     def test_runs_offline_java_task_and_propagates_failure(self):
-        with patch.dict('os.environ', {'FORMACRAFT_GRADLE': 'local-gradle'}), \
+        with patch.dict('os.environ', {'FORMACRAFT_GRADLE': 'local-gradle', 'CI': '',
+                                       'FORMACRAFT_GRADLE_OFFLINE': '1'}, clear=False), \
                 patch.object(ci_gate.subprocess, 'run') as run:
             run.return_value.returncode = 7
             self.assertEqual(ci_gate.run_constraint_parity(), 7)
             self.assertEqual(run.call_args.args[0],
                              ['local-gradle', 'constraintParityTest', '--offline', '--console=plain'])
             self.assertEqual(run.call_args.kwargs['cwd'], str(ci_gate._BACKEND_ROOT.parent))
+
+    def test_ci_runners_resolve_plugins_online(self):
+        with patch.dict('os.environ', {
+                    'FORMACRAFT_GRADLE': 'ci-gradle',
+                    'CI': 'true',
+                    'FORMACRAFT_GRADLE_OFFLINE': '0',
+                }, clear=False), \
+                patch.object(ci_gate.subprocess, 'run') as run:
+            run.return_value.returncode = 0
+            # Reports still required; force a missing-report failure after gradle succeeds.
+            with TemporaryDirectory() as directory, redirect_stdout(io.StringIO()), \
+                    patch.object(ci_gate, '_BACKEND_ROOT', Path(directory) / 'python_backend'):
+                self.assertEqual(ci_gate.run_constraint_parity(), 2)
+            self.assertEqual(run.call_args.args[0],
+                             ['ci-gradle', 'constraintParityTest', '--console=plain'])
 
     def test_missing_runtime_and_timeout_cannot_be_reported_as_success(self):
         for error in [FileNotFoundError('gradle unavailable'), subprocess.TimeoutExpired('gradle', 600)]:

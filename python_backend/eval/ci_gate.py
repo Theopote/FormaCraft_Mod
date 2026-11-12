@@ -210,13 +210,22 @@ def run_assembly_repair_negative() -> int:
     return 0
 
 
+def _constraint_parity_gradle_args(executable: str) -> List[str]:
+    """Offline by default locally; CI quality runners start cold and must resolve plugins."""
+    args = [executable, "constraintParityTest", "--console=plain"]
+    offline_default = "0" if os.getenv("CI", "").lower() in ("1", "true", "yes") else "1"
+    if os.getenv("FORMACRAFT_GRADLE_OFFLINE", offline_default).lower() in ("1", "true", "yes"):
+        args.insert(2, "--offline")
+    return args
+
+
 def run_constraint_parity() -> int:
     """Run the actual Java tests; a missing runtime or a failed Gradle task fails closed."""
     print("\n========== [6/7] Patch/Build constraint parity ==========")
     repo = _BACKEND_ROOT.parent
     executable = os.getenv("FORMACRAFT_GRADLE") or str(repo / ("gradlew.bat" if os.name == "nt" else "gradlew"))
     try:
-        result = subprocess.run([executable, "constraintParityTest", "--offline", "--console=plain"],
+        result = subprocess.run(_constraint_parity_gradle_args(executable),
                                 cwd=str(repo), timeout=600)
     except (OSError, subprocess.TimeoutExpired) as exc:
         print(f"FAIL: constraint parity could not run: {exc}")

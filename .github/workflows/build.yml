@@ -109,10 +109,42 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # constraint_parity runs Gradle Java tests; without JDK/plugin resolution the gate
+      # fails on a cold runner (fabric-loom cannot resolve under --offline).
+      - name: setup jdk
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: install gradle from mirror
+        run: |
+          set -euo pipefail
+          GRADLE_VERSION=9.1.0
+          MIRRORS=(
+            "https://mirrors.cloud.tencent.com/gradle/gradle-${GRADLE_VERSION}-bin.zip"
+            "https://mirrors.huaweicloud.com/gradle/gradle-${GRADLE_VERSION}-bin.zip"
+            "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+          )
+          for url in "${MIRRORS[@]}"; do
+            echo "Trying ${url}"
+            if curl -fsSL --retry 3 --retry-delay 5 -o /tmp/gradle.zip "${url}"; then
+              sudo unzip -qo /tmp/gradle.zip -d /opt
+              echo "/opt/gradle-${GRADLE_VERSION}/bin" >> "$GITHUB_PATH"
+              "/opt/gradle-${GRADLE_VERSION}/bin/gradle" --version
+              exit 0
+            fi
+            echo "Mirror failed: ${url}"
+          done
+          echo "All Gradle mirrors failed"
+          exit 1
       - name: install python backend test deps
         run: pip install -r python_backend/requirements-test.lock
       - name: eval quality gate
         working-directory: python_backend
+        env:
+          FORMACRAFT_GRADLE: gradle
         # The curated unittest modules live under pytest; this gate is reported separately.
         run: python -m eval.ci_gate --quick
       - name: capture quality reports
