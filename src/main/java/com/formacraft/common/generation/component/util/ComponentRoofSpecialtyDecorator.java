@@ -343,11 +343,6 @@ public final class ComponentRoofSpecialtyDecorator {
     }
 
     private static List<Integer> fittedDormerCenters(List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
-                                                     int faceMinorCoord, int setback, int count) {
-        return fittedDormerCenters(roofPatches, baseMajor, majorSpan, faceMinorCoord, setback, count, true);
-    }
-
-    private static List<Integer> fittedDormerCenters(List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
                                                      int faceMinorCoord, int setback, int count, boolean alongWidth) {
         if (count < 1) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_count must be a positive whole number");
@@ -386,20 +381,6 @@ public final class ComponentRoofSpecialtyDecorator {
                     : (int) Math.round(i * (double) centerSpan / (count - 1))));
         }
         return centers;
-    }
-
-    static void emitSingleDormer(
-            List<BlockPatch> out,
-            int cx,
-            int surfaceY,
-            int faceZ,
-            int protrude,
-            String trimBlock,
-            String glassBlock,
-            String roofBlock
-    ) {
-        emitSingleDormer(out, null, cx, surfaceY, faceZ, protrude, 1, true,
-                trimBlock, glassBlock, roofBlock);
     }
 
     /**

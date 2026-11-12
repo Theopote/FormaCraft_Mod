@@ -444,10 +444,15 @@ final class ComponentSatelliteAligner {
 
         int baseW = templateDims != null ? templateDims.width() : 1;
         int baseD = templateDims != null ? templateDims.depth() : 1;
-        if (llmDims != null) {
-            int extraW = Math.max(0, llmDims.width() - baseW);
-            int extraD = Math.max(0, llmDims.depth() - baseD);
-            int bboxOverhang = Math.max(extraW / 2, extraD / 2);
+        if (llmDims != null && mass.dimensions() != null) {
+            int massW = Math.max(1, mass.dimensions().width());
+            int massD = Math.max(1, mass.dimensions().depth());
+            int fromMass = Math.max(
+                    Math.max(0, llmDims.width() - massW) / 2,
+                    Math.max(0, llmDims.depth() - massD) / 2);
+            int fromTemplate = Math.max(
+                    Math.max(0, llmDims.width() - baseW) / 2,
+                    Math.max(0, llmDims.depth() - baseD) / 2);
             Integer explicitOverhang = ComponentParamParsers.intOrNull(params,
                     ComponentParamParsers.keysFor("overhang"));
             boolean overhangLocked = com.formacraft.common.generation.design.DesignParameterRegistry
@@ -457,24 +462,38 @@ final class ComponentSatelliteAligner {
             if (overhangExplicit) {
                 int existing = explicitOverhang != null ? explicitOverhang
                         : ComponentParamParsers.intParam(params, 0, ComponentParamParsers.keysFor("overhang"));
-                // Some model roofs include eaves around the unretreated host.
-                // Accept that exact representation without counting style setbacks as eaves.
-                if (existing >= 0 && llmDims.width() == mass.dimensions().width() + 2 * existing
-                        && llmDims.depth() == mass.dimensions().depth() + 2 * existing) {
-                    bboxOverhang = existing;
+                // Roof sized exactly to mass + 2*overhang — trust the param (unretreated host eaves).
+                boolean exactMassEaves = existing >= 0
+                        && llmDims.width() == massW + 2 * existing
+                        && llmDims.depth() == massD + 2 * existing;
+                boolean sizedToMass = llmDims.width() == massW && llmDims.depth() == massD;
+                // Geometric eaves: vs host when roof extends past it; vs template when roof
+                // matches the host (setback / retreated top — SteppedRoof conflict case).
+                int geometric = sizedToMass ? fromTemplate : fromMass;
+                if (!exactMassEaves && geometric > 0 && existing != geometric) {
+                    // Locked / AI_PLANNED stay hard-fail. Sized-to-mass may only soft-lower
+                    // (LLM overstated eaves); silently raising would mask stepped conflicts.
+                    boolean wouldRaiseOnRetreatedTop = sizedToMass && geometric > existing;
+                    if (overhangLocked || wouldRaiseOnRetreatedTop) {
+                        AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(
+                                "E_ROOF_OVERHANG_CONFLICT",
+                                "explicit overhang=" + existing + " conflicts with roof bbox overhang="
+                                        + geometric + " host=" + ComponentPlanTypes.paramIdentity(mass),
+                                "components[].params.overhang",
+                                List.of("Match overhang to roof dimensions",
+                                        "Or omit overhang and let alignment infer it")));
+                        return null;
+                    }
+                    // Unlocked historical LLM noise: roof bbox is the eaves contract.
+                    FormacraftMod.LOGGER.info(
+                            "ComponentSatelliteAligner: reconcile overhang {}→{} host={}",
+                            existing, geometric, ComponentPlanTypes.paramIdentity(mass));
+                    params.put("overhang", geometric);
                 }
-                if (bboxOverhang > 0 && existing != bboxOverhang) {
-                    AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(
-                            "E_ROOF_OVERHANG_CONFLICT",
-                            "explicit overhang=" + existing + " conflicts with roof bbox overhang="
-                                    + bboxOverhang + " host=" + ComponentPlanTypes.paramIdentity(mass),
-                            "components[].params.overhang",
-                            List.of("Match overhang to roof dimensions", "Or omit overhang and let alignment infer it")));
-                    return null;
-                }
-                // Keep explicit value when it already matches bbox; do not raise via Math.max.
-            } else if (bboxOverhang > 0) {
-                params.put("overhang", bboxOverhang);
+            } else if (fromMass > 0) {
+                params.put("overhang", fromMass);
+            } else if (fromTemplate > 0) {
+                params.put("overhang", fromTemplate);
             }
         }
 

@@ -2,7 +2,8 @@ name: build
 on: [pull_request, push]
 
 jobs:
-  build:
+  java:
+    name: java
     runs-on: ubuntu-24.04
     steps:
       - name: checkout repository
@@ -41,6 +42,26 @@ jobs:
           exit 1
       - name: build
         run: gradle build
+      - name: capture build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artifacts
+          path: build/libs/
+      - name: capture java verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Java-verification-reports
+          path: |
+            build/reports/
+            build/test-results/
+
+  architecture:
+    name: architecture
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
       - name: setup python
         uses: actions/setup-python@v5
         with:
@@ -52,6 +73,17 @@ jobs:
           python scripts/check_structure_generator_freeze.py
           python scripts/check_panel_line_budget.py
           python scripts/check_generation_entrypoints.py
+
+  python:
+    name: python
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: python backend smoke
         run: |
           pip install -r python_backend/requirements-test.lock
@@ -59,20 +91,36 @@ jobs:
       - name: all python backend tests
         working-directory: python_backend
         run: python -m pytest tests -q --junitxml=../build/test-results/python/pytest.xml
-      - name: eval quality gate
-        working-directory: python_backend
-        # The full pytest suite above includes the curated unittest modules.
-        run: python -m eval.ci_gate --quick
-      - name: capture build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Artifacts
-          path: build/libs/
-      - name: capture verification reports
+      - name: capture python verification reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Verification-reports
+          name: Python-verification-reports
+          path: build/test-results/python/
+          if-no-files-found: warn
+
+  quality:
+    name: quality
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: install python backend test deps
+        run: pip install -r python_backend/requirements-test.lock
+      - name: eval quality gate
+        working-directory: python_backend
+        # The curated unittest modules live under pytest; this gate is reported separately.
+        run: python -m eval.ci_gate --quick
+      - name: capture quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quality-verification-reports
           path: |
-            build/reports/
+            python_backend/eval/reports/
             build/test-results/
+          if-no-files-found: warn

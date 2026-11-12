@@ -84,6 +84,18 @@ class SteppedRoofAttachmentTest {
         assertTrue(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_ROOF_OVERHANG_CONFLICT", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
     }
+    @Test void overstatedSizedToMassOverhangIsLoweredToRetreatedTopEaves() throws Exception {
+        // geometric fromTemplate is 3 for this body; overhang=4 only overstates eaves → soft-lower.
+        var authored = new Component("ROOF", "house", new Vec3i(0,0,0), new Dimensions(15,13,4), List.of(),
+                Map.of("host_id", "house", "roof_type", "flat", "overhang", 4));
+        var components = prepared(LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
+                .components(List.of(body("rectangle"), authored)).build());
+        assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        var roof = components.stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
+        assertEquals(3, ((Number) roof.params().get("overhang")).intValue());
+        assertEquals(new Dimensions(9, 8, 4), roof.dimensions());
+    }
     @Test void zeroOverhangUsesRetreatedHostTopWithoutTreatingSetbacksAsEaves() throws Exception {
         var authored=new Component("ROOF","house",new Vec3i(0,0,0),new Dimensions(15,13,4),List.of(),
                 Map.of("host_id","house","roof_type","flat","overhang",0));

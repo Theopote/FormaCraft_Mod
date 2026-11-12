@@ -106,12 +106,11 @@ class Live2252RegressionTest {
                             Map.entry("225358", "E_STAIR_COMPONENT_INVALID"),
                             Map.entry("225448", "E_COMPONENT_GENERATION_FAILED"),
                             Map.entry("225713", "E_SEMANTIC_FIDELITY"),
-                            // Pagoda tier plate still overwrites a lower-tier post cell.
-                            Map.entry("230021", "E_PATCH_CONFLICT"),
                             // Dup-id scrub lands, but plate/shell still collide at one cell.
                             Map.entry("230659", "E_PATCH_CONFLICT"),
                             Map.entry("231921", "E_STAIR_COMPONENT_INVALID"));
-                    // Soft-repairs / open-frame / dup-id scrub now land several former hard rejects.
+                    // Soft-repairs / open-frame / dup-id scrub / overhang reconcile land former hard rejects
+                    // (incl. 230021 pagoda which now compiles past the old tier-plate PATCH_CONFLICT).
                     if (!rejected.containsKey(name)) {
                         assertNull(gap, name); assertFalse(blocks.isEmpty(), name);
                     } else {

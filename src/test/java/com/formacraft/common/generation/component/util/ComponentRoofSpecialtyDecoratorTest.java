@@ -7,9 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class ComponentRoofSpecialtyDecoratorTest {
     @org.junit.jupiter.api.BeforeAll
@@ -91,7 +89,7 @@ class ComponentRoofSpecialtyDecoratorTest {
     void dormerAxisParamOverridesLongerFacePreference() {
         assertTrue(ComponentRoofSpecialtyDecorator.resolveDormerAlongWidth(
                 13, 17, null, List.of(), 0, 0, 3, Map.of("dormer_axis", "width")));
-        assertTrue(!ComponentRoofSpecialtyDecorator.resolveDormerAlongWidth(
+        assertFalse(ComponentRoofSpecialtyDecorator.resolveDormerAlongWidth(
                 17, 13, null, List.of(), 0, 0, 3, Map.of("dormer_face", "east")));
     }
 }

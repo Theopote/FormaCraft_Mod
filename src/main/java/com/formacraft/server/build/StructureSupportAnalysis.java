@@ -83,7 +83,7 @@ public final class StructureSupportAnalysis {
             int band = minY + 2;
             bottoms.values().stream()
                     .filter(p -> p.getY() <= band)
-                    .filter(p -> nearBase ? p.getY() <= baseBandTop : true)
+                    .filter(p -> !nearBase || p.getY() <= baseBandTop)
                     .forEach(unsupported::add);
         }
         unsupported.sort(Comparator.comparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
