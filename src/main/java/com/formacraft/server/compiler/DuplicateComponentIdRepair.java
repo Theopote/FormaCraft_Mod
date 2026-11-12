@@ -84,10 +84,11 @@ final class DuplicateComponentIdRepair {
             candidatesByOldId.put(oldId, cands);
         }
 
-        // Resolve every satellite reference that still names a duplicated id.
+        // Resolve every host reference that still names a duplicated id — including the
+        // renamed masses themselves (nested MASS_SECONDARY.host_id=tower must participate).
+        // Rename + rebind is one transaction: any ambiguity aborts before writing.
         Map<Integer, Map<String, String>> refUpdates = new HashMap<>();
         for (int i = 0; i < components.size(); i++) {
-            if (renames.containsKey(i)) continue; // masses themselves are rewritten below
             Component c = components.get(i);
             if (c == null || c.params() == null) continue;
             for (String key : HOST_REF_KEYS) {
@@ -97,7 +98,7 @@ final class DuplicateComponentIdRepair {
                 if (wanted.isEmpty() || "null".equalsIgnoreCase(wanted)) continue;
                 List<HostCandidate> cands = candidatesByOldId.get(wanted);
                 if (cands == null || cands.isEmpty()) continue;
-                HostCandidate chosen = resolveHost(c, cands);
+                HostCandidate chosen = resolveHost(c, i, cands);
                 if (chosen == null) {
                     FormacraftMod.LOGGER.warn(
                             "DuplicateComponentIdRepair: ambiguous host_id='{}' on {} — leave duplicates for E_DUPLICATE_COMPONENT_ID",
@@ -153,13 +154,15 @@ final class DuplicateComponentIdRepair {
 
     /**
      * Pick the unique best host among duplicate candidates. Returns null when scores tie
-     * or no candidate has a positive ownership cue.
+     * or no candidate has a positive ownership cue. Never selects the referring component
+     * itself (a renamed mass must not resolve host_id to its own new id).
      */
-    private static HostCandidate resolveHost(Component sat, List<HostCandidate> cands) {
+    private static HostCandidate resolveHost(Component sat, int satIndex, List<HostCandidate> cands) {
         HostCandidate best = null;
         int bestScore = Integer.MIN_VALUE;
         boolean tie = false;
         for (HostCandidate cand : cands) {
+            if (cand.index == satIndex) continue;
             int score = ownershipScore(sat, cand);
             if (score > bestScore) {
                 bestScore = score;
@@ -189,10 +192,23 @@ final class DuplicateComponentIdRepair {
         if (satBounds != null && hostBounds != null) {
             if (xzOverlap(satBounds, hostBounds)) {
                 score += 50;
+                // Prefer the tighter covering host (nested attic beats oversized main shell).
+                int hostArea = Math.max(1, hostBounds.width() * hostBounds.depth());
+                int satArea = Math.max(1, satBounds.width() * satBounds.depth());
+                int covered = overlapArea(satBounds, hostBounds);
+                score += (covered * 40) / satArea;
+                score += Math.max(0, 35 - hostArea / 8);
             }
             int dx = Math.abs(centerX(satBounds) - centerX(hostBounds));
             int dz = Math.abs(centerZ(satBounds) - centerZ(hostBounds));
             score += Math.max(0, 40 - (dx + dz));
+        }
+
+        // Vertical attachment: roofs / nested storeys sit near the host top plane.
+        if (sat.relativePosition() != null && host.relativePosition() != null && host.dimensions() != null) {
+            int hostTop = host.relativePosition().y() + Math.max(1, host.dimensions().height()) - 1;
+            int dy = Math.abs(sat.relativePosition().y() - hostTop);
+            score += Math.max(0, 30 - dy * 2);
         }
 
         String satId = componentId(sat);
@@ -210,6 +226,13 @@ final class DuplicateComponentIdRepair {
             ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
         return a.minX() < b.maxX() && b.minX() < a.maxX()
                 && a.minZ() < b.maxZ() && b.minZ() < a.maxZ();
+    }
+
+    private static int overlapArea(
+            ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
+        int w = Math.max(0, Math.min(a.maxX(), b.maxX()) - Math.max(a.minX(), b.minX()));
+        int d = Math.max(0, Math.min(a.maxZ(), b.maxZ()) - Math.max(a.minZ(), b.minZ()));
+        return w * d;
     }
 
     private static int centerX(ComponentFootprintUtil.Bounds b) {

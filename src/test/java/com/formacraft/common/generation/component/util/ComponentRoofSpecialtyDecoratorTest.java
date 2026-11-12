@@ -66,7 +66,7 @@ class ComponentRoofSpecialtyDecoratorTest {
 
     @Test
     void requestedDormersCannotSpanAGapInTheFoldStrip() {
-        // Depth > width → dormers sit on the major (long) face, centered along Z at x=setback.
+        // Depth > width — dormers sit on the major (long) face, centered along Z at x=setback.
         var profile = ComponentRoofSpecialtyDecorator.resolveMansardProfile(13, 17, 11,
                 Map.of("mansard_break_run", 3, "mansard_break_rise", 7));
         int setback = profile.setback();
@@ -85,5 +85,13 @@ class ComponentRoofSpecialtyDecoratorTest {
                 13, 17, profile, 1, "minecraft:stone_bricks", "minecraft:glass_pane", "minecraft:bricks");
         assertEquals(List.of(4), out.stream().filter(p -> p.dy() == 8 && "minecraft:glass_pane".equals(p.targetBlock()))
                 .map(BlockPatch::dz).toList());
+    }
+
+    @Test
+    void dormerAxisParamOverridesLongerFacePreference() {
+        assertTrue(ComponentRoofSpecialtyDecorator.resolveDormerAlongWidth(
+                13, 17, null, List.of(), 0, 0, 3, Map.of("dormer_axis", "width")));
+        assertTrue(!ComponentRoofSpecialtyDecorator.resolveDormerAlongWidth(
+                17, 13, null, List.of(), 0, 0, 3, Map.of("dormer_face", "east")));
     }
 }

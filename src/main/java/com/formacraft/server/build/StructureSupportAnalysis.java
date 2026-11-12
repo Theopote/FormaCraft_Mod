@@ -29,9 +29,12 @@ public final class StructureSupportAnalysis {
     }
 
     /**
-     * Bottom columns of disconnected, ungrounded components near the structure's global base.
-     * Mid-height cantilever rings (pagoda eaves) are intentionally ignored — filling them would
-     * pour cobble columns through hollow interiors.
+     * Bottom columns of disconnected, ungrounded components.
+     * <p>
+     * Near-ground stilts are always reported. Elevated components are reported only when they
+     * look like solid floating platforms (e.g. a detached FBD flat roof). Sparse mid-height
+     * cantilever rings (pagoda eaves) stay ignored so auto-repair does not pour columns through
+     * hollow interiors.
      */
     public static List<BlockPos> unsupportedBases(List<PlannedBlock> blocks, Function<BlockPos, BlockState> terrain) {
         var states = finalStates(blocks);
@@ -41,7 +44,6 @@ public final class StructureSupportAnalysis {
             if (carriesSupport(s)) globalMinY = Math.min(globalMinY, pos.getY());
         }
         if (globalMinY == Integer.MAX_VALUE) return List.of();
-        // Only stilts / true floating bases near the footprint — not mid-tower eaves.
         final int baseBandTop = globalMinY + 3;
 
         var remaining = new HashSet<BlockPos>();
@@ -53,6 +55,7 @@ public final class StructureSupportAnalysis {
             if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
             var queue = new ArrayDeque<BlockPos>();
             var bottoms = new HashMap<Long, BlockPos>();
+            var component = new ArrayList<BlockPos>();
             queue.add(start);
             boolean grounded = false;
             int minY = Integer.MAX_VALUE;
@@ -61,6 +64,7 @@ public final class StructureSupportAnalysis {
                 if ((++visited & 1023) == 0 && Thread.currentThread().isInterrupted())
                     throw new java.util.concurrent.CancellationException();
                 var pos = queue.removeFirst();
+                component.add(pos);
                 minY = Math.min(minY, pos.getY());
                 long column = ((long)pos.getX() << 32) ^ (pos.getZ() & 0xffffffffL);
                 var previous = bottoms.get(column);
@@ -72,14 +76,44 @@ public final class StructureSupportAnalysis {
                     if (remaining.remove(neighbor)) queue.addLast(neighbor);
                 }
             }
-            if (!grounded && minY <= baseBandTop) {
-                int band = minY + 2;
-                bottoms.values().stream()
-                        .filter(p -> p.getY() <= band && p.getY() <= baseBandTop)
-                        .forEach(unsupported::add);
-            }
+            if (grounded) continue;
+            boolean nearBase = minY <= baseBandTop;
+            boolean solidFloat = !nearBase && looksSolidFloatingPlatform(component);
+            if (!nearBase && !solidFloat) continue;
+            int band = minY + 2;
+            bottoms.values().stream()
+                    .filter(p -> p.getY() <= band)
+                    .filter(p -> nearBase ? p.getY() <= baseBandTop : true)
+                    .forEach(unsupported::add);
         }
         unsupported.sort(Comparator.comparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
         return List.copyOf(unsupported);
+    }
+
+    /**
+     * Solid elevated slabs (floating roofs) have high XZ fill; eave rings are sparse perimeters.
+     */
+    static boolean looksSolidFloatingPlatform(List<BlockPos> component) {
+        if (component == null || component.size() < 9) return false;
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        var columns = new HashSet<Long>();
+        for (BlockPos p : component) {
+            minX = Math.min(minX, p.getX());
+            maxX = Math.max(maxX, p.getX());
+            minZ = Math.min(minZ, p.getZ());
+            maxZ = Math.max(maxZ, p.getZ());
+            minY = Math.min(minY, p.getY());
+            maxY = Math.max(maxY, p.getY());
+            columns.add(((long) p.getX() << 32) ^ (p.getZ() & 0xffffffffL));
+        }
+        int width = maxX - minX + 1;
+        int depth = maxZ - minZ + 1;
+        int height = maxY - minY + 1;
+        if (width < 3 || depth < 3 || height > 3) return false;
+        int area = width * depth;
+        // Require a mostly filled rectangle — rings leave the interior empty.
+        return columns.size() * 4 >= area * 3;
     }
 }

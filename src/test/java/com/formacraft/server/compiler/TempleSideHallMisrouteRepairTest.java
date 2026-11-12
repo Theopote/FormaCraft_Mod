@@ -201,17 +201,50 @@ class TempleSideHallMisrouteRepairTest {
                         "request_intent", Map.of("original_text", prompt),
                         "request_intent_text", prompt))
                 .build());
-        boolean hasNorthOrSouth = repaired.components().stream().anyMatch(c -> {
-            if (c.params() == null || c.relativePosition() == null || c.dimensions() == null) return false;
-            String id = String.valueOf(c.params().get("component_id"));
-            if (!id.contains("peidian") && !id.contains("side")) return false;
-            if (!c.componentType().startsWith("MASS")) return false;
-            int cz = c.relativePosition().z() + c.dimensions().depth() / 2;
-            return cz < hall.relativePosition().z()
-                    || cz >= hall.relativePosition().z() + hall.dimensions().depth();
-        });
-        assertTrue(hasNorthOrSouth,
-                "east-facing hall must treat N/S as left/right, not accept world E-W alone");
+        Component left = repaired.components().stream()
+                .filter(c -> "left_peidian".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component right = repaired.components().stream()
+                .filter(c -> "right_peidian".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        int hallMinZ = hall.relativePosition().z();
+        int hallMaxZ = hallMinZ + hall.dimensions().depth();
+        int leftCz = left.relativePosition().z() + left.dimensions().depth() / 2;
+        int rightCz = right.relativePosition().z() + right.dimensions().depth() / 2;
+        assertTrue(leftCz < hallMinZ, "east-facing left 配殿 must sit north of the hall");
+        assertTrue(rightCz >= hallMaxZ, "east-facing right 配殿 must sit south of the hall");
+    }
+
+    @Test
+    void westFacingHallPlacesLeftSouthAndRightNorth() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .styleProfile("chinese_temple_imperial")
+                .globalConstraints(new GlobalConstraints(
+                        GlobalConstraints.Facing.WEST,
+                        GlobalConstraints.Symmetry.NONE,
+                        GlobalConstraints.TerrainStrategy.ADAPTIVE))
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        Component left = repaired.components().stream()
+                .filter(c -> "left_peidian".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component right = repaired.components().stream()
+                .filter(c -> "right_peidian".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        int hallMinZ = hall.relativePosition().z();
+        int hallMaxZ = hallMinZ + hall.dimensions().depth();
+        int leftCz = left.relativePosition().z() + left.dimensions().depth() / 2;
+        int rightCz = right.relativePosition().z() + right.dimensions().depth() / 2;
+        assertTrue(leftCz >= hallMaxZ, "west-facing left 配殿 must sit south of the hall");
+        assertTrue(rightCz < hallMinZ, "west-facing right 配殿 must sit north of the hall");
     }
 
     @Test

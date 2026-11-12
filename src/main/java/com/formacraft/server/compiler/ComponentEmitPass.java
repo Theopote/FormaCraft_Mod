@@ -700,7 +700,10 @@ final class ComponentEmitPass {
         return false;
     }
 
-    /** Openings / courtyards / cut-footprint masses may miss declared surfaces without aborting. */
+    /**
+     * Optional openings / courtyards / decorative detail may miss declared surfaces without aborting.
+     * Player-required roofs, mass shells, crowns and domes hard-fail at this checkpoint.
+     */
     static boolean isSoftSurfaceIncomplete(String normalizedType) {
         if (normalizedType == null) return false;
         return "FACADE_WINDOWS".equals(normalizedType)
@@ -713,13 +716,7 @@ final class ComponentEmitPass {
                 || "COURTYARD_SPACE".equals(normalizedType)
                 || "COURTYARD".equals(normalizedType)
                 || "DECOR_DETAIL".equals(normalizedType)
-                || normalizedType.startsWith("DECOR")
-                || "ROOF".equals(normalizedType)
-                || "ROOF_STRUCTURE".equals(normalizedType)
-                || "CROWN".equals(normalizedType)
-                || "CUPOLA".equals(normalizedType)
-                || "DOME".equals(normalizedType)
-                || ComponentPlanTypes.isMassType(normalizedType);
+                || normalizedType.startsWith("DECOR");
     }
 
     /**

@@ -167,7 +167,7 @@ public class RoofGenerator implements ComponentGenerator {
             String roofBlock = getBlockForPart(semantic, palette, SemanticPart.ROOF);
             ComponentRoofSpecialtyDecorator.emitDormers(
                     out, roofShell, baseX, rp.y(), baseZ, width, depth, mansardProfile,
-                    mansardDormerCount, trim, glass, roofBlock);
+                    mansardDormerCount, params, trim, glass, roofBlock);
         }
 
         boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱", "重檐")

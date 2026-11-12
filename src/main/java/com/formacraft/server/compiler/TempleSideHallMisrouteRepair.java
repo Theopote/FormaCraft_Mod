@@ -150,45 +150,14 @@ final class TempleSideHallMisrouteRepair {
             int sideD = Math.max(7, hallD - 2);
             int sideH = Math.max(6, hallH - 2);
             int gap = 3;
-            GlobalConstraints.Facing facing = GlobalConstraints.Facing.SOUTH;
-            if (plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
-                facing = plan.globalConstraints().facing();
-            }
-            // Left/right relative to the hall front — not always world east/west.
-            int leftX;
-            int leftZ;
-            int rightX;
-            int rightZ;
-            switch (facing) {
-                case NORTH -> {
-                    // Front north → left=west, right=east
-                    leftX = mp.x() - gap - sideW;
-                    rightX = mp.x() + hallW + gap;
-                    leftZ = rightZ = mp.z() + Math.max(0, (hallD - sideD) / 2);
-                }
-                case EAST -> {
-                    // Front east → left=south, right=north
-                    leftX = rightX = mp.x() + Math.max(0, (hallW - sideW) / 2);
-                    leftZ = mp.z() + hallD + gap;
-                    rightZ = mp.z() - gap - sideD;
-                }
-                case WEST -> {
-                    // Front west → left=north, right=south
-                    leftX = rightX = mp.x() + Math.max(0, (hallW - sideW) / 2);
-                    leftZ = mp.z() - gap - sideD;
-                    rightZ = mp.z() + hallD + gap;
-                }
-                default -> {
-                    // Front south → left=east, right=west
-                    leftX = mp.x() + hallW + gap;
-                    rightX = mp.x() - gap - sideW;
-                    leftZ = rightZ = mp.z() + Math.max(0, (hallD - sideD) / 2);
-                }
-            }
-            out.add(sideHall("left_peidian", leftX, mp.y(), leftZ, sideW, sideD, sideH, sideRoof));
-            out.add(sideRoofComp("left_peidian", leftX, mp.y() + sideH, leftZ, sideW, sideD, sideRoof));
-            out.add(sideHall("right_peidian", rightX, mp.y(), rightZ, sideW, sideD, sideH, sideRoof));
-            out.add(sideRoofComp("right_peidian", rightX, mp.y() + sideH, rightZ, sideW, sideD, sideRoof));
+            GlobalConstraints.Facing facing = resolveFacing(plan);
+            // Left/right from facing vectors (Minecraft: +X east, +Z south).
+            int[] left = sideHallOrigin(facing, true, mp.x(), mp.z(), hallW, hallD, sideW, sideD, gap);
+            int[] right = sideHallOrigin(facing, false, mp.x(), mp.z(), hallW, hallD, sideW, sideD, gap);
+            out.add(sideHall("left_peidian", left[0], mp.y(), left[1], sideW, sideD, sideH, sideRoof));
+            out.add(sideRoofComp("left_peidian", left[0], mp.y() + sideH, left[1], sideW, sideD, sideRoof));
+            out.add(sideHall("right_peidian", right[0], mp.y(), right[1], sideW, sideD, sideH, sideRoof));
+            out.add(sideRoofComp("right_peidian", right[0], mp.y() + sideH, right[1], sideW, sideD, sideRoof));
         }
 
         // Ensure a readable central door exists after classical door_width=30 envelopes are sanitized.
@@ -481,39 +450,66 @@ final class TempleSideHallMisrouteRepair {
         int maxX = minX + main.dimensions().width();
         int minZ = main.relativePosition().z();
         int maxZ = minZ + main.dimensions().depth();
-        GlobalConstraints.Facing facing = GlobalConstraints.Facing.SOUTH;
-        if (plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
-            facing = plan.globalConstraints().facing();
-        }
+        GlobalConstraints.Facing facing = resolveFacing(plan);
+        int[] leftDir = leftOffset(facing);
+        int[] rightDir = new int[]{-leftDir[0], -leftDir[1]};
         boolean left = false;
         boolean right = false;
+        int midX = (minX + maxX) / 2;
+        int midZ = (minZ + maxZ) / 2;
         for (Component c : sides) {
             int cx = c.relativePosition().x() + c.dimensions().width() / 2;
             int cz = c.relativePosition().z() + c.dimensions().depth() / 2;
-            switch (facing) {
-                case NORTH -> {
-                    // Front north → left=west, right=east
-                    if (cx < minX) left = true;
-                    if (cx >= maxX) right = true;
-                }
-                case EAST -> {
-                    // Front east → left=south, right=north
-                    if (cz >= maxZ) left = true;
-                    if (cz < minZ) right = true;
-                }
-                case WEST -> {
-                    // Front west → left=north, right=south
-                    if (cz < minZ) left = true;
-                    if (cz >= maxZ) right = true;
-                }
-                default -> {
-                    // Front south (default) → left=east, right=west
-                    if (cx >= maxX) left = true;
-                    if (cx < minX) right = true;
-                }
-            }
+            int dx = cx - midX;
+            int dz = cz - midZ;
+            // Outside the main footprint on the left/right axis.
+            boolean outside = cx < minX || cx >= maxX || cz < minZ || cz >= maxZ;
+            if (!outside) continue;
+            if (dx * leftDir[0] + dz * leftDir[1] > 0) left = true;
+            if (dx * rightDir[0] + dz * rightDir[1] > 0) right = true;
         }
         return left && right;
+    }
+
+    private static GlobalConstraints.Facing resolveFacing(LlmPlan plan) {
+        if (plan != null && plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
+            return plan.globalConstraints().facing();
+        }
+        return GlobalConstraints.Facing.SOUTH;
+    }
+
+    /** Unit left offset in XZ relative to hall front (Minecraft Y-up). */
+    private static int[] leftOffset(GlobalConstraints.Facing facing) {
+        return switch (facing == null ? GlobalConstraints.Facing.SOUTH : facing) {
+            case NORTH -> new int[]{-1, 0}; // west
+            case EAST -> new int[]{0, -1};  // north
+            case WEST -> new int[]{0, 1};   // south
+            default -> new int[]{1, 0};     // east (south-facing)
+        };
+    }
+
+    /**
+     * Place a side hall fully outside the main footprint on the left or right flank,
+     * centered along the front axis.
+     */
+    private static int[] sideHallOrigin(
+            GlobalConstraints.Facing facing, boolean left,
+            int mx, int mz, int hallW, int hallD, int sideW, int sideD, int gap
+    ) {
+        int[] side = leftOffset(facing);
+        if (!left) {
+            side = new int[]{-side[0], -side[1]};
+        }
+        if (side[0] != 0) {
+            // Flank on ±X (north/south facing halls).
+            int x = side[0] > 0 ? mx + hallW + gap : mx - gap - sideW;
+            int z = mz + Math.max(0, (hallD - sideD) / 2);
+            return new int[]{x, z};
+        }
+        // Flank on ±Z (east/west facing halls).
+        int x = mx + Math.max(0, (hallW - sideW) / 2);
+        int z = side[1] > 0 ? mz + hallD + gap : mz - gap - sideD;
+        return new int[]{x, z};
     }
 
     private static boolean hasMoonPlatform(LlmPlan plan) {

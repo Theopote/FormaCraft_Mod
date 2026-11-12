@@ -49,6 +49,74 @@ class DuplicateComponentIdRepairTest {
     }
 
     @Test
+    void rebindsNestedMassHostAndRoofAsOneTransaction() {
+        // MASS_MAIN + nested MASS_SECONDARY share component_id=tower; secondary hosts the roof.
+        Component main = new Component(
+                "MASS_MAIN", "tower_slot", new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 16), List.of(),
+                Map.of("component_id", "tower", "anchor_mode", "min_corner"));
+        Component attic = new Component(
+                "MASS_SECONDARY", "tower_slot", new Vec3i(2, 12, 2),
+                new Dimensions(6, 6, 4), List.of(),
+                Map.of("component_id", "tower", "host_id", "tower",
+                        "anchor_mode", "min_corner", "role", "attic"));
+        // Roof footprint matches the attic, not the full main shell.
+        Component roof = new Component(
+                "ROOF", "tower_slot", new Vec3i(2, 15, 2),
+                new Dimensions(6, 6, 2), List.of(),
+                Map.of("component_id", "tower_roof", "host_id", "tower",
+                        "host_part_id", "tower", "anchor_mode", "min_corner"));
+
+        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(main, attic, roof))
+                .build());
+
+        Component renamedAttic = repaired.components().stream()
+                .filter(c -> "MASS_SECONDARY".equals(c.componentType()))
+                .findFirst().orElseThrow();
+        assertEquals("tower_1", renamedAttic.params().get("component_id"));
+        assertEquals("tower", renamedAttic.params().get("host_id"),
+                "nested secondary must keep host_id bound to the keeper main mass");
+
+        Component reboundRoof = repaired.components().stream()
+                .filter(c -> "tower_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("tower_1", reboundRoof.params().get("host_id"),
+                "roof overlapping the attic must follow the renamed nested mass");
+        assertEquals("tower_1", reboundRoof.params().get("host_part_id"));
+    }
+
+    @Test
+    void leavesDuplicatesWhenNestedMassHostIsAmbiguous() {
+        // Two peer masses share id=tower; a third nested mass also named tower hosts itself
+        // with no unique ownership cue among the peers → abort entire rename/rebind.
+        Component peerA = new Component(
+                "MASS_MAIN", "shared", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 10), List.of(),
+                Map.of("component_id", "tower", "anchor_mode", "min_corner"));
+        Component peerB = new Component(
+                "MASS_MAIN", "shared", new Vec3i(20, 0, 0),
+                new Dimensions(8, 8, 10), List.of(),
+                Map.of("component_id", "tower", "anchor_mode", "min_corner"));
+        // Equidistant between peers (centers at x=4 and x=24 → nested center x=14).
+        Component nested = new Component(
+                "MASS_SECONDARY", "shared", new Vec3i(11, 8, 0),
+                new Dimensions(6, 6, 4), List.of(),
+                Map.of("component_id", "tower", "host_id", "tower",
+                        "anchor_mode", "min_corner"));
+
+        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder()
+                .components(List.of(peerA, peerB, nested))
+                .build());
+
+        long towers = repaired.components().stream()
+                .filter(c -> c.params() != null
+                        && "tower".equals(String.valueOf(c.params().get("component_id"))))
+                .count();
+        assertEquals(3, towers, "ambiguous nested host must preserve E_DUPLICATE_COMPONENT_ID");
+    }
+
+    @Test
     void leavesDuplicatesWhenHostOwnershipIsAmbiguous() {
         Component hallA = new Component(
                 "MASS_MAIN", "shared", new Vec3i(0, 0, 0),

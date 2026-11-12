@@ -231,14 +231,23 @@ public final class ComponentRoofSpecialtyDecorator {
             List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
             int width, int depth, MansardProfile profile, Integer count, String trimBlock, String glassBlock, String roofBlock
     ) {
+        emitDormers(out, roofPatches, baseX, baseY, baseZ, width, depth, profile, count, null,
+                trimBlock, glassBlock, roofBlock);
+    }
+
+    public static void emitDormers(
+            List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
+            int width, int depth, MansardProfile profile, Integer count, Map<String, Object> params,
+            String trimBlock, String glassBlock, String roofBlock
+    ) {
         if (out == null || (count == null && Math.max(width, depth) < 7)) {
             return;
         }
         int setback = profile.setback();
-        // Prefer front/back slopes (along width) when that face is wide enough for dormers —
-        // street-facing mansards put lights on the Z-setback eaves even if depth is longer.
-        // Fall back to the depth axis only when the width face is too short.
-        boolean alongWidth = width >= depth || width >= 7;
+        // Explicit dormer_axis / dormer_face win; otherwise prefer the longer slope, and when a
+        // count is authored pick the axis with the longest continuous fold strip.
+        boolean alongWidth = resolveDormerAlongWidth(
+                width, depth, count, roofPatches, baseX, baseZ, setback, params);
         int majorSpan = alongWidth ? width : depth;
         int minorSpan = alongWidth ? depth : width;
         if (count == null && majorSpan < 7) {
@@ -264,6 +273,73 @@ public final class ComponentRoofSpecialtyDecorator {
             emitSingleDormer(out, roofPatches, cMajor, surfaceY, alongWidth ? baseZ + faceMinor : baseX + faceMinor,
                     protrude, setback, alongWidth, trimBlock, glassBlock, roofBlock);
         }
+    }
+
+    /**
+     * {@code dormer_axis}=x|width → along width; {@code dormer_axis}=z|depth → along depth.
+     * {@code dormer_face}=north|south → along width; east|west → along depth.
+     * Auto: longer face, or the face with greater continuous fold capacity when count is set.
+     */
+    static boolean resolveDormerAlongWidth(
+            int width, int depth, Integer count, List<BlockPatch> roofPatches,
+            int baseX, int baseZ, int setback, Map<String, Object> params
+    ) {
+        Boolean explicit = parseDormerAxis(params);
+        if (explicit != null) {
+            return explicit;
+        }
+        if (count != null && roofPatches != null) {
+            int widthCap = foldStripCapacity(roofPatches, baseX, width, baseZ + setback, setback, true);
+            int depthCap = foldStripCapacity(roofPatches, baseZ, depth, baseX + setback, setback, false);
+            if (widthCap != depthCap) {
+                return widthCap > depthCap;
+            }
+        }
+        return width >= depth;
+    }
+
+    private static Boolean parseDormerAxis(Map<String, Object> params) {
+        if (params == null || params.isEmpty()) {
+            return null;
+        }
+        Object axis = params.get("dormer_axis");
+        if (axis == null) axis = params.get("dormerAxis");
+        if (axis != null) {
+            String s = String.valueOf(axis).trim().toLowerCase(Locale.ROOT);
+            if ("x".equals(s) || "width".equals(s) || "along_width".equals(s)) return true;
+            if ("z".equals(s) || "depth".equals(s) || "along_depth".equals(s)) return false;
+        }
+        Object face = params.get("dormer_face");
+        if (face == null) face = params.get("dormerFace");
+        if (face != null) {
+            String s = String.valueOf(face).trim().toLowerCase(Locale.ROOT);
+            if ("north".equals(s) || "south".equals(s)) return true;
+            if ("east".equals(s) || "west".equals(s)) return false;
+        }
+        return null;
+    }
+
+    private static int foldStripCapacity(
+            List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
+            int faceMinorCoord, int setback, boolean alongWidth
+    ) {
+        boolean[] face = new boolean[majorSpan];
+        boolean[] front = new boolean[majorSpan];
+        for (BlockPatch patch : roofPatches == null ? List.<BlockPatch>of() : roofPatches) {
+            if (!GeneratedSurfaceCapture.occupied(patch)) continue;
+            int major = alongWidth ? patch.dx() - baseMajor : patch.dz() - baseMajor;
+            int minor = alongWidth ? patch.dz() : patch.dx();
+            if (major < 0 || major >= majorSpan) continue;
+            if (minor == faceMinorCoord) face[major] = true;
+            if (minor == faceMinorCoord - 1) front[major] = true;
+        }
+        int bestLength = 0;
+        int length = 0;
+        for (int i = setback; i < majorSpan - setback; i++) {
+            length = face[i] && front[i] ? length + 1 : 0;
+            if (length > bestLength) bestLength = length;
+        }
+        return bestLength < 3 ? 0 : (bestLength + 1) / 4;
     }
 
     private static List<Integer> fittedDormerCenters(List<BlockPatch> roofPatches, int baseMajor, int majorSpan,

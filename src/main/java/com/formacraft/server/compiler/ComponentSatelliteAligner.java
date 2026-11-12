@@ -760,8 +760,8 @@ final class ComponentSatelliteAligner {
             if (s.equals("S") || s.equals("SOUTH") || s.contains("SOUTH") || s.contains("南")) return "SOUTH";
         }
         Object faces = facade.params().get("faces");
-        if (faces instanceof List<?> list && !list.isEmpty() && list.get(0) != null) {
-            String s = String.valueOf(list.get(0)).trim().toUpperCase(Locale.ROOT);
+        if (faces instanceof List<?> list && !list.isEmpty() && list.getFirst() != null) {
+            String s = String.valueOf(list.getFirst()).trim().toUpperCase(Locale.ROOT);
             if (s.startsWith("W") || s.contains("西")) return "WEST";
             if (s.startsWith("E") || s.contains("东")) return "EAST";
             if (s.startsWith("N") || s.contains("北")) return "NORTH";
