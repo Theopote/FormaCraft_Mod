@@ -194,6 +194,9 @@ public final class ComponentPlanCompiler {
         // Side-hall / temple / intent repairs may reintroduce duplicate host ids after the
         // early uniquify pass — scrub again before authored validation.
         plan = DuplicateComponentIdRepair.apply(plan);
+        // Intent / typology repairs may reintroduce floor_count×floor_height overflow after
+        // earlier grows — reconcile envelopes once more before authored design gates.
+        plan = FloorLayoutOverflowRepair.apply(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
         var authoredIssue = DesignValidatorSuite.checkAuthored(plan);
         if (authoredIssue.isPresent()) {

@@ -25,6 +25,13 @@ import java.util.regex.Pattern;
  */
 public final class RequestIntentInjector {
     private static final Pattern FOOTPRINT = Pattern.compile("(\\d{1,2})\\s*[×xX*]\\s*(\\d{1,2})");
+    /** Storey cue and entrance cue in the same short clause (not whole-prompt co-occurrence). */
+    private static final Pattern UPPER_STOREY_ENTRANCE_CLAUSE = Pattern.compile(
+            "(?:二层|二楼|上层).{0,20}(?:入口|大门|正门|门洞)"
+                    + "|(?:入口|大门|正门).{0,12}(?:设在|位于|开在|设置在).{0,8}(?:二层|二楼|上层)"
+                    + "|second[- ](?:floor|storey).{0,20}entrance"
+                    + "|upper[- ](?:floor|storey).{0,20}entrance",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final List<String> CLASS_PRIORITY = List.of("tower_like", "gate", "temple", "garden");
 
     private RequestIntentInjector() {}
@@ -471,16 +478,25 @@ public final class RequestIntentInjector {
                 "entrance", "add a door", "with a door", "front door"));
     }
 
-    /** Player asked for an upper-storey / balcony / stair-connected entrance. */
+    /**
+     * Player asked for an entrance that sits on the upper storey (not merely a
+     * multi-storey building that also has a ground door somewhere in the prompt).
+     */
     private static boolean detectUpperEntranceExplicit(String text, String lower) {
         if (text == null || text.isBlank()) return false;
-        boolean storey = text.contains("二层") || text.contains("上层") || text.contains("楼上")
-                || lower.contains("second floor") || lower.contains("upper floor")
-                || lower.contains("second-storey") || lower.contains("upper storey");
-        boolean door = text.contains("入口") || text.contains("门") || lower.contains("entrance")
-                || lower.contains("door");
-        boolean stairLink = detectUpperEntranceAccessCue(text, lower);
-        return (storey && door) || (stairLink && door && storey);
+        // Tight phrases first — avoid 「两层…一层入口」false positives.
+        if (containsAny(text, lower, List.of(
+                "二层入口", "二楼入口", "上层入口", "楼上入口", "楼上的门",
+                "阳台门", "露台门", "露台入口", "阳台入口",
+                "second floor entrance", "second-floor entrance",
+                "upper floor entrance", "upper-floor entrance",
+                "upper storey entrance", "upper-storey entrance",
+                "balcony door", "balcony entrance"))) {
+            return true;
+        }
+        // 「二层设置一个…入口」/「入口设在二层」— storey and entrance within a short clause.
+        return UPPER_STOREY_ENTRANCE_CLAUSE.matcher(text).find()
+                || UPPER_STOREY_ENTRANCE_CLAUSE.matcher(lower).find();
     }
 
     /** Player required the upper entrance to connect via stairs / bridge / balcony. */

@@ -86,7 +86,8 @@ class ToolClearAndSymmetryTest {
         assertEquals(planeY, ((62 + 0.5) + (mirroredY + 0.5)) / 2);
         var processor = new SymmetryProcessor(new SymmetryPlane(SymmetryPlane.Axis.Y, 64));
         assertEquals(new BlockPos(1, 66, 0), processor.mirror(new BlockPos(1, 62, 0)));
-        assertEquals(Direction.DOWN, processor.mirrorFacing(Direction.UP));
+        // Horizontal Y-plane mirrors flip positions; facing metadata stays UP/DOWN (placement).
+        assertEquals(Direction.UP, processor.mirrorFacing(Direction.UP));
         assertEquals(Direction.NORTH, processor.mirrorFacing(Direction.NORTH));
     }
 }

@@ -71,9 +71,9 @@ class ComponentPlanCompilerMaterialTest {
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of())).components(List.of(b, roof, a)).build();
         var output = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
         assertFalse(output.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
-        // Flat roofs emit top-layer slabs for the cover course.
-        assertEquals("minecraft:deepslate_tile_slab", output.get(new Vec3i(5, 7, 5)));
-        assertEquals("minecraft:brick_slab", output.get(new Vec3i(35, 7, 5)));
+        // Flat decks keep the authored full cube (pitched plates stay slabs).
+        assertEquals("minecraft:deepslate_tiles", output.get(new Vec3i(5, 7, 5)));
+        assertEquals("minecraft:bricks", output.get(new Vec3i(35, 7, 5)));
     }
     @Test void wholePlanReplaysAfterOtherPlansUseSharedPalettes() {
         var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MEDIEVAL")

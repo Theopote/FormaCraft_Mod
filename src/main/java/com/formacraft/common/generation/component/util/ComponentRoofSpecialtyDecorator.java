@@ -1,8 +1,13 @@
 package com.formacraft.common.generation.component.util;
 
+import com.formacraft.common.component.transform.CapturedBlockStateTransform;
+import com.formacraft.common.component.transform.ComponentTransform;
+import com.formacraft.common.component.transform.Mirror;
+import net.minecraft.util.math.Direction;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -242,6 +247,63 @@ public final class ComponentRoofSpecialtyDecorator {
             int width, int depth, MansardProfile profile, Integer count, Map<String, Object> params,
             String trimBlock, String glassBlock, String roofBlock
     ) {
+        var face = explicitDormerFace(params);
+        boolean mirrored = face == Direction.SOUTH || face == Direction.EAST;
+        if (!mirrored) {
+            emitCanonicalDormers(out, roofPatches, baseX, baseY, baseZ, width, depth, profile, count, params,
+                    trimBlock, glassBlock, roofBlock);
+            return;
+        }
+        if (out == null) return;
+        boolean alongWidth = face == Direction.SOUTH;
+        int mirrorSum = alongWidth ? 2 * baseZ + depth - 1 : 2 * baseX + width - 1;
+        var canonicalRoof = reflectedRoof(roofPatches, mirrorSum, alongWidth);
+        var generated = new ArrayList<BlockPatch>();
+        emitCanonicalDormers(generated, canonicalRoof, baseX, baseY, baseZ, width, depth, profile, count, params,
+                trimBlock, glassBlock, roofBlock);
+        for (var patch : generated) out.add(reflectPatch(patch, mirrorSum, alongWidth, true));
+    }
+
+    private static List<BlockPatch> reflectedRoof(List<BlockPatch> roofPatches, int mirrorSum, boolean alongWidth) {
+        if (roofPatches == null) return null;
+        return roofPatches.stream().filter(java.util.Objects::nonNull)
+                .map(p -> reflectPatch(p, mirrorSum, alongWidth, false)).toList();
+    }
+
+    private static BlockPatch reflectPatch(BlockPatch patch, int mirrorSum, boolean alongWidth, boolean transformState) {
+        String block = patch.targetBlock();
+        if (transformState) {
+            var mirror = alongWidth ? Mirror.Z
+                    : Mirror.X;
+            block = CapturedBlockStateTransform.apply(block,
+                    Direction.SOUTH,
+                    new ComponentTransform(Direction.SOUTH, mirror));
+        }
+        return new BlockPatch(patch.action(), alongWidth ? patch.dx() : mirrorSum - patch.dx(), patch.dy(),
+                alongWidth ? mirrorSum - patch.dz() : patch.dz(), block, patch.source());
+    }
+
+    private static Direction explicitDormerFace(Map<String,Object> params) {
+        String raw = getParam(params, "dormer_face", "dormerFace");
+        if (raw == null || raw.isBlank()) return null;
+        var face = switch (raw.trim().toLowerCase(Locale.ROOT)) {
+            case "north" -> Direction.NORTH;
+            case "south" -> Direction.SOUTH;
+            case "east" -> Direction.EAST;
+            case "west" -> Direction.WEST;
+            default -> throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dormer_face must be north, south, east or west");
+        };
+        Boolean axis = parseDormerAxis(params);
+        if (axis != null && axis != (face.getAxis() == Direction.Axis.Z))
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dormer_face conflicts with dormer_axis");
+        return face;
+    }
+
+    private static void emitCanonicalDormers(
+            List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
+            int width, int depth, MansardProfile profile, Integer count, Map<String, Object> params,
+            String trimBlock, String glassBlock, String roofBlock
+    ) {
         if (out == null || (count == null && Math.max(width, depth) < 7)) {
             return;
         }
@@ -313,6 +375,7 @@ public final class ComponentRoofSpecialtyDecorator {
         }
         Object face = params.get("dormer_face");
         if (face == null) face = params.get("dormerFace");
+        if (face == null) face = params.get("dormerFace");
         if (face != null) {
             String s = String.valueOf(face).trim().toLowerCase(Locale.ROOT);
             if ("north".equals(s) || "south".equals(s)) return true;
@@ -324,6 +387,11 @@ public final class ComponentRoofSpecialtyDecorator {
     /** Fit the usual maximum of three automatic dormers to an irregular front fold. */
     public static int fittedAutomaticDormerCount(List<BlockPatch> roofPatches, int baseX, int baseZ,
                                                  int width, int depth, MansardProfile profile, Map<String,Object> params) {
+        var face = explicitDormerFace(params);
+        if (face == Direction.SOUTH)
+            roofPatches = reflectedRoof(roofPatches, 2 * baseZ + depth - 1, true);
+        else if (face == Direction.EAST)
+            roofPatches = reflectedRoof(roofPatches, 2 * baseX + width - 1, false);
         boolean alongWidth = resolveDormerAlongWidth(width, depth, 3, roofPatches, baseX, baseZ, profile.setback(), params);
         int capacity = foldStripCapacity(roofPatches, alongWidth ? baseX : baseZ, alongWidth ? width : depth,
                 (alongWidth ? baseZ : baseX) + profile.setback(), profile.setback(), alongWidth);
@@ -424,7 +492,9 @@ public final class ComponentRoofSpecialtyDecorator {
     ) {
         // Shell sits one block above the roof skin; carve the host slope at surfaceY.
         int baseY = surfaceY + 1;
-        String stairs = ComponentFloorCorniceDecorator.inferStairsBlock(roofBlock);
+        String stairs = MaterialBlockFamily.stairs(roofBlock);
+        String capBlock = MaterialBlockFamily.fullBlock(roofBlock);
+        if (capBlock == null) capBlock = roofBlock;
         // Embed one cell into the slope so the dormer sits in the roof, not floating outside.
         int embed = Math.max(1, embedDepth);
         for (int dy = 0; dy <= 2; dy++) {
@@ -467,12 +537,15 @@ public final class ComponentRoofSpecialtyDecorator {
                 boolean ridgeCell = across == 0 && run == protrude + embed;
                 String block;
                 if (ridgeCell) {
-                    block = roofBlock;
+                    block = capBlock;
                 } else if (stairs != null && !stairs.isBlank()) {
                     block = stairs + "[facing=" + ridgeFacing + ",half=bottom]";
                 } else {
-                    block = roofBlock;
+                    block = capBlock;
                 }
+                // Close the ceiling and cheeks under the high roof run without filling the room.
+                for (int y = baseY + 3; y < roofY; y++)
+                    out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, across == 0 ? capBlock : trimBlock));
                 out.add(new BlockPatch(BlockPatch.PLACE, x, roofY, z, block));
             }
         }
@@ -480,14 +553,21 @@ public final class ComponentRoofSpecialtyDecorator {
                 alongWidth ? majorCenter : faceMinor - protrude,
                 baseY + 4,
                 alongWidth ? faceMinor - protrude : majorCenter,
-                roofBlock));
-        String lintel = ComponentFloorCorniceDecorator.inferStairsBlock(trimBlock);
+                capBlock));
+        String lintel = MaterialBlockFamily.stairs(trimBlock);
         String lintelFacing = alongWidth ? "south" : "east";
+        String lintelBlock;
+        if (lintel != null) {
+            lintelBlock = lintel + "[facing=" + lintelFacing + ",half=top]";
+        } else {
+            lintelBlock = MaterialBlockFamily.fullBlock(trimBlock);
+            if (lintelBlock == null) lintelBlock = trimBlock;
+        }
         out.add(new BlockPatch(BlockPatch.PLACE,
                 alongWidth ? majorCenter : faceMinor - protrude + 1,
                 baseY + 2,
                 alongWidth ? faceMinor - protrude + 1 : majorCenter,
-                lintel + "[facing=" + lintelFacing + ",half=top]"));
+                lintelBlock));
     }
 
     private static SpecialtyLevel parseLevel(String raw) {

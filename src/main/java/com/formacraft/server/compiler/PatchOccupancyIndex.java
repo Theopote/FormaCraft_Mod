@@ -88,13 +88,12 @@ public final class PatchOccupancyIndex {
             overlap++;
             if (java.util.Objects.equals(writer.slotId(), prev.owner().slotId())) sameSlotOverlap++;
         }
-        // A small shared edge can be joined; a mostly superimposed building is a layout error.
-        // Same-slot courtyard wings often share a multi-cell abutment wall — still clip the seam
-        // unless the writer is almost entirely inside another mass.
+        // Only sculptural secondary volumes (sphere/cylinder) and connector shells may clip into
+        // a prior mass. Rectangular / mostly-overlapping masses must not gain overwrite via join.
         boolean connector = writer.params() != null && Boolean.TRUE.equals(writer.params().get("compiler_connector_body"));
-        boolean sameSlotSeam = sameSlotOverlap > 0 && sameSlotOverlap < occupied;
-        if (!connector && !sameSlotSeam && overlap * 2 >= occupied) return 0;
-        if (!connector && sameSlotSeam && sameSlotOverlap * 5 >= occupied * 4) return 0;
+        boolean sculptural = isSculpturalVolume(writer);
+        if (!connector && !sculptural) return 0;
+        if (!connector && overlap * 2 >= occupied) return 0;
         int before = patches.size();
         patches.removeIf(p -> {
             var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
