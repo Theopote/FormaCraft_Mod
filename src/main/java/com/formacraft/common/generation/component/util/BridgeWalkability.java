@@ -2,13 +2,14 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Vec3i;
-import java.util.HashSet;
-import java.util.ArrayDeque;
 import com.formacraft.common.patch.BlockPatch;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Bridge-specific walkability over final BlockPatches via {@link WalkabilityGraph}:
@@ -200,6 +201,27 @@ public final class BridgeWalkability {
             Component target,
             Vec3i targetOffset
     ) {
+        return evaluateBridgeDetailed(
+                occ, plate, plateOffset, host, hostOffset, target, targetOffset, List.of(), List.of());
+    }
+
+    /**
+     * {@code hostReceivers} / {@code targetReceivers} are hosted plates (landings, maintenance
+     * platforms) at bridge Y. High-bay masses often lack an intermediate storey slab — the
+     * authored receiving deck is the walkability authority, including when it sits outside
+     * the host AABB.
+     */
+    public static BridgeWalkOutcome evaluateBridgeDetailed(
+            PlannedOccupancy occ,
+            Component plate,
+            Vec3i plateOffset,
+            Component host,
+            Vec3i hostOffset,
+            Component target,
+            Vec3i targetOffset,
+            List<Vec3i> hostReceivers,
+            List<Vec3i> targetReceivers
+    ) {
         PlannedOccupancy.WalkabilityPrecision precision = occ == null
                 ? PlannedOccupancy.WalkabilityPrecision.FAST
                 : occ.precision();
@@ -225,6 +247,8 @@ public final class BridgeWalkability {
             return BridgeWalkOutcome.regionScanLimit(
                     precision, componentId(target), targetY, targetGoals.areaCells());
         }
+        hostGoals = prependGoals(hostGoals, hostReceivers);
+        targetGoals = prependGoals(targetGoals, targetReceivers);
         if (hostGoals.isEmpty() || targetGoals.isEmpty()) {
             return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
         }
@@ -233,6 +257,8 @@ public final class BridgeWalkability {
                 ComponentFootprintUtil.bounds(host), hostOffset,
                 ComponentFootprintUtil.bounds(target), targetOffset,
                 1);
+        // Receiving decks may cantilever outside the host AABB — keep them in the BFS window.
+        bounds = expandBoundsToGoals(bounds, hostGoals.goals(), targetGoals.goals());
         boolean hostOk = false;
         boolean targetOk = false;
         boolean anyLimit = false;
@@ -265,6 +291,116 @@ public final class BridgeWalkability {
             return new BridgeWalkOutcome(BridgeReach.SEARCH_LIMIT, precision);
         }
         return new BridgeWalkOutcome(BridgeReach.PATH_BLOCKED, precision);
+    }
+
+    /**
+     * Standable cells on a hosted receiving plate at {@code worldY} (already slot-shifted).
+     * Exterior platforms / interior landings count; bridge plates do not.
+     */
+    public static List<Vec3i> receivingDeckGoals(
+            PlannedOccupancy occ,
+            Component deckPlate,
+            Vec3i deckOffset,
+            int worldY
+    ) {
+        if (occ == null || deckPlate == null || deckPlate.params() == null
+                || deckPlate.relativePosition() == null || deckPlate.dimensions() == null) {
+            return List.of();
+        }
+        if (!"plate".equalsIgnoreCase(String.valueOf(deckPlate.params().get("extrude_mode")))) {
+            return List.of();
+        }
+        try {
+            var role = HostedPlateOccupancy.resolveRole(deckPlate.params());
+            if (role == HostedPlateOccupancy.PlateRole.BRIDGE
+                    || role == HostedPlateOccupancy.PlateRole.WATER) {
+                return List.of();
+            }
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+        int localY = deckPlate.relativePosition().y();
+        int offY = deckOffset == null ? 0 : deckOffset.y();
+        if (localY + offY != worldY) {
+            return List.of();
+        }
+        var bounds = ComponentFootprintUtil.bounds(deckPlate);
+        if (bounds == null) {
+            return List.of();
+        }
+        List<Vec3i> goals = new ArrayList<>();
+        int ox = deckOffset == null ? 0 : deckOffset.x();
+        int oz = deckOffset == null ? 0 : deckOffset.z();
+        for (int x = bounds.minX(); x < bounds.maxX(); x++) {
+            for (int z = bounds.minZ(); z < bounds.maxZ(); z++) {
+                Vec3i cell = new Vec3i(x + ox, worldY, z + oz);
+                if (WalkabilityGraph.canStand(occ, cell)) {
+                    goals.add(cell);
+                }
+            }
+        }
+        if (goals.isEmpty()) {
+            return List.of();
+        }
+        // One representative per contiguous pocket — same idea as terrace storey goals.
+        Set<Vec3i> remaining = new HashSet<>(goals);
+        List<Vec3i> reps = new ArrayList<>();
+        while (!remaining.isEmpty()) {
+            Vec3i seed = remaining.iterator().next();
+            reps.add(seed);
+            ArrayDeque<Vec3i> queue = new ArrayDeque<>();
+            queue.add(seed);
+            remaining.remove(seed);
+            while (!queue.isEmpty()) {
+                Vec3i cell = queue.remove();
+                for (Vec3i d : List.of(new Vec3i(1, 0, 0), new Vec3i(-1, 0, 0),
+                        new Vec3i(0, 0, 1), new Vec3i(0, 0, -1))) {
+                    Vec3i next = new Vec3i(cell.x() + d.x(), cell.y(), cell.z() + d.z());
+                    if (remaining.remove(next)) {
+                        queue.add(next);
+                    }
+                }
+            }
+        }
+        return List.copyOf(reps);
+    }
+
+    private static StoreyGoals prependGoals(StoreyGoals base, List<Vec3i> extra) {
+        if (extra == null || extra.isEmpty()) {
+            return base;
+        }
+        List<Vec3i> ordered = new ArrayList<>(extra.size() + base.goals().size());
+        for (Vec3i g : extra) {
+            if (g != null && !ordered.contains(g)) {
+                ordered.add(g);
+            }
+        }
+        for (Vec3i g : base.goals()) {
+            if (g != null && !ordered.contains(g)) {
+                ordered.add(g);
+            }
+        }
+        return new StoreyGoals(
+                ordered.isEmpty() ? StoreyWalkRegions.Status.EMPTY : StoreyWalkRegions.Status.OK,
+                ordered,
+                Math.max(base.areaCells(), extra.size()));
+    }
+
+    private static ComponentFootprintUtil.Bounds expandBoundsToGoals(
+            ComponentFootprintUtil.Bounds bounds,
+            List<Vec3i> a,
+            List<Vec3i> b
+    ) {
+        ComponentFootprintUtil.Bounds out = bounds;
+        for (List<Vec3i> goals : List.of(a == null ? List.<Vec3i>of() : a, b == null ? List.<Vec3i>of() : b)) {
+            for (Vec3i g : goals) {
+                if (g == null) continue;
+                ComponentFootprintUtil.Bounds cell = new ComponentFootprintUtil.Bounds(
+                        g.x(), g.y(), g.z(), g.x() + 1, g.y() + 1, g.z() + 1);
+                out = out == null ? cell : out.union(cell);
+            }
+        }
+        return out == null ? bounds : out.expandHorizontal(1);
     }
 
     /**

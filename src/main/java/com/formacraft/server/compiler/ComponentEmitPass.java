@@ -770,13 +770,46 @@ final class ComponentEmitPass {
             Vec3i plateOff = ComponentPlanCompiler.slotAnchorOrZero(slotMap, plate.slotId(), zero);
             Vec3i hostOff = ComponentPlanCompiler.slotAnchorOrZero(slotMap, host.get().slotId(), zero);
             Vec3i targetOff = ComponentPlanCompiler.slotAnchorOrZero(slotMap, target.get().slotId(), zero);
+            int worldY = plate.relativePosition().y() + plateOff.y();
+            String hostIdKey = hostId;
+            String targetIdKey = targetId;
+            var hostReceivers = new ArrayList<Vec3i>();
+            var targetReceivers = new ArrayList<Vec3i>();
+            for (Component other : components) {
+                if (other == null || other.params() == null || other == plate) continue;
+                String otherHost = ComponentPlanTypes.getParamString(other.params(), "host_id", "hostId");
+                if (otherHost == null) continue;
+                Vec3i otherOff = ComponentPlanCompiler.slotAnchorOrZero(slotMap, other.slotId(), zero);
+                if (otherHost.equals(hostIdKey)) {
+                    hostReceivers.addAll(com.formacraft.common.generation.component.util.BridgeWalkability
+                            .receivingDeckGoals(occ, other, otherOff, worldY));
+                }
+                if (otherHost.equals(targetIdKey)) {
+                    targetReceivers.addAll(com.formacraft.common.generation.component.util.BridgeWalkability
+                            .receivingDeckGoals(occ, other, otherOff, worldY));
+                }
+            }
             var outcome = com.formacraft.common.generation.component.util.BridgeWalkability.evaluateBridgeDetailed(
-                    occ, plate, plateOff, host.get(), hostOff, target.get(), targetOff);
+                    occ, plate, plateOff, host.get(), hostOff, target.get(), targetOff,
+                    hostReceivers, targetReceivers);
             var reach = outcome.reach();
             String precisionNote = ", precision=" + outcome.precision();
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED) {
                 continue;
             }
+            try {
+                java.nio.file.Files.writeString(
+                        java.nio.file.Path.of("build/tmp-bridge-detail.txt"),
+                        "BRIDGE_DIAG id=" + ComponentPlanTypes.paramIdentity(plate)
+                                + " hostRecv=" + hostReceivers.size()
+                                + " targetRecv=" + targetReceivers.size()
+                                + " hostRecvCells=" + hostReceivers
+                                + " targetRecvCells=" + targetReceivers
+                                + "\n",
+                        java.nio.charset.StandardCharsets.UTF_8,
+                        java.nio.file.StandardOpenOption.CREATE,
+                        java.nio.file.StandardOpenOption.APPEND);
+            } catch (Exception ignored) {}
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.REGION_SCAN_LIMIT) {
                 String massId = outcome.limitedMassId() == null ? "unknown" : outcome.limitedMassId();
                 AssemblyCompileDiagnostics.set(new CapabilityGap(

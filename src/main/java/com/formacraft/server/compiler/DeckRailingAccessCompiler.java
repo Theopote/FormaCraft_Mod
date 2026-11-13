@@ -71,6 +71,7 @@ final class DeckRailingAccessCompiler {
             for (Component c : parts) {
                 if (c == null || c.params() == null) continue;
                 if (!hostId.equals(c.params().get("component_id"))) continue;
+                String id = String.valueOf(c.params().get("component_id")).toLowerCase(Locale.ROOT);
                 if (c.params().get("extrude_mode") != null
                         && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
                     try {
@@ -78,18 +79,27 @@ final class DeckRailingAccessCompiler {
                             deck = c;
                             break;
                         }
+                        // Maintenance / inspection platforms and bridge landings that receive a span.
+                        var role = HostedPlateOccupancy.resolveRole(c.params());
+                        boolean receiverName = id.contains("platform") || id.contains("landing")
+                                || id.contains("inspect") || id.contains("mezz");
+                        if (receiverName && (role == HostedPlateOccupancy.PlateRole.TERRACE
+                                || role == HostedPlateOccupancy.PlateRole.INTERIOR)) {
+                            deck = c;
+                            break;
+                        }
                     } catch (RuntimeException ignored) {
                         // unsupported plate_role — ignore
                     }
                 }
-                String id = String.valueOf(c.params().get("component_id")).toLowerCase(Locale.ROOT);
-                if (id.contains("bridge") || id.contains("deck") || id.contains("span")) {
+                if (id.contains("bridge") || id.contains("deck") || id.contains("span")
+                        || id.contains("platform") || id.contains("landing")) {
                     deck = c;
                     break;
                 }
             }
         }
-        // Only bridge-hosted rail carpets — never carve ordinary balcony / adobe guards.
+        // Bridge decks and named receiving platforms — never ordinary balcony / adobe guards.
         if (deck == null) return;
         Dimensions d = rail.dimensions();
         if (d == null) return;
