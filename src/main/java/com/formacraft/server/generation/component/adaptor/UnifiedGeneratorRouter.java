@@ -47,58 +47,6 @@ public final class UnifiedGeneratorRouter {
 
     private UnifiedGeneratorRouter() {}
 
-    /** Set while compiling a plan that already owns a typology STRUCTURE (blocks archetype HouseGenerator fallback). */
-    public static void setTypologyExclusivePlan(boolean exclusive) {
-        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
-        if (cur == null) {
-            com.formacraft.server.generation.GenerationCompileContext.install(
-                    new com.formacraft.server.generation.GenerationCompileContext(null, Map.of(), exclusive));
-        } else {
-            com.formacraft.server.generation.GenerationCompileContext.install(cur.withTypologyExclusive(exclusive));
-        }
-    }
-
-    public static void clearTypologyExclusivePlan() {
-        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
-        if (cur == null) return;
-        com.formacraft.server.generation.GenerationCompileContext.install(cur.withTypologyExclusive(false));
-    }
-
-    /** Plan-level {@code generation_authority} visible to the component pipeline for this compile. */
-    public static void setPlanGenerationAuthority(
-            com.formacraft.common.generation.routing.GenerationAuthority authority) {
-        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
-        if (cur == null) {
-            com.formacraft.server.generation.GenerationCompileContext.install(
-                    new com.formacraft.server.generation.GenerationCompileContext(authority, Map.of(), false));
-        } else {
-            com.formacraft.server.generation.GenerationCompileContext.install(cur.withAuthority(authority));
-        }
-    }
-
-    public static void clearPlanGenerationAuthority() {
-        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
-        if (cur == null) return;
-        com.formacraft.server.generation.GenerationCompileContext.install(cur.withAuthority(null));
-    }
-
-    /** Plan-level {@code plan_meta} visible to the component pipeline for this compile. */
-    public static void setPlanMeta(Map<String, Object> planMeta) {
-        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
-        if (cur == null) {
-            com.formacraft.server.generation.GenerationCompileContext.install(
-                    new com.formacraft.server.generation.GenerationCompileContext(null, planMeta, false));
-        } else {
-            com.formacraft.server.generation.GenerationCompileContext.install(cur.withPlanMeta(planMeta));
-        }
-    }
-
-    public static void clearPlanMeta() {
-        var cur = com.formacraft.server.generation.GenerationCompileContext.current();
-        if (cur == null) return;
-        com.formacraft.server.generation.GenerationCompileContext.install(cur.withPlanMeta(Map.of()));
-    }
-
     static com.formacraft.common.generation.routing.GenerationAuthority planGenerationAuthority() {
         var cur = com.formacraft.server.generation.GenerationCompileContext.current();
         return cur == null ? null : cur.authority();
@@ -116,7 +64,8 @@ public final class UnifiedGeneratorRouter {
 
     /**
      * Hint-only route decision. When validating against {@link com.formacraft.common.generation.routing.GenerationAuthority},
-     * compile must set plan authority via {@link #setPlanGenerationAuthority} (as {@link com.formacraft.server.compiler.ComponentPlanCompiler} does).
+     * install a {@link com.formacraft.server.generation.GenerationCompileContext}
+     * for this compile (as {@link com.formacraft.server.compiler.ComponentPlanCompiler} does).
      */
     public static ComponentRouteDecision previewRoute(SemanticComponent semantic, ServerWorld world) {
         return ComponentRouteResolver.resolve(semantic, world);

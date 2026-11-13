@@ -7,8 +7,8 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.llm.parser.LlmPlanParser;
+import com.formacraft.server.generation.GenerationCompileContext;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -30,23 +30,16 @@ class StairAuthorityContractTest {
         MinecraftRegistryTestBootstrap.initialize();
     }
 
-    @AfterEach
-    void clearPlanContext() {
-        UnifiedGeneratorRouter.clearPlanGenerationAuthority();
-        UnifiedGeneratorRouter.clearPlanMeta();
-    }
-
     @Test
     void typologyStairUsesStairExecutorWithTypologyAuthority() throws Exception {
         LlmPlan plan = loadFixture("stair_typology_authority.json");
         Component stair = plan.components().getFirst();
         Map<String, Object> paramsBefore = new HashMap<>(stair.params());
 
-        UnifiedGeneratorRouter.setPlanGenerationAuthority(GenerationAuthority.TYPOLOGY);
-        UnifiedGeneratorRouter.setPlanMeta(plan.planMeta());
-
         SemanticComponent semantic = new SemanticComponent("STAIR_SYSTEM", null, stair);
-        RoutedGenerationResult result = UnifiedGeneratorRouter.generateResult(semantic, null);
+        RoutedGenerationResult result = GenerationCompileContext.runWith(
+                GenerationCompileContext.fromPlan(plan, false),
+                () -> UnifiedGeneratorRouter.generateResult(semantic, null));
 
         assertFalse(result.isHardFail(), () -> String.valueOf(result.diagnostics()));
         assertEquals(GenerationAuthority.TYPOLOGY, result.authority());
@@ -62,10 +55,10 @@ class StairAuthorityContractTest {
     @Test
     void typologyStairRouteReasonDocumentsAuthority() {
         Component stair = stairWithExplicitEndpoints(Map.of("generation_authority", "TYPOLOGY"));
-        UnifiedGeneratorRouter.setPlanGenerationAuthority(GenerationAuthority.TYPOLOGY);
-
         SemanticComponent semantic = new SemanticComponent("STAIR_SYSTEM", null, stair);
-        RoutedGenerationResult result = UnifiedGeneratorRouter.generateResult(semantic, null);
+        RoutedGenerationResult result = GenerationCompileContext.runWith(
+                new GenerationCompileContext(GenerationAuthority.TYPOLOGY, Map.of(), false),
+                () -> UnifiedGeneratorRouter.generateResult(semantic, null));
 
         assertEquals(GenerationAuthority.TYPOLOGY, result.authority());
         assertEquals(ComponentExecutorId.STAIR_COMPONENT, result.executor());

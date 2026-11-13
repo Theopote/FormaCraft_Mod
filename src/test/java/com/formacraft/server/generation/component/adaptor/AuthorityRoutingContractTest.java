@@ -10,7 +10,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.typology.TypologyComponentRouter;
-import org.junit.jupiter.api.AfterEach;
+import com.formacraft.server.generation.GenerationCompileContext;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -22,12 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AuthorityRoutingContractTest {
-
-    @AfterEach
-    void clearPlanContext() {
-        UnifiedGeneratorRouter.clearPlanGenerationAuthority();
-        UnifiedGeneratorRouter.clearPlanMeta();
-    }
 
     @Test
     void componentsNoFallbackBlocksTypologyEmptyWithoutFlag() throws Exception {
@@ -69,11 +63,10 @@ class AuthorityRoutingContractTest {
         LlmPlan plan = loadFixture("captured_library_miss.json");
         Component mass = plan.components().getFirst();
 
-        UnifiedGeneratorRouter.setPlanGenerationAuthority(GenerationAuthority.CAPTURED_LIBRARY);
-        UnifiedGeneratorRouter.setPlanMeta(plan.planMeta());
-
         SemanticComponent semantic = new SemanticComponent("MASS_MAIN", null, mass);
-        RoutedGenerationResult result = UnifiedGeneratorRouter.generateResult(semantic, null);
+        RoutedGenerationResult result = GenerationCompileContext.runWith(
+                GenerationCompileContext.fromPlan(plan, false),
+                () -> UnifiedGeneratorRouter.generateResult(semantic, null));
 
         // Library is optional: missing request demotes to COMPONENTS instead of hard-fail.
         assertFalse(result.isHardFail());

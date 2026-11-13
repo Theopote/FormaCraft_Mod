@@ -1,6 +1,6 @@
 # 架构审计 — 当前状态
 
-状态：维护中；复核：2026-10-31。
+状态：维护中；复核：2026-11-14。
 
 历史分批记录已移至 [archive/ARCHITECTURE_AUDIT_batches_through_2026-10-25.md](archive/ARCHITECTURE_AUDIT_batches_through_2026-10-25.md)。以本页与门禁脚本为准，不以历史「债务 0」表述为准。
 
@@ -17,7 +17,7 @@
 
 ## 未决项（优先）
 
-- ThreadLocal 全面改为显式参数传参；世界只读快照后，计划编译可完全离开主线程
+- 编译状态继续由 ThreadLocal 迁至显式参数；路由器的逐字段 setter/clearer 已删除，统一使用 `GenerationCompileContext`。世界只读快照后，计划编译可完全离开主线程
 - `ai_planner.py` 继续按阶段拆分
 - Panel 超 400 行拆分（Settings / Chat / ComponentCapture）
 - 双 JSON 库收敛（新代码优先 `common.json.JsonUtil` / Gson）；服务端硬编码中文文案迁语言文件（建造门控文案已走 lang）
@@ -31,6 +31,12 @@
 - 聊天建造权限 / 限流 / 并发；`GenerationCompileContext` + `PlanCompileWorkers`
 - 提示词组装迁至 Python 后端，已删除 Java `PromptAssembler` 和旧地标 BuildingSpec 模板生成函数
 - 能力矩阵见 [GENERATION_CAPABILITY_MATRIX.md](GENERATION_CAPABILITY_MATRIX.md)；边界见 [PYTHON_JAVA_PLANNING_BOUNDARY.md](../PYTHON_JAVA_PLANNING_BOUNDARY.md)
+
+## 编译上下文迁移（2026-11-14）
+
+`UnifiedGeneratorRouter` 已移除 `set/clearTypologyExclusivePlan`、`set/clearPlanGenerationAuthority` 和 `set/clearPlanMeta` 六个旧入口。调用方通过 `GenerationCompileContext.runWith` 安装完整上下文；编译器在组件生成结束、能力缺口返回或异常退出时恢复进入前的上下文。当前上下文存储仍使用 ThreadLocal。
+
+回归覆盖路由权限、typology 排他规则，以及真实编译的成功、能力缺口和异常退出后的外层状态恢复。
 
 ## 原则
 

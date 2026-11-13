@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Explicit compile-scoped state formerly split across ThreadLocals on
- * {@code UnifiedGeneratorRouter}. Prefer {@link #runWith}; setters on the router
- * still install/replace the current context for incremental migration.
+ * Compile-scoped authority and metadata shared by the generation pipeline.
+ * Prefer {@link #runWith}; manual installation must restore the previous
+ * context in a finally block.
  */
 public final class GenerationCompileContext {
     private static final ThreadLocal<GenerationCompileContext> CURRENT = new ThreadLocal<>();

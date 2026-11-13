@@ -5,6 +5,8 @@ import com.formacraft.common.patch.*;
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import com.formacraft.server.assembly.*;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import com.formacraft.common.generation.routing.GenerationAuthority;
+import com.formacraft.server.generation.GenerationCompileContext;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.*;
 import java.util.*;
@@ -105,5 +107,40 @@ class ComponentPlanCompilerCirculationTest {
         assertTrue(failed.patches().isEmpty()); assertTrue(failed.circulation().isEmpty());
         var again = ComponentPlanCompiler.compileWithCirculation(plan("restore", false), null, null, null, false);
         assertEquals(1, again.circulation().size());
+    }
+
+    @Test void compilationRestoresOuterGenerationContextOnSuccessAndGap() {
+        var outer = new GenerationCompileContext(GenerationAuthority.SKELETON, Map.of("outer", true), true);
+        GenerationCompileContext.runWith(outer, () -> {
+            assertFalse(ComponentPlanCompiler.compile(plan("restore", false)).isEmpty());
+            assertSame(outer, GenerationCompileContext.current());
+            assertTrue(ComponentPlanCompiler.compile(plan("gap", true)).isEmpty());
+            assertEquals("TEST_ASSEMBLY_FAILURE", AssemblyCompileDiagnostics.get().code());
+            assertSame(outer, GenerationCompileContext.current());
+        });
+        assertNull(GenerationCompileContext.current());
+    }
+
+    @Test void compilationRestoresOuterGenerationContextWhenGeneratorThrows() {
+        String type = "TEST_CONTEXT_FAILURE";
+        var failure = new AssertionError("generation aborted");
+        ComponentGeneratorRegistry.register(type, semantic -> {
+            assertEquals(GenerationAuthority.COMPONENTS, GenerationCompileContext.current().authority());
+            assertEquals("inner", GenerationCompileContext.current().planMeta().get("context_marker"));
+            assertFalse(GenerationCompileContext.current().typologyExclusive());
+            throw failure;
+        });
+        var inner = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
+                .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of()))
+                .planMeta(Map.of("generation_authority", "COMPONENTS", "context_marker", "inner",
+                        "allow_compiler_satellites", false))
+                .components(List.of(new Component(type, null, new Vec3i(0, 0, 0),
+                        new Dimensions(1, 1, 1), List.of(), Map.of()))).build();
+        var outer = new GenerationCompileContext(GenerationAuthority.SKELETON, Map.of("outer", true), true);
+        GenerationCompileContext.runWith(outer, () -> {
+            assertSame(failure, assertThrows(AssertionError.class, () -> ComponentPlanCompiler.compile(inner)));
+            assertSame(outer, GenerationCompileContext.current());
+        });
+        assertNull(GenerationCompileContext.current());
     }
 }

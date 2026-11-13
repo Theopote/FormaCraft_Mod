@@ -5,10 +5,9 @@ import com.formacraft.common.genome.BuildingGenome;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
-import org.junit.jupiter.api.AfterEach;
+import com.formacraft.server.generation.GenerationCompileContext;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
@@ -25,13 +24,8 @@ class UnifiedGeneratorRouterTypologyExclusiveTest {
         assertFalse(UnifiedGeneratorRouter.preservesBuildingEnvelope("DECOR_DETAIL"));
     }
 
-    @AfterEach
-    void clearFlag() {
-        UnifiedGeneratorRouter.clearTypologyExclusivePlan();
-    }
-
     @Test
-    void typologyExclusivePlanBlocksArchetypeConfidenceFallback() throws Exception {
+    void typologyExclusivePlanBlocksArchetypeConfidenceFallback() {
         BuildingGenome genome = new BuildingGenome();
         genome.archetype.confidence = 0.9;
 
@@ -45,12 +39,12 @@ class UnifiedGeneratorRouterTypologyExclusiveTest {
         );
         SemanticComponent semantic = new SemanticComponent("FACADE_WINDOWS", null, facade, null, null, genome);
 
-        UnifiedGeneratorRouter.setTypologyExclusivePlan(true);
-        assertFalse(shouldUseStructureFallback(semantic));
+        GenerationCompileContext.runWith(new GenerationCompileContext(null, Map.of(), true),
+                () -> assertFalse(shouldUseStructureFallback(semantic)));
     }
 
     @Test
-    void typologyExclusivePlanAllowsExplicitStructureRouting() throws Exception {
+    void typologyExclusivePlanAllowsExplicitStructureRouting() {
         BuildingGenome genome = new BuildingGenome();
         genome.archetype.confidence = 0.9;
 
@@ -64,12 +58,12 @@ class UnifiedGeneratorRouterTypologyExclusiveTest {
         );
         SemanticComponent semantic = new SemanticComponent("STRUCTURE", null, structure, null, null, genome);
 
-        UnifiedGeneratorRouter.setTypologyExclusivePlan(true);
-        assertTrue(shouldUseStructureFallback(semantic));
+        GenerationCompileContext.runWith(new GenerationCompileContext(null, Map.of(), true),
+                () -> assertTrue(shouldUseStructureFallback(semantic)));
     }
 
     @Test
-    void archetypeConfidenceStillTriggersFallbackWithoutTypologyExclusivePlan() throws Exception {
+    void archetypeConfidenceStillTriggersFallbackWithoutTypologyExclusivePlan() {
         BuildingGenome genome = new BuildingGenome();
         genome.archetype.confidence = 0.9;
 
@@ -86,9 +80,7 @@ class UnifiedGeneratorRouterTypologyExclusiveTest {
         assertTrue(shouldUseStructureFallback(semantic));
     }
 
-    private static boolean shouldUseStructureFallback(SemanticComponent semantic) throws Exception {
-        Method m = UnifiedGeneratorRouter.class.getDeclaredMethod("shouldUseStructureFallback", SemanticComponent.class);
-        m.setAccessible(true);
-        return (boolean) m.invoke(null, semantic);
+    private static boolean shouldUseStructureFallback(SemanticComponent semantic) {
+        return UnifiedGeneratorRouter.shouldUseStructureFallbackForRouting(semantic);
     }
 }
