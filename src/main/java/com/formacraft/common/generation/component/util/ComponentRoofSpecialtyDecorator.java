@@ -319,24 +319,53 @@ public final class ComponentRoofSpecialtyDecorator {
         return null;
     }
 
-    private static int foldStripCapacity(
-            List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
-            int faceMinorCoord, int setback, boolean alongWidth
-    ) {
-        boolean[] face = new boolean[majorSpan];
-        boolean[] front = new boolean[majorSpan];
+    /** Fit the usual maximum of three automatic dormers to an irregular front fold. */
+    public static int fittedAutomaticDormerCount(List<BlockPatch> roofPatches, int baseX, int baseZ,
+                                                 int width, int depth, MansardProfile profile, Map<String,Object> params) {
+        boolean alongWidth = resolveDormerAlongWidth(width, depth, 3, roofPatches, baseX, baseZ, profile.setback(), params);
+        int capacity = foldStripCapacity(roofPatches, alongWidth ? baseX : baseZ, alongWidth ? width : depth,
+                (alongWidth ? baseZ : baseX) + profile.setback(), profile.setback(), alongWidth);
+        // Let the normal fitter report a geometry error if no complete window can fit.
+        return Math.max(1, Math.min(3, capacity));
+    }
+
+    private static boolean[] continuousFoldStrip(List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
+                                                 int faceMinorCoord, boolean alongWidth) {
+        int[] faceY = new int[majorSpan];
+        int[] frontY = new int[majorSpan];
+        java.util.Arrays.fill(faceY, Integer.MIN_VALUE);
+        java.util.Arrays.fill(frontY, Integer.MIN_VALUE);
+        int faceTop = Integer.MIN_VALUE, frontTop = Integer.MIN_VALUE;
         for (BlockPatch patch : roofPatches == null ? List.<BlockPatch>of() : roofPatches) {
             if (!GeneratedSurfaceCapture.occupied(patch)) continue;
             int major = alongWidth ? patch.dx() - baseMajor : patch.dz() - baseMajor;
             int minor = alongWidth ? patch.dz() : patch.dx();
             if (major < 0 || major >= majorSpan) continue;
-            if (minor == faceMinorCoord) face[major] = true;
-            if (minor == faceMinorCoord - 1) front[major] = true;
+            if (minor == faceMinorCoord) {
+                faceY[major] = Math.max(faceY[major], patch.dy());
+                faceTop = Math.max(faceTop, patch.dy());
+            }
+            if (minor == faceMinorCoord - 1) {
+                frontY[major] = Math.max(frontY[major], patch.dy());
+                frontTop = Math.max(frontTop, patch.dy());
+            }
         }
+        boolean[] strip = new boolean[majorSpan];
+        for (int i=0; i<majorSpan; i++)
+            strip[i] = faceY[i] != Integer.MIN_VALUE && frontY[i] != Integer.MIN_VALUE
+                    && faceY[i] == faceTop && frontY[i] == frontTop;
+        return strip;
+    }
+
+    private static int foldStripCapacity(
+            List<BlockPatch> roofPatches, int baseMajor, int majorSpan,
+            int faceMinorCoord, int setback, boolean alongWidth
+    ) {
+        boolean[] strip = continuousFoldStrip(roofPatches, baseMajor, majorSpan, faceMinorCoord, alongWidth);
         int bestLength = 0;
         int length = 0;
         for (int i = setback; i < majorSpan - setback; i++) {
-            length = face[i] && front[i] ? length + 1 : 0;
+            length = strip[i] ? length + 1 : 0;
             if (length > bestLength) bestLength = length;
         }
         return bestLength < 3 ? 0 : (bestLength + 1) / 4;
@@ -347,22 +376,13 @@ public final class ComponentRoofSpecialtyDecorator {
         if (count < 1) {
             throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_count must be a positive whole number");
         }
-        boolean[] face = new boolean[majorSpan];
-        boolean[] front = new boolean[majorSpan];
-        for (BlockPatch patch : roofPatches == null ? List.<BlockPatch>of() : roofPatches) {
-            if (!GeneratedSurfaceCapture.occupied(patch)) continue;
-            int major = alongWidth ? patch.dx() - baseMajor : patch.dz() - baseMajor;
-            int minor = alongWidth ? patch.dz() : patch.dx();
-            if (major < 0 || major >= majorSpan) continue;
-            if (minor == faceMinorCoord) face[major] = true;
-            if (minor == faceMinorCoord - 1) front[major] = true;
-        }
+        boolean[] strip = continuousFoldStrip(roofPatches, baseMajor, majorSpan, faceMinorCoord, alongWidth);
         int bestStart = 0;
         int bestLength = 0;
         int length = 0;
         // A dormer is three cells wide and must stay on the major-face slope.
         for (int x = setback; x < majorSpan - setback; x++) {
-            length = face[x] && front[x] ? length + 1 : 0;
+            length = strip[x] ? length + 1 : 0;
             if (length > bestLength) {
                 bestStart = x - length + 1;
                 bestLength = length;

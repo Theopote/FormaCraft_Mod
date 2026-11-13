@@ -105,10 +105,14 @@ public class RoofGenerator implements ComponentGenerator {
             depth = Math.max(1, coreDepth + overhang * 2);
         }
 
+        int mansardSpan = isLShapedHipFootprint(footprint) ? 2 * lHipMaxRun(width, depth, footprint) + 1 : 0;
+        if (roofType == RoofTypeKind.MANSARD && mansardSpan > 0 && mansardSpan < 5)
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: L-shaped mansard needs room for both slope segments");
         var mansardProfile = roofType == RoofTypeKind.MANSARD
-                ? ComponentRoofSpecialtyDecorator.resolveMansardProfile(width, depth, height, params) : null;
+                ? ComponentRoofSpecialtyDecorator.resolveMansardProfile(
+                        mansardSpan > 0 ? mansardSpan : width, mansardSpan > 0 ? mansardSpan : depth, height, params) : null;
         boolean profiledGable = roofType.isProfiledGable();
-        boolean doubleEave = !profiledGable && roofType != RoofTypeKind.BELLCAST_HIP
+        boolean doubleEave = !profiledGable && roofType != RoofTypeKind.BELLCAST_HIP && roofType != RoofTypeKind.MANSARD
                 && isDoubleEave(params, c.features());
         if (doubleEave && (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.GABLE
                 || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.HIP)) {
@@ -164,6 +168,10 @@ public class RoofGenerator implements ComponentGenerator {
                 && ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c);
         Integer mansardDormerCount = wantsDormers
                 ? ComponentRoofSpecialtyDecorator.mansardDormerCount(params) : null;
+        if (wantsDormers && mansardDormerCount == null && isLShapedHipFootprint(footprint)) {
+            mansardDormerCount = ComponentRoofSpecialtyDecorator.fittedAutomaticDormerCount(
+                    roofShell, baseX, baseZ, width, depth, mansardProfile, params);
+        }
         if (wantsDormers && (Math.max(width, depth) >= 7 || mansardDormerCount != null)) {
             String trim = getBlockForPart(semantic, palette, SemanticPart.WALL_ACCENT);
             String glass = "minecraft:glass_pane";
@@ -648,7 +656,9 @@ public class RoofGenerator implements ComponentGenerator {
                                              ComponentFootprintMask footprint, int overhang, Map<String, Object> params) {
         BellcastProfile profile = BellcastProfile.resolve(params);
         if (isLShapedHipFootprint(footprint)) {
-            generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, profile);
+            int maxRun = lHipMaxRun(width, depth, footprint);
+            generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang,
+                    distance -> profile.fractionAt(distance / (double) maxRun) * (height - 1));
             return;
         }
         String fullBlock = resolveFullRoofBlock(semantic, palette);
@@ -775,9 +785,16 @@ public class RoofGenerator implements ComponentGenerator {
                 && Math.min(plan.width(), plan.depth()) > 1;
     }
 
+    private static int lHipMaxRun(int width, int depth, ComponentFootprintMask footprint) {
+        var plan = footprint.footprint();
+        int cut = Math.min(plan.patternSize(), Math.min(plan.width(), plan.depth()) - 1);
+        int span = Math.max(Math.min(width - cut, depth), Math.min(width, depth - cut));
+        return Math.max(1, (span - 1) / 2);
+    }
+
     private static void generateLShapedHip(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY,
                                           int baseZ, int width, int depth, int height, Palette palette,
-                                          ComponentFootprintMask footprint, int overhang, BellcastProfile bellcast) {
+                                          ComponentFootprintMask footprint, int overhang, java.util.function.IntToDoubleFunction authoredRise) {
         var plan = footprint.footprint();
         // Both the inner and outer eaves shift by the same overhang, so the
         // missing corner keeps its dimensions in expanded roof coordinates.
@@ -785,19 +802,18 @@ public class RoofGenerator implements ComponentGenerator {
         String corner = plan.lCorner() == null ? "NE" : plan.lCorner();
         boolean cutOnEast = corner.endsWith("E");
         boolean cutOnSouth = corner.startsWith("S");
-        int maxRun = Math.max(Math.min(width - cut, depth), Math.min(width, depth - cut)) - 1;
-        maxRun = Math.max(1, maxRun / 2);
+        int maxRun = lHipMaxRun(width, depth, footprint);
         String fullBlock = resolveFullRoofBlock(semantic, palette);
         String stairs = MaterialBlockFamily.stairs(fullBlock);
         String slab = MaterialBlockFamily.slab(fullBlock);
         String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
         double[] rises;
-        if (bellcast == null) {
+        if (authoredRise == null) {
             rises = sampleRoofProfile(semantic, maxRun, height - 1);
         } else {
             rises = new double[maxRun + 1];
             for (int distance = 0; distance <= maxRun; distance++)
-                rises[distance] = bellcast.fractionAt(distance / (double) maxRun) * (height - 1);
+                rises[distance] = authoredRise.applyAsDouble(distance);
         }
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
@@ -1395,6 +1411,11 @@ public class RoofGenerator implements ComponentGenerator {
                                      ComponentRoofSpecialtyDecorator.MansardProfile profile) {
         if (width < 2 || depth < 2 || height < 2) {
             generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            return;
+        }
+        if (isLShapedHipFootprint(footprint)) {
+            generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette,
+                    footprint, overhang, profile::riseAt);
             return;
         }
         int maxSpan = Math.max(1, (Math.min(width, depth) - 1) / 2);
