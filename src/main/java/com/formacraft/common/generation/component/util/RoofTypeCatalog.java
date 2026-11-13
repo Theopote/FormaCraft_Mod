@@ -37,7 +37,7 @@ public final class RoofTypeCatalog {
             "juanpeng_xuanshan", "悬山卷棚", "悬山卷棚顶",
             "saltbox", "saltbox_roof", "盐盒顶",
             "butterfly", "butterfly_roof", "butterfly roof", "蝶形顶", "蝶形屋顶",
-            "bellcast_hip", "bellcast hip", "钟形四坡顶",
+            "bellcast_hip", "bellcast hip", "钟形四坡顶", "四坡钟形顶",
             "bellcast", "bell_cast", "钟形顶", "钟形双坡顶",
             "cross_gable", "cross-gable", "cross gable", "cross-gabled", "十字双坡顶", "十字双坡屋顶",
             "none"
@@ -99,7 +99,7 @@ public final class RoofTypeCatalog {
                     "juanpeng_yingshan", "硬山卷棚", "juanpeng_xuanshan", "悬山卷棚",
                     "juanpeng", "juan_peng", "卷棚", "saltbox", "盐盒顶",
                     "butterfly_roof", "butterfly roof", "butterfly", "蝶形屋顶", "蝶形顶",
-                    "bellcast_hip", "bellcast hip", "钟形四坡顶",
+                    "bellcast_hip", "bellcast hip", "钟形四坡顶", "四坡钟形顶",
                     "bellcast", "bell_cast", "钟形双坡顶", "钟形顶",
                     "cross_gable", "cross-gable", "cross gable", "十字双坡屋顶", "十字双坡顶")) {
                 if (lower.contains(token)) return Optional.of(token);
@@ -189,7 +189,7 @@ public final class RoofTypeCatalog {
 
     private static RoofTypeKind mapToken(String normalized) {
         return switch (normalized) {
-            case "bellcast_hip", "bellcast hip", "钟形四坡顶" -> RoofTypeKind.BELLCAST_HIP;
+            case "bellcast_hip", "bellcast hip", "钟形四坡顶", "四坡钟形顶" -> RoofTypeKind.BELLCAST_HIP;
             case "bellcast", "bell_cast", "钟形顶", "钟形双坡顶" -> RoofTypeKind.BELLCAST;
             case "gambrel", "gambrel_roof", "折线双坡顶" -> RoofTypeKind.GAMBREL;
             case "barrel_vault", "barrel vault", "筒拱顶", "筒拱屋顶" -> RoofTypeKind.BARREL_VAULT;

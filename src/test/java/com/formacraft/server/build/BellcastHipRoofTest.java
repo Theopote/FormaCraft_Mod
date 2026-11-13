@@ -87,7 +87,25 @@ class BellcastHipRoofTest {
         var roof=patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList();
         assertEquals(9,top(roof,6,0));
         assertEquals(21,top(roof,6,8));
-        for (String alias:List.of("bellcast_hip","bellcast hip","钟形四坡顶"))
+        for (String alias:List.of("bellcast_hip","bellcast hip","钟形四坡顶","四坡钟形顶"))
             assertEquals(RoofTypeKind.BELLCAST_HIP,RoofTypeCatalog.parseExplicit(alias).orElseThrow());
+        var described = new Component("ROOF","hall",new Vec3i(0,20,0),new Dimensions(13,17,13),
+                List.of("采用四坡钟形顶"),Map.of("roof_block","minecraft:hay_block"));
+        assertEquals(RoofTypeKind.BELLCAST_HIP, RoofTypeCatalog.extractExplicitFeatureType(described)
+                .flatMap(RoofTypeCatalog::parseExplicit).orElseThrow());
+        var fromFeature = new RoofGenerator().generate(new SemanticComponent("ROOF",null,described));
+        assertEquals(20,top(fromFeature,6,0));
+        assertEquals(32,top(fromFeature,6,8));
+        for (String text : List.of("采用钟形四坡顶", "采用四坡钟形顶", "use bellcast hip", "use bellcast_hip")) {
+            var inferred = com.formacraft.server.compiler.RequestIntentInjector.ensure(plan, text);
+            var intent = (Map<?,?>) inferred.planMeta().get("request_intent");
+            assertEquals("bellcast_hip", intent.get("roof_type"), text);
+        }
+        for (String text : List.of("不要钟形四坡顶", "不要四坡钟形顶", "without bellcast hip")) {
+            var inferred = com.formacraft.server.compiler.RequestIntentInjector.ensure(plan, text);
+            var intent = (Map<?,?>) inferred.planMeta().get("request_intent");
+            assertNull(intent.get("roof_type"), text);
+            assertTrue(((List<?>) intent.get("roof_forbids")).contains("bellcast_hip"), text);
+        }
     }
 }

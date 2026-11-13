@@ -57,6 +57,7 @@
     {"phrase": "蝶形屋顶", "canonical": "butterfly"},
     {"phrase": "butterfly roof", "canonical": "butterfly"},
     {"phrase": "butterfly_roof", "canonical": "butterfly"},
+    {"phrase": "四坡钟形顶", "canonical": "bellcast_hip"},
     {"phrase": "钟形四坡顶", "canonical": "bellcast_hip"},
     {"phrase": "bellcast_hip", "canonical": "bellcast_hip"},
     {"phrase": "bellcast hip", "canonical": "bellcast_hip"},
