@@ -26,7 +26,8 @@ public enum RoofTypeKind {
     CROSS_GABLE,
     HEMISPHERICAL_DOME,
     POINTED_DOME,
-    BELLCAST;
+    BELLCAST,
+    BELLCAST_HIP;
 
     public boolean isDome() {
         return this == DOME || this == HEMISPHERICAL_DOME || this == POINTED_DOME;

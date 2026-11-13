@@ -23,6 +23,15 @@ class P2RoofContractTests(unittest.TestCase):
                                                        'juanpeng', 'saltbox', 'bellcast'}
                                      for r in extract_requirements(text)))
 
+    def test_bellcast_hip_is_distinct_from_the_gable_form(self):
+        for text in ('钟形四坡顶', 'bellcast hip', 'bellcast_hip'):
+            roofs = [r for r in extract_requirements(text) if r.get('property') == 'roof_type']
+            self.assertEqual(['bellcast_hip'], [r.get('value') for r in roofs], roofs)
+        for text in ('不要钟形四坡顶', 'without bellcast hip'):
+            self.assertFalse(any(r.get('value') in {'bellcast', 'bellcast_hip'}
+                                 for r in extract_requirements(text)))
+        self.assertIn('bellcast_hip', SUPPORTED_ROOF_DEFAULTS)
+
     def test_incompatible_roofs_remain_unresolved(self):
         roofs = [r for r in extract_requirements('筒拱顶和洋葱穹顶') if r.get('property') == 'roof_type']
         self.assertEqual(2, len(roofs))

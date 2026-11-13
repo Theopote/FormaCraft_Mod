@@ -108,7 +108,8 @@ public class RoofGenerator implements ComponentGenerator {
         var mansardProfile = roofType == RoofTypeKind.MANSARD
                 ? ComponentRoofSpecialtyDecorator.resolveMansardProfile(width, depth, height, params) : null;
         boolean profiledGable = roofType.isProfiledGable();
-        boolean doubleEave = !profiledGable && isDoubleEave(params, c.features());
+        boolean doubleEave = !profiledGable && roofType != RoofTypeKind.BELLCAST_HIP
+                && isDoubleEave(params, c.features());
         if (doubleEave && (roofType == RoofTypeKind.XIESHAN || roofType == RoofTypeKind.XUANSHAN || roofType == RoofTypeKind.GABLE
                 || roofType == RoofTypeKind.DOUBLE_GABLE || roofType == RoofTypeKind.HIP)) {
             generateDoubleEaveRoof(out, semantic, roofType, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -131,6 +132,8 @@ public class RoofGenerator implements ComponentGenerator {
                         footprint, appliedOverhang, resolveGableAlongDepth(params, width, depth));
                 case CROSS_GABLE -> generateCrossGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang, alongDepthHint);
+                case BELLCAST_HIP -> generateBellcastHip(out, baseX, rp.y(), baseZ, width, depth, height,
+                        resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang, params);
                 case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
                 case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -263,7 +266,7 @@ public class RoofGenerator implements ComponentGenerator {
             case HIP, XIESHAN, PYRAMID, CONE, DOME, HEMISPHERICAL_DOME, POINTED_DOME -> Math.min(width, depth);
             // Full-block roof profiles and flats keep their resolved rise.
             case FLAT, SAWTOOTH, SHED, BARREL_VAULT, GAMBREL, ONION_DOME, STEEP_THATCH,
-                    JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY, CROSS_GABLE, BELLCAST -> 0;
+                    JUANPENG, JUANPENG_YINGSHAN, JUANPENG_XUANSHAN, SALTBOX, BUTTERFLY, CROSS_GABLE, BELLCAST, BELLCAST_HIP -> 0;
             default -> alongDepth ? width : depth;
         };
         if (across <= 0) return Math.max(1, height);
@@ -638,6 +641,34 @@ public class RoofGenerator implements ComponentGenerator {
             default -> throw new IllegalArgumentException(
                     "E_ROOF_GEOMETRY_INVALID: " + key + " must be north, south, east or west");
         };
+    }
+
+    private static void generateBellcastHip(List<BlockPatch> out, int baseX, int baseY, int baseZ,
+                                             int width, int depth, int height, String fullBlock,
+                                             ComponentFootprintMask footprint, int overhang, Map<String, Object> params) {
+        BellcastProfile profile = BellcastProfile.resolve(params);
+        int run = (Math.min(width, depth) - 1) / 2;
+        int maxRise = height - 1;
+        String stairs = MaterialBlockFamily.stairs(fullBlock);
+        String slab = MaterialBlockFamily.slab(fullBlock);
+        String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
+        for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++) {
+            if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;
+            int fromX = Math.min(x, width - 1 - x);
+            int fromZ = Math.min(z, depth - 1 - z);
+            int distance = Math.min(fromX, fromZ);
+            double rise = run == 0 ? 0 : profile.fractionAt(distance / (double) run) * maxRise;
+            int blockRise = (int) Math.round(rise);
+            String surface = fullBlock;
+            // Equal distances are hip junctions. Keep those and the ridge solid.
+            if (distance < run && blockRise < maxRise && fromX != fromZ) {
+                double nextRise = profile.fractionAt((distance + 1) / (double) run) * maxRise;
+                String facing = fromX < fromZ ? (x < width / 2 ? "east" : "west")
+                        : (z < depth / 2 ? "south" : "north");
+                surface = slopeSurface(fullBlock, lowerSlab, stairs, rise, nextRise, facing);
+            }
+            out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + blockRise, baseZ + z, surface));
+        }
     }
 
     private record BellcastProfile(double run, double rise) {

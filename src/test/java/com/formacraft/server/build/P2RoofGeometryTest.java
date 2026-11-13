@@ -102,12 +102,13 @@ class P2RoofGeometryTest {
         var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         var roof = patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList();
-        assertEquals(List.of(10, 13, 16, 19, 20, 21, 22, 21, 20, 19, 16, 13, 10), section(roof, 13));
-        for (int y = 13; y < 16; y++) {
+        // Authored roof sits on mass top y=9 — no silent +1 envelope grow.
+        assertEquals(List.of(9, 12, 15, 18, 19, 20, 21, 20, 19, 18, 15, 12, 9), section(roof, 13));
+        for (int y = 12; y < 15; y++) {
             int level = y;
             assertTrue(roof.stream().anyMatch(p -> p.dx() == 2 && p.dz() == 8 && p.dy() == level));
         }
-        assertFalse(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 10));
+        assertFalse(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 9));
     }
 
     @Test void gambrelDefaultsPreserveTheOldSectionAndRejectAReversedFold() {
@@ -374,8 +375,8 @@ class P2RoofGeometryTest {
             assertTrue(roof.stream().anyMatch(p -> p.targetBlock().startsWith("minecraft:stone_brick_stairs[")), type);
             assertTrue(roof.stream().anyMatch(p -> p.targetBlock().startsWith("minecraft:stone_brick_slab[")), type);
             var section = section(roof, 13);
-            // Host attachment places the eaves at the top of the ten-block mass.
-            int ridgeY = 10 + height - 1;
+            // Host attachment places the eaves on the authored roof plane (mass top y=9).
+            int ridgeY = 9 + height - 1;
             assertEquals(ridgeY, Collections.max(section), type);
             assertEquals(type.equals("saltbox") ? 4 : 5, section.indexOf(ridgeY), type);
         }
@@ -400,27 +401,27 @@ class P2RoofGeometryTest {
                 tops[patch.dx()][patch.dz()] = Math.max(tops[patch.dx()][patch.dz()], patch.dy());
             }
         }
-        for (int x = 0; x < 13; x++) assertEquals(18, tops[x][8]);
-        for (int z = 0; z < 17; z++) assertEquals(18, tops[6][z]);
+        for (int x = 0; x < 13; x++) assertEquals(17, tops[x][8]);
+        for (int z = 0; z < 17; z++) assertEquals(17, tops[6][z]);
         for (int x : List.of(3, 9)) for (int z : List.of(4, 12)) {
-            assertEquals(14, tops[x][z]);
+            assertEquals(13, tops[x][z]);
             assertTrue(tops[x == 3 ? 4 : 8][z] > tops[x][z]);
             assertTrue(tops[x][z == 4 ? 5 : 11] > tops[x][z]);
         }
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 4 && p.dz() == 4 && p.dy() == 14
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 4 && p.dz() == 4 && p.dy() == 13
                 && "minecraft:stone_bricks".equals(p.targetBlock())));
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 1 && p.dz() == 5 && p.dy() == 15
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 1 && p.dz() == 5 && p.dy() == 14
                 && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
                 && p.targetBlock().contains("facing=south")));
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 5 && p.dz() == 1 && p.dy() == 17
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 5 && p.dz() == 1 && p.dy() == 16
                 && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
                 && p.targetBlock().contains("facing=east")));
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 14
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 13
                 && "minecraft:stone_bricks".equals(p.targetBlock())));
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 0 && p.dz() == 8 && p.dy() == 17
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 0 && p.dz() == 8 && p.dy() == 16
                 && "minecraft:spruce_planks".equals(p.targetBlock())));
         // Check the attic above the host attachment plane and below the valley.
-        assertFalse(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 12
+        assertFalse(patches.stream().anyMatch(p -> p.dx() == 3 && p.dz() == 4 && p.dy() == 11
                 && BlockPatch.PLACE.equals(p.action())));
     }
 
@@ -487,7 +488,7 @@ class P2RoofGeometryTest {
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         var roof = patches.stream().filter(p -> p.targetBlock() != null
                 && p.targetBlock().startsWith("minecraft:stone_brick")).toList();
-        assertEquals(List.of(16, 15, 14, 13, 12, 11, 10, 11, 12, 13, 14, 15, 16), section(roof, 13));
+        assertEquals(List.of(15, 14, 13, 12, 11, 10, 9, 10, 11, 12, 13, 14, 15), section(roof, 13));
     }
 
     @Test void hostedHipInheritsTheLCutAndPreservesItsTiledValley() throws Exception {
@@ -502,12 +503,12 @@ class P2RoofGeometryTest {
         var plan = mapper.treeToValue(document, LlmPlan.class);
         var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
-        var roof = patches.stream().filter(p -> p.dy() >= 10 && p.targetBlock() != null
+        var roof = patches.stream().filter(p -> p.dy() >= 9 && p.targetBlock() != null
                 && p.targetBlock().startsWith("minecraft:stone_brick")).toList();
         assertFalse(roof.stream().anyMatch(p -> p.dx() < 5 && p.dz() < 5));
-        assertTrue(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 6 && p.dy() == 11
+        assertTrue(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 6 && p.dy() == 10
                 && "minecraft:stone_bricks".equals(p.targetBlock())));
-        assertTrue(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 7 && p.dy() == 12
+        assertTrue(roof.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 7 && p.dy() == 11
                 && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
                 && p.targetBlock().contains("facing=south")));
     }
