@@ -48,6 +48,7 @@ class MansardAutomaticDormerFitTest {
         var patches=new ArrayList<BlockPatch>();
         for(int z=5;z<5+length;z++) {
             patches.add(new BlockPatch(BlockPatch.PLACE,3,27,z,"minecraft:stone_bricks"));
+            patches.add(new BlockPatch(BlockPatch.PLACE,4,28,z,"minecraft:stone_bricks"));
             patches.add(new BlockPatch(BlockPatch.PLACE,2,25,z,"minecraft:stone_bricks"));
         }
         return patches;

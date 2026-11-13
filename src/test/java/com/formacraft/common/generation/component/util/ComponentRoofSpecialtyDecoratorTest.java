@@ -71,6 +71,7 @@ class ComponentRoofSpecialtyDecoratorTest {
         List<BlockPatch> roof = new ArrayList<>();
         for (int z = 3; z <= 9; z++) {
             roof.add(new BlockPatch(BlockPatch.PLACE, setback, 7, z, "minecraft:bricks"));
+            roof.add(new BlockPatch(BlockPatch.PLACE, setback + 1, 8, z, "minecraft:bricks"));
             if (z != 6) roof.add(new BlockPatch(BlockPatch.PLACE, setback - 1, 5, z, "minecraft:bricks"));
         }
         List<BlockPatch> out = new ArrayList<>();

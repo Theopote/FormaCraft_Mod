@@ -48,6 +48,7 @@ class MansardDormerFoldValidationTest {
         var roof=new ArrayList<BlockPatch>();
         for(int z=4;z<=10;z++) {
             roof.add(new BlockPatch(BlockPatch.PLACE,2,faceY,z,"minecraft:stone_bricks"));
+            roof.add(new BlockPatch(BlockPatch.PLACE,3,faceY+1,z,"minecraft:stone_bricks"));
             roof.add(new BlockPatch(BlockPatch.PLACE,1,frontY,z,"minecraft:stone_bricks"));
             if(coverFace) roof.add(new BlockPatch(BlockPatch.PLACE,2,faceY+1,z,"minecraft:stone_bricks"));
         }

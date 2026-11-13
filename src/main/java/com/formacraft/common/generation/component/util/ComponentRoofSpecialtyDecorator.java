@@ -4,12 +4,14 @@ import com.formacraft.common.component.transform.CapturedBlockStateTransform;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.Mirror;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.BlockPos;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.palette.component.MaterialBlockFamily;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -319,16 +321,65 @@ public final class ComponentRoofSpecialtyDecorator {
         int protrude = 2;
         List<Integer> centers = fittedDormerCenters(roofPatches, alongWidth ? baseX : baseZ, majorSpan,
                 alongWidth ? baseZ + faceMinor : baseX + faceMinor, setback, count, alongWidth, foldHeights(baseY, profile));
+        String rawEmbed = getParam(params, "mansard_dormer_embed_depth", "mansardDormerEmbedDepth");
+        Integer authoredEmbed = rawEmbed == null ? null
+                : positiveMansardInteger(rawEmbed, "mansard_dormer_embed_depth");
+        int requestedEmbed = authoredEmbed == null ? Math.min(2, profile.upperRun()) : authoredEmbed;
+        if (requestedEmbed > profile.upperRun())
+            throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_embed_depth would cross the roof ridge");
+        var tops = roofSurfaceIndex(roofPatches);
+        var heights = foldHeights(baseY, profile);
+        var mounts = new ArrayList<DormerMount>();
         for (int cMajor : centers) {
             int sampleX = alongWidth ? cMajor : baseX + faceMinor;
             int sampleZ = alongWidth ? baseZ + faceMinor : cMajor;
-            int surfaceY = findRoofSurfaceY(roofPatches, sampleX, sampleZ);
-            if (surfaceY == Integer.MIN_VALUE)
+            Integer surfaceY = tops.get(new BlockPos(sampleX, 0, sampleZ));
+            if (surfaceY == null || surfaceY != heights.face())
                 throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dormer requires an occupied fold surface");
-            // cMajor is along the long facade; faceMinor is the setback into the slope.
-            emitSingleDormer(out, roofPatches, cMajor, surfaceY, alongWidth ? baseZ + faceMinor : baseX + faceMinor,
-                    protrude, setback, alongWidth, trimBlock, glassBlock, roofBlock);
+            int embed = supportedEmbedDepth(tops, cMajor, alongWidth ? baseZ + faceMinor : baseX + faceMinor,
+                    alongWidth, surfaceY, heights.front(), requestedEmbed);
+            if (embed < 1 || (authoredEmbed != null && embed < requestedEmbed))
+                throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: mansard_dormer_embed_depth exceeds the supporting uphill roof");
+            mounts.add(new DormerMount(cMajor, surfaceY, embed));
         }
+        // Validate every mount before adding any openings or window shells.
+        for (var mount : mounts)
+            emitSingleDormer(out, roofPatches, mount.major(), mount.surfaceY(), alongWidth ? baseZ + faceMinor : baseX + faceMinor,
+                    protrude, mount.embed(), alongWidth, trimBlock, glassBlock, roofBlock);
+    }
+
+    private record DormerMount(int major, int surfaceY, int embed) {}
+
+    private static Map<BlockPos,Integer> roofSurfaceIndex(List<BlockPatch> patches) {
+        var finalAt = new HashMap<BlockPos,BlockPatch>();
+        if (patches != null) for (var p : patches) if (p != null)
+            finalAt.put(new BlockPos(p.dx(), p.dy(), p.dz()), p);
+        var tops = new HashMap<BlockPos,Integer>();
+        for (var p : finalAt.values()) if (GeneratedSurfaceCapture.occupied(p))
+            tops.merge(new BlockPos(p.dx(), 0, p.dz()), p.dy(), Math::max);
+        return tops;
+    }
+
+    private static int supportedEmbedDepth(Map<BlockPos,Integer> tops, int major, int faceMinor,
+                                            boolean alongWidth, int surfaceY, int frontY, int limit) {
+        int[] previous = {surfaceY, surfaceY, surfaceY};
+        for (int across = -1; across <= 1; across++) {
+            int x = alongWidth ? major + across : faceMinor;
+            int z = alongWidth ? faceMinor : major + across;
+            Integer face = tops.get(new BlockPos(x, 0, z));
+            Integer front = tops.get(new BlockPos(alongWidth ? x : x - 1, 0, alongWidth ? z - 1 : z));
+            if (face == null || face != surfaceY || front == null || front != frontY) return 0;
+        }
+        for (int step = 1; step <= limit; step++) {
+            for (int across = -1; across <= 1; across++) {
+                int x = alongWidth ? major + across : faceMinor + step;
+                int z = alongWidth ? faceMinor + step : major + across;
+                Integer y = tops.get(new BlockPos(x, 0, z));
+                if (y == null || y < previous[across + 1]) return step - 1;
+                previous[across + 1] = y;
+            }
+        }
+        return limit;
     }
 
     /**
@@ -492,7 +543,7 @@ public final class ComponentRoofSpecialtyDecorator {
         String stairs = MaterialBlockFamily.stairs(roofBlock);
         String capBlock = MaterialBlockFamily.fullBlock(roofBlock);
         if (capBlock == null) capBlock = roofBlock;
-        // Embed one cell into the slope so the dormer sits in the roof, not floating outside.
+        // The mount planner has already limited this depth to supported uphill roof rows.
         int embed = Math.max(1, embedDepth);
         for (int dy = 0; dy <= 2; dy++) {
             for (int across = -1; across <= 1; across++) {
