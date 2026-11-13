@@ -48,33 +48,26 @@ final class FloorLayoutOverflowRepair {
         int envelope = Math.max(1, component.dimensions().height());
         int minBand = InteriorSpaceDefaults.minStoreyBand();
         int authoredFh = ComponentParamParsers.intParam(params, "floor_height", "floorHeight");
-        int floorHeight = authoredFh;
-        if (floorHeight <= 0) {
-            floorHeight = Math.max(minBand, envelope / floorCount);
-        } else if (hostMass) {
-            floorHeight = Math.max(minBand, floorHeight);
-        }
+        // Authored storey bands are intentional (same policy as ResolvedFloorLayout) — never
+        // silently raise floor_height=3 → 4 and shift intermediate slabs off their pinned Y.
+        int floorHeight = authoredFh > 0
+                ? authoredFh
+                : Math.max(minBand, envelope / floorCount);
         long need = (long) floorHeight * floorCount;
-        if (need <= envelope && floorHeight == authoredFh) {
+        if (need <= envelope && (authoredFh <= 0 || floorHeight == authoredFh)) {
             return component;
         }
         Map<String, Object> next = new HashMap<>(params);
         Dimensions dims = component.dimensions();
         if (hostMass && need > envelope) {
-            // Grow envelope so min clear-height bands survive.
+            // Grow envelope so the authored (or inferred) bands still fit.
             dims = new Dimensions(dims.width(), dims.depth(), (int) Math.min(Integer.MAX_VALUE, need));
-            next.put("floor_height", floorHeight);
+            if (authoredFh <= 0) {
+                next.put("floor_height", floorHeight);
+            }
             FormacraftMod.LOGGER.info(
                     "FloorLayoutOverflowRepair: grow envelope {} → {} for floors {}×{}",
                     envelope, dims.height(), floorCount, floorHeight);
-            return new Component(component.componentType(), component.slotId(),
-                    component.relativePosition(), dims, component.features(), next);
-        }
-        if (hostMass && need <= envelope && floorHeight != authoredFh) {
-            next.put("floor_height", floorHeight);
-            FormacraftMod.LOGGER.info(
-                    "FloorLayoutOverflowRepair: raise floor_height {} → {} (min clear band)",
-                    authoredFh, floorHeight);
             return new Component(component.componentType(), component.slotId(),
                     component.relativePosition(), dims, component.features(), next);
         }

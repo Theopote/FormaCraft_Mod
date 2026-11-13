@@ -85,9 +85,10 @@ class P2RoofGeometryTest {
         var roof = patches.stream().filter(p -> p.targetBlock() != null
                 && p.targetBlock().startsWith("minecraft:stone_brick")).toList();
         assertEquals(List.of(10, 12, 15, 17, 18, 19, 20, 19, 18, 17, 15, 12, 10), section(roof, 13));
-        assertEquals(List.of(4, 8), patches.stream()
-                .filter(p -> p.dz() == 2 && p.dy() == 18 && "minecraft:glass_pane".equals(p.targetBlock()))
-                .map(BlockPatch::dx).sorted().toList());
+        // Depth>width: dormers sit on the long face (dx=setback-1), centered along Z.
+        assertEquals(List.of(4, 12), patches.stream()
+                .filter(p -> p.dx() == 2 && p.dy() == 18 && "minecraft:glass_pane".equals(p.targetBlock()))
+                .map(BlockPatch::dz).sorted().toList());
     }
 
     @Test void hostedGambrelUsesItsAuthoredFoldAndSealsTheSteepLowerSlope() throws Exception {

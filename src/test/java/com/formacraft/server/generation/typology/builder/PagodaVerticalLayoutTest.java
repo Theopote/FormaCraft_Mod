@@ -9,10 +9,10 @@ class PagodaVerticalLayoutTest {
 
     @Test
     void threeStoreyDoubleEaveComfortableMinIsTwenty() {
-        // Horizontal multi-tier eaves no longer add vertical eaveNeed rows.
+        // Storey bands include floor+ceiling plates (clear air = band-2); eaveNeed rows stay 0.
         PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
-        assertEquals(20, PagodaVerticalLayout.requiredMinHeight(v));
-        assertEquals(13, PagodaVerticalLayout.absoluteMinHeight(v));
+        assertEquals(26, PagodaVerticalLayout.requiredMinHeight(v));
+        assertEquals(19, PagodaVerticalLayout.absoluteMinHeight(v));
     }
 
     @Test
@@ -23,18 +23,18 @@ class PagodaVerticalLayoutTest {
                 TypologyGenerationException.class,
                 () -> PagodaVerticalLayout.plan("dense_eaves_pagoda", v, 26, true, 10, 4));
         assertEquals("E_PAGODA_SIZE", ex.code());
-        assertTrue(ex.getMessage().contains("minimum feasible height=13"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("minimum feasible height=19"), ex.getMessage());
     }
 
     @Test
     void explicitHeightNearMissThrowsInsteadOfExpanding() {
-        // Authored height is hard: floor_count cannot silently bump 12 → 13.
+        // Authored height is hard: floor_count cannot silently bump below absolute min.
         PagodaVerticalSemantics v = new PagodaVerticalSemantics(3, 2, 6, true);
         TypologyGenerationException ex = assertThrows(
                 TypologyGenerationException.class,
                 () -> PagodaVerticalLayout.plan("dense_eaves_pagoda", v, 26, true, 12, 4));
         assertEquals("E_PAGODA_SIZE", ex.code());
-        assertTrue(ex.getMessage().contains("minimum feasible height=13"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("minimum feasible height=19"), ex.getMessage());
     }
 
     @Test

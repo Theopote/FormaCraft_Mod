@@ -769,9 +769,11 @@
         "entrance_type": "door",
         "facing": "WEST",
         "material": "minecraft:iron_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "left_tower_mass"
+        "building_id": "left_tower_mass",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -797,9 +799,11 @@
         "entrance_type": "door",
         "facing": "EAST",
         "material": "minecraft:iron_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "right_tower_mass"
+        "building_id": "right_tower_mass",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -825,9 +829,11 @@
         "entrance_type": "door",
         "facing": "EAST",
         "material": "minecraft:iron_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "main_hall_mass"
+        "building_id": "main_hall_mass",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {
@@ -853,9 +859,11 @@
         "entrance_type": "door",
         "facing": "WEST",
         "material": "minecraft:iron_door",
-        "door_width": 2,
+        "door_width": 1,
         "door_height": 3,
-        "building_id": "main_hall_mass"
+        "building_id": "main_hall_mass",
+        "door_width_clamped_from": 2,
+        "door_width_clamp_span": 2
       }
     },
     {

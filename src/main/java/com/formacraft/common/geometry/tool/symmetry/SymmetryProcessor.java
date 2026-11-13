@@ -57,8 +57,13 @@ public class SymmetryProcessor {
 
     public net.minecraft.util.math.Direction mirrorFacing(net.minecraft.util.math.Direction facing) {
         if (facing == null) return null;
+        // Vertical facings stay vertical under plan-view symmetry (X/Z), and a horizontal
+        // Y plane does not flip UP/DOWN for placement facing metadata.
+        if (facing.getAxis() == net.minecraft.util.math.Direction.Axis.Y) {
+            return facing;
+        }
         return switch (plane.axis()) {
-            case Y -> facing.getAxis() == net.minecraft.util.math.Direction.Axis.Y ? facing.getOpposite() : facing;
+            case Y -> facing;
             case X -> facing.getAxis() == net.minecraft.util.math.Direction.Axis.X ? facing.getOpposite() : facing;
             case Z -> facing.getAxis() == net.minecraft.util.math.Direction.Axis.Z ? facing.getOpposite() : facing;
         };

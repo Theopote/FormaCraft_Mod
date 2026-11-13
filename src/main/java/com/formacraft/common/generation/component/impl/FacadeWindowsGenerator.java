@@ -204,14 +204,15 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                         continue;
                     }
                     // Reserve the central door bay on the entrance face for every window grammar.
+                    // Small façades (<8) need a wider clear band so a later 2×N wall insert still fits.
                     boolean onEntranceFace = irregularFootprint
                             ? matchesFacingOutward(facing, outwardDx, outwardDz)
                             : isEntranceFacade(x, z, width, depth, facing, wrapFacade);
-                    if (reserveEntranceBay && axisMax >= 8
+                    if (reserveEntranceBay
                             && (!useRhythmPlan || !rhythmPlans.computeIfAbsent(axisMax,
                                 am -> ComponentFacadeRhythmPlanner.resolve(semantic, params, am)).active())
                             && onEntranceFace
-                            && Math.abs(axis - axisMax / 2) <= 1) continue;
+                            && Math.abs(axis - axisMax / 2) <= (axisMax < 8 ? 2 : 1)) continue;
                     if (useRhythmPlan) {
                         ComponentFacadeRhythmPlanner.RhythmPlan rhythmPlan = rhythmPlans.computeIfAbsent(
                                 axisMax,

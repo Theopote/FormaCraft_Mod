@@ -66,9 +66,10 @@ public record PagodaVerticalSemantics(
             int authoredEaves = readInt(p, "eave_tiers", "eaveTiers", floorCount);
             eavesPerLevel = Math.max(1, Math.min(3, Math.round(authoredEaves / (float) Math.max(1, floorCount))));
         }
-        // Registry defaults often inject eaves_per_level=1; an explicit double_eaves /
-        // 重檐 request must still win — but never override an authored eaves_per_level.
-        if (wantsDoubleEaves && !eavesPerLevelAuthored) {
+        // Registry defaults often inject eaves_per_level=1 alongside plan double_eaves;
+        // an explicit double_eaves / 重檐 request must still upgrade that default to 2.
+        // Authored eaves_per_level≥2 and explicit double_eaves=false are already respected above.
+        if (wantsDoubleEaves) {
             eavesPerLevel = Math.max(eavesPerLevel, 2);
         }
 

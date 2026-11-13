@@ -664,21 +664,24 @@ final class PlanIntentFidelityRepair {
                     changed = true;
                 }
             } else if (floors >= 2 && !officeLike) {
-                // Multi-storey non-office: keep ≥3 air clear (storey band ≥4). Honour authored
-                // floor_height when already ≥ min band — do not invent a taller lobby that would
-                // shift connection_level / plate Y for bridges and mid-floor attachments.
+                // Multi-storey non-office: prefer ≥3 air clear when inventing bands. Authored
+                // floor_height / ground_clear_height are intentional (Pinned Style/log floors) —
+                // never raise them and shift intermediate slabs off their contracted Y.
                 int nh = dims.height();
                 int minBand = InteriorSpaceDefaults.minStoreyBand();
                 int authoredFh = ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight");
                 int authoredGround = ComponentParamParsers.intParam(
                         params, 0, "ground_clear_height", "groundClearHeight");
-                int upperBand = authoredFh > 0 ? Math.max(minBand, authoredFh) : minBand;
-                int groundBand = authoredGround > 0 ? Math.max(minBand, authoredGround) : upperBand;
+                int upperBand = authoredFh > 0 ? authoredFh : minBand;
+                int groundBand = authoredGround > 0 ? authoredGround : upperBand;
                 int f = Math.max(2, floors);
-                // +1 roof / top slab deck above the uppermost storey band.
-                int needH = groundBand + Math.max(0, f - 1) * upperBand + 1;
-                boolean tooLowBand = authoredFh > 0 && authoredFh < minBand;
-                if (nh < needH || tooLowBand || authoredFh <= 0) {
+                // Storey slabs only. A separate ROOF component owns the deck above;
+                // +1 was growing authored 2×4 envelopes 8→9 and planting a roof-level floor plate.
+                int needH = groundBand + Math.max(0, f - 1) * upperBand;
+                if (authoredFh <= 0) {
+                    needH += 1;
+                }
+                if (nh < needH || authoredFh <= 0) {
                     nh = Math.max(nh, needH);
                     params.put("floor_count", f);
                     params.put("floor_height", upperBand);

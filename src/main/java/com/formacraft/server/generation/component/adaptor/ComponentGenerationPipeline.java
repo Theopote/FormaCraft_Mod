@@ -53,7 +53,11 @@ final class ComponentGenerationPipeline {
             boolean hasComponentRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "component_request:");
             expander = UnifiedGeneratorRouter.applyExpandersResult(semantic, world, List.of(), hasGroupRequest, hasComponentRequest);
             if (expander.hardFail() != null) {
-                // Library is optional — soft-skip and continue with registry/typology.
+                // Envelope conflicts are hard policy — never soft-skip into registry/typology.
+                if (isEnvelopeLibraryConflict(expander.hardFail())) {
+                    return expander.hardFail();
+                }
+                // Other library misses are optional — soft-skip and continue with registry/typology.
                 FormacraftMod.LOGGER.warn(
                         "ComponentGenerationPipeline: library hard-fail soft-skipped status={}",
                         expander.hardFail().status());
@@ -237,6 +241,19 @@ final class ComponentGenerationPipeline {
                 routeDiagnostics);
     }
 
+    /** Envelope protection vs explicit library request — hard policy, not optional miss. */
+    private static boolean isEnvelopeLibraryConflict(RoutedGenerationResult fail) {
+        if (fail == null || fail.diagnostics() == null) {
+            return false;
+        }
+        for (GenerationDiagnostic d : fail.diagnostics()) {
+            if (d != null && "component_request_envelope_conflict".equals(d.code())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static @NotNull List<GenerationDiagnostic> getGenerationDiagnostics(TypologyGenerationException e, List<GenerationDiagnostic> routeDiagnostics) {
         List<GenerationDiagnostic> failDiags =
                 new ArrayList<>(routeDiagnostics);
@@ -273,6 +290,9 @@ final class ComponentGenerationPipeline {
         boolean hasComponentRequest = UnifiedGeneratorRouter.hasFeaturePrefix(c, "component_request:");
         UnifiedGeneratorRouter.ExpanderStage expander = UnifiedGeneratorRouter.applyExpandersResult(
                 semantic, world, List.of(), hasGroupRequest, hasComponentRequest);
+        if (expander.hardFail() != null && isEnvelopeLibraryConflict(expander.hardFail())) {
+            return expander.hardFail();
+        }
         if (expander.hardFail() != null || !expander.libraryCommitted()
                 || expander.patches() == null || expander.patches().isEmpty()) {
             // Library is additive: miss/fail falls through to native COMPONENTS pipeline.
