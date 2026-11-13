@@ -45,7 +45,6 @@ final class StackedMassHostBindRepair {
             String upperId = String.valueOf(upper.params().get("component_id"));
             if (!lowerId.equals(upperId)) bind.put(upperId, lowerId);
         }
-        if (bind.isEmpty()) return plan;
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
@@ -55,19 +54,51 @@ final class StackedMassHostBindRepair {
             }
             String id = String.valueOf(c.params().get("component_id"));
             String host = bind.get(id);
-            if (host == null) {
-                out.add(c);
-                continue;
+            Map<String, Object> params = null;
+            if (host != null) {
+                params = new HashMap<>(c.params());
+                params.put("host_id", host);
+                params.putIfAbsent("allow_patch_overwrite", true);
+                FormacraftMod.LOGGER.info("StackedMassHostBindRepair: bind {} → host_id={}", id, host);
+                changed = true;
             }
-            Map<String, Object> params = new HashMap<>(c.params());
-            params.put("host_id", host);
-            params.putIfAbsent("allow_patch_overwrite", true);
-            FormacraftMod.LOGGER.info("StackedMassHostBindRepair: bind {} → host_id={}", id, host);
-            out.add(new Component(c.componentType(), c.slotId(), c.relativePosition(),
-                    c.dimensions(), c.features(), params));
-            changed = true;
+            // Hosted upper floor-plate shells must not replay the host's floor_count — a second
+            // local slab (e.g. world y=7 on floor_plate_upper@y=4) blocks façade windows.
+            if (clampHostedFloorPlateStoreys(c, params != null ? params : c.params())) {
+                if (params == null) params = new HashMap<>(c.params());
+                params.put("floor_count", 1);
+                FormacraftMod.LOGGER.info(
+                        "StackedMassHostBindRepair: clamp floor_count→1 on hosted floor plate {}", id);
+                changed = true;
+            }
+            if (params != null) {
+                out.add(new Component(c.componentType(), c.slotId(), c.relativePosition(),
+                        c.dimensions(), c.features(), params));
+            } else {
+                out.add(c);
+            }
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    /** True when this hosted secondary is a floor-plate shell with duplicated storey bands. */
+    private static boolean clampHostedFloorPlateStoreys(Component c, Map<String, Object> params) {
+        if (c == null || params == null || !"MASS_SECONDARY".equalsIgnoreCase(c.componentType())) {
+            return false;
+        }
+        Object host = params.get("host_id");
+        if (host == null) host = params.get("hostId");
+        if (host == null || String.valueOf(host).isBlank()
+                || "null".equalsIgnoreCase(String.valueOf(host))) {
+            return false;
+        }
+        Object rawCount = params.get("floor_count");
+        if (rawCount == null) rawCount = params.get("floorCount");
+        int floors = rawCount instanceof Number n ? n.intValue() : 0;
+        if (floors <= 1) return false;
+        String id = String.valueOf(params.get("component_id")).toLowerCase(Locale.ROOT);
+        return id.contains("floor_plate") || id.contains("plate_upper")
+                || id.contains("upper_plate") || id.contains("upper_floor");
     }
 
     private static Component findSupport(Component upper, List<Component> masses) {

@@ -1684,6 +1684,10 @@ public class RoofGenerator implements ComponentGenerator {
                 // Pitched ROOF slopes default to stairs when the family exists (planks → stairs).
                 || (part == SemanticPart.ROOF && !flatRoof);
         if (part == SemanticPart.ROOF_SURFACE) {
+            // Flat decks keep the authored full cube (smooth_stone etc.); pitched plates stay slabs.
+            if (flatRoof) {
+                return id.contains(":") ? id : "minecraft:" + id;
+            }
             if (base.endsWith("_slab")) return id;
             String slab = com.formacraft.common.palette.component.MaterialBlockFamily.slab(base);
             if (slab != null) return slab;

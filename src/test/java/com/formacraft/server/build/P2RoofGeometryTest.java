@@ -84,10 +84,11 @@ class P2RoofGeometryTest {
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         var roof = patches.stream().filter(p -> p.targetBlock() != null
                 && p.targetBlock().startsWith("minecraft:stone_brick")).toList();
-        assertEquals(List.of(10, 12, 15, 17, 18, 19, 20, 19, 18, 17, 15, 12, 10), section(roof, 13));
+        // Authored mass is height 10 with roof at y=9 — do not expect the old +1 envelope grow.
+        assertEquals(List.of(9, 11, 14, 16, 17, 18, 19, 18, 17, 16, 14, 11, 9), section(roof, 13));
         // Depth>width: dormers sit on the long face (dx=setback-1), centered along Z.
         assertEquals(List.of(4, 12), patches.stream()
-                .filter(p -> p.dx() == 2 && p.dy() == 18 && "minecraft:glass_pane".equals(p.targetBlock()))
+                .filter(p -> p.dx() == 2 && p.dy() == 17 && "minecraft:glass_pane".equals(p.targetBlock()))
                 .map(BlockPatch::dz).sorted().toList());
     }
 

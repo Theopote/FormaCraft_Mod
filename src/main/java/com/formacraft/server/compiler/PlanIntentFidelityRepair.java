@@ -12,13 +12,7 @@ import com.formacraft.common.llm.dto.Vec3i;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -851,7 +845,7 @@ final class PlanIntentFidelityRepair {
             Object notes = plan.proportionHints().get("notes");
             if (notes != null) sb.append(' ').append(notes);
             Object crc = plan.proportionHints().get("chinese_roof_contract");
-            if (crc != null) sb.append(' ').append(String.valueOf(crc));
+            if (crc != null) sb.append(' ').append(crc);
         }
         return sb.toString();
     }
@@ -1086,7 +1080,6 @@ final class PlanIntentFidelityRepair {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
     private static String wallBlockFromRequestIntent(LlmPlan plan) {
         Map<String, Object> mats = requestIntentMaterials(plan);
         if (mats == null) return null;
@@ -1095,7 +1088,6 @@ final class PlanIntentFidelityRepair {
         return stabilizeBlock(String.valueOf(wall));
     }
 
-    @SuppressWarnings("unchecked")
     private static String roofBlockFromRequestIntent(LlmPlan plan) {
         Map<String, Object> mats = requestIntentMaterials(plan);
         if (mats == null) return null;
@@ -1119,7 +1111,7 @@ final class PlanIntentFidelityRepair {
      * Opposite colors (white vs oak/stone brick walls, black tile vs oak stairs) are incompatible.
      */
     static boolean materialRoleCompatible(String want, String have) {
-        if (want == null || have == null) return want == have;
+        if (want == null || have == null) return Objects.equals(want, have);
         String a = stabilizeBlock(want);
         String b = stabilizeBlock(have);
         if (a.equals(b)) return true;

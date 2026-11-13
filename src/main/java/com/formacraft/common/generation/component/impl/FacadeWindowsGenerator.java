@@ -549,7 +549,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 return false;
             }
             int band = y % Math.max(1, floorHeight);
-            int mid = Math.max(sill, floorHeight / 2);
+            // Ceil mid so 3-high storeys keep the upper clear row (localY%3==2), not only the sill.
+            int mid = Math.max(sill, (floorHeight + 1) / 2);
             return band >= Math.max(sill, mid - 1) && band <= mid;
         }
         if (y <= 0 || y >= height - 1) {
