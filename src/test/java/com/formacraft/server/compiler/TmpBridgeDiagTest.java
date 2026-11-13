@@ -2,7 +2,9 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.BridgeWalkability;
 import com.formacraft.common.generation.component.util.HostedPlateOccupancy;
+import com.formacraft.common.generation.component.util.WalkabilityGraph;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
@@ -12,12 +14,12 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 class TmpBridgeDiagTest {
+    private static final Vec3i Z = new Vec3i(0, 0, 0);
+
     @BeforeAll
     static void boot() {
         com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
@@ -37,92 +39,70 @@ class TmpBridgeDiagTest {
             AssemblyCompileDiagnostics.clear();
             var plan = LlmPlanParser.parse(Files.readString(
                     Path.of("python_backend/tests/fixtures/complex_build_retest/" + n + ".json")));
+            // Capture patches even when gap set: compile returns empty on gap, so re-run internal? 
+            // ComponentPlanCompiler.compile clears result on gap. Use compileAllowingGap if exists.
             List<BlockPatch> patches = ComponentPlanCompiler.compile(plan);
+            var gap = AssemblyCompileDiagnostics.get();
             sb.append("PLAN ").append(n)
-                    .append(" patches=").append(patches.size())
-                    .append(" gap=").append(AssemblyCompileDiagnostics.get())
+                    .append(" patches=").append(patches == null ? -1 : patches.size())
+                    .append(" gap=").append(gap == null ? "null" : gap.code() + " | " + gap.message())
                     .append('\n');
 
             List<Component> comps = plan.components() == null ? List.of() : plan.components();
-            List<Component> bridges = new ArrayList<>();
-            List<Component> masses = new ArrayList<>();
             for (Component c : comps) {
-                if (c == null || c.type() == null) continue;
-                String t = c.type().toLowerCase(Locale.ROOT);
-                if (t.contains("plate") || t.contains("deck") || t.contains("bridge")) {
-                    if (HostedPlateOccupancy.isBridgePlate(c.params())) {
-                        bridges.add(c);
-                    }
-                }
-                if (t.contains("mass") || t.contains("box") || t.contains("cylinder") || t.contains("prism")) {
-                    masses.add(c);
-                }
-            }
-            sb.append("  bridges=").append(bridges.size()).append(" masses=").append(masses.size()).append('\n');
-            var occ = BridgeWalkability.occupancyFromPatches(patches);
-            for (Component plate : bridges) {
-                String hostId = String.valueOf(plate.params() == null ? null : plate.params().get("host_id"));
-                String targetId = HostedPlateOccupancy.targetHostId(plate.params()).orElse("?");
-                Component host = findById(comps, hostId);
-                Component target = findById(comps, targetId);
-                var outcome = BridgeWalkability.evaluateBridgeDetailed(
-                        occ, plate, BridgeWalkability.ZERO,
-                        host, BridgeWalkability.ZERO,
-                        target, BridgeWalkability.ZERO);
-                sb.append("  bridge id=").append(idOf(plate))
-                        .append(" host=").append(hostId)
-                        .append(" target=").append(targetId)
-                        .append(" y=").append(plate.relativePosition() == null ? "?" : plate.relativePosition().y())
-                        .append(" reach=").append(outcome.reach())
-                        .append(" precision=").append(outcome.precision())
+                if (c == null || c.params() == null) continue;
+                if (!HostedPlateOccupancy.isBridgePlate(c.params())) continue;
+                sb.append("  bridge ").append(c.params().get("component_id"))
+                        .append(" y=").append(c.relativePosition() == null ? null : c.relativePosition().y())
+                        .append(" fh=").append(c.params().get("floor_height"))
+                        .append(" dims=").append(c.dimensions())
+                        .append(" host=").append(c.params().get("host_id"))
+                        .append(" target=").append(c.params().get("target_host_id"))
                         .append('\n');
+                Component host = find(comps, String.valueOf(c.params().get("host_id")));
+                Component target = find(comps, String.valueOf(c.params().get("target_host_id")));
                 if (host != null) {
-                    int portals = HostedPlateOccupancy.bridgePortalRemovals(plate, host).size();
-                    sb.append("    portals->host=").append(portals).append('\n');
+                    sb.append("    portalsHost=").append(HostedPlateOccupancy.bridgePortalRemovals(c, host).size())
+                            .append(" hostDims=").append(host.dimensions())
+                            .append(" hostBounds=").append(com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(host))
+                            .append('\n');
                 }
                 if (target != null) {
-                    int portals = HostedPlateOccupancy.bridgePortalRemovals(plate, target).size();
-                    sb.append("    portals->target=").append(portals).append('\n');
+                    sb.append("    portalsTarget=").append(HostedPlateOccupancy.bridgePortalRemovals(c, target).size())
+                            .append(" targetDims=").append(target.dimensions())
+                            .append(" targetBounds=").append(com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(target))
+                            .append('\n');
                 }
+                sb.append("    plateBounds=").append(com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(c)).append('\n');
             }
 
-            // Opening material samples: glass expectations vs actual
-            int glassExpected = 0, glassMatched = 0, glassAir = 0, glassIron = 0, glassOther = 0;
+            // Opening expectations for material plans
             for (Component c : comps) {
-                if (!OpeningMaterialAudit.isUserExplicitWindowMaterial(c)) continue;
-                glassExpected++;
+                if (c == null || c.params() == null) continue;
+                String id = String.valueOf(c.params().get("component_id"));
+                if (!id.contains("reception") && !id.contains("workshop") && !id.contains("facade")) continue;
+                sb.append("  openCand ").append(id)
+                        .append(" type=").append(c.componentType())
+                        .append(" glass=").append(c.params().get("glass_block"))
+                        .append(" winMat=").append(c.params().get("window_material"))
+                        .append(" cs=").append(c.params().get("constraint_source"))
+                        .append(" wEx=").append(c.params().get("window_explicit"))
+                        .append(" gEx=").append(c.params().get("glass_explicit"))
+                        .append(" mEx=").append(c.params().get("material_explicit"))
+                        .append(" userOpen=").append(OpeningMaterialAudit.isUserExplicitOpening(c))
+                        .append('\n');
             }
-            sb.append("  userExplicitWindowComponents=").append(glassExpected).append('\n');
-
-            // Sample blocks of interest
-            int air = 0, glass = 0, iron = 0;
-            for (BlockPatch p : patches) {
-                if (p == null || p.targetBlock() == null) continue;
-                String b = p.targetBlock().toLowerCase(Locale.ROOT);
-                if (b.contains("air") || "remove".equalsIgnoreCase(p.action())) air++;
-                if (b.contains("glass")) glass++;
-                if (b.contains("iron_block")) iron++;
-            }
-            sb.append("  patchCounts airish=").append(air)
-                    .append(" glass=").append(glass)
-                    .append(" iron_block=").append(iron)
-                    .append('\n');
             sb.append('\n');
         }
         Files.writeString(out, sb.toString(), StandardCharsets.UTF_8);
-        System.out.println(sb);
     }
 
-    private static String idOf(Component c) {
-        if (c == null || c.params() == null) return "?";
-        Object id = c.params().get("component_id");
-        return id == null ? "?" : String.valueOf(id);
-    }
-
-    private static Component findById(List<Component> comps, String id) {
-        if (id == null || id.isBlank() || "?".equals(id)) return null;
+    private static Component find(List<Component> comps, String id) {
+        if (id == null || id.isBlank() || "null".equals(id)) return null;
         for (Component c : comps) {
-            if (id.equals(idOf(c))) return c;
+            if (c != null && c.params() != null && id.equals(String.valueOf(c.params().get("component_id")))) {
+                return c;
+            }
         }
         return null;
     }
