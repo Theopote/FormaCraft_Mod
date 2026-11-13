@@ -321,6 +321,11 @@ final class ComponentEmitPass {
                                             flightOffset.getY() + p.dy(),
                                             flightOffset.getZ() + p.dz(),
                                             p.targetBlock()));
+                                    // Sill PLACE pads are walkable floor — only REMOVE clearances
+                                    // count as doorway openings for surface / window supersede.
+                                    if (!BlockPatch.REMOVE.equalsIgnoreCase(p.action())) {
+                                        continue;
+                                    }
                                     surfaceCells.add(new GeneratedSurfaceCapture.Cell(new BlockPos(p.dx(),p.dy(),p.dz()),
                                             GeneratedSurfaceCapture.Role.DOOR_OPENING));
                                     portalClearance.add(flightOffset.add(p.dx(),p.dy(),p.dz()));
@@ -769,35 +774,6 @@ final class ComponentEmitPass {
                     occ, plate, plateOff, host.get(), hostOff, target.get(), targetOff);
             var reach = outcome.reach();
             String precisionNote = ", precision=" + outcome.precision();
-            if (reach != com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED) {
-                // Temporary CI diag — remove after bridge PATH_BLOCKED root cause is fixed.
-                try {
-                    var deckLocal = com.formacraft.common.generation.component.util.BridgeWalkability.deckFloorCell(plate);
-                    Vec3i deckWorld = deckLocal == null ? null : new Vec3i(
-                            deckLocal.x() + plateOff.x(), deckLocal.y() + plateOff.y(), deckLocal.z() + plateOff.z());
-                    int worldY = plate.relativePosition().y() + plateOff.y();
-                    var hostGoals = com.formacraft.common.generation.component.util.BridgeWalkability
-                            .storeyGoalsPreferringInterior(occ, host.get(), worldY - hostOff.y(), hostOff);
-                    var targetGoals = com.formacraft.common.generation.component.util.BridgeWalkability
-                            .storeyGoalsPreferringInterior(occ, target.get(), worldY - targetOff.y(), targetOff);
-                    String line = "BRIDGE_DIAG id=" + ComponentPlanTypes.paramIdentity(plate)
-                            + " reach=" + reach
-                            + " deck=" + deckWorld
-                            + " deckStand=" + (deckWorld != null && com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, deckWorld))
-                            + " hostGoals=" + hostGoals.goals().size() + "/" + hostGoals.status()
-                            + " targetGoals=" + targetGoals.goals().size() + "/" + targetGoals.status()
-                            + " plateOff=" + plateOff + " hostOff=" + hostOff + " targetOff=" + targetOff
-                            + "\n";
-                    java.nio.file.Files.writeString(
-                            java.nio.file.Path.of("build/tmp-bridge-detail.txt"),
-                            line,
-                            java.nio.charset.StandardCharsets.UTF_8,
-                            java.nio.file.StandardOpenOption.CREATE,
-                            java.nio.file.StandardOpenOption.APPEND);
-                } catch (Exception ignored) {
-                    // diag only
-                }
-            }
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED) {
                 continue;
             }

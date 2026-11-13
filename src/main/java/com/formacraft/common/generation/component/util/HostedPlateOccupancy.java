@@ -149,6 +149,8 @@ public final class HostedPlateOccupancy {
      * depth = max(2, wall_thickness) inward along the contact normal.
      * Depth ≥2 clears the shell face plus one interior cell so hosted railings /
      * partial platforms cannot leave a fence-blocked step-in right inside the portal.
+     * Also places a deck-level floor pad along the carve so high-bay / atrium hosts
+     * without an intermediate storey still have a standable step-in at plate Y.
      */
     public static List<BlockPatch> bridgePortalRemovals(Component plate, Component mass) {
         List<BlockPatch> out = new ArrayList<>();
@@ -162,6 +164,7 @@ public final class HostedPlateOccupancy {
         int clearY1 = plateY + 2;
         int depth = Math.max(2, ComponentParamParsers.intParam(
                 mass.params(), 1, "wall_thickness", "wallThickness"));
+        String sill = portalSillBlock(mass, plate);
 
         boolean plateWestOfMass = pb.maxX() <= mb.minX() + 1 || (pb.maxX() <= mb.minX() + 2 && pb.minX() < mb.minX());
         boolean plateEastOfMass = pb.minX() >= mb.maxX() - 1 || (pb.minX() >= mb.maxX() - 2 && pb.maxX() > mb.maxX());
@@ -184,28 +187,28 @@ public final class HostedPlateOccupancy {
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            carveDepth(out, mb.minX(), 1, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, mb.minX(), 1, 0, depth, mb, mass, zStart, zEnd, true, plateY, clearY0, clearY1, sill);
             return out;
         }
         if (plateEastOfMass) {
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            carveDepth(out, mb.maxX() - 1, -1, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, mb.maxX() - 1, -1, 0, depth, mb, mass, zStart, zEnd, true, plateY, clearY0, clearY1, sill);
             return out;
         }
         if (plateNorthOfMass) {
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            carveDepth(out, mb.minZ(), 0, 1, depth, mb, mass, xStart, xEnd, false, clearY0, clearY1);
+            carveDepth(out, mb.minZ(), 0, 1, depth, mb, mass, xStart, xEnd, false, plateY, clearY0, clearY1, sill);
             return out;
         }
         if (plateSouthOfMass) {
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            carveDepth(out, mb.maxZ() - 1, 0, -1, depth, mb, mass, xStart, xEnd, false, clearY0, clearY1);
+            carveDepth(out, mb.maxZ() - 1, 0, -1, depth, mb, mass, xStart, xEnd, false, plateY, clearY0, clearY1, sill);
             return out;
         }
         int overlapMinZ = Math.max(pb.minZ(), mb.minZ());
@@ -218,9 +221,31 @@ public final class HostedPlateOccupancy {
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
             int faceX = pb.minX() < mb.minX() + (mb.width() / 2) ? mb.minX() : mb.maxX() - 1;
             int inward = faceX == mb.minX() ? 1 : -1;
-            carveDepth(out, faceX, inward, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, faceX, inward, 0, depth, mb, mass, zStart, zEnd, true, plateY, clearY0, clearY1, sill);
         }
         return out;
+    }
+
+    private static String portalSillBlock(Component mass, Component plate) {
+        String fromPlate = firstBlockId(plate == null ? null : plate.params(),
+                "floor_block", "block", "material");
+        if (fromPlate != null) return fromPlate;
+        String fromMass = firstBlockId(mass == null ? null : mass.params(),
+                "floor_block", "block", "material");
+        if (fromMass != null) return fromMass;
+        return "minecraft:oak_planks";
+    }
+
+    private static String firstBlockId(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            Object v = params.get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).trim();
+            if (s.isEmpty()) continue;
+            return s.contains(":") ? s : "minecraft:" + s;
+        }
+        return null;
     }
 
     private static void carveDepth(
@@ -234,8 +259,10 @@ public final class HostedPlateOccupancy {
             int spanStart,
             int spanEnd,
             boolean spanIsZ,
+            int plateY,
             int clearY0,
-            int clearY1
+            int clearY1,
+            String sill
     ) {
         var geometry = BuildingGeometryContext.getOrResolve(mass);
         for (int span = spanStart; span <= spanEnd; span++) {
@@ -263,6 +290,8 @@ public final class HostedPlateOccupancy {
                 if (x < mb.minX() || x >= mb.maxX() || z < mb.minZ() || z >= mb.maxZ()) {
                     continue;
                 }
+                // Doorway sill: replace shell/void at deck Y so high-bay hosts stay walkable.
+                out.add(new BlockPatch(BlockPatch.PLACE, x, plateY, z, sill));
                 out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY0, z, "minecraft:air"));
                 out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY1, z, "minecraft:air"));
             }
