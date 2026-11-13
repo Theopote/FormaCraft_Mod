@@ -127,11 +127,13 @@ public final class ComponentRoofSpecialtyDecorator {
 
     public record MansardProfile(int setback, int breakRise, int upperRun, int upperRise) {
         public int riseAt(int distance) {
-            if (distance < setback) {
-                return (int) Math.round(distance / (double) setback * breakRise);
-            }
+            return (int) Math.round(continuousRiseAt(distance));
+        }
+
+        public double continuousRiseAt(int distance) {
+            if (distance < setback) return distance / (double) setback * breakRise;
             double t = Math.min(upperRun, distance - setback) / (double) upperRun;
-            return breakRise + (int) Math.round(t * upperRise);
+            return breakRise + t * upperRise;
         }
     }
 

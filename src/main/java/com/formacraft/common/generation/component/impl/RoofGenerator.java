@@ -1415,31 +1415,31 @@ public class RoofGenerator implements ComponentGenerator {
         }
         if (isLShapedHipFootprint(footprint)) {
             generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette,
-                    footprint, overhang, profile::riseAt);
+                    footprint, overhang, profile::continuousRiseAt);
             return;
         }
         int maxSpan = Math.max(1, (Math.min(width, depth) - 1) / 2);
-        // Lower mansard pitch is often <45° — stairs alone look flat/same-facing; fill under + face inward.
-        boolean fillUnder = wantsStairSurface(semantic.source() != null ? semantic.source().params() : null)
-                || profile.breakRise() < Math.max(1, profile.setback())
-                || (height - 1) < maxSpan * 0.9;
+        String fullBlock = resolveFullRoofBlock(semantic, palette);
+        String stairs = MaterialBlockFamily.stairs(fullBlock);
+        String slab = MaterialBlockFamily.slab(fullBlock);
+        String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
                     continue;
                 }
-                int dist = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
-                int rise = profile.riseAt(dist);
-                SemanticPart part = (dist <= 1) ? SemanticPart.ROOF : SemanticPart.ROOF_SURFACE;
-                String block = getBlockForPart(semantic, palette, part);
-                if (part == SemanticPart.ROOF) {
-                    String facing = inwardFacingFromEdges(x, z, width, depth);
-                    String shape = isPerimeterCorner(x, z, width, depth)
-                            ? cornerOuterShape(x, z, width, depth, facing) : null;
-                    block = withStairsFacing(block, facing, shape);
+                int fromX = Math.min(x, width - 1 - x);
+                int fromZ = Math.min(z, depth - 1 - z);
+                int dist = Math.min(fromX, fromZ);
+                double rise = profile.continuousRiseAt(dist);
+                int blockRise = (int) Math.round(rise);
+                String surface = fullBlock;
+                if (dist < maxSpan && blockRise < height - 1 && fromX != fromZ) {
+                    String facing = fromX < fromZ ? (x < width / 2 ? "east" : "west")
+                            : (z < depth / 2 ? "south" : "north");
+                    surface = slopeSurface(fullBlock, lowerSlab, stairs, rise, profile.continuousRiseAt(dist + 1), facing);
                 }
-                emitSlopeColumn(out, baseX + x, baseY, baseZ + z, rise, block,
-                        fillUnder && part == SemanticPart.ROOF);
+                out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, baseY + blockRise, baseZ + z, surface));
             }
         }
     }
