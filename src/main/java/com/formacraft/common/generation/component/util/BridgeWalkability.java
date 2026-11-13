@@ -237,12 +237,14 @@ public final class BridgeWalkability {
         int worldY = plateY + (plateOffset == null ? 0 : plateOffset.y());
         int hostY = worldY - (hostOffset == null ? 0 : hostOffset.y());
         int targetY = worldY - (targetOffset == null ? 0 : targetOffset.y());
-        StoreyGoals hostGoals = storeyGoalsPreferringInterior(occ, host, hostY, hostOffset);
+        // Deep-interior mass goals only — a portal step-in pad must not satisfy
+        // mid-atrium bridges that lack a real storey floor / receiving deck.
+        StoreyGoals hostGoals = storeyGoalsDeepInterior(occ, host, hostY, hostOffset);
         if (hostGoals.scanLimited()) {
             return BridgeWalkOutcome.regionScanLimit(
                     precision, componentId(host), hostY, hostGoals.areaCells());
         }
-        StoreyGoals targetGoals = storeyGoalsPreferringInterior(occ, target, targetY, targetOffset);
+        StoreyGoals targetGoals = storeyGoalsDeepInterior(occ, target, targetY, targetOffset);
         if (targetGoals.scanLimited()) {
             return BridgeWalkOutcome.regionScanLimit(
                     precision, componentId(target), targetY, targetGoals.areaCells());
@@ -401,6 +403,50 @@ public final class BridgeWalkability {
             }
         }
         return out == null ? bounds : out.expandHorizontal(1);
+    }
+
+    /**
+     * Bridge mass goals: same as {@link #storeyGoalsPreferringInterior} but drops cells on the
+     * outer wall ring so a portal inward sill alone cannot count as a connected interior.
+     */
+    public static StoreyGoals storeyGoalsDeepInterior(
+            PlannedOccupancy occ,
+            Component mass,
+            int plateY,
+            Vec3i massOffset
+    ) {
+        StoreyGoals base = storeyGoalsPreferringInterior(occ, mass, plateY, massOffset);
+        if (base.scanLimited() || base.isEmpty() || mass == null) {
+            return base;
+        }
+        var bounds = ComponentFootprintUtil.bounds(mass);
+        if (bounds == null) {
+            return base;
+        }
+        int thickness = Math.max(1, ComponentParamParsers.intParam(
+                mass.params(), 1, "wall_thickness", "wallThickness"));
+        int deep = Math.max(2, thickness + 1);
+        int ox = massOffset == null ? 0 : massOffset.x();
+        int oz = massOffset == null ? 0 : massOffset.z();
+        List<Vec3i> deepGoals = new ArrayList<>();
+        for (Vec3i g : base.goals()) {
+            if (g == null) continue;
+            int lx = g.x() - ox;
+            int lz = g.z() - oz;
+            if (lx >= bounds.minX() + deep && lx < bounds.maxX() - deep
+                    && lz >= bounds.minZ() + deep && lz < bounds.maxZ() - deep) {
+                deepGoals.add(g);
+            }
+        }
+        // Narrow bank landings / pier pads cannot survive wall+1 deep inset — keep base goals.
+        if (deepGoals.isEmpty() && !base.goals().isEmpty()
+                && (bounds.width() < 2 * deep + 1 || bounds.depth() < 2 * deep + 1)) {
+            return base;
+        }
+        return new StoreyGoals(
+                deepGoals.isEmpty() ? StoreyWalkRegions.Status.EMPTY : StoreyWalkRegions.Status.OK,
+                deepGoals,
+                base.areaCells());
     }
 
     /**

@@ -321,14 +321,27 @@ final class ComponentEmitPass {
                                             flightOffset.getY() + p.dy(),
                                             flightOffset.getZ() + p.dz(),
                                             p.targetBlock()));
-                                    // Sill PLACE pads are walkable floor — only REMOVE clearances
-                                    // count as doorway openings for surface / window supersede.
+                                    BlockPos worldPos = flightOffset.add(p.dx(), p.dy(), p.dz());
+                                    // Inward sill PLACE pads are walkable floor. Reserve them so later
+                                    // same-host FACADE_WINDOWS cannot REMOVE the pad (high-bay gap).
+                                    // Also drop hard glass expectations — sill is doorway floor, not glazing.
+                                    if (BlockPatch.PLACE.equalsIgnoreCase(p.action())) {
+                                        surfaceLedger.reserveClearance(worldPos);
+                                        var expected = openingExpectations.get(worldPos);
+                                        if (expected != null
+                                                && expected.role() == GeneratedSurfaceCapture.Role.WINDOW) {
+                                            openingExpectations.remove(worldPos);
+                                            generatedSurfaces.remove(worldPos);
+                                        }
+                                        continue;
+                                    }
                                     if (!BlockPatch.REMOVE.equalsIgnoreCase(p.action())) {
                                         continue;
                                     }
                                     surfaceCells.add(new GeneratedSurfaceCapture.Cell(new BlockPos(p.dx(),p.dy(),p.dz()),
                                             GeneratedSurfaceCapture.Role.DOOR_OPENING));
-                                    portalClearance.add(flightOffset.add(p.dx(),p.dy(),p.dz()));
+                                    portalClearance.add(worldPos);
+                                    surfaceLedger.reserveClearance(worldPos);
                                 }
                             };
                             hostMass.ifPresent(m -> addPortals.accept(
@@ -357,7 +370,17 @@ final class ComponentEmitPass {
                             if (BlockPatch.REMOVE.equals(p.action()) && bridge) {
                                 return false;
                             }
-                            var prev = patchOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+                            BlockPos pos = new BlockPos(p.dx(), p.dy(), p.dz());
+                            // Non-bridge plates must not pave over recorded shell openings.
+                            // Bridge portal sill PLACE drops the WINDOW expectation before this filter.
+                            if (!bridge && BlockPatch.PLACE.equals(p.action())) {
+                                var expected = openingExpectations.get(pos);
+                                if (expected != null && (expected.role() == GeneratedSurfaceCapture.Role.WINDOW
+                                        || expected.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING)) {
+                                    return true;
+                                }
+                            }
+                            var prev = patchOccupancy.placeAt(pos);
                             if (prev == null || prev.owner() == null) {
                                 return false;
                             }
@@ -469,8 +492,14 @@ final class ComponentEmitPass {
 
                     // Commit boundary: patches + ledgers + protected sets together.
                     result.addAll(shiftedPatches);
-                    // Stairs / STRUCTURE access flights may supersede window cells they carve.
-                    if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
+                    // Stairs / entrances / gates supersede mass-intrinsic window cells they write.
+                    // Otherwise OpeningMaterialAudit hard-fails glass→air (door carve) or
+                    // glass→iron (door sill/jamb PLACE from WALL_ACCENT).
+                    boolean entranceLike = "ENTRANCE".equals(normalizedType)
+                            || "GATE".equals(normalizedType)
+                            || "GATE_STRUCTURE".equals(normalizedType);
+                    if (entranceLike
+                            || com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
                             || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)
                             || ("STRUCTURE".equals(normalizedType) && c.params() != null
                             && (c.params().containsKey("stairs") || c.params().containsKey("circulation_source")))) {
@@ -478,13 +507,19 @@ final class ComponentEmitPass {
                             var pos = new BlockPos(patch.dx(),patch.dy(),patch.dz());
                             var expected = openingExpectations.get(pos);
                             if (expected == null || expected.role() != GeneratedSurfaceCapture.Role.WINDOW) continue;
-                            boolean authorized = connectorAccess.contains(pos) || BlockPatch.REMOVE.equals(patch.action());
+                            boolean authorized = entranceLike
+                                    || connectorAccess.contains(pos)
+                                    || BlockPatch.REMOVE.equals(patch.action());
                             if (!authorized) continue;
-                            if (BlockPatch.REMOVE.equals(patch.action())) {
+                            if (BlockPatch.REMOVE.equals(patch.action())
+                                    || !GeneratedSurfaceCapture.occupied(patch)) {
                                 openingExpectations.put(pos,new OpeningMaterialAudit.Expectation(ComponentPlanTypes.paramIdentity(c),
                                         GeneratedSurfaceCapture.Role.DOOR_OPENING,null));
                                 generatedSurfaces.remove(pos);
-                            } else openingExpectations.remove(pos);
+                            } else {
+                                openingExpectations.remove(pos);
+                                generatedSurfaces.remove(pos);
+                            }
                         }
                     }
                     OpeningMaterialAudit.capture(openingExpectations, c, surfaceCells, flightOffset);
@@ -797,19 +832,6 @@ final class ComponentEmitPass {
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.CONNECTED) {
                 continue;
             }
-            try {
-                java.nio.file.Files.writeString(
-                        java.nio.file.Path.of("build/tmp-bridge-detail.txt"),
-                        "BRIDGE_DIAG id=" + ComponentPlanTypes.paramIdentity(plate)
-                                + " hostRecv=" + hostReceivers.size()
-                                + " targetRecv=" + targetReceivers.size()
-                                + " hostRecvCells=" + hostReceivers
-                                + " targetRecvCells=" + targetReceivers
-                                + "\n",
-                        java.nio.charset.StandardCharsets.UTF_8,
-                        java.nio.file.StandardOpenOption.CREATE,
-                        java.nio.file.StandardOpenOption.APPEND);
-            } catch (Exception ignored) {}
             if (reach == com.formacraft.common.generation.component.util.BridgeWalkability.BridgeReach.REGION_SCAN_LIMIT) {
                 String massId = outcome.limitedMassId() == null ? "unknown" : outcome.limitedMassId();
                 AssemblyCompileDiagnostics.set(new CapabilityGap(

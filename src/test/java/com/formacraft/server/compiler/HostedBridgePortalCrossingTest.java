@@ -15,9 +15,12 @@ class HostedBridgePortalCrossingTest {
             var bridge=new Component("MASS_SECONDARY","s",new Vec3i(rotate?17:12,5,rotate?12:17),
                     new Dimensions(rotate?10:3,rotate?3:10,1),List.of(),Map.of("anchor_mode","min_corner","extrude_mode","plate","plate_role","bridge"));
             var patches=HostedPlateOccupancy.bridgePortalRemovals(bridge,mass);
-            // 3-wide × 2-high × depth-2 (wall + one interior step-in cell).
-            assertEquals(12,patches.size());
-            assertTrue(patches.stream().allMatch(p->p.dy()==6 || p.dy()==7));
+            // 3-wide × depth-2: face clears 2-high; inward step also places a deck-Y sill pad.
+            assertEquals(15,patches.size());
+            assertEquals(3,patches.stream().filter(p->"place".equalsIgnoreCase(p.action()) && p.dy()==5).count());
+            assertEquals(12,patches.stream().filter(p->"remove".equalsIgnoreCase(p.action())).count());
+            assertTrue(patches.stream().filter(p->"remove".equalsIgnoreCase(p.action()))
+                    .allMatch(p->p.dy()==6 || p.dy()==7));
             assertEquals(3,patches.stream().map(p->rotate?p.dz():p.dx()).distinct().count());
             assertEquals(2,patches.stream().map(p->rotate?p.dx():p.dz()).distinct().count());
         }

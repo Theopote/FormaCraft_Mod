@@ -1397,18 +1397,29 @@ final class ComponentSatelliteInference {
             component=new Component(component.componentType(),component.slotId(),component.relativePosition(),component.dimensions(),f,p);
         }
         if (component.dimensions()!=null && component.dimensions().height()==1
-                && ComponentPlanTypes.isMassType(ComponentPlanTypes.normalizeType(component.componentType())) && component.params()!=null
+                && ComponentPlanTypes.isMassType(ComponentPlanTypes.normalizeType(component.componentType()))
+                && component.params()!=null
+                && !"plate".equalsIgnoreCase(String.valueOf(component.params().get("extrude_mode")))
                 && ("none".equalsIgnoreCase(String.valueOf(component.params().get("wall_type")))
-                    || Boolean.FALSE.equals(component.params().get("hollow")))) {
+                    || Boolean.FALSE.equals(component.params().get("hollow"))
+                    || looksBridgeLandingPad(component))) {
             var floorParams=new HashMap<String,Object>(component.params());
             floorParams.put("extrude_mode","plate");
+            // Bank/quay landings omit plate_role in LLM plans; stamp a terrace token so
+            // findBridgeEndpoint + BridgeWalkability treat them as receiving decks.
+            if (looksBridgeLandingPad(component) && floorParams.get("plate_role") == null
+                    && floorParams.get("plateRole") == null) {
+                floorParams.put("plate_role", "landing");
+            }
             component=new Component(component.componentType(),component.slotId(),component.relativePosition(),
                     component.dimensions(),component.features(),floorParams);
         }
         if ("MASS_ANCILLARY".equals(ComponentPlanTypes.normalizeType(component.componentType()))) {
             var params = new HashMap<String, Object>();
             if (component.params() != null) params.putAll(component.params());
-            boolean solidSupport = Boolean.FALSE.equals(params.get("hollow"))
+            boolean platePad = "plate".equalsIgnoreCase(String.valueOf(params.get("extrude_mode")));
+            boolean solidSupport = platePad
+                    || Boolean.FALSE.equals(params.get("hollow"))
                     || com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(params);
             if (!solidSupport) params.put("compiler_connector_body", true);
             params.putIfAbsent("wall_thickness", 1);
@@ -1883,6 +1894,18 @@ final class ComponentSatelliteInference {
         int w = ComponentParamParsers.intParam(typed, 0, w1, w2, w3);
         int d = ComponentParamParsers.intParam(typed, 0, d1, d2, d3);
         return new int[]{w >= 4 ? w : 0, d >= 4 ? d : 0};
+    }
+
+    /** Height-1 bridge targets (bank/quay/pier pads) that LLM left as solid masses. */
+    private static boolean looksBridgeLandingPad(Component component) {
+        if (component == null || component.params() == null) return false;
+        Object id = component.params().get("component_id");
+        if (id == null) id = component.params().get("id");
+        if (id == null) return false;
+        String s = String.valueOf(id).toLowerCase(Locale.ROOT);
+        return s.contains("landing") || s.contains("quay") || s.contains("pier")
+                || s.contains("dock") || s.contains("bank") || s.contains("月台")
+                || s.contains("platform") && !s.contains("maintenance");
     }
 
 }

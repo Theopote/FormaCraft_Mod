@@ -149,6 +149,9 @@ public final class HostedPlateOccupancy {
      * depth = max(2, wall_thickness) inward along the contact normal.
      * Depth ≥2 clears the shell face plus one interior cell so hosted railings /
      * partial platforms cannot leave a fence-blocked step-in right inside the portal.
+     * Inward cells (d≥1) also get a deck-Y floor pad so hollow high-bay shells do not
+     * leave an AIR hole between the wall sill and a receiving platform. The shell face
+     * (d=0) keeps its wall block as the sill.
      */
     public static List<BlockPatch> bridgePortalRemovals(Component plate, Component mass) {
         List<BlockPatch> out = new ArrayList<>();
@@ -162,6 +165,7 @@ public final class HostedPlateOccupancy {
         int clearY1 = plateY + 2;
         int depth = Math.max(2, ComponentParamParsers.intParam(
                 mass.params(), 1, "wall_thickness", "wallThickness"));
+        String sill = portalInwardSillBlock(plate, mass);
 
         boolean plateWestOfMass = pb.maxX() <= mb.minX() + 1 || (pb.maxX() <= mb.minX() + 2 && pb.minX() < mb.minX());
         boolean plateEastOfMass = pb.minX() >= mb.maxX() - 1 || (pb.minX() >= mb.maxX() - 2 && pb.maxX() > mb.maxX());
@@ -184,28 +188,28 @@ public final class HostedPlateOccupancy {
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            carveDepth(out, mb.minX(), 1, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, mb.minX(), 1, 0, depth, mb, mass, zStart, zEnd, true, plateY, clearY0, clearY1, sill);
             return out;
         }
         if (plateEastOfMass) {
             int mid = (Math.max(pb.minZ(), mb.minZ()) + Math.min(pb.maxZ(), mb.maxZ())) / 2;
             int zStart = Math.max(mb.minZ(), mid - 1);
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
-            carveDepth(out, mb.maxX() - 1, -1, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, mb.maxX() - 1, -1, 0, depth, mb, mass, zStart, zEnd, true, plateY, clearY0, clearY1, sill);
             return out;
         }
         if (plateNorthOfMass) {
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            carveDepth(out, mb.minZ(), 0, 1, depth, mb, mass, xStart, xEnd, false, clearY0, clearY1);
+            carveDepth(out, mb.minZ(), 0, 1, depth, mb, mass, xStart, xEnd, false, plateY, clearY0, clearY1, sill);
             return out;
         }
         if (plateSouthOfMass) {
             int mid = (Math.max(pb.minX(), mb.minX()) + Math.min(pb.maxX(), mb.maxX())) / 2;
             int xStart = Math.max(mb.minX(), mid - 1);
             int xEnd = Math.min(mb.maxX() - 1, xStart + 2);
-            carveDepth(out, mb.maxZ() - 1, 0, -1, depth, mb, mass, xStart, xEnd, false, clearY0, clearY1);
+            carveDepth(out, mb.maxZ() - 1, 0, -1, depth, mb, mass, xStart, xEnd, false, plateY, clearY0, clearY1, sill);
             return out;
         }
         int overlapMinZ = Math.max(pb.minZ(), mb.minZ());
@@ -218,9 +222,23 @@ public final class HostedPlateOccupancy {
             int zEnd = Math.min(mb.maxZ() - 1, zStart + 2);
             int faceX = pb.minX() < mb.minX() + (mb.width() / 2) ? mb.minX() : mb.maxX() - 1;
             int inward = faceX == mb.minX() ? 1 : -1;
-            carveDepth(out, faceX, inward, 0, depth, mb, mass, zStart, zEnd, true, clearY0, clearY1);
+            carveDepth(out, faceX, inward, 0, depth, mb, mass, zStart, zEnd, true, plateY, clearY0, clearY1, sill);
         }
         return out;
+    }
+
+    private static String portalInwardSillBlock(Component plate, Component mass) {
+        for (Component c : new Component[]{plate, mass}) {
+            if (c == null || c.params() == null) continue;
+            for (String key : new String[]{"floor_block", "block", "material"}) {
+                Object v = c.params().get(key);
+                if (v == null) continue;
+                String s = String.valueOf(v).trim();
+                if (s.isEmpty()) continue;
+                return s.contains(":") ? s : "minecraft:" + s;
+            }
+        }
+        return "minecraft:oak_planks";
     }
 
     private static void carveDepth(
@@ -234,8 +252,10 @@ public final class HostedPlateOccupancy {
             int spanStart,
             int spanEnd,
             boolean spanIsZ,
+            int plateY,
             int clearY0,
-            int clearY1
+            int clearY1,
+            String sill
     ) {
         var geometry = BuildingGeometryContext.getOrResolve(mass);
         for (int span = spanStart; span <= spanEnd; span++) {
@@ -262,6 +282,10 @@ public final class HostedPlateOccupancy {
                 int z = spanIsZ ? span : faceCoord + dirZ * (boundary + d);
                 if (x < mb.minX() || x >= mb.maxX() || z < mb.minZ() || z >= mb.maxZ()) {
                     continue;
+                }
+                // Inward step-in only: face wall stays as sill; fill hollow/AIR behind it.
+                if (d >= 1) {
+                    out.add(new BlockPatch(BlockPatch.PLACE, x, plateY, z, sill));
                 }
                 out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY0, z, "minecraft:air"));
                 out.add(new BlockPatch(BlockPatch.REMOVE, x, clearY1, z, "minecraft:air"));
