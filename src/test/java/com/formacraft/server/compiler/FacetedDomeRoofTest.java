@@ -74,28 +74,29 @@ class FacetedDomeRoofTest {
                 .put("dome_rib_count", 4).put("dome_rib_block", "minecraft:quartz_block");
         var plan = mapper.treeToValue(document, LlmPlan.class);
         var patches = ComponentPlanCompiler.compile(plan, new BlockPos(0, 64, 0), null, null, false);
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 0 && p.dz() == 8 && p.dy() == 10
+        // Hosted roof attaches at authored y=9 (no silent +1); drum springs there.
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 0 && p.dz() == 8 && p.dy() == 9
                 && "minecraft:stone_bricks".equals(p.targetBlock())));
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 18
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 17
                 && "minecraft:black_concrete".equals(p.targetBlock())));
-        assertTrue(patches.stream().anyMatch(p -> p.dx() == 9 && p.dz() == 8 && p.dy() > 13
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == 9 && p.dz() == 8 && p.dy() > 12
                 && "minecraft:quartz_block".equals(p.targetBlock())));
-        assertFalse(patches.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 11
+        assertFalse(patches.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 10
                 && "minecraft:stone_bricks".equals(p.targetBlock())));
 
         params.put("dome_oculus_radius", 2);
         var openPlan = mapper.treeToValue(document, LlmPlan.class);
         var openPatches = ComponentPlanCompiler.compile(openPlan, new BlockPos(0, 64, 0), null, null, false);
-        assertFalse(openPatches.stream().anyMatch(p -> p.dy() > 10
+        assertFalse(openPatches.stream().anyMatch(p -> p.dy() > 9
                 && Math.pow(p.dx() - 6, 2) + Math.pow(p.dz() - 8, 2) <= 4));
-        assertTrue(openPatches.stream().anyMatch(p -> p.dx() == 9 && p.dz() == 8 && p.dy() > 13
+        assertTrue(openPatches.stream().anyMatch(p -> p.dx() == 9 && p.dz() == 8 && p.dy() > 12
                 && "minecraft:quartz_block".equals(p.targetBlock())));
         params.put("dome_oculus_glass_block", "blue_stained_glass");
         var glazedPlan = mapper.treeToValue(document, LlmPlan.class);
         var glazed = ComponentPlanCompiler.compile(glazedPlan, new BlockPos(0, 64, 0), null, null, false);
-        assertTrue(glazed.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 18
+        assertTrue(glazed.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 17
                 && "minecraft:blue_stained_glass".equals(p.targetBlock())));
-        assertTrue(glazed.stream().filter(p -> p.dy() > 10
+        assertTrue(glazed.stream().filter(p -> p.dy() > 9
                         && Math.pow(p.dx() - 6, 2) + Math.pow(p.dz() - 8, 2) <= 4)
                 .allMatch(p -> "minecraft:blue_stained_glass".equals(p.targetBlock())));
         assertEquals(13, glazed.stream().filter(p -> "minecraft:blue_stained_glass".equals(p.targetBlock()))

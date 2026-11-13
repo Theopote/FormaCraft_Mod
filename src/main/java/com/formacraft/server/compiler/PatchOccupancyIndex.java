@@ -101,12 +101,9 @@ public final class PatchOccupancyIndex {
             if (!com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner())) {
                 return false;
             }
-            if (BlockPatch.PLACE.equals(p.action())
-                    && java.util.Objects.equals(canonical(p.targetBlock()), canonical(prev.targetBlock()))) {
-                return false;
-            }
+            return !BlockPatch.PLACE.equals(p.action())
+                    || !java.util.Objects.equals(canonical(p.targetBlock()), canonical(prev.targetBlock()));
             // Same-slot compound wings / foreign-slot / sculptural — keep the first shell.
-            return true;
         });
         return before - patches.size();
     }

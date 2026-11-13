@@ -87,9 +87,11 @@ class ComponentRoofSpecialtyDecoratorTest {
 
     @Test
     void dormerAxisParamOverridesLongerFacePreference() {
+        var profile = ComponentRoofSpecialtyDecorator.resolveMansardProfile(13, 17, 11,
+                Map.of("mansard_break_run", 3, "mansard_break_rise", 7));
         assertTrue(ComponentRoofSpecialtyDecorator.resolveDormerAlongWidth(
-                13, 17, null, List.of(), 0, 0, 3, Map.of("dormer_axis", "width")));
+                13, 17, null, List.of(), 0, 0, 0, profile, Map.of("dormer_axis", "width")));
         assertFalse(ComponentRoofSpecialtyDecorator.resolveDormerAlongWidth(
-                17, 13, null, List.of(), 0, 0, 3, Map.of("dormer_face", "east")));
+                17, 13, null, List.of(), 0, 0, 0, profile, Map.of("dormer_face", "east")));
     }
 }

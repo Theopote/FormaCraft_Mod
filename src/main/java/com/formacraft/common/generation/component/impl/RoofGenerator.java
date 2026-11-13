@@ -170,7 +170,7 @@ public class RoofGenerator implements ComponentGenerator {
                 ? ComponentRoofSpecialtyDecorator.mansardDormerCount(params) : null;
         if (wantsDormers && mansardDormerCount == null && isLShapedHipFootprint(footprint)) {
             mansardDormerCount = ComponentRoofSpecialtyDecorator.fittedAutomaticDormerCount(
-                    roofShell, baseX, baseZ, width, depth, mansardProfile, params);
+                    roofShell, baseX, rp.y(), baseZ, width, depth, mansardProfile, params);
         }
         if (wantsDormers && (Math.max(width, depth) >= 7 || mansardDormerCount != null)) {
             String trim = getBlockForPart(semantic, palette, SemanticPart.WALL_ACCENT);
