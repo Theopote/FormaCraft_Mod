@@ -380,11 +380,14 @@ public final class PatchOccupancyIndex {
                 boolean gateOnPath = "GATE".equals(type)
                         && prev.writerType() != null
                         && GATE_PATH_SURFACES.contains(prev.writerType());
-                boolean sameSlotRoofJoin = Set.of("ROOF", "ROOF_STRUCTURE").contains(type)
-                        && prev.owner() != null
-                        && java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
-                        && prev.writerType() != null
-                        && prev.writerType().startsWith("MASS");
+                boolean sameSlotRoofJoin = false;
+                if (writer != null) {
+                    sameSlotRoofJoin = Set.of("ROOF", "ROOF_STRUCTURE").contains(type)
+                            && prev.owner() != null
+                            && java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
+                            && prev.writerType() != null
+                            && prev.writerType().startsWith("MASS");
+                }
                 // MASS_SECONDARY may REMOVE (carve) host cells via isHostedMassSecondaryCarve,
                 // but PLACE overwrite still requires a seam/plate/tier join — otherwise interior
                 // tiers and unrelated secondary masses punch through the host body.

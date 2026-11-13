@@ -332,7 +332,21 @@ final class ComponentEmitPass {
                             targetMass.ifPresent(m -> addPortals.accept(
                                     com.formacraft.common.generation.component.util.HostedPlateOccupancy
                                             .bridgePortalRemovals(c, ComponentPlanCompiler.inSlotFrame(m, c.slotId(), slotMap))));
-                            if (!portalClearance.isEmpty()) circulation.add(new AssemblyCirculationConstraints.Flight(Set.of(), portalClearance));
+                            if (!portalClearance.isEmpty()) {
+                                circulation.add(new AssemblyCirculationConstraints.Flight(Set.of(), portalClearance));
+                                // Portal REMOVEs supersede any window expectation on those cells.
+                                for (BlockPos pos : portalClearance) {
+                                    var expected = openingExpectations.get(pos);
+                                    if (expected == null
+                                            || expected.role() != GeneratedSurfaceCapture.Role.WINDOW) {
+                                        continue;
+                                    }
+                                    openingExpectations.put(pos, new OpeningMaterialAudit.Expectation(
+                                            ComponentPlanTypes.paramIdentity(c),
+                                            GeneratedSurfaceCapture.Role.DOOR_OPENING, null));
+                                    generatedSurfaces.remove(pos);
+                                }
+                            }
                         }
                         shiftedPatches.removeIf(p -> {
                             if (BlockPatch.REMOVE.equals(p.action()) && bridge) {
@@ -450,14 +464,17 @@ final class ComponentEmitPass {
 
                     // Commit boundary: patches + ledgers + protected sets together.
                     result.addAll(shiftedPatches);
-                    if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)) {
-                        // An authorized connector opening supersedes the window cells
-                        // it replaces with a landing/support or carved passage.
+                    // Stairs / STRUCTURE access flights may supersede window cells they carve.
+                    if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
+                            || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)
+                            || ("STRUCTURE".equals(normalizedType) && c.params() != null
+                            && (c.params().containsKey("stairs") || c.params().containsKey("circulation_source")))) {
                         for (var patch : shiftedPatches) {
                             var pos = new BlockPos(patch.dx(),patch.dy(),patch.dz());
                             var expected = openingExpectations.get(pos);
-                            if (!connectorAccess.contains(pos) || expected == null
-                                    || expected.role() != GeneratedSurfaceCapture.Role.WINDOW) continue;
+                            if (expected == null || expected.role() != GeneratedSurfaceCapture.Role.WINDOW) continue;
+                            boolean authorized = connectorAccess.contains(pos) || BlockPatch.REMOVE.equals(patch.action());
+                            if (!authorized) continue;
                             if (BlockPatch.REMOVE.equals(patch.action())) {
                                 openingExpectations.put(pos,new OpeningMaterialAudit.Expectation(ComponentPlanTypes.paramIdentity(c),
                                         GeneratedSurfaceCapture.Role.DOOR_OPENING,null));

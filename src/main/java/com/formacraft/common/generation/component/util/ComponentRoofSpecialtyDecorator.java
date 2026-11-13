@@ -247,14 +247,18 @@ public final class ComponentRoofSpecialtyDecorator {
             int width, int depth, MansardProfile profile, Integer count, Map<String, Object> params,
             String trimBlock, String glassBlock, String roofBlock
     ) {
+        if (out == null) return;
         var face = explicitDormerFace(params);
+        if (count == null) {
+            if (Math.max(width, depth) < 7) return;
+            count = fittedAutomaticDormerCount(roofPatches, baseX, baseY, baseZ, width, depth, profile, params);
+        }
         boolean mirrored = face == Direction.SOUTH || face == Direction.EAST;
         if (!mirrored) {
             emitCanonicalDormers(out, roofPatches, baseX, baseY, baseZ, width, depth, profile, count, params,
                     trimBlock, glassBlock, roofBlock);
             return;
         }
-        if (out == null) return;
         boolean alongWidth = face == Direction.SOUTH;
         int mirrorSum = alongWidth ? 2 * baseZ + depth - 1 : 2 * baseX + width - 1;
         var canonicalRoof = reflectedRoof(roofPatches, mirrorSum, alongWidth);
@@ -301,38 +305,26 @@ public final class ComponentRoofSpecialtyDecorator {
 
     private static void emitCanonicalDormers(
             List<BlockPatch> out, List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
-            int width, int depth, MansardProfile profile, Integer count, Map<String, Object> params,
+            int width, int depth, MansardProfile profile, int count, Map<String, Object> params,
             String trimBlock, String glassBlock, String roofBlock
     ) {
-        if (out == null || (count == null && Math.max(width, depth) < 7)) {
-            return;
-        }
+        if (out == null) return;
         int setback = profile.setback();
         // Explicit dormer_axis / dormer_face win; otherwise prefer the longer slope, and when a
         // count is authored pick the axis with the longest continuous fold strip.
         boolean alongWidth = resolveDormerAlongWidth(
                 width, depth, count, roofPatches, baseX, baseY, baseZ, profile, params);
         int majorSpan = alongWidth ? width : depth;
-        int minorSpan = alongWidth ? depth : width;
-        if (count == null && majorSpan < 7) {
-            return;
-        }
         int faceMinor = setback;
         int protrude = 2;
-        List<Integer> centers = count == null
-                ? dormerCenterXs(alongWidth ? baseX : baseZ, majorSpan)
-                : fittedDormerCenters(roofPatches, alongWidth ? baseX : baseZ, majorSpan,
+        List<Integer> centers = fittedDormerCenters(roofPatches, alongWidth ? baseX : baseZ, majorSpan,
                 alongWidth ? baseZ + faceMinor : baseX + faceMinor, setback, count, alongWidth, foldHeights(baseY, profile));
         for (int cMajor : centers) {
             int sampleX = alongWidth ? cMajor : baseX + faceMinor;
             int sampleZ = alongWidth ? baseZ + faceMinor : cMajor;
             int surfaceY = findRoofSurfaceY(roofPatches, sampleX, sampleZ);
-            if (surfaceY == Integer.MIN_VALUE) {
-                int localMajor = alongWidth ? (sampleX - baseX) : (sampleZ - baseZ);
-                int distance = Math.min(Math.min(localMajor, majorSpan - 1 - localMajor),
-                        Math.min(setback, minorSpan - 1 - setback));
-                surfaceY = baseY + profile.riseAt(distance);
-            }
+            if (surfaceY == Integer.MIN_VALUE)
+                throw new IllegalArgumentException("E_ROOF_GEOMETRY_INVALID: dormer requires an occupied fold surface");
             // cMajor is along the long facade; faceMinor is the setback into the slope.
             emitSingleDormer(out, roofPatches, cMajor, surfaceY, alongWidth ? baseZ + faceMinor : baseX + faceMinor,
                     protrude, setback, alongWidth, trimBlock, glassBlock, roofBlock);
@@ -385,7 +377,7 @@ public final class ComponentRoofSpecialtyDecorator {
         return null;
     }
 
-    /** Fit the usual maximum of three automatic dormers to an irregular front fold. */
+    /** Fit at most three automatic dormers to the actual selected fold. */
     public static int fittedAutomaticDormerCount(List<BlockPatch> roofPatches, int baseX, int baseY, int baseZ,
                                                  int width, int depth, MansardProfile profile, Map<String,Object> params) {
         var face = explicitDormerFace(params);
