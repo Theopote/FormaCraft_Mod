@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -92,9 +93,7 @@ final class StackedMassHostBindRepair {
                 || "null".equalsIgnoreCase(String.valueOf(host))) {
             return false;
         }
-        Object rawCount = params.get("floor_count");
-        if (rawCount == null) rawCount = params.get("floorCount");
-        int floors = rawCount instanceof Number n ? n.intValue() : 0;
+        int floors = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
         if (floors <= 1) return false;
         String id = String.valueOf(params.get("component_id")).toLowerCase(Locale.ROOT);
         return id.contains("floor_plate") || id.contains("plate_upper")

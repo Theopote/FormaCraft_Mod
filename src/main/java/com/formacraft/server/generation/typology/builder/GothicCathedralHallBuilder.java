@@ -420,22 +420,23 @@ public final class GothicCathedralHallBuilder {
                                            int w, int d, int yFrom, int yTo, int step,
                                            BlockState wall, BlockState trim, BlockState stairs,
                                            int naveX0, int naveX1) {
-        // Outer stone piers stand OUTSIDE the aisle walls; flying arches lean inward to the nave.
+        // Outer stub outside the shell + aisle response pier just inside the wall (x=1 / w-2);
+        // flying arches spring from the aisle pier across to the nave (not from the outer stub).
         for(int z=4;z<=d-5;z+=step) {
             for(int side=0;side<2;side++) {
-                int outer=side==0?-2:w+1, wallX=side==0?0:w-1, inner=side==0?naveX0:naveX1;
+                int outer=side==0?-2:w+1;
+                int pier=side==0?1:w-2;
+                int inner=side==0?naveX0:naveX1;
                 for(int y=3;y<=yTo+2;y++) {
                     put(blocks,origin,entrance,outer,y,z,wall,null);
-                    put(blocks,origin,entrance,side==0?-1:w,y,z,wall,null);
+                    put(blocks,origin,entrance,pier,y,z,wall,null);
                 }
-                int span=Math.abs(inner-outer), previous=yTo;
+                int span=Math.abs(inner-pier), previous=yTo;
                 for(int i=0;i<=span;i++) {
                     double t=(double)i/Math.max(1,span);
                     int y=yTo+(int)Math.round(2*Math.sin(t*Math.PI/2));
-                    int x=outer+(side==0?i:-i);
-                    if ((side==0 && x>=wallX) || (side==1 && x<=wallX)) {
-                        for(int yy=Math.min(previous,y);yy<=y;yy++) put(blocks,origin,entrance,x,yy,z,trim,null);
-                    }
+                    int x=pier+(side==0?i:-i);
+                    for(int yy=Math.min(previous,y);yy<=y;yy++) put(blocks,origin,entrance,x,yy,z,trim,null);
                     previous=y;
                 }
             }

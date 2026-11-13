@@ -75,23 +75,39 @@ public final class PatchOccupancyIndex {
         if (!com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(writer)
                 || writer.slotId() == null || patches.isEmpty()) return 0;
         long occupied = patches.stream().filter(p -> BlockPatch.PLACE.equals(p.action())).count();
-        long overlap = patches.stream().filter(p -> {
-            if (!BlockPatch.PLACE.equals(p.action())) return false;
+        if (occupied == 0) return 0;
+        long overlap = 0;
+        long sameSlotOverlap = 0;
+        for (BlockPatch p : patches) {
+            if (!BlockPatch.PLACE.equals(p.action())) continue;
             var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
-            return prev != null && prev.owner() != null
-                    && com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner());
-        }).count();
+            if (prev == null || prev.owner() == null
+                    || !com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner())) {
+                continue;
+            }
+            overlap++;
+            if (java.util.Objects.equals(writer.slotId(), prev.owner().slotId())) sameSlotOverlap++;
+        }
         // A small shared edge can be joined; a mostly superimposed building is a layout error.
+        // Same-slot courtyard wings often share a multi-cell abutment wall — still clip the seam
+        // unless the writer is almost entirely inside another mass.
         boolean connector = writer.params() != null && Boolean.TRUE.equals(writer.params().get("compiler_connector_body"));
-        if (occupied == 0 || !connector && overlap * 2 >= occupied) return 0;
+        boolean sameSlotSeam = sameSlotOverlap > 0 && sameSlotOverlap < occupied;
+        if (!connector && !sameSlotSeam && overlap * 2 >= occupied) return 0;
+        if (!connector && sameSlotSeam && sameSlotOverlap * 5 >= occupied * 4) return 0;
         int before = patches.size();
         patches.removeIf(p -> {
             var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
-            return prev != null && prev.owner() != null
-                    && (!java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
-                        || isSculpturalVolume(writer))
-                    && com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner())
-                    && (!BlockPatch.PLACE.equals(p.action()) || !java.util.Objects.equals(canonical(p.targetBlock()), canonical(prev.targetBlock())));
+            if (prev == null || prev.owner() == null) return false;
+            if (!com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(prev.owner())) {
+                return false;
+            }
+            if (BlockPatch.PLACE.equals(p.action())
+                    && java.util.Objects.equals(canonical(p.targetBlock()), canonical(prev.targetBlock()))) {
+                return false;
+            }
+            // Same-slot compound wings / foreign-slot / sculptural — keep the first shell.
+            return true;
         });
         return before - patches.size();
     }
@@ -380,6 +396,7 @@ public final class PatchOccupancyIndex {
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
+                        && !isSameSlotCrownPeerJoin(writer, prev, pos)
                         && !isSoftFoliageOverRail(writer, prev, p.targetBlock())) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
                             type, p.targetBlock(), "unauthorized_place_overwrite"));
@@ -558,6 +575,27 @@ public final class PatchOccupancyIndex {
                         "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE")
                 .contains(writerTypeEarly);
         return hostBoundAccessory;
+    }
+
+    /**
+     * Castle compound spires are hosted on a corner tower but may reseal cells a peer keep/roof
+     * previously claimed inside the crown's own AABB (shared material ownership steal).
+     */
+    private static boolean isSameSlotCrownPeerJoin(Component writer, PlaceRecord previous, BlockPos pos) {
+        if (writer == null || previous == null || previous.owner() == null || pos == null) return false;
+        String wt = writer.componentType() == null ? "" : writer.componentType().toUpperCase(Locale.ROOT);
+        if (!Set.of("CROWN", "CUPOLA", "DOME").contains(wt)) return false;
+        if (!java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
+        String pt = previous.writerType() == null ? "" : previous.writerType();
+        if (!Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "TOWER", "FOUNDATION",
+                "ROOF", "ROOF_STRUCTURE").contains(pt)) {
+            return false;
+        }
+        var crown = com.formacraft.common.generation.component.util.ComponentFootprintUtil.bounds(writer);
+        if (crown == null) return false;
+        return pos.getX() >= crown.minX() && pos.getX() <= crown.maxX()
+                && pos.getY() >= crown.minY() && pos.getY() <= crown.maxY()
+                && pos.getZ() >= crown.minZ() && pos.getZ() <= crown.maxZ();
     }
 
     /**

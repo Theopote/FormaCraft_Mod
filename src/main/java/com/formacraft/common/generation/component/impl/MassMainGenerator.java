@@ -445,6 +445,21 @@ public class MassMainGenerator implements ComponentGenerator {
                         int storeys = 0;
                         if (semantic.source() != null) {
                             storeys = ComponentParamParsers.intParam(semantic.source().params(), "floor_count", "floorCount");
+                            // Hosted MASS_SECONDARY shells only own the deck at local y=0. Replaying
+                            // the host floor_count plants mid-air slabs (e.g. world y=7) that block
+                            // façade windows after the outer glazing is placed.
+                            if (storeys > 1
+                                    && "MASS_SECONDARY".equalsIgnoreCase(semantic.source().componentType())) {
+                                Map<String, Object> massParamsLocal = semantic.source().params();
+                                Object hostRef = massParamsLocal == null ? null : massParamsLocal.get("host_id");
+                                if (hostRef == null && massParamsLocal != null) {
+                                    hostRef = massParamsLocal.get("hostId");
+                                }
+                                if (hostRef != null && !String.valueOf(hostRef).isBlank()
+                                        && !"null".equalsIgnoreCase(String.valueOf(hostRef))) {
+                                    storeys = 1;
+                                }
+                            }
                         }
                         if (y == 0 || storeys > 1 && userFloorHeight > 0 && y % userFloorHeight == 0 && y / userFloorHeight < storeys) {
                             SemanticPart part = SemanticPart.FLOOR;

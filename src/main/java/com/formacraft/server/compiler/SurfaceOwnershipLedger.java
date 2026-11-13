@@ -41,7 +41,9 @@ final class SurfaceOwnershipLedger {
                 && !(host.equals(surface.owner()) && surface.openingCarvable())
                 || surface.role() == GeneratedSurfaceCapture.Role.WALL && !host.equals(surface.owner())
                 || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
-                || surface.role() == GeneratedSurfaceCapture.Role.WINDOW && !surface.source().equals(surface.owner());
+                // Foreign-host glazing (mass-intrinsic or facade) must be clipped, not hard-failed.
+                || surface.role() == GeneratedSurfaceCapture.Role.WINDOW
+                    && (!host.equals(surface.owner()) || !surface.source().equals(surface.owner()));
     }
 
     boolean isProtectedFromEntrance(Component writer, BlockPos position) {

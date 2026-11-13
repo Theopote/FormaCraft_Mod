@@ -88,8 +88,17 @@ public class EntranceGenerator implements ComponentGenerator {
         // Thin 1×N / N×1 strips are the aperture itself — jambs live on the host wall, not
         // inside the strip. A 2-wide terrace door with door_width=2 must open both cells.
         boolean thinShellOpening = (width == 1 && depth > 1) || (depth == 1 && width > 1);
+        boolean platformDoor = params != null && (
+                params.get("platform_connection") != null
+                        || params.get("platformConnection") != null
+                        || Boolean.TRUE.equals(params.get("platform_door"))
+                        || Boolean.TRUE.equals(params.get("platformDoor")));
         int maxDoor = thinShellOpening ? openingSpan : Math.max(1, openingSpan - 1);
-        if (explicitDoorWidth) {
+        // Platform / terrace thin shells: the strip IS the door. Authored door_width may have been
+        // under-clamped (door_width=1 on a 2-wide aperture) — still open the full span.
+        if (thinShellOpening && platformDoor && openingSpan <= 3) {
+            doorWidth = openingSpan;
+        } else if (explicitDoorWidth) {
             // Soft-clamp oversize: keep the entrance rather than aborting the whole building.
             if (requestedDoorWidth > maxDoor) {
                 FormacraftMod.LOGGER.warn(

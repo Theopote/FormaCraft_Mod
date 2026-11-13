@@ -124,6 +124,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         // 生成窗户（通常只在立面，depth 通常为 1）
         for (int y = 0; y < height; y++) {
             if(!com.formacraft.common.generation.component.util.SizedFacadeWindows.floorAllowed(params,y/floorHeight+1)) continue;
+            // Envelope taller than floor_count×floor_height is the roof/cornice attic — do not glaze it
+            // (Style round3 y=7 under a gable leaves spruce soffit behind the pane).
+            if (floorCount > 0 && floorHeight > 0 && y >= floorCount * floorHeight) continue;
             int floorIndex = Math.max(0, y / Math.max(1, floorHeight));
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
@@ -160,10 +163,13 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     }
                     // Three-block storeys only have a one-block clear window band; a two-block
                     // sill and the vertical-strip lintel rule otherwise exclude every cell.
+                    // height+1 keeps the uppermost storey's clear band when it sits on height-1
+                    // (round2 y=5 on h=6); roof/cornice writers must not refill the punched cell.
                     if (!isWindowBand(y, floorCount > 0 ? height + 1 : height, floorHeight, windowAspect,
                             floorCount > 0 && floorHeight >= 4 ? 2 : 1)) {
                         continue;
                     }
+                    int windowHeightLimit = floorCount > 0 ? height + 1 : height;
                     int axis;
                     int axisMax;
                     if (irregularFootprint) {
@@ -228,11 +234,11 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                                     && rhythmPlan.isEntranceBayAxis(axis)) {
                                 continue;
                             }
-                        } else if (!shouldPlaceWindow(axis, y, axisMax, floorCount > 0 ? height + 1 : height, floorHeight, windowSpacing,
+                        } else if (!shouldPlaceWindow(axis, y, axisMax, windowHeightLimit, floorHeight, windowSpacing,
                                 windowRatio, rhythm, windowAspect)) {
                             continue;
                         }
-                    } else if (!shouldPlaceWindow(axis, y, axisMax, floorCount > 0 ? height + 1 : height, floorHeight, windowSpacing,
+                    } else if (!shouldPlaceWindow(axis, y, axisMax, windowHeightLimit, floorHeight, windowSpacing,
                             windowRatio, rhythm, windowAspect)) {
                         continue;
                     }
@@ -241,6 +247,11 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     String block = getBlockForWindow(semantic, palette, part, isLattice, windowStyle);
 
                     int thickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness"));
+                    // Full-mass façades must clear the cell behind the glazing so an inner floor
+                    // plate / second shell cannot leave spruce blockage (Style round3).
+                    if (width > 2 && depth > 2) {
+                        thickness = Math.max(thickness, 2);
+                    }
                     int inwardX;
                     int inwardZ;
                     if (irregularFootprint) {
